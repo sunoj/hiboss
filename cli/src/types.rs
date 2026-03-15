@@ -1,8 +1,7 @@
 // Purpose: Define API-aligned data shapes for hiboss CLI requests and responses.
 // Exports: Message, SendRequest, SendResponse, MessagesResponse, ReplyRequest, StatusUpdate, PollResponse.
-// Dependencies: serde, serde_json, chrono, std::collections::HashMap.
+// Dependencies: serde, serde_json, std::collections::HashMap.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -19,8 +18,8 @@ pub struct Message {
     pub reply_to: Option<String>,
     pub priority: Option<String>,
     pub metadata: Option<HashMap<String, Value>>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
     pub replies: Option<Vec<Message>>,
 }
 
@@ -37,7 +36,7 @@ pub struct SendRequest {
 pub struct SendResponse {
     pub id: String,
     pub status: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

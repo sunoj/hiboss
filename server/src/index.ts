@@ -10,9 +10,9 @@ import { webhooksRouter } from './routes/webhooks';
 
 const app = new Hono<{ Bindings: Env }>({});
 
+app.route('/api/webhooks', webhooksRouter);
 app.route('/api/messages', messagesRouter);
 app.route('/api', adminRouter);
-app.route('/api/webhooks', webhooksRouter);
 
 app.get('/', (c) => c.text('hiboss server'));
 

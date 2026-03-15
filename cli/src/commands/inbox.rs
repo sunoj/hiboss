@@ -3,7 +3,6 @@
 // Dependencies: clap, colored, crate::client, crate::config.
 
 use crate::{client::HiBossClient, config::Config};
-use chrono::Utc;
 use clap::Args;
 use colored::Colorize;
 use std::error::Error;
@@ -27,8 +26,9 @@ pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> R
         let truncated = truncate(body, 60);
         let time_label = message
             .created_at
-            .map(|dt| dt.with_timezone(&Utc).to_rfc3339())
-            .unwrap_or_else(|| "-".to_string());
+            .as_deref()
+            .unwrap_or("-")
+            .to_string();
         println!("{:<10} {:<12} {:<63} {}", id, priority_display, truncated, time_label.dimmed());
     }
     Ok(())
