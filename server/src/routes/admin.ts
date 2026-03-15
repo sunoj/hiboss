@@ -27,6 +27,15 @@ router.post('/keys', async (c) => {
   return c.json({ id: inserted.id, name: inserted.name, key }, 201);
 });
 
+router.get('/keys', async (c) => {
+  const rows = await c.env.DB
+    .prepare('SELECT id, name, created_at, last_used_at FROM api_keys ORDER BY created_at DESC')
+    .all<{ id: string; name: string; created_at: string; last_used_at: string | null }>();
+  return c.json({
+    keys: rows.results ?? [],
+  });
+});
+
 router.get('/channels', async (c) => {
   const agentId = getAgentId(c);
   const rows = await c.env.DB

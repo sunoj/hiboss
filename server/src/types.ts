@@ -29,6 +29,7 @@ export interface MessageRow {
   metadata: string | null;
   created_at: string;
   updated_at: string;
+  agent_name?: string | null;
 }
 
 export interface MessageResponse {
@@ -45,6 +46,7 @@ export interface MessageResponse {
   created_at: string;
   updated_at: string;
   replies?: MessageResponse[];
+  agent_name?: string | null;
 }
 
 export interface ChannelConfigRow {
