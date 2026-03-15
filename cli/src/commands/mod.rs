@@ -4,6 +4,7 @@
 
 pub mod ask;
 pub mod config;
+pub mod init;
 pub mod inbox;
 pub mod read;
 pub mod reply;
