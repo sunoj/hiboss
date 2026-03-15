@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
+import { bootstrapRouter } from './routes/bootstrap';
 import { messagesRouter } from './routes/messages';
 import { webhooksRouter } from './routes/webhooks';
 
@@ -12,6 +13,7 @@ const app = new Hono<{ Bindings: Env }>({});
 
 app.route('/api/webhooks', webhooksRouter);
 app.route('/api/messages', messagesRouter);
+app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);
 
 app.get('/', (c) => c.text('hiboss server'));

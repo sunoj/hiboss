@@ -8,7 +8,7 @@ mod config;
 mod types;
 
 use clap::{Parser, Subcommand};
-use commands::{ask, config as config_cmd, inbox, read, reply, send, status};
+use commands::{ask, config as config_cmd, init, inbox, read, reply, send, status};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -26,6 +26,7 @@ enum Commands {
     Read(read::ReadArgs),
     Reply(reply::ReplyArgs),
     Status(status::StatusArgs),
+    Init(init::InitArgs),
     Config(config_cmd::ConfigArgs),
 }
 
@@ -40,9 +41,16 @@ async fn main() {
 async fn run() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let mut config = config::load_config()?;
-    if let Commands::Config(command) = &cli.command {
-        config_cmd::run(&command.command, &mut config).await?;
-        return Ok(());
+    match &cli.command {
+        Commands::Config(command) => {
+            config_cmd::run(&command.command, &mut config).await?;
+            return Ok(());
+        }
+        Commands::Init(command) => {
+            init::run(command, &mut config).await?;
+            return Ok(());
+        }
+        _ => {}
     }
     let server = config.require_server()?;
     let key = config.require_key()?;
@@ -55,6 +63,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Reply(args) => reply::run(args, &config, &client).await?,
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Config(_) => unreachable!(),
+        Commands::Init(_) => unreachable!(),
     }
     Ok(())
 }
