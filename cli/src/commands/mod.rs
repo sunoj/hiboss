@@ -2,6 +2,7 @@
 // Exports: submodules for send, ask, inbox, read, reply, status, config.
 // Dependencies: none beyond the command modules themselves.
 
+pub mod agent;
 pub mod ask;
 pub mod config;
 pub mod init;

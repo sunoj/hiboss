@@ -10,6 +10,7 @@ use std::collections::HashMap;
 pub struct Message {
     pub id: String,
     pub agent_id: Option<String>,
+    pub agent_name: Option<String>,
     pub direction: Option<String>,
     pub mode: Option<String>,
     pub channel: Option<String>,
@@ -43,6 +44,26 @@ pub struct SendResponse {
 pub struct MessagesResponse {
     pub messages: Vec<Message>,
     pub total: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateAgentResponse {
+    pub id: String,
+    pub name: String,
+    pub key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentInfo {
+    pub id: String,
+    pub name: String,
+    pub created_at: Option<String>,
+    pub last_used_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentsResponse {
+    pub keys: Vec<AgentInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

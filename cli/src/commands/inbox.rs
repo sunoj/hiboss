@@ -17,19 +17,20 @@ pub struct InboxArgs {
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let response = client.list_messages(!args.all, args.all, args.limit).await?;
-    println!("{:<10} {:<12} {:<63} {}", "ID", "Priority", "Body", "Time");
+    println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
     for message in response.messages {
         let id = short_id(&message.id);
+        let agent = message.agent_name.as_deref().unwrap_or("-");
         let priority = message.priority.as_deref().unwrap_or("normal");
         let priority_display = color_priority(priority);
         let body = message.body.as_deref().unwrap_or("-");
-        let truncated = truncate(body, 60);
+        let truncated = truncate(body, 47);
         let time_label = message
             .created_at
             .as_deref()
             .unwrap_or("-")
             .to_string();
-        println!("{:<10} {:<12} {:<63} {}", id, priority_display, truncated, time_label.dimmed());
+        println!("{:<10} {:<16} {:<12} {:<50} {}", id, agent.cyan(), priority_display, truncated, time_label.dimmed());
     }
     Ok(())
 }
