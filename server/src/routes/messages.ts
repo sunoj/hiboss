@@ -120,14 +120,31 @@ routes.post('/:id/reply', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
+  const replyDirection: Direction = parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'boss_to_agent', 'async', parent.channel, body, 'sent', 'normal', parent.id)
+    .bind(agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
+  }
+  if (replyDirection === 'agent_to_boss' && parent.channel) {
+    try {
+      const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
+      const agentName = await fetchAgentName(c.env, agentId);
+      const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
+      const delivered = await deliverToChannel(channelConfig.channel, channelConfig.config, formattedBody);
+      if (delivered) {
+        await c.env.DB
+          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
+          .bind(inserted.id)
+          .run();
+      }
+    } catch {
+      // Channel delivery failed — message is still stored.
+    }
   }
   await c.env.DB
     .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
@@ -279,11 +296,20 @@ async function deliverToChannel(channel: Channel, config: Record<string, unknown
 }
 
 async function fetchMessageRow(env: Env, agentId: string, messageId: string) {
-  return env.DB
+  const exact = await env.DB
     .prepare(
       'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? AND messages.agent_id = ?'
     )
     .bind(messageId, agentId)
+    .first<MessageRow>();
+  if (exact) {
+    return exact;
+  }
+  return env.DB
+    .prepare(
+      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id LIKE ? AND messages.agent_id = ? LIMIT 1'
+    )
+    .bind(`${messageId}%`, agentId)
     .first<MessageRow>();
 }
 
