@@ -8,7 +8,7 @@ mod config;
 mod types;
 
 use clap::{Parser, Subcommand};
-use commands::{agent, ask, config as config_cmd, init, inbox, read, reply, send, status};
+use commands::{agent, ask, channel, config as config_cmd, init, inbox, read, reply, send, status};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -29,6 +29,7 @@ enum Commands {
     Agent(agent::AgentArgs),
     Init(init::InitArgs),
     Config(config_cmd::ConfigArgs),
+    Channel(channel::ChannelArgs),
 }
 
 #[tokio::main]
@@ -64,6 +65,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Reply(args) => reply::run(args, &config, &client).await?,
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
+        Commands::Channel(args) => channel::run(args, &config, &client).await?,
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
     }

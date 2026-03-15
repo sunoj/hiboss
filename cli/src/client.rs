@@ -2,8 +2,9 @@
 // Exports: HiBossClient and its methods for messaging workflows.
 // Dependencies: reqwest, serde_json, crate::types, std::error::Error.
 
-use crate::types::{AgentsResponse, CreateAgentResponse, Message, MessagesResponse, PollResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate};
+use crate::types::{AgentsResponse, ChannelsResponse, CreateAgentResponse, Message, MessagesResponse, PollResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate};
 use reqwest::Client;
+use serde_json::Value;
 use std::error::Error;
 
 pub struct HiBossClient {
@@ -113,6 +114,27 @@ impl HiBossClient {
         let resp = self
             .http
             .get(format!("{}/api/keys", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn set_channel(&self, channel: &str, config: &Value) -> Result<Value, Box<dyn Error>> {
+        let resp = self
+            .http
+            .put(format!("{}/api/channels/{}", self.base_url, channel))
+            .bearer_auth(&self.api_key)
+            .json(config)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn list_channels(&self) -> Result<ChannelsResponse, Box<dyn Error>> {
+        let resp = self
+            .http
+            .get(format!("{}/api/channels", self.base_url))
             .bearer_auth(&self.api_key)
             .send()
             .await?;
