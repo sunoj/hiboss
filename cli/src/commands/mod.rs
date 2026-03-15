@@ -4,6 +4,7 @@
 
 pub mod agent;
 pub mod ask;
+pub mod channel;
 pub mod config;
 pub mod init;
 pub mod inbox;
@@ -11,3 +12,4 @@ pub mod read;
 pub mod reply;
 pub mod send;
 pub mod status;
+pub mod watch;

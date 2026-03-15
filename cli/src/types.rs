@@ -67,6 +67,20 @@ pub struct AgentsResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ChannelInfo {
+    pub id: String,
+    pub channel: String,
+    pub config: Value,
+    pub enabled: bool,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChannelsResponse {
+    pub channels: Vec<ChannelInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReplyRequest {
     pub body: String,
 }
