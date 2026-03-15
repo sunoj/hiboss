@@ -2,7 +2,7 @@
 // Exports: HiBossClient and its methods for messaging workflows.
 // Dependencies: reqwest, serde_json, crate::types, std::error::Error.
 
-use crate::types::{Message, MessagesResponse, PollResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate};
+use crate::types::{AgentsResponse, CreateAgentResponse, Message, MessagesResponse, PollResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate};
 use reqwest::Client;
 use std::error::Error;
 
@@ -93,6 +93,27 @@ impl HiBossClient {
             .post(format!("{}/api/messages/{}/poll", self.base_url, id))
             .bearer_auth(&self.api_key)
             .query(&[("timeout", timeout.to_string())])
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn create_agent(&self, name: &str) -> Result<CreateAgentResponse, Box<dyn Error>> {
+        let resp = self
+            .http
+            .post(format!("{}/api/keys", self.base_url))
+            .bearer_auth(&self.api_key)
+            .json(&serde_json::json!({ "name": name }))
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn list_agents(&self) -> Result<AgentsResponse, Box<dyn Error>> {
+        let resp = self
+            .http
+            .get(format!("{}/api/keys", self.base_url))
+            .bearer_auth(&self.api_key)
             .send()
             .await?;
         Self::parse_response(resp).await
