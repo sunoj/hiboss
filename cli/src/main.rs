@@ -8,7 +8,7 @@ mod config;
 mod types;
 
 use clap::{Parser, Subcommand};
-use commands::{agent, ask, channel, config as config_cmd, init, inbox, read, reply, send, status, watch};
+use commands::{agent, ask, bot, channel, config as config_cmd, init, inbox, read, reply, send, status, watch};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -20,16 +20,29 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    #[command(about = "Send an async message to your boss")]
     Send(send::SendArgs),
+    #[command(about = "Send a blocking message and wait for boss reply")]
     Ask(ask::AskArgs),
+    #[command(about = "List messages from your boss")]
     Inbox(inbox::InboxArgs),
+    #[command(about = "Read a specific message with its reply chain")]
     Read(read::ReadArgs),
+    #[command(about = "Reply to a message from your boss")]
     Reply(reply::ReplyArgs),
+    #[command(about = "Check the status of a sent message")]
     Status(status::StatusArgs),
+    #[command(about = "Manage agent identities")]
     Agent(agent::AgentArgs),
+    #[command(about = "Auto-reply to messages using an external handler")]
+    Bot(bot::BotArgs),
+    #[command(about = "Watch for new messages with desktop notifications")]
     Watch(watch::WatchArgs),
+    #[command(about = "Initialize hiboss with a server URL")]
     Init(init::InitArgs),
+    #[command(about = "Manage local configuration")]
     Config(config_cmd::ConfigArgs),
+    #[command(about = "Configure messaging channels (Discord, Telegram)")]
     Channel(channel::ChannelArgs),
 }
 
@@ -67,6 +80,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
         Commands::Channel(args) => channel::run(args, &config, &client).await?,
+        Commands::Bot(args) => bot::run(args, &config, &client).await?,
         Commands::Watch(args) => watch::run(args, &config, &client).await?,
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),

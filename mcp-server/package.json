@@ -7,8 +7,9 @@
     "hiboss-mcp": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsx"
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",
