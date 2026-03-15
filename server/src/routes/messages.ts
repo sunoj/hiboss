@@ -62,8 +62,10 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
+  const agentName = await fetchAgentName(c.env, agentId);
   try {
-    const delivered = await deliverToChannel(channel, config, body);
+    const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
+    const delivered = await deliverToChannel(channel, config, formattedBody);
     if (delivered) {
       await c.env.DB
         .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
@@ -88,7 +90,9 @@ routes.get('/', async (c) => {
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
   const { where, binds } = buildFilters(agentId, direction, status);
   const rows = await c.env.DB
-    .prepare(`SELECT * FROM messages WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+    .prepare(
+      `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`
+    )
     .bind(...binds, limit, offset)
     .all<MessageRow>();
   const countRow = await c.env.DB
@@ -275,14 +279,18 @@ async function deliverToChannel(channel: Channel, config: Record<string, unknown
 
 async function fetchMessageRow(env: Env, agentId: string, messageId: string) {
   return env.DB
-    .prepare('SELECT * FROM messages WHERE id = ? AND agent_id = ?')
+    .prepare(
+      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? AND messages.agent_id = ?'
+    )
     .bind(messageId, agentId)
     .first<MessageRow>();
 }
 
 async function fetchReplies(env: Env, parentId: string) {
   const result = await env.DB
-    .prepare('SELECT * FROM messages WHERE reply_to = ? ORDER BY created_at ASC')
+    .prepare(
+      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE reply_to = ? ORDER BY messages.created_at ASC'
+    )
     .bind(parentId)
     .all<MessageRow>();
   return (result.results ?? []).map(mapMessageRow);
@@ -295,6 +303,18 @@ async function fetchMessageWithReplies(env: Env, agentId: string, messageId: str
   }
   const replyList = await fetchReplies(env, row.id);
   return { ...mapMessageRow(row), replies: replyList };
+}
+
+function formatAgentMessage(name: string, body: string): string {
+  return `[${name}] ${body}`;
+}
+
+async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
+  const row = await env.DB
+    .prepare('SELECT name FROM api_keys WHERE id = ?')
+    .bind(agentId)
+    .first<{ name: string }>();
+  return row?.name ?? null;
 }
 
 function delay(ms: number): Promise<void> {
