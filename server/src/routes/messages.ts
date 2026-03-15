@@ -44,14 +44,10 @@ routes.post('/', async (c) => {
   let channelConfig: { channel: Channel; config: Record<string, unknown> } | null = null;
   try {
     channelConfig = await selectChannelConfig(c.env, agentId, requestedChannel);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'channel lookup failed';
-    return c.text(message, 400);
+  } catch {
+    // No channel configured — message will be stored without delivery.
   }
-  if (!channelConfig) {
-    return c.text('channel lookup failed', 400);
-  }
-  const { channel, config } = channelConfig;
+  const channel = channelConfig?.channel ?? requestedChannel ?? null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   const inserted = await c.env.DB
     .prepare(
@@ -62,19 +58,21 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
-  const agentName = await fetchAgentName(c.env, agentId);
-  try {
-    const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
-    const delivered = await deliverToChannel(channel, config, formattedBody);
-    if (delivered) {
-      await c.env.DB
-        .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
-        .bind(inserted.id)
-        .run();
+  if (channelConfig) {
+    const agentName = await fetchAgentName(c.env, agentId);
+    try {
+      const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
+      const delivered = await deliverToChannel(channelConfig.channel, channelConfig.config, formattedBody);
+      if (delivered) {
+        await c.env.DB
+          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
+          .bind(inserted.id)
+          .run();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'delivery failure';
+      return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'delivery failure';
-    return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
   }
   return c.json({ id: inserted.id, status: inserted.status, created_at: inserted.created_at }, 201);
 });
