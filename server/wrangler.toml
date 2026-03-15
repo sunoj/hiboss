@@ -5,4 +5,4 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "hiboss-db"
-database_id = "placeholder-will-be-replaced"
+database_id = "5640bc74-e03a-4746-aa10-ae7025078f24"
