@@ -8,6 +8,7 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
   }
+  await sendTelegramTyping(config.bot_token, config.chat_id);
   const response = await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`,
     {
@@ -20,4 +21,15 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
     const payload = await response.text();
     throw new Error(`telegram send failed ${response.status} ${payload}`);
   }
+}
+
+export async function sendTelegramTyping(botToken: string, chatId: string): Promise<void> {
+  await fetch(
+    `https://api.telegram.org/bot${encodeURIComponent(botToken)}/sendChatAction`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
+    }
+  );
 }

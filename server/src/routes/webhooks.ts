@@ -4,6 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env, MessageResponse, MessageRow } from '../types';
+import { sendTelegramTyping } from '../channels/telegram';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -55,14 +56,23 @@ router.post('/telegram', async (c) => {
   if (!chatId || !text) {
     return c.text('missing chat or body', 400);
   }
-  const agentRow = await c.env.DB
+  const configRow = await c.env.DB
     .prepare(
-      "SELECT agent_id FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?"
+      "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?"
     )
     .bind(chatId)
-    .first<{ agent_id: string }>();
-  if (!agentRow) {
+    .first<{ agent_id: string; config: string }>();
+  if (!configRow) {
     return c.text('no agent for chat', 404);
+  }
+  const agentRow = configRow;
+  try {
+    const parsed = JSON.parse(configRow.config) as Record<string, string>;
+    if (parsed.bot_token) {
+      c.executionCtx.waitUntil(sendTelegramTyping(parsed.bot_token, chatId));
+    }
+  } catch {
+    // typing indicator is best-effort
   }
   const inserted = await c.env.DB
     .prepare(
