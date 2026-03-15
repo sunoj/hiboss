@@ -8,7 +8,7 @@ mod config;
 mod types;
 
 use clap::{Parser, Subcommand};
-use commands::{agent, ask, channel, config as config_cmd, init, inbox, read, reply, send, status};
+use commands::{agent, ask, channel, config as config_cmd, init, inbox, read, reply, send, status, watch};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -27,6 +27,7 @@ enum Commands {
     Reply(reply::ReplyArgs),
     Status(status::StatusArgs),
     Agent(agent::AgentArgs),
+    Watch(watch::WatchArgs),
     Init(init::InitArgs),
     Config(config_cmd::ConfigArgs),
     Channel(channel::ChannelArgs),
@@ -66,6 +67,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
         Commands::Channel(args) => channel::run(args, &config, &client).await?,
+        Commands::Watch(args) => watch::run(args, &config, &client).await?,
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
     }
