@@ -247,20 +247,23 @@ function clampNumber(value: string | null | undefined, fallback: number, maximum
 }
 
 async function selectChannelConfig(env: Env, agentId: string, requested?: Channel) {
-  const clauses = ['agent_id = ?', 'enabled = 1'];
-  const binds: (string | number)[] = [agentId];
   if (requested) {
-    clauses.push('channel = ?');
-    binds.push(requested);
+    const exact = await env.DB
+      .prepare("SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1 AND channel = ? LIMIT 1")
+      .bind(agentId, requested)
+      .first<{ channel: Channel; config: string }>();
+    if (exact) {
+      return { channel: exact.channel, config: JSON.parse(exact.config) as Record<string, unknown> };
+    }
   }
-  const row = await env.DB
-    .prepare(`SELECT channel, config FROM channel_configs WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC LIMIT 1`)
-    .bind(...binds)
+  const fallback = await env.DB
+    .prepare("SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1 ORDER BY created_at DESC LIMIT 1")
+    .bind(agentId)
     .first<{ channel: Channel; config: string }>();
-  if (!row) {
+  if (!fallback) {
     throw new Error('no channel configured');
   }
-  return { channel: row.channel, config: JSON.parse(row.config) as Record<string, unknown> };
+  return { channel: fallback.channel, config: JSON.parse(fallback.config) as Record<string, unknown> };
 }
 
 async function deliverToChannel(channel: Channel, config: Record<string, unknown>, body: string): Promise<boolean> {
