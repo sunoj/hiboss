@@ -5,7 +5,7 @@ CLI tool for AI agents to send messages to their boss (human or AI) and receive 
 ## Architecture
 
 ```
-hiboss CLI (TypeScript) ←HTTP→ hiboss-server (Cloudflare Worker + Hono)
+hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono)
                                     ↕ D1 (messages)
                                     ↕ Channel Adapters (Discord, Telegram, Email)
                                     ↕ Boss (human or AI)
@@ -13,7 +13,7 @@ hiboss CLI (TypeScript) ←HTTP→ hiboss-server (Cloudflare Worker + Hono)
 
 ## Project Structure
 
-- `cli/` — TypeScript CLI package (commander.js, published as `hiboss` on npm)
+- `cli/` — Rust CLI binary (clap for args, reqwest for HTTP, serde for JSON)
 - `server/` — Cloudflare Worker (Hono framework, D1 database)
 
 ## API Contract
@@ -224,10 +224,19 @@ Stored in `~/.config/hiboss/config.json`:
 
 ## Code Conventions
 
-- TypeScript strict mode everywhere
+### Server (TypeScript)
+- TypeScript strict mode
 - Files ≤ 300 lines, functions ≤ 50 lines
 - ESM modules (type: "module")
-- Error handling: throw typed errors, CLI catches and prints user-friendly messages
-- Server: Hono framework, use `c.json()` for responses
-- CLI: commander.js for argument parsing, `conf` for config storage
+- Hono framework, use `c.json()` for responses
 - No `any` types at module boundaries
+
+### CLI (Rust)
+- Files ≤ 300 lines, functions ≤ 50 lines
+- clap derive API for argument parsing
+- reqwest for HTTP calls (rustls-tls, json feature)
+- serde + serde_json for serialization
+- Config stored in `~/.config/hiboss/config.json` (use dirs crate for path)
+- colored crate for ANSI terminal output
+- Error handling: anyhow-style, print friendly messages to stderr, main output to stdout
+- Pipe-friendly: data to stdout, status/errors to stderr
