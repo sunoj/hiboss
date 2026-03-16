@@ -16,7 +16,7 @@ import type {
 } from '../types';
 import { sendDiscordMessage } from '../channels/discord';
 import {
-  escapeMarkdownV2,
+  escapeHtml,
   formatTelegramAgentMessage,
   isImageUrl,
   sendTelegramDocument,
@@ -249,7 +249,7 @@ export async function deliverToChannelWithOptions(
     const tgConfig = requireTelegramConfig(config);
     const tgBody = formatTelegramAgentMessage(agentName, body);
     if (fileUrl) {
-      const caption = escapeMarkdownV2(`[${agentName}] ${body}`);
+      const caption = escapeHtml(`[${agentName}] ${body}`);
       if (isImageUrl(fileUrl)) {
         await sendTelegramPhoto(tgConfig, fileUrl, caption);
       } else {
