@@ -4,7 +4,14 @@ CLI tool for AI agents to send messages to their boss (human or AI) and receive 
 
 ## Agent Instructions
 
-When this project's Claude Code session starts, the SessionStart hook checks for unread boss messages via `hiboss inbox`. If `HIBOSS_UNREAD_COUNT` is set and > 0, you have pending messages from the boss. Read them with `hiboss inbox` and address them before starting other work. Use `hiboss reply <id> "response"` to reply, or `hiboss send "message"` to send new messages. Always notify the boss of major progress via `hiboss send`.
+When this project's Claude Code session starts, the SessionStart hook checks for unread boss messages via `hiboss inbox`. If there are unread messages, handle them before starting other work. Use `hiboss reply <id> "response"` to reply, or `hiboss send "message"` to send new messages. Always notify the boss of major progress via `hiboss send`.
+
+**Before finishing**: When you are about to complete your current task and have no more work to do, you MUST ask the boss for next steps instead of stopping:
+1. Summarize what you accomplished
+2. Propose 2-4 concrete next directions based on context (e.g. roadmap items, open issues, improvements)
+3. Send via: `hiboss ask --options "Option A,Option B,Option C" "Summary of work done. What should I do next?"`
+4. Wait for the boss's reply and continue working on the selected direction
+5. Only stop if the boss explicitly says to stop, or if the ask times out with no reply
 
 ## Architecture
 

@@ -82,6 +82,22 @@ export async function answerCallbackQuery(botToken: string, callbackQueryId: str
   );
 }
 
+export async function editMessageReplyMarkup(botToken: string, chatId: string, messageId: number, text: string): Promise<void> {
+  await fetch(
+    `https://api.telegram.org/bot${encodeURIComponent(botToken)}/editMessageText`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        reply_markup: { inline_keyboard: [] },
+      }),
+    }
+  );
+}
+
 export async function setTelegramReaction(botToken: string, chatId: string, messageId: number, emoji: string): Promise<void> {
   await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(botToken)}/setMessageReaction`,

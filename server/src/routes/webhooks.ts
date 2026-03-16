@@ -4,7 +4,7 @@
 
 import { Hono, Context } from 'hono';
 import type { Env, MessageResponse, MessageRow } from '../types';
-import { sendTelegramTyping, setTelegramReaction, answerCallbackQuery } from '../channels/telegram';
+import { sendTelegramTyping, setTelegramReaction, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -141,11 +141,18 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
-  // Acknowledge the button press
+  // Acknowledge the button press and update message to show selection
   try {
     const parsed = JSON.parse(configRow.config) as Record<string, string>;
     if (parsed.bot_token && queryId) {
       c.executionCtx.waitUntil(answerCallbackQuery(parsed.bot_token, queryId, `Selected: ${selectedOption}`));
+      const originalMsgId = chatMsg?.['message_id'] as number | undefined;
+      const originalText = (chatMsg?.['text'] as string) ?? '';
+      if (originalMsgId) {
+        c.executionCtx.waitUntil(
+          editMessageReplyMarkup(parsed.bot_token, chatId, originalMsgId, `${originalText}\n\n✅ Selected: ${selectedOption}`)
+        );
+      }
     }
   } catch {
     // best-effort
