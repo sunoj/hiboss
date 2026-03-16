@@ -26,6 +26,7 @@ export interface MessageRow {
   status: Status;
   reply_to: string | null;
   priority: Priority;
+  type: string | null;
   metadata: string | null;
   created_at: string;
   updated_at: string;
@@ -42,6 +43,7 @@ export interface MessageResponse {
   status: Status;
   reply_to: string | null;
   priority: Priority;
+  type: string | null;
   metadata: Metadata;
   created_at: string;
   updated_at: string;

@@ -14,6 +14,8 @@ pub struct SendArgs {
     pub channel: Option<String>,
     #[arg(long, help = "URL of file/image to attach")]
     pub file_url: Option<String>,
+    #[arg(long = "type", help = "Message type (e.g. task_update, approval_request)")]
+    pub message_type: Option<String>,
     #[arg(value_name = "body")]
     pub body: String,
 }
@@ -28,6 +30,7 @@ pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Res
         metadata: None,
         options: None,
         file_url: args.file_url.clone(),
+        message_type: args.message_type.clone(),
     };
     let response = client.send_message(&request).await?;
     eprintln!("Message sent");
