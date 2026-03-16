@@ -107,6 +107,21 @@ export async function editMessageReplyMarkup(botToken: string, chatId: string, m
   );
 }
 
+export async function removeInlineKeyboard(botToken: string, chatId: string, messageId: number): Promise<void> {
+  await fetch(
+    `https://api.telegram.org/bot${encodeURIComponent(botToken)}/editMessageReplyMarkup`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: { inline_keyboard: [] },
+      }),
+    }
+  );
+}
+
 export async function sendTelegramPhoto(config: TelegramChannelConfig, photoUrl: string, caption?: string, options?: SendOptions): Promise<number | undefined> {
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
