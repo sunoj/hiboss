@@ -77,14 +77,29 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_stop() -> Result<(), Box<dyn Error>> {
-    println!("MANDATORY before stopping:");
-    println!("1. Run: hiboss send \"<summary of what you did>. Awaiting next instructions.\"");
-    println!("2. Then poll for boss reply in background: run `hiboss inbox --count` with Bash run_in_background every 30s");
-    println!("3. When a new message arrives, read it with `hiboss inbox` and execute the boss's instructions");
-    println!("Do NOT stop the session. Keep waiting for the boss to reply.");
-    let count = get_inbox_count();
-    if count > 0 {
-        println!("WARNING: You have {} unread boss messages. Handle them before stopping: hiboss inbox", count);
+    // Ask the boss if they want to continue, block the hook until reply or timeout
+    let output = Command::new("hiboss")
+        .args([
+            "ask", "--options", "Continue,New task,Stop",
+            "--timeout", "120",
+            "Agent session is about to end. What would you like to do?\n\n1. Continue — keep working on current task\n2. New task — give me a new task\n3. Stop — end the session",
+        ])
+        .output();
+    match output {
+        Ok(out) => {
+            let reply = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if reply.is_empty() || reply.len() == 32 {
+                // No reply (timeout) — just a message ID returned
+                println!("Boss did not reply within 2 minutes. Session ending.");
+            } else {
+                println!("Boss says: {}", reply);
+                println!("IMPORTANT: Do NOT stop. Execute the boss's instruction above.");
+            }
+        }
+        Err(_) => {
+            // hiboss failed — don't block the session
+            println!("Could not reach boss. Session ending.");
+        }
     }
     Ok(())
 }
