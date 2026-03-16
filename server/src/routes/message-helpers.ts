@@ -12,8 +12,8 @@ import type {
   Priority,
   Status,
 } from '../types';
-import { removeInlineKeyboard } from '../channels/telegram';
-import { requireTelegramConfig as _requireTelegramConfig } from './delivery';
+import { editMessageReplyMarkup } from '../channels/telegram';
+import { requireTelegramConfig as _requireTelegramConfig, formatAgentMessage as _formatAgentMessage } from './delivery';
 export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 export type { DeliveryResult } from './delivery';
 
@@ -222,7 +222,9 @@ export async function cleanupInlineKeyboard(env: Env, agentId: string, message: 
   if (message.channel !== 'telegram' || !tgMsgId) return;
   const cc = await selectChannelConfig(env, agentId, 'telegram');
   const tgConfig = _requireTelegramConfig(cc.config);
-  await removeInlineKeyboard(tgConfig.bot_token, tgConfig.chat_id, tgMsgId);
+  const agentName = await fetchAgentName(env, agentId) ?? 'agent';
+  const expiredText = _formatAgentMessage(agentName, message.body) + '\n\n⏰ Options expired';
+  await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
 }
 
 export function resolveChannelRouting(routingJson: string, priority: string): Channel | undefined {
