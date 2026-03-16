@@ -264,7 +264,11 @@ export async function deliverToChannelWithOptions(
 }
 
 export function extractTelegramMessageId(metadata: string | null): number | undefined {
-  const meta = safeParse(metadata) as Record<string, unknown> | null;
-  const msg = meta?.['message'] as Record<string, unknown> | undefined;
-  return msg?.['message_id'] as number | undefined;
+  const meta = safeParse(metadata);
+  if (!meta || typeof meta !== 'object') return undefined;
+  const record = meta as Record<string, unknown>;
+  const msg = record['message'];
+  if (!msg || typeof msg !== 'object') return undefined;
+  const id = (msg as Record<string, unknown>)['message_id'];
+  return typeof id === 'number' ? id : undefined;
 }

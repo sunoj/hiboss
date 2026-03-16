@@ -34,14 +34,18 @@ pub async fn run(args: &BotArgs, config: &Config, client: &HiBossClient) -> Resu
     let sse_key = key;
 
     tokio::spawn(async move {
+        let mut backoff = 5u64;
         loop {
             eprintln!("Connecting to SSE stream...");
-            if let Err(e) = sse::connect_sse(&sse_client, &sse_url, &sse_key, tx.clone()).await {
-                eprintln!("SSE error: {}, reconnecting in 5s...", e);
-            } else {
-                eprintln!("SSE stream closed, reconnecting in 5s...");
+            match sse::connect_sse(&sse_client, &sse_url, &sse_key, tx.clone()).await {
+                Err(e) => eprintln!("SSE error: {}, retrying in {}s...", e, backoff),
+                Ok(_) => {
+                    backoff = 5;
+                    eprintln!("SSE stream closed, reconnecting in 5s...");
+                }
             }
-            sleep(Duration::from_secs(5)).await;
+            sleep(Duration::from_secs(backoff)).await;
+            backoff = (backoff * 2).min(60);
         }
     });
 
