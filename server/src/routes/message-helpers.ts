@@ -4,7 +4,6 @@
 
 import type {
   Channel,
-  DiscordChannelConfig,
   Direction,
   Env,
   MessageResponse,
@@ -12,17 +11,9 @@ import type {
   Metadata,
   Priority,
   Status,
-  TelegramChannelConfig,
 } from '../types';
-import { sendDiscordMessage } from '../channels/discord';
-import {
-  escapeHtml,
-  formatTelegramAgentMessage,
-  isImageUrl,
-  sendTelegramDocument,
-  sendTelegramMessage,
-  sendTelegramPhoto,
-} from '../channels/telegram';
+export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
+export type { DeliveryResult } from './delivery';
 
 const channelOptions: Channel[] = ['discord', 'telegram', 'email'];
 export const priorityOptions: Priority[] = ['critical', 'high', 'normal', 'low'];
@@ -143,24 +134,6 @@ export async function fetchAllChannelConfigs(env: Env, agentId: string) {
   }));
 }
 
-export async function deliverReply(
-  channel: Channel,
-  config: Record<string, unknown>,
-  agentName: string,
-  body: string,
-  replyToTelegramId?: number,
-): Promise<DeliveryResult> {
-  if (channel === 'discord') {
-    await sendDiscordMessage(requireDiscordConfig(config), formatAgentMessage(agentName, body));
-    return { delivered: true };
-  }
-  if (channel === 'telegram') {
-    const tgBody = formatTelegramAgentMessage(agentName, body);
-    const telegramMessageId = await sendTelegramMessage(requireTelegramConfig(config), tgBody, { replyToMessageId: replyToTelegramId });
-    return { delivered: true, telegramMessageId };
-  }
-  return { delivered: false };
-}
 
 export async function fetchMessageRow(env: Env, agentId: string, messageId: string) {
   const exact = await env.DB
@@ -199,9 +172,6 @@ export async function fetchMessageWithReplies(env: Env, agentId: string, message
   return { ...mapMessageRow(row), replies: replyList };
 }
 
-export function formatAgentMessage(name: string, body: string): string {
-  return `[${name}] ${body}`;
-}
 
 export async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
   const row = await env.DB
@@ -215,42 +185,6 @@ export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function deliverWithRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 1,
-  delayMs: number = 2000,
-): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastError = err;
-      if (attempt < maxRetries) {
-        await delay(delayMs);
-      }
-    }
-  }
-  throw lastError;
-}
-
-export function requireDiscordConfig(config: Record<string, unknown>): DiscordChannelConfig {
-  const channelId = config['channel_id'];
-  const token = config['bot_token'];
-  if (typeof channelId !== 'string' || typeof token !== 'string') {
-    throw new Error('discord config malformed');
-  }
-  return { channel_id: channelId, bot_token: token };
-}
-
-export function requireTelegramConfig(config: Record<string, unknown>): TelegramChannelConfig {
-  const chatId = config['chat_id'];
-  const token = config['bot_token'];
-  if (typeof chatId !== 'string' || typeof token !== 'string') {
-    throw new Error('telegram config malformed');
-  }
-  return { chat_id: chatId, bot_token: token };
-}
 
 export function parseOptions(value: unknown): string[] | undefined {
   if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
@@ -264,40 +198,6 @@ export function parseOptions(value: unknown): string[] | undefined {
 
 export function buildInlineKeyboard(messageId: string, options: string[]): { text: string; callback_data: string }[][] {
   return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 8)}:${opt}` }]);
-}
-
-export type DeliveryResult = { delivered: false } | { delivered: true; telegramMessageId?: number };
-
-export async function deliverToChannelWithOptions(
-  channel: Channel,
-  config: Record<string, unknown>,
-  agentName: string,
-  body: string,
-  inlineKeyboard?: { text: string; callback_data: string }[][],
-  fileUrl?: string,
-): Promise<DeliveryResult> {
-  if (channel === 'discord') {
-    const discordBody = formatAgentMessage(agentName, body);
-    await sendDiscordMessage(requireDiscordConfig(config), fileUrl ? `${discordBody}\n${fileUrl}` : discordBody);
-    return { delivered: true };
-  }
-  if (channel === 'telegram') {
-    const tgConfig = requireTelegramConfig(config);
-    const tgBody = formatTelegramAgentMessage(agentName, body);
-    let telegramMessageId: number | undefined;
-    if (fileUrl) {
-      const caption = escapeHtml(`[${agentName}] ${body}`);
-      if (isImageUrl(fileUrl)) {
-        telegramMessageId = await sendTelegramPhoto(tgConfig, fileUrl, caption);
-      } else {
-        telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, caption);
-      }
-    } else {
-      telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard });
-    }
-    return { delivered: true, telegramMessageId };
-  }
-  return { delivered: false };
 }
 
 export function extractTelegramMessageId(metadata: string | null): number | undefined {
