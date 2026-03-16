@@ -195,9 +195,12 @@ Request (telegram):
 
 ```bash
 # Setup
+hiboss init https://hiboss-server.<user>.workers.dev  # bootstrap first key
 hiboss config set server https://hiboss-server.<user>.workers.dev
 hiboss config set key <api-key>
 hiboss config set channel discord   # default channel
+hiboss setup hooks                  # configure Claude Code hooks
+hiboss setup hooks --remove         # remove hiboss hooks
 
 # Send (async)
 hiboss send "Deployment complete. 3 tests failed."
