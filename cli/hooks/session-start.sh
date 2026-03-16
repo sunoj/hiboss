@@ -1,32 +1,17 @@
 #!/bin/bash
-# hiboss SessionStart hook — injects unread boss messages into Claude Code session.
-# Writes HIBOSS_UNREAD env var via CLAUDE_ENV_FILE so the agent sees pending messages.
+# hiboss SessionStart hook — outputs unread boss messages to stdout.
+# stdout is injected into agent context as <system-reminder> by Claude Code.
 
-if [ -z "$CLAUDE_ENV_FILE" ]; then
-  exit 0
-fi
-
-# Check if hiboss CLI is available
 if ! command -v hiboss &>/dev/null; then
   exit 0
 fi
 
-# Fetch unread messages (returns empty if no config or no messages)
-unread=$(hiboss inbox 2>/dev/null)
-if [ -z "$unread" ]; then
-  exit 0
-fi
+count=$(hiboss inbox --count 2>/dev/null)
 
-# Count non-header lines (messages)
-msg_count=$(echo "$unread" | tail -n +2 | grep -c .)
-if [ "$msg_count" -eq 0 ]; then
-  exit 0
+if [ -n "$count" ] && [ "$count" -gt 0 ] 2>/dev/null; then
+  echo "You have $count unread boss messages:"
+  hiboss inbox 2>/dev/null
+  echo "Handle these messages before starting other work. Use 'hiboss reply <id> \"response\"' to reply."
 fi
-
-# Inject as environment variable for the session
-cat >> "$CLAUDE_ENV_FILE" <<ENVEOF
-export HIBOSS_UNREAD_COUNT="$msg_count"
-export HIBOSS_UNREAD="$(echo "$unread" | sed 's/"/\\"/g')"
-ENVEOF
 
 exit 0
