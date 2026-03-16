@@ -17,3 +17,5 @@ pub mod status;
 pub mod hook;
 pub mod setup;
 pub mod watch;
+pub mod route;
+pub mod group;
