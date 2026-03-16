@@ -285,6 +285,7 @@ Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Onl
 
 ### Telegram Delivery Indicators
 - 👀 reaction on boss message → message received by server
+- 🔨 reaction on boss message → agent started working (message marked as read)
 - ✅ reaction on boss message → agent has replied
 
 ## Roadmap
