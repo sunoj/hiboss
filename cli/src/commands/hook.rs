@@ -23,12 +23,15 @@ pub enum HookEvent {
     SessionStart,
     #[command(about = "Check urgent messages (TTL-cached, 5 min)")]
     PostToolUse,
+    #[command(about = "No-op (kept for backward compatibility)")]
+    Stop,
 }
 
 pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
     let _ = match &args.event {
         HookEvent::SessionStart => run_session_start(),
         HookEvent::PostToolUse => run_post_tool_use(),
+        HookEvent::Stop => Ok(()),
     };
     Ok(())
 }
