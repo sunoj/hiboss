@@ -13,6 +13,7 @@ import type {
   Status,
 } from '../types';
 import { removeInlineKeyboard } from '../channels/telegram';
+import { requireTelegramConfig as _requireTelegramConfig } from './delivery';
 export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 export type { DeliveryResult } from './delivery';
 
@@ -220,7 +221,7 @@ export async function cleanupInlineKeyboard(env: Env, agentId: string, message: 
   const tgMsgId = extractTelegramMessageId(message.metadata);
   if (message.channel !== 'telegram' || !tgMsgId) return;
   const cc = await selectChannelConfig(env, agentId, 'telegram');
-  const tgConfig = requireTelegramConfig(cc.config);
+  const tgConfig = _requireTelegramConfig(cc.config);
   await removeInlineKeyboard(tgConfig.bot_token, tgConfig.chat_id, tgMsgId);
 }
 

@@ -4,6 +4,7 @@
 
 pub mod agent;
 pub mod ask;
+pub mod boss;
 pub mod bot;
 pub mod channel;
 pub mod config;

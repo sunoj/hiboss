@@ -1,0 +1,200 @@
+// CRUD and access management for boss identities.
+// Exports bossesRouter mounted at /api/bosses.
+// Depends on Hono, auth middleware, and D1 bindings.
+
+import { Hono } from 'hono';
+import type { Env } from '../types';
+import { apiAuth, getAgentId } from '../middleware/auth';
+
+type BossRole = 'admin' | 'manager' | 'viewer';
+
+interface BossRow {
+  id: string;
+  name: string;
+  role: BossRole;
+  telegram_user_id: string | null;
+  discord_user_id: string | null;
+  created_at: string;
+}
+
+interface AgentRow {
+  id: string;
+  name: string;
+}
+
+const VALID_ROLES: BossRole[] = ['admin', 'manager', 'viewer'];
+
+const routes = new Hono<{ Bindings: Env }>({});
+routes.use('*', apiAuth);
+
+routes.get('/', async (c) => {
+  void getAgentId(c);
+  const rows = await c.env.DB
+    .prepare(
+      'SELECT b.*, GROUP_CONCAT(ba.agent_id) AS agent_ids FROM bosses b LEFT JOIN boss_agent_access ba ON ba.boss_id = b.id GROUP BY b.id ORDER BY b.created_at DESC'
+    )
+    .all<BossRow & { agent_ids: string | null }>();
+  const bosses = (rows.results ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    telegram_user_id: row.telegram_user_id,
+    discord_user_id: row.discord_user_id,
+    created_at: row.created_at,
+    agent_ids: row.agent_ids ? row.agent_ids.split(',').filter(Boolean) : [],
+  }));
+  return c.json({ bosses });
+});
+
+routes.post('/', async (c) => {
+  void getAgentId(c);
+  const payload = await c.req.json<Record<string, unknown>>();
+  const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+  if (!name) {
+    return c.text('name is required', 400);
+  }
+  const role = typeof payload.role === 'string' && VALID_ROLES.includes(payload.role as BossRole) ? (payload.role as BossRole) : 'admin';
+  const telegramInput = typeof payload.telegram_user_id === 'string' ? payload.telegram_user_id.trim() : null;
+  const telegramUserId = telegramInput === '' ? null : telegramInput;
+  const discordInput = typeof payload.discord_user_id === 'string' ? payload.discord_user_id.trim() : null;
+  const discordUserId = discordInput === '' ? null : discordInput;
+  const inserted = await c.env.DB
+    .prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id) VALUES (?, ?, ?, ?) RETURNING *')
+    .bind(name, role, telegramUserId, discordUserId)
+    .first<BossRow>();
+  if (!inserted) {
+    return c.text('failed to create boss', 500);
+  }
+  return c.json(inserted, 201);
+});
+
+routes.get('/:id', async (c) => {
+  void getAgentId(c);
+  const bossId = c.req.param('id');
+  const boss = await findBoss(c.env, bossId);
+  if (!boss) {
+    return c.text('not found', 404);
+  }
+  const agents = await c.env.DB
+    .prepare('SELECT k.id, k.name FROM boss_agent_access ba JOIN api_keys k ON k.id = ba.agent_id WHERE ba.boss_id = ?')
+    .bind(boss.id)
+    .all<AgentRow>();
+  return c.json({ ...boss, agents: agents.results ?? [] });
+});
+
+routes.patch('/:id', async (c) => {
+  void getAgentId(c);
+  const bossId = c.req.param('id');
+  const boss = await findBoss(c.env, bossId);
+  if (!boss) {
+    return c.text('not found', 404);
+  }
+  const payload = await c.req.json<Record<string, unknown>>();
+  const updates: string[] = [];
+  const binds: (string | null)[] = [];
+  if ('name' in payload && typeof payload.name === 'string') {
+    const candidate = payload.name.trim();
+    if (!candidate) {
+      return c.text('name is required', 400);
+    }
+    updates.push('name = ?');
+    binds.push(candidate);
+  }
+  if ('role' in payload && typeof payload.role === 'string') {
+    if (!VALID_ROLES.includes(payload.role as BossRole)) {
+      return c.text('invalid role', 400);
+    }
+    updates.push('role = ?');
+    binds.push(payload.role as BossRole);
+  }
+  if ('telegram_user_id' in payload) {
+    if (payload.telegram_user_id === null) {
+      updates.push('telegram_user_id = NULL');
+    } else if (typeof payload.telegram_user_id === 'string') {
+      const candidate = payload.telegram_user_id.trim();
+      updates.push('telegram_user_id = ?');
+      binds.push(candidate === '' ? null : candidate);
+    } else {
+      return c.text('telegram_user_id must be a string or null', 400);
+    }
+  }
+  if ('discord_user_id' in payload) {
+    if (payload.discord_user_id === null) {
+      updates.push('discord_user_id = NULL');
+    } else if (typeof payload.discord_user_id === 'string') {
+      const candidate = payload.discord_user_id.trim();
+      updates.push('discord_user_id = ?');
+      binds.push(candidate === '' ? null : candidate);
+    } else {
+      return c.text('discord_user_id must be a string or null', 400);
+    }
+  }
+  if (updates.length === 0) {
+    return c.text('no valid fields to update', 400);
+  }
+  binds.push(bossId);
+  await c.env.DB
+    .prepare(`UPDATE bosses SET ${updates.join(', ')} WHERE id = ?`)
+    .bind(...binds)
+    .run();
+  const updated = await findBoss(c.env, bossId);
+  if (!updated) {
+    return c.text('not found', 404);
+  }
+  return c.json(updated);
+});
+
+routes.delete('/:id', async (c) => {
+  void getAgentId(c);
+  const bossId = c.req.param('id');
+  const result = await c.env.DB
+    .prepare('DELETE FROM bosses WHERE id = ?')
+    .bind(bossId)
+    .run();
+  if (!result.meta.changes || result.meta.changes === 0) {
+    return c.text('not found', 404);
+  }
+  return c.json({ ok: true });
+});
+
+routes.post('/:id/access', async (c) => {
+  void getAgentId(c);
+  const bossId = c.req.param('id');
+  const boss = await findBoss(c.env, bossId);
+  if (!boss) {
+    return c.text('boss not found', 404);
+  }
+  const payload = await c.req.json<Record<string, unknown>>();
+  const agentId = typeof payload.agent_id === 'string' ? payload.agent_id : '';
+  if (!agentId) {
+    return c.text('agent_id is required', 400);
+  }
+  await c.env.DB
+    .prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+    .bind(boss.id, agentId)
+    .run();
+  return c.json({ ok: true }, 201);
+});
+
+routes.delete('/:id/access/:agentId', async (c) => {
+  void getAgentId(c);
+  const bossId = c.req.param('id');
+  const agentId = c.req.param('agentId');
+  const result = await c.env.DB
+    .prepare('DELETE FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?')
+    .bind(bossId, agentId)
+    .run();
+  if (!result.meta.changes || result.meta.changes === 0) {
+    return c.text('not found', 404);
+  }
+  return c.json({ ok: true });
+});
+
+export const bossesRouter = routes;
+
+async function findBoss(env: Env, id: string): Promise<BossRow | null> {
+  return env.DB
+    .prepare('SELECT * FROM bosses WHERE id = ?')
+    .bind(id)
+    .first<BossRow>();
+}

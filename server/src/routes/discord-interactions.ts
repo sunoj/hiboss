@@ -10,6 +10,7 @@ interface DiscordInteractionPayload {
   type: number;
   data?: DiscordInteractionData;
   channel_id?: string;
+  member?: { user?: { id?: string } };
 }
 
 interface DiscordInteractionData {
@@ -79,11 +80,17 @@ async function handleApplicationCommand(
   if (!agentRow) {
     return c.json({ type: 4, data: { content: 'No agent configured for this channel.', flags: 64 } });
   }
+  const discordUserId = payload.member?.user?.id;
+  const bossCheck = await checkBossPermission(c.env, 'discord', discordUserId ? String(discordUserId) : undefined, agentRow.agent_id, false);
+  if (bossCheck.error) {
+    return c.json({ type: 4, data: { content: bossCheck.error, flags: 64 } });
+  }
+  const meta = bossCheck.boss ? { ...payload as Record<string, unknown>, boss_id: bossCheck.boss.id, boss_name: bossCheck.boss.name } : payload;
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', JSON.stringify(payload))
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', JSON.stringify(meta))
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
@@ -113,6 +120,11 @@ async function handleMessageComponent(
   const agentRow = await findDiscordAgent(c.env, channelId);
   if (!agentRow) {
     return c.json({ type: 4, data: { content: 'No agent configured for this channel.', flags: 64 } });
+  }
+  const btnUserId = payload.member?.user?.id;
+  const btnBossCheck = await checkBossPermission(c.env, 'discord', btnUserId ? String(btnUserId) : undefined, agentRow.agent_id, true);
+  if (btnBossCheck.error) {
+    return c.json({ type: 4, data: { content: btnBossCheck.error, flags: 64 } });
   }
   const parentMsg = await c.env.DB
     .prepare('SELECT id, metadata FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
@@ -215,6 +227,27 @@ function hexToUint8Array(hex: string): Uint8Array {
     array[i / 2] = parseInt(evened.slice(i, i + 2), 16);
   }
   return array;
+}
+
+async function checkBossPermission(
+  env: Env,
+  channel: 'discord' | 'telegram',
+  userId: string | undefined,
+  agentId: string,
+  allowViewer: boolean
+): Promise<{ boss: { id: string; name: string; role: string } | null; error?: string }> {
+  const countRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM bosses').first<{ total: number }>();
+  if ((countRow?.total ?? 0) === 0) return { boss: null };
+  if (!userId) return { boss: null, error: 'Unknown sender' };
+  const col = channel === 'telegram' ? 'telegram_user_id' : 'discord_user_id';
+  const boss = await env.DB.prepare(`SELECT id, name, role FROM bosses WHERE ${col} = ? LIMIT 1`).bind(userId).first<{ id: string; name: string; role: string }>();
+  if (!boss) return { boss: null, error: 'Unknown sender' };
+  if (!allowViewer && boss.role === 'viewer') return { boss: null, error: 'Viewer cannot send messages' };
+  if (boss.role !== 'admin') {
+    const access = await env.DB.prepare('SELECT 1 AS ok FROM boss_agent_access WHERE boss_id = ? AND agent_id = ? LIMIT 1').bind(boss.id, agentId).first<{ ok: number }>();
+    if (!access) return { boss: null, error: 'No access to this agent' };
+  }
+  return { boss };
 }
 
 router.post('/register-commands', async (c) => {
