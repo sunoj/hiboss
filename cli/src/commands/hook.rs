@@ -42,7 +42,7 @@ fn run_session_start() -> Result<(), Box<dyn Error>> {
     println!("2. When blocked or need input, run: hiboss ask \"<your question>\"");
     println!("3. Reply to boss messages with: hiboss reply <id> \"<response>\"");
     println!("4. Check inbox with: hiboss inbox");
-    println!("IMPORTANT: Failing to report progress via hiboss send is a failure to communicate. Always notify the boss.");
+    println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" --timeout 300 (run_in_background), then WAIT for boss reply.");
 
     let count = get_inbox_count();
     if count > 0 {
@@ -50,7 +50,7 @@ fn run_session_start() -> Result<(), Box<dyn Error>> {
         if let Ok(out) = Command::new("hiboss").args(["inbox", "--ack"]).output() {
             print!("{}", String::from_utf8_lossy(&out.stdout));
         }
-        println!("Handle these messages before starting other work. Use 'hiboss reply <id> \"response\"' to reply.");
+        println!("Handle these messages first. Reply with: hiboss reply <id> \"response\"");
     }
     Ok(())
 }
