@@ -46,6 +46,8 @@ pub struct ChannelSetArgs {
     pub chat_id: Option<String>,
     #[arg(long)]
     pub webhook_url: Option<String>,
+    #[arg(long)]
+    pub avatar_url: Option<String>,
 }
 
 pub async fn run(args: &ChannelArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -60,7 +62,11 @@ async fn run_set(args: &ChannelSetArgs, config: &Config, client: &HiBossClient) 
     let config_payload = match args.channel {
         ChannelKind::Discord => {
             if let Some(ref url) = args.webhook_url {
-                json!({ "webhook_url": url })
+                let mut cfg = json!({ "webhook_url": url });
+                if let Some(ref avatar) = args.avatar_url {
+                    cfg["avatar_url"] = json!(avatar);
+                }
+                cfg
             } else {
                 let channel_id = args.channel_id.as_deref()
                     .ok_or_else(|| required_arg("discord needs --webhook-url or --bot-token + --channel-id"))?;

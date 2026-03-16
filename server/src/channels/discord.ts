@@ -4,9 +4,14 @@
 
 import type { DiscordChannelConfig } from '../types';
 
-export async function sendDiscordMessage(config: DiscordChannelConfig, content: string): Promise<void> {
+export interface DiscordSendOptions {
+  username?: string;
+  avatarUrl?: string;
+}
+
+export async function sendDiscordMessage(config: DiscordChannelConfig, content: string, options?: DiscordSendOptions): Promise<void> {
   if (config.webhook_url) {
-    return sendViaWebhook(config.webhook_url, content);
+    return sendViaWebhook(config.webhook_url, content, options);
   }
   if (config.bot_token && config.channel_id) {
     return sendViaBot(config.bot_token, config.channel_id, content);
@@ -14,15 +19,18 @@ export async function sendDiscordMessage(config: DiscordChannelConfig, content: 
   throw new Error('discord config incomplete: need webhook_url or bot_token+channel_id');
 }
 
-async function sendViaWebhook(webhookUrl: string, content: string): Promise<void> {
+async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions): Promise<void> {
+  const payload: Record<string, string> = { content };
+  if (options?.username) payload.username = options.username;
+  if (options?.avatarUrl) payload.avatar_url = options.avatarUrl;
   const response = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    const payload = await response.text();
-    throw new Error(`discord webhook failed ${response.status} ${payload}`);
+    const body = await response.text();
+    throw new Error(`discord webhook failed ${response.status} ${body}`);
   }
 }
 
@@ -36,7 +44,7 @@ async function sendViaBot(botToken: string, channelId: string, content: string):
     body: JSON.stringify({ content }),
   });
   if (!response.ok) {
-    const payload = await response.text();
-    throw new Error(`discord send failed ${response.status} ${payload}`);
+    const body = await response.text();
+    throw new Error(`discord send failed ${response.status} ${body}`);
   }
 }
