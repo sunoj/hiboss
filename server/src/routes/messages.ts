@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Channel, Direction, Env, MessageRow, Mode, Priority, Status } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { setTelegramReaction } from '../channels/telegram';
+import { notifyBossAgents } from '../notify';
 import {
   buildFilters,
   buildInlineKeyboard,
@@ -150,6 +151,10 @@ routes.post('/', async (c) => {
       const message = error instanceof Error ? error.message : 'delivery failure';
       return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
     }
+  }
+  // Notify boss-agents for API channel messages (agent-as-boss)
+  if (channel === 'api') {
+    c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));
   }
   return c.json({ id: inserted.id, status: inserted.status, created_at: inserted.created_at }, 201);
 });

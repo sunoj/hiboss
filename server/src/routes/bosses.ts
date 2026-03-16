@@ -14,6 +14,7 @@ interface BossRow {
   role: BossRole;
   telegram_user_id: string | null;
   discord_user_id: string | null;
+  agent_id: string | null;
   created_at: string;
 }
 
@@ -40,6 +41,7 @@ routes.get('/', async (c) => {
     role: row.role,
     telegram_user_id: row.telegram_user_id,
     discord_user_id: row.discord_user_id,
+    agent_id: row.agent_id,
     created_at: row.created_at,
     agent_ids: row.agent_ids ? row.agent_ids.split(',').filter(Boolean) : [],
   }));
@@ -58,9 +60,11 @@ routes.post('/', async (c) => {
   const telegramUserId = telegramInput === '' ? null : telegramInput;
   const discordInput = typeof payload.discord_user_id === 'string' ? payload.discord_user_id.trim() : null;
   const discordUserId = discordInput === '' ? null : discordInput;
+  const agentIdInput = typeof payload.agent_id === 'string' ? payload.agent_id.trim() : null;
+  const bossAgentId = agentIdInput === '' ? null : agentIdInput;
   const inserted = await c.env.DB
-    .prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id) VALUES (?, ?, ?, ?) RETURNING *')
-    .bind(name, role, telegramUserId, discordUserId)
+    .prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id, agent_id) VALUES (?, ?, ?, ?, ?) RETURNING *')
+    .bind(name, role, telegramUserId, discordUserId, bossAgentId)
     .first<BossRow>();
   if (!inserted) {
     return c.text('failed to create boss', 500);
@@ -127,6 +131,17 @@ routes.patch('/:id', async (c) => {
       binds.push(candidate === '' ? null : candidate);
     } else {
       return c.text('discord_user_id must be a string or null', 400);
+    }
+  }
+  if ('agent_id' in payload) {
+    if (payload.agent_id === null) {
+      updates.push('agent_id = NULL');
+    } else if (typeof payload.agent_id === 'string') {
+      const candidate = payload.agent_id.trim();
+      updates.push('agent_id = ?');
+      binds.push(candidate === '' ? null : candidate);
+    } else {
+      return c.text('agent_id must be a string or null', 400);
     }
   }
   if (updates.length === 0) {

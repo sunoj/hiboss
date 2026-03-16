@@ -15,6 +15,7 @@ import { attachmentsRouter } from './routes/attachments';
 import { discordInteractionsRouter } from './routes/discord-interactions';
 import { webhooksRouter } from './routes/webhooks';
 import { bossesRouter } from './routes/bosses';
+import { bossInboxRouter } from './routes/boss-inbox';
 import { auditRouter } from './routes/audit';
 
 const app = new Hono<{ Bindings: Env }>({});
@@ -28,6 +29,7 @@ app.route('/api/messages', messagesRouter);
 app.route('/api/routing-rules', routingRouter);
 app.route('/api/groups', groupsRouter);
 app.route('/api/bosses', bossesRouter);
+app.route('/api/boss/inbox', bossInboxRouter);
 app.route('/api/audit', auditRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);

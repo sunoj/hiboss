@@ -267,6 +267,49 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
+    pub async fn boss_inbox(&self, unread: bool, limit: u32, priority: Option<&str>, count_only: bool) -> Result<Value, Box<dyn Error>> {
+        let mut request = self.http
+            .get(format!("{}/api/boss/inbox", self.base_url))
+            .bearer_auth(&self.api_key)
+            .query(&[("limit", limit.to_string())]);
+        if unread {
+            request = request.query(&[("unread", "true")]);
+        }
+        if let Some(p) = priority {
+            request = request.query(&[("priority", p)]);
+        }
+        if count_only {
+            request = request.query(&[("count", "true")]);
+        }
+        let resp = request.send().await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn boss_read(&self, id: &str) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .get(format!("{}/api/boss/inbox/{}", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn boss_reply(&self, id: &str, body: &str) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .post(format!("{}/api/boss/inbox/{}/reply", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .json(&serde_json::json!({ "body": body }))
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn boss_mark_read(&self, id: &str) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .patch(format!("{}/api/boss/inbox/{}", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .json(&serde_json::json!({ "status": "read" }))
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
     pub(crate) async fn parse_response<T: serde::de::DeserializeOwned>(resp: reqwest::Response) -> Result<T, Box<dyn Error>> {
         if resp.status().is_success() {
             let parsed = resp.json::<T>().await?;
