@@ -18,7 +18,7 @@ import type {
 } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { sendDiscordMessage } from '../channels/discord';
-import { sendTelegramMessage } from '../channels/telegram';
+import { sendTelegramMessage, setTelegramReaction } from '../channels/telegram';
 
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
@@ -142,6 +142,9 @@ routes.post('/:id/reply', async (c) => {
           .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
           .bind(inserted.id)
           .run();
+      }
+      if (parent.channel === 'telegram') {
+        c.executionCtx.waitUntil(markTelegramReplied(channelConfig.config, parent.metadata));
       }
     } catch {
       // Channel delivery failed — message is still stored.
@@ -382,4 +385,13 @@ function requireTelegramConfig(config: Record<string, unknown>): TelegramChannel
     throw new Error('telegram config malformed');
   }
   return { chat_id: chatId, bot_token: token };
+}
+
+async function markTelegramReplied(channelConfig: Record<string, unknown>, parentMetadata: string | null): Promise<void> {
+  const tgConfig = requireTelegramConfig(channelConfig);
+  const meta = safeParse(parentMetadata) as Record<string, unknown> | null;
+  const msg = meta?.['message'] as Record<string, unknown> | undefined;
+  const messageId = msg?.['message_id'] as number | undefined;
+  if (!messageId) return;
+  await setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, messageId, '✅');
 }

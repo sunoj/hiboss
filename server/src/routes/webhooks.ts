@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env, MessageResponse, MessageRow } from '../types';
-import { sendTelegramTyping } from '../channels/telegram';
+import { sendTelegramTyping, setTelegramReaction } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -68,13 +68,16 @@ router.post('/telegram', async (c) => {
     return c.text('no agent for chat', 404);
   }
   const agentRow = configRow;
+  const telegramMessageId = message?.['message_id'] as number | undefined;
+  let botToken: string | undefined;
   try {
     const parsed = JSON.parse(configRow.config) as Record<string, string>;
-    if (parsed.bot_token) {
-      c.executionCtx.waitUntil(sendTelegramTyping(parsed.bot_token, chatId));
-    }
+    botToken = parsed.bot_token;
   } catch {
-    // typing indicator is best-effort
+    // config parse is best-effort
+  }
+  if (botToken && telegramMessageId) {
+    c.executionCtx.waitUntil(setTelegramReaction(botToken, chatId, telegramMessageId, '👀'));
   }
   const inserted = await c.env.DB
     .prepare(

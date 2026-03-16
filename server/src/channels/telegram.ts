@@ -33,3 +33,18 @@ export async function sendTelegramTyping(botToken: string, chatId: string): Prom
     }
   );
 }
+
+export async function setTelegramReaction(botToken: string, chatId: string, messageId: number, emoji: string): Promise<void> {
+  await fetch(
+    `https://api.telegram.org/bot${encodeURIComponent(botToken)}/setMessageReaction`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        reaction: [{ type: 'emoji', emoji }],
+      }),
+    }
+  );
+}
