@@ -30,6 +30,7 @@ pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Resu
         channel,
         metadata: None,
         options,
+        file_url: None,
     };
     let submission = client.send_message(&request).await?;
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
