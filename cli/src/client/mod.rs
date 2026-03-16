@@ -136,6 +136,83 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
+    pub async fn list_bosses(&self) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .get(format!("{}/api/bosses", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn create_boss(&self, body: &Value) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .post(format!("{}/api/bosses", self.base_url))
+            .bearer_auth(&self.api_key)
+            .json(body)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn get_boss(&self, id: &str) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .get(format!("{}/api/bosses/{}", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn update_boss(&self, id: &str, body: &Value) -> Result<Value, Box<dyn Error>> {
+        let resp = self.http
+            .patch(format!("{}/api/bosses/{}", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .json(body)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn delete_boss(&self, id: &str) -> Result<(), Box<dyn Error>> {
+        let resp = self.http
+            .delete(format!("{}/api/bosses/{}", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            Err(format!("request failed ({}): {}", status, body).into())
+        }
+    }
+    pub async fn grant_boss_access(&self, boss_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
+        let resp = self.http
+            .post(format!("{}/api/bosses/{}/access", self.base_url, boss_id))
+            .bearer_auth(&self.api_key)
+            .json(&serde_json::json!({ "agent_id": agent_id }))
+            .send()
+            .await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            Err(format!("request failed ({}): {}", status, body).into())
+        }
+    }
+    pub async fn revoke_boss_access(&self, boss_id: &str, agent_id: &str) -> Result<(), Box<dyn Error>> {
+        let resp = self.http
+            .delete(format!("{}/api/bosses/{}/access/{}", self.base_url, boss_id, agent_id))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            Err(format!("request failed ({}): {}", status, body).into())
+        }
+    }
     pub async fn get_agent_config(&self) -> Result<Value, Box<dyn Error>> {
         let resp = self.http
             .get(format!("{}/api/agents/me", self.base_url))

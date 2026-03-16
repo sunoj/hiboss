@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
+use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -53,6 +53,8 @@ enum Commands {
     Route(route::RouteArgs),
     #[command(about = "Manage agent groups for broadcast messaging")]
     Group(group::GroupArgs),
+    #[command(about = "Manage boss identities and permissions")]
+    Boss(boss::BossArgs),
 }
 
 #[tokio::main]
@@ -114,6 +116,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Watch(args) => watch::run(args, &config, &client).await?,
         Commands::Route(args) => route::run(args, &config, &client).await?,
         Commands::Group(args) => group::run(args, &config, &client).await?,
+        Commands::Boss(args) => boss::run(args, &config, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Setup(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
