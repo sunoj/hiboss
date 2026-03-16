@@ -1,0 +1,243 @@
+[[tasks]]
+agent = "codex"
+prompt = """
+In the hiboss CLI project at /Users/mingsun/Develop/ai/hiboss/cli/, add a new `hook` subcommand module.
+
+Create file: cli/src/commands/hook.rs
+
+This command runs Claude Code hook logic. It does NOT need server/key config (runs standalone).
+
+```rust
+use clap::{Args, Subcommand};
+use std::error::Error;
+use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+#[derive(Debug, Args)]
+pub struct HookArgs {
+    #[command(subcommand)]
+    pub event: HookEvent,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum HookEvent {
+    #[command(about = "Check unread messages at session start")]
+    SessionStart,
+    #[command(about = "Check urgent messages (TTL-cached, 5 min)")]
+    PostToolUse,
+    #[command(about = "Remind about unread messages before stopping")]
+    Stop,
+}
+```
+
+Implementation:
+
+1. `session_start`: Run `hiboss inbox --count` by executing self as child process. If count > 0, run `hiboss inbox` and print results. Always exit 0. Catch all errors silently.
+
+Actually, DON'T shell out to self. Instead, accept an optional --server and --key flag OR read the config file directly. The simplest approach: just read ~/.config/hiboss/config.json and use reqwest to make HTTP calls inline.
+
+But actually the SIMPLEST approach that works: use std::process::Command to run `hiboss inbox --count` and `hiboss inbox` as child processes. This reuses existing CLI logic without duplication. The hook subcommand is just an orchestrator.
+
+session_start:
+```rust
+fn run_session_start() {
+    let count = get_inbox_count();
+    if count > 0 {
+        println!("You have {} unread boss messages:", count);
+        // Run hiboss inbox and print its stdout
+        let output = std::process::Command::new("hiboss").args(["inbox"]).output();
+        if let Ok(out) = output {
+            print!("{}", String::from_utf8_lossy(&out.stdout));
+        }
+        println!("Handle these messages before starting other work. Use 'hiboss reply <id> \"response\"' to reply.");
+    }
+}
+```
+
+post_tool_use (with TTL):
+```rust
+fn run_post_tool_use() {
+    let ttl_file = "/tmp/hiboss-urgent-check";
+    let ttl_seconds: u64 = 300;
+
+    // Check TTL
+    if let Ok(content) = fs::read_to_string(ttl_file) {
+        if let Ok(last_check) = content.trim().parse::<u64>() {
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+            if now - last_check < ttl_seconds {
+                return; // Skip, checked recently
+            }
+        }
+    }
+
+    // Write TTL early to prevent retry storms
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let _ = fs::write(ttl_file, now.to_string());
+
+    // Check urgent messages
+    let count = get_priority_inbox_count("critical,high");
+    if count > 0 {
+        println!("URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high", count);
+    }
+}
+```
+
+stop:
+```rust
+fn run_stop() {
+    let count = get_inbox_count();
+    if count > 0 {
+        println!("You have {} unread boss messages. Run 'hiboss inbox' and handle them before finishing.", count);
+    } else {
+        println!("[hiboss] No unread boss messages.");
+    }
+}
+```
+
+Helper:
+```rust
+fn get_inbox_count() -> u32 {
+    let output = std::process::Command::new("hiboss")
+        .args(["inbox", "--count"])
+        .output()
+        .ok();
+    output.and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse().ok()).unwrap_or(0)
+}
+
+fn get_priority_inbox_count(priority: &str) -> u32 {
+    let output = std::process::Command::new("hiboss")
+        .args(["inbox", "--priority", priority, "--count"])
+        .output()
+        .ok();
+    output.and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse().ok()).unwrap_or(0)
+}
+```
+
+The run() function should:
+- Match on HookEvent and call the appropriate function
+- ALWAYS return Ok(()) — hooks must never fail
+- Wrap everything in catch-all error handling
+
+IMPORTANT: This command must work without server/key config being set — if config is missing, silently do nothing (exit 0).
+"""
+dir = "."
+context = ["cli/src/commands/inbox.rs", "cli/src/main.rs", "cli/src/commands/mod.rs"]
+
+[[tasks]]
+agent = "codex"
+prompt = """
+In the hiboss CLI project at /Users/mingsun/Develop/ai/hiboss/cli/, add a `setup` subcommand that configures Claude Code hooks.
+
+Create file: cli/src/commands/setup.rs
+
+This command modifies the project's `.claude/settings.json` to add hiboss hooks. It must handle existing user hooks gracefully.
+
+```rust
+use clap::Args;
+use std::error::Error;
+
+#[derive(Debug, Args)]
+pub struct SetupArgs {
+    #[command(subcommand)]
+    pub command: SetupCommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum SetupCommand {
+    #[command(about = "Configure Claude Code hooks for hiboss")]
+    Hooks(SetupHooksArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct SetupHooksArgs {
+    #[arg(long, help = "Project directory (default: current dir)")]
+    pub dir: Option<String>,
+    #[arg(long, help = "Remove hiboss hooks instead of adding")]
+    pub remove: bool,
+}
+```
+
+Implementation of `run_setup_hooks`:
+
+1. Determine the project dir (--dir flag or current working directory)
+2. Read `<project_dir>/.claude/settings.json` if it exists, or start with empty `{}`
+3. Parse as serde_json::Value
+4. For each hook event (SessionStart, PostToolUse, Stop):
+   - The hiboss hook command is: `hiboss hook session-start`, `hiboss hook post-tool-use`, `hiboss hook stop`
+   - Navigate to hooks -> <EventName> (array of matcher objects)
+   - Check if a hiboss hook already exists (command contains "hiboss hook")
+   - If --remove: remove the hiboss hook entry, clean up empty arrays
+   - If adding: append a new entry: `{"matcher": "", "hooks": [{"type": "command", "command": "hiboss hook <event-name>"}]}`
+   - NEVER remove or modify existing non-hiboss hooks
+5. Create `.claude/` directory if needed
+6. Write back the JSON (pretty-printed with 2-space indent)
+7. Print what was done:
+   - "Added hiboss hooks to .claude/settings.json" or
+   - "Removed hiboss hooks from .claude/settings.json" or
+   - "hiboss hooks already configured in .claude/settings.json"
+
+Use serde_json for JSON manipulation. The settings.json structure is:
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {"matcher": "", "hooks": [{"type": "command", "command": "some-existing-hook"}]},
+      {"matcher": "", "hooks": [{"type": "command", "command": "hiboss hook session-start"}]}
+    ],
+    "PostToolUse": [...],
+    "Stop": [...]
+  }
+}
+```
+
+Each event key maps to an ARRAY of matcher objects. Each matcher has a "matcher" string and "hooks" array. We append a new matcher object for hiboss, we don't modify existing ones.
+
+CRITICAL: Preserve existing hooks. Only add/remove hiboss-specific entries (commands containing "hiboss hook").
+"""
+dir = "."
+context = ["cli/src/main.rs", "cli/src/commands/mod.rs", "cli/Cargo.toml"]
+
+[[tasks]]
+agent = "codex"
+prompt = """
+In the hiboss CLI project at /Users/mingsun/Develop/ai/hiboss/cli/, wire up the new `hook` and `setup` subcommands in main.rs and mod.rs.
+
+Modify these files:
+
+1. cli/src/commands/mod.rs — add:
+```rust
+pub mod hook;
+pub mod setup;
+```
+
+2. cli/src/main.rs — add to imports:
+```rust
+use commands::{..., hook, setup};
+```
+
+Add to Commands enum:
+```rust
+#[command(about = "Run Claude Code hook events")]
+Hook(hook::HookArgs),
+#[command(about = "Setup integrations (hooks, etc.)")]
+Setup(setup::SetupArgs),
+```
+
+Add to the match in run() — BOTH Hook and Setup must be handled BEFORE the server/key check (they don't need auth):
+```rust
+Commands::Hook(args) => {
+    hook::run(args);
+    return Ok(());
+}
+Commands::Setup(args) => {
+    setup::run(args)?;
+    return Ok(());
+}
+```
+
+Place these in the early-return section alongside Config and Init (before `config.require_server()`).
+
+IMPORTANT: Read the current main.rs and mod.rs first, then make minimal edits. Don't rewrite the files.
+"""
+dir = "."
+context = ["cli/src/main.rs", "cli/src/commands/mod.rs"]

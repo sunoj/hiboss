@@ -1,36 +1,36 @@
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "./cli/hooks/session-start.sh"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
-        "matcher": "",
         "hooks": [
           {
-            "type": "command",
-            "command": "./cli/hooks/post-tool-use.sh"
+            "command": "hiboss hook post-tool-use",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "hiboss hook session-start",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
       }
     ],
     "Stop": [
       {
-        "matcher": "",
         "hooks": [
           {
-            "type": "command",
-            "command": "./cli/hooks/stop.sh"
+            "command": "hiboss hook stop",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": ""
       }
     ]
   }
