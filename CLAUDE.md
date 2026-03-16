@@ -78,11 +78,12 @@ Request:
   "options": ["Option A", "Option B"] ,
   "file_url": "string (optional, sends as photo/document on Telegram)",
   "type": "string (default: 'text', e.g. task_update, approval_request, steer_command)",
+  "idempotency_key": "string (optional, prevents duplicate sends)",
   "metadata": {}
 }
 ```
 
-Response (201):
+Response (201, or 200 if idempotency_key matches existing message):
 ```json
 {
   "id": "string",
