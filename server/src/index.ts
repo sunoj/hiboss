@@ -9,6 +9,8 @@ import { agentsRouter } from './routes/agents';
 import { bootstrapRouter } from './routes/bootstrap';
 import { messagesRouter } from './routes/messages';
 import { streamRouter } from './routes/stream';
+import { groupsRouter } from './routes/groups';
+import { routingRouter } from './routes/routing';
 import { webhooksRouter } from './routes/webhooks';
 
 const app = new Hono<{ Bindings: Env }>({});
@@ -17,6 +19,8 @@ app.route('/api/webhooks', webhooksRouter);
 app.route('/api/agents', agentsRouter);
 app.route('/api/messages', streamRouter);
 app.route('/api/messages', messagesRouter);
+app.route('/api/routing-rules', routingRouter);
+app.route('/api/groups', groupsRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);
 

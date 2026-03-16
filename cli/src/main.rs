@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, hook, init, inbox, react, read, reply, send, setup, status, watch};
+use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -47,6 +47,10 @@ enum Commands {
     Setup(setup::SetupArgs),
     #[command(about = "Configure messaging channels (Discord, Telegram)")]
     Channel(channel::ChannelArgs),
+    #[command(about = "Manage routing rules for incoming messages")]
+    Route(route::RouteArgs),
+    #[command(about = "Manage agent groups for broadcast messaging")]
+    Group(group::GroupArgs),
 }
 
 #[tokio::main]
@@ -94,6 +98,8 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Channel(args) => channel::run(args, &config, &client).await?,
         Commands::Bot(args) => bot::run(args, &config, &client).await?,
         Commands::Watch(args) => watch::run(args, &config, &client).await?,
+        Commands::Route(args) => route::run(args, &config, &client).await?,
+        Commands::Group(args) => group::run(args, &config, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Setup(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),

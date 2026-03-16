@@ -128,6 +128,17 @@ export async function selectChannelConfig(env: Env, agentId: string, requested?:
   return { channel: fallback.channel, config: JSON.parse(fallback.config) as Record<string, unknown> };
 }
 
+export async function fetchAllChannelConfigs(env: Env, agentId: string) {
+  const rows = await env.DB
+    .prepare('SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1')
+    .bind(agentId)
+    .all<{ channel: Channel; config: string }>();
+  return (rows.results ?? []).map((r) => ({
+    channel: r.channel,
+    config: JSON.parse(r.config) as Record<string, unknown>,
+  }));
+}
+
 export async function deliverReply(
   channel: Channel,
   config: Record<string, unknown>,

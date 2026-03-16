@@ -15,6 +15,7 @@ import {
   delay,
   extractTelegramMessageId,
   fetchAgentName,
+  fetchAllChannelConfigs,
   fetchMessageRow,
   fetchMessageWithReplies,
   mapMessageRow,
@@ -64,13 +65,23 @@ routes.post('/', async (c) => {
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
-  let channelConfig: { channel: Channel; config: Record<string, unknown> } | null = null;
+  const isUrgent = priority === 'critical' || priority === 'high';
+  let channelConfigs: { channel: Channel; config: Record<string, unknown> }[] = [];
   try {
-    channelConfig = await selectChannelConfig(c.env, agentId, requestedChannel);
+    if (isUrgent) {
+      channelConfigs = await fetchAllChannelConfigs(c.env, agentId);
+      if (requestedChannel) {
+        // Put requested channel first, keep others
+        channelConfigs.sort((a, b) => (a.channel === requestedChannel ? -1 : b.channel === requestedChannel ? 1 : 0));
+      }
+    } else {
+      const single = await selectChannelConfig(c.env, agentId, requestedChannel);
+      channelConfigs = [single];
+    }
   } catch {
     // No channel configured — message will be stored without delivery.
   }
-  const channel = channelConfig?.channel ?? requestedChannel ?? null;
+  const channel = channelConfigs[0]?.channel ?? requestedChannel ?? null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   const inserted = await c.env.DB
     .prepare(
@@ -82,19 +93,33 @@ routes.post('/', async (c) => {
     return c.text('failed to persist', 500);
   }
   const options = parseOptions(payload.options);
-  if (channelConfig) {
+  if (channelConfigs.length > 0) {
     const agentName = await fetchAgentName(c.env, agentId);
+    const name = agentName ?? 'agent';
+    const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
     try {
-      const name = agentName ?? 'agent';
-      const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
-      const result = await deliverToChannelWithOptions(channelConfig.channel, channelConfig.config, name, body, inlineKeyboard, fileUrl);
-      if (result.delivered) {
+      const results = await Promise.allSettled(
+        channelConfigs.map((cc) => deliverToChannelWithOptions(cc.channel, cc.config, name, body, inlineKeyboard, fileUrl))
+      );
+      const deliveryResults = results.map((r, i) => ({
+        channel: channelConfigs[i].channel,
+        ok: r.status === 'fulfilled' && r.value.delivered,
+        telegramMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.telegramMessageId : undefined,
+      }));
+      const anyDelivered = deliveryResults.some((d) => d.ok);
+      if (anyDelivered) {
         const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
         const binds: (string | number)[] = [];
-        if (result.telegramMessageId) {
+        const meta = metadata ? { ...(metadata as Record<string, unknown>) } : {};
+        const tgResult = deliveryResults.find((d) => d.telegramMessageId);
+        if (tgResult?.telegramMessageId) {
+          meta['telegram_message_id'] = tgResult.telegramMessageId;
+        }
+        if (isUrgent && channelConfigs.length > 1) {
+          meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
+        }
+        if (Object.keys(meta).length > 0) {
           updates.push('metadata = ?');
-          const meta = metadata ? { ...(metadata as Record<string, unknown>) } : {};
-          meta['telegram_message_id'] = result.telegramMessageId;
           binds.push(JSON.stringify(meta));
         }
         binds.push(inserted.id);
@@ -102,6 +127,10 @@ routes.post('/', async (c) => {
           .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
           .bind(...binds)
           .run();
+      } else if (!isUrgent) {
+        const firstError = results.find((r) => r.status === 'rejected');
+        const msg = firstError?.status === 'rejected' && firstError.reason instanceof Error ? firstError.reason.message : 'delivery failure';
+        return c.json({ error: msg, id: inserted.id, status: inserted.status }, 502);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'delivery failure';

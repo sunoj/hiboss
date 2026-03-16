@@ -265,6 +265,55 @@ Set webhook callback URL for push notifications.
 #### DELETE /api/agents/me/callback
 Remove webhook callback URL.
 
+### Routing Rules Endpoints
+
+#### GET /api/routing-rules
+List routing rules owned by this agent.
+
+#### POST /api/routing-rules
+Create a routing rule.
+
+Request:
+```json
+{
+  "channel": "telegram | discord",
+  "pattern": "regex string",
+  "target_agent_id": "string",
+  "priority": 0
+}
+```
+
+#### DELETE /api/routing-rules/:id
+Delete a routing rule (must be owned by this agent).
+
+### Group Endpoints
+
+#### GET /api/groups
+List all groups with member count.
+
+#### POST /api/groups
+Create a group.
+
+Request: `{ "name": "string", "description": "string (optional)" }`
+
+#### GET /api/groups/:id
+Get group detail with member list. Supports lookup by ID or name.
+
+#### DELETE /api/groups/:id
+Delete a group.
+
+#### POST /api/groups/:id/members
+Add a member. Request: `{ "agent_id": "string" }`
+
+#### DELETE /api/groups/:id/members/:agentId
+Remove a member.
+
+#### POST /api/groups/:id/broadcast
+Broadcast a message to all group members.
+
+Request: `{ "body": "string", "priority": "normal" }`
+Response: `{ "messages": [{ "agent_id", "message_id" }], "count": number }`
+
 ## CLI Commands
 
 ```bash
@@ -313,6 +362,21 @@ hiboss agent config                          # view current config
 hiboss agent config --default-priority high  # set default priority
 hiboss agent config --rate-limit 10          # set rate limit (msg/min)
 hiboss agent config --rate-limit 0           # disable rate limit
+
+# Routing rules
+hiboss route list                            # list routing rules
+hiboss route add --channel telegram --pattern "deploy.*" --target <agent-id>
+hiboss route add --channel discord --pattern "urgent" --target <agent-id> --priority 10
+hiboss route remove <rule-id>
+
+# Agent groups
+hiboss group list                            # list groups
+hiboss group create dev-team --description "Development agents"
+hiboss group show dev-team                   # view group + members
+hiboss group add-member <group-id> <agent-id>
+hiboss group remove-member <group-id> <agent-id>
+hiboss group broadcast <group-id> "Stop all work" --priority high
+hiboss group delete <group-id>
 ```
 
 ## CLI Config
@@ -389,10 +453,25 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - Agent config: default priority, rate limiting (messages/min)
 - CLAUDE.md prompt injection: `setup hooks` appends agent instructions with user confirmation
 
-### v0.5 — Smart Routing & Multi-Agent
-- Priority-based routing: critical messages → all channels simultaneously
-- Message routing rules: keyword/regex → specific agent
-- Agent groups: broadcast messages to multiple agents
+### v0.5 — Smart Routing & Multi-Agent (Done)
+**Goal**: Intelligent message delivery and multi-agent coordination.
+
+#### Multi-Channel Delivery
+- Critical/high priority messages delivered to ALL configured channels simultaneously
+- Delivery results tracked per-channel in message metadata
+- Normal/low priority unchanged (single channel)
+
+#### Routing Rules
+- Regex-based rules route incoming boss messages to specific agents
+- Rules evaluated by priority (highest first), first match wins
+- CRUD API: `GET/POST /api/routing-rules`, `DELETE /api/routing-rules/:id`
+- CLI: `hiboss route list`, `hiboss route add`, `hiboss route remove`
+
+#### Agent Groups
+- Named groups with description and membership management
+- Broadcast: send one message to all group members
+- CRUD API: `GET/POST /api/groups`, group member management, broadcast
+- CLI: `hiboss group list/create/show/delete`, `hiboss group add-member/remove-member`, `hiboss group broadcast`
 
 ### v0.6 — Multi-boss & Teams
 - Multiple bosses per agent with role-based permissions

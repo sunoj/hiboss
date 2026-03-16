@@ -33,6 +33,11 @@ router.post('/discord', async (c) => {
   if (!agentRow) {
     return c.text('no agent for channel', 404);
   }
+  // Check routing rules: if a rule matches, override the target agent
+  const routedAgentId = await evaluateRoutingRules(c.env, 'discord', text, agentRow.agent_id);
+  if (routedAgentId) {
+    agentRow.agent_id = routedAgentId;
+  }
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
@@ -73,6 +78,11 @@ router.post('/telegram', async (c) => {
     .first<{ agent_id: string; config: string }>();
   if (!configRow) {
     return c.text('no agent for chat', 404);
+  }
+  // Check routing rules: if a rule matches, override the target agent
+  const routedAgentId = await evaluateRoutingRules(c.env, 'telegram', text, configRow.agent_id);
+  if (routedAgentId) {
+    configRow.agent_id = routedAgentId;
   }
   // Detect Telegram reply-to and link to original hiboss message
   const replyToMessage = message?.['reply_to_message'] as Record<string, unknown> | undefined;
@@ -162,6 +172,23 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
   return c.json(mapMessage(inserted), 201);
+}
+
+async function evaluateRoutingRules(env: Env, channel: string, body: string, defaultAgentId: string): Promise<string | null> {
+  const rules = await env.DB
+    .prepare('SELECT target_agent_id, pattern FROM routing_rules WHERE channel = ? AND enabled = 1 ORDER BY priority DESC')
+    .bind(channel)
+    .all<{ target_agent_id: string; pattern: string }>();
+  for (const rule of rules.results ?? []) {
+    try {
+      if (new RegExp(rule.pattern).test(body)) {
+        return rule.target_agent_id !== defaultAgentId ? rule.target_agent_id : null;
+      }
+    } catch {
+      // Skip invalid regex patterns
+    }
+  }
+  return null;
 }
 
 function asString(value: unknown): string | undefined {
