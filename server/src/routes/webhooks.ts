@@ -115,31 +115,34 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   const chat = chatMsg?.['chat'] as Record<string, unknown> | undefined;
   const chatId = asString(chat?.['id']);
   if (!data || !chatId) return c.text('invalid callback', 400);
-  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
-    c.env,
-    'telegram',
-    asString((query['from'] as Record<string, unknown>)?.['id']),
-    true
-  );
-  if (bossError) return c.text(bossError, 403);
-  // data format: "msgIdPrefix:selectedOption"
-  const colonIdx = data.indexOf(':');
-  if (colonIdx < 1) return c.text('invalid callback data', 400);
-  const msgPrefix = data.slice(0, colonIdx);
-  const selectedOption = data.slice(colonIdx + 1);
-
+  // Look up config first — needed for answerCallbackQuery on all paths
   const configRow = await c.env.DB
     .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?")
     .bind(chatId)
     .first<{ agent_id: string; config: string }>();
-  if (!configRow) return c.text('no agent for chat', 404);
-  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  // Find the original message by prefix (with metadata for actions)
+  const botToken = configRow ? (JSON.parse(configRow.config) as Record<string, string>).bot_token : undefined;
+  // Helper: always dismiss Telegram loading spinner, even on errors
+  const answer = (text: string) => {
+    if (botToken && queryId) c.executionCtx.waitUntil(answerCallbackQuery(botToken, queryId, text));
+  };
+  if (!configRow) { answer('Error'); return c.text('no agent for chat', 404); }
+  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
+    c.env, 'telegram', asString((query['from'] as Record<string, unknown>)?.['id']), true
+  );
+  if (bossError) { answer(bossError); return c.text(bossError, 403); }
+  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) {
+    answer('No access'); return c.text('no access to this agent', 403);
+  }
+  // data format: "msgIdPrefix:selectedOption"
+  const colonIdx = data.indexOf(':');
+  if (colonIdx < 1) { answer('Invalid'); return c.text('invalid callback data', 400); }
+  const msgPrefix = data.slice(0, colonIdx);
+  const selectedOption = data.slice(colonIdx + 1);
   const parentMsg = await c.env.DB
     .prepare('SELECT id, metadata FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${msgPrefix}%`, configRow.agent_id)
     .first<{ id: string; metadata: string | null }>();
-  if (!parentMsg) return c.text('message not found', 404);
+  if (!parentMsg) { answer('Not found'); return c.text('message not found', 404); }
   // If parent has actions in metadata, copy the matched action to reply metadata
   let replyMetadataRecord: Record<string, unknown> | null = null;
   if (parentMsg.metadata) {
@@ -152,34 +155,21 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
     } catch { /* ignore parse errors */ }
   }
   if (bossInfo) {
-    replyMetadataRecord = {
-      ...(replyMetadataRecord ?? {}),
-      boss_id: bossInfo.id,
-      boss_name: bossInfo.name,
-    };
+    replyMetadataRecord = { ...(replyMetadataRecord ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name };
   }
   const finalReplyMetadata = replyMetadataRecord ? JSON.stringify(replyMetadataRecord) : null;
-  // Insert the button press as a boss reply
   const inserted = await c.env.DB
     .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
     .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id, finalReplyMetadata)
     .first<MessageRow>();
-  if (!inserted) return c.text('failed to persist', 500);
-  // Acknowledge the button press and update message to show selection
-  try {
-    const parsed = JSON.parse(configRow.config) as Record<string, string>;
-    if (parsed.bot_token && queryId) {
-      c.executionCtx.waitUntil(answerCallbackQuery(parsed.bot_token, queryId, `Selected: ${selectedOption}`));
-      const originalMsgId = chatMsg?.['message_id'] as number | undefined;
-      const originalText = (chatMsg?.['text'] as string) ?? '';
-      if (originalMsgId) {
-        c.executionCtx.waitUntil(
-          editMessageReplyMarkup(parsed.bot_token, chatId, originalMsgId, `${originalText}\n\n✅ Selected: ${selectedOption}`)
-        );
-      }
-    }
-  } catch {
-    // best-effort
+  if (!inserted) { answer('Error'); return c.text('failed to persist', 500); }
+  answer(`Selected: ${selectedOption}`);
+  const originalMsgId = chatMsg?.['message_id'] as number | undefined;
+  const originalText = (chatMsg?.['text'] as string) ?? '';
+  if (botToken && originalMsgId) {
+    c.executionCtx.waitUntil(
+      editMessageReplyMarkup(botToken, chatId, originalMsgId, `${originalText}\n\n✅ Selected: ${selectedOption}`)
+    );
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
   return c.json(mapMessage(inserted), 201);
