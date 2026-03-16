@@ -40,7 +40,7 @@ fn run_session_start() -> Result<(), Box<dyn Error>> {
     let count = get_inbox_count();
     if count > 0 {
         println!("You have {} unread boss messages:", count);
-        if let Ok(out) = Command::new("hiboss").args(["inbox"]).output() {
+        if let Ok(out) = Command::new("hiboss").args(["inbox", "--ack"]).output() {
             print!("{}", String::from_utf8_lossy(&out.stdout));
         }
         println!("Handle these messages before starting other work. Use 'hiboss reply <id> \"response\"' to reply.");
