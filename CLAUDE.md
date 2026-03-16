@@ -364,7 +364,7 @@ Response: `{ bosses: [{ id, name, role, telegram_user_id, discord_user_id, creat
 #### POST /api/bosses
 Create a boss.
 
-Request: `{ "name": "string", "role": "admin|manager|viewer", "telegram_user_id": "string", "discord_user_id": "string" }`
+Request: `{ "name": "string", "role": "admin|manager|viewer", "telegram_user_id": "string", "discord_user_id": "string", "agent_id": "string (optional, links boss to an agent)" }`
 
 #### GET /api/bosses/:id
 Get boss detail with agent access list.
@@ -380,6 +380,26 @@ Grant agent access. Request: `{ "agent_id": "string" }`
 
 #### DELETE /api/bosses/:id/access/:agentId
 Revoke agent access.
+
+### Boss Inbox Endpoints (Agent-as-Boss)
+
+#### GET /api/boss/inbox
+List messages from sub-agents. Requires boss-agent API key (agent linked to a boss via `agent_id`).
+
+Query params: `unread`, `priority`, `limit`, `offset`, `count` (returns total only).
+
+#### GET /api/boss/inbox/:id
+Read a specific sub-agent message with replies.
+
+#### POST /api/boss/inbox/:id/reply
+Reply to a sub-agent message as boss. Notifies sub-agent via callback.
+
+Request: `{ "body": "string" }`
+
+#### PATCH /api/boss/inbox/:id
+Update message status (mark as read).
+
+Request: `{ "status": "read" }`
 
 ### Audit Endpoints
 
@@ -466,6 +486,13 @@ hiboss boss update <boss-id> --discord-user-id 456   # update boss fields
 hiboss boss grant <boss-id> <agent-id>               # grant agent access
 hiboss boss revoke <boss-id> <agent-id>              # revoke agent access
 hiboss boss remove <boss-id>                         # delete boss
+
+# Agent-as-boss
+hiboss boss add "Manager" --agent-id <agent-id>      # create agent-boss
+hiboss boss inbox                                     # list sub-agent messages
+hiboss boss inbox --priority critical,high            # urgent only
+hiboss boss inbox --count                             # count unread
+hiboss boss reply <msg-id> "Your reply here"          # reply as boss
 ```
 
 ## CLI Config
@@ -672,6 +699,27 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - `hiboss boss add <name> --role admin --telegram-user-id <id>`
 - `hiboss boss show/update/remove <id>`
 - `hiboss boss grant <boss-id> <agent-id>` / `hiboss boss revoke <boss-id> <agent-id>`
+
+### v0.10 — Agent-as-Boss & Session Isolation (Done)
+**Goal**: Allow agents to act as bosses for other agents, and isolate messages per session.
+
+#### Agent-as-Boss
+- `agent_id` column on `bosses` table: links a boss to an agent identity
+- New `api` channel type: agent-to-agent messaging without external chat platforms
+- Boss inbox API: `GET /api/boss/inbox` — boss-agent reads sub-agent messages
+- Boss reply API: `POST /api/boss/inbox/:id/reply` — boss-agent replies
+- Boss read API: `GET /api/boss/inbox/:id` — read message with replies
+- Boss mark-read: `PATCH /api/boss/inbox/:id` — mark messages as read
+- `notifyBossAgents()`: callback push to boss-agents when sub-agents send messages
+- CLI: `hiboss boss add "Name" --agent-id <id>` to create agent-boss
+- CLI: `hiboss boss inbox` / `hiboss boss reply <id> "message"`
+
+#### Session-Scoped Messages
+- `session_id` column on `messages` table
+- SessionStart hook generates unique session ID per Claude Code session
+- Messages tagged with session_id, inbox filters by session
+- Boss-initiated messages (not replies) visible across all sessions
+- CLI `send`, `ask`, `inbox` automatically attach/filter by session
 
 ### v1.0 — Production Ready
 - Per-boss channel preferences
