@@ -37,12 +37,12 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_session_start() -> Result<(), Box<dyn Error>> {
-    println!("hiboss is installed. Use it to communicate with the boss:");
-    println!("- `hiboss send \"message\"` — report progress, blockers, or decisions");
-    println!("- `hiboss reply <id> \"response\"` — reply to a boss message");
-    println!("- `hiboss inbox` — check unread messages");
-    println!("- `hiboss ask \"question?\"` — ask and wait for reply");
-    println!("Report major milestones and task completions via `hiboss send`.");
+    println!("MANDATORY: hiboss is installed for boss communication. You MUST follow these rules:");
+    println!("1. After completing any task or subtask, run: hiboss send \"<what you did and what's next>\"");
+    println!("2. When blocked or need input, run: hiboss ask \"<your question>\"");
+    println!("3. Reply to boss messages with: hiboss reply <id> \"<response>\"");
+    println!("4. Check inbox with: hiboss inbox");
+    println!("IMPORTANT: Failing to report progress via hiboss send is a failure to communicate. Always notify the boss.");
 
     let count = get_inbox_count();
     if count > 0 {
