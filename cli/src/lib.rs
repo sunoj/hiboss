@@ -5,9 +5,10 @@
 pub mod client;
 pub mod commands;
 pub mod config;
+pub mod helpers;
+pub mod session;
 pub mod sse;
 pub mod types;
-pub mod helpers;
 
 #[cfg(test)]
 mod tests;

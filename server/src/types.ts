@@ -29,6 +29,7 @@ export interface MessageRow {
   reply_to: string | null;
   priority: Priority;
   type: string | null;
+  session_id: string | null;
   idempotency_key: string | null;
   metadata: string | null;
   created_at: string;

@@ -2,7 +2,7 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use crate::{client::HiBossClient, config::Config, helpers::unescape_body, types::SendRequest};
+use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest};
 use clap::Args;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -86,6 +86,7 @@ pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Resu
         options,
         file_url,
         message_type: None,
+        session_id: session::read_session_id(),
     };
     let submission = client.send_message(&request).await?;
     let poll = client.poll_reply(&submission.id, args.timeout).await?;

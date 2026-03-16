@@ -39,6 +39,8 @@ pub struct SendRequest {
     pub file_url: Option<String>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub message_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -2,7 +2,7 @@
 // Exports: SendArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use crate::{client::HiBossClient, config::Config, helpers::unescape_body, types::SendRequest};
+use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest};
 use clap::Args;
 use std::error::Error;
 
@@ -40,6 +40,7 @@ pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Res
         options: None,
         file_url,
         message_type: args.message_type.clone(),
+        session_id: session::read_session_id(),
     };
     let response = client.send_message(&request).await?;
     eprintln!("Message sent");
