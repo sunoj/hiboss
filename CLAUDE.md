@@ -312,20 +312,21 @@ Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Onl
 - Priority filter: `hiboss inbox --priority critical,high --count`
 - Telegram reactions: 👀 on receive, ✅ on reply
 
-### v0.4 — Rich Telegram & Claude Code Integration
+### v0.4 — Rich Telegram & Claude Code Integration (Done)
 **Goal**: Native Telegram chat experience + deeper Claude Code integration.
 
 #### Telegram Enhancements
-- MarkdownV2 formatting in outgoing messages
+- MarkdownV2 formatting in outgoing messages (with plain-text fallback)
 - Reply threading via `reply_to_message_id`
 - Inline keyboards for quick-reply (`hiboss ask --options "A,B,C"`)
 - `callback_query` handler for button presses
-- File/image attachments via sendDocument/sendPhoto
+- Telegram reactions: 👀 received, 🔨 working, ✅ replied
 
 #### Claude Code Integration
-- `last_seen_at` tracking: server records agent's last API call timestamp
-- Agent status dashboard: boss sees which agents are online/offline
-- aid hook integration: auto-notify boss when aid sub-tasks complete
+- `last_used_at` tracking: server records agent's last API call timestamp
+- Agent status dashboard: `hiboss agent list` shows online/idle/offline status
+- Built-in hooks: `hiboss hook <event>` + `hiboss setup hooks`
+- Agent Instructions template in CLAUDE.md for configuring agent behavior
 
 ### v0.5 — Smart Routing & Multi-Agent
 - Priority-based routing: critical messages → all channels simultaneously
