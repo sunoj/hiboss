@@ -17,6 +17,8 @@ pub struct InboxArgs {
     pub priority: Option<String>,
     #[arg(long, help = "Print only the message count")]
     pub count: bool,
+    #[arg(long, help = "Mark displayed messages as read (triggers work-started reaction)")]
+    pub ack: bool,
 }
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -26,7 +28,7 @@ pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> R
         return Ok(());
     }
     println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
-    for message in response.messages {
+    for message in &response.messages {
         let id = short_id(&message.id);
         let agent = message.agent_name.as_deref().unwrap_or("-");
         let priority = message.priority.as_deref().unwrap_or("normal");
@@ -39,6 +41,11 @@ pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> R
             .unwrap_or("-")
             .to_string();
         println!("{:<10} {:<16} {:<12} {:<50} {}", id, agent.cyan(), priority_display, truncated, time_label.dimmed());
+    }
+    if args.ack {
+        for message in &response.messages {
+            let _ = client.update_status(&message.id, "read").await;
+        }
     }
     Ok(())
 }
