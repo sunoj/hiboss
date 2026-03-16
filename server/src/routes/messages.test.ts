@@ -373,3 +373,70 @@ describe('POST /api/messages/:id/poll', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('POST /api/messages idempotency', () => {
+  it('returns 201 on first send with idempotency_key', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'test', idempotency_key: 'key-1' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as Record<string, unknown>;
+    expect(data.id).toBeDefined();
+  });
+
+  it('returns 200 with same id on duplicate idempotency_key', async () => {
+    const res1 = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'first', idempotency_key: 'dup-key' }),
+    });
+    expect(res1.status).toBe(201);
+    const data1 = await res1.json() as Record<string, unknown>;
+    const res2 = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'second', idempotency_key: 'dup-key' }),
+    });
+    expect(res2.status).toBe(200);
+    const data2 = await res2.json() as Record<string, unknown>;
+    expect(data2.id).toBe(data1.id);
+  });
+
+  it('creates new message with different idempotency_key', async () => {
+    const res1 = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'a', idempotency_key: 'key-a' }),
+    });
+    const res2 = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'b', idempotency_key: 'key-b' }),
+    });
+    expect(res1.status).toBe(201);
+    expect(res2.status).toBe(201);
+    const d1 = await res1.json() as Record<string, unknown>;
+    const d2 = await res2.json() as Record<string, unknown>;
+    expect(d1.id).not.toBe(d2.id);
+  });
+
+  it('always creates new message without idempotency_key', async () => {
+    const res1 = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'no key 1' }),
+    });
+    const res2 = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'no key 2' }),
+    });
+    expect(res1.status).toBe(201);
+    expect(res2.status).toBe(201);
+    const d1 = await res1.json() as Record<string, unknown>;
+    const d2 = await res2.json() as Record<string, unknown>;
+    expect(d1.id).not.toBe(d2.id);
+  });
+});

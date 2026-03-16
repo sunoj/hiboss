@@ -45,6 +45,7 @@ routes.post('/', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
+  const idempotencyKey = typeof payload.idempotency_key === 'string' ? payload.idempotency_key.trim() || null : null;
   const agentConfig = await c.env.DB
     .prepare('SELECT default_priority, rate_limit FROM api_keys WHERE id = ?')
     .bind(agentId)
@@ -85,11 +86,20 @@ routes.post('/', async (c) => {
   }
   const channel = channelConfigs[0]?.channel ?? requestedChannel ?? null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
+  if (idempotencyKey) {
+    const existing = await c.env.DB
+      .prepare('SELECT * FROM messages WHERE agent_id = ? AND idempotency_key = ?')
+      .bind(agentId, idempotencyKey)
+      .first<MessageRow>();
+    if (existing) {
+      return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
+    }
+  }
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, messageType, metadataJson)
+    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
