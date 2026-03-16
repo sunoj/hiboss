@@ -31,6 +31,8 @@ pub enum SetupCommand {
 pub struct SetupHooksArgs {
     #[arg(long, help = "Project directory (default: current dir)")]
     pub dir: Option<String>,
+    #[arg(long, help = "Install to global ~/.claude/settings.json")]
+    pub global: bool,
     #[arg(long, help = "Remove hiboss hooks instead of adding")]
     pub remove: bool,
 }
@@ -42,14 +44,19 @@ pub fn run(args: &SetupArgs) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
-    let project_dir = if let Some(dir) = &args.dir {
-        PathBuf::from(dir)
+    let (claude_dir, label) = if args.global {
+        let home = env::var("HOME").map_err(|_| "HOME not set")?;
+        (PathBuf::from(home).join(".claude"), "global ~/.claude".to_string())
     } else {
-        env::current_dir()?
+        let project_dir = if let Some(dir) = &args.dir {
+            PathBuf::from(dir)
+        } else {
+            env::current_dir()?
+        };
+        (project_dir.join(".claude"), format!("{}", project_dir.display()))
     };
-    eprintln!("[hiboss]Determined project directory: {}", project_dir.display());
+    eprintln!("[hiboss]Target: {}", label);
 
-    let claude_dir = project_dir.join(".claude");
     let settings_path = claude_dir.join("settings.json");
     let mut settings = if settings_path.exists() {
         let contents = fs::read_to_string(&settings_path)?;
