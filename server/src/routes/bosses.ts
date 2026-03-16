@@ -132,12 +132,12 @@ routes.patch('/:id', async (c) => {
   if (updates.length === 0) {
     return c.text('no valid fields to update', 400);
   }
-  binds.push(bossId);
+  binds.push(boss.id);
   await c.env.DB
     .prepare(`UPDATE bosses SET ${updates.join(', ')} WHERE id = ?`)
     .bind(...binds)
     .run();
-  const updated = await findBoss(c.env, bossId);
+  const updated = await findBoss(c.env, boss.id);
   if (!updated) {
     return c.text('not found', 404);
   }
@@ -193,8 +193,7 @@ routes.delete('/:id/access/:agentId', async (c) => {
 export const bossesRouter = routes;
 
 async function findBoss(env: Env, id: string): Promise<BossRow | null> {
-  return env.DB
-    .prepare('SELECT * FROM bosses WHERE id = ?')
-    .bind(id)
-    .first<BossRow>();
+  const exact = await env.DB.prepare('SELECT * FROM bosses WHERE id = ?').bind(id).first<BossRow>();
+  if (exact) return exact;
+  return env.DB.prepare('SELECT * FROM bosses WHERE id LIKE ? LIMIT 1').bind(`${id}%`).first<BossRow>();
 }
