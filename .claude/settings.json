@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./cli/hooks/post-tool-use.sh"
+          }
+        ]
+      }
     ]
   }
 }

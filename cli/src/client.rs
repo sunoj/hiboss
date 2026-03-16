@@ -34,7 +34,7 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
 
-    pub async fn list_messages(&self, unread: bool, all: bool, limit: u32) -> Result<MessagesResponse, Box<dyn Error>> {
+    pub async fn list_messages(&self, unread: bool, all: bool, limit: u32, priority: Option<&str>) -> Result<MessagesResponse, Box<dyn Error>> {
         let mut request = self
             .http
             .get(format!("{}/api/messages", self.base_url))
@@ -45,6 +45,9 @@ impl HiBossClient {
         }
         if all {
             request = request.query(&[("offset", "0")]);
+        }
+        if let Some(p) = priority {
+            request = request.query(&[("priority", p)]);
         }
         let resp = request.send().await?;
         Self::parse_response(resp).await
