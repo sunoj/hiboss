@@ -134,17 +134,17 @@ export async function deliverReply(
   agentName: string,
   body: string,
   replyToTelegramId?: number,
-): Promise<boolean> {
+): Promise<DeliveryResult> {
   if (channel === 'discord') {
     await sendDiscordMessage(requireDiscordConfig(config), formatAgentMessage(agentName, body));
-    return true;
+    return { delivered: true };
   }
   if (channel === 'telegram') {
     const tgBody = formatTelegramAgentMessage(agentName, body);
-    await sendTelegramMessage(requireTelegramConfig(config), tgBody, { replyToMessageId: replyToTelegramId });
-    return true;
+    const telegramMessageId = await sendTelegramMessage(requireTelegramConfig(config), tgBody, { replyToMessageId: replyToTelegramId });
+    return { delivered: true, telegramMessageId };
   }
-  return false;
+  return { delivered: false };
 }
 
 export async function fetchMessageRow(env: Env, agentId: string, messageId: string) {
@@ -232,6 +232,8 @@ export function buildInlineKeyboard(messageId: string, options: string[]): { tex
   return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 8)}:${opt}` }]);
 }
 
+export type DeliveryResult = { delivered: false } | { delivered: true; telegramMessageId?: number };
+
 export async function deliverToChannelWithOptions(
   channel: Channel,
   config: Record<string, unknown>,
@@ -239,28 +241,29 @@ export async function deliverToChannelWithOptions(
   body: string,
   inlineKeyboard?: { text: string; callback_data: string }[][],
   fileUrl?: string,
-): Promise<boolean> {
+): Promise<DeliveryResult> {
   if (channel === 'discord') {
     const discordBody = formatAgentMessage(agentName, body);
     await sendDiscordMessage(requireDiscordConfig(config), fileUrl ? `${discordBody}\n${fileUrl}` : discordBody);
-    return true;
+    return { delivered: true };
   }
   if (channel === 'telegram') {
     const tgConfig = requireTelegramConfig(config);
     const tgBody = formatTelegramAgentMessage(agentName, body);
+    let telegramMessageId: number | undefined;
     if (fileUrl) {
       const caption = escapeHtml(`[${agentName}] ${body}`);
       if (isImageUrl(fileUrl)) {
-        await sendTelegramPhoto(tgConfig, fileUrl, caption);
+        telegramMessageId = await sendTelegramPhoto(tgConfig, fileUrl, caption);
       } else {
-        await sendTelegramDocument(tgConfig, fileUrl, caption);
+        telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, caption);
       }
     } else {
-      await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard });
+      telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard });
     }
-    return true;
+    return { delivered: true, telegramMessageId };
   }
-  return false;
+  return { delivered: false };
 }
 
 export function extractTelegramMessageId(metadata: string | null): number | undefined {
