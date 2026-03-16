@@ -176,6 +176,18 @@ routes.patch('/:id', async (c) => {
   if (!updated) {
     return c.text('not found', 404);
   }
+  if (status === 'read' && updated.direction === 'boss_to_agent' && updated.channel === 'telegram') {
+    try {
+      const channelConfig = await selectChannelConfig(c.env, agentId, 'telegram');
+      const tgConfig = requireTelegramConfig(channelConfig.config);
+      const telegramMsgId = extractTelegramMessageId(updated.metadata);
+      if (telegramMsgId) {
+        c.executionCtx.waitUntil(setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, telegramMsgId, '🔨'));
+      }
+    } catch {
+      // Channel config not found — skip reaction silently.
+    }
+  }
   return c.json(mapMessageRow(updated));
 });
 
