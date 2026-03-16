@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
+use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -45,6 +45,8 @@ enum Commands {
     Hook(hook::HookArgs),
     #[command(about = "Setup integrations (hooks, etc.)")]
     Setup(setup::SetupArgs),
+    #[command(about = "Validate local configuration and connectivity")]
+    Doctor(doctor::DoctorArgs),
     #[command(about = "Configure messaging channels (Discord, Telegram)")]
     Channel(channel::ChannelArgs),
     #[command(about = "Manage routing rules for incoming messages")]
@@ -81,6 +83,10 @@ async fn run() -> Result<(), Box<dyn Error>> {
             setup::run(args)?;
             return Ok(());
         }
+        Commands::Doctor(_) => {
+            doctor::run(&config).await?;
+            return Ok(());
+        }
         _ => {}
     }
     let server = config.require_server()?;
@@ -104,6 +110,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Setup(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
+        Commands::Doctor(_) => unreachable!(),
     }
     Ok(())
 }
