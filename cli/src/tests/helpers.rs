@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::helpers::{short_id, truncate};
+    use crate::helpers::{short_id, truncate, unescape_body};
 
     // Command-local functions tested here (not in shared module)
     fn escape_applescript(value: &str) -> String {
@@ -160,5 +160,37 @@ mod tests {
     #[test]
     fn options_none_input() {
         assert_eq!(parse_options(None), None);
+    }
+
+    // --- unescape_body tests ---
+
+    #[test]
+    fn unescape_converts_newline() {
+        assert_eq!(unescape_body("hello\\nworld"), "hello\nworld");
+    }
+
+    #[test]
+    fn unescape_converts_tab() {
+        assert_eq!(unescape_body("col1\\tcol2"), "col1\tcol2");
+    }
+
+    #[test]
+    fn unescape_multiple_newlines() {
+        assert_eq!(unescape_body("a\\n\\nb"), "a\n\nb");
+    }
+
+    #[test]
+    fn unescape_no_escapes() {
+        assert_eq!(unescape_body("plain text"), "plain text");
+    }
+
+    #[test]
+    fn unescape_empty_string() {
+        assert_eq!(unescape_body(""), "");
+    }
+
+    #[test]
+    fn unescape_mixed() {
+        assert_eq!(unescape_body("line1\\nline2\\tend"), "line1\nline2\tend");
     }
 }

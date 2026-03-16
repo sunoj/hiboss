@@ -116,7 +116,7 @@ impl HiBossClient {
     pub async fn list_agents(&self) -> Result<AgentsResponse, Box<dyn Error>> {
         let resp = self
             .http
-            .get(format!("{}/api/keys", self.base_url))
+            .get(format!("{}/api/agents", self.base_url))
             .bearer_auth(&self.api_key)
             .send()
             .await?;

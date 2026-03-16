@@ -61,13 +61,14 @@ pub struct CreateAgentResponse {
 pub struct AgentInfo {
     pub id: String,
     pub name: String,
+    pub status: Option<String>,
     pub created_at: Option<String>,
     pub last_used_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AgentsResponse {
-    pub keys: Vec<AgentInfo>,
+    pub agents: Vec<AgentInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
