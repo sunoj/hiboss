@@ -3,7 +3,7 @@
 // Depends on channel adapters, types, and delay from message-helpers.
 
 import type { Channel, DiscordChannelConfig, TelegramChannelConfig } from '../types';
-import { sendDiscordMessage } from '../channels/discord';
+import { sendDiscordMessage, type DiscordSendOptions } from '../channels/discord';
 import {
   escapeHtml,
   formatTelegramAgentMessage,
@@ -21,9 +21,10 @@ export function formatAgentMessage(name: string, body: string): string {
 }
 
 export function requireDiscordConfig(config: Record<string, unknown>): DiscordChannelConfig {
+  const avatarUrl = typeof config['avatar_url'] === 'string' ? config['avatar_url'] : undefined;
   const webhookUrl = config['webhook_url'];
   if (typeof webhookUrl === 'string') {
-    return { webhook_url: webhookUrl };
+    return { webhook_url: webhookUrl, avatar_url: avatarUrl };
   }
   const channelId = config['channel_id'];
   const token = config['bot_token'];
@@ -50,7 +51,9 @@ export async function deliverReply(
   replyToTelegramId?: number,
 ): Promise<DeliveryResult> {
   if (channel === 'discord') {
-    await sendDiscordMessage(requireDiscordConfig(config), formatAgentMessage(agentName, body));
+    const dc = requireDiscordConfig(config);
+    const opts = discordOptions(dc, agentName);
+    await sendDiscordMessage(dc, opts ? body : formatAgentMessage(agentName, body), opts);
     return { delivered: true };
   }
   if (channel === 'telegram') {
@@ -70,8 +73,10 @@ export async function deliverToChannelWithOptions(
   fileUrl?: string,
 ): Promise<DeliveryResult> {
   if (channel === 'discord') {
-    const discordBody = formatAgentMessage(agentName, body);
-    await sendDiscordMessage(requireDiscordConfig(config), fileUrl ? `${discordBody}\n${fileUrl}` : discordBody);
+    const dc = requireDiscordConfig(config);
+    const opts = discordOptions(dc, agentName);
+    const text = opts ? body : formatAgentMessage(agentName, body);
+    await sendDiscordMessage(dc, fileUrl ? `${text}\n${fileUrl}` : text, opts);
     return { delivered: true };
   }
   if (channel === 'telegram') {
@@ -91,6 +96,11 @@ export async function deliverToChannelWithOptions(
     return { delivered: true, telegramMessageId };
   }
   return { delivered: false };
+}
+
+function discordOptions(config: DiscordChannelConfig, agentName: string): DiscordSendOptions | undefined {
+  if (!config.webhook_url) return undefined;
+  return { username: agentName, avatarUrl: config.avatar_url };
 }
 
 export async function deliverWithRetry<T>(

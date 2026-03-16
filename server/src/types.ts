@@ -67,6 +67,7 @@ export interface DiscordChannelConfig {
   channel_id?: string;
   bot_token?: string;
   webhook_url?: string;
+  avatar_url?: string;
 }
 
 export interface TelegramChannelConfig {
