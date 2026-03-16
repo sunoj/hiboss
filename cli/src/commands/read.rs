@@ -24,6 +24,10 @@ fn print_message(message: &Message, depth: usize) {
     println!("{}Direction: {}", indent, message.direction.as_deref().unwrap_or("-"));
     println!("{}Channel: {}", indent, message.channel.as_deref().unwrap_or("-"));
     println!("{}Status: {}", indent, message.status.as_deref().unwrap_or("-"));
+    let msg_type = message.message_type.as_deref().unwrap_or("text");
+    if msg_type != "text" {
+        println!("{}Type: {}", indent, msg_type);
+    }
     println!("{}Body: {}", indent, message.body.as_deref().unwrap_or("-"));
     if let Some(replies) = &message.replies {
         for reply in replies {

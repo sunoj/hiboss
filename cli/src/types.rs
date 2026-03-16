@@ -18,6 +18,8 @@ pub struct Message {
     pub status: Option<String>,
     pub reply_to: Option<String>,
     pub priority: Option<String>,
+    #[serde(rename = "type")]
+    pub message_type: Option<String>,
     pub metadata: Option<HashMap<String, Value>>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,

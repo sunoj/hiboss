@@ -69,7 +69,7 @@ export function validateChannel(value: unknown): Channel | undefined {
   return undefined;
 }
 
-export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[]) {
+export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string) {
   const clauses = ['agent_id = ?'];
   const binds: (string | number)[] = [agentId];
   if (direction) {
@@ -84,6 +84,10 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
     const placeholders = priority.map(() => '?').join(', ');
     clauses.push(`priority IN (${placeholders})`);
     binds.push(...priority);
+  }
+  if (type) {
+    clauses.push('type = ?');
+    binds.push(type);
   }
   return { where: clauses.join(' AND '), binds };
 }
