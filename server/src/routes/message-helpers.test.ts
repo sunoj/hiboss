@@ -366,6 +366,16 @@ describe('extractTelegramMessageId', () => {
   it('returns undefined when message is not an object', () => {
     expect(extractTelegramMessageId(JSON.stringify({ message: 'string' }))).toBeUndefined();
   });
+
+  it('extracts flat telegram_message_id from delivery metadata', () => {
+    const meta = JSON.stringify({ telegram_message_id: 123 });
+    expect(extractTelegramMessageId(meta)).toBe(123);
+  });
+
+  it('prefers flat telegram_message_id over nested message.message_id', () => {
+    const meta = JSON.stringify({ telegram_message_id: 100, message: { message_id: 200 } });
+    expect(extractTelegramMessageId(meta)).toBe(100);
+  });
 });
 
 // ---------------------------------------------------------------------------

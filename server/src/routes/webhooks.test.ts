@@ -96,6 +96,56 @@ describe('POST /api/webhooks/telegram', () => {
     expect(await res.text()).toBe('ignored');
   });
 
+  it('links reply_to when boss swipe-replies to an agent message', async () => {
+    const parentId = 'reply-link-test-parent-001';
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Question?', 'delivered', 'normal', ?)"
+    )
+      .bind(parentId, getTestAgentId(), JSON.stringify({ telegram_message_id: 777 }))
+      .run();
+
+    const payload = {
+      message: {
+        message_id: 888,
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'My reply',
+        from: { id: 1, is_bot: false },
+        reply_to_message: { message_id: 777 },
+      },
+    };
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { reply_to: string | null; body: string };
+    expect(data.reply_to).toBe(parentId);
+    expect(data.body).toBe('My reply');
+  });
+
+  it('sets reply_to null when reply_to_message matches no stored message', async () => {
+    const payload = {
+      message: {
+        message_id: 999,
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'Reply to unknown',
+        from: { id: 1, is_bot: false },
+        reply_to_message: { message_id: 99999 },
+      },
+    };
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { reply_to: string | null };
+    expect(data.reply_to).toBeNull();
+  });
+
   it('handles inline keyboard callback queries', async () => {
     const parentId = 'callback-test-parent';
     await env.DB.prepare(

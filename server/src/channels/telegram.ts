@@ -57,7 +57,8 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
       );
     }
     if (!response.ok) {
-      throw new Error(`telegram send failed ${response.status} ${errorBody}`);
+      const finalError = errorBody.includes("can't parse entities") ? await response.text() : errorBody;
+      throw new Error(`telegram send failed ${response.status} ${finalError}`);
     }
   }
   try {

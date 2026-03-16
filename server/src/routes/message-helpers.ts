@@ -270,8 +270,14 @@ export function extractTelegramMessageId(metadata: string | null): number | unde
   const meta = safeParse(metadata);
   if (!meta || typeof meta !== 'object') return undefined;
   const record = meta as Record<string, unknown>;
+  // Flat key: set by delivery handler (agent_to_boss messages)
+  const flat = record['telegram_message_id'];
+  if (typeof flat === 'number') return flat;
+  // Nested key: raw Telegram payload stored by webhook (boss_to_agent messages)
   const msg = record['message'];
-  if (!msg || typeof msg !== 'object') return undefined;
-  const id = (msg as Record<string, unknown>)['message_id'];
-  return typeof id === 'number' ? id : undefined;
+  if (msg && typeof msg === 'object') {
+    const id = (msg as Record<string, unknown>)['message_id'];
+    if (typeof id === 'number') return id;
+  }
+  return undefined;
 }
