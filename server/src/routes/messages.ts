@@ -149,9 +149,10 @@ routes.get('/', async (c) => {
   const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent']);
   const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
+  const typeFilter = c.req.query('type') || undefined;
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
-  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter);
+  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter);
   const rows = await c.env.DB
     .prepare(
       `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`

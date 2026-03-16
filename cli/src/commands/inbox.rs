@@ -19,28 +19,43 @@ pub struct InboxArgs {
     pub count: bool,
     #[arg(long, help = "Mark displayed messages as read (triggers work-started reaction)")]
     pub ack: bool,
+    #[arg(long = "type", help = "Filter by message type (e.g. task_update, approval_request)")]
+    pub msg_type: Option<String>,
 }
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref()).await?;
+    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref()).await?;
     if args.count {
         println!("{}", response.total);
         return Ok(());
     }
-    println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
+    let has_types = response.messages.iter().any(|m| {
+        m.message_type.as_deref().map_or(false, |t| t != "text")
+    });
+    if has_types {
+        println!("{:<10} {:<16} {:<12} {:<16} {:<40} {}", "ID", "Agent", "Priority", "Type", "Body", "Time");
+    } else {
+        println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
+    }
     for message in &response.messages {
         let id = short_id(&message.id);
         let agent = message.agent_name.as_deref().unwrap_or("-");
         let priority = message.priority.as_deref().unwrap_or("normal");
         let priority_display = color_priority(priority);
         let body = message.body.as_deref().unwrap_or("-");
-        let truncated = truncate(body, 47);
         let time_label = message
             .created_at
             .as_deref()
             .unwrap_or("-")
             .to_string();
-        println!("{:<10} {:<16} {:<12} {:<50} {}", id, agent.cyan(), priority_display, truncated, time_label.dimmed());
+        if has_types {
+            let msg_type = message.message_type.as_deref().unwrap_or("text");
+            let truncated = truncate(body, 37);
+            println!("{:<10} {:<16} {:<12} {:<16} {:<40} {}", id, agent.cyan(), priority_display, msg_type, truncated, time_label.dimmed());
+        } else {
+            let truncated = truncate(body, 47);
+            println!("{:<10} {:<16} {:<12} {:<50} {}", id, agent.cyan(), priority_display, truncated, time_label.dimmed());
+        }
     }
     if args.ack {
         for message in &response.messages {
