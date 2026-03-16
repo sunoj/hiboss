@@ -354,6 +354,40 @@ Broadcast a message to all group members.
 Request: `{ "body": "string", "priority": "normal" }`
 Response: `{ "messages": [{ "agent_id", "message_id" }], "count": number }`
 
+### Boss Endpoints
+
+#### GET /api/bosses
+List all bosses with agent access.
+
+Response: `{ bosses: [{ id, name, role, telegram_user_id, discord_user_id, created_at, agent_ids }] }`
+
+#### POST /api/bosses
+Create a boss.
+
+Request: `{ "name": "string", "role": "admin|manager|viewer", "telegram_user_id": "string", "discord_user_id": "string" }`
+
+#### GET /api/bosses/:id
+Get boss detail with agent access list.
+
+#### PATCH /api/bosses/:id
+Update boss fields.
+
+#### DELETE /api/bosses/:id
+Delete a boss (cascades access entries).
+
+#### POST /api/bosses/:id/access
+Grant agent access. Request: `{ "agent_id": "string" }`
+
+#### DELETE /api/bosses/:id/access/:agentId
+Revoke agent access.
+
+### Audit Endpoints
+
+#### GET /api/audit
+Query audit log. Params: `actor_type`, `action`, `limit` (default 50), `offset`.
+
+Response: `{ entries: [...], total: number }`
+
 ## CLI Commands
 
 ```bash
@@ -423,6 +457,15 @@ hiboss group delete <group-id>
 
 # Discord bidirectional setup
 hiboss channel discord-setup --app-id <id> --bot-token <token>  # register /msg slash command
+
+# Boss management
+hiboss boss list                                     # list bosses
+hiboss boss add "Ming" --role admin --telegram-user-id 123
+hiboss boss show <boss-id>                           # view boss + accessible agents
+hiboss boss update <boss-id> --discord-user-id 456   # update boss fields
+hiboss boss grant <boss-id> <agent-id>               # grant agent access
+hiboss boss revoke <boss-id> <agent-id>              # revoke agent access
+hiboss boss remove <boss-id>                         # delete boss
 ```
 
 ## CLI Config
@@ -588,19 +631,53 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - Telegram inline keyboard buttons auto-removed when poll times out
 - Prevents boss from clicking stale options
 
-### v0.8 — Smart Channel Routing
+### v0.8 — Smart Channel Routing (Done)
 **Goal**: Automatic per-priority channel routing.
 
 #### Per-Priority Channel Defaults
 - Configure default channel per priority level (e.g. normal→discord, high→telegram)
-- Agent config or routing rules: `{ "normal": "discord", "high": "telegram" }`
-- Agents no longer need `--channel` flag for routine messages
+- `channel_routing` JSON column on api_keys: `{ "normal": "discord", "high": "telegram" }`
+- Message creation resolves channel from routing config when no explicit `--channel` given
+- CLI: `hiboss agent config --channel-routing "normal=discord,high=telegram"`
 
-### v0.9 — Multi-boss & Permissions
-- Multiple bosses per agent with role-based permissions
-- Boss roles: admin, manager, viewer
-- Audit log
+### v0.9 — Multi-boss & Teams (Done)
+**Goal**: Multiple bosses with role-based permissions and audit trail.
+
+#### Boss Management
+- `bosses` table with admin/manager/viewer roles
+- Boss identity via Telegram user ID and/or Discord user ID
+- CRUD API: `GET/POST /api/bosses`, `GET/PATCH/DELETE /api/bosses/:id`
+- Prefix matching on boss IDs (8-char short IDs work)
+
+#### Access Control
+- `boss_agent_access` table: grant/revoke per boss-agent pair
+- Admin role: full access to all agents
+- Manager/viewer: access only to explicitly granted agents
+- Viewer: can view messages and press buttons, cannot send messages
+- Backwards compatible: if no bosses exist, all messages allowed (legacy mode)
+
+#### Webhook Auth
+- Telegram webhook identifies boss by `from.id`
+- Discord webhook + interactions identify boss by `member.user.id` / `author.id`
+- Unknown senders blocked when boss system is active
+- Boss ID and name stored in message metadata
+
+#### Audit Log
+- `audit_log` table with actor type/id, action, resource tracking
+- `GET /api/audit` with actor_type and action filters
+- `logAudit()` helper for fire-and-forget writes
+
+#### CLI
+- `hiboss boss list` — list bosses with roles and channel IDs
+- `hiboss boss add <name> --role admin --telegram-user-id <id>`
+- `hiboss boss show/update/remove <id>`
+- `hiboss boss grant <boss-id> <agent-id>` / `hiboss boss revoke <boss-id> <agent-id>`
+
+### v1.0 — Production Ready
 - Per-boss channel preferences
+- Boss authentication tokens (API access for bosses)
+- Web dashboard for message history
+- Comprehensive audit logging on all mutations
 
 ## Code Conventions
 
