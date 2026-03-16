@@ -9,7 +9,7 @@ mod sse;
 mod types;
 
 use clap::{Parser, Subcommand};
-use commands::{agent, ask, bot, channel, config as config_cmd, init, inbox, read, reply, send, status, watch};
+use commands::{agent, ask, bot, channel, config as config_cmd, hook, init, inbox, read, reply, send, status, watch};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -43,6 +43,8 @@ enum Commands {
     Init(init::InitArgs),
     #[command(about = "Manage local configuration")]
     Config(config_cmd::ConfigArgs),
+    #[command(about = "Run Claude Code hook events")]
+    Hook(hook::HookArgs),
     #[command(about = "Configure messaging channels (Discord, Telegram)")]
     Channel(channel::ChannelArgs),
 }
@@ -67,6 +69,10 @@ async fn run() -> Result<(), Box<dyn Error>> {
             init::run(command, &mut config).await?;
             return Ok(());
         }
+        Commands::Hook(args) => {
+            hook::run(args).await?;
+            return Ok(());
+        }
         _ => {}
     }
     let server = config.require_server()?;
@@ -83,6 +89,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Channel(args) => channel::run(args, &config, &client).await?,
         Commands::Bot(args) => bot::run(args, &config, &client).await?,
         Commands::Watch(args) => watch::run(args, &config, &client).await?,
+        Commands::Hook(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
     }
