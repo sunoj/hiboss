@@ -14,4 +14,5 @@ pub mod reply;
 pub mod send;
 pub mod status;
 pub mod hook;
+pub mod setup;
 pub mod watch;
