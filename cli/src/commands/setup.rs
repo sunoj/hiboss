@@ -47,7 +47,7 @@ fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
     } else {
         env::current_dir()?
     };
-    println!("[MILESTONE] Determined project directory: {}", project_dir.display());
+    eprintln!("[hiboss]Determined project directory: {}", project_dir.display());
 
     let claude_dir = project_dir.join(".claude");
     let settings_path = claude_dir.join("settings.json");
@@ -61,18 +61,18 @@ fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
     } else {
         Value::Object(Map::new())
     };
-    println!("[MILESTONE] Loaded settings from {}", settings_path.display());
+    eprintln!("[hiboss]Loaded settings from {}", settings_path.display());
 
     let change = apply_hook_changes(&mut settings, args.remove)?;
-    println!("[MILESTONE] Computed hook updates");
+    eprintln!("[hiboss]Computed hook updates");
 
     if change.changed {
         fs::create_dir_all(&claude_dir)?;
         let serialized = serde_json::to_string_pretty(&settings)?;
         fs::write(&settings_path, format!("{}\n", serialized))?;
-        println!("[MILESTONE] Wrote {}", settings_path.display());
+        eprintln!("[hiboss]Wrote {}", settings_path.display());
     } else {
-        println!("[MILESTONE] No settings changes required");
+        eprintln!("[hiboss]No settings changes required");
     }
 
     match change.action {
