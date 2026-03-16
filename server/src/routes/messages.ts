@@ -67,6 +67,7 @@ routes.post('/', async (c) => {
   const requestedChannel = explicitChannel ?? routedChannel;
   const fileUrl = typeof payload.file_url === 'string' ? payload.file_url.trim() : undefined;
   const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
+  const sessionId = typeof payload.session_id === 'string' ? payload.session_id.trim() || null : null;
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
@@ -96,9 +97,9 @@ routes.post('/', async (c) => {
   }
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson)
+    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
@@ -162,9 +163,10 @@ routes.get('/', async (c) => {
   const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const typeFilter = c.req.query('type') || undefined;
+  const sessionFilter = c.req.query('session') || undefined;
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
-  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter);
+  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter, sessionFilter);
   const rows = await c.env.DB
     .prepare(
       `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`

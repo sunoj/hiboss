@@ -2,7 +2,7 @@
 // Exports: InboxArgs and run().
 // Dependencies: clap, colored, crate::client, crate::config.
 
-use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate, color_priority}};
+use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate, color_priority}, session};
 use clap::Args;
 use colored::Colorize;
 use std::error::Error;
@@ -24,7 +24,8 @@ pub struct InboxArgs {
 }
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref()).await?;
+    let session_id = session::read_session_id();
+    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref()).await?;
     if args.count {
         println!("{}", response.total);
         return Ok(());

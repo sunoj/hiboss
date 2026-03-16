@@ -62,7 +62,7 @@ export function validateChannel(value: unknown): Channel | undefined {
   return undefined;
 }
 
-export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string) {
+export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string) {
   const clauses = ['agent_id = ?'];
   const binds: (string | number)[] = [agentId];
   if (direction) {
@@ -81,6 +81,12 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
   if (type) {
     clauses.push('type = ?');
     binds.push(type);
+  }
+  if (session) {
+    // Show: messages from this session, boss replies to this session's messages,
+    // and boss-initiated messages (reply_to IS NULL) visible to all sessions.
+    clauses.push('(session_id = ? OR reply_to IN (SELECT id FROM messages WHERE session_id = ?) OR (direction = \'boss_to_agent\' AND reply_to IS NULL))');
+    binds.push(session, session);
   }
   return { where: clauses.join(' AND '), binds };
 }
