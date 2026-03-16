@@ -1,11 +1,12 @@
 // Shared domain types for hiboss server bindings, responses, and exports.
 // Exports Env, message shapes, channel config contracts, and metadata helpers.
-// Depends only on Cloudflare D1 typings for the binding.
+// Depends on Cloudflare D1 and R2 typings for bindings.
 
-import type { D1Database } from '@cloudflare/workers-types';
+import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 
 export type Env = {
   DB: D1Database;
+  ATTACHMENTS: R2Bucket;
 };
 
 export type Direction = 'agent_to_boss' | 'boss_to_agent';

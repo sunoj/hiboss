@@ -100,3 +100,12 @@ pub struct StatusUpdate {
 }
 
 pub type PollResponse = Message;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UploadResponse {
+    pub key: String,
+    pub url: String,
+    pub filename: String,
+    pub content_type: String,
+    pub size: u64,
+}

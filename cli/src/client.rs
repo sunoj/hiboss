@@ -2,10 +2,31 @@
 // Exports: HiBossClient and its methods for messaging workflows.
 // Dependencies: reqwest, serde_json, crate::types, std::error::Error.
 
-use crate::types::{AgentsResponse, ChannelsResponse, CreateAgentResponse, Message, MessagesResponse, PollResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate};
+use crate::types::{AgentsResponse, ChannelsResponse, CreateAgentResponse, Message, MessagesResponse, PollResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate, UploadResponse};
 use reqwest::Client;
 use serde_json::Value;
 use std::error::Error;
+
+fn mime_from_ext(filename: &str) -> String {
+    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "pdf" => "application/pdf",
+        "json" => "application/json",
+        "txt" | "log" => "text/plain",
+        "html" | "htm" => "text/html",
+        "css" => "text/css",
+        "js" => "application/javascript",
+        "zip" => "application/zip",
+        "tar" => "application/x-tar",
+        "gz" => "application/gzip",
+        _ => "application/octet-stream",
+    }.to_owned()
+}
 
 pub struct HiBossClient {
     base_url: String,
@@ -270,6 +291,27 @@ impl HiBossClient {
             .bearer_auth(&self.api_key)
             .json(&serde_json::json!({ "body": body, "priority": priority }))
             .send().await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn upload_file(&self, path: &str) -> Result<UploadResponse, Box<dyn Error>> {
+        let file_path = std::path::Path::new(path);
+        if !file_path.exists() {
+            return Err(format!("file not found: {}", path).into());
+        }
+        let filename = file_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let data = std::fs::read(file_path)?;
+        let mime = mime_from_ext(&filename);
+        let part = reqwest::multipart::Part::bytes(data)
+            .file_name(filename)
+            .mime_str(&mime)?;
+        let form = reqwest::multipart::Form::new().part("file", part);
+        let resp = self.http
+            .post(format!("{}/api/attachments/upload", self.base_url))
+            .bearer_auth(&self.api_key)
+            .multipart(form)
+            .send()
+            .await?;
         Self::parse_response(resp).await
     }
 

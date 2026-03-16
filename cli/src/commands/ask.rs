@@ -18,6 +18,8 @@ pub struct AskArgs {
     pub options: Option<String>,
     #[arg(long, help = "Action buttons (Label:command pairs, comma-separated: Approve:aid merge t-1,Reject)")]
     pub actions: Option<String>,
+    #[arg(long, help = "Local file to upload and attach")]
+    pub file: Option<String>,
     #[arg(value_name = "body")]
     pub body: String,
 }
@@ -67,6 +69,14 @@ pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Resu
         }).filter(|v| !v.is_empty())
     };
 
+    let file_url = if let Some(ref path) = args.file {
+        let upload = client.upload_file(path).await?;
+        eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
+        Some(upload.url)
+    } else {
+        None
+    };
+
     let request = SendRequest {
         body: unescape_body(&args.body),
         mode: "blocking".to_owned(),
@@ -74,7 +84,7 @@ pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Resu
         channel,
         metadata,
         options,
-        file_url: None,
+        file_url,
         message_type: None,
     };
     let submission = client.send_message(&request).await?;

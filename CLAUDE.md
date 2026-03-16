@@ -194,6 +194,25 @@ Discord interaction webhook. Receives messages from Discord, creates boss_to_age
 #### POST /api/webhooks/telegram
 Telegram bot webhook. Receives messages from Telegram, creates boss_to_agent messages.
 
+### Attachment Endpoints
+
+#### POST /api/attachments/upload
+Upload a file. Supports multipart form (`file` field) or raw binary (with `Content-Type` and `X-Filename` headers). Max 10MB.
+
+Response (201):
+```json
+{
+  "key": "uuid",
+  "url": "https://server/api/attachments/uuid",
+  "filename": "string",
+  "content_type": "string",
+  "size": 12345
+}
+```
+
+#### GET /api/attachments/:key
+Serve an uploaded file. Public (no auth required). Returns file with correct content-type and cache headers.
+
 ### Admin Endpoints
 
 #### POST /api/keys
@@ -333,6 +352,7 @@ hiboss send --priority high "Build failed, need help."
 hiboss send --channel telegram "Quick update via TG."
 hiboss send --file-url "https://example.com/screenshot.png" "See attached"
 hiboss send --type task_update "Build v2.1 deployed successfully"
+hiboss send --file ./screenshot.png "See attached"
 
 # Ask (blocking, waits for reply)
 hiboss ask "Option A or B for the migration?"
@@ -489,6 +509,17 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - Parses `Label:command` pairs → options (Telegram buttons) + `metadata.actions` map
 - Webhook callback handler copies matched action command to reply `metadata.action`
 - CLI auto-executes the action command when poll reply arrives with `metadata.action`
+
+### v0.5.2 — File Attachments (Done)
+**Goal**: Upload and attach files to messages via R2 storage.
+
+#### R2 Attachments
+- `POST /api/attachments/upload` — multipart or raw binary upload (max 10MB)
+- `GET /api/attachments/:key` — public file serving with correct content-type
+- Files stored in R2 with metadata (agent_id, filename, uploaded_at)
+- CLI: `hiboss send --file ./screenshot.png "See attached"`
+- CLI: `hiboss ask --file ./report.pdf "Review this?"`
+- Telegram sendDocument with fallback to text link if Telegram rejects the file
 
 ### v0.6 — Multi-boss & Teams
 - Multiple bosses per agent with role-based permissions

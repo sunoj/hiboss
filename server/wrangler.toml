@@ -6,3 +6,7 @@ compatibility_date = "2025-01-01"
 binding = "DB"
 database_name = "hiboss-db"
 database_id = "5640bc74-e03a-4746-aa10-ae7025078f24"
+
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "hiboss-attachments"
