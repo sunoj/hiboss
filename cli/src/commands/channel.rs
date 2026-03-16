@@ -39,11 +39,13 @@ pub struct ChannelSetArgs {
     #[arg(value_enum)]
     pub channel: ChannelKind,
     #[arg(long)]
-    pub bot_token: String,
+    pub bot_token: Option<String>,
     #[arg(long)]
     pub channel_id: Option<String>,
     #[arg(long)]
     pub chat_id: Option<String>,
+    #[arg(long)]
+    pub webhook_url: Option<String>,
 }
 
 pub async fn run(args: &ChannelArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -57,34 +59,32 @@ pub async fn run(args: &ChannelArgs, config: &Config, client: &HiBossClient) -> 
 async fn run_set(args: &ChannelSetArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let config_payload = match args.channel {
         ChannelKind::Discord => {
-            let channel_id = args
-                .channel_id
-                .as_deref()
-                .ok_or_else(|| required_arg("channel-id is required for discord"))?;
-            json!({
-                "channel_id": channel_id,
-                "bot_token": args.bot_token,
-            })
+            if let Some(ref url) = args.webhook_url {
+                json!({ "webhook_url": url })
+            } else {
+                let channel_id = args.channel_id.as_deref()
+                    .ok_or_else(|| required_arg("discord needs --webhook-url or --bot-token + --channel-id"))?;
+                let bot_token = args.bot_token.as_deref()
+                    .ok_or_else(|| required_arg("discord needs --webhook-url or --bot-token + --channel-id"))?;
+                json!({ "channel_id": channel_id, "bot_token": bot_token })
+            }
         }
         ChannelKind::Telegram => {
-            let chat_id = args
-                .chat_id
-                .as_deref()
+            let chat_id = args.chat_id.as_deref()
                 .ok_or_else(|| required_arg("chat-id is required for telegram"))?;
-            json!({
-                "chat_id": chat_id,
-                "bot_token": args.bot_token,
-            })
+            let bot_token = args.bot_token.as_deref()
+                .ok_or_else(|| required_arg("bot-token is required for telegram"))?;
+            json!({ "chat_id": chat_id, "bot_token": bot_token })
         }
     };
     client.set_channel(args.channel.as_str(), &config_payload).await?;
-    if let ChannelKind::Telegram = args.channel {
+    if let (ChannelKind::Telegram, Some(token)) = (&args.channel, &args.bot_token) {
         let server_url = config.require_server()?;
         let base = server_url.trim_end_matches('/');
         let webhook_url = format!("{}/api/webhooks/telegram", base);
         let tg_client = reqwest::Client::new();
         let tg_response = tg_client
-            .post(format!("https://api.telegram.org/bot{}/setWebhook", args.bot_token))
+            .post(format!("https://api.telegram.org/bot{}/setWebhook", token))
             .json(&json!({ "url": webhook_url }))
             .send()
             .await?;
