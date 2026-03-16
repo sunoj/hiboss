@@ -74,17 +74,16 @@ router.post('/telegram', async (c) => {
   if (!configRow) {
     return c.text('no agent for chat', 404);
   }
-  const agentRow = configRow;
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'telegram', text, 'sent', 'normal', JSON.stringify(payload))
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', text, 'sent', 'normal', JSON.stringify(payload))
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
-  c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
   return c.json(mapMessage(inserted), 201);
 });
 
