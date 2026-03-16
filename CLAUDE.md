@@ -36,8 +36,9 @@ When your current task is complete and you have no more work to do, you MUST fol
 2. Propose 2-4 concrete next directions based on context (roadmap items, open issues, improvements)
 3. Send via `hiboss ask --options` (**never** `hiboss send` for completion messages):
    ```bash
-   hiboss ask --options "Option A,Option B,Option C" "Summary of what was done. What should I do next?" --timeout 300
+   hiboss ask --options "Short A,Short B,Short C" "Summary of what was done.\n\nNext options:\n1. Short A — full description of option A\n2. Short B — full description of option B\n3. Short C — full description of option C" --timeout 300
    ```
+   **Important**: Option labels in `--options` must be short (Telegram buttons have length limits). Put full descriptions in the message body so the boss can read details before choosing.
 4. Run the ask command with `run_in_background: true` in Bash
 5. **Wait for the boss's reply** — do not stop while the background task is pending
 6. When the reply arrives, continue working on the selected direction
