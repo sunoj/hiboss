@@ -9,7 +9,6 @@ mod tests {
     const EVENT_COMMANDS: &[(&str, &str)] = &[
         ("SessionStart", "session-start"),
         ("PostToolUse", "post-tool-use"),
-        ("Stop", "stop"),
     ];
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -183,12 +182,6 @@ mod tests {
         assert_eq!(hooks[0]["command"], "hiboss hook session-start");
     }
 
-    #[test]
-    fn new_matcher_for_stop() {
-        let m = new_hiboss_matcher("stop");
-        assert_eq!(m["hooks"][0]["command"], "hiboss hook stop");
-    }
-
     // --- apply_hook_changes (add) tests ---
 
     #[test]
@@ -200,7 +193,6 @@ mod tests {
         let hooks = settings["hooks"].as_object().unwrap();
         assert!(hooks.contains_key("SessionStart"));
         assert!(hooks.contains_key("PostToolUse"));
-        assert!(hooks.contains_key("Stop"));
     }
 
     #[test]

@@ -23,15 +23,12 @@ pub enum HookEvent {
     SessionStart,
     #[command(about = "Check urgent messages (TTL-cached, 5 min)")]
     PostToolUse,
-    #[command(about = "Remind about unread messages before stopping")]
-    Stop,
 }
 
 pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
     let _ = match &args.event {
         HookEvent::SessionStart => run_session_start(),
         HookEvent::PostToolUse => run_post_tool_use(),
-        HookEvent::Stop => run_stop(),
     };
     Ok(())
 }
@@ -72,14 +69,6 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     let count = get_priority_inbox_count("critical,high");
     if count > 0 {
         println!("URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high", count);
-    }
-    Ok(())
-}
-
-fn run_stop() -> Result<(), Box<dyn Error>> {
-    let count = get_inbox_count();
-    if count > 0 {
-        println!("You have {} unread boss messages. Check: hiboss inbox", count);
     }
     Ok(())
 }
