@@ -14,6 +14,8 @@ pub struct SendArgs {
     pub channel: Option<String>,
     #[arg(long, help = "URL of file/image to attach")]
     pub file_url: Option<String>,
+    #[arg(long, help = "Local file to upload and attach")]
+    pub file: Option<String>,
     #[arg(long = "type", help = "Message type (e.g. task_update, approval_request)")]
     pub message_type: Option<String>,
     #[arg(value_name = "body")]
@@ -22,6 +24,13 @@ pub struct SendArgs {
 
 pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let channel = args.channel.clone().or_else(|| config.channel.clone());
+    let file_url = if let Some(ref path) = args.file {
+        let upload = client.upload_file(path).await?;
+        eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
+        Some(upload.url)
+    } else {
+        args.file_url.clone()
+    };
     let request = SendRequest {
         body: unescape_body(&args.body),
         mode: "async".to_owned(),
@@ -29,7 +38,7 @@ pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Res
         channel,
         metadata: None,
         options: None,
-        file_url: args.file_url.clone(),
+        file_url,
         message_type: args.message_type.clone(),
     };
     let response = client.send_message(&request).await?;

@@ -152,12 +152,21 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
-  const response = await fetch(
+  let response = await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendDocument`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
   );
+  // Fallback: if sendDocument fails, send URL as text message
   if (!response.ok) {
-    throw new Error(`telegram sendDocument failed ${response.status}`);
+    const label = caption ? stripHtmlTags(caption) : 'Attachment';
+    const fallbackText = `${label}\n📎 ${docUrl}`;
+    response = await fetch(
+      `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: config.chat_id, text: fallbackText }) }
+    );
+    if (!response.ok) {
+      throw new Error(`telegram sendDocument fallback failed ${response.status}`);
+    }
   }
   try {
     const result = await response.json() as { result?: { message_id?: number } };
