@@ -162,6 +162,18 @@ Request:
 }
 ```
 
+#### POST /api/messages/:id/react
+Set a reaction emoji on a Telegram message. Agent decides what emoji to use.
+
+Request:
+```json
+{
+  "emoji": "👀"
+}
+```
+
+Response (200): `{ "ok": true }`
+
 #### POST /api/messages/:id/poll
 Long-poll for reply to a blocking message. Returns when reply arrives or timeout.
 
@@ -254,6 +266,10 @@ hiboss read <msg-id>
 # Reply to boss message
 hiboss reply <msg-id> "Done, deployed to staging."
 
+# React to a message with emoji
+hiboss react <msg-id> "👀"
+hiboss react <msg-id> "✅"
+
 # Status of sent message
 hiboss status <msg-id>
 ```
@@ -283,10 +299,11 @@ Boss messages reach the agent through three layers:
 
 Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Only urgent messages interrupt the agent via PostToolUse hook.
 
-### Telegram Delivery Indicators
-- 👀 reaction on boss message → message received by server
-- 🔨 reaction on boss message → agent started working (message marked as read)
-- ✅ reaction on boss message → agent has replied
+### Telegram Reactions
+Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoji>`. The server exposes the capability; agents decide what reactions to use and when. Example conventions:
+- 👀 → message seen
+- 🔨 → working on it
+- ✅ → done/replied
 
 ## Roadmap
 
@@ -310,7 +327,7 @@ Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Onl
 - SessionStart hook: injects unread messages at session start
 - PostToolUse hook: checks for urgent (critical/high) messages with 5min TTL
 - Priority filter: `hiboss inbox --priority critical,high --count`
-- Telegram reactions: 👀 on receive, ✅ on reply
+- Telegram reactions: agent-driven via `POST /api/messages/:id/react`
 
 ### v0.4 — Rich Telegram & Claude Code Integration (Done)
 **Goal**: Native Telegram chat experience + deeper Claude Code integration.
@@ -320,7 +337,7 @@ Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Onl
 - Reply threading via `reply_to_message_id`
 - Inline keyboards for quick-reply (`hiboss ask --options "A,B,C"`)
 - `callback_query` handler for button presses
-- Telegram reactions: 👀 received, 🔨 working, ✅ replied
+- Telegram reactions: generic react API, agent decides emoji/timing
 
 #### Claude Code Integration
 - `last_used_at` tracking: server records agent's last API call timestamp

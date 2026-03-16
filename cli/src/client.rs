@@ -144,6 +144,22 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
 
+    pub async fn react(&self, id: &str, emoji: &str) -> Result<(), Box<dyn Error>> {
+        let resp = self
+            .http
+            .post(format!("{}/api/messages/{}/react", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .json(&serde_json::json!({ "emoji": emoji }))
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("react failed ({}): {}", status, body).into());
+        }
+        Ok(())
+    }
+
     async fn parse_response<T: serde::de::DeserializeOwned>(resp: reqwest::Response) -> Result<T, Box<dyn Error>> {
         if resp.status().is_success() {
             let parsed = resp.json::<T>().await?;

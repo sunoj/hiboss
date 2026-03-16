@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, hook, init, inbox, read, reply, send, setup, status, watch};
+use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, hook, init, inbox, react, read, reply, send, setup, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -25,6 +25,8 @@ enum Commands {
     Inbox(inbox::InboxArgs),
     #[command(about = "Read a specific message with its reply chain")]
     Read(read::ReadArgs),
+    #[command(about = "Set a reaction emoji on a message")]
+    React(react::ReactArgs),
     #[command(about = "Reply to a message from your boss")]
     Reply(reply::ReplyArgs),
     #[command(about = "Check the status of a sent message")]
@@ -85,6 +87,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Ask(args) => ask::run(args, &config, &client).await?,
         Commands::Inbox(args) => inbox::run(args, &config, &client).await?,
         Commands::Read(args) => read::run(args, &config, &client).await?,
+        Commands::React(args) => react::run(args, &config, &client).await?,
         Commands::Reply(args) => reply::run(args, &config, &client).await?,
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
