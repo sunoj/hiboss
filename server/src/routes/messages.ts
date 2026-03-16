@@ -28,6 +28,7 @@ import {
   parsePriorityFilter,
   priorityOptions,
   requireTelegramConfig,
+  resolveChannelRouting,
   selectChannelConfig,
   validateChannel,
   validateOption,
@@ -50,16 +51,20 @@ routes.post('/', async (c) => {
   }
   const idempotencyKey = typeof payload.idempotency_key === 'string' ? payload.idempotency_key.trim() || null : null;
   const agentConfig = await c.env.DB
-    .prepare('SELECT default_priority, rate_limit FROM api_keys WHERE id = ?')
+    .prepare('SELECT default_priority, rate_limit, channel_routing FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ default_priority: string; rate_limit: number | null }>();
+    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null }>();
   const defaultPriority = (agentConfig?.default_priority ?? 'normal') as Priority;
   if (agentConfig?.rate_limit && await checkRateLimit(c.env, agentId, agentConfig.rate_limit)) {
     return c.text('rate limit exceeded', 429);
   }
   const mode = validateOption<Mode>(payload.mode, modeOptions, 'async');
   const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority);
-  const requestedChannel = validateChannel(payload.channel);
+  const explicitChannel = validateChannel(payload.channel);
+  const routedChannel = !explicitChannel && agentConfig?.channel_routing
+    ? resolveChannelRouting(agentConfig.channel_routing, priority as string)
+    : undefined;
+  const requestedChannel = explicitChannel ?? routedChannel;
   const fileUrl = typeof payload.file_url === 'string' ? payload.file_url.trim() : undefined;
   const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};

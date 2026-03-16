@@ -36,6 +36,9 @@ pub struct AgentConfigArgs {
     /// Set rate limit (messages per minute, 0 = unlimited)
     #[arg(long = "rate-limit")]
     pub rate_limit: Option<u32>,
+    /// Set per-priority channel routing (e.g. "normal=discord,high=telegram")
+    #[arg(long = "channel-routing")]
+    pub channel_routing: Option<String>,
 }
 
 pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -46,8 +49,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
             println!("{}", resp.key);
         }
         AgentCommand::Config(args) => {
-            if args.default_priority.is_none() && args.rate_limit.is_none() {
-                // Show current config
+            if args.default_priority.is_none() && args.rate_limit.is_none() && args.channel_routing.is_none() {
                 let info = client.get_agent_config().await?;
                 println!("default_priority: {}", info["default_priority"].as_str().unwrap_or("normal"));
                 let rl = match &info["rate_limit"] {
@@ -55,6 +57,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                     _ => "unlimited".to_string(),
                 };
                 println!("rate_limit: {} msg/min", rl);
+                print_channel_routing(&info["channel_routing"]);
             } else {
                 let mut updates = serde_json::Map::new();
                 if let Some(dp) = &args.default_priority {
@@ -67,6 +70,22 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                         updates.insert("rate_limit".into(), serde_json::json!(rl));
                     }
                 }
+                if let Some(cr) = &args.channel_routing {
+                    if cr == "none" || cr.is_empty() {
+                        updates.insert("channel_routing".into(), serde_json::Value::Null);
+                    } else {
+                        let routing: serde_json::Map<String, serde_json::Value> = cr
+                            .split(',')
+                            .filter_map(|pair| {
+                                let mut parts = pair.splitn(2, '=');
+                                let key = parts.next()?.trim().to_string();
+                                let val = parts.next()?.trim().to_string();
+                                Some((key, serde_json::Value::String(val)))
+                            })
+                            .collect();
+                        updates.insert("channel_routing".into(), serde_json::Value::Object(routing));
+                    }
+                }
                 let result = client.update_agent_config(&serde_json::Value::Object(updates)).await?;
                 eprintln!("Config updated");
                 println!("default_priority: {}", result["default_priority"].as_str().unwrap_or("normal"));
@@ -75,6 +94,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                     _ => "unlimited".to_string(),
                 };
                 println!("rate_limit: {} msg/min", rl);
+                print_channel_routing(&result["channel_routing"]);
             }
         }
         AgentCommand::List => {
@@ -95,5 +115,17 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
         }
     }
     Ok(())
+}
+
+fn print_channel_routing(value: &serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) if !map.is_empty() => {
+            let pairs: Vec<String> = map.iter()
+                .map(|(k, v)| format!("{}={}", k, v.as_str().unwrap_or("?")))
+                .collect();
+            println!("channel_routing: {}", pairs.join(", "));
+        }
+        _ => println!("channel_routing: none"),
+    }
 }
 
