@@ -84,9 +84,10 @@ routes.get('/', async (c) => {
   const statusParam = unread === 'true' ? 'sent' : c.req.query('status');
   const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent']);
   const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
+  const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
-  const { where, binds } = buildFilters(agentId, direction, status);
+  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter);
   const rows = await c.env.DB
     .prepare(
       `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`
@@ -241,7 +242,7 @@ function validateChannel(value: unknown): Channel | undefined {
   return undefined;
 }
 
-function buildFilters(agentId: string, direction: Direction | null, status: Status | null) {
+function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[]) {
   const clauses = ['agent_id = ?'];
   const binds: (string | number)[] = [agentId];
   if (direction) {
@@ -252,7 +253,24 @@ function buildFilters(agentId: string, direction: Direction | null, status: Stat
     clauses.push('status = ?');
     binds.push(status);
   }
+  if (priority && priority.length > 0) {
+    const placeholders = priority.map(() => '?').join(', ');
+    clauses.push(`priority IN (${placeholders})`);
+    binds.push(...priority);
+  }
   return { where: clauses.join(' AND '), binds };
+}
+
+function parsePriorityFilter(value: string | undefined): Priority[] | undefined {
+  if (!value) return undefined;
+  const valid: Priority[] = [];
+  for (const p of value.split(',')) {
+    const trimmed = p.trim() as Priority;
+    if (priorityOptions.includes(trimmed)) {
+      valid.push(trimmed);
+    }
+  }
+  return valid.length > 0 ? valid : undefined;
 }
 
 function clampNumber(value: string | null | undefined, fallback: number, maximum: number): number {

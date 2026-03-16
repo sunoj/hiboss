@@ -13,10 +13,18 @@ pub struct InboxArgs {
     pub all: bool,
     #[arg(long, default_value_t = 20)]
     pub limit: u32,
+    #[arg(long, help = "Filter by priority (comma-separated: critical,high)")]
+    pub priority: Option<String>,
+    #[arg(long, help = "Print only the message count")]
+    pub count: bool,
 }
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let response = client.list_messages(!args.all, args.all, args.limit).await?;
+    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref()).await?;
+    if args.count {
+        println!("{}", response.total);
+        return Ok(());
+    }
     println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
     for message in response.messages {
         let id = short_id(&message.id);
