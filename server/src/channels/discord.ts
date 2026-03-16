@@ -7,6 +7,7 @@ import type { DiscordChannelConfig } from '../types';
 export interface DiscordSendOptions {
   username?: string;
   avatarUrl?: string;
+  components?: unknown[];
 }
 
 export async function sendDiscordMessage(config: DiscordChannelConfig, content: string, options?: DiscordSendOptions): Promise<void> {
@@ -14,15 +15,16 @@ export async function sendDiscordMessage(config: DiscordChannelConfig, content: 
     return sendViaWebhook(config.webhook_url, content, options);
   }
   if (config.bot_token && config.channel_id) {
-    return sendViaBot(config.bot_token, config.channel_id, content);
+    return sendViaBot(config.bot_token, config.channel_id, content, options?.components);
   }
   throw new Error('discord config incomplete: need webhook_url or bot_token+channel_id');
 }
 
 async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions): Promise<void> {
-  const payload: Record<string, string> = { content };
+  const payload: Record<string, unknown> = { content };
   if (options?.username) payload.username = options.username;
   if (options?.avatarUrl) payload.avatar_url = options.avatarUrl;
+  if (options?.components) payload.components = options.components;
   const response = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -34,14 +36,16 @@ async function sendViaWebhook(webhookUrl: string, content: string, options?: Dis
   }
 }
 
-async function sendViaBot(botToken: string, channelId: string, content: string): Promise<void> {
+async function sendViaBot(botToken: string, channelId: string, content: string, components?: unknown[]): Promise<void> {
+  const payload: Record<string, unknown> = { content };
+  if (components) payload.components = components;
   const response = await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bot ${botToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(payload),
   });
   if (!response.ok) {
     const body = await response.text();

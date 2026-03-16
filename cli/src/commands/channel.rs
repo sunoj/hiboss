@@ -17,6 +17,16 @@ pub struct ChannelArgs {
 pub enum ChannelCommand {
     Set(ChannelSetArgs),
     List,
+    #[command(about = "Register Discord /msg slash command and print setup instructions")]
+    DiscordSetup(DiscordSetupArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct DiscordSetupArgs {
+    #[arg(long, help = "Discord Application ID")]
+    pub app_id: String,
+    #[arg(long, help = "Discord Bot Token")]
+    pub bot_token: String,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -54,6 +64,7 @@ pub async fn run(args: &ChannelArgs, config: &Config, client: &HiBossClient) -> 
     match &args.command {
         ChannelCommand::Set(payload) => run_set(payload, config, client).await?,
         ChannelCommand::List => run_list(client).await?,
+        ChannelCommand::DiscordSetup(payload) => run_discord_setup(payload, config).await?,
     }
     Ok(())
 }
@@ -108,6 +119,29 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         let enabled = if channel.enabled { "true" } else { "false" };
         println!("{:<10} {:<8} {}", channel.channel, enabled, channel.created_at);
     }
+    Ok(())
+}
+
+async fn run_discord_setup(args: &DiscordSetupArgs, config: &Config) -> Result<(), Box<dyn Error>> {
+    let server_url = config.require_server()?;
+    let base = server_url.trim_end_matches('/');
+    let url = format!("{}/api/webhooks/discord-interactions/register-commands", base);
+    let http = reqwest::Client::new();
+    let response = http
+        .post(&url)
+        .json(&json!({ "app_id": args.app_id, "bot_token": args.bot_token }))
+        .send()
+        .await?;
+    if !response.status().is_success() {
+        let body = response.text().await?;
+        return Err(format!("Discord command registration failed: {}", body).into());
+    }
+    eprintln!("Discord /msg slash command registered.");
+    eprintln!("\nNext steps:");
+    eprintln!("1. Go to Discord Developer Portal > Your App > General Information");
+    eprintln!("2. Set Interactions Endpoint URL to: {}/api/webhooks/discord-interactions", base);
+    eprintln!("3. Run: wrangler secret put DISCORD_PUBLIC_KEY");
+    eprintln!("   Paste your app's PUBLIC KEY from the Developer Portal");
     Ok(())
 }
 

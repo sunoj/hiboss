@@ -12,11 +12,13 @@ import { streamRouter } from './routes/stream';
 import { groupsRouter } from './routes/groups';
 import { routingRouter } from './routes/routing';
 import { attachmentsRouter } from './routes/attachments';
+import { discordInteractionsRouter } from './routes/discord-interactions';
 import { webhooksRouter } from './routes/webhooks';
 
 const app = new Hono<{ Bindings: Env }>({});
 
 app.route('/api/attachments', attachmentsRouter);
+app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
 app.route('/api/webhooks', webhooksRouter);
 app.route('/api/agents', agentsRouter);
 app.route('/api/messages', streamRouter);
