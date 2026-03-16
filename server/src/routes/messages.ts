@@ -13,6 +13,7 @@ import {
   deliverReply,
   deliverToChannelWithOptions,
   delay,
+  deliverWithRetry,
   extractTelegramMessageId,
   fetchAgentName,
   fetchAllChannelConfigs,
@@ -100,7 +101,9 @@ routes.post('/', async (c) => {
     const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
     try {
       const results = await Promise.allSettled(
-        channelConfigs.map((cc) => deliverToChannelWithOptions(cc.channel, cc.config, name, body, inlineKeyboard, fileUrl))
+        channelConfigs.map((cc) =>
+          deliverWithRetry(() => deliverToChannelWithOptions(cc.channel, cc.config, name, body, inlineKeyboard, fileUrl))
+        )
       );
       const deliveryResults = results.map((r, i) => ({
         channel: channelConfigs[i].channel,
@@ -202,7 +205,9 @@ routes.post('/:id/reply', async (c) => {
       const agentName = await fetchAgentName(c.env, agentId);
       const name = agentName ?? 'agent';
       const telegramReplyId = extractTelegramMessageId(parent.metadata);
-      const result = await deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId);
+      const result = await deliverWithRetry(() =>
+        deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId)
+      );
       if (result.delivered) {
         const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
         const binds: (string | number)[] = [];
