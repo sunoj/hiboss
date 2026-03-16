@@ -21,6 +21,10 @@ export function formatAgentMessage(name: string, body: string): string {
 }
 
 export function requireDiscordConfig(config: Record<string, unknown>): DiscordChannelConfig {
+  const webhookUrl = config['webhook_url'];
+  if (typeof webhookUrl === 'string') {
+    return { webhook_url: webhookUrl };
+  }
   const channelId = config['channel_id'];
   const token = config['bot_token'];
   if (typeof channelId !== 'string' || typeof token !== 'string') {
