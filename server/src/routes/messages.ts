@@ -87,11 +87,20 @@ routes.post('/', async (c) => {
     try {
       const name = agentName ?? 'agent';
       const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
-      const delivered = await deliverToChannelWithOptions(channelConfig.channel, channelConfig.config, name, body, inlineKeyboard, fileUrl);
-      if (delivered) {
+      const result = await deliverToChannelWithOptions(channelConfig.channel, channelConfig.config, name, body, inlineKeyboard, fileUrl);
+      if (result.delivered) {
+        const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
+        const binds: (string | number)[] = [];
+        if (result.telegramMessageId) {
+          updates.push('metadata = ?');
+          const meta = metadata ? { ...(metadata as Record<string, unknown>) } : {};
+          meta['telegram_message_id'] = result.telegramMessageId;
+          binds.push(JSON.stringify(meta));
+        }
+        binds.push(inserted.id);
         await c.env.DB
-          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
-          .bind(inserted.id)
+          .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+          .bind(...binds)
           .run();
       }
     } catch (error) {
@@ -162,11 +171,18 @@ routes.post('/:id/reply', async (c) => {
       const agentName = await fetchAgentName(c.env, agentId);
       const name = agentName ?? 'agent';
       const telegramReplyId = extractTelegramMessageId(parent.metadata);
-      const delivered = await deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId);
-      if (delivered) {
+      const result = await deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId);
+      if (result.delivered) {
+        const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
+        const binds: (string | number)[] = [];
+        if (result.telegramMessageId) {
+          updates.push('metadata = ?');
+          binds.push(JSON.stringify({ telegram_message_id: result.telegramMessageId }));
+        }
+        binds.push(inserted.id);
         await c.env.DB
-          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
-          .bind(inserted.id)
+          .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+          .bind(...binds)
           .run();
       }
     } catch {

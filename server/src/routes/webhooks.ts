@@ -74,11 +74,26 @@ router.post('/telegram', async (c) => {
   if (!configRow) {
     return c.text('no agent for chat', 404);
   }
+  // Detect Telegram reply-to and link to original hiboss message
+  const replyToMessage = message?.['reply_to_message'] as Record<string, unknown> | undefined;
+  const replyToTgId = replyToMessage?.['message_id'] as number | undefined;
+  let replyTo: string | null = null;
+  if (replyToTgId) {
+    const parent = await c.env.DB
+      .prepare(
+        "SELECT id FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1"
+      )
+      .bind(configRow.agent_id, replyToTgId)
+      .first<{ id: string }>();
+    if (parent) {
+      replyTo = parent.id;
+    }
+  }
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', text, 'sent', 'normal', JSON.stringify(payload))
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', text, 'sent', 'normal', replyTo, JSON.stringify(payload))
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
