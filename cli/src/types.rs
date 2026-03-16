@@ -31,6 +31,8 @@ pub struct SendRequest {
     pub priority: String,
     pub channel: Option<String>,
     pub metadata: Option<HashMap<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

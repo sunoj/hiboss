@@ -12,18 +12,24 @@ pub struct AskArgs {
     pub timeout: u32,
     #[arg(long)]
     pub channel: Option<String>,
+    #[arg(long, help = "Quick-reply options (comma-separated: A,B,C)")]
+    pub options: Option<String>,
     #[arg(value_name = "body")]
     pub body: String,
 }
 
 pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let channel = args.channel.clone().or_else(|| config.channel.clone());
+    let options = args.options.as_ref().map(|o| {
+        o.split(',').map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>()
+    }).filter(|v| !v.is_empty());
     let request = SendRequest {
         body: args.body.clone(),
         mode: "blocking".to_owned(),
         priority: "normal".to_owned(),
         channel,
         metadata: None,
+        options,
     };
     let submission = client.send_message(&request).await?;
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
