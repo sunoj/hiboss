@@ -222,6 +222,79 @@ Stored in `~/.config/hiboss/config.json`:
 }
 ```
 
+## Roadmap
+
+### v0.1 — Core (Done)
+- Rust CLI with all commands: send, ask, inbox, read, reply, status, agent, bot, watch, init, config, channel
+- Cloudflare Worker server with D1, Discord + Telegram adapters
+- Multi-agent support from day one (API key per agent, agent_name in messages)
+- MCP server for Claude Code / Cursor integration
+- Bootstrap flow for first-time setup
+
+### v0.2 — Reliability Fixes (Done)
+- Channel fallback: server auto-selects configured channel when requested one is missing
+- Reply delivery: `hiboss reply` now delivers back to Telegram/Discord, not just D1
+- Short ID prefix matching: inbox shows 8-char IDs, all commands accept them
+- Typing indicator: Telegram shows "typing..." on incoming and outgoing messages
+
+### v0.3 — Real-time Message Push
+**Problem**: Current architecture is pull-only. Agent must poll `hiboss inbox` or run `hiboss bot`. Boss messages sit in D1 until someone checks.
+
+**Solution**: Server-Sent Events (SSE) + Agent Webhook Callbacks.
+
+#### SSE Stream Endpoint
+- `GET /api/messages/stream` — persistent SSE connection, pushes new messages in real-time
+- Auth via Bearer token (same as other endpoints)
+- Events: `message` (new message), `status` (delivery/read updates)
+- `hiboss watch` and `hiboss bot` switch from polling to SSE (fall back to polling if SSE unavailable)
+- Uses Cloudflare Workers streaming response (`ReadableStream`)
+
+#### Agent Webhook Callbacks
+- `PUT /api/agents/me/callback` — register a callback URL for the current agent
+- When a boss_to_agent message arrives, server POSTs to the callback URL
+- Enables serverless agents (e.g., another Cloudflare Worker that auto-replies)
+- Callback payload: full message object, same as GET /api/messages/:id
+- Retry with exponential backoff on failure (via Cloudflare Queue or waitUntil)
+
+#### API Changes
+```
+GET  /api/messages/stream          — SSE stream of new messages
+PUT  /api/agents/me/callback       — register webhook callback URL
+DELETE /api/agents/me/callback     — remove callback
+GET  /api/agents/me                — get agent config (including callback)
+```
+
+### v0.4 — Rich Telegram Integration
+**Goal**: Leverage the full Telegram Bot API for a native chat experience.
+
+#### Message Formatting
+- Markdown/HTML support in outgoing messages (MarkdownV2 parse_mode)
+- File/image attachments via Telegram sendDocument/sendPhoto
+- Reply threading: use `reply_to_message_id` so Telegram shows threaded conversations
+
+#### Interactive Elements
+- Inline keyboards for quick-reply buttons (approve/reject, option A/B/C)
+- `hiboss ask --options "A,B,C"` sends message with inline keyboard
+- Telegram callback_query handler to capture button presses as replies
+- Reactions support (boss can react; agent sees it as metadata)
+
+#### Read Receipts
+- Mark messages as read when boss views them in Telegram
+- Bot tracks Telegram `message_id` → hiboss message ID mapping
+
+### v0.5 — Smart Routing & Agent Config
+- Priority-based routing: critical messages go to all channels simultaneously
+- Agent-level system prompts: `hiboss agent config set prompt "You are a deployment bot..."`
+- Built-in prompt templates for common agent types (reporter, approver, monitor)
+- Message routing rules: keyword/regex → specific agent
+- Rate limiting per agent
+
+### v0.6 — Multi-boss & Teams
+- Multiple bosses per agent (different API keys, different permissions)
+- Group/team channels (one message → multiple recipients)
+- Boss roles: admin (full control), manager (reply + configure), viewer (read-only)
+- Audit log: who did what, when
+
 ## Code Conventions
 
 ### Server (TypeScript)
