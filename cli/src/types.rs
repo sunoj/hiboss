@@ -33,6 +33,8 @@ pub struct SendRequest {
     pub metadata: Option<HashMap<String, Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
