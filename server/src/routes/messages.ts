@@ -37,8 +37,22 @@ routes.post('/', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
+  const agentConfig = await c.env.DB
+    .prepare('SELECT default_priority, rate_limit FROM api_keys WHERE id = ?')
+    .bind(agentId)
+    .first<{ default_priority: string; rate_limit: number | null }>();
+  const defaultPriority = (agentConfig?.default_priority ?? 'normal') as Priority;
+  if (agentConfig?.rate_limit) {
+    const recent = await c.env.DB
+      .prepare("SELECT COUNT(*) AS count FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND created_at > datetime('now', '-1 minute')")
+      .bind(agentId)
+      .first<{ count: number }>();
+    if (recent && recent.count >= agentConfig.rate_limit) {
+      return c.text('rate limit exceeded', 429);
+    }
+  }
   const mode = validateOption<Mode>(payload.mode, modeOptions, 'async');
-  const priority = validateOption<Priority>(payload.priority, priorityOptions, 'normal');
+  const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority);
   const requestedChannel = validateChannel(payload.channel);
   const fileUrl = typeof payload.file_url === 'string' ? payload.file_url.trim() : undefined;
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};

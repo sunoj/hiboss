@@ -144,6 +144,27 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
 
+    pub async fn get_agent_config(&self) -> Result<Value, Box<dyn Error>> {
+        let resp = self
+            .http
+            .get(format!("{}/api/agents/me", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    pub async fn update_agent_config(&self, config: &Value) -> Result<Value, Box<dyn Error>> {
+        let resp = self
+            .http
+            .put(format!("{}/api/agents/me/config", self.base_url))
+            .bearer_auth(&self.api_key)
+            .json(config)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
     pub async fn react(&self, id: &str, emoji: &str) -> Result<(), Box<dyn Error>> {
         let resp = self
             .http
