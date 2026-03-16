@@ -5,8 +5,7 @@
 use clap::{Args, Subcommand};
 use std::error::Error;
 use std::fs;
-use std::io::Read;
-use std::process::{self, Command};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const TTL_FILE: &str = "/tmp/hiboss-urgent-check";
@@ -78,42 +77,11 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_stop() -> Result<(), Box<dyn Error>> {
-    // Read stdin for hook input JSON
-    let mut input = String::new();
-    let _ = std::io::stdin().read_to_string(&mut input);
-
-    // Check if stop hook already triggered — prevent infinite loop
-    if input.contains("\"stop_hook_active\":true") || input.contains("\"stop_hook_active\": true") {
-        process::exit(0);
+    let count = get_inbox_count();
+    if count > 0 {
+        println!("You have {} unread boss messages. Check: hiboss inbox", count);
     }
-
-    // Ask the boss what to do next, block until reply or timeout
-    let output = Command::new("hiboss")
-        .args([
-            "ask", "--options", "Continue,New task,Stop",
-            "--timeout", "120",
-            "Agent session is about to end. What would you like to do?\n\n1. Continue \u{2014} keep working on current task\n2. New task \u{2014} give me a new task\n3. Stop \u{2014} end the session",
-        ])
-        .output();
-
-    match output {
-        Ok(out) => {
-            let reply = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            // 32-char hex = message ID only, no reply received
-            if reply.is_empty() || reply.len() == 32 {
-                process::exit(0); // Timeout, allow stop
-            }
-            if reply.eq_ignore_ascii_case("stop") {
-                process::exit(0); // Boss said stop
-            }
-            // Boss wants to continue — block stop via exit 2, instructions to stderr
-            eprintln!("Boss replied: {}. Do NOT stop. Execute the boss's instruction.", reply);
-            process::exit(2);
-        }
-        Err(_) => {
-            process::exit(0); // hiboss failed, allow stop
-        }
-    }
+    Ok(())
 }
 
 fn get_inbox_count() -> u32 {
