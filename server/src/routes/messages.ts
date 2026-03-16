@@ -18,7 +18,7 @@ import type {
 } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { sendDiscordMessage } from '../channels/discord';
-import { sendTelegramMessage, sendTelegramPhoto, sendTelegramDocument, isImageUrl, setTelegramReaction } from '../channels/telegram';
+import { sendTelegramMessage, sendTelegramPhoto, sendTelegramDocument, isImageUrl, setTelegramReaction, formatTelegramAgentMessage, escapeMarkdownV2 } from '../channels/telegram';
 
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
@@ -65,9 +65,9 @@ routes.post('/', async (c) => {
   if (channelConfig) {
     const agentName = await fetchAgentName(c.env, agentId);
     try {
-      const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
+      const name = agentName ?? 'agent';
       const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
-      const delivered = await deliverToChannelWithOptions(channelConfig.channel, channelConfig.config, formattedBody, inlineKeyboard, fileUrl);
+      const delivered = await deliverToChannelWithOptions(channelConfig.channel, channelConfig.config, name, body, inlineKeyboard, fileUrl);
       if (delivered) {
         await c.env.DB
           .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
@@ -140,9 +140,9 @@ routes.post('/:id/reply', async (c) => {
     try {
       const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
       const agentName = await fetchAgentName(c.env, agentId);
-      const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
+      const name = agentName ?? 'agent';
       const telegramReplyId = extractTelegramMessageId(parent.metadata);
-      const delivered = await deliverToChannel(channelConfig.channel, channelConfig.config, formattedBody, telegramReplyId);
+      const delivered = await deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId);
       if (delivered) {
         await c.env.DB
           .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
@@ -322,13 +322,17 @@ async function selectChannelConfig(env: Env, agentId: string, requested?: Channe
   return { channel: fallback.channel, config: JSON.parse(fallback.config) as Record<string, unknown> };
 }
 
-async function deliverToChannel(channel: Channel, config: Record<string, unknown>, body: string, replyToTelegramId?: number): Promise<boolean> {
+async function deliverReply(
+  channel: Channel, config: Record<string, unknown>, agentName: string, body: string,
+  replyToTelegramId?: number,
+): Promise<boolean> {
   if (channel === 'discord') {
-    await sendDiscordMessage(requireDiscordConfig(config), body);
+    await sendDiscordMessage(requireDiscordConfig(config), formatAgentMessage(agentName, body));
     return true;
   }
   if (channel === 'telegram') {
-    await sendTelegramMessage(requireTelegramConfig(config), body, { replyToMessageId: replyToTelegramId });
+    const tgBody = formatTelegramAgentMessage(agentName, body);
+    await sendTelegramMessage(requireTelegramConfig(config), tgBody, { replyToMessageId: replyToTelegramId });
     return true;
   }
   return false;
@@ -420,24 +424,27 @@ function buildInlineKeyboard(messageId: string, options: string[]): { text: stri
 }
 
 async function deliverToChannelWithOptions(
-  channel: Channel, config: Record<string, unknown>, body: string,
+  channel: Channel, config: Record<string, unknown>, agentName: string, body: string,
   inlineKeyboard?: { text: string; callback_data: string }[][],
   fileUrl?: string,
 ): Promise<boolean> {
   if (channel === 'discord') {
-    await sendDiscordMessage(requireDiscordConfig(config), fileUrl ? `${body}\n${fileUrl}` : body);
+    const discordBody = formatAgentMessage(agentName, body);
+    await sendDiscordMessage(requireDiscordConfig(config), fileUrl ? `${discordBody}\n${fileUrl}` : discordBody);
     return true;
   }
   if (channel === 'telegram') {
     const tgConfig = requireTelegramConfig(config);
+    const tgBody = formatTelegramAgentMessage(agentName, body);
     if (fileUrl) {
+      const caption = escapeMarkdownV2(`[${agentName}] ${body}`);
       if (isImageUrl(fileUrl)) {
-        await sendTelegramPhoto(tgConfig, fileUrl, body);
+        await sendTelegramPhoto(tgConfig, fileUrl, caption);
       } else {
-        await sendTelegramDocument(tgConfig, fileUrl, body);
+        await sendTelegramDocument(tgConfig, fileUrl, caption);
       }
     } else {
-      await sendTelegramMessage(tgConfig, body, { inlineKeyboard });
+      await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard });
     }
     return true;
   }

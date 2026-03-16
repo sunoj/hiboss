@@ -9,6 +9,18 @@ type SendOptions = {
   inlineKeyboard?: { text: string; callback_data: string }[][];
 };
 
+const MD2_SPECIAL = /([_*\[\]()~`>#+\-=|{}.!\\])/g;
+
+export function escapeMarkdownV2(text: string): string {
+  return text.replace(MD2_SPECIAL, '\\$1');
+}
+
+export function formatTelegramAgentMessage(agentName: string, body: string): string {
+  const escaped = escapeMarkdownV2(body);
+  const name = escapeMarkdownV2(agentName);
+  return `*\\[${name}\\]* ${escaped}`;
+}
+
 export async function sendTelegramMessage(config: TelegramChannelConfig, content: string, options?: SendOptions): Promise<number | undefined> {
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
@@ -107,7 +119,10 @@ export async function sendTelegramPhoto(config: TelegramChannelConfig, photoUrl:
     chat_id: config.chat_id,
     photo: photoUrl,
   };
-  if (caption) payload.caption = caption;
+  if (caption) {
+    payload.caption = caption;
+    payload.parse_mode = 'MarkdownV2';
+  }
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
@@ -133,7 +148,10 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
     chat_id: config.chat_id,
     document: docUrl,
   };
-  if (caption) payload.caption = caption;
+  if (caption) {
+    payload.caption = caption;
+    payload.parse_mode = 'MarkdownV2';
+  }
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
