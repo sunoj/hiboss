@@ -21,6 +21,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./cli/hooks/stop.sh"
+          }
+        ]
+      }
     ]
   }
 }
