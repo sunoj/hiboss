@@ -94,6 +94,7 @@ mod tests {
             channel: Some("default".to_string()),
             metadata: Some(metadata),
             options: Some(vec!["opt-a".to_string(), "opt-b".to_string()]),
+            file_url: None,
         };
         assert_roundtrip(&request);
     }
@@ -107,6 +108,7 @@ mod tests {
             channel: None,
             metadata: None,
             options: None,
+            file_url: None,
         };
         assert_roundtrip(&request);
     }
