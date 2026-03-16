@@ -26,6 +26,7 @@ import {
   fetchReplies,
   fetchMessageWithReplies,
   fetchAgentName,
+  deliverWithRetry,
 } from './message-helpers';
 import type { MessageRow } from '../types';
 
@@ -376,6 +377,45 @@ describe('extractTelegramMessageId', () => {
   it('prefers flat telegram_message_id over nested message.message_id', () => {
     const meta = JSON.stringify({ telegram_message_id: 100, message: { message_id: 200 } });
     expect(extractTelegramMessageId(meta)).toBe(100);
+  });
+});
+
+describe('deliverWithRetry', () => {
+  it('resolves on first attempt', async () => {
+    const result = await deliverWithRetry(() => Promise.resolve('ok'));
+    expect(result).toBe('ok');
+  });
+
+  it('retries once on failure then succeeds', async () => {
+    let attempts = 0;
+    const result = await deliverWithRetry(
+      async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new Error('temporary');
+        }
+        return 'recovered';
+      },
+      1,
+      0
+    );
+    expect(attempts).toBe(2);
+    expect(result).toBe('recovered');
+  });
+
+  it('throws after max retries exhausted', async () => {
+    let attempts = 0;
+    await expect(
+      deliverWithRetry(
+        async () => {
+          attempts += 1;
+          throw new Error('permanent');
+        },
+        1,
+        0
+      )
+    ).rejects.toThrow('permanent');
+    expect(attempts).toBe(2);
   });
 });
 

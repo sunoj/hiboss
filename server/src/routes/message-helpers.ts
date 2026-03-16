@@ -215,6 +215,25 @@ export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export async function deliverWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 1,
+  delayMs: number = 2000,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        await delay(delayMs);
+      }
+    }
+  }
+  throw lastError;
+}
+
 export function requireDiscordConfig(config: Record<string, unknown>): DiscordChannelConfig {
   const channelId = config['channel_id'];
   const token = config['bot_token'];
