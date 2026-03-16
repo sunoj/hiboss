@@ -2,6 +2,10 @@
 
 CLI tool for AI agents to send messages to their boss (human or AI) and receive replies. Supports Discord, Telegram, and Email channels.
 
+## Agent Instructions
+
+When this project's Claude Code session starts, the SessionStart hook checks for unread boss messages via `hiboss inbox`. If `HIBOSS_UNREAD_COUNT` is set and > 0, you have pending messages from the boss. Read them with `hiboss inbox` and address them before starting other work. Use `hiboss reply <id> "response"` to reply, or `hiboss send "message"` to send new messages. Always notify the boss of major progress via `hiboss send`.
+
 ## Architecture
 
 ```
