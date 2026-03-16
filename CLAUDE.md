@@ -4,14 +4,44 @@ CLI tool for AI agents to send messages to their boss (human or AI) and receive 
 
 ## Agent Instructions
 
-When this project's Claude Code session starts, the SessionStart hook checks for unread boss messages via `hiboss inbox`. If there are unread messages, handle them before starting other work. Use `hiboss reply <id> "response"` to reply, or `hiboss send "message"` to send new messages. Always notify the boss of major progress via `hiboss send`.
+These are the recommended instructions for AI agents using hiboss. Copy this section into your project's CLAUDE.md and adjust as needed.
 
-**Before finishing**: When you are about to complete your current task and have no more work to do, you MUST ask the boss for next steps instead of stopping:
+### Setup
+
+Run `hiboss setup hooks` to install Claude Code hooks automatically. This configures:
+- **SessionStart**: injects unread boss messages into context at session start
+- **PostToolUse**: checks for urgent (critical/high) messages every 5 minutes
+- **Stop**: reminds you of unread messages before session ends
+
+### Session Start
+
+1. The SessionStart hook will show unread messages from your boss. **Handle them first** — reply with `hiboss reply <id> "response"` before starting other work.
+2. **Report your plan**: After handling inbox and understanding the task, send your plan to the boss:
+   ```bash
+   hiboss send "Starting work on X. Plan: 1) ... 2) ... 3) ..."
+   ```
+   The boss should know what you intend to do before you start.
+
+### During Work
+
+- Use `hiboss send "message"` for progress updates on major milestones.
+- Use `hiboss send --priority high "message"` for blockers or decisions needed urgently.
+- The PostToolUse hook will interrupt you if the boss sends a critical/high priority message — check and respond.
+
+### Before Finishing (CRITICAL)
+
+When your current task is complete and you have no more work to do, you MUST follow this exact flow — **never just stop**:
+
 1. Summarize what you accomplished
-2. Propose 2-4 concrete next directions based on context (e.g. roadmap items, open issues, improvements)
-3. Send via: `hiboss ask --options "Option A,Option B,Option C" "Summary of work done. What should I do next?"`
-4. Wait for the boss's reply and continue working on the selected direction
-5. Only stop if the boss explicitly says to stop, or if the ask times out with no reply
+2. Propose 2-4 concrete next directions based on context (roadmap items, open issues, improvements)
+3. Send via `hiboss ask --options` (**never** `hiboss send` for completion messages):
+   ```bash
+   hiboss ask --options "Option A,Option B,Option C" "Summary of what was done. What should I do next?" --timeout 300
+   ```
+4. Run the ask command with `run_in_background: true` in Bash
+5. **Wait for the boss's reply** — do not stop while the background task is pending
+6. When the reply arrives, continue working on the selected direction
+7. Only stop if: the boss explicitly says to stop, OR the ask times out with no reply
 
 ## Architecture
 
