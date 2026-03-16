@@ -2,7 +2,7 @@
 // Exports: WatchArgs for CLI parsing and run() for the SSE watch loop.
 // Dependencies: clap, tokio, colored, crate::client, crate::config, crate::sse, std::process::Command.
 
-use crate::{client::HiBossClient, config::Config, sse, types::Message};
+use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate, color_priority}, sse, types::Message};
 use clap::Args;
 use colored::Colorize;
 use std::{error::Error, process::Command};
@@ -90,27 +90,4 @@ fn escape_applescript(value: &str) -> String {
         .replace('\\', "\\\\")
         .replace('"', "\\\"")
         .replace('\n', "\\n")
-}
-
-fn short_id(value: &str) -> String {
-    value.chars().take(8).collect()
-}
-
-fn color_priority(priority: &str) -> colored::ColoredString {
-    match priority {
-        "critical" => priority.red().bold(),
-        "high" => priority.yellow().bold(),
-        "normal" => priority.green(),
-        "low" => priority.white(),
-        _ => priority.normal(),
-    }
-}
-
-fn truncate(input: &str, limit: usize) -> String {
-    if input.chars().count() <= limit {
-        input.to_string()
-    } else {
-        let truncated: String = input.chars().take(limit - 3).collect();
-        format!("{}...", truncated)
-    }
 }

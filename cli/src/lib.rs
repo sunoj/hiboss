@@ -7,6 +7,7 @@ pub mod commands;
 pub mod config;
 pub mod sse;
 pub mod types;
+pub mod helpers;
 
 #[cfg(test)]
 mod tests;

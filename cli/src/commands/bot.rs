@@ -2,7 +2,7 @@
 // Exports: BotArgs CLI parser and run() to stream messages via SSE and reply.
 // Dependencies: clap, tokio, crate::client, crate::config, crate::types, crate::sse.
 
-use crate::{client::HiBossClient, config::Config, sse, types::Message};
+use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate}, sse, types::Message};
 use clap::Args;
 use std::{error::Error, process::Stdio};
 use tokio::{
@@ -117,17 +117,4 @@ async fn run_handler(handler: &str, input: &str) -> Result<Option<String>, Box<d
     }
 
     Ok(Some(trimmed.to_string()))
-}
-
-fn short_id(value: &str) -> String {
-    value.chars().take(8).collect()
-}
-
-fn truncate(input: &str, limit: usize) -> String {
-    if input.chars().count() <= limit {
-        input.to_string()
-    } else {
-        let truncated: String = input.chars().take(limit - 3).collect();
-        format!("{}...", truncated)
-    }
 }

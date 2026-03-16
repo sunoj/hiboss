@@ -73,8 +73,10 @@ Request:
 {
   "body": "string (required)",
   "mode": "async | blocking",
-  "priority": "critical | high | normal | low",
+  "priority": "critical | high | normal | low (default: agent's default_priority)",
   "channel": "discord | telegram | email (optional, uses default)",
+  "options": ["Option A", "Option B"] ,
+  "file_url": "string (optional, sends as photo/document on Telegram)",
   "metadata": {}
 }
 ```
@@ -234,6 +236,35 @@ Request (telegram):
 }
 ```
 
+### Agent Endpoints
+
+#### GET /api/agents/me
+Get current agent profile including config.
+
+Response: `{ id, name, callback_url, default_priority, rate_limit, last_used_at, created_at }`
+
+#### GET /api/agents
+List all agents with online/idle/offline status.
+
+#### PUT /api/agents/me/config
+Update agent configuration.
+
+Request:
+```json
+{
+  "default_priority": "high",
+  "rate_limit": 10
+}
+```
+
+Both fields optional. `rate_limit` is messages per minute (null = unlimited).
+
+#### PUT /api/agents/me/callback
+Set webhook callback URL for push notifications.
+
+#### DELETE /api/agents/me/callback
+Remove webhook callback URL.
+
 ## CLI Commands
 
 ```bash
@@ -242,17 +273,20 @@ hiboss init https://hiboss-server.<user>.workers.dev  # bootstrap first key
 hiboss config set server https://hiboss-server.<user>.workers.dev
 hiboss config set key <api-key>
 hiboss config set channel discord   # default channel
-hiboss setup hooks                  # configure Claude Code hooks
+hiboss setup hooks                  # configure Claude Code hooks (project)
+hiboss setup hooks --global         # configure for all Claude Code sessions
 hiboss setup hooks --remove         # remove hiboss hooks
 
 # Send (async)
 hiboss send "Deployment complete. 3 tests failed."
 hiboss send --priority high "Build failed, need help."
 hiboss send --channel telegram "Quick update via TG."
+hiboss send --file-url "https://example.com/screenshot.png" "See attached"
 
 # Ask (blocking, waits for reply)
 hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
+hiboss ask --options "A,B,C" "Pick one:\n1. A — details\n2. B — details\n3. C — details"
 
 # Inbox
 hiboss inbox                              # unread messages from boss
@@ -273,6 +307,12 @@ hiboss react <msg-id> "✅"
 
 # Status of sent message
 hiboss status <msg-id>
+
+# Agent config
+hiboss agent config                          # view current config
+hiboss agent config --default-priority high  # set default priority
+hiboss agent config --rate-limit 10          # set rate limit (msg/min)
+hiboss agent config --rate-limit 0           # disable rate limit
 ```
 
 ## CLI Config
