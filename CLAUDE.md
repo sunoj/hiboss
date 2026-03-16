@@ -190,10 +190,29 @@ Response: same as GET /api/messages/:id but waits for reply.
 ### Channel Webhook Endpoints
 
 #### POST /api/webhooks/discord
-Discord interaction webhook. Receives messages from Discord, creates boss_to_agent messages.
+Discord message webhook (bot API mode). Receives forwarded messages, creates boss_to_agent messages.
 
 #### POST /api/webhooks/telegram
 Telegram bot webhook. Receives messages from Telegram, creates boss_to_agent messages.
+
+#### POST /api/webhooks/discord-interactions
+Discord Interactions endpoint. Handles slash commands (`/msg`) and button clicks. Requires Ed25519 signature verification via `DISCORD_PUBLIC_KEY` env var.
+
+Interaction types:
+- Type 1 (PING): responds with `{ type: 1 }` (required by Discord)
+- Type 2 (APPLICATION_COMMAND): handles `/msg <message>` slash command
+- Type 3 (MESSAGE_COMPONENT): handles button clicks (same format as Telegram callback)
+
+#### POST /api/webhooks/discord-interactions/register-commands
+Register Discord slash commands. Called by CLI during setup.
+
+Request:
+```json
+{
+  "app_id": "string",
+  "bot_token": "string"
+}
+```
 
 ### Attachment Endpoints
 
@@ -401,6 +420,9 @@ hiboss group add-member <group-id> <agent-id>
 hiboss group remove-member <group-id> <agent-id>
 hiboss group broadcast <group-id> "Stop all work" --priority high
 hiboss group delete <group-id>
+
+# Discord bidirectional setup
+hiboss channel discord-setup --app-id <id> --bot-token <token>  # register /msg slash command
 ```
 
 ## CLI Config
@@ -543,20 +565,38 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - Per-message username from agent name, custom avatar_url
 - CLI: `hiboss channel set discord --webhook-url <url> --avatar-url <url>`
 
-### v0.7 — Smart Channel Routing
-**Goal**: Automatic per-priority channel routing and bidirectional Discord.
+### v0.7 — Discord Bidirectional (Done)
+**Goal**: Boss can send messages and click buttons from Discord, not just receive.
+
+#### Discord Interactions API
+- `POST /api/webhooks/discord-interactions` — Ed25519 verified interaction endpoint
+- `/msg <message>` slash command for boss→agent messages
+- Button click handling for `--options` messages (same as Telegram inline keyboard)
+- Action metadata forwarding on button clicks
+- Ed25519 signature verification using Web Crypto API (no external deps)
+
+#### Discord Buttons
+- `--options` messages include Discord button components (Action Rows)
+- Buttons work in both webhook and bot API modes
+- Same `msgPrefix:option` format as Telegram callback_data
+
+#### CLI Setup
+- `hiboss channel discord-setup --app-id <id> --bot-token <token>` registers `/msg` slash command
+- Prints setup instructions for Interactions Endpoint URL and DISCORD_PUBLIC_KEY
+
+#### Options Expiry
+- Telegram inline keyboard buttons auto-removed when poll times out
+- Prevents boss from clicking stale options
+
+### v0.8 — Smart Channel Routing
+**Goal**: Automatic per-priority channel routing.
 
 #### Per-Priority Channel Defaults
 - Configure default channel per priority level (e.g. normal→discord, high→telegram)
 - Agent config or routing rules: `{ "normal": "discord", "high": "telegram" }`
 - Agents no longer need `--channel` flag for routine messages
 
-#### Discord Incoming (Boss → Agent)
-- Discord bot or interaction webhook for receiving boss replies from Discord
-- Route Discord replies to correct agent (like Telegram webhook does)
-- Bidirectional Discord conversations
-
-### v0.8 — Multi-boss & Permissions
+### v0.9 — Multi-boss & Permissions
 - Multiple bosses per agent with role-based permissions
 - Boss roles: admin, manager, viewer
 - Audit log
