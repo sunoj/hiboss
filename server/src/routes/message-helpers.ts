@@ -200,6 +200,21 @@ export function buildInlineKeyboard(messageId: string, options: string[]): { tex
   return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 8)}:${opt}` }]);
 }
 
+export async function checkRateLimit(env: Env, agentId: string, limit: number): Promise<boolean> {
+  const recent = await env.DB
+    .prepare("SELECT COUNT(*) AS count FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND created_at > datetime('now', '-1 minute')")
+    .bind(agentId)
+    .first<{ count: number }>();
+  return !!(recent && recent.count >= limit);
+}
+
+export async function findByIdempotencyKey(env: Env, agentId: string, key: string): Promise<MessageRow | null> {
+  return env.DB
+    .prepare('SELECT * FROM messages WHERE agent_id = ? AND idempotency_key = ?')
+    .bind(agentId, key)
+    .first<MessageRow>();
+}
+
 export function extractTelegramMessageId(metadata: string | null): number | undefined {
   const meta = safeParse(metadata);
   if (!meta || typeof meta !== 'object') return undefined;

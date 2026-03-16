@@ -9,6 +9,7 @@ import { setTelegramReaction } from '../channels/telegram';
 import {
   buildFilters,
   buildInlineKeyboard,
+  checkRateLimit,
   clampNumber,
   deliverReply,
   deliverToChannelWithOptions,
@@ -17,6 +18,7 @@ import {
   extractTelegramMessageId,
   fetchAgentName,
   fetchAllChannelConfigs,
+  findByIdempotencyKey,
   fetchMessageRow,
   fetchMessageWithReplies,
   mapMessageRow,
@@ -51,14 +53,8 @@ routes.post('/', async (c) => {
     .bind(agentId)
     .first<{ default_priority: string; rate_limit: number | null }>();
   const defaultPriority = (agentConfig?.default_priority ?? 'normal') as Priority;
-  if (agentConfig?.rate_limit) {
-    const recent = await c.env.DB
-      .prepare("SELECT COUNT(*) AS count FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND created_at > datetime('now', '-1 minute')")
-      .bind(agentId)
-      .first<{ count: number }>();
-    if (recent && recent.count >= agentConfig.rate_limit) {
-      return c.text('rate limit exceeded', 429);
-    }
+  if (agentConfig?.rate_limit && await checkRateLimit(c.env, agentId, agentConfig.rate_limit)) {
+    return c.text('rate limit exceeded', 429);
   }
   const mode = validateOption<Mode>(payload.mode, modeOptions, 'async');
   const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority);
@@ -87,10 +83,7 @@ routes.post('/', async (c) => {
   const channel = channelConfigs[0]?.channel ?? requestedChannel ?? null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   if (idempotencyKey) {
-    const existing = await c.env.DB
-      .prepare('SELECT * FROM messages WHERE agent_id = ? AND idempotency_key = ?')
-      .bind(agentId, idempotencyKey)
-      .first<MessageRow>();
+    const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
     if (existing) {
       return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
     }
