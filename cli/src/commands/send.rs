@@ -2,7 +2,7 @@
 // Exports: SendArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use crate::{client::HiBossClient, config::Config, types::SendRequest};
+use crate::{client::HiBossClient, config::Config, helpers::unescape_body, types::SendRequest};
 use clap::Args;
 use std::error::Error;
 
@@ -21,7 +21,7 @@ pub struct SendArgs {
 pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let channel = args.channel.clone().or_else(|| config.channel.clone());
     let request = SendRequest {
-        body: args.body.clone(),
+        body: unescape_body(&args.body),
         mode: "async".to_owned(),
         priority: args.priority.clone(),
         channel,
