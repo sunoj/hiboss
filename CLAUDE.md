@@ -71,6 +71,7 @@ List messages for this agent.
 Query params:
 - `direction`: `agent_to_boss | boss_to_agent` (optional)
 - `status`: `sent | delivered | read | replied` (optional)
+- `priority`: comma-separated filter, e.g. `critical,high` (optional)
 - `unread`: `true` — shortcut for direction=boss_to_agent&status=sent (optional)
 - `limit`: number (default 20)
 - `offset`: number (default 0)
@@ -201,9 +202,11 @@ hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
 
 # Inbox
-hiboss inbox                 # unread messages from boss
-hiboss inbox --all           # all messages
-hiboss inbox --limit 5       # last 5
+hiboss inbox                              # unread messages from boss
+hiboss inbox --all                        # all messages
+hiboss inbox --limit 5                    # last 5
+hiboss inbox --priority critical,high     # urgent only
+hiboss inbox --priority critical --count  # count of urgent unread
 
 # Read a message
 hiboss read <msg-id>
@@ -226,78 +229,74 @@ Stored in `~/.config/hiboss/config.json`:
 }
 ```
 
+## Message Delivery Architecture
+
+Boss messages reach the agent through three layers:
+
+| Layer | Trigger | Scope | Latency |
+|-------|---------|-------|---------|
+| **PostToolUse hook** | Every tool call (5min TTL cache) | critical/high only | ≤5min |
+| **MCP SSE push** | Real-time SSE background listener | All messages (terminal-visible) | Real-time* |
+| **SessionStart hook** | New session start | All unread | Session gap |
+
+*MCP `notifications/message` is displayed in terminal but NOT injected into agent context by Claude Code.
+
+Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Only urgent messages interrupt the agent via PostToolUse hook.
+
+### Telegram Delivery Indicators
+- 👀 reaction on boss message → message received by server
+- ✅ reaction on boss message → agent has replied
+
 ## Roadmap
 
 ### v0.1 — Core (Done)
-- Rust CLI with all commands: send, ask, inbox, read, reply, status, agent, bot, watch, init, config, channel
+- Rust CLI: send, ask, inbox, read, reply, status, agent, bot, watch, init, config, channel
 - Cloudflare Worker server with D1, Discord + Telegram adapters
-- Multi-agent support from day one (API key per agent, agent_name in messages)
+- Multi-agent support (API key per agent, agent_name in messages)
 - MCP server for Claude Code / Cursor integration
-- Bootstrap flow for first-time setup
 
 ### v0.2 — Reliability Fixes (Done)
-- Channel fallback: server auto-selects configured channel when requested one is missing
-- Reply delivery: `hiboss reply` now delivers back to Telegram/Discord, not just D1
-- Short ID prefix matching: inbox shows 8-char IDs, all commands accept them
-- Typing indicator: Telegram shows "typing..." on incoming and outgoing messages
+- Channel fallback: auto-selects configured channel
+- Reply delivery: replies deliver back to Telegram/Discord
+- Short ID prefix matching: 8-char IDs work everywhere
+- Typing indicator on Telegram
 
-### v0.3 — Real-time Message Push
-**Problem**: Current architecture is pull-only. Agent must poll `hiboss inbox` or run `hiboss bot`. Boss messages sit in D1 until someone checks.
+### v0.3 — Real-time Push & Agent Awareness (Done)
+- SSE streaming: `GET /api/messages/stream` for real-time message delivery
+- Agent webhook callbacks: `PUT /api/agents/me/callback`
+- CLI `watch` and `bot` commands use SSE with auto-reconnect
+- MCP server background SSE listener with `notifications/message` push
+- SessionStart hook: injects unread messages at session start
+- PostToolUse hook: checks for urgent (critical/high) messages with 5min TTL
+- Priority filter: `hiboss inbox --priority critical,high --count`
+- Telegram reactions: 👀 on receive, ✅ on reply
 
-**Solution**: Server-Sent Events (SSE) + Agent Webhook Callbacks.
+### v0.4 — Rich Telegram & Claude Code Integration
+**Goal**: Native Telegram chat experience + deeper Claude Code integration.
 
-#### SSE Stream Endpoint
-- `GET /api/messages/stream` — persistent SSE connection, pushes new messages in real-time
-- Auth via Bearer token (same as other endpoints)
-- Events: `message` (new message), `status` (delivery/read updates)
-- `hiboss watch` and `hiboss bot` switch from polling to SSE (fall back to polling if SSE unavailable)
-- Uses Cloudflare Workers streaming response (`ReadableStream`)
+#### Telegram Enhancements
+- MarkdownV2 formatting in outgoing messages
+- Reply threading via `reply_to_message_id`
+- Inline keyboards for quick-reply (`hiboss ask --options "A,B,C"`)
+- `callback_query` handler for button presses
+- File/image attachments via sendDocument/sendPhoto
 
-#### Agent Webhook Callbacks
-- `PUT /api/agents/me/callback` — register a callback URL for the current agent
-- When a boss_to_agent message arrives, server POSTs to the callback URL
-- Enables serverless agents (e.g., another Cloudflare Worker that auto-replies)
-- Callback payload: full message object, same as GET /api/messages/:id
-- Retry with exponential backoff on failure (via Cloudflare Queue or waitUntil)
+#### Claude Code Integration
+- `last_seen_at` tracking: server records agent's last API call timestamp
+- Agent status dashboard: boss sees which agents are online/offline
+- aid hook integration: auto-notify boss when aid sub-tasks complete
 
-#### API Changes
-```
-GET  /api/messages/stream          — SSE stream of new messages
-PUT  /api/agents/me/callback       — register webhook callback URL
-DELETE /api/agents/me/callback     — remove callback
-GET  /api/agents/me                — get agent config (including callback)
-```
-
-### v0.4 — Rich Telegram Integration
-**Goal**: Leverage the full Telegram Bot API for a native chat experience.
-
-#### Message Formatting
-- Markdown/HTML support in outgoing messages (MarkdownV2 parse_mode)
-- File/image attachments via Telegram sendDocument/sendPhoto
-- Reply threading: use `reply_to_message_id` so Telegram shows threaded conversations
-
-#### Interactive Elements
-- Inline keyboards for quick-reply buttons (approve/reject, option A/B/C)
-- `hiboss ask --options "A,B,C"` sends message with inline keyboard
-- Telegram callback_query handler to capture button presses as replies
-- Reactions support (boss can react; agent sees it as metadata)
-
-#### Read Receipts
-- Mark messages as read when boss views them in Telegram
-- Bot tracks Telegram `message_id` → hiboss message ID mapping
-
-### v0.5 — Smart Routing & Agent Config
-- Priority-based routing: critical messages go to all channels simultaneously
-- Agent-level system prompts: `hiboss agent config set prompt "You are a deployment bot..."`
-- Built-in prompt templates for common agent types (reporter, approver, monitor)
+### v0.5 — Smart Routing & Multi-Agent
+- Priority-based routing: critical messages → all channels simultaneously
 - Message routing rules: keyword/regex → specific agent
-- Rate limiting per agent
+- Agent-level config: system prompts, default priority, rate limits
+- Agent groups: broadcast messages to multiple agents
 
 ### v0.6 — Multi-boss & Teams
-- Multiple bosses per agent (different API keys, different permissions)
-- Group/team channels (one message → multiple recipients)
-- Boss roles: admin (full control), manager (reply + configure), viewer (read-only)
-- Audit log: who did what, when
+- Multiple bosses per agent with role-based permissions
+- Group channels (one message → multiple recipients)
+- Boss roles: admin, manager, viewer
+- Audit log
 
 ## Code Conventions
 
