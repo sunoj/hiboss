@@ -12,6 +12,7 @@ import type {
   Priority,
   Status,
 } from '../types';
+import { removeInlineKeyboard } from '../channels/telegram';
 export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 export type { DeliveryResult } from './delivery';
 
@@ -213,6 +214,14 @@ export async function findByIdempotencyKey(env: Env, agentId: string, key: strin
     .prepare('SELECT * FROM messages WHERE agent_id = ? AND idempotency_key = ?')
     .bind(agentId, key)
     .first<MessageRow>();
+}
+
+export async function cleanupInlineKeyboard(env: Env, agentId: string, message: MessageRow): Promise<void> {
+  const tgMsgId = extractTelegramMessageId(message.metadata);
+  if (message.channel !== 'telegram' || !tgMsgId) return;
+  const cc = await selectChannelConfig(env, agentId, 'telegram');
+  const tgConfig = requireTelegramConfig(cc.config);
+  await removeInlineKeyboard(tgConfig.bot_token, tgConfig.chat_id, tgMsgId);
 }
 
 export function extractTelegramMessageId(metadata: string | null): number | undefined {

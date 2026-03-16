@@ -11,6 +11,7 @@ import {
   buildInlineKeyboard,
   checkRateLimit,
   clampNumber,
+  cleanupInlineKeyboard,
   deliverReply,
   deliverToChannelWithOptions,
   delay,
@@ -295,6 +296,7 @@ routes.post('/:id/poll', async (c) => {
       return c.json(current);
     }
     if (Date.now() >= deadline) {
+      c.executionCtx.waitUntil(cleanupInlineKeyboard(c.env, agentId, message).catch(() => {}));
       const fallback = mapMessageRow(message);
       fallback.replies = [];
       return c.json(current ?? fallback);
