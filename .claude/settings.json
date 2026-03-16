@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./cli/hooks/session-start.sh"
+            "command": "/Users/mingsun/Develop/ai/hiboss/cli/hooks/session-start.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./cli/hooks/post-tool-use.sh"
+            "command": "/Users/mingsun/Develop/ai/hiboss/cli/hooks/post-tool-use.sh"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./cli/hooks/stop.sh"
+            "command": "/Users/mingsun/Develop/ai/hiboss/cli/hooks/stop.sh"
           }
         ]
       }
