@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS messages (
   status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read', 'replied')),
   reply_to TEXT REFERENCES messages(id),  -- if this is a reply, points to original
   priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('critical', 'high', 'normal', 'low')),
+  idempotency_key TEXT,        -- client-provided key for dedup
   metadata TEXT,                -- JSON blob for extra data
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
