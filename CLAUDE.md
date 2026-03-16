@@ -521,11 +521,33 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - CLI: `hiboss ask --file ./report.pdf "Review this?"`
 - Telegram sendDocument with fallback to text link if Telegram rejects the file
 
-### v0.6 — Multi-boss & Teams
+### v0.6 — Reliability & Polish
+**Goal**: Production-grade reliability, code quality, and developer experience.
+
+#### Code Cleanup
+- Split `cli/src/client.rs` into modules (core, routing, groups)
+- Enforce ≤300-line file limit across all source files
+
+#### Delivery Reliability
+- Retry failed channel deliveries with exponential backoff (server-side)
+- Idempotency keys on POST /api/messages to prevent duplicate sends
+- Delivery status tracking: distinguish "sent to channel" vs "channel rejected"
+
+#### CLI Polish
+- Improved error messages with actionable hints (e.g. "run hiboss config set key ...")
+- `hiboss doctor` command: validate config, test server connectivity, check channel setup
+- Consistent exit codes (0=success, 1=user error, 2=server error, 3=config error)
+
+#### Email Channel
+- Email adapter for message delivery (SendGrid or Mailgun via Cloudflare Worker)
+- `hiboss channel set email --from agent@example.com --to boss@example.com`
+- HTML email formatting with plain-text fallback
+
+### v0.7 — Multi-boss & Permissions
 - Multiple bosses per agent with role-based permissions
-- Group channels (one message → multiple recipients)
 - Boss roles: admin, manager, viewer
 - Audit log
+- Per-boss channel preferences
 
 ## Code Conventions
 
