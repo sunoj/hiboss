@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL,           -- human-readable name for this agent
   key_hash TEXT NOT NULL UNIQUE,-- SHA-256 hash of the API key
+  callback_url TEXT,            -- webhook URL for push notifications
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_used_at TEXT
 );
