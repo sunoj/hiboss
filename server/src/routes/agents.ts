@@ -3,7 +3,7 @@
 // Depends on Hono, D1, and auth middleware.
 
 import { Hono } from 'hono';
-import type { Env, Priority } from '../types';
+import type { Channel, Env, Priority } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 
 const routes = new Hono<{ Bindings: Env }>({});
@@ -12,13 +12,13 @@ routes.use('*', apiAuth);
 routes.get('/me', async (c) => {
   const agentId = getAgentId(c);
   const row = await c.env.DB
-    .prepare('SELECT id, name, callback_url, default_priority, rate_limit, last_used_at, created_at FROM api_keys WHERE id = ?')
+    .prepare('SELECT id, name, callback_url, default_priority, rate_limit, channel_routing, last_used_at, created_at FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ id: string; name: string; callback_url: string | null; default_priority: string; rate_limit: number | null; last_used_at: string | null; created_at: string }>();
+    .first<{ id: string; name: string; callback_url: string | null; default_priority: string; rate_limit: number | null; channel_routing: string | null; last_used_at: string | null; created_at: string }>();
   if (!row) {
     return c.text('agent not found', 404);
   }
-  return c.json(row);
+  return c.json({ ...row, channel_routing: row.channel_routing ? JSON.parse(row.channel_routing) : null });
 });
 
 routes.get('/', async (c) => {
@@ -54,6 +54,23 @@ routes.put('/me/config', async (c) => {
     updates.push('rate_limit = ?');
     binds.push(rl as number);
   }
+  if ('channel_routing' in payload) {
+    const cr = payload.channel_routing;
+    if (cr === null) {
+      updates.push('channel_routing = NULL');
+    } else if (typeof cr === 'object' && !Array.isArray(cr)) {
+      const validChannels: Channel[] = ['discord', 'telegram', 'email'];
+      for (const [, ch] of Object.entries(cr as Record<string, unknown>)) {
+        if (typeof ch !== 'string' || !validChannels.includes(ch as Channel)) {
+          return c.text('channel_routing values must be valid channels', 400);
+        }
+      }
+      updates.push('channel_routing = ?');
+      binds.push(JSON.stringify(cr));
+    } else {
+      return c.text('channel_routing must be an object or null', 400);
+    }
+  }
   if (updates.length === 0) {
     return c.text('no valid fields to update', 400);
   }
@@ -63,10 +80,10 @@ routes.put('/me/config', async (c) => {
     .bind(...binds)
     .run();
   const updated = await c.env.DB
-    .prepare('SELECT default_priority, rate_limit FROM api_keys WHERE id = ?')
+    .prepare('SELECT default_priority, rate_limit, channel_routing FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ default_priority: string; rate_limit: number | null }>();
-  return c.json(updated);
+    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null }>();
+  return c.json({ ...updated, channel_routing: updated?.channel_routing ? JSON.parse(updated.channel_routing) : null });
 });
 
 routes.put('/me/callback', async (c) => {

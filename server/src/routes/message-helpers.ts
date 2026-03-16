@@ -224,6 +224,17 @@ export async function cleanupInlineKeyboard(env: Env, agentId: string, message: 
   await removeInlineKeyboard(tgConfig.bot_token, tgConfig.chat_id, tgMsgId);
 }
 
+export function resolveChannelRouting(routingJson: string, priority: string): Channel | undefined {
+  try {
+    const routing = JSON.parse(routingJson) as Record<string, string>;
+    const ch = routing[priority];
+    if (ch && ['discord', 'telegram', 'email'].includes(ch)) {
+      return ch as Channel;
+    }
+  } catch { /* ignore */ }
+  return undefined;
+}
+
 export function extractTelegramMessageId(metadata: string | null): number | undefined {
   const meta = safeParse(metadata);
   if (!meta || typeof meta !== 'object') return undefined;
