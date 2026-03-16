@@ -2,7 +2,7 @@
 // Exports: InboxArgs and run().
 // Dependencies: clap, colored, crate::client, crate::config.
 
-use crate::{client::HiBossClient, config::Config};
+use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate, color_priority}};
 use clap::Args;
 use colored::Colorize;
 use std::error::Error;
@@ -48,27 +48,4 @@ pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> R
         }
     }
     Ok(())
-}
-
-fn short_id(value: &str) -> String {
-    value.chars().take(8).collect()
-}
-
-fn color_priority(priority: &str) -> colored::ColoredString {
-    match priority {
-        "critical" => priority.red().bold(),
-        "high" => priority.yellow().bold(),
-        "normal" => priority.green(),
-        "low" => priority.white(),
-        _ => priority.normal(),
-    }
-}
-
-fn truncate(input: &str, limit: usize) -> String {
-    if input.chars().count() <= limit {
-        input.to_string()
-    } else {
-        let truncated: String = input.chars().take(limit - 3).collect();
-        format!("{}...", truncated)
-    }
 }

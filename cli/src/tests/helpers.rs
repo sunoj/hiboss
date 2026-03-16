@@ -1,25 +1,12 @@
-// Unit tests for pure helper functions used across CLI commands.
-// Tests short_id, truncate, escape_applescript, and options parsing logic.
-// Dependencies: none (self-contained copies of the algorithms).
+// Unit tests for shared helper functions and command-local utilities.
+// Tests short_id, truncate from helpers module; escape_applescript and parse_options locally.
+// Dependencies: crate::helpers.
 
 #[cfg(test)]
 mod tests {
-    // Copied from inbox.rs:53
-    fn short_id(value: &str) -> String {
-        value.chars().take(8).collect()
-    }
+    use crate::helpers::{short_id, truncate};
 
-    // Copied from inbox.rs:67
-    fn truncate(input: &str, limit: usize) -> String {
-        if input.chars().count() <= limit {
-            input.to_string()
-        } else {
-            let truncated: String = input.chars().take(limit - 3).collect();
-            format!("{}...", truncated)
-        }
-    }
-
-    // Copied from watch.rs:88
+    // Command-local functions tested here (not in shared module)
     fn escape_applescript(value: &str) -> String {
         value
             .replace('\\', "\\\\")
@@ -27,7 +14,6 @@ mod tests {
             .replace('\n', "\\n")
     }
 
-    // Copied from ask.rs:23-25
     fn parse_options(input: Option<&str>) -> Option<Vec<String>> {
         input
             .map(|o| {
@@ -95,11 +81,8 @@ mod tests {
 
     #[test]
     fn truncate_unicode_multibyte() {
-        // 4 unicode chars, limit 3 → take 0 chars + "..."
         assert_eq!(truncate("你好世界", 3), "...");
-        // 4 chars, limit 5 → fits (4 <= 5), no truncation
         assert_eq!(truncate("你好世界", 5), "你好世界");
-        // 5 chars, limit 4 → take 1 char + "..."
         assert_eq!(truncate("你好世界额", 4), "你...");
     }
 
