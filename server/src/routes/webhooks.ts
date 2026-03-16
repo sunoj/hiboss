@@ -2,9 +2,9 @@
 // Exports POST handlers that insert boss_to_agent rows and return the message.
 // Depends on Hono, the D1 binding, and shared message typings.
 
-import { Hono } from 'hono';
+import { Hono, Context } from 'hono';
 import type { Env, MessageResponse, MessageRow } from '../types';
-import { sendTelegramTyping, setTelegramReaction } from '../channels/telegram';
+import { sendTelegramTyping, setTelegramReaction, answerCallbackQuery } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -48,6 +48,13 @@ router.post('/discord', async (c) => {
 
 router.post('/telegram', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
+
+  // Handle inline keyboard button press
+  const callbackQuery = payload['callback_query'] as Record<string, unknown> | undefined;
+  if (callbackQuery) {
+    return handleCallbackQuery(c, callbackQuery);
+  }
+
   const message = payload['message'] as Record<string, unknown> | undefined;
   if (message && message['from'] && (message['from'] as Record<string, unknown>).is_bot) {
     return c.text('ignored', 200);
@@ -93,6 +100,59 @@ router.post('/telegram', async (c) => {
 });
 
 export const webhooksRouter = router;
+
+async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<string, unknown>): Promise<Response> {
+  const data = asString(query['data']);
+  const queryId = asString(query['id']);
+  const chatMsg = query['message'] as Record<string, unknown> | undefined;
+  const chat = chatMsg?.['chat'] as Record<string, unknown> | undefined;
+  const chatId = asString(chat?.['id']);
+  if (!data || !chatId) {
+    return c.text('invalid callback', 400);
+  }
+  // data format: "msgIdPrefix:selectedOption"
+  const colonIdx = data.indexOf(':');
+  if (colonIdx < 1) {
+    return c.text('invalid callback data', 400);
+  }
+  const msgPrefix = data.slice(0, colonIdx);
+  const selectedOption = data.slice(colonIdx + 1);
+
+  const configRow = await c.env.DB
+    .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?")
+    .bind(chatId)
+    .first<{ agent_id: string; config: string }>();
+  if (!configRow) {
+    return c.text('no agent for chat', 404);
+  }
+  // Find the original message by prefix
+  const parentMsg = await c.env.DB
+    .prepare('SELECT id FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .bind(`${msgPrefix}%`, configRow.agent_id)
+    .first<{ id: string }>();
+  if (!parentMsg) {
+    return c.text('message not found', 404);
+  }
+  // Insert the button press as a boss reply
+  const inserted = await c.env.DB
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id)
+    .first<MessageRow>();
+  if (!inserted) {
+    return c.text('failed to persist', 500);
+  }
+  // Acknowledge the button press
+  try {
+    const parsed = JSON.parse(configRow.config) as Record<string, string>;
+    if (parsed.bot_token && queryId) {
+      c.executionCtx.waitUntil(answerCallbackQuery(parsed.bot_token, queryId, `Selected: ${selectedOption}`));
+    }
+  } catch {
+    // best-effort
+  }
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
+  return c.json(mapMessage(inserted), 201);
+}
 
 function asString(value: unknown): string | undefined {
   if (typeof value === 'string') {

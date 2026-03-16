@@ -24,6 +24,7 @@ pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Res
         priority: args.priority.clone(),
         channel,
         metadata: None,
+        options: None,
     };
     let response = client.send_message(&request).await?;
     eprintln!("Message sent");

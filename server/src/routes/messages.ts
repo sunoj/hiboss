@@ -58,11 +58,13 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
+  const options = parseOptions(payload.options);
   if (channelConfig) {
     const agentName = await fetchAgentName(c.env, agentId);
     try {
       const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
-      const delivered = await deliverToChannel(channelConfig.channel, channelConfig.config, formattedBody);
+      const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
+      const delivered = await deliverToChannelWithOptions(channelConfig.channel, channelConfig.config, formattedBody, inlineKeyboard);
       if (delivered) {
         await c.env.DB
           .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
@@ -136,7 +138,8 @@ routes.post('/:id/reply', async (c) => {
       const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
       const agentName = await fetchAgentName(c.env, agentId);
       const formattedBody = formatAgentMessage(agentName ?? 'agent', body);
-      const delivered = await deliverToChannel(channelConfig.channel, channelConfig.config, formattedBody);
+      const telegramReplyId = extractTelegramMessageId(parent.metadata);
+      const delivered = await deliverToChannel(channelConfig.channel, channelConfig.config, formattedBody, telegramReplyId);
       if (delivered) {
         await c.env.DB
           .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
@@ -304,13 +307,13 @@ async function selectChannelConfig(env: Env, agentId: string, requested?: Channe
   return { channel: fallback.channel, config: JSON.parse(fallback.config) as Record<string, unknown> };
 }
 
-async function deliverToChannel(channel: Channel, config: Record<string, unknown>, body: string): Promise<boolean> {
+async function deliverToChannel(channel: Channel, config: Record<string, unknown>, body: string, replyToTelegramId?: number): Promise<boolean> {
   if (channel === 'discord') {
     await sendDiscordMessage(requireDiscordConfig(config), body);
     return true;
   }
   if (channel === 'telegram') {
-    await sendTelegramMessage(requireTelegramConfig(config), body);
+    await sendTelegramMessage(requireTelegramConfig(config), body, { replyToMessageId: replyToTelegramId });
     return true;
   }
   return false;
@@ -387,11 +390,44 @@ function requireTelegramConfig(config: Record<string, unknown>): TelegramChannel
   return { chat_id: chatId, bot_token: token };
 }
 
+function parseOptions(value: unknown): string[] | undefined {
+  if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
+    return value.length > 0 ? value as string[] : undefined;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+function buildInlineKeyboard(messageId: string, options: string[]): { text: string; callback_data: string }[][] {
+  return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 8)}:${opt}` }]);
+}
+
+async function deliverToChannelWithOptions(
+  channel: Channel, config: Record<string, unknown>, body: string,
+  inlineKeyboard?: { text: string; callback_data: string }[][],
+): Promise<boolean> {
+  if (channel === 'discord') {
+    await sendDiscordMessage(requireDiscordConfig(config), body);
+    return true;
+  }
+  if (channel === 'telegram') {
+    await sendTelegramMessage(requireTelegramConfig(config), body, { inlineKeyboard });
+    return true;
+  }
+  return false;
+}
+
+function extractTelegramMessageId(metadata: string | null): number | undefined {
+  const meta = safeParse(metadata) as Record<string, unknown> | null;
+  const msg = meta?.['message'] as Record<string, unknown> | undefined;
+  return msg?.['message_id'] as number | undefined;
+}
+
 async function markTelegramReplied(channelConfig: Record<string, unknown>, parentMetadata: string | null): Promise<void> {
   const tgConfig = requireTelegramConfig(channelConfig);
-  const meta = safeParse(parentMetadata) as Record<string, unknown> | null;
-  const msg = meta?.['message'] as Record<string, unknown> | undefined;
-  const messageId = msg?.['message_id'] as number | undefined;
+  const messageId = extractTelegramMessageId(parentMetadata);
   if (!messageId) return;
   await setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, messageId, '✅');
 }

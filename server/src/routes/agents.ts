@@ -12,13 +12,24 @@ routes.use('*', apiAuth);
 routes.get('/me', async (c) => {
   const agentId = getAgentId(c);
   const row = await c.env.DB
-    .prepare('SELECT id, name, callback_url FROM api_keys WHERE id = ?')
+    .prepare('SELECT id, name, callback_url, last_used_at, created_at FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ id: string; name: string; callback_url: string | null }>();
+    .first<{ id: string; name: string; callback_url: string | null; last_used_at: string | null; created_at: string }>();
   if (!row) {
     return c.text('agent not found', 404);
   }
   return c.json(row);
+});
+
+routes.get('/', async (c) => {
+  const rows = await c.env.DB
+    .prepare('SELECT id, name, last_used_at, created_at FROM api_keys ORDER BY last_used_at DESC')
+    .all<{ id: string; name: string; last_used_at: string | null; created_at: string }>();
+  const agents = (rows.results ?? []).map((r) => ({
+    ...r,
+    status: agentStatus(r.last_used_at),
+  }));
+  return c.json({ agents });
 });
 
 routes.put('/me/callback', async (c) => {
@@ -45,3 +56,11 @@ routes.delete('/me/callback', async (c) => {
 });
 
 export const agentsRouter = routes;
+
+function agentStatus(lastUsedAt: string | null): 'online' | 'idle' | 'offline' {
+  if (!lastUsedAt) return 'offline';
+  const diff = Date.now() - new Date(lastUsedAt + 'Z').getTime();
+  if (diff < 5 * 60 * 1000) return 'online';   // < 5min
+  if (diff < 30 * 60 * 1000) return 'idle';     // < 30min
+  return 'offline';
+}
