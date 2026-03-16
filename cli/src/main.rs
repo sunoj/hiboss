@@ -2,14 +2,10 @@
 // Exports: hiboss binary entry point.
 // Dependencies: clap, tokio, crate::commands, crate::client, crate::config.
 
-mod client;
-mod commands;
-mod config;
-mod sse;
-mod types;
-
 use clap::{Parser, Subcommand};
-use commands::{agent, ask, bot, channel, config as config_cmd, hook, init, inbox, read, reply, send, setup, status, watch};
+use hiboss::client;
+use hiboss::commands::{agent, ask, bot, channel, config as config_cmd, hook, init, inbox, read, reply, send, setup, status, watch};
+use hiboss::config;
 use std::error::Error;
 
 #[derive(Parser)]
