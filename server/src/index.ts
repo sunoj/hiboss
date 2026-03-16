@@ -5,13 +5,17 @@
 import { Hono } from 'hono';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
+import { agentsRouter } from './routes/agents';
 import { bootstrapRouter } from './routes/bootstrap';
 import { messagesRouter } from './routes/messages';
+import { streamRouter } from './routes/stream';
 import { webhooksRouter } from './routes/webhooks';
 
 const app = new Hono<{ Bindings: Env }>({});
 
 app.route('/api/webhooks', webhooksRouter);
+app.route('/api/agents', agentsRouter);
+app.route('/api/messages', streamRouter);
 app.route('/api/messages', messagesRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);

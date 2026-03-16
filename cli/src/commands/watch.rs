@@ -1,14 +1,12 @@
-// Purpose: Poll hiboss for new messages and surface them with CLI output plus macOS alerts.
-// Exports: WatchArgs for CLI parsing and run() for the watch loop.
-// Dependencies: clap, tokio, colored, crate::client, crate::config, std::collections::HashSet, std::process::Command.
+// Purpose: Stream hiboss messages in real-time via SSE with CLI output and macOS alerts.
+// Exports: WatchArgs for CLI parsing and run() for the SSE watch loop.
+// Dependencies: clap, tokio, colored, crate::client, crate::config, crate::sse, std::process::Command.
 
-use crate::{client::HiBossClient, config::Config, types::Message};
+use crate::{client::HiBossClient, config::Config, sse, types::Message};
 use clap::Args;
 use colored::Colorize;
-use std::{collections::HashSet, error::Error, process::Command};
-use tokio::{signal, time::{interval, Duration}};
-
-const POLL_LIMIT: u32 = 20;
+use std::{error::Error, process::Command};
+use tokio::{signal, time::{Duration, sleep}};
 
 #[derive(Debug, Args)]
 pub struct WatchArgs {
@@ -18,14 +16,29 @@ pub struct WatchArgs {
     pub no_notify: bool,
 }
 
-pub async fn run(args: &WatchArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &WatchArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let server = config.require_server()?;
+    let key = config.require_key()?;
+    let notify = !args.no_notify;
     eprintln!("Watching for new messages... (Ctrl+C to stop)");
     println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
-    let mut seen = HashSet::new();
-    let period = args.interval.max(1);
-    let mut ticker = interval(Duration::from_secs(period));
-    ticker.tick().await;
-    poll_messages(client, &mut seen, !args.no_notify).await?;
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<sse::SseEvent>(32);
+    let sse_url = format!("{}/api/messages/stream", server);
+    let sse_client = reqwest::Client::new();
+    let sse_key = key;
+
+    tokio::spawn(async move {
+        loop {
+            eprintln!("Connecting to SSE stream...");
+            if let Err(e) = sse::connect_sse(&sse_client, &sse_url, &sse_key, tx.clone()).await {
+                eprintln!("SSE error: {}, reconnecting in 5s...", e);
+            } else {
+                eprintln!("SSE stream closed, reconnecting in 5s...");
+            }
+            sleep(Duration::from_secs(5)).await;
+        }
+    });
 
     loop {
         tokio::select! {
@@ -33,30 +46,20 @@ pub async fn run(args: &WatchArgs, _config: &Config, client: &HiBossClient) -> R
                 eprintln!("Stopped watching");
                 break;
             }
-            _ = ticker.tick() => {
-                poll_messages(client, &mut seen, !args.no_notify).await?;
+            Some(event) = rx.recv() => {
+                if event.event_type == "message" {
+                    if let Ok(message) = serde_json::from_str::<Message>(&event.data) {
+                        print_message(&message);
+                        if notify {
+                            trigger_notification(&message);
+                        }
+                        let _ = client.update_status(&message.id, "read").await;
+                    }
+                }
             }
         }
     }
 
-    Ok(())
-}
-
-async fn poll_messages(client: &HiBossClient, seen: &mut HashSet<String>, notify: bool) -> Result<(), Box<dyn Error>> {
-    let response = client.list_messages(true, false, POLL_LIMIT).await?;
-    for message in response.messages {
-        let id = message.id.clone();
-        if !seen.insert(id.clone()) {
-            continue;
-        }
-        print_message(&message);
-        if notify {
-            trigger_notification(&message, &id);
-        }
-        if let Err(err) = client.update_status(&id, "read").await {
-            eprintln!("Failed to mark {} as read: {}", short_id(&id), err);
-        }
-    }
     Ok(())
 }
 
@@ -71,7 +74,7 @@ fn print_message(message: &Message) {
     println!("{:<10} {:<16} {:<12} {:<50} {}", id, agent.cyan(), priority_display, truncated, time_label.dimmed());
 }
 
-fn trigger_notification(message: &Message, id: &str) {
+fn trigger_notification(message: &Message) {
     let body = message.body.as_deref().unwrap_or("-");
     let agent = message.agent_name.as_deref().unwrap_or("hiboss");
     let script = format!(
@@ -79,16 +82,7 @@ fn trigger_notification(message: &Message, id: &str) {
         escape_applescript(body),
         escape_applescript(agent),
     );
-    match Command::new("osascript").arg("-e").arg(script).status() {
-        Ok(status) => {
-            if !status.success() {
-                eprintln!("Notification command failed for {}: {}", short_id(id), status);
-            }
-        }
-        Err(err) => {
-            eprintln!("Notification failed for {}: {}", short_id(id), err);
-        }
-    }
+    let _ = Command::new("osascript").arg("-e").arg(script).status();
 }
 
 fn escape_applescript(value: &str) -> String {

@@ -5,6 +5,7 @@
 mod client;
 mod commands;
 mod config;
+mod sse;
 mod types;
 
 use clap::{Parser, Subcommand};

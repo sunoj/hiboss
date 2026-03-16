@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageResponse, MessageRow } from '../types';
 import { sendTelegramTyping } from '../channels/telegram';
+import { notifyAgentCallback } from '../notify';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -41,6 +42,7 @@ router.post('/discord', async (c) => {
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   return c.json(mapMessage(inserted), 201);
 });
 
@@ -83,6 +85,7 @@ router.post('/telegram', async (c) => {
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   return c.json(mapMessage(inserted), 201);
 });
 
