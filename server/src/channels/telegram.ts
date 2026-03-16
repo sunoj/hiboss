@@ -9,16 +9,12 @@ type SendOptions = {
   inlineKeyboard?: { text: string; callback_data: string }[][];
 };
 
-const MD2_SPECIAL = /([_*\[\]()~`>#+\-=|{}.!\\])/g;
-
-export function escapeMarkdownV2(text: string): string {
-  return text.replace(MD2_SPECIAL, '\\$1');
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export function formatTelegramAgentMessage(agentName: string, body: string): string {
-  const escaped = escapeMarkdownV2(body);
-  const name = escapeMarkdownV2(agentName);
-  return `*\\[${name}\\]* ${escaped}`;
+  return `<b>[${escapeHtml(agentName)}]</b> ${escapeHtml(body)}`;
 }
 
 export async function sendTelegramMessage(config: TelegramChannelConfig, content: string, options?: SendOptions): Promise<number | undefined> {
@@ -29,7 +25,7 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
   const payload: Record<string, unknown> = {
     chat_id: config.chat_id,
     text: content,
-    parse_mode: 'MarkdownV2',
+    parse_mode: 'HTML',
   };
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
@@ -45,11 +41,12 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
       body: JSON.stringify(payload),
     }
   );
-  // Fall back to plain text if MarkdownV2 parsing fails
+  // Fall back to plain text if HTML parsing fails
   if (!response.ok) {
     const errorBody = await response.text();
     if (errorBody.includes("can't parse entities")) {
       payload.parse_mode = undefined;
+      payload.text = stripHtmlTags(content);
       response = await fetch(
         `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`,
         {
@@ -63,7 +60,6 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
       throw new Error(`telegram send failed ${response.status} ${errorBody}`);
     }
   }
-  // Return the sent message_id for threading
   try {
     const result = await response.json() as { result?: { message_id?: number } };
     return result?.result?.message_id;
@@ -121,7 +117,7 @@ export async function sendTelegramPhoto(config: TelegramChannelConfig, photoUrl:
   };
   if (caption) {
     payload.caption = caption;
-    payload.parse_mode = 'MarkdownV2';
+    payload.parse_mode = 'HTML';
   }
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
@@ -150,7 +146,7 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
   };
   if (caption) {
     payload.caption = caption;
-    payload.parse_mode = 'MarkdownV2';
+    payload.parse_mode = 'HTML';
   }
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
@@ -186,4 +182,8 @@ export async function setTelegramReaction(botToken: string, chatId: string, mess
       }),
     }
   );
+}
+
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 }
