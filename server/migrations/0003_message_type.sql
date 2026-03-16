@@ -1,2 +1,3 @@
 -- v0.5.1: Add type field for structured message types
-ALTER TABLE messages ADD COLUMN type TEXT DEFAULT 'text';
+-- Column already exists in production; this migration is now a no-op.
+SELECT 1;
