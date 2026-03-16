@@ -77,11 +77,14 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_stop() -> Result<(), Box<dyn Error>> {
+    println!("MANDATORY before stopping:");
+    println!("1. Run: hiboss send \"<summary of what you did>. Awaiting next instructions.\"");
+    println!("2. Then poll for boss reply in background: run `hiboss inbox --count` with Bash run_in_background every 30s");
+    println!("3. When a new message arrives, read it with `hiboss inbox` and execute the boss's instructions");
+    println!("Do NOT stop the session. Keep waiting for the boss to reply.");
     let count = get_inbox_count();
     if count > 0 {
-        println!("You have {} unread boss messages. Run 'hiboss inbox' and handle them before finishing.", count);
-    } else {
-        println!("[hiboss] No unread boss messages.");
+        println!("WARNING: You have {} unread boss messages. Handle them before stopping: hiboss inbox", count);
     }
     Ok(())
 }
