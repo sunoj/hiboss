@@ -7,12 +7,24 @@ use serde_json::{Map, Value};
 use std::env;
 use std::error::Error;
 use std::fs;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 const EVENT_COMMANDS: &[(&str, &str)] = &[
     ("SessionStart", "session-start"),
     ("PostToolUse", "post-tool-use"),
 ];
+
+const PROMPT_BEGIN: &str = "<!-- hiboss:begin -->";
+const PROMPT_END: &str = "<!-- hiboss:end -->";
+
+const GLOBAL_PROMPT: &str = r#"<!-- hiboss:begin -->
+## hiboss — Boss Communication
+
+Use `hiboss` to communicate with your boss: `send "msg"`, `ask "question"`, `inbox`, `reply <id> "msg"`.
+When task is complete, NEVER just stop. Run `hiboss ask --options "A,B,C" "summary + options" --timeout 300` (background), wait for reply.
+<!-- hiboss:end -->"#;
+
 
 #[derive(Debug, Args)]
 pub struct SetupArgs {
@@ -86,6 +98,10 @@ fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
         HookAction::Removed => println!("Removed hiboss hooks from .claude/settings.json"),
         HookAction::None => println!("hiboss hooks already configured in .claude/settings.json"),
     }
+
+    // Write/remove global prompt in CLAUDE.md (with user confirmation)
+    let claude_md_path = claude_dir.join("CLAUDE.md");
+    apply_prompt_changes(&claude_md_path, args.remove)?;
 
     Ok(())
 }
@@ -181,6 +197,55 @@ fn apply_hook_changes(settings: &mut Value, remove: bool) -> Result<HookChange, 
         }
     }
     Ok(change)
+}
+
+fn apply_prompt_changes(path: &PathBuf, remove: bool) -> Result<(), Box<dyn Error>> {
+    let existing = if path.exists() { fs::read_to_string(path)? } else { String::new() };
+    let has_prompt = existing.contains(PROMPT_BEGIN);
+
+    if remove {
+        if !has_prompt {
+            return Ok(());
+        }
+        let mut result = String::new();
+        let mut skipping = false;
+        for line in existing.lines() {
+            if line.contains(PROMPT_BEGIN) { skipping = true; continue; }
+            if line.contains(PROMPT_END) { skipping = false; continue; }
+            if !skipping { result.push_str(line); result.push('\n'); }
+        }
+        let trimmed = result.trim_end().to_string();
+        let content = if trimmed.is_empty() { String::new() } else { format!("{}\n", trimmed) };
+        fs::write(path, content)?;
+        println!("Removed hiboss prompt from {}", path.display());
+        return Ok(());
+    }
+
+    if has_prompt {
+        return Ok(()); // Already present
+    }
+
+    // Show prompt and ask for confirmation
+    eprintln!("\nThe following will be appended to {}:\n", path.display());
+    eprintln!("{}\n", GLOBAL_PROMPT);
+    eprint!("Add hiboss prompt to CLAUDE.md? [y/N] ");
+    io::stderr().flush()?;
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    if !answer.trim().eq_ignore_ascii_case("y") {
+        eprintln!("Skipped CLAUDE.md prompt injection.");
+        return Ok(());
+    }
+
+    let mut content = existing;
+    if !content.is_empty() && !content.ends_with('\n') { content.push('\n'); }
+    if !content.is_empty() { content.push('\n'); }
+    content.push_str(GLOBAL_PROMPT);
+    content.push('\n');
+    if let Some(parent) = path.parent() { fs::create_dir_all(parent)?; }
+    fs::write(path, content)?;
+    println!("Added hiboss prompt to {}", path.display());
+    Ok(())
 }
 
 fn matcher_contains_hiboss(value: &Value) -> bool {
