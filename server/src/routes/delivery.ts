@@ -1,4 +1,4 @@
-// Channel delivery functions: format, send, retry for Discord and Telegram.
+// Channel delivery functions: format, send, retry for Discord, Telegram, and API.
 // Exports delivery helpers used by messages router.
 // Depends on channel adapters, types, and delay from message-helpers.
 
@@ -50,6 +50,10 @@ export async function deliverReply(
   body: string,
   replyToTelegramId?: number,
 ): Promise<DeliveryResult> {
+  if (channel === 'api') {
+    // API channel: message stored in DB, boss-agent reads via polling. No external delivery.
+    return { delivered: true };
+  }
   if (channel === 'discord') {
     const dc = requireDiscordConfig(config);
     const opts = discordOptions(dc, agentName);
@@ -72,6 +76,10 @@ export async function deliverToChannelWithOptions(
   inlineKeyboard?: { text: string; callback_data: string }[][],
   fileUrl?: string,
 ): Promise<DeliveryResult> {
+  if (channel === 'api') {
+    // API channel: message stored in DB, boss-agent reads via polling. No external delivery.
+    return { delivered: true };
+  }
   if (channel === 'discord') {
     const dc = requireDiscordConfig(config);
     const opts = discordOptions(dc, agentName);

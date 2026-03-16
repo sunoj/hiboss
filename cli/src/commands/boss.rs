@@ -21,6 +21,10 @@ pub enum BossCommand {
     Grant(BossGrantArgs),
     Revoke(BossRevokeArgs),
     Show(BossShowArgs),
+    /// View messages from sub-agents (agent-as-boss)
+    Inbox(BossInboxArgs),
+    /// Reply to a sub-agent message as boss
+    Reply(BossReplyArgs),
 }
 #[derive(Debug, Args)]
 pub struct BossAddArgs {
@@ -31,6 +35,9 @@ pub struct BossAddArgs {
     pub telegram_user_id: Option<String>,
     #[arg(long = "discord-user-id")]
     pub discord_user_id: Option<String>,
+    /// Link this boss to an agent (agent-as-boss)
+    #[arg(long = "agent-id")]
+    pub agent_id: Option<String>,
 }
 #[derive(Debug, Args)]
 pub struct BossRemoveArgs {
@@ -47,6 +54,9 @@ pub struct BossUpdateArgs {
     pub telegram_user_id: Option<String>,
     #[arg(long = "discord-user-id")]
     pub discord_user_id: Option<String>,
+    /// Link/unlink this boss to an agent
+    #[arg(long = "agent-id")]
+    pub agent_id: Option<String>,
 }
 #[derive(Debug, Args)]
 pub struct BossGrantArgs {
@@ -62,6 +72,22 @@ pub struct BossRevokeArgs {
 pub struct BossShowArgs {
     pub id: String,
 }
+#[derive(Debug, Args)]
+pub struct BossInboxArgs {
+    #[arg(long)]
+    pub all: bool,
+    #[arg(long)]
+    pub priority: Option<String>,
+    #[arg(long, default_value = "20")]
+    pub limit: u32,
+    #[arg(long)]
+    pub count: bool,
+}
+#[derive(Debug, Args)]
+pub struct BossReplyArgs {
+    pub id: String,
+    pub body: String,
+}
 
 pub async fn run(args: &BossArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     match &args.command {
@@ -72,6 +98,8 @@ pub async fn run(args: &BossArgs, _config: &Config, client: &HiBossClient) -> Re
         BossCommand::Grant(payload) => run_grant(payload, client).await,
         BossCommand::Revoke(payload) => run_revoke(payload, client).await,
         BossCommand::Show(payload) => run_show(payload, client).await,
+        BossCommand::Inbox(payload) => run_inbox(payload, client).await,
+        BossCommand::Reply(payload) => run_reply(payload, client).await,
     }
 }
 
@@ -104,6 +132,7 @@ async fn run_add(args: &BossAddArgs, client: &HiBossClient) -> Result<(), Box<dy
     payload.insert("role".into(), Value::String(args.role.clone()));
     insert_optional(&mut payload, "telegram_user_id", &args.telegram_user_id);
     insert_optional(&mut payload, "discord_user_id", &args.discord_user_id);
+    insert_optional(&mut payload, "agent_id", &args.agent_id);
     let boss = client.create_boss(&Value::Object(payload)).await?;
     let id = boss["id"].as_str().unwrap_or("-");
     eprintln!("Boss created: {} ({})", boss["name"].as_str().unwrap_or("-"), short_id(id));
@@ -123,6 +152,7 @@ async fn run_update(args: &BossUpdateArgs, client: &HiBossClient) -> Result<(), 
     insert_optional(&mut updates, "role", &args.role);
     insert_optional(&mut updates, "telegram_user_id", &args.telegram_user_id);
     insert_optional(&mut updates, "discord_user_id", &args.discord_user_id);
+    insert_optional(&mut updates, "agent_id", &args.agent_id);
     if updates.is_empty() {
         eprintln!("No updates provided.");
         return Ok(());
@@ -152,6 +182,47 @@ async fn run_show(args: &BossShowArgs, client: &HiBossClient) -> Result<(), Box<
     Ok(())
 }
 
+async fn run_inbox(args: &BossInboxArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let resp = client.boss_inbox(!args.all, args.limit, args.priority.as_deref(), args.count).await?;
+    if args.count {
+        println!("{}", resp["total"].as_u64().unwrap_or(0));
+        return Ok(());
+    }
+    if let Some(list) = resp["messages"].as_array() {
+        if list.is_empty() {
+            eprintln!("No messages from sub-agents.");
+            return Ok(());
+        }
+        println!("{:<10} {:<15} {:<10} {:<10} {}", "ID", "Agent", "Priority", "Status", "Body");
+        for msg in list {
+            let id = short_id(msg["id"].as_str().unwrap_or(""));
+            let agent = msg["agent_name"].as_str().unwrap_or("-");
+            let priority = msg["priority"].as_str().unwrap_or("normal");
+            let status = msg["status"].as_str().unwrap_or("-");
+            let body = msg["body"].as_str().unwrap_or("").chars().take(60).collect::<String>();
+            println!("{:<10} {:<15} {:<10} {:<10} {}", id, agent, color_priority_str(priority), status, body);
+        }
+    }
+    Ok(())
+}
+
+async fn run_reply(args: &BossReplyArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let resp = client.boss_reply(&args.id, &args.body).await?;
+    let id = short_id(resp["id"].as_str().unwrap_or(""));
+    eprintln!("Reply sent ({})", id);
+    Ok(())
+}
+
+fn color_priority_str(priority: &str) -> colored::ColoredString {
+    match priority {
+        "critical" => priority.red().bold(),
+        "high" => priority.yellow(),
+        "normal" => priority.normal(),
+        "low" => priority.dimmed(),
+        _ => priority.normal(),
+    }
+}
+
 fn print_boss_details(boss: &Value) {
     let id = boss["id"].as_str().unwrap_or("-");
     println!("ID: {}", short_id(id));
@@ -159,6 +230,9 @@ fn print_boss_details(boss: &Value) {
     println!("Role: {}", color_role(boss["role"].as_str().unwrap_or("viewer")));
     println!("Telegram User ID: {}", boss["telegram_user_id"].as_str().unwrap_or("-"));
     println!("Discord User ID: {}", boss["discord_user_id"].as_str().unwrap_or("-"));
+    if let Some(agent_id) = boss["agent_id"].as_str() {
+        println!("Agent ID: {}", short_id(agent_id));
+    }
 }
 
 fn format_agents(boss: &Value) -> String {

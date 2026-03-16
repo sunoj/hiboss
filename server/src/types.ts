@@ -12,7 +12,7 @@ export type Env = {
 
 export type Direction = 'agent_to_boss' | 'boss_to_agent';
 export type Mode = 'async' | 'blocking';
-export type Channel = 'discord' | 'telegram' | 'email';
+export type Channel = 'discord' | 'telegram' | 'email' | 'api';
 export type Priority = 'critical' | 'high' | 'normal' | 'low';
 export type Status = 'sent' | 'delivered' | 'read' | 'replied';
 

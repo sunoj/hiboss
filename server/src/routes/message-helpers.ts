@@ -17,7 +17,7 @@ import { requireTelegramConfig as _requireTelegramConfig, formatAgentMessage as 
 export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 export type { DeliveryResult } from './delivery';
 
-const channelOptions: Channel[] = ['discord', 'telegram', 'email'];
+const channelOptions: Channel[] = ['discord', 'telegram', 'email', 'api'];
 export const priorityOptions: Priority[] = ['critical', 'high', 'normal', 'low'];
 
 export function mapMessageRow(row: MessageRow): MessageResponse {
@@ -237,7 +237,7 @@ export function resolveChannelRouting(routingJson: string, priority: string): Ch
   try {
     const routing = JSON.parse(routingJson) as Record<string, string>;
     const ch = routing[priority];
-    if (ch && ['discord', 'telegram', 'email'].includes(ch)) {
+    if (ch && ['discord', 'telegram', 'email', 'api'].includes(ch)) {
       return ch as Channel;
     }
   } catch { /* ignore */ }
