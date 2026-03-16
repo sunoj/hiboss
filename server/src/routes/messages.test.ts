@@ -225,3 +225,117 @@ describe('PATCH /api/messages/:id', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('POST /api/messages/:id/react', () => {
+  it('rejects empty emoji', async () => {
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'React test' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${id}/react`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ emoji: '' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for unknown message', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages/nonexistent/react', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ emoji: '👀' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('rejects react on non-telegram message', async () => {
+    // Create a message with no channel (not telegram)
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'No channel msg' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${id}/react`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ emoji: '👀' }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('telegram');
+  });
+});
+
+describe('POST /api/messages with metadata', () => {
+  it('stores file_url in metadata', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'See file', file_url: 'https://example.com/img.png' }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+
+    // Verify metadata contains file_url
+    const getRes = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      headers: authHeaders(),
+    });
+    const msg = await getRes.json() as { metadata: Record<string, unknown> | null };
+    expect(msg.metadata?.['file_url']).toBe('https://example.com/img.png');
+  });
+
+  it('stores custom metadata', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'With meta', metadata: { task: 'test-123' } }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+
+    const getRes = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      headers: authHeaders(),
+    });
+    const msg = await getRes.json() as { metadata: Record<string, unknown> | null };
+    expect(msg.metadata?.['task']).toBe('test-123');
+  });
+
+  it('accepts options as array', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Choose one', options: ['A', 'B', 'C'] }),
+    });
+    expect(res.status).toBe(201);
+  });
+});
+
+describe('POST /api/messages/:id/poll', () => {
+  it('returns 400 for non-blocking message', async () => {
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Async msg', mode: 'async' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${id}/poll`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for unknown message', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages/nonexistent/poll', {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(404);
+  });
+});

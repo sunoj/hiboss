@@ -5,6 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { hashApiKey } from '../middleware/auth';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -243,5 +244,57 @@ describe('POST /api/webhooks/discord', () => {
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('ignored');
+  });
+});
+
+describe('Routing rules integration', () => {
+  const targetAgentId = 'routing-target-agent';
+
+  beforeAll(async () => {
+    // Create a second agent for routing target
+    const keyHash = await hashApiKey('hb_routing_target_key');
+    await env.DB.prepare(
+      'INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)'
+    ).bind(targetAgentId, 'routing-target', keyHash).run();
+
+    // Create a routing rule: messages containing "deploy" go to target agent
+    await env.DB.prepare(
+      "INSERT INTO routing_rules (owner_id, channel, pattern, target_agent_id, priority, enabled) VALUES (?, 'telegram', 'deploy', ?, 10, 1)"
+    ).bind(getTestAgentId(), targetAgentId).run();
+  });
+
+  it('routes telegram message to target agent when pattern matches', async () => {
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: {
+          chat: { id: 'test-chat', type: 'private' },
+          text: 'please deploy to production',
+          from: { id: 1, is_bot: false },
+        },
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { agent_id: string; body: string };
+    expect(data.agent_id).toBe(targetAgentId);
+    expect(data.body).toBe('please deploy to production');
+  });
+
+  it('routes to default agent when no pattern matches', async () => {
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify({
+        message: {
+          chat: { id: 'test-chat', type: 'private' },
+          text: 'hello there',
+          from: { id: 1, is_bot: false },
+        },
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { agent_id: string };
+    expect(data.agent_id).toBe(getTestAgentId());
   });
 });

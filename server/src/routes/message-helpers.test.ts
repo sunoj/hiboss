@@ -21,6 +21,7 @@ import {
   buildInlineKeyboard,
   extractTelegramMessageId,
   selectChannelConfig,
+  fetchAllChannelConfigs,
   fetchMessageRow,
   fetchReplies,
   fetchMessageWithReplies,
@@ -524,5 +525,28 @@ describe('fetchAgentName', () => {
   it('returns null for unknown agent ID', async () => {
     const name = await fetchAgentName(env as any, 'nonexistent-agent');
     expect(name).toBeNull();
+  });
+});
+
+describe('fetchAllChannelConfigs', () => {
+  it('returns all enabled channel configs for agent', async () => {
+    const configs = await fetchAllChannelConfigs(env as any, getTestAgentId());
+    expect(configs.length).toBeGreaterThanOrEqual(2);
+    const channels = configs.map((c) => c.channel);
+    expect(channels).toContain('telegram');
+    expect(channels).toContain('discord');
+  });
+
+  it('returns empty array for agent with no channels', async () => {
+    const configs = await fetchAllChannelConfigs(env as any, 'no-such-agent');
+    expect(configs).toEqual([]);
+  });
+
+  it('parses config JSON into objects', async () => {
+    const configs = await fetchAllChannelConfigs(env as any, getTestAgentId());
+    const tg = configs.find((c) => c.channel === 'telegram');
+    expect(tg).toBeDefined();
+    expect(typeof tg!.config).toBe('object');
+    expect(tg!.config['chat_id']).toBe('tg-123');
   });
 });
