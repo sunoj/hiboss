@@ -25,7 +25,6 @@ Use `hiboss` to communicate with your boss: `send "msg"`, `ask "question"`, `inb
 When task is complete, NEVER just stop. Run `hiboss ask --options "A,B,C" "summary + options" --timeout 300` (background), wait for reply.
 <!-- hiboss:end -->"#;
 
-
 #[derive(Debug, Args)]
 pub struct SetupArgs {
     #[command(subcommand)]

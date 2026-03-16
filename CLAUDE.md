@@ -8,10 +8,10 @@ These are the recommended instructions for AI agents using hiboss. Copy this sec
 
 ### Setup
 
-Run `hiboss setup hooks` to install Claude Code hooks automatically. This configures:
-- **SessionStart**: injects unread boss messages into context at session start
-- **PostToolUse**: checks for urgent (critical/high) messages every 5 minutes
-- **Stop**: reminds you of unread messages before session ends
+Run `hiboss setup hooks` to install Claude Code hooks and inject agent instructions. This configures:
+- **SessionStart hook**: injects unread boss messages into context at session start
+- **PostToolUse hook**: checks for urgent (critical/high) messages every 5 minutes
+- **CLAUDE.md prompt**: appends concise agent instructions (with user confirmation)
 
 ### Session Start
 
@@ -374,22 +374,24 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 **Goal**: Native Telegram chat experience + deeper Claude Code integration.
 
 #### Telegram Enhancements
-- MarkdownV2 formatting in outgoing messages (with plain-text fallback)
-- Reply threading via `reply_to_message_id`
+- HTML formatting in outgoing messages (with plain-text fallback)
+- Reply threading via `reply_to_message_id` (bidirectional: agent→boss and boss→agent)
 - Inline keyboards for quick-reply (`hiboss ask --options "A,B,C"`)
 - `callback_query` handler for button presses
 - Telegram reactions: generic react API, agent decides emoji/timing
+- `telegram_message_id` stored in metadata for reply linking
+- CLI escape sequences: `\n` and `\t` in message body converted to real characters
 
 #### Claude Code Integration
 - `last_used_at` tracking: server records agent's last API call timestamp
 - Agent status dashboard: `hiboss agent list` shows online/idle/offline status
 - Built-in hooks: `hiboss hook <event>` + `hiboss setup hooks`
-- Agent Instructions template in CLAUDE.md for configuring agent behavior
+- Agent config: default priority, rate limiting (messages/min)
+- CLAUDE.md prompt injection: `setup hooks` appends agent instructions with user confirmation
 
 ### v0.5 — Smart Routing & Multi-Agent
 - Priority-based routing: critical messages → all channels simultaneously
 - Message routing rules: keyword/regex → specific agent
-- Agent-level config: system prompts, default priority, rate limits
 - Agent groups: broadcast messages to multiple agents
 
 ### v0.6 — Multi-boss & Teams
