@@ -58,8 +58,16 @@ enum Commands {
 #[tokio::main]
 async fn main() {
     if let Err(err) = run().await {
-        eprintln!("Error: {}", err);
-        std::process::exit(1);
+        let msg = err.to_string();
+        eprintln!("Error: {}", msg);
+        let code = if msg.contains("not configured") || msg.contains("missing") || msg.contains("config") {
+            3
+        } else if msg.contains("request failed") || msg.contains("connect") || msg.contains("timeout") {
+            2
+        } else {
+            1
+        };
+        std::process::exit(code);
     }
 }
 
