@@ -35,6 +35,8 @@ pub struct SendRequest {
     pub options: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_url: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub message_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

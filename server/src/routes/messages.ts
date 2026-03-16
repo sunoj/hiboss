@@ -62,6 +62,7 @@ routes.post('/', async (c) => {
   const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority);
   const requestedChannel = validateChannel(payload.channel);
   const fileUrl = typeof payload.file_url === 'string' ? payload.file_url.trim() : undefined;
+  const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
@@ -85,9 +86,9 @@ routes.post('/', async (c) => {
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, metadataJson)
+    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, messageType, metadataJson)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);

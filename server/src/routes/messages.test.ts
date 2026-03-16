@@ -315,6 +315,40 @@ describe('POST /api/messages with metadata', () => {
   });
 });
 
+describe('POST /api/messages with type', () => {
+  it('stores message type', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Deploy done', type: 'task_update' }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+
+    const getRes = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      headers: authHeaders(),
+    });
+    const msg = await getRes.json() as { type: string | null };
+    expect(msg.type).toBe('task_update');
+  });
+
+  it('defaults type to text', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Plain message' }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+
+    const getRes = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      headers: authHeaders(),
+    });
+    const msg = await getRes.json() as { type: string | null };
+    expect(msg.type).toBe('text');
+  });
+});
+
 describe('POST /api/messages/:id/poll', () => {
   it('returns 400 for non-blocking message', async () => {
     const createRes = await SELF.fetch('https://test.local/api/messages', {

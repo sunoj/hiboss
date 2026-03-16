@@ -176,6 +176,65 @@ describe('POST /api/webhooks/telegram', () => {
     expect(data.reply_to).toBe(parentId);
     expect(data.body).toBe('option-one');
   });
+
+  it('copies action from parent metadata to callback reply', async () => {
+    const parentId = 'action-callback-parent';
+    const actions = { Approve: 'aid merge t-123', Reject: 'echo rejected' };
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'Deploy?', 'delivered', 'normal', ?)"
+    )
+      .bind(parentId, getTestAgentId(), JSON.stringify({ actions }))
+      .run();
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify({
+        callback_query: {
+          id: 'cb-action-1',
+          data: 'action-c:Approve',
+          message: {
+            message_id: 200,
+            chat: { id: 'test-chat', type: 'private' },
+            text: 'Deploy?',
+          },
+        },
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { reply_to: string; body: string; metadata: Record<string, unknown> | null };
+    expect(data.reply_to).toBe(parentId);
+    expect(data.body).toBe('Approve');
+    expect(data.metadata?.action).toBe('aid merge t-123');
+  });
+
+  it('callback reply has no action metadata when parent has no actions', async () => {
+    const parentId = 'no-action-parent';
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'No actions', 'sent', 'normal')"
+    )
+      .bind(parentId, getTestAgentId())
+      .run();
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify({
+        callback_query: {
+          id: 'cb-no-action',
+          data: 'no-actio:SomeOption',
+          message: {
+            message_id: 201,
+            chat: { id: 'test-chat', type: 'private' },
+            text: 'No actions',
+          },
+        },
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { metadata: Record<string, unknown> | null };
+    expect(data.metadata).toBeNull();
+  });
 });
 
 describe('POST /api/webhooks/discord', () => {

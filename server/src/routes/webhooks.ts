@@ -138,18 +138,29 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   if (!configRow) {
     return c.text('no agent for chat', 404);
   }
-  // Find the original message by prefix
+  // Find the original message by prefix (with metadata for actions)
   const parentMsg = await c.env.DB
-    .prepare('SELECT id FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare('SELECT id, metadata FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${msgPrefix}%`, configRow.agent_id)
-    .first<{ id: string }>();
+    .first<{ id: string; metadata: string | null }>();
   if (!parentMsg) {
     return c.text('message not found', 404);
   }
+  // If parent has actions in metadata, copy the matched action to reply metadata
+  let replyMetadata: string | null = null;
+  if (parentMsg.metadata) {
+    try {
+      const parentMeta = JSON.parse(parentMsg.metadata) as Record<string, unknown>;
+      const actions = parentMeta['actions'] as Record<string, string> | undefined;
+      if (actions && typeof actions === 'object' && actions[selectedOption]) {
+        replyMetadata = JSON.stringify({ action: actions[selectedOption] });
+      }
+    } catch { /* ignore parse errors */ }
+  }
   // Insert the button press as a boss reply
   const inserted = await c.env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id)
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id, replyMetadata)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);

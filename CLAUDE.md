@@ -77,6 +77,7 @@ Request:
   "channel": "discord | telegram | email (optional, uses default)",
   "options": ["Option A", "Option B"] ,
   "file_url": "string (optional, sends as photo/document on Telegram)",
+  "type": "string (default: 'text', e.g. task_update, approval_request, steer_command)",
   "metadata": {}
 }
 ```
@@ -331,11 +332,13 @@ hiboss send "Deployment complete. 3 tests failed."
 hiboss send --priority high "Build failed, need help."
 hiboss send --channel telegram "Quick update via TG."
 hiboss send --file-url "https://example.com/screenshot.png" "See attached"
+hiboss send --type task_update "Build v2.1 deployed successfully"
 
 # Ask (blocking, waits for reply)
 hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
 hiboss ask --options "A,B,C" "Pick one:\n1. A — details\n2. B — details\n3. C — details"
+hiboss ask --actions "Approve:aid merge t-123,Reject:echo rejected" "Deploy to prod?"
 
 # Inbox
 hiboss inbox                              # unread messages from boss
@@ -472,6 +475,20 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - Broadcast: send one message to all group members
 - CRUD API: `GET/POST /api/groups`, group member management, broadcast
 - CLI: `hiboss group list/create/show/delete`, `hiboss group add-member/remove-member`, `hiboss group broadcast`
+
+### v0.5.1 — Structured Types & Action Callbacks (Done)
+**Goal**: Typed messages for downstream automation + action buttons that trigger shell commands.
+
+#### Structured Message Types
+- `type` field on messages (default: `text`), e.g. `task_update`, `approval_request`, `steer_command`
+- Server accepts `type` in POST /api/messages, stores in D1, returns in all responses
+- CLI: `hiboss send --type task_update "Build deployed"`
+
+#### Action Buttons Callback
+- `hiboss ask --actions "Approve:aid merge t-123,Reject:echo nope" "Deploy?"`
+- Parses `Label:command` pairs → options (Telegram buttons) + `metadata.actions` map
+- Webhook callback handler copies matched action command to reply `metadata.action`
+- CLI auto-executes the action command when poll reply arrives with `metadata.action`
 
 ### v0.6 — Multi-boss & Teams
 - Multiple bosses per agent with role-based permissions
