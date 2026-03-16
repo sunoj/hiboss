@@ -9,6 +9,7 @@ pub mod channel;
 pub mod config;
 pub mod init;
 pub mod inbox;
+pub mod react;
 pub mod read;
 pub mod reply;
 pub mod send;

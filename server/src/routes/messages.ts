@@ -149,9 +149,6 @@ routes.post('/:id/reply', async (c) => {
           .bind(inserted.id)
           .run();
       }
-      if (parent.channel === 'telegram') {
-        c.executionCtx.waitUntil(markTelegramReplied(channelConfig.config, parent.metadata));
-      }
     } catch {
       // Channel delivery failed — message is still stored.
     }
@@ -179,19 +176,31 @@ routes.patch('/:id', async (c) => {
   if (!updated) {
     return c.text('not found', 404);
   }
-  if (status === 'read' && updated.direction === 'boss_to_agent' && updated.channel === 'telegram') {
-    try {
-      const channelConfig = await selectChannelConfig(c.env, agentId, 'telegram');
-      const tgConfig = requireTelegramConfig(channelConfig.config);
-      const telegramMsgId = extractTelegramMessageId(updated.metadata);
-      if (telegramMsgId) {
-        c.executionCtx.waitUntil(setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, telegramMsgId, '🔨'));
-      }
-    } catch {
-      // Channel config not found — skip reaction silently.
-    }
-  }
   return c.json(mapMessageRow(updated));
+});
+
+routes.post('/:id/react', async (c) => {
+  const agentId = getAgentId(c);
+  const message = await fetchMessageRow(c.env, agentId, c.req.param('id'));
+  if (!message) {
+    return c.text('not found', 404);
+  }
+  const payload = await c.req.json<Record<string, unknown>>();
+  const emoji = typeof payload.emoji === 'string' ? payload.emoji.trim() : '';
+  if (!emoji) {
+    return c.text('emoji is required', 400);
+  }
+  if (message.channel !== 'telegram') {
+    return c.text('reactions only supported on telegram', 400);
+  }
+  const telegramMsgId = extractTelegramMessageId(message.metadata);
+  if (!telegramMsgId) {
+    return c.text('no telegram message id found', 400);
+  }
+  const channelConfig = await selectChannelConfig(c.env, agentId, 'telegram');
+  const tgConfig = requireTelegramConfig(channelConfig.config);
+  await setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, telegramMsgId, emoji);
+  return c.json({ ok: true });
 });
 
 routes.post('/:id/poll', async (c) => {
@@ -457,9 +466,3 @@ function extractTelegramMessageId(metadata: string | null): number | undefined {
   return msg?.['message_id'] as number | undefined;
 }
 
-async function markTelegramReplied(channelConfig: Record<string, unknown>, parentMetadata: string | null): Promise<void> {
-  const tgConfig = requireTelegramConfig(channelConfig);
-  const messageId = extractTelegramMessageId(parentMetadata);
-  if (!messageId) return;
-  await setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, messageId, '✅');
-}

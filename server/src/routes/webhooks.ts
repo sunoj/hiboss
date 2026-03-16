@@ -4,7 +4,7 @@
 
 import { Hono, Context } from 'hono';
 import type { Env, MessageResponse, MessageRow } from '../types';
-import { sendTelegramTyping, setTelegramReaction, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
+import { sendTelegramTyping, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -75,17 +75,6 @@ router.post('/telegram', async (c) => {
     return c.text('no agent for chat', 404);
   }
   const agentRow = configRow;
-  const telegramMessageId = message?.['message_id'] as number | undefined;
-  let botToken: string | undefined;
-  try {
-    const parsed = JSON.parse(configRow.config) as Record<string, string>;
-    botToken = parsed.bot_token;
-  } catch {
-    // config parse is best-effort
-  }
-  if (botToken && telegramMessageId) {
-    c.executionCtx.waitUntil(setTelegramReaction(botToken, chatId, telegramMessageId, '👀'));
-  }
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
