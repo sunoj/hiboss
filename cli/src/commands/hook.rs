@@ -37,6 +37,13 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_session_start() -> Result<(), Box<dyn Error>> {
+    println!("hiboss is installed. Use it to communicate with the boss:");
+    println!("- `hiboss send \"message\"` — report progress, blockers, or decisions");
+    println!("- `hiboss reply <id> \"response\"` — reply to a boss message");
+    println!("- `hiboss inbox` — check unread messages");
+    println!("- `hiboss ask \"question?\"` — ask and wait for reply");
+    println!("Report major milestones and task completions via `hiboss send`.");
+
     let count = get_inbox_count();
     if count > 0 {
         println!("You have {} unread boss messages:", count);
