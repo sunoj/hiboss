@@ -1,18 +1,16 @@
 // Purpose: Provide the hiboss bot command that auto-replies with an external handler.
-// Exports: BotArgs CLI parser and run() to poll messages and reply.
-// Dependencies: clap, tokio, crate::client, crate::config, crate::types, std::collections::HashSet, std::process::Stdio.
+// Exports: BotArgs CLI parser and run() to stream messages via SSE and reply.
+// Dependencies: clap, tokio, crate::client, crate::config, crate::types, crate::sse.
 
-use crate::{client::HiBossClient, config::Config, types::Message};
+use crate::{client::HiBossClient, config::Config, sse, types::Message};
 use clap::Args;
-use std::{collections::HashSet, error::Error, process::Stdio};
+use std::{error::Error, process::Stdio};
 use tokio::{
     io::AsyncWriteExt,
     process::Command as TokioCommand,
     signal,
-    time::{interval, Duration},
+    time::{Duration, sleep},
 };
-
-const BOT_POLL_LIMIT: u32 = 20;
 
 #[derive(Debug, Args)]
 pub struct BotArgs {
@@ -22,18 +20,30 @@ pub struct BotArgs {
     pub interval: u64,
 }
 
-pub async fn run(args: &BotArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(args: &BotArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let server = config.require_server()?;
+    let key = config.require_key()?;
     eprintln!(
         "Bot mode active. Handler: {} (Ctrl+C to stop)",
         args.handler
     );
-    let mut seen = HashSet::new();
-    let period = args.interval.max(1);
-    let mut ticker = interval(Duration::from_secs(period));
-    ticker.tick().await;
-    if let Err(err) = poll_messages(&args.handler, client, &mut seen).await {
-        eprintln!("Bot poll error: {}", err);
-    }
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<sse::SseEvent>(32);
+    let sse_url = format!("{}/api/messages/stream", server);
+    let sse_client = reqwest::Client::new();
+    let sse_key = key;
+
+    tokio::spawn(async move {
+        loop {
+            eprintln!("Connecting to SSE stream...");
+            if let Err(e) = sse::connect_sse(&sse_client, &sse_url, &sse_key, tx.clone()).await {
+                eprintln!("SSE error: {}, reconnecting in 5s...", e);
+            } else {
+                eprintln!("SSE stream closed, reconnecting in 5s...");
+            }
+            sleep(Duration::from_secs(5)).await;
+        }
+    });
 
     loop {
         tokio::select! {
@@ -41,30 +51,16 @@ pub async fn run(args: &BotArgs, _config: &Config, client: &HiBossClient) -> Res
                 eprintln!("Bot mode stopping");
                 break;
             }
-            _ = ticker.tick() => {
-                if let Err(err) = poll_messages(&args.handler, client, &mut seen).await {
-                    eprintln!("Bot poll error: {}", err);
+            Some(event) = rx.recv() => {
+                if event.event_type == "message" {
+                    if let Ok(message) = serde_json::from_str::<Message>(&event.data) {
+                        handle_message(&args.handler, client, &message).await;
+                    }
                 }
             }
         }
     }
 
-    Ok(())
-}
-
-async fn poll_messages(
-    handler: &str,
-    client: &HiBossClient,
-    seen: &mut HashSet<String>,
-) -> Result<(), Box<dyn Error>> {
-    let response = client.list_messages(true, false, BOT_POLL_LIMIT).await?;
-    for message in response.messages {
-        let id = message.id.clone();
-        if !seen.insert(id) {
-            continue;
-        }
-        handle_message(handler, client, &message).await;
-    }
     Ok(())
 }
 
@@ -107,7 +103,6 @@ async fn run_handler(handler: &str, input: &str) -> Result<Option<String>, Box<d
         if !input.is_empty() {
             stdin.write_all(input.as_bytes()).await?;
         }
-        // Dropping stdin to flush and signal EOF.
     }
 
     let output = child.wait_with_output().await?;
