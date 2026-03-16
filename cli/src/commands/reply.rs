@@ -2,7 +2,7 @@
 // Exports: ReplyArgs and run().
 // Dependencies: clap, crate::client, crate::config.
 
-use crate::{client::HiBossClient, config::Config};
+use crate::{client::HiBossClient, config::Config, helpers::unescape_body};
 use clap::Args;
 use std::error::Error;
 
@@ -15,7 +15,7 @@ pub struct ReplyArgs {
 }
 
 pub async fn run(args: &ReplyArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let response = client.reply_to(&args.id, &args.body).await?;
+    let response = client.reply_to(&args.id, &unescape_body(&args.body)).await?;
     eprintln!("Reply posted");
     println!("{}", response.id);
     Ok(())

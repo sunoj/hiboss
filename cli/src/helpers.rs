@@ -17,6 +17,10 @@ pub fn truncate(input: &str, limit: usize) -> String {
     }
 }
 
+pub fn unescape_body(input: &str) -> String {
+    input.replace("\\n", "\n").replace("\\t", "\t")
+}
+
 pub fn color_priority(priority: &str) -> colored::ColoredString {
     match priority {
         "critical" => priority.red().bold(),

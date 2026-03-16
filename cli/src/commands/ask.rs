@@ -2,7 +2,7 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use crate::{client::HiBossClient, config::Config, types::SendRequest};
+use crate::{client::HiBossClient, config::Config, helpers::unescape_body, types::SendRequest};
 use clap::Args;
 use std::error::Error;
 
@@ -24,7 +24,7 @@ pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Resu
         o.split(',').map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>()
     }).filter(|v| !v.is_empty());
     let request = SendRequest {
-        body: args.body.clone(),
+        body: unescape_body(&args.body),
         mode: "blocking".to_owned(),
         priority: "normal".to_owned(),
         channel,
