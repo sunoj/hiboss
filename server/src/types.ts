@@ -7,6 +7,7 @@ import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 export type Env = {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
+  DISCORD_PUBLIC_KEY?: string;
 };
 
 export type Direction = 'agent_to_boss' | 'boss_to_agent';

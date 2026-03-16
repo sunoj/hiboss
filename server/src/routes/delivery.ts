@@ -76,7 +76,8 @@ export async function deliverToChannelWithOptions(
     const dc = requireDiscordConfig(config);
     const opts = discordOptions(dc, agentName);
     const text = opts ? body : formatAgentMessage(agentName, body);
-    await sendDiscordMessage(dc, fileUrl ? `${text}\n${fileUrl}` : text, opts);
+    const components = inlineKeyboard ? inlineKeyboardToDiscordComponents(inlineKeyboard) : undefined;
+    await sendDiscordMessage(dc, fileUrl ? `${text}\n${fileUrl}` : text, { ...opts, components });
     return { delivered: true };
   }
   if (channel === 'telegram') {
@@ -96,6 +97,18 @@ export async function deliverToChannelWithOptions(
     return { delivered: true, telegramMessageId };
   }
   return { delivered: false };
+}
+
+function inlineKeyboardToDiscordComponents(keyboard: { text: string; callback_data: string }[][]): unknown[] {
+  return keyboard.map((row) => ({
+    type: 1,
+    components: row.map((btn) => ({
+      type: 2,
+      style: 1,
+      label: btn.text.slice(0, 80),
+      custom_id: btn.callback_data.slice(0, 100),
+    })),
+  }));
 }
 
 function discordOptions(config: DiscordChannelConfig, agentName: string): DiscordSendOptions | undefined {
