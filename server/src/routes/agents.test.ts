@@ -111,3 +111,118 @@ describe('DELETE /api/agents/me/callback', () => {
     expect(profileData.callback_url).toBeNull();
   });
 });
+
+describe('PUT /api/agents/me/config', () => {
+  it('updates default_priority', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ default_priority: 'high' }),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { default_priority: string };
+    expect(data.default_priority).toBe('high');
+  });
+
+  it('updates rate_limit', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ rate_limit: 5 }),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { rate_limit: number };
+    expect(data.rate_limit).toBe(5);
+  });
+
+  it('sets rate_limit to null to disable', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ rate_limit: null }),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { rate_limit: number | null };
+    expect(data.rate_limit).toBeNull();
+  });
+
+  it('rejects invalid default_priority', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ default_priority: 'invalid' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects negative rate_limit', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ rate_limit: -1 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects empty payload', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('updates both fields at once', async () => {
+    const res = await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ default_priority: 'low', rate_limit: 10 }),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { default_priority: string; rate_limit: number };
+    expect(data.default_priority).toBe('low');
+    expect(data.rate_limit).toBe(10);
+  });
+});
+
+describe('Rate limiting', () => {
+  it('returns 429 when rate limit exceeded', async () => {
+    // Set rate limit to 2 msg/min
+    await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ rate_limit: 2 }),
+    });
+
+    // Clear recent messages for clean test
+    await env.DB.prepare(
+      "DELETE FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND created_at > datetime('now', '-1 minute')"
+    ).bind(getTestAgentId()).run();
+
+    // Send 2 messages (should succeed)
+    for (let i = 0; i < 2; i++) {
+      const res = await SELF.fetch('https://test.local/api/messages', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ body: `Rate test ${i}` }),
+      });
+      expect(res.status).toBe(201);
+    }
+
+    // Third message should be rate limited
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Rate test exceeded' }),
+    });
+    expect(res.status).toBe(429);
+
+    // Reset rate limit
+    await SELF.fetch('https://test.local/api/agents/me/config', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ rate_limit: null }),
+    });
+  });
+});
