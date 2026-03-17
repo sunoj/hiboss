@@ -8,6 +8,7 @@ pub mod boss;
 pub mod bot;
 pub mod channel;
 pub mod config;
+pub mod daemon;
 pub mod doctor;
 pub mod init;
 pub mod inbox;

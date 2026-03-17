@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
+use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -55,6 +55,8 @@ enum Commands {
     Group(group::GroupArgs),
     #[command(about = "Manage boss identities and permissions")]
     Boss(boss::BossArgs),
+    #[command(about = "Background SSE daemon for real-time message delivery")]
+    Daemon(daemon::DaemonArgs),
 }
 
 #[tokio::main]
@@ -97,6 +99,10 @@ async fn run() -> Result<(), Box<dyn Error>> {
             doctor::run(&config).await?;
             return Ok(());
         }
+        Commands::Daemon(args) => {
+            daemon::run(args).await?;
+            return Ok(());
+        }
         _ => {}
     }
     let server = config.require_server()?;
@@ -122,6 +128,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
         Commands::Doctor(_) => unreachable!(),
+        Commands::Daemon(_) => unreachable!(),
     }
     Ok(())
 }
