@@ -349,6 +349,7 @@ td {
     <button class="active" data-tab="messages" onclick="switchTab('messages')">Messages</button>
     <button data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
     <button data-tab="agents" onclick="switchTab('agents')">Agents</button>
+    <button data-tab="settings" onclick="switchTab('settings')" id="tab-settings" style="display:none">Settings</button>
   </nav>
   <main id="content"></main>
 </div>
@@ -450,9 +451,11 @@ async function showApp() {
     if (authMode === 'boss') {
       const me = await apiFetch('/api/boss/me');
       document.getElementById('agent-name').textContent = (me.name || me.id.slice(0, 8)) + ' (boss)';
+      document.getElementById('tab-settings').style.display = '';
     } else {
       const me = await apiFetch('/api/agents/me');
       document.getElementById('agent-name').textContent = me.name || me.id.slice(0, 8);
+      document.getElementById('tab-settings').style.display = 'none';
     }
   } catch { /* ignore */ }
   switchTab('messages');
@@ -476,6 +479,7 @@ function switchTab(tab) {
   if (tab === 'messages') { msgOffset = 0; loadMessages(); }
   else if (tab === 'sessions') loadSessions();
   else if (tab === 'agents') loadAgents();
+  else if (tab === 'settings') loadSettings();
 }
 
 /* -- Messages -- */
@@ -812,6 +816,82 @@ async function saveAgentConfig() {
   } catch (e) {
     status.className = 'save-status save-err';
     status.textContent = 'Error: ' + e.message;
+  } finally { btn.disabled = false; }
+}
+
+/* -- Settings (Boss) -- */
+async function loadSettings() {
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="loading">Loading...</div>';
+  try {
+    const [me, prefs] = await Promise.all([apiFetch('/api/boss/me'), apiFetch('/api/boss/me/preferences')]);
+    let html = '<div style="max-width:600px">';
+    html += '<h3 style="font-size:0.875rem;margin-bottom:var(--space-md)">Boss Profile</h3>';
+    html += '<div class="config-grid">';
+    html += configField('Name', `<div class="config-ro">${esc(me.name)}</div>`);
+    html += configField('Role', `<div class="config-ro">${esc(me.role)}</div>`);
+    html += configField('Telegram ID', `<div class="config-ro"><code>${esc(me.telegram_user_id || 'Not set')}</code></div>`);
+    html += configField('Discord ID', `<div class="config-ro"><code>${esc(me.discord_user_id || 'Not set')}</code></div>`);
+    html += '</div>';
+    html += '<h3 style="font-size:0.875rem;margin:var(--space-lg) 0 var(--space-md)">Preferences</h3>';
+    html += '<div class="config-grid">';
+    html += configField('Preferred Channel', `<select id="pref-channel">
+      <option value="" ${!prefs.preferred_channel ? 'selected' : ''}>Default</option>
+      ${['telegram','discord','email'].map(ch => `<option value="${ch}" ${prefs.preferred_channel === ch ? 'selected' : ''}>${ch}</option>`).join('')}
+    </select>`, 'Channel for receiving notifications');
+    html += configField('Timezone', `<input id="pref-tz" type="text" value="${esc(prefs.timezone || '')}" placeholder="e.g. Asia/Shanghai">`, 'Used for quiet hours calculation');
+    html += '</div>';
+    html += '<div style="margin-top:var(--space-md)"><label style="display:block;font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:var(--space-xs)">Quiet Hours</label>';
+    html += '<div class="config-ro hint" style="margin-bottom:var(--space-xs)">Suppress notifications during these hours</div>';
+    html += '<div style="display:flex;gap:var(--space-sm);align-items:center">';
+    html += `<input id="pref-qstart" type="time" value="${esc(prefs.quiet_hours?.start || '')}" style="background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem;font-size:0.8125rem">`;
+    html += '<span style="color:var(--text-muted)">to</span>';
+    html += `<input id="pref-qend" type="time" value="${esc(prefs.quiet_hours?.end || '')}" style="background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem;font-size:0.8125rem">`;
+    html += '</div></div>';
+    html += '<div style="margin-top:var(--space-md)"><label style="display:block;font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:var(--space-xs)">Notification Priorities</label>';
+    html += '<div class="config-ro hint" style="margin-bottom:var(--space-xs)">Only notify for these priority levels</div>';
+    const np = prefs.notify_priorities || [];
+    for (const p of ['critical','high','normal','low']) {
+      html += `<label style="display:flex;align-items:center;gap:var(--space-xs);font-size:0.8125rem;margin-bottom:2px">
+        <input type="checkbox" class="pref-np" value="${p}" ${np.includes(p) ? 'checked' : ''}> ${p}
+      </label>`;
+    }
+    html += '</div>';
+    html += `<div class="config-actions">
+      <span id="pref-status"></span>
+      <button class="btn-save" onclick="savePreferences()">Save Preferences</button>
+    </div></div>`;
+    el.innerHTML = html;
+  } catch { el.innerHTML = '<div class="empty">Failed to load settings</div>'; }
+}
+
+async function savePreferences() {
+  const status = document.getElementById('pref-status');
+  const btn = document.querySelector('.config-actions .btn-save');
+  btn.disabled = true;
+  status.className = 'save-status'; status.textContent = 'Saving...';
+  const payload = {};
+  const ch = document.getElementById('pref-channel').value;
+  payload.preferred_channel = ch || null;
+  const tz = document.getElementById('pref-tz').value.trim();
+  if (tz) payload.timezone = tz;
+  const qs = document.getElementById('pref-qstart').value;
+  const qe = document.getElementById('pref-qend').value;
+  if (qs && qe) { payload.quiet_hours = { start: qs, end: qe }; }
+  else { payload.quiet_hours = null; }
+  const checks = document.querySelectorAll('.pref-np:checked');
+  payload.notify_priorities = Array.from(checks).map(c => c.value);
+  if (payload.notify_priorities.length === 0) delete payload.notify_priorities;
+  try {
+    await apiFetch('/api/boss/me/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    status.className = 'save-status save-ok'; status.textContent = 'Saved';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  } catch (e) {
+    status.className = 'save-status save-err'; status.textContent = 'Error: ' + e.message;
   } finally { btn.disabled = false; }
 }
 
