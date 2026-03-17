@@ -164,13 +164,30 @@ td {
 .kanban-card {
   background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
   padding: var(--space-sm); margin-bottom: var(--space-xs);
-  font-size: 0.8125rem; transition: background 0.1s;
+  font-size: 0.8125rem; transition: background 0.1s; cursor: pointer;
 }
 .kanban-card:hover { background: var(--bg-hover); }
+.kanban-card.expanded { background: var(--bg-hover); border-color: var(--accent); }
 .kanban-card .card-label { font-weight: 500; margin-bottom: 2px; }
 .kanban-card .card-agent { font-size: 0.6875rem; color: var(--text-muted); }
 .kanban-card .card-text { font-size: 0.6875rem; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kanban-card .card-time { font-size: 0.625rem; color: var(--text-dim); margin-top: 4px; }
+.session-detail {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: var(--space-sm); margin-top: var(--space-xs); animation: fadeIn 0.15s ease;
+}
+.session-detail .session-meta { font-size: 0.6875rem; color: var(--text-muted); margin-bottom: var(--space-sm); }
+.session-detail .session-meta span { margin-right: var(--space-md); }
+.session-msgs { max-height: 300px; overflow-y: auto; margin-bottom: var(--space-sm); }
+.session-msg { padding: 4px 0; border-bottom: 1px solid var(--border-light); font-size: 0.75rem; }
+.session-msg:last-child { border-bottom: none; }
+.session-msg .msg-dir { font-weight: 500; margin-right: var(--space-xs); }
+.session-msg .msg-time { color: var(--text-dim); font-size: 0.625rem; float: right; }
+.session-send { display: flex; gap: var(--space-xs); margin-top: var(--space-xs); }
+.session-send input { flex: 1; padding: 4px 8px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.75rem; }
+.session-send button { padding: 4px 12px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 0.75rem; cursor: pointer; }
+.session-history-toggle { margin-bottom: var(--space-md); font-size: 0.75rem; }
+.session-history-toggle label { cursor: pointer; color: var(--text-muted); }
 .status-working { border-color: var(--green); }
 .status-blocked { border-color: var(--red); }
 .status-waiting { border-color: var(--yellow); }
@@ -364,6 +381,8 @@ let msgOffset = 0;
 let msgTotal = 0;
 let expandedId = null;
 let expandedAgentId = null;
+let expandedSessionId = null;
+let showSessionHistory = false;
 let refreshTimer = null;
 const LIMIT = 50;
 const STALE_MIN = 15;
@@ -658,10 +677,9 @@ async function loadSessions() {
   try {
     const endpoint = authMode === 'boss' ? '/api/boss/sessions' : '/api/sessions?all=true';
     const data = await apiFetch(endpoint);
-    const sessions = data.sessions || [];
-    if (sessions.length === 0) {
-      el.innerHTML = '<div class="empty">No active sessions</div>';
-      return;
+    let sessions = data.sessions || [];
+    if (!showSessionHistory) {
+      sessions = sessions.filter(s => !isStale(s.last_seen_at) || s.status !== 'completed');
     }
     const cols = [
       { key: 'working', icon: '🔨', label: 'Working', cls: 'status-working' },
@@ -670,26 +688,110 @@ async function loadSessions() {
       { key: 'idle', icon: '💤', label: 'Idle', cls: 'status-session-idle' },
       { key: 'completed', icon: '✅', label: 'Done', cls: 'status-completed' },
     ];
-    let html = '<div class="kanban">';
+    let html = `<div class="session-history-toggle"><label><input type="checkbox" ${showSessionHistory ? 'checked' : ''} onchange="showSessionHistory=this.checked;loadSessions()"> Show completed sessions</label></div>`;
+    if (sessions.length === 0) {
+      html += '<div class="empty">No active sessions</div>';
+      el.innerHTML = html;
+      return;
+    }
+    html += '<div class="kanban">';
     for (const col of cols) {
       const items = sessions.filter(s => (s.status || 'working') === col.key);
       html += `<div class="kanban-col"><div class="kanban-header ${col.cls}">${col.icon} ${col.label} <span class="count">(${items.length})</span></div>`;
       for (const s of items) {
         const stale = isStale(s.last_seen_at);
-        html += `<div class="kanban-card ${col.cls}">
+        const isExpanded = expandedSessionId === s.id;
+        html += `<div class="kanban-card ${col.cls}${isExpanded ? ' expanded' : ''}" onclick="toggleSession('${esc(s.id)}','${esc(s.agent_id || '')}')">
           <div class="card-label">${esc(s.label || s.id.slice(0, 8))}</div>
           <div class="card-agent">${esc(s.agent_name || s.agent_id?.slice(0, 8) || '-')}${stale ? ' <span style="color:var(--yellow)">(stale)</span>' : ''}</div>
           ${s.status_text ? `<div class="card-text">${esc(s.status_text)}</div>` : ''}
           <div class="card-time">${relTime(s.last_seen_at)}</div>
+          ${isExpanded ? `<div id="session-detail-${esc(s.id)}" class="session-detail" onclick="event.stopPropagation()"><div class="loading">Loading...</div></div>` : ''}
         </div>`;
       }
       html += '</div>';
     }
     html += '</div>';
     el.innerHTML = html;
+    if (expandedSessionId) loadSessionDetail(expandedSessionId);
   } catch {
     el.innerHTML = '<div class="empty">Failed to load sessions</div>';
   }
+}
+
+function toggleSession(sessionId, agentId) {
+  if (expandedSessionId === sessionId) { expandedSessionId = null; }
+  else { expandedSessionId = sessionId; window._sessionAgentId = agentId; }
+  loadSessions();
+}
+
+async function loadSessionDetail(sessionId) {
+  const el = document.getElementById(`session-detail-${sessionId}`);
+  if (!el) return;
+  try {
+    const params = new URLSearchParams({ session: sessionId, limit: '20' });
+    if (authMode === 'boss') params.set('direction', 'all');
+    const endpoint = authMode === 'boss' ? `/api/boss/messages?${params}` : `/api/messages?${params}`;
+    const data = await apiFetch(endpoint);
+    const msgs = data.messages || [];
+    let html = '';
+    if (msgs.length === 0) {
+      html += '<div style="color:var(--text-dim);font-size:0.75rem">No messages in this session</div>';
+    } else {
+      html += '<div class="session-msgs">';
+      for (const m of msgs) {
+        const dir = m.direction === 'agent_to_boss' ? 'out' : m.direction === 'boss_to_agent' ? 'in' : 'a2a';
+        const dirLabel = dir === 'out' ? 'Agent' : dir === 'in' ? 'Boss' : 'Peer';
+        const dirCls = dir === 'out' ? 'dir-out' : dir === 'in' ? 'dir-in' : 'dir-agent';
+        const body = esc(m.body || '').slice(0, 200);
+        const time = m.created_at ? relTime(m.created_at) : '';
+        html += `<div class="session-msg">
+          <span class="msg-dir ${dirCls}">${dirLabel}</span>${body}
+          <span class="msg-time">${time}</span>
+          ${authMode === 'boss' && dir === 'out' ? `<a href="#" onclick="event.preventDefault();event.stopPropagation();replyToSessionMsg('${esc(m.id)}')" style="float:right;margin-left:8px;font-size:0.625rem;color:var(--accent)">reply</a>` : ''}
+        </div>`;
+      }
+      html += '</div>';
+    }
+    if (authMode === 'boss') {
+      html += `<div class="session-send">
+        <input id="session-msg-input" type="text" placeholder="Send message to this agent..." onkeydown="if(event.key==='Enter')sendToSession('${esc(sessionId)}')">
+        <button onclick="sendToSession('${esc(sessionId)}')">Send</button>
+      </div>`;
+    }
+    el.innerHTML = html;
+  } catch {
+    el.innerHTML = '<div style="color:var(--red);font-size:0.75rem">Failed to load messages</div>';
+  }
+}
+
+async function sendToSession(sessionId) {
+  const input = document.getElementById('session-msg-input');
+  if (!input || !input.value.trim()) return;
+  const body = input.value.trim();
+  input.value = '';
+  try {
+    const agentId = window._sessionAgentId;
+    if (authMode === 'boss') {
+      // Find the most recent agent message in this session to reply to
+      const params = new URLSearchParams({ session: sessionId, limit: '1', direction: 'agent_to_boss' });
+      const data = await apiFetch(`/api/boss/messages?${params}`);
+      const msgs = data.messages || [];
+      if (msgs.length > 0) {
+        await apiFetch(`/api/boss/messages/${msgs[0].id}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }) });
+      }
+    }
+    loadSessionDetail(sessionId);
+  } catch { /* ignore */ }
+}
+
+async function replyToSessionMsg(msgId) {
+  const body = prompt('Reply:');
+  if (!body || !body.trim()) return;
+  try {
+    await apiFetch(`/api/boss/messages/${msgId}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: body.trim() }) });
+    if (expandedSessionId) loadSessionDetail(expandedSessionId);
+  } catch { /* ignore */ }
 }
 
 function isStale(ts) {

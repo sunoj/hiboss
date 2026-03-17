@@ -106,7 +106,12 @@ routes.get('/messages', async (c) => {
     binds.push(...agentIds);
   }
 
-  clauses.push("direction = 'agent_to_boss'");
+  const directionFilter = c.req.query('direction');
+  if (directionFilter === 'all') {
+    // No direction filter — show all directions for session views
+  } else {
+    clauses.push("direction = 'agent_to_boss'");
+  }
   if (unread) clauses.push("status IN ('sent', 'delivered')");
   if (sessionFilter) {
     clauses.push('session_id = ?');
