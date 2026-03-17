@@ -93,7 +93,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
             hook::run(args).await?;
             return Ok(());
         }
-        Commands::Setup(args) => {
+        Commands::Setup(args) if !setup::needs_client(args) => {
             setup::run(args)?;
             return Ok(());
         }
@@ -126,8 +126,8 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Group(args) => group::run(args, &config, &client).await?,
         Commands::Boss(args) => boss::run(args, &config, &client).await?,
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
+        Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
         Commands::Hook(_) => unreachable!(),
-        Commands::Setup(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
         Commands::Doctor(_) => unreachable!(),
