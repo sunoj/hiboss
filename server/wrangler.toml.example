@@ -1,0 +1,16 @@
+name = "hiboss-server"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hiboss-db"
+database_id = "<your-d1-database-id>"
+
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "hiboss-attachments"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
