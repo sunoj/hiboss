@@ -91,7 +91,6 @@ routes.post('/', async (c) => {
   } catch {
     // No channel configured — message will be stored without delivery.
   }
-  const channel = channelConfigs[0]?.channel ?? requestedChannel ?? null;
   // Resolve targeting: try agent name/id first, then session label/id
   let targetAgentId: string | null = null;
   let targetSessionId: string | null = null;
@@ -120,6 +119,8 @@ routes.post('/', async (c) => {
       }
     }
   }
+  // Agent-to-agent messages use 'api' channel; others use resolved channel config
+  const channel = direction === 'agent_to_agent' ? 'api' : (channelConfigs[0]?.channel ?? requestedChannel ?? null);
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   if (idempotencyKey) {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
