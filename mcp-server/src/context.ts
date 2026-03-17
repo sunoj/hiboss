@@ -13,6 +13,7 @@ export type HibossContext = {
   baseUrl: URL;
   headers: Record<string, string>;
   defaultChannel?: string;
+  sessionId?: string;
 };
 
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'hiboss', 'config.json');
@@ -54,6 +55,8 @@ function buildContext(server: string, key: string, channel?: string): HibossCont
     throw new Error('Hiboss API key is empty.');
   }
   const baseUrl = new URL(server);
+  // Read session ID from the same file the CLI writes
+  const sessionId = readSessionId();
   return {
     baseUrl,
     headers: {
@@ -61,5 +64,25 @@ function buildContext(server: string, key: string, channel?: string): HibossCont
       Accept: 'application/json',
     },
     defaultChannel: channel,
+    sessionId,
   };
+}
+
+function readSessionId(): string | undefined {
+  try {
+    // Compute project hash same as CLI (FNV-1a of cwd)
+    const cwd = process.cwd();
+    let h = BigInt('0xcbf29ce484222325');
+    for (let i = 0; i < cwd.length; i++) {
+      h ^= BigInt(cwd.charCodeAt(i));
+      h = BigInt.asUintN(64, h * BigInt('0x100000001b3'));
+    }
+    const hash = h.toString(16).padStart(16, '0');
+    const sessionFile = `/tmp/hiboss-session-${hash}`;
+    const fs = require('node:fs');
+    const content = fs.readFileSync(sessionFile, 'utf8').trim();
+    return content || undefined;
+  } catch {
+    return undefined;
+  }
 }

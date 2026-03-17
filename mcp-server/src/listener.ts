@@ -1,6 +1,6 @@
-// Background SSE listener that streams boss messages and pushes MCP notifications.
-// Connects to /api/messages/stream, parses SSE events, and calls server.sendLoggingMessage.
-// Depends on HibossContext for auth and the MCP Server instance for notification dispatch.
+// Background SSE listener that streams boss and peer messages via MCP notifications.
+// Connects to /api/messages/stream with session filtering, parses SSE events.
+// Depends on HibossContext for auth/session and McpServer for notification dispatch.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { HibossContext } from './context.js';
@@ -9,6 +9,7 @@ import { normalizeWhitespace, truncate } from './format.js';
 type SseMessage = {
   id: string;
   body: string;
+  direction?: string;
   priority?: string;
   agent_name?: string;
   created_at?: string;
@@ -33,8 +34,11 @@ async function reconnectLoop(server: McpServer, context: HibossContext): Promise
 }
 
 async function connectAndStream(server: McpServer, context: HibossContext): Promise<void> {
-  const url = new URL(SSE_PATH, context.baseUrl).toString();
-  const response = await fetch(url, {
+  const url = new URL(SSE_PATH, context.baseUrl);
+  if (context.sessionId) {
+    url.searchParams.set('session', context.sessionId);
+  }
+  const response = await fetch(url.toString(), {
     headers: { ...context.headers, Accept: 'text/event-stream' },
   });
 
@@ -77,8 +81,13 @@ async function handleSseMessage(server: McpServer, raw: string): Promise<void> {
     const msg: SseMessage = JSON.parse(raw);
     const body = truncate(normalizeWhitespace(msg.body), 200);
     const priority = msg.priority ?? 'normal';
+    const direction = msg.direction ?? 'boss_to_agent';
+    const sender = msg.agent_name ?? 'unknown';
+    const isPeer = direction === 'agent_to_agent';
     const level = priority === 'critical' || priority === 'high' ? 'warning' : 'info';
-    const label = `[hiboss] New boss message (${priority}): ${body}`;
+    const label = isPeer
+      ? `[hiboss] Peer message from ${sender}: ${body}`
+      : `[hiboss] Boss message (${priority}): ${body}`;
 
     await server.sendLoggingMessage({ level, data: label });
   } catch {

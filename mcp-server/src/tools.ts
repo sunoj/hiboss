@@ -13,7 +13,7 @@ import {
   summarizeMessage,
   textResult,
 } from './format.js';
-import { HibossListResponse, HibossMessage } from './types.js';
+import { HibossListResponse, HibossMessage, HibossSessionsResponse } from './types.js';
 
 const DEFAULT_POLL_TIMEOUT = 300;
 
@@ -66,6 +66,17 @@ const replyMessageSchema = z
   })
   .describe('Reply to a message from the boss.');
 
+const sendToPeerSchema = z
+  .object({
+    to: z.string().min(1).describe('Target session label, session ID prefix, or agent name.'),
+    body: z.string().min(1).describe('Message to send to the peer session.'),
+  })
+  .describe('Send a message to a peer agent session.');
+
+const listSessionsSchema = z
+  .object({})
+  .describe('List active peer sessions for cross-session collaboration.');
+
 type SendResponse = HibossMessage & { reply?: HibossMessage };
 
 export function registerTools(server: McpServer, context: HibossContext) {
@@ -74,6 +85,8 @@ export function registerTools(server: McpServer, context: HibossContext) {
   registerCheckInboxTool(server, context);
   registerReadMessageTool(server, context);
   registerReplyMessageTool(server, context);
+  registerSendToPeerTool(server, context);
+  registerListSessionsTool(server, context);
 }
 
 function registerSendMessageTool(server: McpServer, context: HibossContext) {
@@ -226,4 +239,74 @@ function getLatestReply(message: HibossMessage): HibossMessage | undefined {
     return undefined;
   }
   return replies[replies.length - 1];
+}
+
+function registerSendToPeerTool(server: McpServer, context: HibossContext) {
+  server.registerTool(
+    'send_to_peer',
+    {
+      title: 'send_to_peer',
+      description: 'Send a message to a peer agent session for cross-session collaboration.',
+      inputSchema: sendToPeerSchema,
+    },
+    async (input) => {
+      try {
+        const payload: Record<string, unknown> = {
+          body: input.body,
+          mode: 'async',
+          to: input.to,
+        };
+        if (context.sessionId) {
+          payload.session_id = context.sessionId;
+        }
+        const response = await hibossRequest<{ id: string; status: string }>(
+          context,
+          'POST',
+          '/api/messages',
+          { body: payload },
+        );
+        return textResult(`Peer message ${response.id} sent to ${input.to}.`);
+      } catch (error) {
+        return textResult(`send_to_peer failed: ${getErrorMessage(error)}`, true);
+      }
+    },
+  );
+}
+
+function registerListSessionsTool(server: McpServer, context: HibossContext) {
+  server.registerTool(
+    'list_sessions',
+    {
+      title: 'list_sessions',
+      description: 'List active peer sessions available for cross-session messaging.',
+      inputSchema: listSessionsSchema,
+    },
+    async () => {
+      try {
+        const response = await hibossRequest<HibossSessionsResponse>(
+          context,
+          'GET',
+          '/api/sessions',
+          { query: { all: true } },
+        );
+        const sessions = response.sessions ?? [];
+        if (!sessions.length) {
+          return textResult('No active peer sessions found.');
+        }
+        const lines = sessions
+          .filter((s) => s.id !== context.sessionId)
+          .map((s) => {
+            const label = s.label ?? '-';
+            const agent = s.agent_name ?? s.agent_id;
+            return `${s.id.slice(0, 8)}  ${label}  (${agent})`;
+          });
+        if (!lines.length) {
+          return textResult('No active peer sessions found (only current session is active).');
+        }
+        return textResult(`Active peer sessions:\n${lines.join('\n')}`);
+      } catch (error) {
+        return textResult(`list_sessions failed: ${getErrorMessage(error)}`, true);
+      }
+    },
+  );
 }
