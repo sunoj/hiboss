@@ -408,17 +408,17 @@ Request: `{ "status": "read" }`
 #### POST /api/sessions
 Register or update a session.
 
-Request: `{ "id": "string", "branch": "string", "cwd": "string", "label": "string" }`
+Request: `{ "id": "string", "branch": "string", "cwd": "string", "label": "string", "status": "working|blocked|waiting|idle|completed", "status_text": "string" }`
 
-Response (201): `{ "id", "label", "branch", "cwd" }`
+Response (201): `{ "id", "label", "branch", "cwd", "status", "status_text" }`
 
 #### GET /api/sessions
 List active sessions (within 15 min). Param: `all=true` for all agents.
 
-Response: `{ sessions: [{ id, agent_id, agent_name, label, branch, cwd, started_at, last_seen_at }] }`
+Response: `{ sessions: [{ id, agent_id, agent_name, label, branch, cwd, status, status_text, started_at, last_seen_at }] }`
 
 #### PATCH /api/sessions/:id
-Heartbeat (update last_seen_at).
+Heartbeat with optional status update. Accepts JSON body with `status` and/or `status_text`.
 
 #### DELETE /api/sessions/:id
 Deregister a session.
@@ -525,6 +525,13 @@ hiboss boss inbox                                     # list sub-agent messages
 hiboss boss inbox --priority critical,high            # urgent only
 hiboss boss inbox --count                             # count unread
 hiboss boss reply <msg-id> "Your reply here"          # reply as boss
+
+# Session status board
+hiboss ss                                             # kanban board of session statuses
+hiboss ss set working "implementing feature X"        # set session status manually
+hiboss ss set waiting "need boss approval"            # mark as waiting
+hiboss ss set blocked "external dependency"           # mark as blocked
+hiboss ss set completed                               # mark as done
 
 # Background SSE daemon
 hiboss daemon start                                   # start background SSE listener
@@ -885,11 +892,32 @@ Design principle: Agent = permanent identity (API key), Session = ephemeral work
 - Handles `agent_to_agent` message notifications
 - Context reads session ID from CLI's session file
 
+### v0.14 — Session Status Tracking & Dashboard (Done)
+**Goal**: Work state visibility per session with auto-inference and manual control.
+
+#### Session Status
+- `status` column on sessions: working, blocked, waiting, idle, completed
+- `status_text` column: brief description of current activity
+- Auto-inference from messages: send→working, ask (blocking)→waiting, high priority→waiting
+- `POST /api/sessions` and `PATCH /api/sessions/:id` accept status/status_text
+- Stop hook: marks session completed, kills daemon, cleans up temp files
+- Stop event registered in Claude Code hooks via `hiboss setup hooks`
+
+#### Session Status CLI
+- `hiboss ss` — kanban-style terminal board grouped by status
+- `hiboss ss set <status> [text]` — manual status override
+- Validation: rejects invalid statuses with helpful error
+
+#### Web Dashboard
+- Self-contained HTML dashboard at `/dashboard` (inline CSS/JS, no external deps)
+- Three tabs: Messages (filterable), Sessions (kanban board), Agents (status)
+- Sessions tab: kanban columns for working/blocked/waiting/idle/completed
+- Auto-refresh every 10s, dark theme, responsive
+- Auth via URL param `?key=` → localStorage, login form fallback
+
 ### v1.0 — Production Ready
-- Session lifecycle: stop hook to deregister, "waiting for work" daemon mode
 - Per-boss channel preferences
 - Boss authentication tokens (API access for bosses)
-- Web dashboard for message history
 - Comprehensive audit logging on all mutations
 
 ## Code Conventions
