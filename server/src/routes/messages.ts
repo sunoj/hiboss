@@ -49,6 +49,30 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('UNIQUE constraint failed');
 }
 
+export async function insertMessageWithRecovery(
+  env: Env,
+  agentId: string,
+  values: [Direction, Mode, Channel | null, string, Priority, string, string | null, string | null, string | null, string | null, string | null, string | null]
+): Promise<{ inserted: MessageRow | null; existing: MessageRow | null }> {
+  const [direction, mode, channel, body, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId] = values;
+  try {
+    const inserted = await env.DB
+      .prepare(
+        'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      )
+      .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId)
+      .first<MessageRow>();
+    return { inserted, existing: null };
+  } catch (error) {
+    if (!idempotencyKey || !isUniqueConstraintError(error)) throw error;
+    const existing = await findByIdempotencyKey(env, agentId, idempotencyKey);
+    if (existing) {
+      return { inserted: null, existing };
+    }
+    throw error;
+  }
+}
+
 routes.post('/', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
@@ -132,21 +156,21 @@ routes.post('/', async (c) => {
       return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
     }
   }
-  let inserted: MessageRow | null = null;
-  try {
-    inserted = await c.env.DB
-      .prepare(
-        'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-      )
-      .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId)
-      .first<MessageRow>();
-  } catch (error) {
-    if (!idempotencyKey || !isUniqueConstraintError(error)) throw error;
-    const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
-    if (existing) {
-      return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
-    }
-    throw error;
+  const { inserted, existing } = await insertMessageWithRecovery(c.env, agentId, [
+    direction,
+    mode,
+    channel,
+    body,
+    priority,
+    messageType,
+    idempotencyKey,
+    metadataJson,
+    sessionId,
+    targetAgentId,
+    targetSessionId,
+  ]);
+  if (existing) {
+    return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
   }
   if (!inserted) {
     return c.text('failed to persist', 500);
