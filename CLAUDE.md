@@ -971,9 +971,61 @@ Design principle: Agent = permanent identity (API key), Session = ephemeral work
 - Boss mode uses `/api/boss/*` endpoints for messages, sessions, agents
 - Shows "(boss)" label in header when authenticated as boss
 
-### v1.0 — Production Ready
-- Per-boss channel preferences
-- Comprehensive audit logging on all mutations
+### v0.16 — Session-Scoped Messages (Done)
+**Goal**: Per-session inbox isolation for multi-session agents.
+- `session_id` column on messages, session filter on inbox queries
+- Messages scoped to originating session, boss-initiated visible across all
+- `session_id` in MessageResponse type, boss API session filter
+
+### v0.17 — Comprehensive Audit Logging (Done)
+**Goal**: Full audit trail on all mutation endpoints.
+- `logAudit()` calls on all create/update/delete operations (29 audit points)
+- Covers: messages, bosses, agents, channels, groups, routing rules, keys, sessions
+
+### v0.18 — Dashboard Reply UI (Done)
+**Goal**: Boss can reply to agent messages from the web dashboard.
+- Reply button on expandable message detail view
+- Calls `POST /api/boss/messages/:id/reply` from dashboard
+
+### v0.19 — Guided Setup Wizards (Done)
+**Goal**: Interactive CLI setup for Telegram and Discord channels.
+- `hiboss setup telegram` — step-by-step Telegram bot + chat config
+- `hiboss setup discord` — step-by-step Discord bot + channel config
+
+### v0.20 — Per-Boss Preferences (Done)
+**Goal**: Boss-specific preferences for channel, notifications, and quiet hours.
+- `preferences` JSON column on bosses table
+- `preferred_channel`, `quiet_hours_start/end`, `timezone`, `notify_priorities`
+- Boss API: `GET/PUT /api/boss/me/preferences`
+- Dashboard Settings tab for boss profile editing
+
+### v0.21 — Full-Text Message Search (Done)
+**Goal**: Search across message history.
+- `?search=` query param on `GET /api/messages` and `GET /api/boss/messages`
+- Dashboard search bar with real-time filtering
+- CLI: `hiboss inbox --search "keyword"`
+
+### v1.0 — Production Ready (Done)
+**Goal**: Mature, feature-complete platform for AI agent ↔ boss communication.
+
+#### Dashboard Enhancements
+- Interactive session kanban: clickable cards expand to show session messages
+- Session message view with both directions (agent→boss and boss→agent)
+- Boss can reply to messages or send new messages from session detail
+- "Show completed sessions" toggle for session history
+- Agent config panel: editable default_priority, rate_limit, channel_routing
+- Boss Settings tab: preferences editor (channel, timezone, quiet hours)
+- `direction=all` filter on boss messages API for session views
+
+#### Delivery Improvements
+- Auto-link standalone boss messages to pending blocking polls (Telegram, Discord, slash commands)
+- Boss can reply to `--options` messages by typing text (no swipe-reply or button click needed)
+
+#### Quality
+- 360+ tests across 20 test files
+- Published to crates.io: `cargo install hiboss`
+- Per-boss preferences stored and editable via API and dashboard
+- Comprehensive audit logging on all mutations (29 audit points)
 
 ## Code Conventions
 
