@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Env, MessageRow, Priority, Status } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption } from './message-helpers';
+import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 
 const MAX_LIMIT = 100;
@@ -100,8 +101,8 @@ routes.get('/:id', async (c) => {
   }
   const messageId = c.req.param('id');
   const row = await c.env.DB
-    .prepare('SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ?')
-    .bind(messageId, `${messageId}%`)
+    .prepare("SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
   if (!row) {
     return c.text('not found', 404);
@@ -131,8 +132,8 @@ routes.post('/:id/reply', async (c) => {
   }
   const messageId = c.req.param('id');
   const parent = await c.env.DB
-    .prepare('SELECT * FROM messages WHERE id = ? OR id LIKE ?')
-    .bind(messageId, `${messageId}%`)
+    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
   if (!parent) {
     return c.text('not found', 404);
@@ -179,9 +180,20 @@ routes.patch('/:id', async (c) => {
   if (!status) {
     return c.text('status is required', 400);
   }
+  const existing = await c.env.DB
+    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
+    .first<MessageRow>();
+  if (!existing) {
+    return c.text('not found', 404);
+  }
+  const agentIds = await getAccessibleAgentIds(c.env, boss.id, boss.role);
+  if (!agentIds.includes(existing.agent_id)) {
+    return c.text('no access to this agent', 403);
+  }
   const updated = await c.env.DB
-    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE (id = ? OR id LIKE ?) RETURNING *")
-    .bind(status, messageId, `${messageId}%`)
+    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE (id = ? OR id LIKE ? ESCAPE '\\') RETURNING *")
+    .bind(status, messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
   if (!updated) {
     return c.text('not found', 404);

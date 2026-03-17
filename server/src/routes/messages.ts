@@ -45,6 +45,10 @@ routes.use('*', apiAuth);
 
 const modeOptions: Mode[] = ['async', 'blocking'];
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('UNIQUE constraint failed');
+}
+
 routes.post('/', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
@@ -128,12 +132,22 @@ routes.post('/', async (c) => {
       return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
     }
   }
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId)
-    .first<MessageRow>();
+  let inserted: MessageRow | null = null;
+  try {
+    inserted = await c.env.DB
+      .prepare(
+        'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      )
+      .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId)
+      .first<MessageRow>();
+  } catch (error) {
+    if (!idempotencyKey || !isUniqueConstraintError(error)) throw error;
+    const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
+    if (existing) {
+      return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
+    }
+    throw error;
+  }
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
@@ -250,6 +264,12 @@ routes.post('/:id/reply', async (c) => {
   const parent = await fetchMessageRow(c.env, agentId, c.req.param('id'));
   if (!parent) {
     return c.text('not found', 404);
+  }
+  const canReply = parent.direction === 'agent_to_agent'
+    ? parent.agent_id === agentId || parent.target_agent_id === agentId
+    : parent.agent_id === agentId;
+  if (!canReply) {
+    return c.text('forbidden', 403);
   }
   const payload = await c.req.json<Record<string, unknown>>();
   const body = typeof payload.body === 'string' ? payload.body.trim() : '';
