@@ -62,6 +62,7 @@ routes.get('/messages', async (c) => {
   const unread = c.req.query('unread') === 'true';
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const agentFilter = c.req.query('agent');
+  const sessionFilter = c.req.query('session');
 
   const clauses: string[] = [];
   const binds: (string | number)[] = [];
@@ -79,6 +80,10 @@ routes.get('/messages', async (c) => {
 
   clauses.push("direction = 'agent_to_boss'");
   if (unread) clauses.push("status IN ('sent', 'delivered')");
+  if (sessionFilter) {
+    clauses.push('session_id = ?');
+    binds.push(sessionFilter);
+  }
   if (priorityFilter && priorityFilter.length > 0) {
     clauses.push(`priority IN (${priorityFilter.map(() => '?').join(', ')})`);
     binds.push(...priorityFilter);
