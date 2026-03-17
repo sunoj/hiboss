@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, Priority } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { logAudit } from '../audit';
 
 interface GroupRow {
   id: string;
@@ -47,6 +48,7 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to create', 500);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'group.create', 'agent_group', inserted.id, name));
   return c.json(inserted, 201);
 });
 
@@ -74,6 +76,7 @@ routes.delete('/:id', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'group.delete', 'agent_group', groupId));
   return c.json({ ok: true });
 });
 
@@ -92,6 +95,7 @@ routes.post('/:id/members', async (c) => {
     .prepare('INSERT OR IGNORE INTO agent_group_members (group_id, agent_id) VALUES (?, ?)')
     .bind(group.id, agentId)
     .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'group.add_member', 'agent_group', group.id, agentId));
   return c.json({ ok: true }, 201);
 });
 
@@ -105,6 +109,7 @@ routes.delete('/:id/members/:agentId', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'group.remove_member', 'agent_group', groupId, agentId));
   return c.json({ ok: true });
 });
 
@@ -139,6 +144,7 @@ routes.post('/:id/broadcast', async (c) => {
       messages.push({ agent_id: agentId, message_id: inserted.id });
     }
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'group.broadcast', 'agent_group', group.id, JSON.stringify({ count: messages.length, priority })));
   return c.json({ messages, count: messages.length }, 201);
 });
 
