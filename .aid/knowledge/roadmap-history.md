@@ -79,3 +79,27 @@ Boss preferences (channel, quiet hours, timezone, notify priorities). Dashboard 
 
 ## v1.0 — Production Ready
 Interactive session kanban with message view. Session reply from dashboard. Agent config panel. 360+ tests. Published to crates.io. Auto-link boss messages to blocking polls.
+
+## v1.1.0 — Security Hardening
+Comprehensive security audit and fixes across the server codebase.
+
+### Webhook Security
+- Add `apiAuth` to Discord `register-commands` endpoint (was unauthenticated)
+- Add Telegram webhook secret token validation (`TELEGRAM_WEBHOOK_SECRET` env var)
+- Add Discord webhook secret validation (`DISCORD_WEBHOOK_SECRET` env var)
+- Validate `msgPrefix` format in callback handlers (hex-only, prevents LIKE injection)
+
+### Authorization Fixes
+- Boss-inbox PATCH: add agent scope check (was missing `getAccessibleAgentIds` verification)
+- `fetchReplies`: add `agentId` ownership filter (was returning all replies regardless of agent)
+- Reply endpoint: add `canReply` ownership check (prevent cross-agent reply injection)
+- `buildFilters`: conditional `target_session_id` clause (prevent cross-agent session leakage)
+- Routing rules: scope to owning agent via `owner_id` filter
+
+### Input Validation
+- `escapeLike` helper for all LIKE queries (prevent `%`/`_` wildcard injection)
+- Applied to `findBoss`, boss-api message lookups, boss-inbox lookups
+
+### Reliability
+- `insertMessageWithRecovery`: handle idempotency key race condition via UNIQUE constraint catch
+- SSE stream: change `>` to `>=` with `seenMessageIds` dedup (prevent message drops at same timestamp)

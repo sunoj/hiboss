@@ -30,3 +30,10 @@ Email well-served by external CLIs (agentmail-cli, resend). Only Discord and Tel
 
 ### Hook Resilience
 Hooks must NEVER produce errors. Always exit 0 with graceful fallbacks. Write TTL timestamps before checks to prevent retry storms.
+
+### Webhook Security (v1.1.0)
+Webhook endpoints validate request origin via optional secret tokens:
+- `TELEGRAM_WEBHOOK_SECRET` — checked against `X-Telegram-Bot-Api-Secret-Token` header
+- `DISCORD_WEBHOOK_SECRET` — checked against `X-Webhook-Secret` header
+- Both are backwards compatible: if env var is not set, check is skipped
+- Discord Interactions endpoint uses Ed25519 signature verification (unchanged)
