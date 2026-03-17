@@ -210,6 +210,19 @@ describe('buildFilters', () => {
     expect(where).toContain('agent_id IN');
     expect(binds).toContain('sender');
   });
+
+  it('adds session filter in non-unread mode', () => {
+    const { where, binds } = buildFilters('a1', null, null, undefined, undefined, 'sess-abc');
+    expect(where).toContain('session_id = ?');
+    expect(where).toContain("direction = 'boss_to_agent' AND reply_to IS NULL");
+    expect(binds).toContain('sess-abc');
+  });
+
+  it('skips session filter in unread mode', () => {
+    const { where } = buildFilters('a1', null, 'sent', undefined, undefined, 'sess-abc', true);
+    // In unread mode, session filter is not applied (target_session is used instead)
+    expect(where).not.toContain('session_id = ?');
+  });
 });
 
 describe('parsePriorityFilter', () => {
