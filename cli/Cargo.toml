@@ -3,6 +3,11 @@ name = "hiboss"
 version = "0.21.0"
 edition = "2024"
 description = "CLI for AI agents to communicate with their boss"
+license = "MIT"
+repository = "https://github.com/sunoj/hiboss"
+homepage = "https://github.com/sunoj/hiboss"
+keywords = ["cli", "ai", "agent", "communication", "bot"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
