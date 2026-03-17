@@ -6,6 +6,7 @@ import { Hono, Context } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { sendTelegramTyping, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
+import { logAudit } from '../audit';
 import { asString, evaluateRoutingRules, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -48,6 +49,7 @@ router.post('/discord', async (c) => {
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord'));
   return c.json(mapMessage(inserted), 201);
 });
 
@@ -129,6 +131,7 @@ router.post('/telegram', async (c) => {
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.send', 'message', inserted.id, 'telegram'));
   return c.json(mapMessage(inserted), 201);
 });
 
@@ -198,6 +201,7 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
     );
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.callback', 'message', parentMsg.id, selectedOption));
   return c.json(mapMessage(inserted), 201);
 }
 

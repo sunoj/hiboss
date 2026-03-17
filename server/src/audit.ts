@@ -15,8 +15,12 @@ export async function logAudit(
   resourceId?: string,
   details?: string,
 ): Promise<void> {
-  await env.DB
-    .prepare('INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id, details) VALUES (?, ?, ?, ?, ?, ?)')
-    .bind(actorType, actorId, action, resourceType ?? null, resourceId ?? null, details ?? null)
-    .run();
+  try {
+    await env.DB
+      .prepare('INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id, details) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(actorType, actorId, action, resourceType ?? null, resourceId ?? null, details ?? null)
+      .run();
+  } catch {
+    // Fire-and-forget: audit failures must never block the main request.
+  }
 }

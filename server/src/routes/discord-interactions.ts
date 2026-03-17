@@ -5,6 +5,7 @@
 import { Hono, Context } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { notifyAgentCallback } from '../notify';
+import { logAudit } from '../audit';
 
 interface DiscordInteractionPayload {
   type: number;
@@ -97,6 +98,7 @@ async function handleApplicationCommand(
     return c.text('failed to persist', 500);
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, bossCheck.boss ? 'boss' : 'system', bossCheck.boss?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord-slash'));
   return c.json({ type: 4, data: { content: 'Message sent to agent.' } });
 }
 
@@ -155,6 +157,7 @@ async function handleMessageComponent(
     return c.text('failed to persist', 500);
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, btnBossCheck.boss ? 'boss' : 'system', btnBossCheck.boss?.id ?? 'discord', 'message.callback', 'message', parentMsg.id, selectedOption));
   // Type 7 = UPDATE_MESSAGE: replaces the original message and removes buttons
   const originalContent = payload.message?.content ?? '';
   return c.json({ type: 7, data: { content: `${originalContent}\n\n✅ Selected: ${selectedOption}`, components: [] } });
