@@ -90,19 +90,33 @@ routes.post('/', async (c) => {
     // No channel configured — message will be stored without delivery.
   }
   const channel = channelConfigs[0]?.channel ?? requestedChannel ?? null;
-  // Resolve agent-to-agent targeting
+  // Resolve targeting: try agent name/id first, then session label/id
   let targetAgentId: string | null = null;
+  let targetSessionId: string | null = null;
   let direction: Direction = 'agent_to_boss';
   if (toAgent) {
-    const target = await c.env.DB
+    // 1. Try agent by name or id prefix
+    const agentTarget = await c.env.DB
       .prepare('SELECT id FROM api_keys WHERE name = ? OR id LIKE ? LIMIT 1')
       .bind(toAgent, `${toAgent}%`)
       .first<{ id: string }>();
-    if (!target) {
-      return c.text(`target agent not found: ${toAgent}`, 404);
+    if (agentTarget) {
+      targetAgentId = agentTarget.id;
+      direction = 'agent_to_agent';
+    } else {
+      // 2. Try session by label or id prefix
+      const sessionTarget = await c.env.DB
+        .prepare('SELECT id, agent_id FROM sessions WHERE label = ? OR id LIKE ? LIMIT 1')
+        .bind(toAgent, `${toAgent}%`)
+        .first<{ id: string; agent_id: string }>();
+      if (sessionTarget) {
+        targetAgentId = sessionTarget.agent_id;
+        targetSessionId = sessionTarget.id;
+        direction = 'agent_to_agent';
+      } else {
+        return c.text(`target not found: ${toAgent}`, 404);
+      }
     }
-    targetAgentId = target.id;
-    direction = 'agent_to_agent';
   }
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   if (idempotencyKey) {
@@ -113,9 +127,9 @@ routes.post('/', async (c) => {
   }
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId)
+    .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
@@ -196,9 +210,10 @@ routes.get('/', async (c) => {
   const typeFilter = c.req.query('type') || undefined;
   const sessionFilter = c.req.query('session') || undefined;
   const fromFilter = c.req.query('from') || undefined;
+  const targetSessionFilter = c.req.query('target_session') || undefined;
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
-  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter, sessionFilter, unread, fromFilter);
+  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter, sessionFilter, unread, fromFilter, targetSessionFilter);
   const rows = await c.env.DB
     .prepare(
       `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`

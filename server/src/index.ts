@@ -17,6 +17,7 @@ import { webhooksRouter } from './routes/webhooks';
 import { bossesRouter } from './routes/bosses';
 import { bossInboxRouter } from './routes/boss-inbox';
 import { auditRouter } from './routes/audit';
+import { sessionsRouter } from './routes/sessions';
 
 const app = new Hono<{ Bindings: Env }>({});
 
@@ -31,6 +32,7 @@ app.route('/api/groups', groupsRouter);
 app.route('/api/bosses', bossesRouter);
 app.route('/api/boss/inbox', bossInboxRouter);
 app.route('/api/audit', auditRouter);
+app.route('/api/sessions', sessionsRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);
 

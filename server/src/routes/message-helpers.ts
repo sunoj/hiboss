@@ -62,16 +62,21 @@ export function validateChannel(value: unknown): Channel | undefined {
   return undefined;
 }
 
-export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string, unread?: boolean, from?: string) {
+export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string, unread?: boolean, from?: string, targetSessionId?: string) {
   const clauses: string[] = [];
   const binds: (string | number)[] = [];
-  // Unread: incoming messages = boss_to_agent for this agent OR agent_to_agent targeting this agent
+  // Unread: boss messages for this agent, agent-to-agent targeting this agent, or session-targeted messages
   if (unread) {
-    clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent'))");
-    binds.push(agentId, agentId);
+    if (targetSessionId) {
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
+      binds.push(agentId, agentId, targetSessionId);
+    } else {
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent'))");
+      binds.push(agentId, agentId);
+    }
   } else {
-    clauses.push('(agent_id = ? OR target_agent_id = ?)');
-    binds.push(agentId, agentId);
+    clauses.push('(agent_id = ? OR target_agent_id = ? OR target_session_id = ?)');
+    binds.push(agentId, agentId, targetSessionId ?? '');
     if (direction) {
       clauses.push('direction = ?');
       binds.push(direction);

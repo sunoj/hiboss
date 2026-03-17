@@ -30,6 +30,7 @@ export interface MessageRow {
   priority: Priority;
   type: string | null;
   target_agent_id: string | null;
+  target_session_id: string | null;
   session_id: string | null;
   idempotency_key: string | null;
   metadata: string | null;
@@ -50,6 +51,7 @@ export interface MessageResponse {
   priority: Priority;
   type: string | null;
   target_agent_id?: string | null;
+  target_session_id?: string | null;
   idempotency_key?: string | null;
   metadata: Metadata;
   created_at: string;
