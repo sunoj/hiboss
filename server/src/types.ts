@@ -10,7 +10,7 @@ export type Env = {
   DISCORD_PUBLIC_KEY?: string;
 };
 
-export type Direction = 'agent_to_boss' | 'boss_to_agent';
+export type Direction = 'agent_to_boss' | 'boss_to_agent' | 'agent_to_agent';
 export type Mode = 'async' | 'blocking';
 export type Channel = 'discord' | 'telegram' | 'email' | 'api';
 export type Priority = 'critical' | 'high' | 'normal' | 'low';
@@ -29,6 +29,7 @@ export interface MessageRow {
   reply_to: string | null;
   priority: Priority;
   type: string | null;
+  target_agent_id: string | null;
   session_id: string | null;
   idempotency_key: string | null;
   metadata: string | null;
@@ -48,6 +49,7 @@ export interface MessageResponse {
   reply_to: string | null;
   priority: Priority;
   type: string | null;
+  target_agent_id?: string | null;
   idempotency_key?: string | null;
   metadata: Metadata;
   created_at: string;
@@ -75,4 +77,6 @@ export interface DiscordChannelConfig {
 export interface TelegramChannelConfig {
   chat_id: string;
   bot_token: string;
+  message_thread_id?: number;
+  use_topics?: boolean;
 }

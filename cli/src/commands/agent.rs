@@ -44,6 +44,9 @@ pub struct AgentConfigArgs {
     /// Set "none" to clear.
     #[arg(long = "avatar")]
     pub avatar: Option<String>,
+    /// Set session role (orchestrator, worker, reviewer). Set "none" to clear.
+    #[arg(long)]
+    pub role: Option<String>,
 }
 
 pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -54,7 +57,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
             println!("{}", resp.key);
         }
         AgentCommand::Config(args) => {
-            if args.default_priority.is_none() && args.rate_limit.is_none() && args.channel_routing.is_none() && args.avatar.is_none() {
+            if args.default_priority.is_none() && args.rate_limit.is_none() && args.channel_routing.is_none() && args.avatar.is_none() && args.role.is_none() {
                 let info = client.get_agent_config().await?;
                 println!("default_priority: {}", info["default_priority"].as_str().unwrap_or("normal"));
                 let rl = match &info["rate_limit"] {
@@ -64,6 +67,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                 println!("rate_limit: {} msg/min", rl);
                 print_channel_routing(&info["channel_routing"]);
                 println!("avatar: {}", info["avatar_url"].as_str().unwrap_or("none"));
+                println!("role: {}", info["role"].as_str().unwrap_or("none"));
             } else {
                 let mut updates = serde_json::Map::new();
                 if let Some(dp) = &args.default_priority {
@@ -92,6 +96,13 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                         updates.insert("channel_routing".into(), serde_json::Value::Object(routing));
                     }
                 }
+                if let Some(role) = &args.role {
+                    if role == "none" || role.is_empty() {
+                        updates.insert("role".into(), serde_json::Value::Null);
+                    } else {
+                        updates.insert("role".into(), serde_json::Value::String(role.clone()));
+                    }
+                }
                 if let Some(avatar) = &args.avatar {
                     if avatar == "none" || avatar.is_empty() {
                         updates.insert("avatar_url".into(), serde_json::Value::Null);
@@ -114,22 +125,29 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                 println!("rate_limit: {} msg/min", rl);
                 print_channel_routing(&result["channel_routing"]);
                 println!("avatar: {}", result["avatar_url"].as_str().unwrap_or("none"));
+                println!("role: {}", result["role"].as_str().unwrap_or("none"));
             }
         }
         AgentCommand::List => {
             let resp = client.list_agents().await?;
-            println!("{:<10} {:<20} {:<10} {:<22} {}", "ID", "Name", "Status", "Created", "Last Seen");
+            println!("{:<10} {:<20} {:<14} {:<10} {}", "ID", "Name", "Role", "Status", "Last Seen");
             for agent in resp.agents {
                 let id: String = agent.id.chars().take(8).collect();
                 let last = agent.last_used_at.as_deref().unwrap_or("-");
-                let created = agent.created_at.as_deref().unwrap_or("-");
+                let role = agent.role.as_deref().unwrap_or("-");
                 let status_str = agent.status.as_deref().unwrap_or("offline");
                 let colored_status = match status_str {
                     "online" => status_str.green().bold(),
                     "idle" => status_str.yellow().normal(),
                     _ => status_str.red().normal(),
                 };
-                println!("{:<10} {:<20} {:<10} {:<22} {}", id, agent.name.green(), colored_status, created.dimmed(), last.dimmed());
+                let colored_role = match role {
+                    "orchestrator" => role.magenta().bold(),
+                    "worker" => role.cyan().normal(),
+                    "reviewer" => role.yellow().normal(),
+                    _ => role.dimmed(),
+                };
+                println!("{:<10} {:<20} {:<14} {:<10} {}", id, agent.name.green(), colored_role, colored_status, last.dimmed());
             }
         }
     }

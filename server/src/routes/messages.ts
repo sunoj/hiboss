@@ -1,12 +1,12 @@
 // Router that implements agent-facing messaging endpoints atop the D1 schema.
-// Exports POST/GET/PATCH/poll handlers for /api/messages and mounts helpers.
+// Exports POST/GET/PATCH/poll handlers for /api/messages, plus reactions sub-router.
 // Depends on Hono, the auth middleware, channel adapters, and shared types.
 
 import { Hono } from 'hono';
 import type { Channel, Direction, Env, MessageRow, Mode, Priority, Status } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
-import { setTelegramReaction } from '../channels/telegram';
-import { notifyBossAgents } from '../notify';
+import { notifyBossAgents, notifyTargetAgent } from '../notify';
+import { reactionsRouter } from './reactions';
 import {
   buildFilters,
   buildInlineKeyboard,
@@ -17,6 +17,7 @@ import {
   deliverToChannelWithOptions,
   delay,
   deliverWithRetry,
+  ensureTopicForAgent,
   extractTelegramMessageId,
   fetchAgentName,
   fetchAllChannelConfigs,
@@ -28,7 +29,6 @@ import {
   parseOptions,
   parsePriorityFilter,
   priorityOptions,
-  requireTelegramConfig,
   resolveChannelRouting,
   selectChannelConfig,
   validateChannel,
@@ -69,6 +69,7 @@ routes.post('/', async (c) => {
   const fileUrl = typeof payload.file_url === 'string' ? payload.file_url.trim() : undefined;
   const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
   const sessionId = typeof payload.session_id === 'string' ? payload.session_id.trim() || null : null;
+  const toAgent = typeof payload.to === 'string' ? payload.to.trim() || null : null;
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
@@ -89,6 +90,20 @@ routes.post('/', async (c) => {
     // No channel configured — message will be stored without delivery.
   }
   const channel = channelConfigs[0]?.channel ?? requestedChannel ?? null;
+  // Resolve agent-to-agent targeting
+  let targetAgentId: string | null = null;
+  let direction: Direction = 'agent_to_boss';
+  if (toAgent) {
+    const target = await c.env.DB
+      .prepare('SELECT id FROM api_keys WHERE name = ? OR id LIKE ? LIMIT 1')
+      .bind(toAgent, `${toAgent}%`)
+      .first<{ id: string }>();
+    if (!target) {
+      return c.text(`target agent not found: ${toAgent}`, 404);
+    }
+    targetAgentId = target.id;
+    direction = 'agent_to_agent';
+  }
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   if (idempotencyKey) {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
@@ -98,18 +113,20 @@ routes.post('/', async (c) => {
   }
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'agent_to_boss', mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId)
+    .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
   const options = parseOptions(payload.options);
-  if (channelConfigs.length > 0) {
+  if (channelConfigs.length > 0 && direction !== 'agent_to_agent') {
     const agentName = await fetchAgentName(c.env, agentId);
     const name = agentName ?? 'agent';
     const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
+    // Auto-create Telegram topics for agents with use_topics enabled
+    await Promise.all(channelConfigs.map((cc) => ensureTopicForAgent(c.env, agentId, cc)));
     try {
       const results = await Promise.allSettled(
         channelConfigs.map((cc) =>
@@ -120,6 +137,7 @@ routes.post('/', async (c) => {
         channel: channelConfigs[i].channel,
         ok: r.status === 'fulfilled' && r.value.delivered,
         telegramMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.telegramMessageId : undefined,
+        discordMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.discordMessageId : undefined,
       }));
       const anyDelivered = deliveryResults.some((d) => d.ok);
       if (anyDelivered) {
@@ -129,6 +147,10 @@ routes.post('/', async (c) => {
         const tgResult = deliveryResults.find((d) => d.telegramMessageId);
         if (tgResult?.telegramMessageId) {
           meta['telegram_message_id'] = tgResult.telegramMessageId;
+        }
+        const dcResult = deliveryResults.find((d) => d.discordMessageId);
+        if (dcResult?.discordMessageId) {
+          meta['discord_message_id'] = dcResult.discordMessageId;
         }
         if (isUrgent && channelConfigs.length > 1) {
           meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
@@ -156,22 +178,27 @@ routes.post('/', async (c) => {
   if (channel === 'api') {
     c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));
   }
+  // Notify target agent for agent-to-agent messages via callback
+  if (targetAgentId) {
+    c.executionCtx.waitUntil(notifyTargetAgent(c.env, targetAgentId, inserted));
+  }
   return c.json({ id: inserted.id, status: inserted.status, created_at: inserted.created_at }, 201);
 });
 
 routes.get('/', async (c) => {
   const agentId = getAgentId(c);
-  const unread = c.req.query('unread');
-  const directionParam = unread === 'true' ? 'boss_to_agent' : c.req.query('direction');
-  const statusParam = unread === 'true' ? 'sent' : c.req.query('status');
-  const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent']);
+  const unread = c.req.query('unread') === 'true';
+  const directionParam = unread ? undefined : c.req.query('direction') || undefined;
+  const statusParam = unread ? 'sent' : c.req.query('status') || undefined;
+  const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent', 'agent_to_agent']);
   const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const typeFilter = c.req.query('type') || undefined;
   const sessionFilter = c.req.query('session') || undefined;
+  const fromFilter = c.req.query('from') || undefined;
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
-  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter, sessionFilter);
+  const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter, sessionFilter, unread, fromFilter);
   const rows = await c.env.DB
     .prepare(
       `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`
@@ -205,7 +232,10 @@ routes.post('/:id/reply', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
-  const replyDirection: Direction = parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
+  // For agent_to_agent messages, reply direction is also agent_to_agent (back to sender)
+  const replyDirection: Direction = parent.direction === 'agent_to_agent'
+    ? 'agent_to_agent'
+    : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
@@ -255,41 +285,24 @@ routes.patch('/:id', async (c) => {
   if (!status) {
     return c.text('status is required', 400);
   }
+  const existing = await fetchMessageRow(c.env, agentId, c.req.param('id'));
+  if (!existing) {
+    return c.text('not found', 404);
+  }
   const updated = await c.env.DB
     .prepare(
-      'UPDATE messages SET status = ?, updated_at = datetime(\'now\') WHERE id = ? AND agent_id = ? RETURNING *'
+      'UPDATE messages SET status = ?, updated_at = datetime(\'now\') WHERE id = ? RETURNING *'
     )
-    .bind(status, c.req.param('id'), agentId)
+    .bind(status, existing.id)
     .first<MessageRow>();
   if (!updated) {
-    return c.text('not found', 404);
+    return c.text('update failed', 500);
   }
   return c.json(mapMessageRow(updated));
 });
 
-routes.post('/:id/react', async (c) => {
-  const agentId = getAgentId(c);
-  const message = await fetchMessageRow(c.env, agentId, c.req.param('id'));
-  if (!message) {
-    return c.text('not found', 404);
-  }
-  const payload = await c.req.json<Record<string, unknown>>();
-  const emoji = typeof payload.emoji === 'string' ? payload.emoji.trim() : '';
-  if (!emoji) {
-    return c.text('emoji is required', 400);
-  }
-  if (message.channel !== 'telegram') {
-    return c.text('reactions only supported on telegram', 400);
-  }
-  const telegramMsgId = extractTelegramMessageId(message.metadata);
-  if (!telegramMsgId) {
-    return c.text('no telegram message id found', 400);
-  }
-  const channelConfig = await selectChannelConfig(c.env, agentId, 'telegram');
-  const tgConfig = requireTelegramConfig(channelConfig.config);
-  await setTelegramReaction(tgConfig.bot_token, tgConfig.chat_id, telegramMsgId, emoji);
-  return c.json({ ok: true });
-});
+// React and reactions endpoints are in reactions.ts
+routes.route('/', reactionsRouter);
 
 routes.post('/:id/poll', async (c) => {
   const agentId = getAgentId(c);
