@@ -49,6 +49,7 @@ export async function deliverReply(
   agentName: string,
   body: string,
   replyToTelegramId?: number,
+  agentAvatarUrl?: string,
 ): Promise<DeliveryResult> {
   if (channel === 'api') {
     // API channel: message stored in DB, boss-agent reads via polling. No external delivery.
@@ -56,7 +57,7 @@ export async function deliverReply(
   }
   if (channel === 'discord') {
     const dc = requireDiscordConfig(config);
-    const opts = discordOptions(dc, agentName);
+    const opts = discordOptions(dc, agentName, agentAvatarUrl);
     await sendDiscordMessage(dc, opts ? body : formatAgentMessage(agentName, body), opts);
     return { delivered: true };
   }
@@ -75,6 +76,7 @@ export async function deliverToChannelWithOptions(
   body: string,
   inlineKeyboard?: { text: string; callback_data: string }[][],
   fileUrl?: string,
+  agentAvatarUrl?: string,
 ): Promise<DeliveryResult> {
   if (channel === 'api') {
     // API channel: message stored in DB, boss-agent reads via polling. No external delivery.
@@ -82,7 +84,7 @@ export async function deliverToChannelWithOptions(
   }
   if (channel === 'discord') {
     const dc = requireDiscordConfig(config);
-    const opts = discordOptions(dc, agentName);
+    const opts = discordOptions(dc, agentName, agentAvatarUrl);
     const text = opts ? body : formatAgentMessage(agentName, body);
     const components = inlineKeyboard ? inlineKeyboardToDiscordComponents(inlineKeyboard) : undefined;
     await sendDiscordMessage(dc, fileUrl ? `${text}\n${fileUrl}` : text, { ...opts, components });
@@ -119,9 +121,9 @@ function inlineKeyboardToDiscordComponents(keyboard: { text: string; callback_da
   }));
 }
 
-function discordOptions(config: DiscordChannelConfig, agentName: string): DiscordSendOptions | undefined {
+function discordOptions(config: DiscordChannelConfig, agentName: string, avatarUrl?: string): DiscordSendOptions | undefined {
   if (!config.webhook_url) return undefined;
-  return { username: agentName, avatarUrl: config.avatar_url };
+  return { username: `${agentName} (hiboss)`, avatarUrl: avatarUrl ?? config.avatar_url };
 }
 
 export async function deliverWithRetry<T>(

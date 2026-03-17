@@ -12,9 +12,9 @@ routes.use('*', apiAuth);
 routes.get('/me', async (c) => {
   const agentId = getAgentId(c);
   const row = await c.env.DB
-    .prepare('SELECT id, name, callback_url, default_priority, rate_limit, channel_routing, last_used_at, created_at FROM api_keys WHERE id = ?')
+    .prepare('SELECT id, name, callback_url, default_priority, rate_limit, channel_routing, avatar_url, last_used_at, created_at FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ id: string; name: string; callback_url: string | null; default_priority: string; rate_limit: number | null; channel_routing: string | null; last_used_at: string | null; created_at: string }>();
+    .first<{ id: string; name: string; callback_url: string | null; default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null; last_used_at: string | null; created_at: string }>();
   if (!row) {
     return c.text('agent not found', 404);
   }
@@ -71,6 +71,17 @@ routes.put('/me/config', async (c) => {
       return c.text('channel_routing must be an object or null', 400);
     }
   }
+  if ('avatar_url' in payload) {
+    const av = payload.avatar_url;
+    if (av === null) {
+      updates.push('avatar_url = NULL');
+    } else if (typeof av === 'string') {
+      updates.push('avatar_url = ?');
+      binds.push(av);
+    } else {
+      return c.text('avatar_url must be a string or null', 400);
+    }
+  }
   if (updates.length === 0) {
     return c.text('no valid fields to update', 400);
   }
@@ -80,9 +91,9 @@ routes.put('/me/config', async (c) => {
     .bind(...binds)
     .run();
   const updated = await c.env.DB
-    .prepare('SELECT default_priority, rate_limit, channel_routing FROM api_keys WHERE id = ?')
+    .prepare('SELECT default_priority, rate_limit, channel_routing, avatar_url FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null }>();
+    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null }>();
   return c.json({ ...updated, channel_routing: updated?.channel_routing ? JSON.parse(updated.channel_routing) : null });
 });
 

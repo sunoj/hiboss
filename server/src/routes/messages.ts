@@ -52,9 +52,9 @@ routes.post('/', async (c) => {
   }
   const idempotencyKey = typeof payload.idempotency_key === 'string' ? payload.idempotency_key.trim() || null : null;
   const agentConfig = await c.env.DB
-    .prepare('SELECT default_priority, rate_limit, channel_routing FROM api_keys WHERE id = ?')
+    .prepare('SELECT default_priority, rate_limit, channel_routing, avatar_url FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null }>();
+    .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null }>();
   const defaultPriority = (agentConfig?.default_priority ?? 'normal') as Priority;
   if (agentConfig?.rate_limit && await checkRateLimit(c.env, agentId, agentConfig.rate_limit)) {
     return c.text('rate limit exceeded', 429);
@@ -113,7 +113,7 @@ routes.post('/', async (c) => {
     try {
       const results = await Promise.allSettled(
         channelConfigs.map((cc) =>
-          deliverWithRetry(() => deliverToChannelWithOptions(cc.channel, cc.config, name, body, inlineKeyboard, fileUrl))
+          deliverWithRetry(() => deliverToChannelWithOptions(cc.channel, cc.config, name, body, inlineKeyboard, fileUrl, agentConfig?.avatar_url ?? undefined))
         )
       );
       const deliveryResults = results.map((r, i) => ({
@@ -218,11 +218,11 @@ routes.post('/:id/reply', async (c) => {
   if (replyDirection === 'agent_to_boss' && parent.channel) {
     try {
       const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
-      const agentName = await fetchAgentName(c.env, agentId);
-      const name = agentName ?? 'agent';
+      const agentRow = await c.env.DB.prepare('SELECT name, avatar_url FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string; avatar_url: string | null }>();
+      const name = agentRow?.name ?? 'agent';
       const telegramReplyId = extractTelegramMessageId(parent.metadata);
       const result = await deliverWithRetry(() =>
-        deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId)
+        deliverReply(channelConfig.channel, channelConfig.config, name, body, telegramReplyId, agentRow?.avatar_url ?? undefined)
       );
       if (result.delivered) {
         const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
