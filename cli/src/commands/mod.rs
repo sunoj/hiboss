@@ -20,6 +20,7 @@ pub mod ss;
 pub mod status;
 pub mod hook;
 pub mod setup;
+pub mod setup_hooks;
 pub mod watch;
 pub mod route;
 pub mod group;
