@@ -83,7 +83,7 @@ async function streamLoop(
 }
 
 /** Build SQL and bind factory for the stream query. Includes boss and a2a messages. */
-function buildStreamQuery(agentId: string, sessionId?: string) {
+export function buildStreamQuery(agentId: string, sessionId?: string) {
   // Boss messages: agent_id = ? AND direction = 'boss_to_agent'
   // A2A messages: target_agent_id = ? AND direction = 'agent_to_agent'
   //   If sessionId: also match target_session_id = ? (or NULL for agent-wide a2a)

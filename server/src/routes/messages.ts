@@ -89,8 +89,8 @@ routes.post('/', async (c) => {
   if (agentConfig?.rate_limit && await checkRateLimit(c.env, agentId, agentConfig.rate_limit)) {
     return c.text('rate limit exceeded', 429);
   }
-  const mode = validateOption<Mode>(payload.mode, modeOptions, 'async');
-  const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority);
+  const mode = validateOption<Mode>(payload.mode, modeOptions, 'async') as Mode;
+  const priority = validateOption<Priority>(payload.priority, priorityOptions, defaultPriority) as Priority;
   const explicitChannel = validateChannel(payload.channel);
   const routedChannel = !explicitChannel && agentConfig?.channel_routing
     ? resolveChannelRouting(agentConfig.channel_routing, priority as string)
