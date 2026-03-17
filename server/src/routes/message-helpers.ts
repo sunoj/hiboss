@@ -67,7 +67,16 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
   const binds: (string | number)[] = [];
   // Unread: boss messages for this agent, agent-to-agent targeting this agent, or session-targeted messages
   if (unread) {
-    if (targetSessionId) {
+    if (direction === 'agent_to_agent') {
+      // Narrowed unread: only agent-to-agent messages targeting this agent/session
+      if (targetSessionId) {
+        clauses.push("((target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
+        binds.push(agentId, targetSessionId);
+      } else {
+        clauses.push("(target_agent_id = ? AND direction = 'agent_to_agent')");
+        binds.push(agentId);
+      }
+    } else if (targetSessionId) {
       clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
       binds.push(agentId, agentId, targetSessionId);
     } else {

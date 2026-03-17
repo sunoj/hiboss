@@ -10,7 +10,8 @@ use std::io::Read;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const TTL_SECONDS: u64 = 300;
+const BOSS_TTL_SECONDS: u64 = 300;
+const A2A_TTL_SECONDS: u64 = 30;
 
 #[derive(Debug, Args)]
 pub struct HookArgs {
@@ -85,27 +86,42 @@ async fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let ttl_file = session::ttl_file_path();
-    if let Ok(content) = fs::read_to_string(&ttl_file) {
-        if let Ok(last_check) = content.trim().parse::<u64>() {
-            if now.saturating_sub(last_check) < TTL_SECONDS {
-                return Ok(());
-            }
+
+    // Agent-to-agent check: 30-second TTL (only delivery mechanism for peer messages)
+    let a2a_ttl_file = session::a2a_ttl_file_path();
+    let a2a_expired = is_ttl_expired(&a2a_ttl_file, now, A2A_TTL_SECONDS);
+    if a2a_expired {
+        let _ = fs::write(&a2a_ttl_file, now.to_string());
+        // Heartbeat: update session last_seen_at
+        if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
+            let _ = client.heartbeat_session(&sid).await;
+        }
+        let a2a_count = get_a2a_inbox_count();
+        if a2a_count > 0 {
+            println!("PEER MESSAGE: You have {} unread agent-to-agent messages. Run: hiboss inbox --direction agent_to_agent", a2a_count);
         }
     }
 
-    let _ = fs::write(&ttl_file, now.to_string());
-
-    // Heartbeat: update session last_seen_at
-    if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
-        let _ = client.heartbeat_session(&sid).await;
-    }
-
-    let count = get_priority_inbox_count("critical,high");
-    if count > 0 {
-        println!("URGENT: You have {} unread critical/high priority messages. Run: hiboss inbox --priority critical,high", count);
+    // Boss urgent check: 5-minute TTL (they also get Telegram/Discord)
+    let boss_ttl_file = session::ttl_file_path();
+    if is_ttl_expired(&boss_ttl_file, now, BOSS_TTL_SECONDS) {
+        let _ = fs::write(&boss_ttl_file, now.to_string());
+        let count = get_priority_inbox_count("critical,high");
+        if count > 0 {
+            println!("URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high", count);
+        }
     }
     Ok(())
+}
+
+fn is_ttl_expired(path: &std::path::Path, now: u64, ttl: u64) -> bool {
+    match fs::read_to_string(path) {
+        Ok(content) => match content.trim().parse::<u64>() {
+            Ok(last) => now.saturating_sub(last) >= ttl,
+            Err(_) => true,
+        },
+        Err(_) => true,
+    }
 }
 
 /// Build an HiBossClient from config (best-effort, returns Err if not configured).
@@ -176,6 +192,16 @@ fn generate_session_id() -> String {
         u16::from_be_bytes([buf[8], buf[9]]),
         u64::from_be_bytes([0, 0, buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]]),
     )
+}
+
+fn get_a2a_inbox_count() -> u32 {
+    let output = Command::new("hiboss")
+        .args(["inbox", "--direction", "agent_to_agent", "--count"])
+        .output()
+        .ok();
+    output
+        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse().ok())
+        .unwrap_or(0)
 }
 
 fn get_inbox_count() -> u32 {

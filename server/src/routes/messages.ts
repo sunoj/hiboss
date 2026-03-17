@@ -202,7 +202,7 @@ routes.post('/', async (c) => {
 routes.get('/', async (c) => {
   const agentId = getAgentId(c);
   const unread = c.req.query('unread') === 'true';
-  const directionParam = unread ? undefined : c.req.query('direction') || undefined;
+  const directionParam = c.req.query('direction') || undefined;
   const statusParam = unread ? 'sent' : c.req.query('status') || undefined;
   const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent', 'agent_to_agent']);
   const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);

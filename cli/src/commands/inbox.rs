@@ -23,11 +23,13 @@ pub struct InboxArgs {
     pub msg_type: Option<String>,
     #[arg(long, help = "Filter by sender agent name or ID")]
     pub from: Option<String>,
+    #[arg(long, help = "Filter by direction (agent_to_boss, boss_to_agent, agent_to_agent)")]
+    pub direction: Option<String>,
 }
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let session_id = session::read_session_id();
-    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref(), args.from.as_deref()).await?;
+    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref(), args.from.as_deref(), args.direction.as_deref()).await?;
     if args.count {
         println!("{}", response.total);
         return Ok(());

@@ -45,7 +45,7 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
-    pub async fn list_messages(&self, unread: bool, all: bool, limit: u32, priority: Option<&str>, msg_type: Option<&str>, session: Option<&str>, from: Option<&str>) -> Result<MessagesResponse, Box<dyn Error>> {
+    pub async fn list_messages(&self, unread: bool, all: bool, limit: u32, priority: Option<&str>, msg_type: Option<&str>, session: Option<&str>, from: Option<&str>, direction: Option<&str>) -> Result<MessagesResponse, Box<dyn Error>> {
         let mut request = self.http
             .get(format!("{}/api/messages", self.base_url))
             .bearer_auth(&self.api_key)
@@ -67,6 +67,9 @@ impl HiBossClient {
         }
         if let Some(f) = from {
             request = request.query(&[("from", f)]);
+        }
+        if let Some(d) = direction {
+            request = request.query(&[("direction", d)]);
         }
         let resp = request.send().await?;
         Self::parse_response(resp).await
