@@ -40,6 +40,10 @@ pub struct AgentConfigArgs {
     /// Server uses this when CLI omits --channel. Set "none" to clear.
     #[arg(long = "channel-routing")]
     pub channel_routing: Option<String>,
+    /// Set avatar image (local file path or URL). Used in Discord webhook mode.
+    /// Set "none" to clear.
+    #[arg(long = "avatar")]
+    pub avatar: Option<String>,
 }
 
 pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -50,7 +54,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
             println!("{}", resp.key);
         }
         AgentCommand::Config(args) => {
-            if args.default_priority.is_none() && args.rate_limit.is_none() && args.channel_routing.is_none() {
+            if args.default_priority.is_none() && args.rate_limit.is_none() && args.channel_routing.is_none() && args.avatar.is_none() {
                 let info = client.get_agent_config().await?;
                 println!("default_priority: {}", info["default_priority"].as_str().unwrap_or("normal"));
                 let rl = match &info["rate_limit"] {
@@ -59,6 +63,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                 };
                 println!("rate_limit: {} msg/min", rl);
                 print_channel_routing(&info["channel_routing"]);
+                println!("avatar: {}", info["avatar_url"].as_str().unwrap_or("none"));
             } else {
                 let mut updates = serde_json::Map::new();
                 if let Some(dp) = &args.default_priority {
@@ -87,6 +92,18 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                         updates.insert("channel_routing".into(), serde_json::Value::Object(routing));
                     }
                 }
+                if let Some(avatar) = &args.avatar {
+                    if avatar == "none" || avatar.is_empty() {
+                        updates.insert("avatar_url".into(), serde_json::Value::Null);
+                    } else if avatar.starts_with("http://") || avatar.starts_with("https://") {
+                        updates.insert("avatar_url".into(), serde_json::Value::String(avatar.clone()));
+                    } else {
+                        // Local file: upload to R2 first
+                        let upload = client.upload_file(avatar).await?;
+                        eprintln!("Uploaded avatar: {}", upload.url);
+                        updates.insert("avatar_url".into(), serde_json::Value::String(upload.url));
+                    }
+                }
                 let result = client.update_agent_config(&serde_json::Value::Object(updates)).await?;
                 eprintln!("Config updated");
                 println!("default_priority: {}", result["default_priority"].as_str().unwrap_or("normal"));
@@ -96,6 +113,7 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                 };
                 println!("rate_limit: {} msg/min", rl);
                 print_channel_routing(&result["channel_routing"]);
+                println!("avatar: {}", result["avatar_url"].as_str().unwrap_or("none"));
             }
         }
         AgentCommand::List => {
