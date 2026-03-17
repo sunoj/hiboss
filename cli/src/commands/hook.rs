@@ -59,6 +59,9 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
         ).await;
     }
 
+    // Start background SSE daemon for real-time message delivery
+    start_daemon_if_needed();
+
     println!("MANDATORY: hiboss is installed for boss communication. You MUST follow these rules:");
     println!("1. After completing any task or subtask, run: hiboss send \"<what you did and what's next>\"");
     println!("2. When blocked or need input, run: hiboss ask \"<your question>\"");
@@ -90,7 +93,49 @@ async fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         .unwrap_or_default()
         .as_secs();
 
-    // Agent-to-agent check: 30-second TTL (only delivery mechanism for peer messages)
+    // Fast path: if daemon is running, drain pending messages from local file (0ms)
+    if session::is_daemon_running().is_some() {
+        let pending = session::drain_pending_messages();
+        if !pending.is_empty() {
+            println!("REAL-TIME: {} new messages arrived via SSE daemon:", pending.len());
+            for line in &pending {
+                // Parse and display each message
+                if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
+                    let direction = msg["direction"].as_str().unwrap_or("");
+                    let body = msg["body"].as_str().unwrap_or("");
+                    let agent = msg["agent_name"].as_str().unwrap_or("-");
+                    let id = msg["id"].as_str().unwrap_or("");
+                    let id_short = &id[..8.min(id.len())];
+                    if direction == "agent_to_agent" {
+                        println!("  [peer] {} ({}): {}", agent, id_short, body);
+                    } else {
+                        println!("  [boss] {} ({}): {}", agent, id_short, body);
+                    }
+                }
+            }
+            println!("Reply with: hiboss reply <id> \"response\"");
+        }
+        // Still do heartbeat on TTL
+        let a2a_ttl_file = session::a2a_ttl_file_path();
+        if is_ttl_expired(&a2a_ttl_file, now, A2A_TTL_SECONDS) {
+            let _ = fs::write(&a2a_ttl_file, now.to_string());
+            if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
+                let _ = client.heartbeat_session(&sid).await;
+            }
+        }
+        // Boss urgent check still uses TTL polling (daemon handles a2a, not urgency detection)
+        let boss_ttl_file = session::ttl_file_path();
+        if is_ttl_expired(&boss_ttl_file, now, BOSS_TTL_SECONDS) {
+            let _ = fs::write(&boss_ttl_file, now.to_string());
+            let count = get_priority_inbox_count("critical,high");
+            if count > 0 {
+                println!("URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high", count);
+            }
+        }
+        return Ok(());
+    }
+
+    // Fallback: daemon not running, use HTTP polling (original behavior)
     let a2a_ttl_file = session::a2a_ttl_file_path();
     let a2a_expired = is_ttl_expired(&a2a_ttl_file, now, A2A_TTL_SECONDS);
     if a2a_expired {
@@ -124,6 +169,28 @@ fn is_ttl_expired(path: &std::path::Path, now: u64, ttl: u64) -> bool {
             Err(_) => true,
         },
         Err(_) => true,
+    }
+}
+
+/// Start the SSE daemon if not already running.
+fn start_daemon_if_needed() {
+    if session::is_daemon_running().is_some() {
+        return;
+    }
+    // Best-effort: start daemon in background
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    let log_path = format!("/tmp/hiboss-daemon-{}.log", session::project_hash());
+    let child = Command::new(&exe)
+        .args(["daemon", "run"])
+        .stdout(fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()))
+        .stderr(fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()))
+        .stdin(std::process::Stdio::null())
+        .spawn();
+    if let Ok(child) = child {
+        let _ = fs::write(session::daemon_pid_path(), child.id().to_string());
     }
 }
 
