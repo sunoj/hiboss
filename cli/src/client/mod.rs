@@ -159,6 +159,41 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
+    pub async fn register_session(&self, id: &str, branch: Option<&str>, cwd: Option<&str>, label: Option<&str>) -> Result<(), Box<dyn Error>> {
+        let mut body = serde_json::json!({ "id": id });
+        if let Some(b) = branch { body["branch"] = serde_json::Value::String(b.to_owned()); }
+        if let Some(c) = cwd { body["cwd"] = serde_json::Value::String(c.to_owned()); }
+        if let Some(l) = label { body["label"] = serde_json::Value::String(l.to_owned()); }
+        let resp = self.http
+            .post(format!("{}/api/sessions", self.base_url))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(format!("session register failed ({status}): {text}").into());
+        }
+        Ok(())
+    }
+    pub async fn list_sessions(&self) -> Result<crate::types::SessionsResponse, Box<dyn Error>> {
+        let resp = self.http
+            .get(format!("{}/api/sessions?all=true", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn heartbeat_session(&self, id: &str) -> Result<(), Box<dyn Error>> {
+        let resp = self.http
+            .patch(format!("{}/api/sessions/{}", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        if !resp.status().is_success() { /* ignore heartbeat failures */ }
+        Ok(())
+    }
     pub async fn react(&self, id: &str, emoji: &str) -> Result<(), Box<dyn Error>> {
         let resp = self.http
             .post(format!("{}/api/messages/{}/react", self.base_url, id))
