@@ -49,6 +49,19 @@ pub async fn run(config: &Config) -> Result<(), Box<dyn Error>> {
             Ok(agent) => {
                 let name = agent["name"].as_str().unwrap_or("-");
                 println!("Agent: {} {}", name, "OK".green());
+                // Show effective channel routing
+                if let Some(routing) = agent["channel_routing"].as_object() {
+                    if !routing.is_empty() {
+                        let pairs: Vec<String> = routing.iter()
+                            .map(|(k, v)| format!("{}→{}", k, v.as_str().unwrap_or("?")))
+                            .collect();
+                        println!("Routing: {} {}", pairs.join(", "), "OK".green());
+                    } else {
+                        println!("Routing: {} (messages need --channel or config.channel fallback)", "none".yellow());
+                    }
+                } else {
+                    println!("Routing: {} (messages need --channel or config.channel fallback)", "none".yellow());
+                }
                 match client.list_channels().await {
                     Ok(channels) => {
                         if channels.channels.is_empty() {

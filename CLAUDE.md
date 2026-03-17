@@ -520,6 +520,19 @@ Boss messages reach the agent through three layers:
 
 Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Only urgent messages interrupt the agent via PostToolUse hook.
 
+### Channel Resolution Order
+
+When a message is sent, the channel is resolved with this precedence:
+
+1. **CLI `--channel` flag** — explicit override, always wins
+2. **Server `channel_routing`** — per-priority routing (e.g. `normal=discord, high=telegram`), used when no `--channel` is given
+3. **Server channel config fallback** — picks the most recently configured channel if no routing matches
+
+Note: `hiboss config set channel` sets a **local CLI default** that was previously sent on every request. As of v0.10.1, the CLI no longer sends this — it only sends a channel when `--channel` is explicitly used. This allows server-side `channel_routing` to work as intended.
+
+To configure routing: `hiboss agent config --channel-routing "normal=discord,high=telegram"`
+To check effective routing: `hiboss doctor`
+
 ### Telegram Reactions
 Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoji>`. The server exposes the capability; agents decide what reactions to use and when. Example conventions:
 - 👀 → message seen
@@ -720,6 +733,23 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - Messages tagged with session_id, inbox filters by session
 - Boss-initiated messages (not replies) visible across all sessions
 - CLI `send`, `ask`, `inbox` automatically attach/filter by session
+
+### v0.10.1 — Channel Routing Fix & Docs (Done)
+**Goal**: Fix CLI overriding server-side channel routing, improve discoverability.
+
+#### Channel Routing Fix
+- CLI `send`/`ask` no longer send `config.channel` — only `--channel` explicit flag
+- Server-side `channel_routing` now works as intended (was always overridden by CLI default)
+
+#### Action Result Feedback
+- `--actions` button click auto-sends command result back to boss as `type=action_result`
+- Captures stdout/stderr + exit code, sends last 5 lines
+
+#### Documentation & Help Improvements
+- `--channel` help text explains it overrides server routing
+- `--channel-routing` help text explains precedence and `"none"` to clear
+- `hiboss doctor` shows effective channel routing per priority
+- CLAUDE.md: new "Channel Resolution Order" section with precedence rules
 
 ### v1.0 — Production Ready
 - Per-boss channel preferences
