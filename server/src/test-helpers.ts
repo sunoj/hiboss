@@ -18,7 +18,7 @@ const SCHEMA_STATEMENTS = [
   'CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id) WHERE session_id IS NOT NULL',
   'CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id) WHERE target_agent_id IS NOT NULL',
   'CREATE INDEX IF NOT EXISTS idx_messages_target_session ON messages(target_session_id) WHERE target_session_id IS NOT NULL',
-  "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, label TEXT, branch TEXT, cwd TEXT, started_at TEXT NOT NULL DEFAULT (datetime('now')), last_seen_at TEXT NOT NULL DEFAULT (datetime('now')), FOREIGN KEY (agent_id) REFERENCES api_keys(id))",
+  "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, label TEXT, branch TEXT, cwd TEXT, status TEXT NOT NULL DEFAULT 'working' CHECK (status IN ('working', 'blocked', 'waiting', 'idle', 'completed')), status_text TEXT, started_at TEXT NOT NULL DEFAULT (datetime('now')), last_seen_at TEXT NOT NULL DEFAULT (datetime('now')), FOREIGN KEY (agent_id) REFERENCES api_keys(id))",
   'CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id, last_seen_at DESC)',
   "CREATE TABLE IF NOT EXISTS routing_rules (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), owner_id TEXT NOT NULL, channel TEXT NOT NULL CHECK (channel IN ('discord', 'telegram', 'email', 'api')), pattern TEXT NOT NULL, target_agent_id TEXT NOT NULL, priority INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')), FOREIGN KEY (owner_id) REFERENCES api_keys(id), FOREIGN KEY (target_agent_id) REFERENCES api_keys(id))",
   'CREATE INDEX IF NOT EXISTS idx_routing_rules_channel ON routing_rules(channel, enabled, priority DESC)',

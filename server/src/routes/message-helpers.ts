@@ -290,6 +290,34 @@ export async function ensureTopicForAgent(env: Env, agentId: string, channelConf
   }
 }
 
+/** Auto-update session status based on message characteristics. Fire-and-forget. */
+export async function inferSessionStatus(
+  env: Env,
+  agentId: string,
+  sessionId: string | null,
+  mode: string,
+  priority: string,
+  body: string,
+): Promise<void> {
+  if (!sessionId) return;
+  let status: string;
+  let statusText: string | null = null;
+  if (mode === 'blocking') {
+    status = 'waiting';
+    statusText = 'Waiting for boss reply';
+  } else if (priority === 'critical' || priority === 'high') {
+    status = 'waiting';
+    statusText = body.slice(0, 100);
+  } else {
+    status = 'working';
+    statusText = body.slice(0, 100);
+  }
+  await env.DB
+    .prepare("UPDATE sessions SET status = ?, status_text = ?, last_seen_at = datetime('now') WHERE id = ? AND agent_id = ?")
+    .bind(status, statusText, sessionId, agentId)
+    .run();
+}
+
 export function extractTelegramMessageId(metadata: string | null): number | undefined {
   const meta = safeParse(metadata);
   if (!meta || typeof meta !== 'object') return undefined;

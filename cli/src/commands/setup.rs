@@ -13,6 +13,7 @@ use std::path::PathBuf;
 const EVENT_COMMANDS: &[(&str, &str)] = &[
     ("SessionStart", "session-start"),
     ("PostToolUse", "post-tool-use"),
+    ("Stop", "stop"),
 ];
 
 const PROMPT_BEGIN: &str = "<!-- hiboss:begin -->";

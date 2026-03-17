@@ -151,6 +151,37 @@ td {
 .status-idle { background: var(--yellow); }
 .status-offline { background: var(--text-dim); }
 
+/* Session kanban board */
+.kanban { display: flex; gap: var(--space-md); overflow-x: auto; padding-bottom: var(--space-md); }
+.kanban-col { flex: 1; min-width: 200px; max-width: 300px; }
+.kanban-header {
+  display: flex; align-items: center; gap: var(--space-xs);
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: var(--space-sm); margin-bottom: var(--space-sm);
+  border-bottom: 2px solid var(--border);
+}
+.kanban-header .count { color: var(--text-muted); font-weight: 400; }
+.kanban-card {
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: var(--space-sm); margin-bottom: var(--space-xs);
+  font-size: 0.8125rem; transition: background 0.1s;
+}
+.kanban-card:hover { background: var(--bg-hover); }
+.kanban-card .card-label { font-weight: 500; margin-bottom: 2px; }
+.kanban-card .card-agent { font-size: 0.6875rem; color: var(--text-muted); }
+.kanban-card .card-text { font-size: 0.6875rem; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kanban-card .card-time { font-size: 0.625rem; color: var(--text-dim); margin-top: 4px; }
+.status-working { border-color: var(--green); }
+.status-blocked { border-color: var(--red); }
+.status-waiting { border-color: var(--yellow); }
+.status-session-idle { border-color: var(--text-dim); }
+.status-completed { border-color: var(--blue); }
+
+@media (max-width: 768px) {
+  .kanban { flex-direction: column; }
+  .kanban-col { max-width: none; }
+}
+
 /* Expanded message detail */
 .msg-detail {
   background: var(--bg-surface); border: 1px solid var(--border);
@@ -515,26 +546,29 @@ async function loadSessions() {
       el.innerHTML = '<div class="empty">No active sessions</div>';
       return;
     }
-    let html = `<table><thead><tr>
-      <th class="col-id">ID</th>
-      <th>Label</th>
-      <th>Agent</th>
-      <th>Branch</th>
-      <th>Status</th>
-      <th class="col-time">Last Seen</th>
-    </tr></thead><tbody>`;
-    for (const s of sessions) {
-      const stale = isStale(s.last_seen_at);
-      html += `<tr>
-        <td class="col-id">${esc(s.id.slice(0, 8))}</td>
-        <td>${esc(s.label || '-')}</td>
-        <td>${esc(s.agent_name || s.agent_id?.slice(0, 8) || '-')}</td>
-        <td style="font-family:var(--mono);font-size:0.75rem">${esc(s.branch || '-')}</td>
-        <td><span class="status-dot ${stale ? 'status-idle' : 'status-online'}"></span>${stale ? 'stale' : 'active'}</td>
-        <td class="col-time">${relTime(s.last_seen_at)}</td>
-      </tr>`;
+    const cols = [
+      { key: 'working', icon: '🔨', label: 'Working', cls: 'status-working' },
+      { key: 'blocked', icon: '🚫', label: 'Blocked', cls: 'status-blocked' },
+      { key: 'waiting', icon: '⏳', label: 'Waiting', cls: 'status-waiting' },
+      { key: 'idle', icon: '💤', label: 'Idle', cls: 'status-session-idle' },
+      { key: 'completed', icon: '✅', label: 'Done', cls: 'status-completed' },
+    ];
+    let html = '<div class="kanban">';
+    for (const col of cols) {
+      const items = sessions.filter(s => (s.status || 'working') === col.key);
+      html += `<div class="kanban-col"><div class="kanban-header ${col.cls}">${col.icon} ${col.label} <span class="count">(${items.length})</span></div>`;
+      for (const s of items) {
+        const stale = isStale(s.last_seen_at);
+        html += `<div class="kanban-card ${col.cls}">
+          <div class="card-label">${esc(s.label || s.id.slice(0, 8))}</div>
+          <div class="card-agent">${esc(s.agent_name || s.agent_id?.slice(0, 8) || '-')}${stale ? ' <span style="color:var(--yellow)">(stale)</span>' : ''}</div>
+          ${s.status_text ? `<div class="card-text">${esc(s.status_text)}</div>` : ''}
+          <div class="card-time">${relTime(s.last_seen_at)}</div>
+        </div>`;
+      }
+      html += '</div>';
     }
-    html += '</tbody></table>';
+    html += '</div>';
     el.innerHTML = html;
   } catch {
     el.innerHTML = '<div class="empty">Failed to load sessions</div>';
