@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hiboss dashboard</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d1117;
+  --bg-surface: #161b22;
+  --bg-hover: #1c2129;
+  --bg-input: #0d1117;
+  --border: #30363d;
+  --border-light: #21262d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --text-dim: #484f58;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb33;
+  --green: #3fb950;
+  --yellow: #d29922;
+  --orange: #db6d28;
+  --red: #f85149;
+  --purple: #bc8cff;
+  --blue: #58a6ff;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --radius: 6px;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Layout */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+header h1 { font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em; }
+header h1 span { color: var(--text-muted); font-weight: 400; margin-left: var(--space-sm); }
+
+.header-right { display: flex; align-items: center; gap: var(--space-md); }
+.refresh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.refresh-dot.paused { background: var(--text-dim); }
+.btn-logout { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; }
+.btn-logout:hover { color: var(--text); }
+
+/* Tabs */
+nav {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  background: var(--bg-surface); padding: 0 var(--space-lg);
+}
+
+nav button {
+  background: none; border: none; color: var(--text-muted);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.8125rem; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+nav button:hover { color: var(--text); }
+nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* Main content */
+main { flex: 1; padding: var(--space-lg); max-width: 1400px; width: 100%; margin: 0 auto; }
+
+/* Filter bar */
+.filters {
+  display: flex; flex-wrap: wrap; gap: var(--space-sm);
+  margin-bottom: var(--space-md); align-items: center;
+}
+
+.filters select, .filters input {
+  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.3rem 0.5rem;
+  font-size: 0.75rem; font-family: var(--sans);
+}
+.filters select:focus, .filters input:focus { outline: none; border-color: var(--accent); }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+
+thead th {
+  text-align: left; padding: var(--space-sm) var(--space-sm);
+  color: var(--text-muted); font-weight: 500; font-size: 0.75rem;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer; transition: background 0.1s;
+}
+tbody tr:hover { background: var(--bg-hover); }
+
+td {
+  padding: var(--space-sm); vertical-align: top; max-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.col-id { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); width: 6rem; }
+.col-from { width: 8rem; }
+.col-dir { width: 7rem; }
+.col-priority { width: 5rem; }
+.col-body { min-width: 200px; }
+.col-status { width: 5rem; }
+.col-time { width: 6rem; color: var(--text-muted); text-align: right; white-space: nowrap; }
+
+/* Priority badges */
+.badge {
+  display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px;
+  font-size: 0.6875rem; font-weight: 500; line-height: 1.4;
+}
+.badge-critical { background: #f8514922; color: var(--red); }
+.badge-high { background: #db6d2822; color: var(--orange); }
+.badge-normal { background: #30363d44; color: var(--text-muted); }
+.badge-low { background: #30363d22; color: var(--text-dim); }
+
+/* Status badges */
+.badge-sent { color: var(--yellow); }
+.badge-delivered { color: var(--blue); }
+.badge-read { color: var(--green); }
+.badge-replied { color: var(--purple); }
+
+/* Direction label */
+.dir-out { color: var(--accent); }
+.dir-in { color: var(--green); }
+.dir-agent { color: var(--purple); }
+
+/* Agent status */
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.status-online { background: var(--green); }
+.status-idle { background: var(--yellow); }
+.status-offline { background: var(--text-dim); }
+
+/* Expanded message detail */
+.msg-detail {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-md);
+  margin: var(--space-sm) 0 var(--space-md);
+  font-size: 0.8125rem; animation: fadeIn 0.15s ease;
+}
+.msg-detail pre {
+  white-space: pre-wrap; word-break: break-word;
+  font-family: var(--sans); color: var(--text); line-height: 1.6;
+  margin: var(--space-sm) 0;
+}
+.msg-detail .meta-row { color: var(--text-muted); font-size: 0.75rem; margin-top: var(--space-sm); }
+.msg-detail .meta-row span { margin-right: var(--space-md); }
+
+.replies-section { margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--border-light); }
+.replies-section h4 { font-size: 0.75rem; color: var(--text-muted); margin-bottom: var(--space-sm); }
+.reply-item {
+  padding: var(--space-sm); background: var(--bg); border-radius: var(--radius);
+  margin-bottom: var(--space-xs); font-size: 0.8125rem;
+}
+.reply-item .reply-meta { font-size: 0.6875rem; color: var(--text-muted); }
+
+/* Pagination */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: var(--space-md); font-size: 0.75rem; color: var(--text-muted);
+}
+.pagination button {
+  background: var(--bg-surface); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius); padding: 0.3rem 0.75rem;
+  cursor: pointer; font-size: 0.75rem; transition: background 0.1s;
+}
+.pagination button:hover:not(:disabled) { background: var(--bg-hover); }
+.pagination button:disabled { opacity: 0.4; cursor: default; }
+
+/* Login */
+.login-wrap {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: var(--space-lg);
+}
+.login-box {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: var(--space-xl);
+  width: 100%; max-width: 360px;
+}
+.login-box h2 { font-size: 1rem; margin-bottom: var(--space-lg); text-align: center; }
+.login-box input {
+  width: 100%; padding: 0.5rem 0.75rem; margin-bottom: var(--space-md);
+  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); font-family: var(--mono); font-size: 0.8125rem;
+}
+.login-box input:focus { outline: none; border-color: var(--accent); }
+.login-box button {
+  width: 100%; padding: 0.5rem; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  font-size: 0.8125rem; font-weight: 500;
+}
+.login-box button:hover { opacity: 0.9; }
+.login-error { color: var(--red); font-size: 0.75rem; margin-bottom: var(--space-sm); text-align: center; }
+
+/* Empty state */
+.empty { text-align: center; color: var(--text-muted); padding: var(--space-xl); font-size: 0.8125rem; }
+
+/* Loading */
+.loading { text-align: center; color: var(--text-dim); padding: var(--space-xl); font-size: 0.8125rem; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Responsive */
+@media (max-width: 768px) {
+  main { padding: var(--space-md); }
+  .filters { gap: var(--space-xs); }
+  .col-dir, .col-from { display: none; }
+  td { font-size: 0.75rem; padding: var(--space-xs); }
+}
+</style>
+</head>
+<body>
+
+<div id="login" class="login-wrap" style="display:none">
+  <div class="login-box">
+    <h2>hiboss dashboard</h2>
+    <div id="login-error" class="login-error" style="display:none"></div>
+    <input id="key-input" type="password" placeholder="API key (hb_...)" autofocus>
+    <button onclick="doLogin()">Sign in</button>
+  </div>
+</div>
+
+<div id="app" class="app" style="display:none">
+  <header>
+    <h1>hiboss<span id="agent-name"></span></h1>
+    <div class="header-right">
+      <div id="refresh-dot" class="refresh-dot" title="Auto-refresh active"></div>
+      <button class="btn-logout" onclick="logout()">sign out</button>
+    </div>
+  </header>
+  <nav>
+    <button class="active" data-tab="messages" onclick="switchTab('messages')">Messages</button>
+    <button data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
+    <button data-tab="agents" onclick="switchTab('agents')">Agents</button>
+  </nav>
+  <main id="content"></main>
+</div>
+
+<script>
+/* -- State -- */
+let apiKey = '';
+let baseUrl = '';
+let currentTab = 'messages';
+let msgOffset = 0;
+let msgTotal = 0;
+let expandedId = null;
+let refreshTimer = null;
+const LIMIT = 50;
+const STALE_MIN = 15;
+
+/* -- Filters -- */
+let filters = { direction: '', status: '', priority: '' };
+
+/* -- Init -- */
+(function init() {
+  baseUrl = window.location.origin;
+  const params = new URLSearchParams(window.location.search);
+  const urlKey = params.get('key');
+  if (urlKey) {
+    apiKey = urlKey;
+    localStorage.setItem('hiboss_key', urlKey);
+    // Strip key from URL for security
+    history.replaceState(null, '', window.location.pathname);
+  } else {
+    apiKey = localStorage.getItem('hiboss_key') || '';
+  }
+  if (apiKey) {
+    showApp();
+  } else {
+    document.getElementById('login').style.display = 'flex';
+  }
+})();
+
+function doLogin() {
+  const input = document.getElementById('key-input');
+  const key = input.value.trim();
+  if (!key) return;
+  apiKey = key;
+  // Verify by calling /api/agents/me
+  apiFetch('/api/agents/me').then(data => {
+    localStorage.setItem('hiboss_key', key);
+    document.getElementById('login').style.display = 'none';
+    showApp();
+  }).catch(() => {
+    document.getElementById('login-error').textContent = 'Invalid API key';
+    document.getElementById('login-error').style.display = 'block';
+    apiKey = '';
+  });
+}
+
+document.getElementById('key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function logout() {
+  apiKey = '';
+  localStorage.removeItem('hiboss_key');
+  clearInterval(refreshTimer);
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login').style.display = 'flex';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('key-input').value = '';
+}
+
+/* -- API -- */
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(baseUrl + path, {
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + apiKey, ...(opts.headers || {}) }
+  });
+  if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+  return res.json();
+}
+
+/* -- App -- */
+async function showApp() {
+  document.getElementById('app').style.display = 'flex';
+  try {
+    const me = await apiFetch('/api/agents/me');
+    document.getElementById('agent-name').textContent = me.name || me.id.slice(0, 8);
+  } catch { /* ignore */ }
+  switchTab('messages');
+  startRefresh();
+}
+
+function startRefresh() {
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (currentTab === 'messages') loadMessages(true);
+  }, 10000);
+}
+
+/* -- Tab switching -- */
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('nav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  expandedId = null;
+  if (tab === 'messages') { msgOffset = 0; loadMessages(); }
+  else if (tab === 'sessions') loadSessions();
+  else if (tab === 'agents') loadAgents();
+}
+
+/* -- Messages -- */
+async function loadMessages(quiet = false) {
+  const el = document.getElementById('content');
+  if (!quiet) el.innerHTML = '<div class="loading">Loading...</div>';
+
+  const params = new URLSearchParams({ limit: LIMIT, offset: msgOffset });
+  if (filters.direction) params.set('direction', filters.direction);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.priority) params.set('priority', filters.priority);
+
+  try {
+    const data = await apiFetch('/api/messages?' + params);
+    msgTotal = data.total || 0;
+    renderMessages(data.messages || [], msgTotal);
+  } catch (e) {
+    if (!quiet) el.innerHTML = '<div class="empty">Failed to load messages</div>';
+  }
+}
+
+function renderMessages(messages, total) {
+  const el = document.getElementById('content');
+  const dirs = [['', 'All directions'], ['agent_to_boss', 'Agent to Boss'], ['boss_to_agent', 'Boss to Agent'], ['agent_to_agent', 'Agent to Agent']];
+  const stats = [['', 'All statuses'], ['sent', 'Sent'], ['delivered', 'Delivered'], ['read', 'Read'], ['replied', 'Replied']];
+  const pris = [['', 'All priorities'], ['critical', 'Critical'], ['high', 'High'], ['normal', 'Normal'], ['low', 'Low']];
+
+  let html = '<div class="filters">';
+  html += sel('direction', dirs, filters.direction);
+  html += sel('status', stats, filters.status);
+  html += sel('priority', pris, filters.priority);
+  html += '</div>';
+
+  if (messages.length === 0) {
+    html += '<div class="empty">No messages found</div>';
+  } else {
+    html += `<table><thead><tr>
+      <th class="col-id">ID</th>
+      <th class="col-from">From</th>
+      <th class="col-dir">Direction</th>
+      <th class="col-priority">Priority</th>
+      <th class="col-body">Body</th>
+      <th class="col-status">Status</th>
+      <th class="col-time">Time</th>
+    </tr></thead><tbody>`;
+    for (const m of messages) {
+      const expanded = expandedId === m.id;
+      html += `<tr onclick="toggleMsg('${m.id}')" class="${expanded ? 'expanded' : ''}">
+        <td class="col-id">${esc(m.id.slice(0, 8))}</td>
+        <td class="col-from">${esc(m.agent_name || m.agent_id?.slice(0, 8) || '-')}</td>
+        <td class="col-dir">${dirLabel(m.direction)}</td>
+        <td class="col-priority">${priBadge(m.priority)}</td>
+        <td class="col-body">${esc(m.body?.slice(0, 120) || '')}</td>
+        <td class="col-status">${statusBadge(m.status)}</td>
+        <td class="col-time">${relTime(m.created_at)}</td>
+      </tr>`;
+      if (expanded) {
+        html += `<tr><td colspan="7" style="padding:0;border:none"><div id="detail-${m.id}" class="msg-detail"><div class="loading">Loading...</div></div></td></tr>`;
+      }
+    }
+    html += '</tbody></table>';
+  }
+
+  // Pagination
+  const pages = Math.ceil(total / LIMIT);
+  const page = Math.floor(msgOffset / LIMIT) + 1;
+  html += `<div class="pagination">
+    <span>${total} message${total !== 1 ? 's' : ''}</span>
+    <div>
+      <button onclick="paginate(-1)" ${msgOffset === 0 ? 'disabled' : ''}>Prev</button>
+      <span style="margin:0 0.5rem">${page} / ${pages || 1}</span>
+      <button onclick="paginate(1)" ${msgOffset + LIMIT >= total ? 'disabled' : ''}>Next</button>
+    </div>
+  </div>`;
+
+  el.innerHTML = html;
+
+  // Bind filter change events
+  el.querySelectorAll('.filters select').forEach(s => {
+    s.addEventListener('change', e => {
+      filters[e.target.dataset.key] = e.target.value;
+      msgOffset = 0;
+      loadMessages();
+    });
+  });
+
+  // If a message is expanded, load its detail
+  if (expandedId) loadMsgDetail(expandedId);
+}
+
+function sel(key, options, value) {
+  let h = `<select data-key="${key}">`;
+  for (const [v, label] of options) {
+    h += `<option value="${v}" ${v === value ? 'selected' : ''}>${label}</option>`;
+  }
+  return h + '</select>';
+}
+
+async function toggleMsg(id) {
+  if (expandedId === id) { expandedId = null; }
+  else { expandedId = id; }
+  // Re-render in place without full reload
+  loadMessages(true);
+}
+
+async function loadMsgDetail(id) {
+  const el = document.getElementById('detail-' + id);
+  if (!el) return;
+  try {
+    const m = await apiFetch('/api/messages/' + id);
+    let html = `<pre>${esc(m.body)}</pre>`;
+    html += '<div class="meta-row">';
+    html += `<span>ID: <code style="font-family:var(--mono)">${esc(m.id)}</code></span>`;
+    html += `<span>Channel: ${esc(m.channel || 'none')}</span>`;
+    html += `<span>Type: ${esc(m.type || 'text')}</span>`;
+    html += `<span>Mode: ${esc(m.mode)}</span>`;
+    if (m.session_id) html += `<span>Session: <code style="font-family:var(--mono)">${esc(m.session_id.slice(0, 8))}</code></span>`;
+    html += `<span>${esc(m.created_at)}</span>`;
+    html += '</div>';
+    if (m.metadata) {
+      html += `<div class="meta-row"><span>Metadata: <code style="font-family:var(--mono);font-size:0.6875rem">${esc(JSON.stringify(m.metadata))}</code></span></div>`;
+    }
+    if (m.replies && m.replies.length > 0) {
+      html += '<div class="replies-section"><h4>Replies</h4>';
+      for (const r of m.replies) {
+        html += `<div class="reply-item">
+          <pre>${esc(r.body)}</pre>
+          <div class="reply-meta">${dirLabel(r.direction)} &middot; ${esc(r.agent_name || r.agent_id?.slice(0, 8) || '')} &middot; ${relTime(r.created_at)}</div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    el.innerHTML = html;
+  } catch {
+    el.innerHTML = '<div class="empty">Failed to load detail</div>';
+  }
+}
+
+function paginate(dir) {
+  msgOffset = Math.max(0, msgOffset + dir * LIMIT);
+  expandedId = null;
+  loadMessages();
+}
+
+/* -- Sessions -- */
+async function loadSessions() {
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="loading">Loading...</div>';
+  try {
+    const data = await apiFetch('/api/sessions?all=true');
+    const sessions = data.sessions || [];
+    if (sessions.length === 0) {
+      el.innerHTML = '<div class="empty">No active sessions</div>';
+      return;
+    }
+    let html = `<table><thead><tr>
+      <th class="col-id">ID</th>
+      <th>Label</th>
+      <th>Agent</th>
+      <th>Branch</th>
+      <th>Status</th>
+      <th class="col-time">Last Seen</th>
+    </tr></thead><tbody>`;
+    for (const s of sessions) {
+      const stale = isStale(s.last_seen_at);
+      html += `<tr>
+        <td class="col-id">${esc(s.id.slice(0, 8))}</td>
+        <td>${esc(s.label || '-')}</td>
+        <td>${esc(s.agent_name || s.agent_id?.slice(0, 8) || '-')}</td>
+        <td style="font-family:var(--mono);font-size:0.75rem">${esc(s.branch || '-')}</td>
+        <td><span class="status-dot ${stale ? 'status-idle' : 'status-online'}"></span>${stale ? 'stale' : 'active'}</td>
+        <td class="col-time">${relTime(s.last_seen_at)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch {
+    el.innerHTML = '<div class="empty">Failed to load sessions</div>';
+  }
+}
+
+function isStale(ts) {
+  if (!ts) return true;
+  return (Date.now() - new Date(ts + (ts.endsWith('Z') ? '' : 'Z')).getTime()) > STALE_MIN * 60 * 1000;
+}
+
+/* -- Agents -- */
+async function loadAgents() {
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="loading">Loading...</div>';
+  try {
+    const data = await apiFetch('/api/agents');
+    const agents = data.agents || [];
+    if (agents.length === 0) {
+      el.innerHTML = '<div class="empty">No agents found</div>';
+      return;
+    }
+    let html = `<table><thead><tr>
+      <th>Name</th>
+      <th>Role</th>
+      <th>Status</th>
+      <th class="col-time">Last Used</th>
+      <th class="col-time">Created</th>
+    </tr></thead><tbody>`;
+    for (const a of agents) {
+      html += `<tr>
+        <td><strong>${esc(a.name || a.id.slice(0, 8))}</strong></td>
+        <td>${esc(a.role || '-')}</td>
+        <td><span class="status-dot status-${a.status}"></span>${esc(a.status)}</td>
+        <td class="col-time">${a.last_used_at ? relTime(a.last_used_at) : '-'}</td>
+        <td class="col-time">${relTime(a.created_at)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch {
+    el.innerHTML = '<div class="empty">Failed to load agents</div>';
+  }
+}
+
+/* -- Helpers -- */
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function dirLabel(d) {
+  if (d === 'agent_to_boss') return '<span class="dir-out">agent &rarr; boss</span>';
+  if (d === 'boss_to_agent') return '<span class="dir-in">boss &rarr; agent</span>';
+  if (d === 'agent_to_agent') return '<span class="dir-agent">agent &rarr; agent</span>';
+  return esc(d || '-');
+}
+
+function priBadge(p) {
+  const cls = { critical: 'critical', high: 'high', normal: 'normal', low: 'low' }[p] || 'normal';
+  return `<span class="badge badge-${cls}">${esc(p)}</span>`;
+}
+
+function statusBadge(s) {
+  const cls = { sent: 'sent', delivered: 'delivered', read: 'read', replied: 'replied' }[s] || '';
+  return `<span class="badge-${cls}">${esc(s)}</span>`;
+}
+
+function relTime(ts) {
+  if (!ts) return '-';
+  const t = new Date(ts + (ts.endsWith('Z') ? '' : 'Z')).getTime();
+  const diff = Date.now() - t;
+  if (diff < 0) return 'just now';
+  if (diff < 60000) return Math.floor(diff / 1000) + 's ago';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+  return new Date(t).toLocaleDateString();
+}
+</script>
+</body>
+</html>

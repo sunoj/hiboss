@@ -18,6 +18,7 @@ import { bossesRouter } from './routes/bosses';
 import { bossInboxRouter } from './routes/boss-inbox';
 import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
+import dashboardHtml from './dashboard.html';
 
 const app = new Hono<{ Bindings: Env }>({});
 
@@ -36,6 +37,7 @@ app.route('/api/sessions', sessionsRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);
 
+app.get('/dashboard', (c) => c.html(dashboardHtml));
 app.get('/', (c) => c.text('hiboss server'));
 
 app.onError((err, c) => {
