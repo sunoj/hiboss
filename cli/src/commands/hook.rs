@@ -66,13 +66,16 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     println!("4. Check inbox with: hiboss inbox");
     println!("5. Send to peer sessions with: hiboss send --to <session-label-or-id> \"<message>\"");
     println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" --timeout 300 (run_in_background), then WAIT for boss reply.");
+    println!("IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord.");
 
     // Show peer sessions
     show_peer_sessions(&session_id).await;
 
-    let count = get_inbox_count();
-    if count > 0 {
-        println!("You have {} unread messages:", count);
+    // Show unread boss messages
+    let boss_count = get_inbox_count();
+    let a2a_count = get_a2a_inbox_count();
+    if boss_count > 0 || a2a_count > 0 {
+        println!("You have {} unread messages:", boss_count + a2a_count);
         if let Ok(out) = Command::new("hiboss").args(["inbox", "--ack"]).output() {
             print!("{}", String::from_utf8_lossy(&out.stdout));
         }
