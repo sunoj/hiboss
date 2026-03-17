@@ -209,7 +209,7 @@ describe('POST /api/webhooks/telegram', () => {
   });
 
   it('handles inline keyboard callback queries', async () => {
-    const parentId = 'callback-test-parent';
+    const parentId = 'ca11bacf00000001aabbccdd00000001';
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'Original', 'sent', 'normal')"
     )
@@ -221,7 +221,7 @@ describe('POST /api/webhooks/telegram', () => {
       body: JSON.stringify({
         callback_query: {
           id: 'cb-1',
-          data: 'callback-test:option-one',
+          data: 'ca11bacf:option-one',
           message: {
             message_id: 100,
             chat: { id: 'test-chat', type: 'private' },
@@ -239,7 +239,7 @@ describe('POST /api/webhooks/telegram', () => {
   });
 
   it('copies action from parent metadata to callback reply', async () => {
-    const parentId = 'action-callback-parent';
+    const parentId = 'ac710cba00000002aabbccdd00000002';
     const actions = { Approve: 'aid merge t-123', Reject: 'echo rejected' };
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'Deploy?', 'delivered', 'normal', ?)"
@@ -252,7 +252,7 @@ describe('POST /api/webhooks/telegram', () => {
       body: JSON.stringify({
         callback_query: {
           id: 'cb-action-1',
-          data: 'action-c:Approve',
+          data: 'ac710cba:Approve',
           message: {
             message_id: 200,
             chat: { id: 'test-chat', type: 'private' },
@@ -270,7 +270,7 @@ describe('POST /api/webhooks/telegram', () => {
   });
 
   it('callback reply has no action metadata when parent has no actions', async () => {
-    const parentId = 'no-action-parent';
+    const parentId = 'a0ac7100000000030000000000000003';
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'No actions', 'sent', 'normal')"
     )
@@ -282,7 +282,7 @@ describe('POST /api/webhooks/telegram', () => {
       body: JSON.stringify({
         callback_query: {
           id: 'cb-no-action',
-          data: 'no-actio:SomeOption',
+          data: 'a0ac7100:SomeOption',
           message: {
             message_id: 201,
             chat: { id: 'test-chat', type: 'private' },

@@ -157,8 +157,8 @@ describe('validateChannel', () => {
 describe('buildFilters', () => {
   it('builds agent-only filter', () => {
     const { where, binds } = buildFilters('agent-1', null, null);
-    expect(where).toBe('(agent_id = ? OR target_agent_id = ? OR target_session_id = ?)');
-    expect(binds).toEqual(['agent-1', 'agent-1', '']);
+    expect(where).toBe('(agent_id = ? OR target_agent_id = ?)');
+    expect(binds).toEqual(['agent-1', 'agent-1']);
   });
 
   it('adds direction filter', () => {

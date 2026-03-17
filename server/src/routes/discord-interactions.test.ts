@@ -71,7 +71,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
   });
 
   it('creates a reply when a button is clicked', async () => {
-    const parentId = 'button-parent-001';
+    const parentId = 'b077e0fa00000001aabbccdd00000001';
     await env.DB
       .prepare(
         "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'parent', 'delivered', 'normal')"
@@ -82,7 +82,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
     const payload = {
       type: 3,
       channel_id: CHANNEL_ID,
-      data: { custom_id: 'button-parent:optionA' },
+      data: { custom_id: 'b077e0fa:optionA' },
       message: { content: 'Pick one:' },
     };
 
@@ -105,7 +105,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
   });
 
   it('copies action metadata into button replies', async () => {
-    const parentId = 'button-action-parent';
+    const parentId = 'b077ac71000000020000000000000002';
     const actions = { Approve: 'aid merge t-123', Reject: 'echo rejected' };
     await env.DB
       .prepare(
@@ -117,7 +117,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
     const payload = {
       type: 3,
       channel_id: CHANNEL_ID,
-      data: { custom_id: 'button-action-parent:Approve' },
+      data: { custom_id: 'b077ac71:Approve' },
     };
 
     const res = await signedFetch(payload);
