@@ -13,7 +13,8 @@ import type {
   Status,
 } from '../types';
 import { createForumTopic, editMessageReplyMarkup } from '../channels/telegram';
-import { requireTelegramConfig as _requireTelegramConfig, formatAgentMessage as _formatAgentMessage } from './delivery';
+import { editDiscordMessage } from '../channels/discord';
+import { requireTelegramConfig as _requireTelegramConfig, requireDiscordConfig as _requireDiscordConfig, formatAgentMessage as _formatAgentMessage } from './delivery';
 export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 export type { DeliveryResult } from './delivery';
 
@@ -262,14 +263,34 @@ export async function findByIdempotencyKey(env: Env, agentId: string, key: strin
     .first<MessageRow>();
 }
 
-export async function cleanupInlineKeyboard(env: Env, agentId: string, message: MessageRow): Promise<void> {
-  const tgMsgId = extractTelegramMessageId(message.metadata);
-  if (message.channel !== 'telegram' || !tgMsgId) return;
-  const cc = await selectChannelConfig(env, agentId, 'telegram');
-  const tgConfig = _requireTelegramConfig(cc.config);
+export async function expireMessageOptions(env: Env, agentId: string, message: MessageRow): Promise<void> {
+  // 1. Update DB: set status to expired, mark options_expired in metadata
+  const meta = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
+  meta['options_expired'] = true;
+  delete meta['actions'];
+  await env.DB
+    .prepare("UPDATE messages SET status = 'expired', metadata = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(meta), message.id)
+    .run();
+  // 2. Clean up channel inline keyboards
   const agentName = await fetchAgentName(env, agentId) ?? 'agent';
-  const expiredText = _formatAgentMessage(agentName, message.body) + '\n\n⏰ Options expired';
-  await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
+  if (message.channel === 'telegram') {
+    const tgMsgId = extractTelegramMessageId(message.metadata);
+    if (tgMsgId) {
+      const cc = await selectChannelConfig(env, agentId, 'telegram');
+      const tgConfig = _requireTelegramConfig(cc.config);
+      const expiredText = _formatAgentMessage(agentName, message.body) + '\n\n⏰ Options expired';
+      await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
+    }
+  } else if (message.channel === 'discord') {
+    const dcMsgId = meta['discord_message_id'] as string | undefined;
+    if (dcMsgId) {
+      const cc = await selectChannelConfig(env, agentId, 'discord');
+      const dcConfig = _requireDiscordConfig(cc.config);
+      const expiredText = _formatAgentMessage(agentName, message.body) + '\n\n⏰ Options expired';
+      await editDiscordMessage(dcConfig, dcMsgId, expiredText, []);
+    }
+  }
 }
 
 export function resolveChannelRouting(routingJson: string, priority: string): Channel | undefined {

@@ -1,0 +1,5 @@
+-- Add 'expired' status for blocking messages whose options timed out.
+-- D1 does not support ALTER TABLE ... ALTER COLUMN CHECK, so we recreate.
+-- However, D1 SQLite CHECK constraints are not enforced at alter time;
+-- the status column already accepts any text. This migration is documentation only.
+-- The real enforcement is in the application layer (types.ts + validateOption).

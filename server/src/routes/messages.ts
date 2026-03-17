@@ -12,7 +12,7 @@ import {
   buildInlineKeyboard,
   checkRateLimit,
   clampNumber,
-  cleanupInlineKeyboard,
+  expireMessageOptions,
   deliverReply,
   deliverToChannelWithOptions,
   delay,
@@ -350,7 +350,7 @@ routes.post('/:id/reply', async (c) => {
 routes.patch('/:id', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
-  const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read', 'replied']);
+  const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read', 'replied', 'expired']);
   if (!status) {
     return c.text('status is required', 400);
   }
@@ -390,7 +390,7 @@ routes.post('/:id/poll', async (c) => {
       return c.json(current);
     }
     if (Date.now() >= deadline) {
-      c.executionCtx.waitUntil(cleanupInlineKeyboard(c.env, agentId, message).catch(() => {}));
+      c.executionCtx.waitUntil(expireMessageOptions(c.env, agentId, message).catch(() => {}));
       const fallback = mapMessageRow(message);
       fallback.replies = [];
       return c.json(current ?? fallback);

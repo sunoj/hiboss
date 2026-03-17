@@ -198,10 +198,11 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   const selectedOption = data.slice(colonIdx + 1);
   if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) { answer('Invalid'); return c.text('invalid message prefix', 400); }
   const parentMsg = await c.env.DB
-    .prepare('SELECT id, metadata FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare('SELECT id, metadata, status FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${msgPrefix}%`, configRow.agent_id)
-    .first<{ id: string; metadata: string | null }>();
+    .first<{ id: string; metadata: string | null; status: string }>();
   if (!parentMsg) { answer('Not found'); return c.text('message not found', 404); }
+  if (parentMsg.status === 'expired') { answer('Options expired'); return c.text('options expired', 410); }
   // If parent has actions in metadata, copy the matched action to reply metadata
   let replyMetadataRecord: Record<string, unknown> | null = null;
   if (parentMsg.metadata) {
