@@ -1,1239 +1,1450 @@
 <!DOCTYPE html>
+<!-- hiboss dashboard SPA rebuilt with Vue 3 and Tailwind CDN.
+Exports: single-file authenticated dashboard for boss and agent flows.
+Deps: Vue 3 global build, Tailwind CDN, existing hiboss HTTP API endpoints. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>hiboss dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'], mono: ['SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'] },
+      colors: {
+        surface: { DEFAULT: '#161b22', elevated: '#1c2129', hover: '#21262d' },
+        border: { DEFAULT: '#30363d', light: '#21262d' },
+        accent: { DEFAULT: '#58a6ff', soft: 'rgba(88,166,255,0.14)', strong: '#388bfd' },
+        green: { DEFAULT: '#3fb950', soft: 'rgba(63,185,80,0.14)' },
+        red: { DEFAULT: '#f85149', soft: 'rgba(248,81,73,0.14)' },
+        yellow: { DEFAULT: '#d29922', soft: 'rgba(210,153,34,0.14)' },
+        orange: { DEFAULT: '#db6d28', soft: 'rgba(219,109,40,0.14)' },
+        purple: { DEFAULT: '#bc8cff', soft: 'rgba(188,140,255,0.16)' },
+        ink: { DEFAULT: '#e6edf3', muted: '#8b949e', dim: '#6e7681', faint: '#484f58' }
+      },
+      boxShadow: { panel: '0 16px 40px rgba(0,0,0,0.28)', card: '0 10px 24px rgba(0,0,0,0.24)' }
+    }
+  }
+};
+</script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg: #0d1117;
-  --bg-surface: #161b22;
-  --bg-elevated: #1c2129;
-  --bg-hover: #21262d;
-  --bg-input: #0d1117;
-  --border: #30363d;
-  --border-light: #21262d;
-  --text: #e6edf3;
-  --text-muted: #8b949e;
-  --text-dim: #484f58;
-  --accent: #58a6ff;
-  --accent-dim: #1f6feb33;
-  --green: #3fb950;
-  --yellow: #d29922;
-  --orange: #db6d28;
-  --red: #f85149;
-  --purple: #bc8cff;
-  --blue: #58a6ff;
-  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --radius: 8px;
-  --radius-card: 12px;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.35);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
-  --transition: 0.15s ease;
-  --space-xs: 0.25rem;
-  --space-sm: 0.5rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-}
-
-body {
-  font-family: var(--sans);
-  background: radial-gradient(ellipse 120% 80% at 50% 0%, #161b2a 0%, #0d1117 50%);
-  color: var(--text);
-  line-height: 1.5;
-  min-height: 100vh;
-}
-
-/* Layout */
-.app { display: flex; flex-direction: column; min-height: 100vh; }
-
-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
-  flex-shrink: 0;
-}
-
-header h1 { font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em; display: flex; align-items: center; gap: var(--space-sm); }
-header h1 span { color: var(--text-muted); font-weight: 400; }
-.auth-badge {
-  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
-  font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-}
-.auth-badge.boss { background: var(--purple); color: #0d1117; }
-.auth-badge.agent { background: var(--accent-dim); color: var(--accent); }
-
-.header-right { display: flex; align-items: center; gap: var(--space-md); }
-.refresh-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--green);
-  transition: box-shadow var(--transition);
-}
-.refresh-dot.active { animation: pulse-dot 2s ease-in-out infinite; }
-.refresh-dot.paused { background: var(--text-dim); animation: none; }
+.pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+.fade-up { animation: fade-up .18s ease-out; }
 @keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(63, 185, 80, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(63,185,80,0.32); }
+  50% { box-shadow: 0 0 0 8px rgba(63,185,80,0); }
 }
-.btn-logout {
-  background: none; border: none; color: var(--text-muted); cursor: pointer;
-  padding: var(--space-xs) var(--space-sm); border-radius: var(--radius);
-  display: inline-flex; align-items: center; gap: var(--space-xs);
-  transition: color var(--transition), background var(--transition);
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.btn-logout:hover { color: var(--text); background: var(--bg-hover); }
-.btn-logout svg { width: 16px; height: 16px; }
-
-/* Tabs */
-nav {
-  display: flex; gap: 0; border-bottom: 1px solid var(--border);
-  background: var(--bg-surface); padding: 0 var(--space-lg);
-}
-
-nav button {
-  background: none; border: none; color: var(--text-muted);
-  padding: var(--space-sm) var(--space-md);
-  font-size: 0.8125rem; cursor: pointer;
-  border-bottom: 2px solid transparent;
-  display: inline-flex; align-items: center; gap: var(--space-xs);
-  transition: color var(--transition), border-color var(--transition), background var(--transition);
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-nav button svg { width: 16px; height: 16px; flex-shrink: 0; }
-nav button:hover { color: var(--text); background: var(--bg-hover); }
-nav button.active {
-  color: var(--text); border-bottom-color: var(--accent);
-  box-shadow: 0 2px 8px -2px rgba(88, 166, 255, 0.35);
-}
-
-/* Main content */
-main { flex: 1; padding: var(--space-lg); max-width: 1400px; width: 100%; margin: 0 auto; }
-
-/* Filter bar */
-.filters {
-  display: flex; flex-wrap: wrap; gap: var(--space-sm);
-  margin-bottom: var(--space-md); align-items: center;
-}
-
-.filters select, .filters input {
-  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
-  border-radius: 999px; padding: 0.35rem 0.75rem;
-  font-size: 0.75rem; font-family: var(--sans);
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.filters select:focus, .filters input:focus {
-  outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-.search-wrap { position: relative; flex: 1; min-width: 140px; }
-.search-wrap svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); pointer-events: none; }
-.search-wrap input { width: 100%; padding-left: 2rem; }
-
-/* Table */
-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-
-thead th {
-  text-align: left; padding: var(--space-sm) var(--space-md);
-  color: var(--text-muted); font-weight: 500; font-size: 0.75rem;
-  border-bottom: 1px solid var(--border); white-space: nowrap;
-  text-transform: uppercase; letter-spacing: 0.03em;
-  background: rgba(22, 27, 34, 0.6);
-}
-
-tbody tr {
-  border-bottom: 1px solid var(--border-light);
-  cursor: pointer; transition: background var(--transition), border-left var(--transition);
-  border-left: 2px solid transparent;
-}
-tbody tr:hover { background: var(--bg-hover); border-left-color: var(--accent); }
-tbody tr.expanded { border-left-color: var(--accent); }
-
-td {
-  padding: var(--space-sm); vertical-align: top; max-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.col-id { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); width: 6rem; }
-.col-from { width: 8rem; }
-.col-dir { width: 7rem; }
-.col-priority { width: 5rem; }
-.col-body { min-width: 200px; }
-.col-status { width: 5rem; }
-.col-time { width: 6rem; color: var(--text-muted); text-align: right; white-space: nowrap; }
-
-/* Priority badges */
-.badge {
-  display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px;
-  font-size: 0.6875rem; font-weight: 500; line-height: 1.4;
-}
-.badge-critical { background: #f8514922; color: var(--red); }
-.badge-high { background: #db6d2822; color: var(--orange); }
-.badge-normal { background: #30363d44; color: var(--text-muted); }
-.badge-low { background: #30363d22; color: var(--text-dim); }
-
-/* Status badges */
-.badge-sent { color: var(--yellow); }
-.badge-delivered { color: var(--blue); }
-.badge-read { color: var(--green); }
-.badge-replied { color: var(--purple); }
-
-/* Direction label */
-.dir-out { color: var(--accent); }
-.dir-in { color: var(--green); }
-.dir-agent { color: var(--purple); }
-
-/* Agent status */
-.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-.status-online { background: var(--green); animation: pulse-dot 2s ease-in-out infinite; }
-.status-idle { background: var(--yellow); }
-.status-offline { background: var(--text-dim); }
-
-/* Session kanban board */
-.kanban { display: flex; gap: var(--space-md); overflow-x: auto; padding-bottom: var(--space-md); }
-.kanban-col { flex: 1; min-width: 200px; max-width: 300px; }
-.kanban-header {
-  display: flex; align-items: center; gap: var(--space-xs);
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.03em; padding: var(--space-sm); margin-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--border);
-  border-top: 3px solid var(--border);
-  position: relative;
-}
-.kanban-header.status-working { border-top-color: var(--green); }
-.kanban-header.status-blocked { border-top-color: var(--red); }
-.kanban-header.status-waiting { border-top-color: var(--yellow); }
-.kanban-header.status-session-idle { border-top-color: var(--text-dim); }
-.kanban-header.status-completed { border-top-color: var(--blue); }
-.kanban-header svg { width: 14px; height: 14px; flex-shrink: 0; }
-.kanban-header .count { color: var(--text-muted); font-weight: 400; }
-.kanban-card {
-  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-card);
-  border-left: 3px solid var(--border);
-  padding: var(--space-sm); margin-bottom: var(--space-xs);
-  font-size: 0.8125rem; transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
-  cursor: pointer;
-}
-.kanban-card.status-working { border-left-color: var(--green); }
-.kanban-card.status-blocked { border-left-color: var(--red); }
-.kanban-card.status-waiting { border-left-color: var(--yellow); }
-.kanban-card.status-session-idle { border-left-color: var(--text-dim); }
-.kanban-card.status-completed { border-left-color: var(--blue); }
-.kanban-card:hover { background: var(--bg-hover); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-.kanban-card.expanded { background: var(--bg-hover); border-color: var(--accent); border-left-color: var(--accent); }
-.kanban-card .card-label { font-weight: 500; margin-bottom: 2px; }
-.kanban-card .card-agent { font-size: 0.6875rem; color: var(--text-muted); display: flex; align-items: center; gap: var(--space-xs); }
-.avatar-initial {
-  width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.625rem; font-weight: 600; color: #fff; flex-shrink: 0;
-}
-.kanban-card .card-text { font-size: 0.6875rem; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kanban-card .card-time { font-size: 0.625rem; color: var(--text-dim); margin-top: 4px; }
-.stale-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); margin-left: 4px; animation: pulse-dot 1.5s ease-in-out infinite; }
-.session-detail {
-  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card);
-  padding: var(--space-sm); margin-top: var(--space-xs); animation: fadeIn 0.2s ease;
-}
-.session-detail .session-meta { font-size: 0.6875rem; color: var(--text-muted); margin-bottom: var(--space-sm); }
-.session-detail .session-meta span { margin-right: var(--space-md); }
-.session-msgs { max-height: 300px; overflow-y: auto; margin-bottom: var(--space-sm); }
-.session-msg { padding: 4px 0; border-bottom: 1px solid var(--border-light); font-size: 0.75rem; }
-.session-msg:last-child { border-bottom: none; }
-.session-msg .msg-dir { font-weight: 500; margin-right: var(--space-xs); }
-.session-msg .msg-time { color: var(--text-dim); font-size: 0.625rem; float: right; }
-.session-send { display: flex; gap: var(--space-xs); margin-top: var(--space-xs); }
-.session-send input { flex: 1; padding: 4px 8px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 0.75rem; }
-.session-send button { padding: 4px 12px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); font-size: 0.75rem; cursor: pointer; }
-.session-history-toggle { margin-bottom: var(--space-md); font-size: 0.75rem; }
-.session-history-toggle label { cursor: pointer; color: var(--text-muted); }
-.status-working { border-color: var(--green); }
-.status-blocked { border-color: var(--red); }
-.status-waiting { border-color: var(--yellow); }
-.status-session-idle { border-color: var(--text-dim); }
-.status-completed { border-color: var(--blue); }
-
-/* Expanded message detail */
-.msg-detail {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-card); padding: var(--space-md);
-  margin: var(--space-sm) 0 var(--space-md); box-shadow: var(--shadow-sm);
-  font-size: 0.8125rem; animation: fadeIn 0.2s ease;
-}
-.msg-detail .body-block {
-  white-space: pre-wrap; word-break: break-word;
-  font-family: var(--sans); color: var(--text); line-height: 1.6;
-  margin: var(--space-sm) 0; padding: var(--space-sm); padding-left: var(--space-md);
-  border-left: 3px solid var(--border); background: var(--bg-input);
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-.msg-detail .meta-row {
-  display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: center;
-  color: var(--text-muted); font-size: 0.75rem; margin-top: var(--space-sm);
-}
-.msg-detail .meta-row span { display: inline-flex; align-items: center; gap: var(--space-xs); }
-.msg-detail .meta-row span svg { width: 12px; height: 12px; opacity: 0.7; }
-
-.replies-section { margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--border-light); }
-.replies-section h4 { font-size: 0.75rem; color: var(--text-muted); margin-bottom: var(--space-sm); }
-.reply-item {
-  padding: var(--space-sm); background: var(--bg); border-radius: var(--radius);
-  margin-bottom: var(--space-xs); font-size: 0.8125rem;
-  border-left: 2px solid var(--accent);
-}
-.reply-item .reply-meta { font-size: 0.6875rem; color: var(--text-muted); }
-
-/* Reply form */
-.reply-form {
-  margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--border-light);
-}
-.reply-form textarea {
-  width: 100%; min-height: 70px; max-height: 200px; resize: vertical;
-  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: var(--space-sm);
-  font-family: var(--sans); font-size: 0.8125rem; line-height: 1.5;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.reply-form textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.reply-form .reply-hint { font-size: 0.6875rem; color: var(--text-dim); margin-top: 2px; }
-.reply-form-actions {
-  display: flex; justify-content: flex-end; align-items: center; gap: var(--space-sm);
-  margin-top: var(--space-xs);
-}
-.reply-form .btn-send {
-  background: linear-gradient(135deg, var(--accent), #4f7cff);
-  color: #fff; border: none; border-radius: var(--radius);
-  padding: 0.35rem 0.9rem; cursor: pointer; font-size: 0.75rem; font-weight: 500;
-  display: inline-flex; align-items: center; gap: var(--space-xs);
-  transition: opacity var(--transition), transform var(--transition);
-}
-.reply-form .btn-send:hover:not(:disabled) { opacity: 0.95; }
-.reply-form .btn-send:active:not(:disabled) { transform: scale(0.97); }
-.reply-form .btn-send:disabled { opacity: 0.4; cursor: default; }
-.reply-form .btn-send svg { width: 14px; height: 14px; }
-
-/* Pagination */
-.pagination {
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-sm);
-  margin-top: var(--space-md); font-size: 0.75rem; color: var(--text-muted);
-}
-.pagination .pagination-info { flex: 1; }
-.pagination .pagination-btns { display: flex; align-items: center; gap: var(--space-xs); }
-.pagination button {
-  background: var(--bg-surface); border: 1px solid var(--border); color: var(--text);
-  border-radius: 999px; padding: 0.35rem 0.85rem;
-  cursor: pointer; font-size: 0.75rem;
-  transition: background var(--transition), transform var(--transition);
-}
-.pagination button:hover:not(:disabled) { background: var(--bg-hover); }
-.pagination button:active:not(:disabled) { transform: scale(0.97); }
-.pagination button:disabled { opacity: 0.4; cursor: default; }
-.pagination .page-indicator { padding: 0 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
-
-/* Login */
-.login-wrap {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; padding: var(--space-lg);
-  backdrop-filter: blur(8px);
-}
-.login-box {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-card); padding: var(--space-xl);
-  width: 100%; max-width: 360px;
-  box-shadow: var(--shadow-lg);
-}
-.login-box .login-logo { display: flex; justify-content: center; margin-bottom: var(--space-md); }
-.login-box .login-logo svg { width: 48px; height: 48px; color: var(--accent); }
-.login-box h2 { font-size: 1rem; margin-bottom: var(--space-lg); text-align: center; }
-.login-box input {
-  width: 100%; padding: 0.5rem 0.75rem; margin-bottom: var(--space-md);
-  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
-  border-radius: var(--radius); font-family: var(--mono); font-size: 0.8125rem;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.login-box input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.login-box button {
-  width: 100%; padding: 0.55rem; background: linear-gradient(135deg, #388bfd, #6e40c9);
-  color: #fff; border: none; border-radius: var(--radius); cursor: pointer;
-  font-size: 0.8125rem; font-weight: 500;
-  transition: opacity var(--transition), transform var(--transition);
-}
-.login-box button:hover { opacity: 0.95; }
-.login-box button:active { transform: scale(0.98); }
-.login-error { color: var(--red); font-size: 0.75rem; margin-bottom: var(--space-sm); text-align: center; }
-
-/* Empty state */
-.empty {
-  text-align: center; color: var(--text-muted); padding: var(--space-xl); font-size: 0.8125rem;
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-sm);
-}
-.empty svg { width: 40px; height: 40px; color: var(--text-dim); opacity: 0.6; }
-
-/* Loading */
-.loading {
-  text-align: center; color: var(--text-dim); padding: var(--space-xl); font-size: 0.8125rem;
-  display: flex; align-items: center; justify-content: center; gap: var(--space-sm);
-}
-.spinner {
-  width: 16px; height: 16px; border: 2px solid var(--border);
-  border-top-color: var(--accent); border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Toast */
-#toast-container {
-  position: fixed; bottom: var(--space-lg); right: var(--space-lg); z-index: 9999;
-  display: flex; flex-direction: column; gap: var(--space-sm); max-width: 360px;
-}
-.toast {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: var(--space-sm) var(--space-md);
-  font-size: 0.8125rem; box-shadow: var(--shadow-md);
-  display: flex; align-items: center; gap: var(--space-sm);
-  animation: toast-in 0.25s ease;
-}
-.toast svg { width: 18px; height: 18px; flex-shrink: 0; }
-.toast.success { border-left: 3px solid var(--green); }
-.toast.error { border-left: 3px solid var(--red); }
-@keyframes toast-in {
-  from { opacity: 0; transform: translateX(100%); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Agent config panel */
-.agent-config {
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-card); padding: var(--space-md);
-  margin: var(--space-sm) 0 var(--space-md); box-shadow: var(--shadow-sm);
-  font-size: 0.8125rem; animation: fadeIn 0.2s ease;
-}
-.config-section { margin-bottom: var(--space-lg); }
-.config-section:last-of-type { margin-bottom: 0; }
-.config-section-title {
-  font-size: 0.6875rem; color: var(--text-muted); text-transform: uppercase;
-  letter-spacing: 0.03em; margin-bottom: var(--space-sm);
-  padding-bottom: var(--space-xs); border-bottom: 1px solid var(--border-light);
-}
-.config-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);
-}
-@media (max-width: 640px) { .config-grid { grid-template-columns: 1fr; } }
-.config-field label {
-  display: block; font-size: 0.6875rem; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: var(--space-xs);
-}
-.config-field select, .config-field input {
-  width: 100%; background-color: var(--bg-input); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 0.4rem 0.5rem; font-size: 0.8125rem; font-family: var(--sans);
-}
-.config-field select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 0.5rem center; padding-right: 1.5rem;
-}
-.config-field select:focus, .config-field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-.config-field .hint { font-size: 0.625rem; color: var(--text-dim); margin-top: 2px; }
-.config-actions {
-  display: flex; justify-content: flex-end; align-items: center;
-  gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm);
-  border-top: 1px solid var(--border-light);
-}
-.config-actions .btn-save {
-  background: linear-gradient(135deg, var(--accent), #4f7cff);
-  color: #fff; border: none; border-radius: var(--radius);
-  padding: 0.35rem 1rem; cursor: pointer; font-size: 0.75rem; font-weight: 500;
-  transition: opacity var(--transition), transform var(--transition);
-}
-.config-actions .btn-save:hover:not(:disabled) { opacity: 0.95; }
-.config-actions .btn-save:active:not(:disabled) { transform: scale(0.97); }
-.config-actions .btn-save:disabled { opacity: 0.4; cursor: default; }
-.config-ro { color: var(--text-muted); font-size: 0.75rem; }
-.config-ro code { font-family: var(--mono); font-size: 0.6875rem; }
-.routing-grid {
-  display: grid; grid-template-columns: auto 1fr; gap: var(--space-xs) var(--space-md);
-  align-items: center; font-size: 0.75rem;
-}
-.routing-grid .routing-label { color: var(--text-muted); }
-.routing-grid select { min-width: 0; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
-
-/* Focus ring */
-button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: none; box-shadow: 0 0 0 3px var(--accent-dim);
-}
-
-/* Buttons micro-interaction */
-button:active:not(:disabled) { transform: scale(0.97); }
-
-/* Responsive */
-@media (max-width: 768px) {
-  main { padding: var(--space-md); }
-  .filters { gap: var(--space-xs); flex-direction: row; flex-wrap: wrap; }
-  .col-dir, .col-from { display: none; }
-  td { font-size: 0.75rem; padding: var(--space-xs); }
-  .msg-detail, .session-detail { max-width: 100%; overflow-x: hidden; }
-  .kanban { flex-direction: column; align-items: stretch; }
-  .kanban-col { max-width: none; }
-  .pagination { flex-direction: column; align-items: flex-start; }
-}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0d1117; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #484f58; }
 </style>
 </head>
-<body>
-
-<div id="toast-container"></div>
-
-<div id="login" class="login-wrap" style="display:none">
-  <div class="login-box">
-    <div class="login-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="2" x2="9" y2="5"/><line x1="12" y1="2" x2="15" y2="5"/></svg></div>
-    <h2>hiboss dashboard</h2>
-    <div id="login-error" class="login-error" style="display:none"></div>
-    <input id="key-input" type="password" placeholder="API key (hb_...)" autofocus>
-    <button onclick="doLogin()">Sign in</button>
-  </div>
-</div>
-
-<div id="app" class="app" style="display:none">
-  <header>
-    <h1>hiboss <span id="agent-name"></span><span id="auth-badge" class="auth-badge agent"></span></h1>
-    <div class="header-right">
-      <div id="refresh-dot" class="refresh-dot active" title="Auto-refresh active"></div>
-      <button class="btn-logout" onclick="logout()" title="Sign out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
-    </div>
-  </header>
-  <nav>
-    <button class="active" data-tab="messages" onclick="switchTab('messages')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm16 2l-8 5-8-5"/></svg>Messages</button>
-    <button data-tab="sessions" onclick="switchTab('sessions')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Sessions</button>
-    <button data-tab="agents" onclick="switchTab('agents')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Agents</button>
-    <button data-tab="settings" onclick="switchTab('settings')" id="tab-settings" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
-  </nav>
-  <main id="content"></main>
-</div>
-
+<body class="min-h-screen bg-[radial-gradient(circle_at_top,rgba(88,166,255,0.12),transparent_34%)] bg-gradient-to-b from-[#0b0f14] to-[#0d1117] text-ink antialiased">
+<div id="app"></div>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script>
-/* -- State -- */
-let apiKey = '';
-let baseUrl = '';
-let authMode = 'agent'; // 'agent' or 'boss'
-let currentTab = 'messages';
-let msgOffset = 0;
-let msgTotal = 0;
-let expandedId = null;
-let expandedAgentId = null;
-let expandedSessionId = null;
-let showSessionHistory = false;
-let refreshTimer = null;
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, watch } = Vue;
 const LIMIT = 50;
-const STALE_MIN = 15;
-
-/* -- Filters -- */
-let filters = { direction: '', status: '', priority: '', search: '' };
-
-/* -- Init -- */
-(function init() {
-  baseUrl = window.location.origin;
-  const params = new URLSearchParams(window.location.search);
-  const urlKey = params.get('key');
-  if (urlKey) {
-    apiKey = urlKey;
-    localStorage.setItem('hiboss_key', urlKey);
-    // Strip key from URL for security
-    history.replaceState(null, '', window.location.pathname);
-  } else {
-    apiKey = localStorage.getItem('hiboss_key') || '';
-  }
-  authMode = localStorage.getItem('hiboss_auth_mode') || 'agent';
-  if (apiKey) {
-    showApp();
-  } else {
-    document.getElementById('login').style.display = 'flex';
-  }
-})();
-
-function doLogin() {
-  const input = document.getElementById('key-input');
-  const key = input.value.trim();
-  if (!key) return;
-  apiKey = key;
-  // Try agent auth first, then boss auth
-  apiFetch('/api/agents/me').then(data => {
-    authMode = 'agent';
-    localStorage.setItem('hiboss_key', key);
-    localStorage.setItem('hiboss_auth_mode', 'agent');
-    document.getElementById('login').style.display = 'none';
-    showApp();
-  }).catch(() => {
-    apiFetch('/api/boss/me').then(data => {
-      authMode = 'boss';
-      localStorage.setItem('hiboss_key', key);
-      localStorage.setItem('hiboss_auth_mode', 'boss');
-      document.getElementById('login').style.display = 'none';
-      showApp();
-    }).catch(() => {
-      apiKey = '';
-      toast('Invalid API key', 'error');
-    });
-  });
-}
-
-document.getElementById('key-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLogin();
-});
-
-function logout() {
-  apiKey = '';
-  localStorage.removeItem('hiboss_key');
-  localStorage.removeItem('hiboss_auth_mode');
-  clearInterval(refreshTimer);
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('login').style.display = 'flex';
-  document.getElementById('login-error').style.display = 'none';
-  document.getElementById('key-input').value = '';
-}
-
-/* -- API -- */
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(baseUrl + path, {
-    ...opts,
-    headers: { 'Authorization': 'Bearer ' + apiKey, ...(opts.headers || {}) }
-  });
-  if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
-  return res.json();
-}
-
-/* -- App -- */
-async function showApp() {
-  document.getElementById('app').style.display = 'flex';
-  const badge = document.getElementById('auth-badge');
-  if (authMode === 'boss') {
-    badge.textContent = 'Boss';
-    badge.className = 'auth-badge boss';
-  } else {
-    badge.textContent = 'Agent';
-    badge.className = 'auth-badge agent';
-  }
-  try {
-    if (authMode === 'boss') {
-      const me = await apiFetch('/api/boss/me');
-      document.getElementById('agent-name').textContent = me.name || me.id.slice(0, 8);
-      document.getElementById('tab-settings').style.display = '';
-    } else {
-      const me = await apiFetch('/api/agents/me');
-      document.getElementById('agent-name').textContent = me.name || me.id.slice(0, 8);
-      document.getElementById('tab-settings').style.display = 'none';
-    }
-  } catch { /* ignore */ }
-  switchTab('messages');
-  startRefresh();
-}
-
-function startRefresh() {
-  clearInterval(refreshTimer);
-  refreshTimer = setInterval(() => {
-    if (currentTab === 'messages') loadMessages(true);
-  }, 10000);
-}
-
-/* -- Tab switching -- */
-function switchTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('nav button').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === tab);
-  });
-  const dot = document.getElementById('refresh-dot');
-  if (dot) {
-    dot.classList.toggle('active', tab === 'messages');
-    dot.classList.toggle('paused', tab !== 'messages');
-  }
-  expandedId = null;
-  if (tab === 'messages') { msgOffset = 0; loadMessages(); }
-  else if (tab === 'sessions') loadSessions();
-  else if (tab === 'agents') loadAgents();
-  else if (tab === 'settings') loadSettings();
-}
-
-/* -- Messages -- */
-async function loadMessages(quiet = false) {
-  const el = document.getElementById('content');
-  if (!quiet) el.innerHTML = '<div class="loading"><span class="spinner"></span> Loading...</div>';
-
-  const params = new URLSearchParams({ limit: LIMIT, offset: msgOffset });
-  if (filters.direction) params.set('direction', filters.direction);
-  if (filters.status) params.set('status', filters.status);
-  if (filters.priority) params.set('priority', filters.priority);
-  if (filters.search) params.set('search', filters.search);
-
-  try {
-    const endpoint = authMode === 'boss' ? '/api/boss/messages' : '/api/messages';
-    const data = await apiFetch(endpoint + '?' + params);
-    msgTotal = data.total || 0;
-    renderMessages(data.messages || [], msgTotal);
-  } catch (e) {
-    if (!quiet) el.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm16 2l-8 5-8-5"/></svg>Failed to load messages</div>';
-  }
-}
-
-function renderMessages(messages, total) {
-  const el = document.getElementById('content');
-  const dirs = [['', 'All directions'], ['agent_to_boss', 'Agent to Boss'], ['boss_to_agent', 'Boss to Agent'], ['agent_to_agent', 'Agent to Agent']];
-  const stats = [['', 'All statuses'], ['sent', 'Sent'], ['delivered', 'Delivered'], ['read', 'Read'], ['replied', 'Replied']];
-  const pris = [['', 'All priorities'], ['critical', 'Critical'], ['high', 'High'], ['normal', 'Normal'], ['low', 'Low']];
-
-  let html = '<div class="filters">';
-  html += sel('direction', dirs, filters.direction);
-  html += sel('status', stats, filters.status);
-  html += sel('priority', pris, filters.priority);
-  html += '<div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" id="search-input" placeholder="Search messages..." value="' + esc(filters.search) + '"></div>';
-  html += '</div>';
-
-  if (messages.length === 0) {
-    html += '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm16 2l-8 5-8-5"/></svg>No messages found</div>';
-  } else {
-    html += `<table><thead><tr>
-      <th class="col-id">ID</th>
-      <th class="col-from">From</th>
-      <th class="col-dir">Direction</th>
-      <th class="col-priority">Priority</th>
-      <th class="col-body">Body</th>
-      <th class="col-status">Status</th>
-      <th class="col-time">Time</th>
-    </tr></thead><tbody>`;
-    for (const m of messages) {
-      const expanded = expandedId === m.id;
-      html += `<tr onclick="toggleMsg('${m.id}')" class="${expanded ? 'expanded' : ''}">
-        <td class="col-id">${esc(m.id.slice(0, 8))}</td>
-        <td class="col-from">${esc(m.agent_name || m.agent_id?.slice(0, 8) || '-')}</td>
-        <td class="col-dir">${dirLabel(m.direction)}</td>
-        <td class="col-priority">${priBadge(m.priority)}</td>
-        <td class="col-body">${esc(m.body?.slice(0, 120) || '')}</td>
-        <td class="col-status">${statusBadge(m.status)}</td>
-        <td class="col-time">${relTime(m.created_at)}</td>
-      </tr>`;
-      if (expanded) {
-        html += '<tr><td colspan="7" style="padding:0;border:none"><div id="detail-' + m.id + '" class="msg-detail"><div class="loading"><span class="spinner"></span> Loading...</div></div></td></tr>';
-      }
-    }
-    html += '</tbody></table>';
-  }
-
-  const pages = Math.ceil(total / LIMIT) || 1;
-  const page = Math.floor(msgOffset / LIMIT) + 1;
-  const from = total === 0 ? 0 : msgOffset + 1;
-  const to = Math.min(msgOffset + LIMIT, total);
-  html += '<div class="pagination">';
-  html += '<span class="pagination-info">Showing ' + from + '-' + to + ' of ' + total + ' message' + (total !== 1 ? 's' : '') + '</span>';
-  html += '<div class="pagination-btns">';
-  html += '<button onclick="paginate(-1)" ' + (msgOffset === 0 ? 'disabled' : '') + '>Prev</button>';
-  html += '<span class="page-indicator">' + page + ' / ' + pages + '</span>';
-  html += '<button onclick="paginate(1)" ' + (msgOffset + LIMIT >= total ? 'disabled' : '') + '>Next</button>';
-  html += '</div></div>';
-
-  el.innerHTML = html;
-
-  // Bind filter change events
-  el.querySelectorAll('.filters select').forEach(s => {
-    s.addEventListener('change', e => {
-      filters[e.target.dataset.key] = e.target.value;
-      msgOffset = 0;
-      loadMessages();
-    });
-  });
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    let searchTimer = null;
-    searchInput.addEventListener('input', e => {
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => {
-        filters.search = e.target.value.trim();
-        msgOffset = 0;
-        loadMessages();
-      }, 400);
-    });
-    searchInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { clearTimeout(searchTimer); filters.search = e.target.value.trim(); msgOffset = 0; loadMessages(); }
-    });
-  }
-
-  // If a message is expanded, load its detail
-  if (expandedId) loadMsgDetail(expandedId);
-}
-
-function sel(key, options, value) {
-  let h = `<select data-key="${key}">`;
-  for (const [v, label] of options) {
-    h += `<option value="${v}" ${v === value ? 'selected' : ''}>${label}</option>`;
-  }
-  return h + '</select>';
-}
-
-async function toggleMsg(id) {
-  if (expandedId === id) { expandedId = null; }
-  else { expandedId = id; }
-  // Re-render in place without full reload
-  loadMessages(true);
-}
-
-async function loadMsgDetail(id) {
-  const el = document.getElementById('detail-' + id);
-  if (!el) return;
-  try {
-    const endpoint = authMode === 'boss' ? '/api/boss/messages/' : '/api/messages/';
-    const m = await apiFetch(endpoint + id);
-    let html = '<div class="body-block">' + esc(m.body) + '</div>';
-    html += '<div class="meta-row">';
-    html += '<span>ID: <code style="font-family:var(--mono)">' + esc(m.id) + '</code></span>';
-    html += '<span>Channel: ' + esc(m.channel || 'none') + '</span>';
-    html += '<span>Type: ' + esc(m.type || 'text') + '</span>';
-    html += '<span>Mode: ' + esc(m.mode) + '</span>';
-    if (m.session_id) html += '<span>Session: <code style="font-family:var(--mono)">' + esc(m.session_id.slice(0, 8)) + '</code></span>';
-    html += '<span>' + esc(m.created_at) + '</span>';
-    html += '</div>';
-    if (m.metadata) {
-      html += '<div class="meta-row"><span>Metadata: <code style="font-family:var(--mono);font-size:0.6875rem">' + esc(JSON.stringify(m.metadata)) + '</code></span></div>';
-    }
-    if (m.replies && m.replies.length > 0) {
-      html += '<div class="replies-section"><h4>Replies</h4>';
-      for (const r of m.replies) {
-        html += '<div class="reply-item"><div class="body-block">' + esc(r.body) + '</div>';
-        html += '<div class="reply-meta">' + dirLabel(r.direction) + ' &middot; ' + esc(r.agent_name || r.agent_id?.slice(0, 8) || '') + ' &middot; ' + relTime(r.created_at) + '</div></div>';
-      }
-      html += '</div>';
-    }
-    const sendSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
-    html += '<div class="reply-form">';
-    html += '<textarea id="reply-input-' + m.id + '" placeholder="Type a reply..." onkeydown="replyKeydown(event,\'' + m.id + '\')"></textarea>';
-    html += '<div class="reply-hint">Cmd+Enter to send</div>';
-    html += '<div class="reply-form-actions"><button class="btn-send" onclick="sendReply(\'' + m.id + '\')">' + sendSvg + ' Send</button></div></div>';
-    el.innerHTML = html;
-  } catch {
-    el.innerHTML = '<div class="empty">Failed to load detail</div>';
-  }
-}
-
-function paginate(dir) {
-  msgOffset = Math.max(0, msgOffset + dir * LIMIT);
-  expandedId = null;
-  loadMessages();
-}
-
-/* -- Sessions -- */
-async function loadSessions() {
-  const el = document.getElementById('content');
-  el.innerHTML = '<div class="loading"><span class="spinner"></span> Loading...</div>';
-  try {
-    const endpoint = authMode === 'boss' ? '/api/boss/sessions' : '/api/sessions?all=true';
-    const data = await apiFetch(endpoint);
-    let sessions = data.sessions || [];
-    if (!showSessionHistory) {
-      sessions = sessions.filter(s => !isStale(s.last_seen_at) || s.status !== 'completed');
-    }
-    const iconSvg = {
-      working: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
-      blocked: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
-      waiting: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-      idle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
-      completed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
-    };
-    const cols = [
-      { key: 'working', label: 'Working', cls: 'status-working' },
-      { key: 'blocked', label: 'Blocked', cls: 'status-blocked' },
-      { key: 'waiting', label: 'Waiting', cls: 'status-waiting' },
-      { key: 'idle', label: 'Idle', cls: 'status-session-idle' },
-      { key: 'completed', label: 'Done', cls: 'status-completed' },
-    ];
-    let html = '<div class="session-history-toggle"><label><input type="checkbox" ' + (showSessionHistory ? 'checked' : '') + ' onchange="showSessionHistory=this.checked;loadSessions()"> Show completed sessions</label></div>';
-    if (sessions.length === 0) {
-      html += '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/></svg>No active sessions</div>';
-      el.innerHTML = html;
-      return;
-    }
-    html += '<div class="kanban">';
-    for (const col of cols) {
-      const items = sessions.filter(s => (s.status || 'working') === col.key);
-      html += '<div class="kanban-col"><div class="kanban-header ' + col.cls + '">' + (iconSvg[col.key] || '') + ' ' + col.label + ' <span class="count">(' + items.length + ')</span></div>';
-      for (const s of items) {
-        const stale = isStale(s.last_seen_at);
-        const isExpanded = expandedSessionId === s.id;
-        const agentName = s.agent_name || s.agent_id?.slice(0, 8) || '-';
-        const initial = (agentName.charAt(0) || '?').toUpperCase();
-        const hue = (initial.charCodeAt(0) % 12) * 30;
-        const bgColor = 'hsl(' + hue + ',55%,45%)';
-        html += '<div class="kanban-card ' + col.cls + (isExpanded ? ' expanded' : '') + '" onclick="toggleSession(\'' + esc(s.id) + '\',\'' + esc(s.agent_id || '') + '\')">';
-        html += '<div class="card-label">' + esc(s.label || s.id.slice(0, 8)) + '</div>';
-        html += '<div class="card-agent"><span class="avatar-initial" style="background:' + bgColor + '">' + esc(initial) + '</span>' + esc(agentName) + (stale ? '<span class="stale-dot" title="Stale"></span>' : '') + '</div>';
-        if (s.status_text) html += '<div class="card-text">' + esc(s.status_text) + '</div>';
-        html += '<div class="card-time">' + relTime(s.last_seen_at) + '</div>';
-        if (isExpanded) html += '<div id="session-detail-' + esc(s.id) + '" class="session-detail" onclick="event.stopPropagation()"><div class="loading"><span class="spinner"></span> Loading...</div></div>';
-        html += '</div>';
-      }
-      html += '</div>';
-    }
-    html += '</div>';
-    el.innerHTML = html;
-    if (expandedSessionId) loadSessionDetail(expandedSessionId);
-  } catch {
-    el.innerHTML = '<div class="empty">Failed to load sessions</div>';
-  }
-}
-
-function toggleSession(sessionId, agentId) {
-  if (expandedSessionId === sessionId) { expandedSessionId = null; }
-  else { expandedSessionId = sessionId; window._sessionAgentId = agentId; }
-  loadSessions();
-}
-
-async function loadSessionDetail(sessionId) {
-  const el = document.getElementById(`session-detail-${sessionId}`);
-  if (!el) return;
-  try {
-    const params = new URLSearchParams({ session: sessionId, limit: '20' });
-    if (authMode === 'boss') params.set('direction', 'all');
-    const endpoint = authMode === 'boss' ? `/api/boss/messages?${params}` : `/api/messages?${params}`;
-    const data = await apiFetch(endpoint);
-    const msgs = data.messages || [];
-    let html = '';
-    if (msgs.length === 0) {
-      html += '<div style="color:var(--text-dim);font-size:0.75rem">No messages in this session</div>';
-    } else {
-      html += '<div class="session-msgs">';
-      for (const m of msgs) {
-        const dir = m.direction === 'agent_to_boss' ? 'out' : m.direction === 'boss_to_agent' ? 'in' : 'a2a';
-        const dirLabel = dir === 'out' ? 'Agent' : dir === 'in' ? 'Boss' : 'Peer';
-        const dirCls = dir === 'out' ? 'dir-out' : dir === 'in' ? 'dir-in' : 'dir-agent';
-        const body = esc(m.body || '').slice(0, 200);
-        const time = m.created_at ? relTime(m.created_at) : '';
-        html += `<div class="session-msg">
-          <span class="msg-dir ${dirCls}">${dirLabel}</span>${body}
-          <span class="msg-time">${time}</span>
-          ${authMode === 'boss' && dir === 'out' ? `<a href="#" onclick="event.preventDefault();event.stopPropagation();replyToSessionMsg('${esc(m.id)}')" style="float:right;margin-left:8px;font-size:0.625rem;color:var(--accent)">reply</a>` : ''}
-        </div>`;
-      }
-      html += '</div>';
-    }
-    if (authMode === 'boss') {
-      html += `<div class="session-send">
-        <input id="session-msg-input" type="text" placeholder="Send message to this agent..." onkeydown="if(event.key==='Enter')sendToSession('${esc(sessionId)}')">
-        <button onclick="sendToSession('${esc(sessionId)}')">Send</button>
-      </div>`;
-    }
-    el.innerHTML = html;
-  } catch {
-    el.innerHTML = '<div style="color:var(--red);font-size:0.75rem">Failed to load messages</div>';
-  }
-}
-
-async function sendToSession(sessionId) {
-  const input = document.getElementById('session-msg-input');
-  if (!input || !input.value.trim()) return;
-  const body = input.value.trim();
-  input.value = '';
-  try {
-    const agentId = window._sessionAgentId;
-    if (authMode === 'boss') {
-      // Find the most recent agent message in this session to reply to
-      const params = new URLSearchParams({ session: sessionId, limit: '1', direction: 'agent_to_boss' });
-      const data = await apiFetch(`/api/boss/messages?${params}`);
-      const msgs = data.messages || [];
-      if (msgs.length > 0) {
-        await apiFetch(`/api/boss/messages/${msgs[0].id}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }) });
-      }
-    }
-    loadSessionDetail(sessionId);
-  } catch { /* ignore */ }
-}
-
-async function replyToSessionMsg(msgId) {
-  const body = prompt('Reply:');
-  if (!body || !body.trim()) return;
-  try {
-    await apiFetch(`/api/boss/messages/${msgId}/reply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: body.trim() }) });
-    if (expandedSessionId) loadSessionDetail(expandedSessionId);
-  } catch { /* ignore */ }
-}
-
-function isStale(ts) {
-  if (!ts) return true;
-  return (Date.now() - new Date(ts + (ts.endsWith('Z') ? '' : 'Z')).getTime()) > STALE_MIN * 60 * 1000;
-}
-
-/* -- Agents -- */
-async function loadAgents() {
-  const el = document.getElementById('content');
-  el.innerHTML = '<div class="loading"><span class="spinner"></span> Loading...</div>';
-  try {
-    const endpoint = authMode === 'boss' ? '/api/boss/agents' : '/api/agents';
-    const data = await apiFetch(endpoint);
-    const agents = data.agents || [];
-    if (agents.length === 0) {
-      el.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>No agents found</div>';
-      return;
-    }
-    let html = `<table><thead><tr>
-      <th>Name</th><th>Role</th><th>Status</th>
-      <th class="col-time">Last Used</th><th class="col-time">Created</th>
-    </tr></thead><tbody>`;
-    for (const a of agents) {
-      const expanded = expandedAgentId === a.id;
-      html += `<tr onclick="toggleAgent('${a.id}')">
-        <td><strong>${esc(a.name || a.id.slice(0, 8))}</strong></td>
-        <td>${esc(a.role || '-')}</td>
-        <td><span class="status-dot status-${a.status || 'offline'}"></span>${esc(a.status || 'offline')}</td>
-        <td class="col-time">${a.last_used_at ? relTime(a.last_used_at) : '-'}</td>
-        <td class="col-time">${relTime(a.created_at)}</td>
-      </tr>`;
-      if (expanded) {
-        html += '<tr><td colspan="5" style="padding:0;border:none"><div id="agent-cfg-' + a.id + '" class="agent-config"><div class="loading"><span class="spinner"></span> Loading config...</div></div></td></tr>';
-      }
-    }
-    html += '</tbody></table>';
-    el.innerHTML = html;
-    if (expandedAgentId) loadAgentConfig(expandedAgentId);
-  } catch { el.innerHTML = '<div class="empty">Failed to load agents</div>'; }
-}
-
-function toggleAgent(id) {
-  expandedAgentId = expandedAgentId === id ? null : id;
-  loadAgents();
-}
-
-async function loadAgentConfig(agentId) {
-  const el = document.getElementById('agent-cfg-' + agentId);
-  if (!el) return;
-  try {
-    const data = await apiFetch('/api/agents/me');
-    const isSelf = data.id === agentId;
-    const cr = data.channel_routing || {};
-    let html = '';
-    if (isSelf) {
-      html += '<div class="config-section"><div class="config-section-title">General</div><div class="config-grid">';
-      html += configField('Default Priority', '<select id="cfg-priority">' + ['critical','high','normal','low'].map(p => '<option value="' + p + '"' + (data.default_priority === p ? ' selected' : '') + '>' + p + '</option>').join('') + '</select>', 'Priority for messages without explicit --priority');
-      html += configField('Rate Limit', '<input id="cfg-ratelimit" type="number" min="0" value="' + (data.rate_limit ?? '') + '" placeholder="No limit">', 'Messages per minute (0 or empty = unlimited)');
-      html += configField('Role', '<select id="cfg-role"><option value=""' + (!data.role ? ' selected' : '') + '>None</option>' + ['orchestrator','worker','reviewer'].map(r => '<option value="' + r + '"' + (data.role === r ? ' selected' : '') + '>' + r + '</option>').join('') + '</select>', 'Agent role hint');
-      html += configField('Avatar URL', '<input id="cfg-avatar" type="url" value="' + esc(data.avatar_url || '') + '" placeholder="https://...">', 'For Discord webhook messages');
-      html += '</div></div>';
-      html += '<div class="config-section"><div class="config-section-title">Channel Routing</div>';
-      html += '<div class="config-ro hint" style="margin-bottom:var(--space-sm)">Route messages to specific channels by priority</div>';
-      html += '<div class="routing-grid">';
-      for (const p of ['critical','high','normal','low']) {
-        html += '<span class="routing-label">' + p + '</span>';
-        html += '<select id="cfg-route-' + p + '"><option value="">Default</option>' + ['discord','telegram','email'].map(ch => '<option value="' + ch + '"' + (cr[p] === ch ? ' selected' : '') + '>' + ch + '</option>').join('') + '</select>';
-      }
-      html += '</div></div>';
-      html += '<div class="config-actions"><button class="btn-save" onclick="saveAgentConfig()">Save</button></div>';
-    } else {
-      html += '<div class="config-section"><div class="config-section-title">Details</div><div class="config-grid">';
-      html += configField('ID', '<div class="config-ro"><code>' + esc(agentId) + '</code></div>');
-      html += configField('Default Priority', '<div class="config-ro">' + esc(data.default_priority || 'normal') + '</div>');
-      html += configField('Rate Limit', '<div class="config-ro">' + (data.rate_limit ?? 'No limit') + '</div>');
-      html += configField('Role', '<div class="config-ro">' + esc(data.role || 'None') + '</div>');
-      html += '</div><div class="config-ro" style="margin-top:var(--space-sm);color:var(--text-dim)">Config editing available only for your own agent</div></div>';
-    }
-    el.innerHTML = html;
-  } catch {
-    el.innerHTML = '<div class="config-ro">Failed to load config. Only the agent itself can view its full config.</div>';
-  }
-}
-
-function configField(label, content, hint) {
-  return `<div class="config-field"><label>${label}</label>${content}${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
-}
-
-async function saveAgentConfig() {
-  const btn = document.querySelector('.config-actions .btn-save');
-  if (btn) btn.disabled = true;
-  const payload = {};
-  payload.default_priority = document.getElementById('cfg-priority').value;
-  const rl = document.getElementById('cfg-ratelimit').value;
-  payload.rate_limit = rl === '' || rl === '0' ? null : parseInt(rl, 10);
-  const role = document.getElementById('cfg-role').value;
-  payload.role = role || null;
-  const av = document.getElementById('cfg-avatar').value.trim();
-  payload.avatar_url = av || null;
-  const routing = {};
-  let hasRouting = false;
-  for (const p of ['critical','high','normal','low']) {
-    const v = document.getElementById('cfg-route-' + p).value;
-    if (v) { routing[p] = v; hasRouting = true; }
-  }
-  payload.channel_routing = hasRouting ? routing : null;
-  try {
-    await apiFetch('/api/agents/me/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    toast('Config saved', 'success');
-  } catch (e) {
-    toast('Error: ' + e.message, 'error');
-  } finally { if (btn) btn.disabled = false; }
-}
-
-/* -- Settings (Boss) -- */
-async function loadSettings() {
-  const el = document.getElementById('content');
-  el.innerHTML = '<div class="loading"><span class="spinner"></span> Loading...</div>';
-  try {
-    const [me, prefs] = await Promise.all([apiFetch('/api/boss/me'), apiFetch('/api/boss/me/preferences')]);
-    let html = '<div style="max-width:600px">';
-    html += '<h3 style="font-size:0.875rem;margin-bottom:var(--space-md)">Boss Profile</h3>';
-    html += '<div class="config-grid">';
-    html += configField('Name', `<div class="config-ro">${esc(me.name)}</div>`);
-    html += configField('Role', `<div class="config-ro">${esc(me.role)}</div>`);
-    html += configField('Telegram ID', `<div class="config-ro"><code>${esc(me.telegram_user_id || 'Not set')}</code></div>`);
-    html += configField('Discord ID', `<div class="config-ro"><code>${esc(me.discord_user_id || 'Not set')}</code></div>`);
-    html += '</div>';
-    html += '<h3 style="font-size:0.875rem;margin:var(--space-lg) 0 var(--space-md)">Preferences</h3>';
-    html += '<div class="config-grid">';
-    html += configField('Preferred Channel', `<select id="pref-channel">
-      <option value="" ${!prefs.preferred_channel ? 'selected' : ''}>Default</option>
-      ${['telegram','discord','email'].map(ch => `<option value="${ch}" ${prefs.preferred_channel === ch ? 'selected' : ''}>${ch}</option>`).join('')}
-    </select>`, 'Channel for receiving notifications');
-    html += configField('Timezone', `<input id="pref-tz" type="text" value="${esc(prefs.timezone || '')}" placeholder="e.g. Asia/Shanghai">`, 'Used for quiet hours calculation');
-    html += '</div>';
-    html += '<div style="margin-top:var(--space-md)"><label style="display:block;font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:var(--space-xs)">Quiet Hours</label>';
-    html += '<div class="config-ro hint" style="margin-bottom:var(--space-xs)">Suppress notifications during these hours</div>';
-    html += '<div style="display:flex;gap:var(--space-sm);align-items:center">';
-    html += `<input id="pref-qstart" type="time" value="${esc(prefs.quiet_hours?.start || '')}" style="background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem;font-size:0.8125rem">`;
-    html += '<span style="color:var(--text-muted)">to</span>';
-    html += `<input id="pref-qend" type="time" value="${esc(prefs.quiet_hours?.end || '')}" style="background:var(--bg-input);color:var(--text);border:1px solid var(--border);border-radius:var(--radius);padding:0.3rem;font-size:0.8125rem">`;
-    html += '</div></div>';
-    html += '<div style="margin-top:var(--space-md)"><label style="display:block;font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:var(--space-xs)">Notification Priorities</label>';
-    html += '<div class="config-ro hint" style="margin-bottom:var(--space-xs)">Only notify for these priority levels</div>';
-    const np = prefs.notify_priorities || [];
-    for (const p of ['critical','high','normal','low']) {
-      html += `<label style="display:flex;align-items:center;gap:var(--space-xs);font-size:0.8125rem;margin-bottom:2px">
-        <input type="checkbox" class="pref-np" value="${p}" ${np.includes(p) ? 'checked' : ''}> ${p}
-      </label>`;
-    }
-    html += '</div>';
-    html += '<div class="config-actions"><button class="btn-save" onclick="savePreferences()">Save Preferences</button></div></div>';
-    el.innerHTML = html;
-  } catch { el.innerHTML = '<div class="empty">Failed to load settings</div>'; }
-}
-
-async function savePreferences() {
-  const btn = document.querySelector('.config-actions .btn-save');
-  if (btn) btn.disabled = true;
-  const payload = {};
-  const ch = document.getElementById('pref-channel').value;
-  payload.preferred_channel = ch || null;
-  const tz = document.getElementById('pref-tz').value.trim();
-  if (tz) payload.timezone = tz;
-  const qs = document.getElementById('pref-qstart').value;
-  const qe = document.getElementById('pref-qend').value;
-  if (qs && qe) { payload.quiet_hours = { start: qs, end: qe }; }
-  else { payload.quiet_hours = null; }
-  const checks = document.querySelectorAll('.pref-np:checked');
-  payload.notify_priorities = Array.from(checks).map(c => c.value);
-  if (payload.notify_priorities.length === 0) delete payload.notify_priorities;
-  try {
-    await apiFetch('/api/boss/me/preferences', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    toast('Preferences saved', 'success');
-  } catch (e) {
-    toast('Error: ' + e.message, 'error');
-  } finally { if (btn) btn.disabled = false; }
-}
-
-/* -- Reply -- */
-async function sendReply(msgId) {
-  const input = document.getElementById('reply-input-' + msgId);
-  if (!input) return;
-  const body = input.value.trim();
-  if (!body) return;
-  const form = input.closest('.reply-form');
-  const btn = form ? form.querySelector('.btn-send') : null;
-  if (btn) btn.disabled = true;
-  try {
-    const endpoint = authMode === 'boss'
-      ? '/api/boss/messages/' + msgId + '/reply'
-      : '/api/messages/' + msgId + '/reply';
-    await apiFetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body })
-    });
-    input.value = '';
-    toast('Reply sent', 'success');
-    loadMsgDetail(msgId);
-  } catch (e) {
-    toast('Failed to send: ' + e.message, 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-function replyKeydown(e, msgId) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault();
-    sendReply(msgId);
-  }
-}
-
-/* -- Toast -- */
-function toast(message, type) {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const el = document.createElement('div');
-  el.className = 'toast ' + (type === 'error' ? 'error' : 'success');
-  const icon = type === 'error'
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
-  el.innerHTML = icon + '<span>' + esc(message) + '</span>';
-  container.appendChild(el);
-  setTimeout(() => { el.remove(); }, 3000);
-}
-
-/* -- Helpers -- */
-function esc(s) {
-  if (!s) return '';
-  const d = document.createElement('div');
-  d.textContent = String(s);
-  return d.innerHTML;
-}
-
-function dirLabel(d) {
-  if (d === 'agent_to_boss') return '<span class="dir-out">agent &rarr; boss</span>';
-  if (d === 'boss_to_agent') return '<span class="dir-in">boss &rarr; agent</span>';
-  if (d === 'agent_to_agent') return '<span class="dir-agent">agent &rarr; agent</span>';
-  return esc(d || '-');
-}
-
-function priBadge(p) {
-  const cls = { critical: 'critical', high: 'high', normal: 'normal', low: 'low' }[p] || 'normal';
-  return `<span class="badge badge-${cls}">${esc(p)}</span>`;
-}
-
-function statusBadge(s) {
-  const cls = { sent: 'sent', delivered: 'delivered', read: 'read', replied: 'replied' }[s] || '';
-  return `<span class="badge-${cls}">${esc(s)}</span>`;
-}
-
+const STALE_MINUTES = 15;
+const AUTO_REFRESH_MS = 10000;
+const SESSION_COLUMNS = [{ key: 'working', label: 'Working', icon: 'wrench' }, { key: 'blocked', label: 'Blocked', icon: 'blocked' }, { key: 'waiting', label: 'Waiting', icon: 'clock' }, { key: 'idle', label: 'Idle', icon: 'moon' }, { key: 'completed', label: 'Completed', icon: 'check' }];
+const FILTER_DIRECTIONS = [{ value: '', label: 'All directions' }, { value: 'agent_to_boss', label: 'Agent to Boss' }, { value: 'boss_to_agent', label: 'Boss to Agent' }, { value: 'agent_to_agent', label: 'Agent to Agent' }];
+const FILTER_STATUSES = [{ value: '', label: 'All statuses' }, { value: 'sent', label: 'Sent' }, { value: 'delivered', label: 'Delivered' }, { value: 'read', label: 'Read' }, { value: 'replied', label: 'Replied' }, { value: 'expired', label: 'Expired' }];
+const FILTER_PRIORITIES = [{ value: '', label: 'All priorities' }, { value: 'critical', label: 'Critical' }, { value: 'high', label: 'High' }, { value: 'normal', label: 'Normal' }, { value: 'low', label: 'Low' }];
+const PRIORITY_OPTIONS = ['critical', 'high', 'normal', 'low'];
+const ROLE_OPTIONS = ['', 'orchestrator', 'worker', 'reviewer'];
+const CHANNEL_OPTIONS = ['discord', 'telegram', 'email'];
+function nowMs() { return Date.now(); }
+function normalizeTs(ts) { return !ts ? null : (ts.endsWith('Z') ? ts : ts + 'Z'); }
+function parseDateMs(ts) { const normalized = normalizeTs(ts); return normalized ? new Date(normalized).getTime() : NaN; }
 function relTime(ts) {
-  if (!ts) return '-';
-  const t = new Date(ts + (ts.endsWith('Z') ? '' : 'Z')).getTime();
-  const diff = Date.now() - t;
+  const ms = parseDateMs(ts);
+  if (!Number.isFinite(ms)) return '-';
+  const diff = nowMs() - ms;
   if (diff < 0) return 'just now';
   if (diff < 60000) return Math.floor(diff / 1000) + 's ago';
   if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
   if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
   if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
-  return new Date(t).toLocaleDateString();
+  return new Date(ms).toLocaleDateString();
 }
+function isStale(ts) {
+  const ms = parseDateMs(ts);
+  if (!Number.isFinite(ms)) return true;
+  return nowMs() - ms > STALE_MINUTES * 60 * 1000;
+}
+function parseMetadata(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { raw: String(value) };
+  }
+}
+function prettyMetadata(value) { if (!value) return ''; return JSON.stringify(parseMetadata(value), null, 2); }
+function truncate(text, length) { const raw = String(text || ''); return raw.length > length ? raw.slice(0, length) + '…' : raw; }
+function avatarStyle(name) {
+  const initial = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  const hue = (initial.charCodeAt(0) % 12) * 30;
+  return { initial, style: { backgroundColor: 'hsl(' + hue + ', 58%, 44%)' } };
+}
+function statusChip(status) { return ({ sent: 'bg-yellow-soft text-yellow', delivered: 'bg-accent-soft text-accent', read: 'bg-green-soft text-green', replied: 'bg-purple-soft text-purple', expired: 'bg-orange-soft text-orange' })[status] || 'bg-white/5 text-ink-muted'; }
+function priorityChip(priority) { return ({ critical: 'bg-red-soft text-red', high: 'bg-orange-soft text-orange', normal: 'bg-white/10 text-ink-muted', low: 'bg-white/5 text-ink-dim' })[priority] || 'bg-white/10 text-ink-muted'; }
+function directionTone(direction) { return ({ agent_to_boss: 'text-accent', boss_to_agent: 'text-green', agent_to_agent: 'text-purple' })[direction] || 'text-ink-muted'; }
+function directionLabel(direction) { return ({ agent_to_boss: 'agent → boss', boss_to_agent: 'boss → agent', agent_to_agent: 'agent → agent' })[direction] || (direction || '-'); }
+function sessionBorder(status) { return ({ working: 'border-green', blocked: 'border-red', waiting: 'border-yellow', idle: 'border-ink-faint', completed: 'border-accent' })[status] || 'border-border'; }
+function sessionHeader(status) { return ({ working: 'text-green border-green', blocked: 'text-red border-red', waiting: 'text-yellow border-yellow', idle: 'text-ink-dim border-ink-faint', completed: 'text-accent border-accent' })[status] || 'text-ink-muted border-border'; }
+const Icon = {
+  props: { name: { type: String, required: true }, cls: { type: String, default: '' } },
+  template: `
+    <svg :class="cls" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <template v-if="name==='mail'"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="m22 7-10 7L2 7"/></template>
+      <template v-else-if="name==='grid'"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></template>
+      <template v-else-if="name==='users'"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8a4 4 0 0 1 0 8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></template>
+      <template v-else-if="name==='settings'"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33A1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.63.82 1.08 1.49 1.09H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.11c-.67.01-1.29.46-1.49 1.09Z"/></template>
+      <template v-else-if="name==='logout'"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></template>
+      <template v-else-if="name==='search'"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></template>
+      <template v-else-if="name==='send'"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7Z"/></template>
+      <template v-else-if="name==='clock'"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></template>
+      <template v-else-if="name==='check'"><path d="M20 6 9 17l-5-5"/></template>
+      <template v-else-if="name==='blocked'"><circle cx="12" cy="12" r="9"/><path d="m5 5 14 14"/></template>
+      <template v-else-if="name==='moon'"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></template>
+      <template v-else-if="name==='wrench'"><path d="m14.7 6.3 3 3"/><path d="m20.6 4.4-3.9 3.9a6 6 0 0 1-8.5 8.5L3.4 21l-1.4-1.4 4.8-4.8a6 6 0 0 1 8.5-8.5l3.9-3.9"/></template>
+      <template v-else-if="name==='spark'"><path d="M12 2v4"/><path d="m15 5-3-3-3 3"/><path d="M3 7h18a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H8l-5 3V9a2 2 0 0 1 2-2Z"/></template>
+      <template v-else-if="name==='info'"><circle cx="12" cy="12" r="9"/><path d="M12 10v5"/><path d="M12 7h.01"/></template>
+    </svg>
+  `
+};
+const LoginView = {
+  components: { Icon },
+  props: {
+    draftKey: { type: String, required: true },
+    error: { type: String, default: '' },
+    busy: { type: Boolean, default: false }
+  },
+  emits: ['update:key', 'submit'],
+  template: `
+    <div class="flex min-h-screen items-center justify-center px-4 py-10">
+      <div class="w-full max-w-md rounded-3xl border border-border bg-surface-elevated/95 p-8 shadow-panel backdrop-blur">
+        <div class="mb-6 flex justify-center">
+          <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+            <Icon name="spark" cls="h-7 w-7" />
+          </div>
+        </div>
+        <h1 class="mb-2 text-center text-xl font-semibold tracking-tight">hiboss dashboard</h1>
+        <p class="mb-6 text-center text-sm text-ink-muted">Sign in with an API key. The dashboard auto-detects boss vs agent access.</p>
+        <p v-if="error" class="mb-4 rounded-2xl border border-red/30 bg-red-soft px-4 py-3 text-sm text-red">{{ error }}</p>
+        <input
+          :value="draftKey"
+          @input="$emit('update:key', $event.target.value)"
+          @keydown.enter="$emit('submit')"
+          type="password"
+          placeholder="API key (hb_...)"
+          autofocus
+          class="mb-4 w-full rounded-2xl border border-border bg-black/20 px-4 py-3 font-mono text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft"
+        />
+        <button
+          @click="$emit('submit')"
+          :disabled="busy"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-accent-strong to-purple px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span v-if="busy" class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
+          <span>{{ busy ? 'Signing in...' : 'Sign in' }}</span>
+        </button>
+      </div>
+    </div>
+  `
+};
+const MessagesTab = {
+  components: { Icon },
+  props: {
+    state: { type: Object, required: true },
+    authMode: { type: String, required: true },
+    refreshing: { type: Boolean, default: false }
+  },
+  emits: ['filter', 'search', 'toggle', 'paginate', 'reply', 'reply-keydown', 'option'],
+  setup(props, { emit }) {
+    const searchDraft = ref(props.state.filters.search);
+    let timer = null;
+    watch(() => props.state.filters.search, value => {
+      if (value !== searchDraft.value) searchDraft.value = value;
+    });
+    function onSearchInput() {
+      clearTimeout(timer);
+      timer = setTimeout(() => emit('search', searchDraft.value), 400);
+    }
+    function onSearchKeydown(event) {
+      if (event.key === 'Enter') {
+        clearTimeout(timer);
+        emit('search', searchDraft.value);
+      }
+    }
+    function optionsFor(detail) {
+      const meta = parseMetadata(detail && detail.metadata);
+      const options = Array.isArray(meta && meta.options) ? meta.options : [];
+      if (props.authMode !== 'boss') return [];
+      if (!detail) return [];
+      if (detail.status === 'expired' || detail.status === 'replied') return [];
+      if (!['sent', 'delivered', 'read'].includes(detail.status)) return [];
+      if (meta && meta.options_expired === true) return [];
+      return options;
+    }
+    function showExpiredIndicator(detail) {
+      const meta = parseMetadata(detail && detail.metadata);
+      return Boolean(meta && meta.options_expired === true);
+    }
+    return {
+      searchDraft,
+      onSearchInput,
+      onSearchKeydown,
+      optionsFor,
+      showExpiredIndicator,
+      prettyMetadata,
+      relTime,
+      truncate,
+      directionLabel,
+      directionTone,
+      priorityChip,
+      statusChip
+    };
+  },
+  template: `
+    <section class="space-y-4">
+      <div class="flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 p-4 shadow-card md:flex-row md:items-center">
+        <div class="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <select :value="state.filters.direction" @change="$emit('filter', 'direction', $event.target.value)" class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+            <option v-for="option in state.filterDirections" :key="option.value || 'all-dir'" :value="option.value">{{ option.label }}</option>
+          </select>
+          <select :value="state.filters.status" @change="$emit('filter', 'status', $event.target.value)" class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+            <option v-for="option in state.filterStatuses" :key="option.value || 'all-status'" :value="option.value">{{ option.label }}</option>
+          </select>
+          <select :value="state.filters.priority" @change="$emit('filter', 'priority', $event.target.value)" class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+            <option v-for="option in state.filterPriorities" :key="option.value || 'all-priority'" :value="option.value">{{ option.label }}</option>
+          </select>
+          <label class="relative block">
+            <Icon name="search" cls="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+            <input v-model="searchDraft" @input="onSearchInput" @keydown="onSearchKeydown" type="text" placeholder="Search messages..." class="w-full rounded-full border border-border bg-black/20 py-2 pl-11 pr-4 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
+          </label>
+        </div>
+        <div class="text-xs text-ink-muted">
+          <span class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2">
+            <span v-if="refreshing" class="h-2 w-2 rounded-full bg-green pulse-dot"></span>
+            <span v-else class="h-2 w-2 rounded-full bg-ink-faint"></span>
+            Auto-refresh every 10s
+          </span>
+        </div>
+      </div>
+      <div v-if="state.loading && !state.quiet" class="flex items-center justify-center gap-3 rounded-3xl border border-border bg-surface-elevated p-10 text-sm text-ink-muted">
+        <span class="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"></span>
+        Loading messages...
+      </div>
+      <div v-else-if="!state.items.length" class="rounded-3xl border border-dashed border-border bg-surface-elevated/60 px-6 py-14 text-center text-sm text-ink-muted">
+        No messages found
+      </div>
+      <div v-else class="overflow-hidden rounded-3xl border border-border bg-surface-elevated shadow-card">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-black/20 text-xs uppercase tracking-[0.18em] text-ink-muted">
+              <tr>
+                <th class="px-4 py-3 text-left">ID</th>
+                <th class="hidden px-4 py-3 text-left md:table-cell">From</th>
+                <th class="hidden px-4 py-3 text-left lg:table-cell">Direction</th>
+                <th class="px-4 py-3 text-left">Priority</th>
+                <th class="px-4 py-3 text-left">Body</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-right">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="message in state.items" :key="message.id">
+                <tr @click="$emit('toggle', message.id)" class="cursor-pointer border-t border-border-light transition hover:bg-surface-hover/80">
+                  <td class="px-4 py-3 font-mono text-xs text-ink-muted">{{ message.id.slice(0, 8) }}</td>
+                  <td class="hidden px-4 py-3 text-ink-muted md:table-cell">{{ message.agent_name || (message.agent_id ? message.agent_id.slice(0, 8) : '-') }}</td>
+                  <td class="hidden px-4 py-3 lg:table-cell">
+                    <span :class="directionTone(message.direction)">{{ directionLabel(message.direction) }}</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span :class="['inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize', priorityChip(message.priority)]">{{ message.priority }}</span>
+                  </td>
+                  <td class="max-w-xl px-4 py-3 text-ink">{{ truncate(message.body, 140) }}</td>
+                  <td class="px-4 py-3">
+                    <span :class="['inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium capitalize', statusChip(message.status)]">
+                      <Icon v-if="message.status === 'expired'" name="clock" cls="h-3.5 w-3.5" />
+                      <span>{{ message.status }}</span>
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-right text-xs text-ink-muted">{{ relTime(message.created_at) }}</td>
+                </tr>
+                <tr v-if="state.expandedId === message.id" class="border-t border-border-light bg-black/10">
+                  <td colspan="7" class="px-4 py-4">
+                    <div v-if="!state.details[message.id] && state.detailLoading[message.id]" class="flex items-center gap-3 rounded-2xl border border-border bg-black/20 px-4 py-4 text-sm text-ink-muted">
+                      <span class="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"></span>
+                      Loading message detail...
+                    </div>
+                    <div v-else-if="state.details[message.id]" class="fade-up rounded-2xl border border-border bg-surface p-5">
+                      <div class="mb-4 whitespace-pre-wrap break-words rounded-2xl border border-border bg-black/20 px-4 py-4 text-sm leading-6 text-ink">{{ state.details[message.id].body }}</div>
+                      <div class="mb-4 flex flex-wrap gap-2 text-xs text-ink-muted">
+                        <span class="rounded-full border border-border px-3 py-1 font-mono">{{ state.details[message.id].id }}</span>
+                        <span class="rounded-full border border-border px-3 py-1">Channel: {{ state.details[message.id].channel || 'none' }}</span>
+                        <span class="rounded-full border border-border px-3 py-1">Type: {{ state.details[message.id].type || 'text' }}</span>
+                        <span class="rounded-full border border-border px-3 py-1">Mode: {{ state.details[message.id].mode }}</span>
+                        <span v-if="state.details[message.id].session_id" class="rounded-full border border-border px-3 py-1 font-mono">Session: {{ state.details[message.id].session_id.slice(0, 8) }}</span>
+                        <span class="rounded-full border border-border px-3 py-1">{{ state.details[message.id].created_at }}</span>
+                      </div>
+                      <div v-if="showExpiredIndicator(state.details[message.id])" class="mb-4 inline-flex items-center gap-2 rounded-full border border-orange/30 bg-orange-soft px-3 py-1.5 text-xs font-medium text-orange">
+                        <Icon name="clock" cls="h-3.5 w-3.5" />
+                        <span>&#x23F0; Options expired</span>
+                      </div>
+                      <div v-if="prettyMetadata(state.details[message.id].metadata)" class="mb-4">
+                        <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Metadata</div>
+                        <pre class="overflow-x-auto rounded-2xl border border-border bg-black/20 px-4 py-3 text-xs leading-5 text-ink-muted">{{ prettyMetadata(state.details[message.id].metadata) }}</pre>
+                      </div>
+                      <div v-if="optionsFor(state.details[message.id]).length" class="mb-4">
+                        <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Quick reply options</div>
+                        <div class="flex flex-wrap gap-2">
+                          <button
+                            v-for="option in optionsFor(state.details[message.id])"
+                            :key="option"
+                            @click.stop="$emit('option', state.details[message.id].id, option)"
+                            :disabled="state.optionSendingId === state.details[message.id].id"
+                            class="rounded-full border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {{ option }}
+                          </button>
+                        </div>
+                      </div>
+                      <div class="mb-4">
+                        <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Reply</div>
+                        <textarea
+                          :value="state.replyDrafts[state.details[message.id].id] || ''"
+                          @input="$emit('reply', 'draft', state.details[message.id].id, $event.target.value)"
+                          @keydown="$emit('reply-keydown', $event, state.details[message.id].id)"
+                          placeholder="Type a reply..."
+                          class="min-h-[88px] w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft"
+                        ></textarea>
+                        <div class="mt-2 flex items-center justify-between gap-3 text-xs text-ink-muted">
+                          <span>Cmd/Ctrl + Enter to send</span>
+                          <button
+                            @click.stop="$emit('reply', 'send', state.details[message.id].id)"
+                            :disabled="state.sendingReplyId === state.details[message.id].id"
+                            class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-accent-strong to-accent px-4 py-2 font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Icon name="send" cls="h-4 w-4" />
+                            <span>Send</span>
+                          </button>
+                        </div>
+                      </div>
+                      <div v-if="state.details[message.id].replies && state.details[message.id].replies.length">
+                        <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Replies</div>
+                        <div class="space-y-3">
+                          <div v-for="reply in state.details[message.id].replies" :key="reply.id" class="rounded-2xl border border-border bg-black/20 p-4">
+                            <div class="mb-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">{{ reply.body }}</div>
+                            <div class="text-xs text-ink-muted">
+                              <span :class="directionTone(reply.direction)">{{ directionLabel(reply.direction) }}</span>
+                              <span class="mx-2">·</span>
+                              <span>{{ reply.agent_name || (reply.agent_id ? reply.agent_id.slice(0, 8) : '') }}</span>
+                              <span class="mx-2">·</span>
+                              <span>{{ relTime(reply.created_at) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="rounded-2xl border border-red/30 bg-red-soft px-4 py-4 text-sm text-red">Failed to load message detail.</div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 px-4 py-3 text-sm text-ink-muted md:flex-row md:items-center md:justify-between">
+        <div>Showing {{ state.pageStart }}-{{ state.pageEnd }} of {{ state.total }} message<span v-if="state.total !== 1">s</span></div>
+        <div class="flex items-center gap-3">
+          <button @click="$emit('paginate', -1)" :disabled="state.offset === 0" class="rounded-full border border-border px-4 py-2 text-ink transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40">Prev</button>
+          <span>{{ state.page }} / {{ state.pages }}</span>
+          <button @click="$emit('paginate', 1)" :disabled="state.offset + state.limit >= state.total" class="rounded-full border border-border px-4 py-2 text-ink transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40">Next</button>
+        </div>
+      </div>
+    </section>
+  `
+};
+const SessionsTab = {
+  components: { Icon },
+  props: {
+    state: { type: Object, required: true },
+    authMode: { type: String, required: true },
+    refreshing: { type: Boolean, default: false }
+  },
+  emits: ['toggle-completed', 'toggle-session', 'session-draft', 'session-send', 'session-reply-draft', 'session-reply-send', 'session-reply-keydown'],
+  setup() {
+    return {
+      directionTone,
+      directionLabel,
+      relTime,
+      truncate,
+      avatarStyle,
+      sessionBorder,
+      sessionHeader
+    };
+  },
+  template: `
+    <section class="space-y-4">
+      <div class="flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 p-4 shadow-card md:flex-row md:items-center md:justify-between">
+        <label class="inline-flex items-center gap-3 text-sm text-ink-muted">
+          <input type="checkbox" :checked="state.showCompleted" @change="$emit('toggle-completed', $event.target.checked)" class="h-4 w-4 rounded border-border bg-black/20 text-accent focus:ring-accent-soft" />
+          <span>Show completed sessions</span>
+        </label>
+        <div class="text-xs text-ink-muted">
+          <span class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2">
+            <span v-if="refreshing" class="h-2 w-2 rounded-full bg-green pulse-dot"></span>
+            <span v-else class="h-2 w-2 rounded-full bg-ink-faint"></span>
+            Auto-refresh every 10s
+          </span>
+        </div>
+      </div>
+      <div v-if="state.loading && !state.quiet" class="flex items-center justify-center gap-3 rounded-3xl border border-border bg-surface-elevated p-10 text-sm text-ink-muted">
+        <span class="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"></span>
+        Loading sessions...
+      </div>
+      <div v-else-if="!state.filtered.length" class="rounded-3xl border border-dashed border-border bg-surface-elevated/60 px-6 py-14 text-center text-sm text-ink-muted">
+        No active sessions
+      </div>
+      <div v-else class="grid gap-4 xl:grid-cols-5">
+        <div v-for="column in state.columns" :key="column.key" class="min-w-0 rounded-3xl border border-border bg-surface-elevated/80 p-3">
+          <div :class="['mb-3 flex items-center gap-2 border-b border-t-2 px-1 pb-3 pt-1 text-xs font-semibold uppercase tracking-[0.18em]', sessionHeader(column.key)]">
+            <Icon :name="column.icon" cls="h-4 w-4" />
+            <span>{{ column.label }}</span>
+            <span class="text-ink-muted">({{ state.byColumn[column.key].length }})</span>
+          </div>
+          <div class="space-y-3">
+            <div
+              v-for="session in state.byColumn[column.key]"
+              :key="session.id"
+              @click="$emit('toggle-session', session.id)"
+              :class="['w-full rounded-2xl border border-border bg-surface px-4 py-3 text-left transition hover:-translate-y-0.5 hover:bg-surface-hover hover:shadow-card', state.expandedId === session.id ? 'ring-1 ring-accent/60' : '', sessionBorder(session.status)]"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="truncate text-sm font-medium text-ink">{{ session.label || session.id.slice(0, 8) }}</div>
+                  <div class="mt-2 flex items-center gap-2 text-xs text-ink-muted">
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white" :style="avatarStyle(session.agent_name || session.agent_id).style">
+                      {{ avatarStyle(session.agent_name || session.agent_id).initial }}
+                    </span>
+                    <span class="truncate">{{ session.agent_name || (session.agent_id ? session.agent_id.slice(0, 8) : '-') }}</span>
+                    <span v-if="session.stale" class="inline-flex h-2 w-2 rounded-full bg-yellow pulse-dot"></span>
+                  </div>
+                  <div v-if="session.status_text" class="mt-2 truncate text-xs text-ink-dim">{{ session.status_text }}</div>
+                  <div class="mt-3 text-[11px] text-ink-faint">{{ relTime(session.last_seen_at) }}</div>
+                </div>
+              </div>
+              <div v-if="state.expandedId === session.id" @click.stop class="fade-up mt-4 rounded-2xl border border-border bg-black/20 p-4">
+                <div v-if="state.detailLoading[session.id]" class="flex items-center gap-3 text-sm text-ink-muted">
+                  <span class="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"></span>
+                  Loading session detail...
+                </div>
+                <template v-else>
+                  <div class="mb-3 flex flex-wrap gap-2 text-xs text-ink-muted">
+                    <span class="rounded-full border border-border px-3 py-1 font-mono">{{ session.id }}</span>
+                    <span class="rounded-full border border-border px-3 py-1 capitalize">{{ session.status }}</span>
+                    <span class="rounded-full border border-border px-3 py-1">{{ relTime(session.last_seen_at) }}</span>
+                  </div>
+                  <div v-if="!state.details[session.id] || !state.details[session.id].length" class="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-ink-muted">
+                    No messages in this session
+                  </div>
+                  <div v-else class="max-h-80 space-y-3 overflow-y-auto pr-1">
+                    <div v-for="message in state.details[session.id]" :key="message.id" class="rounded-2xl border border-border bg-surface px-4 py-3">
+                      <div class="mb-2 flex items-start justify-between gap-3 text-xs">
+                        <span :class="directionTone(message.direction)">{{ directionLabel(message.direction) }}</span>
+                        <span class="text-ink-faint">{{ relTime(message.created_at) }}</span>
+                      </div>
+                      <div class="whitespace-pre-wrap break-words text-sm leading-6 text-ink">{{ truncate(message.body, 300) }}</div>
+                      <div v-if="authMode === 'boss' && message.direction === 'agent_to_boss'" class="mt-3 space-y-2">
+                        <input
+                          :value="state.replyDrafts[message.id] || ''"
+                          @input="$emit('session-reply-draft', message.id, $event.target.value)"
+                          @keydown="$emit('session-reply-keydown', $event, session.id, message.id)"
+                          type="text"
+                          placeholder="Reply inline..."
+                          class="w-full rounded-xl border border-border bg-black/20 px-3 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft"
+                        />
+                        <div class="flex justify-end">
+                          <button
+                            @click="$emit('session-reply-send', session.id, message.id)"
+                            :disabled="state.sendingReplyId === message.id"
+                            class="rounded-full bg-accent px-4 py-2 text-xs font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="authMode === 'boss'" class="mt-4 flex gap-2">
+                    <input
+                      :value="state.sessionDrafts[session.id] || ''"
+                      @input="$emit('session-draft', session.id, $event.target.value)"
+                      @keydown.enter="$emit('session-send', session.id)"
+                      type="text"
+                      placeholder="Send message to this session..."
+                      class="min-w-0 flex-1 rounded-2xl border border-border bg-black/20 px-4 py-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft"
+                    />
+                    <button
+                      @click="$emit('session-send', session.id)"
+                      :disabled="state.sendingSessionId === session.id"
+                      class="rounded-2xl bg-gradient-to-r from-accent-strong to-accent px-4 py-3 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  `
+};
+const AgentsTab = {
+  props: {
+    state: { type: Object, required: true },
+    authMode: { type: String, required: true },
+    refreshing: { type: Boolean, default: false }
+  },
+  emits: ['toggle-agent', 'config-field', 'save-config'],
+  setup() {
+    return { relTime, PRIORITY_OPTIONS, ROLE_OPTIONS, CHANNEL_OPTIONS };
+  },
+  template: `
+    <section class="space-y-4">
+      <div class="flex items-center justify-between rounded-3xl border border-border bg-surface/90 px-4 py-3 shadow-card">
+        <div class="text-sm text-ink-muted">Agent list and config routing</div>
+        <div class="text-xs text-ink-muted">
+          <span class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2">
+            <span v-if="refreshing" class="h-2 w-2 rounded-full bg-green pulse-dot"></span>
+            <span v-else class="h-2 w-2 rounded-full bg-ink-faint"></span>
+            Auto-refresh every 10s
+          </span>
+        </div>
+      </div>
+      <div v-if="state.loading && !state.quiet" class="flex items-center justify-center gap-3 rounded-3xl border border-border bg-surface-elevated p-10 text-sm text-ink-muted">
+        <span class="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"></span>
+        Loading agents...
+      </div>
+      <div v-else-if="!state.items.length" class="rounded-3xl border border-dashed border-border bg-surface-elevated/60 px-6 py-14 text-center text-sm text-ink-muted">
+        No agents found
+      </div>
+      <div v-else class="overflow-hidden rounded-3xl border border-border bg-surface-elevated shadow-card">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-black/20 text-xs uppercase tracking-[0.18em] text-ink-muted">
+              <tr>
+                <th class="px-4 py-3 text-left">Name</th>
+                <th class="px-4 py-3 text-left">Role</th>
+                <th class="px-4 py-3 text-left">Status</th>
+                <th class="px-4 py-3 text-right">Last used</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="agent in state.items" :key="agent.id">
+                <tr @click="$emit('toggle-agent', agent.id)" class="cursor-pointer border-t border-border-light transition hover:bg-surface-hover/80">
+                  <td class="px-4 py-3 font-medium text-ink">{{ agent.name || agent.id.slice(0, 8) }}</td>
+                  <td class="px-4 py-3 text-ink-muted">{{ agent.role || '-' }}</td>
+                  <td class="px-4 py-3">
+                    <span class="inline-flex items-center gap-2 capitalize text-ink-muted">
+                      <span :class="['h-2.5 w-2.5 rounded-full', agent.status === 'online' ? 'bg-green pulse-dot' : agent.status === 'idle' ? 'bg-yellow' : 'bg-ink-faint']"></span>
+                      {{ agent.status || 'offline' }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-right text-xs text-ink-muted">{{ agent.last_used_at ? relTime(agent.last_used_at) : '-' }}</td>
+                </tr>
+                <tr v-if="state.expandedId === agent.id" class="border-t border-border-light bg-black/10">
+                  <td colspan="4" class="px-4 py-4">
+                    <div class="fade-up rounded-2xl border border-border bg-surface p-5">
+                      <template v-if="state.selfId === agent.id && state.editDraft">
+                        <div class="grid gap-4 md:grid-cols-2">
+                          <label class="space-y-2 text-sm">
+                            <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Default Priority</span>
+                            <select :value="state.editDraft.default_priority || 'normal'" @change="$emit('config-field', 'default_priority', $event.target.value)" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+                              <option v-for="value in PRIORITY_OPTIONS" :key="value" :value="value">{{ value }}</option>
+                            </select>
+                          </label>
+                          <label class="space-y-2 text-sm">
+                            <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Rate Limit</span>
+                            <input :value="state.editDraft.rate_limit ?? ''" @input="$emit('config-field', 'rate_limit', $event.target.value)" type="number" min="0" placeholder="No limit" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
+                          </label>
+                          <label class="space-y-2 text-sm">
+                            <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Role</span>
+                            <select :value="state.editDraft.role || ''" @change="$emit('config-field', 'role', $event.target.value)" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+                              <option v-for="value in ROLE_OPTIONS" :key="value || 'none'" :value="value">{{ value || 'None' }}</option>
+                            </select>
+                          </label>
+                          <label class="space-y-2 text-sm">
+                            <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Avatar URL</span>
+                            <input :value="state.editDraft.avatar_url || ''" @input="$emit('config-field', 'avatar_url', $event.target.value)" type="url" placeholder="https://..." class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
+                          </label>
+                        </div>
+                        <div class="mt-5">
+                          <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Channel routing</div>
+                          <div class="grid gap-4 md:grid-cols-2">
+                            <label v-for="priority in PRIORITY_OPTIONS" :key="priority" class="space-y-2 text-sm">
+                              <span class="block capitalize text-ink-muted">{{ priority }}</span>
+                              <select :value="(state.editDraft.channel_routing && state.editDraft.channel_routing[priority]) || ''" @change="$emit('config-field', 'channel_routing.' + priority, $event.target.value)" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+                                <option value="">Default</option>
+                                <option v-for="channel in CHANNEL_OPTIONS" :key="channel" :value="channel">{{ channel }}</option>
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+                        <div class="mt-5 flex justify-end">
+                          <button @click="$emit('save-config')" :disabled="state.saving" class="rounded-full bg-gradient-to-r from-accent-strong to-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">Save</button>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <div class="grid gap-4 md:grid-cols-2">
+                          <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+                            <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">ID</div>
+                            <div class="font-mono text-sm text-ink">{{ agent.id }}</div>
+                          </div>
+                          <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+                            <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Default Priority</div>
+                            <div class="text-sm text-ink">{{ agent.default_priority || 'normal' }}</div>
+                          </div>
+                          <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+                            <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Rate Limit</div>
+                            <div class="text-sm text-ink">{{ agent.rate_limit ?? 'No limit' }}</div>
+                          </div>
+                          <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+                            <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Role</div>
+                            <div class="text-sm text-ink">{{ agent.role || 'None' }}</div>
+                          </div>
+                        </div>
+                        <div class="mt-4 text-sm text-ink-muted">Config editing is available only for your own agent.</div>
+                      </template>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  `
+};
+const SettingsTab = {
+  props: {
+    state: { type: Object, required: true }
+  },
+  emits: ['field', 'priority', 'save'],
+  setup() {
+    return { CHANNEL_OPTIONS, PRIORITY_OPTIONS };
+  },
+  template: `
+    <section class="space-y-4">
+      <div v-if="state.loading" class="flex items-center justify-center gap-3 rounded-3xl border border-border bg-surface-elevated p-10 text-sm text-ink-muted">
+        <span class="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-accent"></span>
+        Loading settings...
+      </div>
+      <div v-else class="mx-auto max-w-4xl space-y-4">
+        <div class="rounded-3xl border border-border bg-surface-elevated p-6 shadow-card">
+          <div class="mb-4 text-xs uppercase tracking-[0.18em] text-ink-muted">Boss profile</div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+              <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Name</div>
+              <div class="text-sm text-ink">{{ state.me.name || '-' }}</div>
+            </div>
+            <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+              <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Role</div>
+              <div class="text-sm text-ink">{{ state.me.role || '-' }}</div>
+            </div>
+            <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+              <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Telegram ID</div>
+              <div class="font-mono text-sm text-ink">{{ state.me.telegram_user_id || 'Not set' }}</div>
+            </div>
+            <div class="rounded-2xl border border-border bg-black/20 px-4 py-3">
+              <div class="mb-1 text-xs uppercase tracking-[0.18em] text-ink-muted">Discord ID</div>
+              <div class="font-mono text-sm text-ink">{{ state.me.discord_user_id || 'Not set' }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-3xl border border-border bg-surface-elevated p-6 shadow-card">
+          <div class="mb-4 text-xs uppercase tracking-[0.18em] text-ink-muted">Preferences</div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <label class="space-y-2 text-sm">
+              <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Preferred Channel</span>
+              <select :value="state.draft.preferred_channel || ''" @change="$emit('field', 'preferred_channel', $event.target.value)" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
+                <option value="">Default</option>
+                <option v-for="channel in CHANNEL_OPTIONS" :key="channel" :value="channel">{{ channel }}</option>
+              </select>
+            </label>
+            <label class="space-y-2 text-sm">
+              <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Timezone</span>
+              <input :value="state.draft.timezone || ''" @input="$emit('field', 'timezone', $event.target.value)" type="text" placeholder="e.g. Asia/Bangkok" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
+            </label>
+          </div>
+          <div class="mt-5 grid gap-4 md:grid-cols-2">
+            <label class="space-y-2 text-sm">
+              <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Quiet Hours Start</span>
+              <input :value="state.draft.quiet_hours.start || ''" @input="$emit('field', 'quiet_start', $event.target.value)" type="time" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
+            </label>
+            <label class="space-y-2 text-sm">
+              <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Quiet Hours End</span>
+              <input :value="state.draft.quiet_hours.end || ''" @input="$emit('field', 'quiet_end', $event.target.value)" type="time" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
+            </label>
+          </div>
+          <div class="mt-5">
+            <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Notification Priorities</div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <label v-for="priority in PRIORITY_OPTIONS" :key="priority" class="inline-flex items-center gap-3 rounded-2xl border border-border bg-black/20 px-4 py-3 text-sm text-ink">
+                <input :checked="state.draft.notify_priorities.includes(priority)" @change="$emit('priority', priority, $event.target.checked)" type="checkbox" class="h-4 w-4 rounded border-border bg-black/20 text-accent focus:ring-accent-soft" />
+                <span class="capitalize">{{ priority }}</span>
+              </label>
+            </div>
+          </div>
+          <div class="mt-6 flex justify-end">
+            <button @click="$emit('save')" :disabled="state.saving" class="rounded-full bg-gradient-to-r from-accent-strong to-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">Save Preferences</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `
+};
+const ToastStack = {
+  components: { Icon },
+  props: { items: { type: Array, required: true } },
+  template: `
+    <div class="pointer-events-none fixed bottom-6 right-6 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3">
+      <transition-group name="list">
+        <div v-for="toast in items" :key="toast.id" :class="['pointer-events-auto fade-up flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-card backdrop-blur', toast.type === 'error' ? 'border-red/30 bg-surface-elevated text-red' : 'border-green/30 bg-surface-elevated text-ink']">
+          <Icon :name="toast.type === 'error' ? 'blocked' : 'check'" cls="h-5 w-5 shrink-0" />
+          <span class="text-sm">{{ toast.message }}</span>
+        </div>
+      </transition-group>
+    </div>
+  `
+};
+const App = {
+  components: { Icon, LoginView, MessagesTab, SessionsTab, AgentsTab, SettingsTab, ToastStack },
+  setup() {
+    const baseUrl = window.location.origin;
+    const draftKey = ref('');
+    const loginError = ref('');
+    const loginBusy = ref(false);
+    const authReady = ref(false);
+    const authMode = ref('agent');
+    const activeTab = ref('messages');
+    const meName = ref('');
+    const refreshTick = ref(0);
+    const quietRefreshing = ref(false);
+    const apiKey = ref('');
+    const toasts = ref([]);
+    let refreshTimer = null;
+    const messages = reactive({
+      loading: false,
+      quiet: false,
+      items: [],
+      total: 0,
+      offset: 0,
+      limit: LIMIT,
+      expandedId: null,
+      filters: { direction: '', status: '', priority: '', search: '' },
+      filterDirections: FILTER_DIRECTIONS,
+      filterStatuses: FILTER_STATUSES,
+      filterPriorities: FILTER_PRIORITIES,
+      details: {},
+      detailLoading: {},
+      replyDrafts: {},
+      sendingReplyId: '',
+      optionSendingId: '',
+      get page() { return Math.floor(this.offset / this.limit) + 1; },
+      get pages() { return Math.max(1, Math.ceil(this.total / this.limit)); },
+      get pageStart() { return this.total === 0 ? 0 : this.offset + 1; },
+      get pageEnd() { return Math.min(this.offset + this.limit, this.total); }
+    });
+    const sessions = reactive({
+      loading: false,
+      quiet: false,
+      items: [],
+      filtered: [],
+      columns: SESSION_COLUMNS,
+      byColumn: { working: [], blocked: [], waiting: [], idle: [], completed: [] },
+      showCompleted: false,
+      expandedId: null,
+      detailLoading: {},
+      details: {},
+      sessionDrafts: {},
+      replyDrafts: {},
+      sendingSessionId: '',
+      sendingReplyId: ''
+    });
+    const agents = reactive({
+      loading: false,
+      quiet: false,
+      items: [],
+      expandedId: null,
+      selfId: '',
+      editDraft: null,
+      saving: false
+    });
+    const settings = reactive({
+      loading: false,
+      me: {},
+      draft: {
+        preferred_channel: '',
+        timezone: '',
+        quiet_hours: { start: '', end: '' },
+        notify_priorities: []
+      },
+      saving: false
+    });
+    const refreshEnabled = computed(() => authReady.value && activeTab.value !== 'settings');
+    const authBadgeLabel = computed(() => authMode.value === 'boss' ? 'Boss' : 'Agent');
+    const authBadgeClass = computed(() => authMode.value === 'boss' ? 'bg-purple text-black' : 'bg-accent-soft text-accent');
+    function toast(message, type) {
+      const id = String(nowMs()) + Math.random();
+      toasts.value.push({ id, message, type: type === 'error' ? 'error' : 'success' });
+      window.setTimeout(() => {
+        toasts.value = toasts.value.filter(item => item.id !== id);
+      }, 3000);
+    }
+    async function apiFetch(path, opts) {
+      const res = await fetch(baseUrl + path, {
+        ...opts,
+        headers: {
+          Authorization: 'Bearer ' + apiKey.value,
+          ...(opts && opts.headers ? opts.headers : {})
+        }
+      });
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      return res.json();
+    }
+    async function detectAuthMode(key, preferredMode) {
+      apiKey.value = key;
+      const order = preferredMode === 'boss' ? ['boss', 'agent'] : ['agent', 'boss'];
+      for (const mode of order) {
+        try {
+          const endpoint = mode === 'boss' ? '/api/boss/me' : '/api/agents/me';
+          const me = await apiFetch(endpoint);
+          return { mode, me };
+        } catch {}
+      }
+      throw new Error('Invalid API key');
+    }
+    async function bootstrapFromKey(key, preferredMode) {
+      const result = await detectAuthMode(key, preferredMode);
+      authMode.value = result.mode;
+      meName.value = result.me.name || (result.me.id ? result.me.id.slice(0, 8) : 'unknown');
+      agents.selfId = result.mode === 'agent' ? result.me.id : '';
+      localStorage.setItem('hiboss_key', key);
+      localStorage.setItem('hiboss_auth_mode', result.mode);
+      authReady.value = true;
+      await loadCurrentTab(false);
+    }
+    async function loadMe() {
+      const endpoint = authMode.value === 'boss' ? '/api/boss/me' : '/api/agents/me';
+      const me = await apiFetch(endpoint);
+      meName.value = me.name || (me.id ? me.id.slice(0, 8) : 'unknown');
+      if (authMode.value === 'agent') agents.selfId = me.id;
+      return me;
+    }
+    async function submitLogin() {
+      const key = draftKey.value.trim();
+      if (!key || loginBusy.value) return;
+      loginBusy.value = true;
+      loginError.value = '';
+      try {
+        await bootstrapFromKey(key, localStorage.getItem('hiboss_auth_mode') || 'agent');
+      } catch {
+        apiKey.value = '';
+        loginError.value = 'Invalid API key';
+      } finally {
+        loginBusy.value = false;
+      }
+    }
+    function logout() {
+      apiKey.value = '';
+      draftKey.value = '';
+      loginError.value = '';
+      authReady.value = false;
+      localStorage.removeItem('hiboss_key');
+      localStorage.removeItem('hiboss_auth_mode');
+      stopRefresh();
+    }
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const urlKey = params.get('key');
+      const storedKey = localStorage.getItem('hiboss_key') || '';
+      const storedMode = localStorage.getItem('hiboss_auth_mode') || 'agent';
+      const key = urlKey || storedKey;
+      if (urlKey) {
+        history.replaceState(null, '', window.location.pathname);
+      }
+      if (!key) return;
+      draftKey.value = key;
+      loginBusy.value = true;
+      try {
+        await bootstrapFromKey(key, storedMode);
+      } catch {
+        apiKey.value = '';
+        authReady.value = false;
+        localStorage.removeItem('hiboss_key');
+        localStorage.removeItem('hiboss_auth_mode');
+      } finally {
+        loginBusy.value = false;
+      }
+    }
+    async function loadMessages(quiet) {
+      messages.loading = true;
+      messages.quiet = Boolean(quiet);
+      const params = new URLSearchParams({ limit: String(messages.limit), offset: String(messages.offset) });
+      if (messages.filters.direction) params.set('direction', messages.filters.direction);
+      if (messages.filters.status) params.set('status', messages.filters.status);
+      if (messages.filters.priority) params.set('priority', messages.filters.priority);
+      if (messages.filters.search) params.set('search', messages.filters.search);
+      const endpoint = authMode.value === 'boss' ? '/api/boss/messages?' : '/api/messages?';
+      try {
+        const data = await apiFetch(endpoint + params.toString());
+        messages.items = data.messages || [];
+        messages.total = data.total || 0;
+        if (messages.expandedId && !messages.items.some(item => item.id === messages.expandedId)) {
+          messages.expandedId = null;
+        }
+        if (messages.expandedId) await loadMessageDetail(messages.expandedId, true);
+      } catch (error) {
+        if (!quiet) toast('Failed to load messages', 'error');
+      } finally {
+        messages.loading = false;
+      }
+    }
+    async function loadMessageDetail(id, silent) {
+      messages.detailLoading[id] = true;
+      const endpoint = authMode.value === 'boss' ? '/api/boss/messages/' : '/api/messages/';
+      try {
+        messages.details[id] = await apiFetch(endpoint + id);
+      } catch {
+        delete messages.details[id];
+        if (!silent) toast('Failed to load message detail', 'error');
+      } finally {
+        messages.detailLoading[id] = false;
+      }
+    }
+    async function toggleMessage(id) {
+      messages.expandedId = messages.expandedId === id ? null : id;
+      if (messages.expandedId) await loadMessageDetail(id, false);
+    }
+    function setMessageFilter(key, value) {
+      messages.filters[key] = value;
+      messages.offset = 0;
+      loadMessages(false);
+    }
+    function setMessageSearch(value) {
+      messages.filters.search = String(value || '').trim();
+      messages.offset = 0;
+      loadMessages(false);
+    }
+    function paginateMessages(dir) {
+      messages.offset = Math.max(0, messages.offset + dir * messages.limit);
+      messages.expandedId = null;
+      loadMessages(false);
+    }
+    function updateMessageReply(kind, id, value) {
+      if (kind === 'draft') {
+        messages.replyDrafts[id] = value;
+        return;
+      }
+      sendMessageReply(id, messages.replyDrafts[id] || '');
+    }
+    async function sendMessageReply(id, body) {
+      const trimmed = String(body || '').trim();
+      if (!trimmed || messages.sendingReplyId) return;
+      messages.sendingReplyId = id;
+      try {
+        const endpoint = authMode.value === 'boss' ? '/api/boss/messages/' + id + '/reply' : '/api/messages/' + id + '/reply';
+        await apiFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: trimmed })
+        });
+        messages.replyDrafts[id] = '';
+        await loadMessageDetail(id, true);
+        await loadMessages(true);
+        toast('Reply sent', 'success');
+      } catch (error) {
+        toast('Failed to send reply', 'error');
+      } finally {
+        messages.sendingReplyId = '';
+      }
+    }
+    function handleMessageReplyKeydown(event, id) {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        sendMessageReply(id, messages.replyDrafts[id] || '');
+      }
+    }
+    async function sendOptionReply(id, option) {
+      if (messages.optionSendingId) return;
+      messages.optionSendingId = id;
+      try {
+        await apiFetch('/api/boss/messages/' + id + '/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: option })
+        });
+        await loadMessageDetail(id, true);
+        await loadMessages(true);
+        toast('Option sent', 'success');
+      } catch {
+        toast('Failed to send option', 'error');
+      } finally {
+        messages.optionSendingId = '';
+      }
+    }
+    function normalizeSessionItem(item) {
+      return { ...item, status: item.status || 'working', stale: isStale(item.last_seen_at) };
+    }
+    function rebuildSessionColumns(items) {
+      sessions.byColumn = { working: [], blocked: [], waiting: [], idle: [], completed: [] };
+      for (const item of items) {
+        const bucket = sessions.byColumn[item.status] || sessions.byColumn.working;
+        bucket.push(item);
+      }
+    }
+    async function loadSessions(quiet) {
+      sessions.loading = true;
+      sessions.quiet = Boolean(quiet);
+      try {
+        const endpoint = authMode.value === 'boss' ? '/api/boss/sessions' : '/api/sessions?all=true';
+        const data = await apiFetch(endpoint);
+        sessions.items = (data.sessions || []).map(normalizeSessionItem);
+        sessions.filtered = sessions.showCompleted ? sessions.items : sessions.items.filter(item => item.status !== 'completed');
+        rebuildSessionColumns(sessions.filtered);
+        if (sessions.expandedId && !sessions.filtered.some(item => item.id === sessions.expandedId)) {
+          sessions.expandedId = null;
+        }
+        if (sessions.expandedId) await loadSessionDetail(sessions.expandedId, true);
+      } catch {
+        if (!quiet) toast('Failed to load sessions', 'error');
+      } finally {
+        sessions.loading = false;
+      }
+    }
+    async function toggleSession(id) {
+      sessions.expandedId = sessions.expandedId === id ? null : id;
+      if (sessions.expandedId) await loadSessionDetail(id, false);
+    }
+    async function loadSessionDetail(id, silent) {
+      sessions.detailLoading[id] = true;
+      try {
+        const params = new URLSearchParams({ session: id, limit: '20' });
+        const endpoint = authMode.value === 'boss' ? '/api/boss/messages?' : '/api/messages?';
+        const data = await apiFetch(endpoint + params.toString());
+        sessions.details[id] = data.messages || [];
+      } catch {
+        sessions.details[id] = [];
+        if (!silent) toast('Failed to load session detail', 'error');
+      } finally {
+        sessions.detailLoading[id] = false;
+      }
+    }
+    function setSessionDraft(sessionId, value) {
+      sessions.sessionDrafts[sessionId] = value;
+    }
+    async function sendToSession(sessionId) {
+      const body = String(sessions.sessionDrafts[sessionId] || '').trim();
+      if (!body || sessions.sendingSessionId) return;
+      sessions.sendingSessionId = sessionId;
+      try {
+        const params = new URLSearchParams({ session: sessionId, limit: '1', direction: 'agent_to_boss' });
+        const data = await apiFetch('/api/boss/messages?' + params.toString());
+        const target = (data.messages || [])[0];
+        if (!target) throw new Error('No reply target');
+        await apiFetch('/api/boss/messages/' + target.id + '/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body })
+        });
+        sessions.sessionDrafts[sessionId] = '';
+        await loadSessionDetail(sessionId, true);
+        await loadSessions(true);
+        toast('Session message sent', 'success');
+      } catch {
+        toast('Failed to send session message', 'error');
+      } finally {
+        sessions.sendingSessionId = '';
+      }
+    }
+    function setSessionReplyDraft(messageId, value) {
+      sessions.replyDrafts[messageId] = value;
+    }
+    async function sendSessionReply(sessionId, messageId) {
+      const body = String(sessions.replyDrafts[messageId] || '').trim();
+      if (!body || sessions.sendingReplyId) return;
+      sessions.sendingReplyId = messageId;
+      try {
+        await apiFetch('/api/boss/messages/' + messageId + '/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body })
+        });
+        sessions.replyDrafts[messageId] = '';
+        await loadSessionDetail(sessionId, true);
+        await loadMessages(true);
+        toast('Reply sent', 'success');
+      } catch {
+        toast('Failed to send session reply', 'error');
+      } finally {
+        sessions.sendingReplyId = '';
+      }
+    }
+    function handleSessionReplyKeydown(event, sessionId, messageId) {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        sendSessionReply(sessionId, messageId);
+      }
+    }
+    async function loadAgents(quiet) {
+      agents.loading = true;
+      agents.quiet = Boolean(quiet);
+      try {
+        const endpoint = authMode.value === 'boss' ? '/api/boss/agents' : '/api/agents';
+        const data = await apiFetch(endpoint);
+        agents.items = data.agents || [];
+        if (!agents.selfId && authMode.value === 'agent') {
+          const me = await loadMe();
+          agents.selfId = me.id;
+        }
+        if (agents.expandedId === agents.selfId) {
+          await loadAgentEditDraft();
+        }
+      } catch {
+        if (!quiet) toast('Failed to load agents', 'error');
+      } finally {
+        agents.loading = false;
+      }
+    }
+    async function loadAgentEditDraft() {
+      try {
+        const me = await apiFetch('/api/agents/me');
+        agents.selfId = me.id;
+        agents.editDraft = {
+          default_priority: me.default_priority || 'normal',
+          rate_limit: me.rate_limit ?? '',
+          role: me.role || '',
+          avatar_url: me.avatar_url || '',
+          channel_routing: { ...(me.channel_routing || {}) }
+        };
+      } catch {
+        agents.editDraft = null;
+      }
+    }
+    async function toggleAgent(id) {
+      agents.expandedId = agents.expandedId === id ? null : id;
+      if (agents.expandedId === agents.selfId) {
+        await loadAgentEditDraft();
+      }
+    }
+    function updateAgentDraft(path, value) {
+      if (!agents.editDraft) return;
+      if (path.startsWith('channel_routing.')) {
+        const key = path.split('.')[1];
+        const next = { ...(agents.editDraft.channel_routing || {}) };
+        if (value) next[key] = value;
+        else delete next[key];
+        agents.editDraft.channel_routing = next;
+        return;
+      }
+      agents.editDraft[path] = value;
+    }
+    async function saveAgentConfig() {
+      if (!agents.editDraft || agents.saving) return;
+      agents.saving = true;
+      try {
+        const rateLimitRaw = String(agents.editDraft.rate_limit).trim();
+        const payload = {
+          default_priority: agents.editDraft.default_priority || 'normal',
+          rate_limit: !rateLimitRaw || rateLimitRaw === '0' ? null : Number(rateLimitRaw),
+          role: agents.editDraft.role || null,
+          avatar_url: agents.editDraft.avatar_url ? String(agents.editDraft.avatar_url).trim() || null : null,
+          channel_routing: Object.keys(agents.editDraft.channel_routing || {}).length ? agents.editDraft.channel_routing : null
+        };
+        await apiFetch('/api/agents/me/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        toast('Config saved', 'success');
+        await loadAgents(true);
+      } catch {
+        toast('Failed to save config', 'error');
+      } finally {
+        agents.saving = false;
+      }
+    }
+    async function loadSettings() {
+      settings.loading = true;
+      try {
+        const [me, prefs] = await Promise.all([
+          apiFetch('/api/boss/me'),
+          apiFetch('/api/boss/me/preferences')
+        ]);
+        settings.me = me || {};
+        settings.draft = {
+          preferred_channel: prefs.preferred_channel || '',
+          timezone: prefs.timezone || '',
+          quiet_hours: {
+            start: (prefs.quiet_hours && prefs.quiet_hours.start) || '',
+            end: (prefs.quiet_hours && prefs.quiet_hours.end) || ''
+          },
+          notify_priorities: Array.isArray(prefs.notify_priorities) ? prefs.notify_priorities.slice() : []
+        };
+      } catch {
+        toast('Failed to load settings', 'error');
+      } finally {
+        settings.loading = false;
+      }
+    }
+    function updateSettingsField(field, value) {
+      if (field === 'quiet_start') settings.draft.quiet_hours.start = value;
+      else if (field === 'quiet_end') settings.draft.quiet_hours.end = value;
+      else settings.draft[field] = value;
+    }
+    function toggleNotifyPriority(priority, checked) {
+      const next = new Set(settings.draft.notify_priorities);
+      if (checked) next.add(priority);
+      else next.delete(priority);
+      settings.draft.notify_priorities = Array.from(next);
+    }
+    async function saveSettings() {
+      if (settings.saving) return;
+      settings.saving = true;
+      try {
+        const quiet = settings.draft.quiet_hours.start && settings.draft.quiet_hours.end
+          ? { start: settings.draft.quiet_hours.start, end: settings.draft.quiet_hours.end }
+          : null;
+        const payload = {
+          preferred_channel: settings.draft.preferred_channel || null,
+          timezone: settings.draft.timezone || '',
+          quiet_hours: quiet,
+          notify_priorities: settings.draft.notify_priorities
+        };
+        await apiFetch('/api/boss/me/preferences', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        toast('Preferences saved', 'success');
+      } catch {
+        toast('Failed to save preferences', 'error');
+      } finally {
+        settings.saving = false;
+      }
+    }
+    async function loadCurrentTab(quiet) {
+      if (!authReady.value) return;
+      quietRefreshing.value = Boolean(quiet);
+      if (activeTab.value === 'messages') await loadMessages(quiet);
+      else if (activeTab.value === 'sessions') await loadSessions(quiet);
+      else if (activeTab.value === 'agents') await loadAgents(quiet);
+      else if (activeTab.value === 'settings' && !quiet) await loadSettings();
+      refreshTick.value = nowMs();
+      quietRefreshing.value = false;
+    }
+    function stopRefresh() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+    }
+    function startRefresh() {
+      stopRefresh();
+      refreshTimer = setInterval(() => {
+        if (authReady.value && activeTab.value !== 'settings') {
+          loadCurrentTab(true);
+        }
+      }, AUTO_REFRESH_MS);
+    }
+    function setShowCompleted(value) {
+      sessions.showCompleted = value;
+      loadSessions(false);
+    }
+    watch(activeTab, async () => {
+      if (!authReady.value) return;
+      if (activeTab.value === 'settings' && authMode.value !== 'boss') {
+        activeTab.value = 'messages';
+        return;
+      }
+      await loadCurrentTab(false);
+    });
+    onMounted(async () => {
+      document.documentElement.classList.add('dark');
+      await init();
+      startRefresh();
+    });
+    onBeforeUnmount(() => stopRefresh());
+    return {
+      draftKey,
+      loginError,
+      loginBusy,
+      authReady,
+      authMode,
+      authBadgeLabel,
+      authBadgeClass,
+      activeTab,
+      meName,
+      refreshEnabled,
+      quietRefreshing,
+      toasts,
+      messages,
+      sessions,
+      agents,
+      settings,
+      prettyMetadata,
+      submitLogin,
+      logout,
+      setMessageFilter,
+      setMessageSearch,
+      toggleMessage,
+      paginateMessages,
+      updateMessageReply,
+      handleMessageReplyKeydown,
+      sendOptionReply,
+      toggleSession,
+      setSessionDraft,
+      sendToSession,
+      setSessionReplyDraft,
+      sendSessionReply,
+      handleSessionReplyKeydown,
+      toggleAgent,
+      updateAgentDraft,
+      saveAgentConfig,
+      updateSettingsField,
+      setShowCompleted,
+      toggleNotifyPriority,
+      saveSettings
+    };
+  },
+  template: `
+    <div>
+      <LoginView
+        v-if="!authReady"
+        :draft-key="draftKey"
+        :error="loginError"
+        :busy="loginBusy"
+        @update:key="draftKey = $event"
+        @submit="submitLogin"
+      />
+      <div v-else class="min-h-screen">
+        <header class="sticky top-0 z-30 border-b border-border bg-surface/95 backdrop-blur">
+          <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+                <Icon name="spark" cls="h-5 w-5" />
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-sm font-semibold tracking-tight">hiboss</h1>
+                  <span class="text-sm text-ink-muted">{{ meName }}</span>
+                  <span :class="['inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]', authBadgeClass]">{{ authBadgeLabel }}</span>
+                </div>
+                <p class="text-xs text-ink-muted">Async comms dashboard</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span :class="['inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-xs text-ink-muted', refreshEnabled ? 'text-green' : 'text-ink-faint']">
+                <span :class="['h-2.5 w-2.5 rounded-full', refreshEnabled ? 'bg-green pulse-dot' : 'bg-ink-faint']"></span>
+                {{ refreshEnabled ? 'Auto-refresh active' : 'Auto-refresh paused' }}
+              </span>
+              <button @click="logout" class="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-ink-muted transition hover:bg-surface-hover hover:text-ink">
+                <Icon name="logout" cls="h-4 w-4" />
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
+          <div class="mx-auto max-w-7xl px-4">
+            <nav class="flex gap-2 overflow-x-auto pb-3">
+              <button @click="activeTab = 'messages'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'messages' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
+                <Icon name="mail" cls="h-4 w-4" />
+                <span>Messages</span>
+              </button>
+              <button @click="activeTab = 'sessions'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'sessions' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
+                <Icon name="grid" cls="h-4 w-4" />
+                <span>Sessions</span>
+              </button>
+              <button @click="activeTab = 'agents'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'agents' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
+                <Icon name="users" cls="h-4 w-4" />
+                <span>Agents</span>
+              </button>
+              <button v-if="authMode === 'boss'" @click="activeTab = 'settings'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'settings' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
+                <Icon name="settings" cls="h-4 w-4" />
+                <span>Settings</span>
+              </button>
+            </nav>
+          </div>
+        </header>
+        <main class="mx-auto max-w-7xl px-4 py-6">
+          <MessagesTab
+            v-if="activeTab === 'messages'"
+            :state="messages"
+            :auth-mode="authMode"
+            :refreshing="refreshEnabled && quietRefreshing"
+            @filter="setMessageFilter"
+            @search="setMessageSearch"
+            @toggle="toggleMessage"
+            @paginate="paginateMessages"
+            @reply="updateMessageReply"
+            @reply-keydown="handleMessageReplyKeydown"
+            @option="sendOptionReply"
+          />
+          <SessionsTab
+            v-else-if="activeTab === 'sessions'"
+            :state="sessions"
+            :auth-mode="authMode"
+            :refreshing="refreshEnabled && quietRefreshing"
+            @toggle-completed="setShowCompleted"
+            @toggle-session="toggleSession"
+            @session-draft="setSessionDraft"
+            @session-send="sendToSession"
+            @session-reply-draft="setSessionReplyDraft"
+            @session-reply-send="sendSessionReply"
+            @session-reply-keydown="handleSessionReplyKeydown"
+          />
+          <AgentsTab
+            v-else-if="activeTab === 'agents'"
+            :state="agents"
+            :auth-mode="authMode"
+            :refreshing="refreshEnabled && quietRefreshing"
+            @toggle-agent="toggleAgent"
+            @config-field="updateAgentDraft"
+            @save-config="saveAgentConfig"
+          />
+          <SettingsTab
+            v-else
+            :state="settings"
+            @field="updateSettingsField"
+            @priority="toggleNotifyPriority"
+            @save="saveSettings"
+          />
+        </main>
+      </div>
+      <ToastStack :items="toasts" />
+    </div>
+  `
+};
+createApp(App).mount('#app');
 </script>
 </body>
 </html>
