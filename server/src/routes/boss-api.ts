@@ -90,6 +90,7 @@ routes.get('/messages', async (c) => {
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const agentFilter = c.req.query('agent');
   const sessionFilter = c.req.query('session');
+  const searchFilter = c.req.query('search');
 
   const clauses: string[] = [];
   const binds: (string | number)[] = [];
@@ -114,6 +115,10 @@ routes.get('/messages', async (c) => {
   if (priorityFilter && priorityFilter.length > 0) {
     clauses.push(`priority IN (${priorityFilter.map(() => '?').join(', ')})`);
     binds.push(...priorityFilter);
+  }
+  if (searchFilter) {
+    clauses.push('body LIKE ?');
+    binds.push(`%${searchFilter}%`);
   }
 
   const where = clauses.join(' AND ');

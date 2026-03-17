@@ -25,12 +25,14 @@ pub struct InboxArgs {
     pub from: Option<String>,
     #[arg(long, help = "Filter by direction (agent_to_boss, boss_to_agent, agent_to_agent)")]
     pub direction: Option<String>,
+    #[arg(long, help = "Search message body text")]
+    pub search: Option<String>,
 }
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let session_id = session::read_session_id();
     // Pass session_id as both session (for --all history) and target_session (for unread scoping)
-    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref(), args.from.as_deref(), args.direction.as_deref(), session_id.as_deref()).await?;
+    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref(), args.from.as_deref(), args.direction.as_deref(), session_id.as_deref(), args.search.as_deref()).await?;
     if args.count {
         println!("{}", response.total);
         return Ok(());

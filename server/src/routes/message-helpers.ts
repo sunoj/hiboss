@@ -62,7 +62,7 @@ export function validateChannel(value: unknown): Channel | undefined {
   return undefined;
 }
 
-export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string, unread?: boolean, from?: string, targetSessionId?: string) {
+export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string, unread?: boolean, from?: string, targetSessionId?: string, search?: string) {
   const clauses: string[] = [];
   const binds: (string | number)[] = [];
   // Unread: boss messages for this agent, agent-to-agent targeting this agent, or session-targeted messages
@@ -113,6 +113,10 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
     // and boss-initiated messages (reply_to IS NULL) visible to all sessions.
     clauses.push("(session_id = ? OR reply_to IN (SELECT id FROM messages WHERE session_id = ?) OR (direction = 'boss_to_agent' AND reply_to IS NULL))");
     binds.push(session, session);
+  }
+  if (search) {
+    clauses.push('body LIKE ?');
+    binds.push(`%${search}%`);
   }
   return { where: clauses.join(' AND '), binds };
 }
