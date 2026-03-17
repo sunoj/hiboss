@@ -1,9 +1,10 @@
 // Purpose: Provide the Claude Code hook orchestration for hiboss CLI events.
 // Exports: HookArgs, HookEvent, run().
-// Dependencies: clap, std::fs, std::process, std::time.
+// Dependencies: clap, serde_json, std::fs, std::process, std::time.
 
 use crate::session;
 use clap::{Args, Subcommand};
+use serde_json;
 use std::error::Error;
 use std::fs;
 use std::io::Read;
@@ -42,16 +43,23 @@ fn run_session_start() -> Result<(), Box<dyn Error>> {
     let session_id = generate_session_id();
     let _ = session::write_session_id(&session_id);
 
+    // Auto-register session_info (branch, cwd) for peer discovery
+    register_session_info();
+
     println!("MANDATORY: hiboss is installed for boss communication. You MUST follow these rules:");
     println!("1. After completing any task or subtask, run: hiboss send \"<what you did and what's next>\"");
     println!("2. When blocked or need input, run: hiboss ask \"<your question>\"");
     println!("3. Reply to boss messages with: hiboss reply <id> \"<response>\"");
     println!("4. Check inbox with: hiboss inbox");
+    println!("5. Send to peer agents with: hiboss send --to <agent-name> \"<message>\"");
     println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" --timeout 300 (run_in_background), then WAIT for boss reply.");
+
+    // Show peer agents
+    show_peer_agents();
 
     let count = get_inbox_count();
     if count > 0 {
-        println!("You have {} unread boss messages:", count);
+        println!("You have {} unread messages:", count);
         if let Ok(out) = Command::new("hiboss").args(["inbox", "--ack"]).output() {
             print!("{}", String::from_utf8_lossy(&out.stdout));
         }
@@ -105,6 +113,62 @@ fn generate_session_id() -> String {
         u16::from_be_bytes([buf[8], buf[9]]),
         u64::from_be_bytes([0, 0, buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]]),
     )
+}
+
+/// Register session metadata (branch, cwd) so peer agents can discover us.
+fn register_session_info() {
+    let branch = Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_owned())
+            } else {
+                None
+            }
+        });
+    let cwd = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()));
+    let mut info = serde_json::Map::new();
+    if let Some(b) = branch {
+        info.insert("branch".into(), serde_json::Value::String(b));
+    }
+    if let Some(d) = cwd {
+        info.insert("cwd".into(), serde_json::Value::String(d));
+    }
+    if !info.is_empty() {
+        let json = serde_json::Value::Object(info).to_string();
+        let _ = Command::new("hiboss")
+            .args(["agent", "config", "--session-info", &json])
+            .output();
+    }
+}
+
+/// Show online/idle peer agents for cross-session collaboration.
+fn show_peer_agents() {
+    let output = Command::new("hiboss")
+        .args(["agent", "list"])
+        .output()
+        .ok();
+    if let Some(out) = output {
+        let text = String::from_utf8_lossy(&out.stdout);
+        let peers: Vec<&str> = text
+            .lines()
+            .skip(1) // header
+            .filter(|line| {
+                (line.contains("online") || line.contains("idle"))
+                    && !line.contains("offline")
+            })
+            .collect();
+        if !peers.is_empty() {
+            println!("Active peer agents (use hiboss send --to <name> to message):");
+            for peer in &peers {
+                println!("  {}", peer);
+            }
+        }
+    }
 }
 
 fn get_inbox_count() -> u32 {
