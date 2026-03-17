@@ -11,12 +11,17 @@ const STALE_MINUTES = 15;
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
 
+type SessionStatus = 'working' | 'blocked' | 'waiting' | 'idle' | 'completed';
+const SESSION_STATUSES: SessionStatus[] = ['working', 'blocked', 'waiting', 'idle', 'completed'];
+
 interface SessionRow {
   id: string;
   agent_id: string;
   label: string | null;
   branch: string | null;
   cwd: string | null;
+  status: SessionStatus;
+  status_text: string | null;
   started_at: string;
   last_seen_at: string;
 }
@@ -30,15 +35,18 @@ routes.post('/', async (c) => {
   const branch = typeof payload.branch === 'string' ? payload.branch.trim() || null : null;
   const cwd = typeof payload.cwd === 'string' ? payload.cwd.trim() || null : null;
   const label = typeof payload.label === 'string' ? payload.label.trim() || null : (cwd && branch ? `${cwd}/${branch}` : cwd ?? branch);
+  const rawStatus = typeof payload.status === 'string' ? payload.status.trim() : '';
+  const status: SessionStatus = SESSION_STATUSES.includes(rawStatus as SessionStatus) ? (rawStatus as SessionStatus) : 'working';
+  const statusText = typeof payload.status_text === 'string' ? payload.status_text.trim() || null : null;
   // Upsert: insert or update on conflict
   await c.env.DB
     .prepare(
-      `INSERT INTO sessions (id, agent_id, label, branch, cwd) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET label = excluded.label, branch = excluded.branch, cwd = excluded.cwd, last_seen_at = datetime('now')`
+      `INSERT INTO sessions (id, agent_id, label, branch, cwd, status, status_text) VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET label = excluded.label, branch = excluded.branch, cwd = excluded.cwd, status = excluded.status, status_text = excluded.status_text, last_seen_at = datetime('now')`
     )
-    .bind(id, agentId, label, branch, cwd)
+    .bind(id, agentId, label, branch, cwd, status, statusText)
     .run();
-  return c.json({ id, label, branch, cwd }, 201);
+  return c.json({ id, label, branch, cwd, status, status_text: statusText }, 201);
 });
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
@@ -56,12 +64,30 @@ routes.get('/', async (c) => {
   return c.json({ sessions: rows.results ?? [] });
 });
 
-// PATCH /api/sessions/:id — heartbeat (update last_seen_at)
+// PATCH /api/sessions/:id — heartbeat with optional status update
 routes.patch('/:id', async (c) => {
   const agentId = getAgentId(c);
+  const contentType = c.req.header('content-type') || '';
+  let status: SessionStatus | undefined;
+  let statusText: string | null | undefined;
+  if (contentType.includes('application/json')) {
+    const payload = await c.req.json<Record<string, unknown>>();
+    const rawStatus = typeof payload.status === 'string' ? payload.status.trim() : '';
+    if (rawStatus && SESSION_STATUSES.includes(rawStatus as SessionStatus)) {
+      status = rawStatus as SessionStatus;
+    }
+    if ('status_text' in payload) {
+      statusText = typeof payload.status_text === 'string' ? payload.status_text.trim() || null : null;
+    }
+  }
+  const sets = ["last_seen_at = datetime('now')"];
+  const binds: (string | null)[] = [];
+  if (status) { sets.push('status = ?'); binds.push(status); }
+  if (statusText !== undefined) { sets.push('status_text = ?'); binds.push(statusText); }
+  binds.push(c.req.param('id'), agentId);
   const result = await c.env.DB
-    .prepare("UPDATE sessions SET last_seen_at = datetime('now') WHERE id = ? AND agent_id = ?")
-    .bind(c.req.param('id'), agentId)
+    .prepare(`UPDATE sessions SET ${sets.join(', ')} WHERE id = ? AND agent_id = ?`)
+    .bind(...binds)
     .run();
   if (!result.meta.changed_db) return c.text('not found', 404);
   return c.json({ ok: true });

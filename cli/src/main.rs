@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, status, watch};
+use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, group, hook, init, inbox, react, read, reply, route, send, setup, ss, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -55,6 +55,8 @@ enum Commands {
     Group(group::GroupArgs),
     #[command(about = "Manage boss identities and permissions")]
     Boss(boss::BossArgs),
+    #[command(about = "Session status board")]
+    Ss(ss::SsArgs),
     #[command(about = "Background SSE daemon for real-time message delivery")]
     Daemon(daemon::DaemonArgs),
 }
@@ -123,6 +125,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Route(args) => route::run(args, &config, &client).await?,
         Commands::Group(args) => group::run(args, &config, &client).await?,
         Commands::Boss(args) => boss::run(args, &config, &client).await?,
+        Commands::Ss(args) => ss::run(args, &config, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Setup(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),

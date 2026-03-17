@@ -162,11 +162,13 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
-    pub async fn register_session(&self, id: &str, branch: Option<&str>, cwd: Option<&str>, label: Option<&str>) -> Result<(), Box<dyn Error>> {
+    pub async fn register_session(&self, id: &str, branch: Option<&str>, cwd: Option<&str>, label: Option<&str>, status: Option<&str>, status_text: Option<&str>) -> Result<(), Box<dyn Error>> {
         let mut body = serde_json::json!({ "id": id });
         if let Some(b) = branch { body["branch"] = serde_json::Value::String(b.to_owned()); }
         if let Some(c) = cwd { body["cwd"] = serde_json::Value::String(c.to_owned()); }
         if let Some(l) = label { body["label"] = serde_json::Value::String(l.to_owned()); }
+        if let Some(s) = status { body["status"] = serde_json::Value::String(s.to_owned()); }
+        if let Some(t) = status_text { body["status_text"] = serde_json::Value::String(t.to_owned()); }
         let resp = self.http
             .post(format!("{}/api/sessions", self.base_url))
             .bearer_auth(&self.api_key)
@@ -188,12 +190,17 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
-    pub async fn heartbeat_session(&self, id: &str) -> Result<(), Box<dyn Error>> {
-        let resp = self.http
+    pub async fn heartbeat_session(&self, id: &str, status: Option<&str>, status_text: Option<&str>) -> Result<(), Box<dyn Error>> {
+        let mut req = self.http
             .patch(format!("{}/api/sessions/{}", self.base_url, id))
-            .bearer_auth(&self.api_key)
-            .send()
-            .await?;
+            .bearer_auth(&self.api_key);
+        if status.is_some() || status_text.is_some() {
+            let mut body = serde_json::Map::new();
+            if let Some(s) = status { body.insert("status".into(), serde_json::Value::String(s.to_owned())); }
+            if let Some(t) = status_text { body.insert("status_text".into(), serde_json::Value::String(t.to_owned())); }
+            req = req.json(&body);
+        }
+        let resp = req.send().await?;
         if !resp.status().is_success() { /* ignore heartbeat failures */ }
         Ok(())
     }

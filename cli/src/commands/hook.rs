@@ -33,7 +33,7 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
     let _ = match &args.event {
         HookEvent::SessionStart => run_session_start().await,
         HookEvent::PostToolUse => run_post_tool_use().await,
-        HookEvent::Stop => Ok(()),
+        HookEvent::Stop => run_stop().await,
     };
     Ok(())
 }
@@ -55,6 +55,8 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
             &session_id,
             branch.as_deref(),
             cwd.as_deref(),
+            None,
+            Some("working"),
             None,
         ).await;
     }
@@ -120,7 +122,7 @@ async fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         if is_ttl_expired(&a2a_ttl_file, now, A2A_TTL_SECONDS) {
             let _ = fs::write(&a2a_ttl_file, now.to_string());
             if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
-                let _ = client.heartbeat_session(&sid).await;
+                let _ = client.heartbeat_session(&sid, None, None).await;
             }
         }
         // Boss urgent check still uses TTL polling (daemon handles a2a, not urgency detection)
@@ -142,7 +144,7 @@ async fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         let _ = fs::write(&a2a_ttl_file, now.to_string());
         // Heartbeat: update session last_seen_at
         if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
-            let _ = client.heartbeat_session(&sid).await;
+            let _ = client.heartbeat_session(&sid, None, None).await;
         }
         let a2a_count = get_a2a_inbox_count();
         if a2a_count > 0 {
@@ -159,6 +161,24 @@ async fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
             println!("URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high", count);
         }
     }
+    Ok(())
+}
+
+async fn run_stop() -> Result<(), Box<dyn Error>> {
+    // Mark session as completed on the server
+    if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
+        let _ = client.heartbeat_session(&sid, Some("completed"), Some("Session ended")).await;
+    }
+    // Stop the SSE daemon
+    if let Some(pid) = session::is_daemon_running() {
+        let _ = Command::new("kill").arg(pid.to_string()).output();
+        let _ = fs::remove_file(session::daemon_pid_path());
+    }
+    // Clean up temp files
+    let _ = fs::remove_file(session::session_file_path());
+    let _ = fs::remove_file(session::ttl_file_path());
+    let _ = fs::remove_file(session::a2a_ttl_file_path());
+    let _ = fs::remove_file(session::daemon_pending_path());
     Ok(())
 }
 

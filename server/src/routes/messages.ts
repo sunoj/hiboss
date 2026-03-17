@@ -24,6 +24,7 @@ import {
   findByIdempotencyKey,
   fetchMessageRow,
   fetchMessageWithReplies,
+  inferSessionStatus,
   mapMessageRow,
   normalizeMetadata,
   parseOptions,
@@ -133,6 +134,10 @@ routes.post('/', async (c) => {
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
+  }
+  // Auto-update session status based on message characteristics
+  if (sessionId && direction === 'agent_to_boss') {
+    c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
   }
   const options = parseOptions(payload.options);
   if (channelConfigs.length > 0 && direction !== 'agent_to_agent') {

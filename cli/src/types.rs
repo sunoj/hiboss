@@ -116,6 +116,10 @@ pub struct SessionInfo {
     pub label: Option<String>,
     pub branch: Option<String>,
     pub cwd: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub status_text: Option<String>,
     pub started_at: Option<String>,
     pub last_seen_at: Option<String>,
 }
