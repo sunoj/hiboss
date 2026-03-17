@@ -36,7 +36,8 @@ pub struct AgentConfigArgs {
     /// Set rate limit (messages per minute, 0 = unlimited)
     #[arg(long = "rate-limit")]
     pub rate_limit: Option<u32>,
-    /// Set per-priority channel routing (e.g. "normal=discord,high=telegram")
+    /// Set per-priority channel routing (e.g. "normal=discord,high=telegram").
+    /// Server uses this when CLI omits --channel. Set "none" to clear.
     #[arg(long = "channel-routing")]
     pub channel_routing: Option<String>,
 }

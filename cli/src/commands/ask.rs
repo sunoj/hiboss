@@ -12,7 +12,7 @@ use std::error::Error;
 pub struct AskArgs {
     #[arg(long, default_value_t = 300)]
     pub timeout: u32,
-    #[arg(long)]
+    #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,
     #[arg(long, help = "Quick-reply options (comma-separated: A,B,C)")]
     pub options: Option<String>,
@@ -56,8 +56,10 @@ fn tail_lines(s: &str, n: usize) -> String {
     lines[start..].join("\n")
 }
 
-pub async fn run(args: &AskArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let channel = args.channel.clone().or_else(|| config.channel.clone());
+pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    // Only send channel when explicitly specified via --channel.
+    // When omitted, server uses channel_routing (per-priority) to decide.
+    let channel = args.channel.clone();
     let mut metadata: Option<HashMap<String, Value>> = None;
 
     // Parse --actions or --options

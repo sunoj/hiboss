@@ -10,7 +10,7 @@ use std::error::Error;
 pub struct SendArgs {
     #[arg(long, default_value = "normal")]
     pub priority: String,
-    #[arg(long)]
+    #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,
     #[arg(long, help = "URL of file/image to attach")]
     pub file_url: Option<String>,
@@ -22,8 +22,10 @@ pub struct SendArgs {
     pub body: String,
 }
 
-pub async fn run(args: &SendArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let channel = args.channel.clone().or_else(|| config.channel.clone());
+pub async fn run(args: &SendArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    // Only send channel when explicitly specified via --channel.
+    // When omitted, server uses channel_routing (per-priority) to decide.
+    let channel = args.channel.clone();
     let file_url = if let Some(ref path) = args.file {
         let upload = client.upload_file(path).await?;
         eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
