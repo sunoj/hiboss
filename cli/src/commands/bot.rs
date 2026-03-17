@@ -2,7 +2,7 @@
 // Exports: BotArgs CLI parser and run() to stream messages via SSE and reply.
 // Dependencies: clap, tokio, crate::client, crate::config, crate::types, crate::sse.
 
-use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate}, sse, types::Message};
+use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate}, session, sse, types::Message};
 use clap::Args;
 use std::{error::Error, process::Stdio};
 use tokio::{
@@ -29,7 +29,10 @@ pub async fn run(args: &BotArgs, config: &Config, client: &HiBossClient) -> Resu
     );
 
     let (tx, mut rx) = tokio::sync::mpsc::channel::<sse::SseEvent>(32);
-    let sse_url = format!("{}/api/messages/stream", server);
+    let mut sse_url = format!("{}/api/messages/stream", server);
+    if let Some(sid) = session::read_session_id() {
+        sse_url = format!("{}?session={}", sse_url, sid);
+    }
     let sse_client = reqwest::Client::new();
     let sse_key = key;
 
