@@ -43,6 +43,7 @@ async function streamLoop(
   const start = Date.now();
   let lastCheck = new Date().toISOString().replace('T', ' ').slice(0, 19);
   let lastKeepalive = Date.now();
+  const seenMessageIds = new Set<string>();
 
   // Build the WHERE clause based on whether session filtering is active
   const { sql, buildBinds } = buildStreamQuery(agentId, sessionId);
@@ -54,13 +55,16 @@ async function streamLoop(
         .bind(...buildBinds(lastCheck))
         .all<MessageRow>();
 
+      pruneSeenMessageIds(seenMessageIds, rows.results ?? [], lastCheck);
       for (const row of rows.results ?? []) {
+        if (seenMessageIds.has(row.id)) continue;
         const data = JSON.stringify({ ...row, metadata: safeJson(row.metadata) });
         await writer.write(encoder.encode(`event: message\ndata: ${data}\n\n`));
         await env.DB
           .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
           .bind(row.id)
           .run();
+        seenMessageIds.add(row.id);
         lastCheck = row.created_at;
       }
 
@@ -87,7 +91,7 @@ function buildStreamQuery(agentId: string, sessionId?: string) {
 
   if (sessionId) {
     // Session-scoped: boss messages + a2a targeting this agent (no session) + a2a targeting this session
-    const where = `WHERE messages.status = 'sent' AND messages.created_at > ? AND (
+    const where = `WHERE messages.status = 'sent' AND messages.created_at >= ? AND (
       (messages.agent_id = ? AND messages.direction = 'boss_to_agent')
       OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.target_session_id IS NULL)
       OR (messages.target_session_id = ? AND messages.direction = 'agent_to_agent')
@@ -99,7 +103,7 @@ function buildStreamQuery(agentId: string, sessionId?: string) {
   }
 
   // Agent-wide: boss messages + all a2a targeting this agent
-  const where = `WHERE messages.status = 'sent' AND messages.created_at > ? AND (
+  const where = `WHERE messages.status = 'sent' AND messages.created_at >= ? AND (
     (messages.agent_id = ? AND messages.direction = 'boss_to_agent')
     OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent')
   ) ORDER BY messages.created_at ASC`;
@@ -112,6 +116,17 @@ function buildStreamQuery(agentId: string, sessionId?: string) {
 function safeJson(value: string | null): Record<string, unknown> | null {
   if (!value) return null;
   try { return JSON.parse(value); } catch { return null; }
+}
+
+export function pruneSeenMessageIds(seenMessageIds: Set<string>, rows: MessageRow[], lastCheck: string): void {
+  if (rows.length === 0) {
+    seenMessageIds.clear();
+    return;
+  }
+  const floor = rows[0]?.created_at ?? lastCheck;
+  if (floor > lastCheck) {
+    seenMessageIds.clear();
+  }
 }
 
 function delay(ms: number): Promise<void> {
