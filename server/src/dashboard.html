@@ -275,6 +275,48 @@ td {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Agent config panel */
+.agent-config {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-md);
+  margin: var(--space-sm) 0 var(--space-md);
+  font-size: 0.8125rem; animation: fadeIn 0.15s ease;
+}
+.config-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);
+}
+@media (max-width: 640px) { .config-grid { grid-template-columns: 1fr; } }
+.config-field label {
+  display: block; font-size: 0.6875rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: var(--space-xs);
+}
+.config-field select, .config-field input {
+  width: 100%; background: var(--bg-input); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.4rem 0.5rem; font-size: 0.8125rem; font-family: var(--sans);
+}
+.config-field select:focus, .config-field input:focus { outline: none; border-color: var(--accent); }
+.config-field .hint { font-size: 0.625rem; color: var(--text-dim); margin-top: 2px; }
+.config-actions {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: var(--space-sm); margin-top: var(--space-md); padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-light);
+}
+.config-actions .btn-save {
+  background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+  padding: 0.35rem 1rem; cursor: pointer; font-size: 0.75rem; font-weight: 500;
+}
+.config-actions .btn-save:hover { opacity: 0.9; }
+.config-actions .btn-save:disabled { opacity: 0.4; cursor: default; }
+.config-actions .save-status { font-size: 0.6875rem; }
+.config-actions .save-ok { color: var(--green); }
+.config-actions .save-err { color: var(--red); }
+.config-ro { color: var(--text-muted); font-size: 0.75rem; }
+.config-ro code { font-family: var(--mono); font-size: 0.6875rem; }
+.routing-row { display: flex; gap: var(--space-sm); align-items: center; margin-bottom: var(--space-xs); }
+.routing-row span { font-size: 0.75rem; min-width: 4rem; }
+.routing-row select { flex: 1; }
+
 /* Responsive */
 @media (max-width: 768px) {
   main { padding: var(--space-md); }
@@ -320,6 +362,7 @@ let currentTab = 'messages';
 let msgOffset = 0;
 let msgTotal = 0;
 let expandedId = null;
+let expandedAgentId = null;
 let refreshTimer = null;
 const LIMIT = 50;
 const STALE_MIN = 15;
@@ -658,31 +701,118 @@ async function loadAgents() {
     const endpoint = authMode === 'boss' ? '/api/boss/agents' : '/api/agents';
     const data = await apiFetch(endpoint);
     const agents = data.agents || [];
-    if (agents.length === 0) {
-      el.innerHTML = '<div class="empty">No agents found</div>';
-      return;
-    }
+    if (agents.length === 0) { el.innerHTML = '<div class="empty">No agents found</div>'; return; }
     let html = `<table><thead><tr>
-      <th>Name</th>
-      <th>Role</th>
-      <th>Status</th>
-      <th class="col-time">Last Used</th>
-      <th class="col-time">Created</th>
+      <th>Name</th><th>Role</th><th>Status</th>
+      <th class="col-time">Last Used</th><th class="col-time">Created</th>
     </tr></thead><tbody>`;
     for (const a of agents) {
-      html += `<tr>
+      const expanded = expandedAgentId === a.id;
+      html += `<tr onclick="toggleAgent('${a.id}')">
         <td><strong>${esc(a.name || a.id.slice(0, 8))}</strong></td>
         <td>${esc(a.role || '-')}</td>
-        <td><span class="status-dot status-${a.status}"></span>${esc(a.status)}</td>
+        <td><span class="status-dot status-${a.status || 'offline'}"></span>${esc(a.status || 'offline')}</td>
         <td class="col-time">${a.last_used_at ? relTime(a.last_used_at) : '-'}</td>
         <td class="col-time">${relTime(a.created_at)}</td>
       </tr>`;
+      if (expanded) {
+        html += `<tr><td colspan="5" style="padding:0;border:none"><div id="agent-cfg-${a.id}" class="agent-config"><div class="loading">Loading config...</div></div></td></tr>`;
+      }
     }
     html += '</tbody></table>';
     el.innerHTML = html;
+    if (expandedAgentId) loadAgentConfig(expandedAgentId);
+  } catch { el.innerHTML = '<div class="empty">Failed to load agents</div>'; }
+}
+
+function toggleAgent(id) {
+  expandedAgentId = expandedAgentId === id ? null : id;
+  loadAgents();
+}
+
+async function loadAgentConfig(agentId) {
+  const el = document.getElementById('agent-cfg-' + agentId);
+  if (!el) return;
+  try {
+    const data = await apiFetch('/api/agents/me');
+    const isSelf = data.id === agentId;
+    const cr = data.channel_routing || {};
+    let html = '<div class="config-grid">';
+    if (isSelf) {
+      html += configField('Default Priority', `<select id="cfg-priority">
+        ${['critical','high','normal','low'].map(p => `<option value="${p}" ${data.default_priority === p ? 'selected' : ''}>${p}</option>`).join('')}
+      </select>`, 'Priority for messages without explicit --priority');
+      html += configField('Rate Limit', `<input id="cfg-ratelimit" type="number" min="0" value="${data.rate_limit ?? ''}" placeholder="No limit">`, 'Messages per minute (0 or empty = unlimited)');
+      html += configField('Role', `<select id="cfg-role">
+        <option value="" ${!data.role ? 'selected' : ''}>None</option>
+        ${['orchestrator','worker','reviewer'].map(r => `<option value="${r}" ${data.role === r ? 'selected' : ''}>${r}</option>`).join('')}
+      </select>`, 'Agent role hint');
+      html += configField('Avatar URL', `<input id="cfg-avatar" type="url" value="${esc(data.avatar_url || '')}" placeholder="https://...">`, 'For Discord webhook messages');
+      html += '</div>';
+      html += '<div style="margin-top:var(--space-md)"><label style="display:block;font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:var(--space-xs)">Channel Routing</label>';
+      html += '<div class="config-ro hint" style="margin-bottom:var(--space-xs)">Route messages to specific channels by priority</div>';
+      for (const p of ['critical','high','normal','low']) {
+        html += `<div class="routing-row"><span>${p}</span><select id="cfg-route-${p}">
+          <option value="">Default</option>
+          ${['discord','telegram','email'].map(ch => `<option value="${ch}" ${cr[p] === ch ? 'selected' : ''}>${ch}</option>`).join('')}
+        </select></div>`;
+      }
+      html += '</div>';
+      html += `<div class="config-actions">
+        <span id="cfg-status"></span>
+        <button class="btn-save" onclick="saveAgentConfig()">Save</button>
+      </div>`;
+    } else {
+      html += configField('ID', `<div class="config-ro"><code>${esc(agentId)}</code></div>`);
+      html += configField('Default Priority', `<div class="config-ro">${esc(data.default_priority || 'normal')}</div>`);
+      html += configField('Rate Limit', `<div class="config-ro">${data.rate_limit ?? 'No limit'}</div>`);
+      html += configField('Role', `<div class="config-ro">${esc(data.role || 'None')}</div>`);
+      html += '</div><div class="config-ro" style="margin-top:var(--space-sm);color:var(--text-dim)">Config editing available only for your own agent</div>';
+    }
+    el.innerHTML = html;
   } catch {
-    el.innerHTML = '<div class="empty">Failed to load agents</div>';
+    el.innerHTML = '<div class="config-ro">Failed to load config. Only the agent itself can view its full config.</div>';
   }
+}
+
+function configField(label, content, hint) {
+  return `<div class="config-field"><label>${label}</label>${content}${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+}
+
+async function saveAgentConfig() {
+  const status = document.getElementById('cfg-status');
+  const btn = document.querySelector('.config-actions .btn-save');
+  btn.disabled = true;
+  status.className = 'save-status';
+  status.textContent = 'Saving...';
+  const payload = {};
+  payload.default_priority = document.getElementById('cfg-priority').value;
+  const rl = document.getElementById('cfg-ratelimit').value;
+  payload.rate_limit = rl === '' || rl === '0' ? null : parseInt(rl, 10);
+  const role = document.getElementById('cfg-role').value;
+  payload.role = role || null;
+  const av = document.getElementById('cfg-avatar').value.trim();
+  payload.avatar_url = av || null;
+  const routing = {};
+  let hasRouting = false;
+  for (const p of ['critical','high','normal','low']) {
+    const v = document.getElementById('cfg-route-' + p).value;
+    if (v) { routing[p] = v; hasRouting = true; }
+  }
+  payload.channel_routing = hasRouting ? routing : null;
+  try {
+    await apiFetch('/api/agents/me/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    status.className = 'save-status save-ok';
+    status.textContent = 'Saved';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  } catch (e) {
+    status.className = 'save-status save-err';
+    status.textContent = 'Error: ' + e.message;
+  } finally { btn.disabled = false; }
 }
 
 /* -- Reply -- */
