@@ -7,6 +7,7 @@ import type { TelegramChannelConfig } from '../types';
 type SendOptions = {
   replyToMessageId?: number;
   inlineKeyboard?: { text: string; callback_data: string }[][];
+  messageThreadId?: number;
 };
 
 export function escapeHtml(text: string): string {
@@ -21,12 +22,14 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
   }
-  await sendTelegramTyping(config.bot_token, config.chat_id);
+  const threadId = options?.messageThreadId ?? config.message_thread_id;
+  await sendTelegramTyping(config.bot_token, config.chat_id, threadId);
   const payload: Record<string, unknown> = {
     chat_id: config.chat_id,
     text: content,
     parse_mode: 'HTML',
   };
+  if (threadId) payload.message_thread_id = threadId;
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
@@ -69,13 +72,15 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
   }
 }
 
-export async function sendTelegramTyping(botToken: string, chatId: string): Promise<void> {
+export async function sendTelegramTyping(botToken: string, chatId: string, messageThreadId?: number): Promise<void> {
+  const payload: Record<string, unknown> = { chat_id: chatId, action: 'typing' };
+  if (messageThreadId) payload.message_thread_id = messageThreadId;
   await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(botToken)}/sendChatAction`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, action: 'typing' }),
+      body: JSON.stringify(payload),
     }
   );
 }
@@ -126,11 +131,13 @@ export async function sendTelegramPhoto(config: TelegramChannelConfig, photoUrl:
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
   }
-  await sendTelegramTyping(config.bot_token, config.chat_id);
+  const threadId = options?.messageThreadId ?? config.message_thread_id;
+  await sendTelegramTyping(config.bot_token, config.chat_id, threadId);
   const payload: Record<string, unknown> = {
     chat_id: config.chat_id,
     photo: photoUrl,
   };
+  if (threadId) payload.message_thread_id = threadId;
   if (caption) {
     payload.caption = caption;
     payload.parse_mode = 'HTML';
@@ -155,11 +162,13 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
   }
-  await sendTelegramTyping(config.bot_token, config.chat_id);
+  const threadId = options?.messageThreadId ?? config.message_thread_id;
+  await sendTelegramTyping(config.bot_token, config.chat_id, threadId);
   const payload: Record<string, unknown> = {
     chat_id: config.chat_id,
     document: docUrl,
   };
+  if (threadId) payload.message_thread_id = threadId;
   if (caption) {
     payload.caption = caption;
     payload.parse_mode = 'HTML';
@@ -207,6 +216,25 @@ export async function setTelegramReaction(botToken: string, chatId: string, mess
       }),
     }
   );
+}
+
+export async function createForumTopic(botToken: string, chatId: string, name: string): Promise<number> {
+  const response = await fetch(
+    `https://api.telegram.org/bot${encodeURIComponent(botToken)}/createForumTopic`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, name: name.slice(0, 128) }),
+    }
+  );
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`telegram createForumTopic failed ${response.status} ${body}`);
+  }
+  const result = await response.json() as { result?: { message_thread_id?: number } };
+  const threadId = result?.result?.message_thread_id;
+  if (!threadId) throw new Error('createForumTopic returned no thread id');
+  return threadId;
 }
 
 function stripHtmlTags(html: string): string {
