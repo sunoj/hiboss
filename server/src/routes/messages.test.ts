@@ -92,6 +92,33 @@ describe('GET /api/messages', () => {
     }
   });
 
+  it('searches by body text', async () => {
+    // Create a message with unique body
+    await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'UniqueSearchTerm42 in this message' }),
+    });
+    const res = await SELF.fetch('https://test.local/api/messages?search=UniqueSearchTerm42', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { messages: { body: string }[] };
+    expect(data.messages.length).toBeGreaterThanOrEqual(1);
+    for (const msg of data.messages) {
+      expect(msg.body).toContain('UniqueSearchTerm42');
+    }
+  });
+
+  it('search returns empty for no match', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages?search=zzz_no_match_zzz', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { messages: unknown[] };
+    expect(data.messages.length).toBe(0);
+  });
+
   it('supports limit and offset', async () => {
     const res = await SELF.fetch('https://test.local/api/messages?limit=1&offset=0', {
       headers: authHeaders(),
