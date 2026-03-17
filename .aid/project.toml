@@ -1,0 +1,13 @@
+[project]
+id = "hiboss"
+profile = "production"
+language = "rust,typescript"
+budget = "$50/day"
+verify = "cd cli && cargo check && cd ../server && npm test"
+team = "dev"
+
+[rules]
+tests = "All new functions must have at least one test"
+no_unwrap = "No unwrap() in Rust production code"
+file_limit = "Files ≤ 300 lines, functions ≤ 50 lines"
+cross_review = "Code changes require review before merge"

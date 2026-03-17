@@ -1,0 +1,47 @@
+# Message Delivery Architecture
+
+## Delivery Layers
+
+Messages reach the agent through four layers:
+
+| Layer | Trigger | Scope | Latency |
+|-------|---------|-------|---------|
+| **SSE Daemon** | Background process, reads local file | All messages (boss + peer) | ~2s SSE + next tool call |
+| **PostToolUse hook** | Every tool call | Daemon: local file (0ms); Fallback: a2a 30s TTL, boss 5min TTL | 0ms–5min |
+| **MCP SSE push** | Real-time SSE background listener | All messages (terminal-visible) | Real-time* |
+| **SessionStart hook** | New session start | All unread + starts daemon | Session gap |
+
+*MCP `notifications/message` is displayed in terminal but NOT injected into agent context by Claude Code.
+
+**With daemon** (default): SSE daemon writes messages to local file → PostToolUse drains file on every tool call → near-instant delivery into agent context.
+
+**Without daemon** (fallback): PostToolUse polls server via HTTP with dual TTL — 30s for peer messages (only delivery mechanism), 5min for boss urgent (also have Telegram/Discord).
+
+## Key Design Decisions
+
+- MCP `notifications/message` is filtered by Claude Code — displayed in terminal for human but NOT injected into agent context. Server→client push via MCP is not viable for agent notification.
+- All boss→agent notification must go through hooks (stdout injection as `<system-reminder>`) or tool call responses.
+- Hook stdout output enters agent context; MCP notifications do not.
+- hiboss core users are Claude Code main agents orchestrating via aid CLI.
+- Sub-agents (codex, gemini, etc.) report to main agent via aid, not hiboss.
+
+## Channel Resolution Order
+
+When a message is sent, the channel is resolved with this precedence:
+
+1. **CLI `--channel` flag** — explicit override, always wins
+2. **Server `channel_routing`** — per-priority routing (e.g. `normal=discord, high=telegram`), used when no `--channel` is given
+3. **Server channel config fallback** — picks the most recently configured channel if no routing matches
+
+The CLI no longer sends `config.channel` on every request (as of v0.10.1) — it only sends a channel when `--channel` is explicitly used.
+
+## Multi-Channel Delivery
+
+Critical/high priority messages are delivered to ALL configured channels simultaneously. Normal/low priority uses single channel per resolution order above.
+
+## Reactions
+
+Agents set reaction emojis via `hiboss react <id> <emoji>` (works on both Discord and Telegram). Boss reactions are captured via webhooks. Conventions:
+- 👀 → message seen
+- 🔨 → working on it
+- ✅ → done/replied
