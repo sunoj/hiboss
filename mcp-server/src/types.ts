@@ -7,9 +7,10 @@ export type HibossMessage = {
   body: string;
   channel: string;
   status: string;
-  direction: 'agent_to_boss' | 'boss_to_agent';
+  direction: 'agent_to_boss' | 'boss_to_agent' | 'agent_to_agent';
   mode: 'async' | 'blocking';
   priority?: string;
+  agent_name?: string;
   reply_to: string | null;
   created_at: string;
   updated_at: string;
@@ -17,3 +18,16 @@ export type HibossMessage = {
 };
 
 export type HibossListResponse = { messages: HibossMessage[]; total: number };
+
+export type HibossSession = {
+  id: string;
+  agent_id: string;
+  agent_name?: string;
+  label?: string;
+  branch?: string;
+  cwd?: string;
+  started_at?: string;
+  last_seen_at?: string;
+};
+
+export type HibossSessionsResponse = { sessions: HibossSession[] };
