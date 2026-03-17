@@ -205,6 +205,30 @@ td {
 }
 .reply-item .reply-meta { font-size: 0.6875rem; color: var(--text-muted); }
 
+/* Reply form */
+.reply-form {
+  margin-top: var(--space-md); padding-top: var(--space-sm); border-top: 1px solid var(--border-light);
+}
+.reply-form textarea {
+  width: 100%; min-height: 60px; max-height: 200px; resize: vertical;
+  background: var(--bg-input); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-sm);
+  font-family: var(--sans); font-size: 0.8125rem; line-height: 1.5;
+}
+.reply-form textarea:focus { outline: none; border-color: var(--accent); }
+.reply-form-actions {
+  display: flex; justify-content: flex-end; align-items: center; gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+.reply-form .btn-send {
+  background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+  padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.75rem; font-weight: 500;
+}
+.reply-form .btn-send:hover { opacity: 0.9; }
+.reply-form .btn-send:disabled { opacity: 0.4; cursor: default; }
+.reply-form .reply-error { color: var(--red); font-size: 0.6875rem; }
+.reply-form .reply-ok { color: var(--green); font-size: 0.6875rem; }
+
 /* Pagination */
 .pagination {
   display: flex; align-items: center; justify-content: space-between;
@@ -543,6 +567,14 @@ async function loadMsgDetail(id) {
       }
       html += '</div>';
     }
+    // Reply form
+    html += `<div class="reply-form">
+      <textarea id="reply-input-${m.id}" placeholder="Type a reply..." onkeydown="replyKeydown(event, '${m.id}')"></textarea>
+      <div class="reply-form-actions">
+        <span id="reply-status-${m.id}"></span>
+        <button class="btn-send" onclick="sendReply('${m.id}')">Reply</button>
+      </div>
+    </div>`;
     el.innerHTML = html;
   } catch {
     el.innerHTML = '<div class="empty">Failed to load detail</div>';
@@ -633,6 +665,43 @@ async function loadAgents() {
     el.innerHTML = html;
   } catch {
     el.innerHTML = '<div class="empty">Failed to load agents</div>';
+  }
+}
+
+/* -- Reply -- */
+async function sendReply(msgId) {
+  const input = document.getElementById('reply-input-' + msgId);
+  const status = document.getElementById('reply-status-' + msgId);
+  const body = input.value.trim();
+  if (!body) return;
+  const btn = input.parentElement.querySelector('.btn-send');
+  btn.disabled = true;
+  status.className = 'reply-ok';
+  status.textContent = 'Sending...';
+  try {
+    const endpoint = authMode === 'boss'
+      ? '/api/boss/messages/' + msgId + '/reply'
+      : '/api/messages/' + msgId + '/reply';
+    await apiFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body })
+    });
+    input.value = '';
+    status.textContent = '';
+    loadMsgDetail(msgId); // Refresh to show new reply
+  } catch (e) {
+    status.className = 'reply-error';
+    status.textContent = 'Failed to send: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function replyKeydown(e, msgId) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    sendReply(msgId);
   }
 }
 
