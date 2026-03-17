@@ -291,6 +291,7 @@ td {
 /* -- State -- */
 let apiKey = '';
 let baseUrl = '';
+let authMode = 'agent'; // 'agent' or 'boss'
 let currentTab = 'messages';
 let msgOffset = 0;
 let msgTotal = 0;
@@ -315,6 +316,7 @@ let filters = { direction: '', status: '', priority: '' };
   } else {
     apiKey = localStorage.getItem('hiboss_key') || '';
   }
+  authMode = localStorage.getItem('hiboss_auth_mode') || 'agent';
   if (apiKey) {
     showApp();
   } else {
@@ -327,15 +329,25 @@ function doLogin() {
   const key = input.value.trim();
   if (!key) return;
   apiKey = key;
-  // Verify by calling /api/agents/me
+  // Try agent auth first, then boss auth
   apiFetch('/api/agents/me').then(data => {
+    authMode = 'agent';
     localStorage.setItem('hiboss_key', key);
+    localStorage.setItem('hiboss_auth_mode', 'agent');
     document.getElementById('login').style.display = 'none';
     showApp();
   }).catch(() => {
-    document.getElementById('login-error').textContent = 'Invalid API key';
-    document.getElementById('login-error').style.display = 'block';
-    apiKey = '';
+    apiFetch('/api/boss/me').then(data => {
+      authMode = 'boss';
+      localStorage.setItem('hiboss_key', key);
+      localStorage.setItem('hiboss_auth_mode', 'boss');
+      document.getElementById('login').style.display = 'none';
+      showApp();
+    }).catch(() => {
+      document.getElementById('login-error').textContent = 'Invalid API key';
+      document.getElementById('login-error').style.display = 'block';
+      apiKey = '';
+    });
   });
 }
 
@@ -346,6 +358,7 @@ document.getElementById('key-input').addEventListener('keydown', e => {
 function logout() {
   apiKey = '';
   localStorage.removeItem('hiboss_key');
+  localStorage.removeItem('hiboss_auth_mode');
   clearInterval(refreshTimer);
   document.getElementById('app').style.display = 'none';
   document.getElementById('login').style.display = 'flex';
@@ -367,8 +380,13 @@ async function apiFetch(path, opts = {}) {
 async function showApp() {
   document.getElementById('app').style.display = 'flex';
   try {
-    const me = await apiFetch('/api/agents/me');
-    document.getElementById('agent-name').textContent = me.name || me.id.slice(0, 8);
+    if (authMode === 'boss') {
+      const me = await apiFetch('/api/boss/me');
+      document.getElementById('agent-name').textContent = (me.name || me.id.slice(0, 8)) + ' (boss)';
+    } else {
+      const me = await apiFetch('/api/agents/me');
+      document.getElementById('agent-name').textContent = me.name || me.id.slice(0, 8);
+    }
   } catch { /* ignore */ }
   switchTab('messages');
   startRefresh();
@@ -404,7 +422,8 @@ async function loadMessages(quiet = false) {
   if (filters.priority) params.set('priority', filters.priority);
 
   try {
-    const data = await apiFetch('/api/messages?' + params);
+    const endpoint = authMode === 'boss' ? '/api/boss/messages' : '/api/messages';
+    const data = await apiFetch(endpoint + '?' + params);
     msgTotal = data.total || 0;
     renderMessages(data.messages || [], msgTotal);
   } catch (e) {
@@ -500,7 +519,8 @@ async function loadMsgDetail(id) {
   const el = document.getElementById('detail-' + id);
   if (!el) return;
   try {
-    const m = await apiFetch('/api/messages/' + id);
+    const endpoint = authMode === 'boss' ? '/api/boss/messages/' : '/api/messages/';
+    const m = await apiFetch(endpoint + id);
     let html = `<pre>${esc(m.body)}</pre>`;
     html += '<div class="meta-row">';
     html += `<span>ID: <code style="font-family:var(--mono)">${esc(m.id)}</code></span>`;
@@ -540,7 +560,8 @@ async function loadSessions() {
   const el = document.getElementById('content');
   el.innerHTML = '<div class="loading">Loading...</div>';
   try {
-    const data = await apiFetch('/api/sessions?all=true');
+    const endpoint = authMode === 'boss' ? '/api/boss/sessions' : '/api/sessions?all=true';
+    const data = await apiFetch(endpoint);
     const sessions = data.sessions || [];
     if (sessions.length === 0) {
       el.innerHTML = '<div class="empty">No active sessions</div>';
@@ -585,7 +606,8 @@ async function loadAgents() {
   const el = document.getElementById('content');
   el.innerHTML = '<div class="loading">Loading...</div>';
   try {
-    const data = await apiFetch('/api/agents');
+    const endpoint = authMode === 'boss' ? '/api/boss/agents' : '/api/agents';
+    const data = await apiFetch(endpoint);
     const agents = data.agents || [];
     if (agents.length === 0) {
       el.innerHTML = '<div class="empty">No agents found</div>';

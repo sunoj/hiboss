@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { apiAuth, getAgentId } from '../middleware/auth';
+import { apiAuth, getAgentId, hashApiKey } from '../middleware/auth';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
 
@@ -203,6 +203,23 @@ routes.delete('/:id/access/:agentId', async (c) => {
     return c.text('not found', 404);
   }
   return c.json({ ok: true });
+});
+
+// POST /api/bosses/:id/token — generate or regenerate a boss auth token
+routes.post('/:id/token', async (c) => {
+  void getAgentId(c);
+  const boss = await findBoss(c.env, c.req.param('id'));
+  if (!boss) return c.text('not found', 404);
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const token = `hb_boss_${hex}`;
+  const tokenHash = await hashApiKey(token);
+  await c.env.DB
+    .prepare('UPDATE bosses SET token_hash = ? WHERE id = ?')
+    .bind(tokenHash, boss.id)
+    .run();
+  return c.json({ id: boss.id, name: boss.name, token });
 });
 
 export const bossesRouter = routes;
