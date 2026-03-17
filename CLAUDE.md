@@ -468,6 +468,8 @@ hiboss config set channel discord   # default channel
 hiboss setup hooks                  # configure Claude Code hooks (project)
 hiboss setup hooks --global         # configure for all Claude Code sessions
 hiboss setup hooks --remove         # remove hiboss hooks
+hiboss setup telegram               # guided Telegram bot setup (auto-detects chat)
+hiboss setup discord                # guided Discord bot setup (lists channels)
 
 # Send (async)
 hiboss send "Deployment complete. 3 tests failed."
