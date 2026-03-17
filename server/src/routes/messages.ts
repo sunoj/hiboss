@@ -52,7 +52,7 @@ function isUniqueConstraintError(error: unknown): boolean {
 export async function insertMessageWithRecovery(
   env: Env,
   agentId: string,
-  values: [Direction, Mode, Channel | null, string, Priority, string, string | null, string | null, string | null, string | null, string | null, string | null]
+  values: [Direction, Mode, Channel | null, string, Priority, string, string | null, string | null, string | null, string | null, string | null]
 ): Promise<{ inserted: MessageRow | null; existing: MessageRow | null }> {
   const [direction, mode, channel, body, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId] = values;
   try {
