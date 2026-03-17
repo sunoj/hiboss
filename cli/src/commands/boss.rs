@@ -21,6 +21,8 @@ pub enum BossCommand {
     Grant(BossGrantArgs),
     Revoke(BossRevokeArgs),
     Show(BossShowArgs),
+    /// Set boss preferences (channel, quiet hours, notifications)
+    Preferences(BossPreferencesArgs),
     /// View messages from sub-agents (agent-as-boss)
     Inbox(BossInboxArgs),
     /// Reply to a sub-agent message as boss
@@ -73,6 +75,20 @@ pub struct BossShowArgs {
     pub id: String,
 }
 #[derive(Debug, Args)]
+pub struct BossPreferencesArgs {
+    pub id: String,
+    #[arg(long, help = "Preferred channel: telegram, discord, email (or 'none' to clear)")]
+    pub channel: Option<String>,
+    #[arg(long, help = "Quiet hours start (HH:MM, e.g. 22:00)")]
+    pub quiet_start: Option<String>,
+    #[arg(long, help = "Quiet hours end (HH:MM, e.g. 08:00)")]
+    pub quiet_end: Option<String>,
+    #[arg(long, help = "Timezone for quiet hours (e.g. Asia/Shanghai)")]
+    pub timezone: Option<String>,
+    #[arg(long, help = "Priority levels that trigger notifications (comma-separated)")]
+    pub notify: Option<String>,
+}
+#[derive(Debug, Args)]
 pub struct BossInboxArgs {
     #[arg(long)]
     pub all: bool,
@@ -98,6 +114,7 @@ pub async fn run(args: &BossArgs, _config: &Config, client: &HiBossClient) -> Re
         BossCommand::Grant(payload) => run_grant(payload, client).await,
         BossCommand::Revoke(payload) => run_revoke(payload, client).await,
         BossCommand::Show(payload) => run_show(payload, client).await,
+        BossCommand::Preferences(payload) => run_preferences(payload, client).await,
         BossCommand::Inbox(payload) => run_inbox(payload, client).await,
         BossCommand::Reply(payload) => run_reply(payload, client).await,
     }
@@ -105,24 +122,15 @@ pub async fn run(args: &BossArgs, _config: &Config, client: &HiBossClient) -> Re
 
 async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let resp = client.list_bosses().await?;
-    if let Some(list) = resp["bosses"].as_array() {
-        if list.is_empty() {
-            eprintln!("No bosses found.");
-            return Ok(());
-        }
-        println!("{:<10} {:<20} {:<12} {:<16} {:<16} {}", "ID", "Name", "Role", "Telegram", "Discord", "Agents");
-        for boss in list {
-            let id = short_id(boss["id"].as_str().unwrap_or(""));
-            let name = boss["name"].as_str().unwrap_or("-");
-            let role = boss["role"].as_str().unwrap_or("viewer");
-            let telegram = boss["telegram_user_id"].as_str().unwrap_or("-");
-            let discord = boss["discord_user_id"].as_str().unwrap_or("-");
-            let agents = format_agents(boss);
-            println!("{:<10} {:<20} {:<12} {:<16} {:<16} {}", id, name, color_role(role), telegram, discord, agents);
-        }
-        return Ok(());
+    let Some(list) = resp["bosses"].as_array().filter(|l| !l.is_empty()) else {
+        eprintln!("No bosses found."); return Ok(());
+    };
+    println!("{:<10} {:<20} {:<12} {:<16} {:<16} {}", "ID", "Name", "Role", "Telegram", "Discord", "Agents");
+    for b in list {
+        println!("{:<10} {:<20} {:<12} {:<16} {:<16} {}", short_id(b["id"].as_str().unwrap_or("")),
+            b["name"].as_str().unwrap_or("-"), color_role(b["role"].as_str().unwrap_or("viewer")),
+            b["telegram_user_id"].as_str().unwrap_or("-"), b["discord_user_id"].as_str().unwrap_or("-"), format_agents(b));
     }
-    eprintln!("No bosses found.");
     Ok(())
 }
 
@@ -182,6 +190,49 @@ async fn run_show(args: &BossShowArgs, client: &HiBossClient) -> Result<(), Box<
     Ok(())
 }
 
+async fn run_preferences(args: &BossPreferencesArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let no_updates = args.channel.is_none() && args.quiet_start.is_none() && args.quiet_end.is_none()
+        && args.timezone.is_none() && args.notify.is_none();
+    if no_updates {
+        // Show current preferences
+        let boss = client.get_boss(&args.id).await?;
+        eprintln!("Preferences for {}", boss["name"].as_str().unwrap_or("-"));
+        if let Some(prefs) = boss["preferences"].as_object() {
+            if prefs.is_empty() { println!("  (no preferences set)"); }
+            else {
+                for (k, v) in prefs { println!("  {}: {}", k, v); }
+            }
+        } else {
+            println!("  (no preferences set)");
+        }
+        return Ok(());
+    }
+    let mut prefs = Map::new();
+    if let Some(ref ch) = args.channel {
+        if ch == "none" { prefs.insert("preferred_channel".into(), Value::Null); }
+        else { prefs.insert("preferred_channel".into(), Value::String(ch.clone())); }
+    }
+    if args.quiet_start.is_some() || args.quiet_end.is_some() {
+        let mut qh = Map::new();
+        if let Some(ref s) = args.quiet_start { qh.insert("start".into(), Value::String(s.clone())); }
+        if let Some(ref e) = args.quiet_end { qh.insert("end".into(), Value::String(e.clone())); }
+        if let Some(ref tz) = args.timezone { qh.insert("timezone".into(), Value::String(tz.clone())); }
+        prefs.insert("quiet_hours".into(), Value::Object(qh));
+    }
+    if let Some(ref n) = args.notify {
+        let priorities: Vec<Value> = n.split(',').map(|s| Value::String(s.trim().to_owned())).collect();
+        prefs.insert("notify_priorities".into(), Value::Array(priorities));
+    }
+    let mut payload = Map::new();
+    payload.insert("preferences".into(), Value::Object(prefs));
+    let boss = client.update_boss(&args.id, &Value::Object(payload)).await?;
+    eprintln!("Preferences updated for {}", boss["name"].as_str().unwrap_or("-"));
+    if let Some(prefs) = boss["preferences"].as_object() {
+        for (k, v) in prefs { println!("  {}: {}", k, v); }
+    }
+    Ok(())
+}
+
 async fn run_inbox(args: &BossInboxArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let resp = client.boss_inbox(!args.all, args.limit, args.priority.as_deref(), args.count).await?;
     if args.count {
@@ -224,45 +275,26 @@ fn color_priority_str(priority: &str) -> colored::ColoredString {
 }
 
 fn print_boss_details(boss: &Value) {
-    let id = boss["id"].as_str().unwrap_or("-");
-    println!("ID: {}", short_id(id));
+    println!("ID: {}", short_id(boss["id"].as_str().unwrap_or("-")));
     println!("Name: {}", boss["name"].as_str().unwrap_or("-"));
     println!("Role: {}", color_role(boss["role"].as_str().unwrap_or("viewer")));
-    println!("Telegram User ID: {}", boss["telegram_user_id"].as_str().unwrap_or("-"));
-    println!("Discord User ID: {}", boss["discord_user_id"].as_str().unwrap_or("-"));
-    if let Some(agent_id) = boss["agent_id"].as_str() {
-        println!("Agent ID: {}", short_id(agent_id));
-    }
+    println!("Telegram: {}", boss["telegram_user_id"].as_str().unwrap_or("-"));
+    println!("Discord: {}", boss["discord_user_id"].as_str().unwrap_or("-"));
+    if let Some(id) = boss["agent_id"].as_str() { println!("Agent: {}", short_id(id)); }
 }
 
 fn format_agents(boss: &Value) -> String {
-    match boss["agents"].as_array().or_else(|| boss["access"].as_array()) {
-        Some(list) if !list.is_empty() => list.iter().map(agent_label).collect::<Vec<_>>().join(", "),
-        _ => "-".into(),
-    }
-}
-
-fn agent_label(agent: &Value) -> String {
-    if let Some(name) = agent["name"].as_str() {
-        return name.to_string();
-    }
-    if let Some(id) = agent["id"].as_str().or_else(|| agent.as_str()) {
-        return short_id(id);
-    }
-    "-".into()
+    boss["agents"].as_array().or_else(|| boss["access"].as_array())
+        .filter(|l| !l.is_empty())
+        .map(|l| l.iter().map(|a| a["name"].as_str().map(String::from)
+            .unwrap_or_else(|| short_id(a["id"].as_str().or(a.as_str()).unwrap_or("-")))).collect::<Vec<_>>().join(", "))
+        .unwrap_or_else(|| "-".into())
 }
 
 fn insert_optional(map: &mut Map<String, Value>, key: &str, value: &Option<String>) {
-    if let Some(value) = value {
-        map.insert(key.into(), Value::String(value.clone()));
-    }
+    if let Some(v) = value { map.insert(key.into(), Value::String(v.clone())); }
 }
 
 fn color_role(role: &str) -> colored::ColoredString {
-    match role {
-        "admin" => role.red().bold(),
-        "manager" => role.yellow(),
-        "viewer" => role.green(),
-        _ => role.normal(),
-    }
+    match role { "admin" => role.red().bold(), "manager" => role.yellow(), "viewer" => role.green(), _ => role.normal() }
 }

@@ -16,6 +16,7 @@ interface BossRow {
   telegram_user_id: string | null;
   discord_user_id: string | null;
   agent_id: string | null;
+  preferences: string | null;
   created_at: string;
 }
 
@@ -25,6 +26,33 @@ interface AgentRow {
 }
 
 const VALID_ROLES: BossRole[] = ['admin', 'manager', 'viewer'];
+const VALID_CHANNELS = ['telegram', 'discord', 'email'];
+const VALID_PRIORITIES = ['critical', 'high', 'normal', 'low'];
+
+function safeParse(value: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
+}
+
+function validatePreferences(prefs: Record<string, unknown>): string | null {
+  if ('preferred_channel' in prefs) {
+    if (prefs.preferred_channel !== null && (typeof prefs.preferred_channel !== 'string' || !VALID_CHANNELS.includes(prefs.preferred_channel))) {
+      return 'preferred_channel must be telegram, discord, email, or null';
+    }
+  }
+  if ('notify_priorities' in prefs) {
+    if (!Array.isArray(prefs.notify_priorities) || !prefs.notify_priorities.every((p: unknown) => typeof p === 'string' && VALID_PRIORITIES.includes(p as string))) {
+      return 'notify_priorities must be an array of valid priorities';
+    }
+  }
+  if ('quiet_hours' in prefs && prefs.quiet_hours !== null) {
+    const qh = prefs.quiet_hours as Record<string, unknown>;
+    if (typeof qh !== 'object' || typeof qh.start !== 'string' || typeof qh.end !== 'string') {
+      return 'quiet_hours must have start and end time strings (HH:MM)';
+    }
+  }
+  return null;
+}
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
@@ -43,6 +71,7 @@ routes.get('/', async (c) => {
     telegram_user_id: row.telegram_user_id,
     discord_user_id: row.discord_user_id,
     agent_id: row.agent_id,
+    preferences: safeParse(row.preferences),
     created_at: row.created_at,
     agent_ids: row.agent_ids ? row.agent_ids.split(',').filter(Boolean) : [],
   }));
@@ -85,7 +114,7 @@ routes.get('/:id', async (c) => {
     .prepare('SELECT k.id, k.name FROM boss_agent_access ba JOIN api_keys k ON k.id = ba.agent_id WHERE ba.boss_id = ?')
     .bind(boss.id)
     .all<AgentRow>();
-  return c.json({ ...boss, agents: agents.results ?? [] });
+  return c.json({ ...boss, preferences: safeParse(boss.preferences), agents: agents.results ?? [] });
 });
 
 routes.patch('/:id', async (c) => {
@@ -144,6 +173,22 @@ routes.patch('/:id', async (c) => {
       binds.push(candidate === '' ? null : candidate);
     } else {
       return c.text('agent_id must be a string or null', 400);
+    }
+  }
+  if ('preferences' in payload) {
+    if (payload.preferences === null) {
+      updates.push('preferences = NULL');
+    } else if (typeof payload.preferences === 'object' && !Array.isArray(payload.preferences)) {
+      const prefs = payload.preferences as Record<string, unknown>;
+      const err = validatePreferences(prefs);
+      if (err) return c.text(err, 400);
+      // Merge with existing preferences
+      const existing = safeParse(boss.preferences) ?? {};
+      const merged = { ...existing, ...prefs };
+      updates.push('preferences = ?');
+      binds.push(JSON.stringify(merged));
+    } else {
+      return c.text('preferences must be an object or null', 400);
     }
   }
   if (updates.length === 0) {
