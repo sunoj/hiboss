@@ -1,5 +1,5 @@
 // SSE streaming endpoint for real-time message delivery to agents.
-// Exports GET /stream that pushes new boss_to_agent messages via Server-Sent Events.
+// Exports GET /stream that pushes boss_to_agent and agent_to_agent messages via SSE.
 // Depends on Hono, D1, auth middleware, and Cloudflare Workers streaming primitives.
 
 import { Hono } from 'hono';
@@ -15,11 +15,12 @@ routes.use('*', apiAuth);
 
 routes.get('/stream', async (c) => {
   const agentId = getAgentId(c);
+  const sessionId = c.req.query('session') || undefined;
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
 
-  c.executionCtx.waitUntil(streamLoop(writer, encoder, c.env, agentId));
+  c.executionCtx.waitUntil(streamLoop(writer, encoder, c.env, agentId, sessionId));
 
   return new Response(readable, {
     headers: {
@@ -37,18 +38,20 @@ async function streamLoop(
   encoder: TextEncoder,
   env: Env,
   agentId: string,
+  sessionId?: string,
 ): Promise<void> {
   const start = Date.now();
   let lastCheck = new Date().toISOString().replace('T', ' ').slice(0, 19);
   let lastKeepalive = Date.now();
 
+  // Build the WHERE clause based on whether session filtering is active
+  const { sql, buildBinds } = buildStreamQuery(agentId, sessionId);
+
   try {
     while (Date.now() - start < MAX_DURATION_MS) {
       const rows = await env.DB
-        .prepare(
-          "SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.agent_id = ? AND messages.direction = 'boss_to_agent' AND messages.status = 'sent' AND messages.created_at > ? ORDER BY messages.created_at ASC"
-        )
-        .bind(agentId, lastCheck)
+        .prepare(sql)
+        .bind(...buildBinds(lastCheck))
         .all<MessageRow>();
 
       for (const row of rows.results ?? []) {
@@ -73,6 +76,37 @@ async function streamLoop(
   } finally {
     try { await writer.close(); } catch { /* already closed */ }
   }
+}
+
+/** Build SQL and bind factory for the stream query. Includes boss and a2a messages. */
+function buildStreamQuery(agentId: string, sessionId?: string) {
+  // Boss messages: agent_id = ? AND direction = 'boss_to_agent'
+  // A2A messages: target_agent_id = ? AND direction = 'agent_to_agent'
+  //   If sessionId: also match target_session_id = ? (or NULL for agent-wide a2a)
+  const baseCols = 'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id';
+
+  if (sessionId) {
+    // Session-scoped: boss messages + a2a targeting this agent (no session) + a2a targeting this session
+    const where = `WHERE messages.status = 'sent' AND messages.created_at > ? AND (
+      (messages.agent_id = ? AND messages.direction = 'boss_to_agent')
+      OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.target_session_id IS NULL)
+      OR (messages.target_session_id = ? AND messages.direction = 'agent_to_agent')
+    ) ORDER BY messages.created_at ASC`;
+    return {
+      sql: `${baseCols} ${where}`,
+      buildBinds: (lastCheck: string) => [lastCheck, agentId, agentId, sessionId],
+    };
+  }
+
+  // Agent-wide: boss messages + all a2a targeting this agent
+  const where = `WHERE messages.status = 'sent' AND messages.created_at > ? AND (
+    (messages.agent_id = ? AND messages.direction = 'boss_to_agent')
+    OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent')
+  ) ORDER BY messages.created_at ASC`;
+  return {
+    sql: `${baseCols} ${where}`,
+    buildBinds: (lastCheck: string) => [lastCheck, agentId, agentId],
+  };
 }
 
 function safeJson(value: string | null): Record<string, unknown> | null {
