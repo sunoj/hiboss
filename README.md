@@ -7,8 +7,7 @@ familiar channels like Discord and Telegram. When an agent needs approval, wants
 report progress, or has a question, it calls `hiboss send` or `hiboss ask` -- the
 message lands in your chat app, and your reply flows back to the agent.
 
-The system also supports agent-to-agent communication. One agent sends a message while
-another runs in bot mode with a custom handler, enabling autonomous multi-agent
+Agents can also act as bosses for other agents, enabling autonomous multi-agent
 workflows where a human can still step in at any time.
 
 ## Architecture
@@ -17,12 +16,13 @@ workflows where a human can still step in at any time.
                          +---------------------+
   hiboss CLI (Rust)      |  hiboss-server      |     Discord / Telegram
   hiboss MCP Server  <-->|  (Cloudflare Worker) |<--->  Boss (human or AI)
-                         |  D1 database         |
+                         |  D1 + R2 storage    |
                          +---------------------+
 ```
 
-The server runs on Cloudflare Workers with D1 for persistence. Channels are pluggable
-adapters -- configure one or more, and messages route through whichever you choose.
+The server runs on Cloudflare Workers with D1 for persistence and R2 for file
+attachments. Channels are pluggable adapters -- configure one or more, and messages
+route through whichever you choose.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ adapters -- configure one or more, and messages route through whichever you choo
 
 - [Rust](https://rustup.rs/) (for the CLI)
 - [Node.js](https://nodejs.org/) >= 18 (for the server and MCP server)
-- A [Cloudflare](https://dash.cloudflare.com/) account with Workers and D1 enabled
+- A [Cloudflare](https://dash.cloudflare.com/) account with Workers, D1, and R2 enabled
 
 ### 1. Deploy the server
 
@@ -39,7 +39,7 @@ cd server
 npm install
 npx wrangler d1 create hiboss-db          # create the D1 database
 # Update wrangler.toml with the returned database_id
-npx wrangler d1 execute hiboss-db --file=schema.sql   # apply schema
+npx wrangler d1 migrations apply hiboss-db # apply all migrations
 npx wrangler deploy
 ```
 
@@ -66,11 +66,12 @@ This bootstraps the first API key and saves your config to
 # Telegram
 hiboss channel set telegram --bot-token <BOT_TOKEN> --chat-id <CHAT_ID>
 
-# Discord
+# Discord (bot mode)
 hiboss channel set discord --bot-token <BOT_TOKEN> --channel-id <CHANNEL_ID>
-```
 
-For Telegram, the CLI automatically registers the webhook with the Telegram API.
+# Discord (webhook mode, no bot required)
+hiboss channel set discord --webhook-url <WEBHOOK_URL>
+```
 
 ### 5. Send your first message
 
@@ -78,41 +79,116 @@ For Telegram, the CLI automatically registers the webhook with the Telegram API.
 hiboss send "Hello boss!"
 ```
 
-## CLI Commands
+## Features
 
-| Command | Description |
-|---------|-------------|
-| `hiboss init <server-url>` | Initialize config and bootstrap the first API key |
-| `hiboss send <message>` | Send an async message to your boss |
-| `hiboss ask <message>` | Send a blocking message and wait for the boss reply |
-| `hiboss inbox` | List unread messages from your boss |
-| `hiboss read <id>` | Read a specific message with its reply chain |
-| `hiboss reply <id> <message>` | Reply to a message from your boss |
-| `hiboss status <id>` | Check the delivery status of a sent message |
-| `hiboss watch` | Watch for new messages with desktop notifications |
-| `hiboss bot --handler <cmd>` | Auto-reply to messages using an external handler |
-| `hiboss agent` | Manage agent identities |
-| `hiboss channel set <type>` | Configure a messaging channel |
-| `hiboss channel list` | List configured channels |
-| `hiboss config set <key> <val>` | Manage local configuration |
+### Messaging
 
-Common flags: `--priority critical|high|normal|low`, `--channel discord|telegram`,
-`--timeout <seconds>`.
+```bash
+hiboss send "Deployment complete"                  # async message
+hiboss send --priority high "Build failed"         # urgent message
+hiboss ask "Option A or B?" --timeout 60           # blocking, wait for reply
+hiboss ask --options "A,B,C" "Pick one"            # quick-reply buttons
+hiboss ask --actions "Approve:make deploy,Reject" "Deploy to prod?"  # action buttons
+hiboss send --file ./screenshot.png "See attached" # file attachment
+hiboss send --type task_update "Build deployed"    # typed messages
+```
+
+### Action Buttons
+
+`--actions` creates Telegram/Discord buttons that trigger commands when pressed.
+The executed command's result (success/failure + output) is automatically sent back
+to the boss as a `type=action_result` message.
+
+```bash
+hiboss ask --actions "Merge:git merge feature,Reject:echo no" "Merge this PR?"
+# Boss taps "Merge" → `git merge feature` runs → result sent back automatically
+```
+
+### Channel Routing
+
+Route messages to different channels based on priority:
+
+```bash
+hiboss agent config --channel-routing "normal=discord,high=telegram,critical=telegram"
+```
+
+Resolution order: `--channel` flag > server `channel_routing` > first configured channel.
+
+### Inbox & Replies
+
+```bash
+hiboss inbox                              # unread messages from boss
+hiboss inbox --priority critical,high     # urgent only
+hiboss read <id>                          # message with reply chain
+hiboss reply <id> "Done"                  # reply to boss
+hiboss react <id> "✅"                   # emoji reaction (Telegram)
+```
+
+### Multi-Boss Teams
+
+```bash
+hiboss boss add "Alice" --role admin --telegram-user-id 12345
+hiboss boss add "Bob" --role manager --discord-user-id 67890
+hiboss boss grant <boss-id> <agent-id>    # grant agent access
+hiboss boss list                          # list bosses with roles
+```
+
+Roles: `admin` (access all agents), `manager` (explicit grants only), `viewer` (read-only).
+
+### Agent-as-Boss
+
+An agent can act as boss for other agents -- enabling autonomous orchestration:
+
+```bash
+# Create a boss linked to an agent
+hiboss boss add "Orchestrator" --role admin --agent-id <orchestrator-key-id>
+
+# The orchestrator reads sub-agent messages and replies
+hiboss boss inbox
+hiboss boss reply <id> "Approved, proceed"
+```
+
+### Agent Groups & Routing
+
+```bash
+hiboss group create dev-team                       # create group
+hiboss group add-member <group-id> <agent-id>      # add member
+hiboss group broadcast <group-id> "Stop all work"  # broadcast
+
+hiboss route add --channel telegram --pattern "deploy.*" --target <agent-id>
+```
+
+### Session Isolation
+
+Each Claude Code session gets a unique session ID. Messages are scoped per session --
+`hiboss inbox` only shows messages from the current session. Boss-initiated messages
+(not replies) are visible across all sessions.
+
+### Claude Code Integration
+
+```bash
+hiboss setup hooks           # install SessionStart + PostToolUse hooks
+hiboss setup hooks --global  # install for all projects
+hiboss doctor                # validate config, connectivity, channel routing
+```
+
+The hooks inject unread messages at session start and check for urgent messages
+every 5 minutes during work.
+
+### Discord Bidirectional
+
+Boss can send messages and click buttons from Discord:
+
+```bash
+hiboss channel discord-setup --app-id <id> --bot-token <token>  # register /msg command
+```
+
+Boss uses `/msg <message>` in Discord to send messages to agents.
 
 ## MCP Server
 
 The MCP server lets AI coding tools (Claude Code, Cursor, etc.) communicate with the
 boss directly through the Model Context Protocol.
-
-### Setup
-
-```bash
-cd mcp-server
-npm install
-npm run build
-```
-
-### Configure in `.mcp.json`
 
 ```json
 {
@@ -129,51 +205,17 @@ npm run build
 }
 ```
 
-The MCP server can also read credentials from `~/.config/hiboss/config.json` if the
-environment variables are not set.
-
-### Available MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `send_message` | Send an async update to the boss |
-| `ask_boss` | Ask the boss a question and wait for a reply |
-| `check_inbox` | List unread or recent boss messages |
-| `read_message` | Read a message and its replies |
-| `reply_message` | Reply to a boss message |
-
-## Agent-to-Agent Communication
-
-Use bot mode to create agents that automatically respond to messages. The handler
-receives the message body on stdin and returns the reply on stdout.
-
-```bash
-# Simple acknowledgment bot
-hiboss bot --handler 'echo "Acknowledged"'
-
-# Forward to an LLM for autonomous replies
-hiboss bot --handler 'llm-cli --prompt "$(cat)"'
-
-# Custom script with logic
-hiboss bot --handler './my-handler.sh' --interval 10
-```
-
-One agent sends with `hiboss send` or `hiboss ask`, and another agent running
-`hiboss bot` picks it up and replies automatically. Chain multiple agents together
-for complex workflows.
-
 ## Self-Hosted
 
 hiboss is fully self-hosted. The server runs on your own Cloudflare account, data
 lives in your own D1 database, and channel credentials stay under your control.
-There are no external services, no telemetry, and no third-party dependencies beyond
-Cloudflare's infrastructure.
+No external services, no telemetry, no third-party dependencies beyond Cloudflare.
 
 ## Project Structure
 
 ```
 cli/           Rust CLI binary (clap, reqwest, tokio)
-server/        Cloudflare Worker (Hono, D1)
+server/        Cloudflare Worker (Hono, D1, R2)
 mcp-server/    MCP server for AI coding tools (TypeScript)
 ```
 
