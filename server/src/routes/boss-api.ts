@@ -27,16 +27,42 @@ async function getAccessibleAgentIds(env: Env, bossId: string, role: string): Pr
   return (rows.results ?? []).map((r) => r.agent_id);
 }
 
+function safeParse(value: string | null | undefined): Record<string, unknown> | null {
+  if (!value) return null;
+  try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
+}
+
 /** GET /api/boss/me — boss profile */
 routes.get('/me', async (c) => {
   const bossId = getBossId(c);
   const boss = await c.env.DB
-    .prepare('SELECT id, name, role, telegram_user_id, discord_user_id, agent_id, created_at FROM bosses WHERE id = ?')
+    .prepare('SELECT id, name, role, telegram_user_id, discord_user_id, agent_id, preferences, created_at FROM bosses WHERE id = ?')
     .bind(bossId)
-    .first();
+    .first<Record<string, unknown>>();
   if (!boss) return c.text('not found', 404);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  return c.json({ ...boss, agent_ids: agentIds });
+  return c.json({ ...boss, preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
+});
+
+/** GET /api/boss/me/preferences — get boss preferences */
+routes.get('/me/preferences', async (c) => {
+  const bossId = getBossId(c);
+  const row = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ?').bind(bossId).first<{ preferences: string | null }>();
+  if (!row) return c.text('not found', 404);
+  return c.json(safeParse(row.preferences) ?? {});
+});
+
+/** PUT /api/boss/me/preferences — update boss preferences (merge) */
+routes.put('/me/preferences', async (c) => {
+  const bossId = getBossId(c);
+  const payload = await c.req.json<Record<string, unknown>>();
+  const existing = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ?').bind(bossId).first<{ preferences: string | null }>();
+  if (!existing) return c.text('not found', 404);
+  const current = safeParse(existing.preferences) ?? {};
+  const merged = { ...current, ...payload };
+  await c.env.DB.prepare('UPDATE bosses SET preferences = ? WHERE id = ?').bind(JSON.stringify(merged), bossId).run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'boss.preferences', 'boss', bossId, JSON.stringify(Object.keys(payload))));
+  return c.json(merged);
 });
 
 /** GET /api/boss/agents — list agents this boss can access */
