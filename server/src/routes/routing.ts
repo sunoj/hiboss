@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { logAudit } from '../audit';
 
 interface RoutingRuleRow {
   id: string;
@@ -62,6 +63,7 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to create', 500);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'rule.create', 'routing_rule', inserted.id, JSON.stringify({ channel, pattern, targetAgentId })));
   return c.json(inserted, 201);
 });
 
@@ -75,6 +77,7 @@ routes.delete('/:id', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'rule.delete', 'routing_rule', ruleId));
   return c.json({ ok: true });
 });
 

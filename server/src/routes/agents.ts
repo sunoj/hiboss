@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Channel, Env, Priority } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { logAudit } from '../audit';
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
@@ -118,6 +119,7 @@ routes.put('/me/config', async (c) => {
     .prepare('SELECT default_priority, rate_limit, channel_routing, avatar_url, role, session_info FROM api_keys WHERE id = ?')
     .bind(agentId)
     .first<{ default_priority: string; rate_limit: number | null; channel_routing: string | null; avatar_url: string | null; role: string | null; session_info: string | null }>();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'agent.config', 'api_key', agentId, JSON.stringify(Object.keys(payload))));
   return c.json({ ...updated, channel_routing: updated?.channel_routing ? JSON.parse(updated.channel_routing) : null, session_info: updated?.session_info ? JSON.parse(updated.session_info) : null });
 });
 
@@ -132,6 +134,7 @@ routes.put('/me/callback', async (c) => {
     .prepare('UPDATE api_keys SET callback_url = ? WHERE id = ?')
     .bind(url, agentId)
     .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'callback.set', 'api_key', agentId, url));
   return c.json({ callback_url: url });
 });
 
@@ -141,6 +144,7 @@ routes.delete('/me/callback', async (c) => {
     .prepare('UPDATE api_keys SET callback_url = NULL WHERE id = ?')
     .bind(agentId)
     .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'callback.delete', 'api_key', agentId));
   return c.body(null, 204);
 });
 
