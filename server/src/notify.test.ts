@@ -19,6 +19,8 @@ const fakeMessage: MessageRow = {
   reply_to: null,
   priority: 'normal',
   type: null,
+  target_agent_id: null,
+  target_session_id: null,
   session_id: null,
   idempotency_key: null,
   metadata: null,
