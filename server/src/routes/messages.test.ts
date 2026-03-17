@@ -252,8 +252,8 @@ describe('POST /api/messages/:id/react', () => {
     expect(res.status).toBe(404);
   });
 
-  it('rejects react on non-telegram message', async () => {
-    // Create a message with no channel (not telegram)
+  it('rejects react on unsupported channel', async () => {
+    // Create a message with no channel (not telegram or discord)
     const createRes = await SELF.fetch('https://test.local/api/messages', {
       method: 'POST',
       headers: authHeaders(),
@@ -267,7 +267,7 @@ describe('POST /api/messages/:id/react', () => {
       body: JSON.stringify({ emoji: '👀' }),
     });
     expect(res.status).toBe(400);
-    expect(await res.text()).toContain('telegram');
+    expect(await res.text()).toContain('not supported');
   });
 });
 

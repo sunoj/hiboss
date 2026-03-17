@@ -34,6 +34,7 @@ mod tests {
             status: None,
             reply_to: None,
             priority: None,
+            message_type: None,
             metadata: None,
             created_at: None,
             updated_at: None,
@@ -56,6 +57,7 @@ mod tests {
             status: Some("sent".to_string()),
             reply_to: Some("root".to_string()),
             priority: Some("high".to_string()),
+            message_type: None,
             metadata: Some(metadata),
             created_at: Some("2026-03-16T00:00:00Z".to_string()),
             updated_at: Some("2026-03-16T00:01:00Z".to_string()),
@@ -95,6 +97,9 @@ mod tests {
             metadata: Some(metadata),
             options: Some(vec!["opt-a".to_string(), "opt-b".to_string()]),
             file_url: None,
+            message_type: None,
+            session_id: None,
+            to: None,
         };
         assert_roundtrip(&request);
     }
@@ -109,6 +114,9 @@ mod tests {
             metadata: None,
             options: None,
             file_url: None,
+            message_type: None,
+            session_id: None,
+            to: None,
         };
         assert_roundtrip(&request);
     }

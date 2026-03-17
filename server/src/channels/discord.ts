@@ -1,5 +1,5 @@
 // Discord adapter: posts messages via bot API or webhook URL.
-// Exports sendDiscordMessage which auto-detects config mode.
+// Exports sendDiscordMessage, addDiscordReaction, getDiscordReactions.
 // Depends on DiscordChannelConfig from types.
 
 import type { DiscordChannelConfig } from '../types';
@@ -10,7 +10,11 @@ export interface DiscordSendOptions {
   components?: unknown[];
 }
 
-export async function sendDiscordMessage(config: DiscordChannelConfig, content: string, options?: DiscordSendOptions): Promise<void> {
+export interface DiscordSendResult {
+  messageId?: string;
+}
+
+export async function sendDiscordMessage(config: DiscordChannelConfig, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {
   if (config.webhook_url) {
     return sendViaWebhook(config.webhook_url, content, options);
   }
@@ -20,12 +24,38 @@ export async function sendDiscordMessage(config: DiscordChannelConfig, content: 
   throw new Error('discord config incomplete: need webhook_url or bot_token+channel_id');
 }
 
-async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions): Promise<void> {
+export async function addDiscordReaction(botToken: string, channelId: string, messageId: string, emoji: string): Promise<void> {
+  const encoded = encodeURIComponent(emoji);
+  const response = await fetch(
+    `https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${encoded}/@me`,
+    { method: 'PUT', headers: { Authorization: `Bot ${botToken}` } }
+  );
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`discord reaction failed ${response.status} ${body}`);
+  }
+}
+
+export async function getDiscordReactions(botToken: string, channelId: string, messageId: string): Promise<{ emoji: string; count: number }[]> {
+  const response = await fetch(
+    `https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
+    { method: 'GET', headers: { Authorization: `Bot ${botToken}` } }
+  );
+  if (!response.ok) return [];
+  const msg = await response.json() as Record<string, unknown>;
+  const reactions = msg['reactions'] as { emoji: { name: string }; count: number }[] | undefined;
+  if (!Array.isArray(reactions)) return [];
+  return reactions.map((r) => ({ emoji: r.emoji.name, count: r.count }));
+}
+
+async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {
   const payload: Record<string, unknown> = { content };
   if (options?.username) payload.username = options.username;
   if (options?.avatarUrl) payload.avatar_url = options.avatarUrl;
   if (options?.components) payload.components = options.components;
-  const response = await fetch(webhookUrl, {
+  // ?wait=true makes Discord return the created message with its ID
+  const url = webhookUrl.includes('?') ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -34,9 +64,11 @@ async function sendViaWebhook(webhookUrl: string, content: string, options?: Dis
     const body = await response.text();
     throw new Error(`discord webhook failed ${response.status} ${body}`);
   }
+  const result = await response.json() as Record<string, unknown>;
+  return { messageId: typeof result['id'] === 'string' ? result['id'] : undefined };
 }
 
-async function sendViaBot(botToken: string, channelId: string, content: string, components?: unknown[]): Promise<void> {
+async function sendViaBot(botToken: string, channelId: string, content: string, components?: unknown[]): Promise<DiscordSendResult> {
   const payload: Record<string, unknown> = { content };
   if (components) payload.components = components;
   const response = await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages`, {
@@ -51,4 +83,6 @@ async function sendViaBot(botToken: string, channelId: string, content: string, 
     const body = await response.text();
     throw new Error(`discord send failed ${response.status} ${body}`);
   }
+  const result = await response.json() as Record<string, unknown>;
+  return { messageId: typeof result['id'] === 'string' ? result['id'] : undefined };
 }

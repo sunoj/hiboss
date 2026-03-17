@@ -20,6 +20,8 @@ pub struct AskArgs {
     pub actions: Option<String>,
     #[arg(long, help = "Local file to upload and attach")]
     pub file: Option<String>,
+    #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
+    pub to: Option<String>,
     #[arg(value_name = "body")]
     pub body: String,
 }
@@ -95,6 +97,7 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
         file_url,
         message_type: None,
         session_id: session::read_session_id(),
+        to: args.to.clone(),
     };
     let submission = client.send_message(&request).await?;
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
@@ -140,6 +143,7 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
                         file_url: None,
                         message_type: Some("action_result".to_owned()),
                         session_id: session::read_session_id(),
+                        to: None,
                     }).await;
                     return Ok(());
                 }

@@ -12,7 +12,7 @@ import type {
   Priority,
   Status,
 } from '../types';
-import { editMessageReplyMarkup } from '../channels/telegram';
+import { createForumTopic, editMessageReplyMarkup } from '../channels/telegram';
 import { requireTelegramConfig as _requireTelegramConfig, formatAgentMessage as _formatAgentMessage } from './delivery';
 export { deliverReply, deliverToChannelWithOptions, deliverWithRetry, formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 export type { DeliveryResult } from './delivery';
@@ -62,12 +62,34 @@ export function validateChannel(value: unknown): Channel | undefined {
   return undefined;
 }
 
-export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string) {
-  const clauses = ['agent_id = ?'];
-  const binds: (string | number)[] = [agentId];
-  if (direction) {
-    clauses.push('direction = ?');
-    binds.push(direction);
+export function buildFilters(agentId: string, direction: Direction | null, status: Status | null, priority?: Priority[], type?: string, session?: string, unread?: boolean, from?: string, targetSessionId?: string) {
+  const clauses: string[] = [];
+  const binds: (string | number)[] = [];
+  // Unread: boss messages for this agent, agent-to-agent targeting this agent, or session-targeted messages
+  if (unread) {
+    if (direction === 'agent_to_agent') {
+      // Narrowed unread: only agent-to-agent messages targeting this agent/session
+      if (targetSessionId) {
+        clauses.push("((target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
+        binds.push(agentId, targetSessionId);
+      } else {
+        clauses.push("(target_agent_id = ? AND direction = 'agent_to_agent')");
+        binds.push(agentId);
+      }
+    } else if (targetSessionId) {
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
+      binds.push(agentId, agentId, targetSessionId);
+    } else {
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent'))");
+      binds.push(agentId, agentId);
+    }
+  } else {
+    clauses.push('(agent_id = ? OR target_agent_id = ? OR target_session_id = ?)');
+    binds.push(agentId, agentId, targetSessionId ?? '');
+    if (direction) {
+      clauses.push('direction = ?');
+      binds.push(direction);
+    }
   }
   if (status) {
     clauses.push('status = ?');
@@ -82,10 +104,14 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
     clauses.push('type = ?');
     binds.push(type);
   }
-  if (session) {
+  if (from) {
+    clauses.push('agent_id IN (SELECT id FROM api_keys WHERE name = ? OR id LIKE ?)');
+    binds.push(from, `${from}%`);
+  }
+  if (session && !unread) {
     // Show: messages from this session, boss replies to this session's messages,
     // and boss-initiated messages (reply_to IS NULL) visible to all sessions.
-    clauses.push('(session_id = ? OR reply_to IN (SELECT id FROM messages WHERE session_id = ?) OR (direction = \'boss_to_agent\' AND reply_to IS NULL))');
+    clauses.push("(session_id = ? OR reply_to IN (SELECT id FROM messages WHERE session_id = ?) OR (direction = 'boss_to_agent' AND reply_to IS NULL))");
     binds.push(session, session);
   }
   return { where: clauses.join(' AND '), binds };
@@ -146,18 +172,18 @@ export async function fetchAllChannelConfigs(env: Env, agentId: string) {
 export async function fetchMessageRow(env: Env, agentId: string, messageId: string) {
   const exact = await env.DB
     .prepare(
-      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? AND messages.agent_id = ?'
+      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? AND (messages.agent_id = ? OR messages.target_agent_id = ?)'
     )
-    .bind(messageId, agentId)
+    .bind(messageId, agentId, agentId)
     .first<MessageRow>();
   if (exact) {
     return exact;
   }
   return env.DB
     .prepare(
-      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id LIKE ? AND messages.agent_id = ? LIMIT 1'
+      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id LIKE ? AND (messages.agent_id = ? OR messages.target_agent_id = ?) LIMIT 1'
     )
-    .bind(`${messageId}%`, agentId)
+    .bind(`${messageId}%`, agentId, agentId)
     .first<MessageRow>();
 }
 
@@ -242,6 +268,26 @@ export function resolveChannelRouting(routingJson: string, priority: string): Ch
     }
   } catch { /* ignore */ }
   return undefined;
+}
+
+/** Auto-create a Telegram forum topic for this agent if use_topics is set. */
+export async function ensureTopicForAgent(env: Env, agentId: string, channelConfig: { channel: Channel; config: Record<string, unknown> }): Promise<void> {
+  if (channelConfig.channel !== 'telegram') return;
+  const cfg = channelConfig.config;
+  if (!cfg['use_topics'] || cfg['message_thread_id']) return;
+  const tgCfg = _requireTelegramConfig(cfg);
+  const agentName = await fetchAgentName(env, agentId) ?? 'agent';
+  try {
+    const threadId = await createForumTopic(tgCfg.bot_token, tgCfg.chat_id, agentName);
+    cfg['message_thread_id'] = threadId;
+    // Persist the thread ID so future sends reuse it
+    await env.DB
+      .prepare('UPDATE channel_configs SET config = ? WHERE agent_id = ? AND channel = ?')
+      .bind(JSON.stringify(cfg), agentId, 'telegram')
+      .run();
+  } catch {
+    // Topic creation failed (group may not support topics) — deliver without thread
+  }
 }
 
 export function extractTelegramMessageId(metadata: string | null): number | undefined {

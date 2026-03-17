@@ -11,6 +11,7 @@ interface DiscordInteractionPayload {
   data?: DiscordInteractionData;
   channel_id?: string;
   member?: { user?: { id?: string } };
+  message?: { content?: string };
 }
 
 interface DiscordInteractionData {
@@ -154,7 +155,9 @@ async function handleMessageComponent(
     return c.text('failed to persist', 500);
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
-  return c.json({ type: 4, data: { content: `✅ Selected: ${selectedOption}` } });
+  // Type 7 = UPDATE_MESSAGE: replaces the original message and removes buttons
+  const originalContent = payload.message?.content ?? '';
+  return c.json({ type: 7, data: { content: `${originalContent}\n\n✅ Selected: ${selectedOption}`, components: [] } });
 }
 
 async function findDiscordAgent(env: Env, channelId: string): Promise<{ agent_id: string } | null> {

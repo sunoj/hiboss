@@ -83,12 +83,16 @@ describe('POST /api/webhooks/discord-interactions', () => {
       type: 3,
       channel_id: CHANNEL_ID,
       data: { custom_id: 'button-parent:optionA' },
+      message: { content: 'Pick one:' },
     };
 
     const res = await signedFetch(payload);
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.data?.content).toBe('✅ Selected: optionA');
+    expect(data.type).toBe(7);
+    expect(data.data?.content).toContain('Pick one:');
+    expect(data.data?.content).toContain('✅ Selected: optionA');
+    expect(data.data?.components).toEqual([]);
 
     const reply = await env.DB
       .prepare('SELECT body, reply_to FROM messages WHERE reply_to = ? ORDER BY created_at DESC LIMIT 1')
