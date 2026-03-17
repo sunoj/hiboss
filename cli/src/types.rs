@@ -41,6 +41,8 @@ pub struct SendRequest {
     pub message_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,6 +70,8 @@ pub struct AgentInfo {
     pub id: String,
     pub name: String,
     pub status: Option<String>,
+    pub role: Option<String>,
+    pub session_info: Option<HashMap<String, Value>>,
     pub created_at: Option<String>,
     pub last_used_at: Option<String>,
 }
@@ -102,6 +106,38 @@ pub struct StatusUpdate {
 }
 
 pub type PollResponse = Message;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionInfo {
+    pub id: String,
+    pub agent_id: String,
+    #[serde(default)]
+    pub agent_name: Option<String>,
+    pub label: Option<String>,
+    pub branch: Option<String>,
+    pub cwd: Option<String>,
+    pub started_at: Option<String>,
+    pub last_seen_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionsResponse {
+    pub sessions: Vec<SessionInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Reaction {
+    pub emoji: String,
+    #[serde(default)]
+    pub user: Option<String>,
+    #[serde(default)]
+    pub count: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReactionsResponse {
+    pub reactions: Vec<Reaction>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UploadResponse {

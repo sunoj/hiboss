@@ -1,4 +1,4 @@
-// Purpose: Show a full message with its reply chain for detailed inspection.
+// Purpose: Show a full message with its reply chain and reactions.
 // Exports: ReadArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
@@ -10,11 +10,29 @@ use std::error::Error;
 pub struct ReadArgs {
     #[arg(value_name = "id")]
     pub id: String,
+    #[arg(long, help = "Fetch and show reactions from the channel")]
+    pub reactions: bool,
 }
 
 pub async fn run(args: &ReadArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let message = client.get_message(&args.id).await?;
     print_message(&message, 0);
+    if args.reactions {
+        match client.get_reactions(&args.id).await {
+            Ok(resp) if !resp.reactions.is_empty() => {
+                println!("Reactions:");
+                for r in &resp.reactions {
+                    let label = r.user.as_deref()
+                        .map(|u| format!("{} ({})", r.emoji, u))
+                        .or_else(|| r.count.map(|c| format!("{} x{}", r.emoji, c)))
+                        .unwrap_or_else(|| r.emoji.clone());
+                    println!("  {}", label);
+                }
+            }
+            Ok(_) => println!("Reactions: none"),
+            Err(e) => eprintln!("Could not fetch reactions: {}", e),
+        }
+    }
     Ok(())
 }
 

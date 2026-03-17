@@ -4,11 +4,13 @@
 
 use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest};
 use clap::Args;
+use serde_json::Value;
+use std::collections::HashMap;
 use std::error::Error;
 
 #[derive(Debug, Args)]
 pub struct SendArgs {
-    #[arg(long, default_value = "normal")]
+    #[arg(long, short = 'p', default_value = "normal")]
     pub priority: String,
     #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,
@@ -18,6 +20,14 @@ pub struct SendArgs {
     pub file: Option<String>,
     #[arg(long = "type", help = "Message type (e.g. task_update, approval_request)")]
     pub message_type: Option<String>,
+    #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
+    pub to: Option<String>,
+    #[arg(long, help = "Task summary for structured context")]
+    pub task: Option<String>,
+    #[arg(long, help = "Relevant file paths (comma-separated)")]
+    pub files: Option<String>,
+    #[arg(long, help = "Git branch context")]
+    pub branch: Option<String>,
     #[arg(value_name = "body")]
     pub body: String,
 }
@@ -33,16 +43,36 @@ pub async fn run(args: &SendArgs, _config: &Config, client: &HiBossClient) -> Re
     } else {
         args.file_url.clone()
     };
+    // Build task_context metadata from --task, --files, --branch flags
+    let metadata = if args.task.is_some() || args.files.is_some() || args.branch.is_some() {
+        let mut ctx = HashMap::new();
+        if let Some(ref t) = args.task {
+            ctx.insert("summary".to_owned(), Value::String(t.clone()));
+        }
+        if let Some(ref f) = args.files {
+            let files: Vec<Value> = f.split(',').map(|s| Value::String(s.trim().to_owned())).collect();
+            ctx.insert("files".to_owned(), Value::Array(files));
+        }
+        if let Some(ref b) = args.branch {
+            ctx.insert("branch".to_owned(), Value::String(b.clone()));
+        }
+        let mut meta = HashMap::new();
+        meta.insert("task_context".to_owned(), serde_json::to_value(ctx)?);
+        Some(meta)
+    } else {
+        None
+    };
     let request = SendRequest {
         body: unescape_body(&args.body),
         mode: "async".to_owned(),
         priority: args.priority.clone(),
         channel,
-        metadata: None,
+        metadata,
         options: None,
         file_url,
         message_type: args.message_type.clone(),
         session_id: session::read_session_id(),
+        to: args.to.clone(),
     };
     let response = client.send_message(&request).await?;
     eprintln!("Message sent");

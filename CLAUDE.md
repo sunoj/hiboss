@@ -78,6 +78,7 @@ Request:
   "options": ["Option A", "Option B"] ,
   "file_url": "string (optional, sends as photo/document on Telegram)",
   "type": "string (default: 'text', e.g. task_update, approval_request, steer_command)",
+  "to": "string (optional, target agent name or ID for agent-to-agent messaging)",
   "idempotency_key": "string (optional, prevents duplicate sends)",
   "metadata": {}
 }
@@ -111,10 +112,11 @@ If timeout, returns 202 with `status: "sent"` (agent can poll later).
 List messages for this agent.
 
 Query params:
-- `direction`: `agent_to_boss | boss_to_agent` (optional)
+- `direction`: `agent_to_boss | boss_to_agent | agent_to_agent` (optional)
 - `status`: `sent | delivered | read | replied` (optional)
 - `priority`: comma-separated filter, e.g. `critical,high` (optional)
-- `unread`: `true` — shortcut for direction=boss_to_agent&status=sent (optional)
+- `unread`: `true` — shortcut for incoming unread (boss_to_agent + agent_to_agent targeting self)
+- `from`: filter by sender agent name or ID (optional)
 - `limit`: number (default 20)
 - `offset`: number (default 0)
 
@@ -427,19 +429,23 @@ hiboss send --channel telegram "Quick update via TG."
 hiboss send --file-url "https://example.com/screenshot.png" "See attached"
 hiboss send --type task_update "Build v2.1 deployed successfully"
 hiboss send --file ./screenshot.png "See attached"
+hiboss send --to worker-1 "Implement OAuth2 login"                    # agent-to-agent
+hiboss send --to worker-1 --task "Implement OAuth2" --files src/auth/ # with context
 
 # Ask (blocking, waits for reply)
 hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
 hiboss ask --options "A,B,C" "Pick one:\n1. A — details\n2. B — details\n3. C — details"
 hiboss ask --actions "Approve:aid merge t-123,Reject:echo rejected" "Deploy to prod?"
+hiboss ask --to reviewer "Review feat/oauth branch"                   # ask another agent
 
 # Inbox
-hiboss inbox                              # unread messages from boss
+hiboss inbox                              # unread messages (boss + agent)
 hiboss inbox --all                        # all messages
 hiboss inbox --limit 5                    # last 5
 hiboss inbox --priority critical,high     # urgent only
 hiboss inbox --priority critical --count  # count of urgent unread
+hiboss inbox --from lead-agent            # from specific agent
 
 # Read a message
 hiboss read <msg-id>
@@ -454,11 +460,17 @@ hiboss react <msg-id> "✅"
 # Status of sent message
 hiboss status <msg-id>
 
+# Reply with task status
+hiboss reply <msg-id> --status accepted "Starting now"
+hiboss reply <msg-id> --status completed "Done. PR ready."
+hiboss reply <msg-id> --status blocked "Need DB schema decision"
+
 # Agent config
 hiboss agent config                          # view current config
 hiboss agent config --default-priority high  # set default priority
 hiboss agent config --rate-limit 10          # set rate limit (msg/min)
 hiboss agent config --rate-limit 0           # disable rate limit
+hiboss agent config --role orchestrator      # set session role
 
 # Routing rules
 hiboss route list                            # list routing rules
@@ -533,8 +545,8 @@ Note: `hiboss config set channel` sets a **local CLI default** that was previous
 To configure routing: `hiboss agent config --channel-routing "normal=discord,high=telegram"`
 To check effective routing: `hiboss doctor`
 
-### Telegram Reactions
-Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoji>`. The server exposes the capability; agents decide what reactions to use and when. Example conventions:
+### Reactions (Discord & Telegram)
+Agents can set reaction emojis on messages via `hiboss react <id> <emoji>` (works on both Discord and Telegram). Boss reactions are captured via webhooks. Agents can read reactions with `hiboss read <id> --reactions`. Example conventions:
 - 👀 → message seen
 - 🔨 → working on it
 - ✅ → done/replied
@@ -750,6 +762,71 @@ Agents can set reaction emojis on Telegram messages via `hiboss react <id> <emoj
 - `--channel-routing` help text explains precedence and `"none"` to clear
 - `hiboss doctor` shows effective channel routing per priority
 - CLAUDE.md: new "Channel Resolution Order" section with precedence rules
+
+### v0.10.4 — Full Reaction Support + Message Isolation (Done)
+**Goal**: Bidirectional reaction support on both Discord and Telegram, plus project-level message isolation.
+
+#### Discord Reactions
+- `discord_message_id` tracked in metadata (webhook `?wait=true` returns message ID)
+- `POST /api/messages/:id/react` sends emoji via Discord bot API
+- `GET /api/messages/:id/reactions` lazy-fetches reactions from Discord REST API
+- Discord config accepts `bot_token` + `channel_id` alongside `webhook_url` (hybrid mode for reactions)
+
+#### Telegram Reactions
+- `message_reaction` webhook event handler stores boss reactions in message metadata
+- `GET /api/messages/:id/reactions` returns stored reactions from metadata
+
+#### Telegram Topics (Message Isolation)
+- `use_topics: true` in Telegram channel config enables per-agent forum topics
+- Auto-creates a Telegram forum topic named after the agent on first message
+- `message_thread_id` stored in channel config after creation, reused for all subsequent sends
+- Webhook routes incoming messages by `message_thread_id` to the correct agent
+- Requires a supergroup with Topics enabled
+- CLI: `hiboss channel set telegram --chat-id <id> --bot-token <token> --use-topics`
+- CLI: `hiboss channel set telegram --chat-id <id> --bot-token <token> --topic-id <thread-id>`
+
+#### Discord Setup Improvements
+- `--app-id` is now optional in `discord-setup` (auto-detected from bot token)
+- Lists available guild channels if `--channel-id` is omitted
+- Auto-saves `bot_token` + `channel_id` to channel config (no separate `channel set` needed)
+
+#### CLI
+- `hiboss read <id> --reactions` fetches and displays reactions
+- `hiboss react <id> <emoji>` works on both Discord and Telegram
+- `hiboss channel set discord --webhook-url <url> --bot-token <token> --channel-id <id>` for hybrid mode
+
+### v0.11 — Cross-Session Agent Communication (In Progress)
+**Goal**: Enable direct agent-to-agent messaging across Claude Code sessions (Layer 3).
+
+Informed by research on Google A2A, OpenAI Swarm, CrewAI, Claude Code Teams, and academic papers (ALMAS, AgentMesh, LACP). See `docs/design-layer3-cross-session.md` for full design rationale.
+
+#### Agent-to-Agent Messaging
+- `target_agent_id` column on messages table for direct agent targeting
+- `POST /api/messages` accepts `to` field (agent name or ID) for agent-to-agent sends
+- `direction: agent_to_agent` for inter-agent messages
+- `GET /api/messages?unread=true` includes agent_to_agent messages targeting self
+- `GET /api/messages?from=<agent>` filter by sender agent
+- Delivery via target agent's configured channels (same pipeline as boss messages)
+
+#### Session Discovery
+- `role` column on api_keys: orchestrator | worker | reviewer
+- `session_info` JSON column on api_keys: project_dir, git_branch, capabilities
+- `GET /api/agents` returns role + session_info
+- `PUT /api/agents/me/config` accepts role + session_info
+- SessionStart hook auto-registers session metadata (cwd, git branch)
+
+#### Task Context
+- `--to <agent>` flag on `hiboss send` and `hiboss ask`
+- `--task`, `--files`, `--branch` flags for structured context in metadata
+- `--status` flag on `hiboss reply` for task lifecycle (accepted, working, blocked, completed)
+- `hiboss inbox --from <agent>` filter by sender
+- `hiboss inbox --status <state>` filter by task status
+- `hiboss agent config --role <role>` set session role
+- `hiboss agent list` shows role, project, branch columns
+
+#### Hooks
+- SessionStart: auto-register session_info, show agent_to_agent messages
+- PostToolUse: check for urgent agent_to_agent messages
 
 ### v1.0 — Production Ready
 - Per-boss channel preferences

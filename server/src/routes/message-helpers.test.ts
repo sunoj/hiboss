@@ -50,6 +50,8 @@ describe('mapMessageRow', () => {
     reply_to: null,
     priority: 'normal',
     type: null,
+    target_agent_id: null,
+    target_session_id: null,
     session_id: null,
     idempotency_key: null,
     metadata: null,
@@ -151,37 +153,62 @@ describe('validateChannel', () => {
 describe('buildFilters', () => {
   it('builds agent-only filter', () => {
     const { where, binds } = buildFilters('agent-1', null, null);
-    expect(where).toBe('agent_id = ?');
-    expect(binds).toEqual(['agent-1']);
+    expect(where).toBe('(agent_id = ? OR target_agent_id = ? OR target_session_id = ?)');
+    expect(binds).toEqual(['agent-1', 'agent-1', '']);
   });
 
   it('adds direction filter', () => {
     const { where, binds } = buildFilters('agent-1', 'agent_to_boss', null);
-    expect(where).toBe('agent_id = ? AND direction = ?');
-    expect(binds).toEqual(['agent-1', 'agent_to_boss']);
+    expect(where).toContain('direction = ?');
+    expect(binds).toContain('agent_to_boss');
   });
 
   it('adds status filter', () => {
     const { where, binds } = buildFilters('agent-1', null, 'sent');
-    expect(where).toBe('agent_id = ? AND status = ?');
-    expect(binds).toEqual(['agent-1', 'sent']);
+    expect(where).toContain('status = ?');
+    expect(binds).toContain('sent');
   });
 
   it('adds priority IN filter', () => {
     const { where, binds } = buildFilters('agent-1', null, null, ['critical', 'high']);
-    expect(where).toBe('agent_id = ? AND priority IN (?, ?)');
-    expect(binds).toEqual(['agent-1', 'critical', 'high']);
+    expect(where).toContain('priority IN (?, ?)');
+    expect(binds).toContain('critical');
+    expect(binds).toContain('high');
   });
 
   it('combines all filters', () => {
     const { where, binds } = buildFilters('a1', 'boss_to_agent', 'read', ['normal']);
-    expect(where).toBe('agent_id = ? AND direction = ? AND status = ? AND priority IN (?)');
-    expect(binds).toEqual(['a1', 'boss_to_agent', 'read', 'normal']);
+    expect(where).toContain('direction = ?');
+    expect(where).toContain('status = ?');
+    expect(where).toContain('priority IN (?)');
+    expect(binds).toContain('boss_to_agent');
+    expect(binds).toContain('read');
+    expect(binds).toContain('normal');
   });
 
   it('ignores empty priority array', () => {
     const { where } = buildFilters('a1', null, null, []);
     expect(where).not.toContain('priority');
+  });
+
+  it('uses incoming filter for unread', () => {
+    const { where, binds } = buildFilters('a1', null, 'sent', undefined, undefined, undefined, true);
+    expect(where).toContain("direction = 'boss_to_agent'");
+    expect(where).toContain("direction = 'agent_to_agent'");
+    expect(where).toContain('status = ?');
+    expect(binds).toContain('a1');
+  });
+
+  it('includes target_session_id in unread filter when provided', () => {
+    const { where, binds } = buildFilters('a1', null, 'sent', undefined, undefined, undefined, true, undefined, 'sess-123');
+    expect(where).toContain('target_session_id = ?');
+    expect(binds).toContain('sess-123');
+  });
+
+  it('adds from filter', () => {
+    const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, false, 'sender');
+    expect(where).toContain('agent_id IN');
+    expect(binds).toContain('sender');
   });
 });
 

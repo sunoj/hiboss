@@ -23,6 +23,11 @@ export async function notifyAgentCallback(env: Env, agentId: string, message: Me
   }
 }
 
+/** Notify target agent via callback URL for agent-to-agent messages. */
+export async function notifyTargetAgent(env: Env, targetAgentId: string, message: MessageRow): Promise<void> {
+  await notifyAgentCallback(env, targetAgentId, message);
+}
+
 /** Notify boss-agents who have access to the given sub-agent. */
 export async function notifyBossAgents(env: Env, subAgentId: string, message: MessageRow): Promise<void> {
   try {

@@ -1,4 +1,4 @@
-// Purpose: Set a Telegram reaction emoji on a boss message.
+// Purpose: Set a reaction emoji on a boss message (Telegram or Discord).
 // Exports: ReactArgs and run().
 // Dependencies: clap, crate::client, crate::config.
 
