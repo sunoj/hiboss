@@ -5,6 +5,8 @@
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { insertMessageWithRecovery } from './messages';
+import { buildStreamQuery, pruneSeenMessageIds } from './stream';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -465,6 +467,84 @@ describe('POST /api/messages idempotency', () => {
     const d1 = await res1.json() as Record<string, unknown>;
     const d2 = await res2.json() as Record<string, unknown>;
     expect(d1.id).not.toBe(d2.id);
+  });
+
+  it('returns existing message when insert hits unique constraint', async () => {
+    const existing = {
+      id: 'race-msg-001',
+      agent_id: getTestAgentId(),
+      direction: 'agent_to_boss',
+      mode: 'async',
+      channel: 'api',
+      body: 'first',
+      status: 'sent',
+      reply_to: null,
+      priority: 'normal',
+      type: 'text',
+      target_agent_id: null,
+      target_session_id: null,
+      session_id: null,
+      idempotency_key: 'race-key',
+      metadata: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+    const fakeEnv = {
+      DB: {
+        prepare(sql: string) {
+          if (sql.startsWith('INSERT INTO messages')) {
+            return {
+              bind() {
+                return {
+                  first: async () => { throw new Error('UNIQUE constraint failed: messages.agent_id, messages.idempotency_key'); },
+                };
+              },
+            };
+          }
+          if (sql === 'SELECT * FROM messages WHERE agent_id = ? AND idempotency_key = ?') {
+            return {
+              bind() {
+                return {
+                  first: async () => existing,
+                };
+              },
+            };
+          }
+          throw new Error(`unexpected SQL: ${sql}`);
+        },
+      },
+    };
+    const result = await insertMessageWithRecovery(fakeEnv as any, getTestAgentId(), [
+      'agent_to_boss',
+      'async',
+      'api',
+      'second',
+      'normal',
+      'text',
+      'race-key',
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(result.inserted).toBeNull();
+    expect(result.existing).toEqual(existing);
+  });
+});
+
+describe('stream helpers', () => {
+  it('uses >= in the polling query', () => {
+    const { sql } = buildStreamQuery(getTestAgentId());
+    expect(sql).toContain('messages.created_at >= ?');
+  });
+
+  it('retains seen ids for the same timestamp batch and clears them after the window advances', () => {
+    const seen = new Set<string>(['m1']);
+    pruneSeenMessageIds(seen, [{ id: 'm2', created_at: '2026-01-01 00:00:00' } as any], '2026-01-01 00:00:00');
+    expect(seen.has('m1')).toBe(true);
+
+    pruneSeenMessageIds(seen, [{ id: 'm3', created_at: '2026-01-01 00:00:01' } as any], '2026-01-01 00:00:00');
+    expect(seen.size).toBe(0);
   });
 });
 

@@ -69,6 +69,7 @@ describe('mapMessage', () => {
 describe('evaluateRoutingRules', () => {
   const agentId = getTestAgentId();
   const targetAgent = 'routed-agent-001';
+  const otherOwner = 'routing-owner-002';
 
   beforeAll(async () => {
     // Create target agent
@@ -76,6 +77,8 @@ describe('evaluateRoutingRules', () => {
     const hash = await hashApiKey('hb_routed_key_00000000000000');
     await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
       .bind(targetAgent, 'routed-agent', hash).run();
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(otherOwner, 'other-owner', await hashApiKey('hb_other_owner_key_000000')).run();
     // Create routing rule: messages containing "deploy" route to target agent
     await env.DB.prepare(
       "INSERT INTO routing_rules (id, owner_id, channel, pattern, target_agent_id, priority, enabled) VALUES (?, ?, 'telegram', ?, ?, 10, 1)"
@@ -108,6 +111,14 @@ describe('evaluateRoutingRules', () => {
     // Should not throw, just skip the bad rule
     const result = await evaluateRoutingRules(env as any, 'telegram', '[invalid(regex', agentId);
     expect(result).toBeNull();
+  });
+
+  it('ignores higher-priority rules owned by another agent', async () => {
+    await env.DB.prepare(
+      "INSERT INTO routing_rules (id, owner_id, channel, pattern, target_agent_id, priority, enabled) VALUES (?, ?, 'telegram', ?, ?, 99, 1)"
+    ).bind('rule-other-owner', otherOwner, 'deploy.*prod', otherOwner).run();
+    const result = await evaluateRoutingRules(env as any, 'telegram', 'deploy to prod now', agentId);
+    expect(result).toBe(targetAgent);
   });
 });
 
