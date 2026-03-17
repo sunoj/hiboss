@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, getAgentId, hashApiKey } from '../middleware/auth';
+import { logAudit } from '../audit';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
 
@@ -69,6 +70,7 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to create boss', 500);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.create', 'boss', inserted.id, JSON.stringify({ name, role })));
   return c.json(inserted, 201);
 });
 
@@ -156,6 +158,7 @@ routes.patch('/:id', async (c) => {
   if (!updated) {
     return c.text('not found', 404);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.update', 'boss', boss.id, JSON.stringify(Object.keys(payload))));
   return c.json(updated);
 });
 
@@ -169,6 +172,7 @@ routes.delete('/:id', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.delete', 'boss', bossId));
   return c.json({ ok: true });
 });
 
@@ -188,6 +192,7 @@ routes.post('/:id/access', async (c) => {
     .prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind(boss.id, agentId)
     .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.grant', 'boss', boss.id, agentId));
   return c.json({ ok: true }, 201);
 });
 
@@ -202,6 +207,7 @@ routes.delete('/:id/access/:agentId', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.revoke', 'boss', bossId, agentId));
   return c.json({ ok: true });
 });
 
@@ -219,6 +225,7 @@ routes.post('/:id/token', async (c) => {
     .prepare('UPDATE bosses SET token_hash = ? WHERE id = ?')
     .bind(tokenHash, boss.id)
     .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.token', 'boss', boss.id));
   return c.json({ id: boss.id, name: boss.name, token });
 });
 

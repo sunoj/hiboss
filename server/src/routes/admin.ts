@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Channel, ChannelConfigRow, Env } from '../types';
 import { apiAuth, getAgentId, hashApiKey } from '../middleware/auth';
+import { logAudit } from '../audit';
 
 const router = new Hono<{ Bindings: Env }>({});
 router.use('*', apiAuth);
@@ -24,6 +25,7 @@ router.post('/keys', async (c) => {
   if (!inserted) {
     return c.text('failed to create key', 500);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'key.create', 'api_key', inserted.id, name));
   return c.json({ id: inserted.id, name: inserted.name, key }, 201);
 });
 
@@ -72,6 +74,7 @@ router.put('/channels/:channel', async (c) => {
   if (!row) {
     return c.text('failed to save configuration', 500);
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'channel.set', 'channel_config', row.id, channel));
   return c.json({
     id: row.id,
     channel: row.channel,

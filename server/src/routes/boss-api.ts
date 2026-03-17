@@ -7,6 +7,7 @@ import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName } from '../middleware/auth';
 import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
+import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
 
@@ -147,6 +148,7 @@ routes.post('/messages/:id/reply', async (c) => {
     .bind(parent.id)
     .run();
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.reply', 'message', parent.id, bossName));
   return c.json(mapMessageRow(inserted), 201);
 });
 

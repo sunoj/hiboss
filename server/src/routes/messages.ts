@@ -35,6 +35,7 @@ import {
   validateChannel,
   validateOption,
 } from './message-helpers';
+import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
@@ -201,6 +202,7 @@ routes.post('/', async (c) => {
   if (targetAgentId) {
     c.executionCtx.waitUntil(notifyTargetAgent(c.env, targetAgentId, inserted));
   }
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.send', 'message', inserted.id, JSON.stringify({ direction, priority, mode })));
   return c.json({ id: inserted.id, status: inserted.status, created_at: inserted.created_at }, 201);
 });
 
@@ -295,6 +297,7 @@ routes.post('/:id/reply', async (c) => {
     .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
     .bind(parent.id)
     .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.reply', 'message', parent.id));
   return c.json(mapMessageRow(inserted), 201);
 });
 
