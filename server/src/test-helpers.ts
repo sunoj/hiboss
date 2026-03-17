@@ -24,7 +24,7 @@ const SCHEMA_STATEMENTS = [
   'CREATE INDEX IF NOT EXISTS idx_routing_rules_channel ON routing_rules(channel, enabled, priority DESC)',
   "CREATE TABLE IF NOT EXISTS agent_groups (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL UNIQUE, description TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
   "CREATE TABLE IF NOT EXISTS agent_group_members (group_id TEXT NOT NULL, agent_id TEXT NOT NULL, added_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (group_id, agent_id), FOREIGN KEY (group_id) REFERENCES agent_groups(id) ON DELETE CASCADE, FOREIGN KEY (agent_id) REFERENCES api_keys(id))",
-  "CREATE TABLE IF NOT EXISTS bosses (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'manager', 'viewer')), telegram_user_id TEXT, discord_user_id TEXT, agent_id TEXT REFERENCES api_keys(id), token_hash TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+  "CREATE TABLE IF NOT EXISTS bosses (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'manager', 'viewer')), telegram_user_id TEXT, discord_user_id TEXT, agent_id TEXT REFERENCES api_keys(id), token_hash TEXT, preferences TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id) WHERE telegram_user_id IS NOT NULL',
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_discord ON bosses(discord_user_id) WHERE discord_user_id IS NOT NULL',
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL',

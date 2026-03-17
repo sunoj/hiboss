@@ -223,6 +223,26 @@ describe('buildFilters', () => {
     // In unread mode, session filter is not applied (target_session is used instead)
     expect(where).not.toContain('session_id = ?');
   });
+
+  it('adds search filter with LIKE', () => {
+    const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, false, undefined, undefined, 'deploy');
+    expect(where).toContain('body LIKE ?');
+    expect(binds).toContain('%deploy%');
+  });
+
+  it('adds type filter', () => {
+    const { where, binds } = buildFilters('a1', null, null, undefined, 'task_update');
+    expect(where).toContain('type = ?');
+    expect(binds).toContain('task_update');
+  });
+
+  it('combines search with other filters', () => {
+    const { where, binds } = buildFilters('a1', 'agent_to_boss', null, ['high'], undefined, undefined, false, undefined, undefined, 'urgent');
+    expect(where).toContain('body LIKE ?');
+    expect(where).toContain('direction = ?');
+    expect(where).toContain('priority IN (?)');
+    expect(binds).toContain('%urgent%');
+  });
 });
 
 describe('parsePriorityFilter', () => {
