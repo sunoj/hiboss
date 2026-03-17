@@ -27,6 +27,10 @@ import {
   fetchMessageWithReplies,
   fetchAgentName,
   deliverWithRetry,
+  resolveChannelRouting,
+  checkRateLimit,
+  findByIdempotencyKey,
+  inferSessionStatus,
 } from './message-helpers';
 import type { MessageRow } from '../types';
 
@@ -651,5 +655,110 @@ describe('fetchAllChannelConfigs', () => {
     expect(tg).toBeDefined();
     expect(typeof tg!.config).toBe('object');
     expect(tg!.config['chat_id']).toBe('tg-123');
+  });
+});
+
+describe('resolveChannelRouting', () => {
+  it('returns channel for matching priority', () => {
+    const routing = JSON.stringify({ normal: 'discord', high: 'telegram' });
+    expect(resolveChannelRouting(routing, 'normal')).toBe('discord');
+    expect(resolveChannelRouting(routing, 'high')).toBe('telegram');
+  });
+
+  it('returns undefined for unmatched priority', () => {
+    const routing = JSON.stringify({ normal: 'discord' });
+    expect(resolveChannelRouting(routing, 'critical')).toBeUndefined();
+  });
+
+  it('returns undefined for invalid JSON', () => {
+    expect(resolveChannelRouting('{broken', 'normal')).toBeUndefined();
+  });
+
+  it('returns undefined for invalid channel value', () => {
+    const routing = JSON.stringify({ normal: 'slack' });
+    expect(resolveChannelRouting(routing, 'normal')).toBeUndefined();
+  });
+});
+
+describe('checkRateLimit', () => {
+  const agentId = getTestAgentId();
+
+  it('returns false when under limit', async () => {
+    const result = await checkRateLimit(env as any, agentId, 1000);
+    expect(result).toBe(false);
+  });
+
+  it('returns true when at or over limit', async () => {
+    // Insert enough recent messages to trigger rate limit
+    for (let i = 0; i < 3; i++) {
+      await env.DB.prepare(
+        "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, created_at) VALUES (?, ?, 'agent_to_boss', 'async', 'rate test', 'sent', 'normal', datetime('now'))"
+      ).bind(`rate-msg-${i}`, agentId).run();
+    }
+    const result = await checkRateLimit(env as any, agentId, 2);
+    expect(result).toBe(true);
+  });
+});
+
+describe('findByIdempotencyKey', () => {
+  const agentId = getTestAgentId();
+
+  beforeAll(async () => {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO messages (id, agent_id, direction, mode, body, status, priority, idempotency_key) VALUES (?, ?, 'agent_to_boss', 'async', 'idempotent msg', 'sent', 'normal', ?)"
+    ).bind('idemp-msg-001', agentId, 'idemp-key-abc').run();
+  });
+
+  it('finds message by idempotency key', async () => {
+    const row = await findByIdempotencyKey(env as any, agentId, 'idemp-key-abc');
+    expect(row).not.toBeNull();
+    expect(row!.id).toBe('idemp-msg-001');
+  });
+
+  it('returns null for unknown key', async () => {
+    const row = await findByIdempotencyKey(env as any, agentId, 'no-such-key');
+    expect(row).toBeNull();
+  });
+
+  it('returns null for wrong agent', async () => {
+    const row = await findByIdempotencyKey(env as any, 'other-agent', 'idemp-key-abc');
+    expect(row).toBeNull();
+  });
+});
+
+describe('inferSessionStatus', () => {
+  const agentId = getTestAgentId();
+  const sessId = 'infer-sess-001';
+
+  beforeAll(async () => {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO sessions (id, agent_id, status) VALUES (?, ?, 'working')"
+    ).bind(sessId, agentId).run();
+  });
+
+  it('sets waiting status for blocking mode', async () => {
+    await inferSessionStatus(env as any, agentId, sessId, 'blocking', 'normal', 'Question?');
+    const row = await env.DB.prepare('SELECT status, status_text FROM sessions WHERE id = ?').bind(sessId).first<{ status: string; status_text: string }>();
+    expect(row!.status).toBe('waiting');
+    expect(row!.status_text).toBe('Waiting for boss reply');
+  });
+
+  it('sets waiting status for high priority', async () => {
+    await inferSessionStatus(env as any, agentId, sessId, 'async', 'high', 'Urgent issue');
+    const row = await env.DB.prepare('SELECT status, status_text FROM sessions WHERE id = ?').bind(sessId).first<{ status: string; status_text: string }>();
+    expect(row!.status).toBe('waiting');
+    expect(row!.status_text).toBe('Urgent issue');
+  });
+
+  it('sets working status for normal async', async () => {
+    await inferSessionStatus(env as any, agentId, sessId, 'async', 'normal', 'Progress update');
+    const row = await env.DB.prepare('SELECT status, status_text FROM sessions WHERE id = ?').bind(sessId).first<{ status: string; status_text: string }>();
+    expect(row!.status).toBe('working');
+    expect(row!.status_text).toBe('Progress update');
+  });
+
+  it('does nothing when sessionId is null', async () => {
+    // Should not throw
+    await inferSessionStatus(env as any, agentId, null, 'async', 'normal', 'test');
   });
 });
