@@ -10,3 +10,7 @@ database_id = "5640bc74-e03a-4746-aa10-ae7025078f24"
 [[r2_buckets]]
 binding = "ATTACHMENTS"
 bucket_name = "hiboss-attachments"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
