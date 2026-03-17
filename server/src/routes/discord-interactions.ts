@@ -143,11 +143,14 @@ async function handleMessageComponent(
     return c.json({ type: 4, data: { content: btnBossCheck.error, flags: 64 } });
   }
   const parentMsg = await c.env.DB
-    .prepare('SELECT id, metadata FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare('SELECT id, metadata, status FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${msgPrefix}%`, agentRow.agent_id)
-    .first<{ id: string; metadata: string | null }>();
+    .first<{ id: string; metadata: string | null; status: string }>();
   if (!parentMsg) {
     return c.text('message not found', 404);
+  }
+  if (parentMsg.status === 'expired') {
+    return c.json({ type: 4, data: { content: '⏰ Options expired', flags: 64 } });
   }
   const replyMetadata = getActionMetadata(parentMsg.metadata, selectedOption);
   const inserted = await c.env.DB

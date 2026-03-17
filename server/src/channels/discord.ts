@@ -68,6 +68,24 @@ async function sendViaWebhook(webhookUrl: string, content: string, options?: Dis
   return { messageId: typeof result['id'] === 'string' ? result['id'] : undefined };
 }
 
+export async function editDiscordMessage(config: DiscordChannelConfig, messageId: string, content: string, components?: unknown[]): Promise<void> {
+  if (config.webhook_url) {
+    const url = `${config.webhook_url}/messages/${encodeURIComponent(messageId)}`;
+    const payload: Record<string, unknown> = { content, components: components ?? [] };
+    await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    return;
+  }
+  if (config.bot_token && config.channel_id) {
+    const payload: Record<string, unknown> = { content, components: components ?? [] };
+    await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(config.channel_id)}/messages/${encodeURIComponent(messageId)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bot ${config.bot_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return;
+  }
+}
+
 async function sendViaBot(botToken: string, channelId: string, content: string, components?: unknown[]): Promise<DiscordSendResult> {
   const payload: Record<string, unknown> = { content };
   if (components) payload.components = components;
