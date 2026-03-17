@@ -29,7 +29,8 @@ pub struct InboxArgs {
 
 pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let session_id = session::read_session_id();
-    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref(), args.from.as_deref(), args.direction.as_deref()).await?;
+    // Pass session_id as both session (for --all history) and target_session (for unread scoping)
+    let response = client.list_messages(!args.all, args.all, args.limit, args.priority.as_deref(), args.msg_type.as_deref(), session_id.as_deref(), args.from.as_deref(), args.direction.as_deref(), session_id.as_deref()).await?;
     if args.count {
         println!("{}", response.total);
         return Ok(());
