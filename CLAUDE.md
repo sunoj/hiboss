@@ -403,6 +403,26 @@ Update message status (mark as read).
 
 Request: `{ "status": "read" }`
 
+### Session Endpoints
+
+#### POST /api/sessions
+Register or update a session.
+
+Request: `{ "id": "string", "branch": "string", "cwd": "string", "label": "string" }`
+
+Response (201): `{ "id", "label", "branch", "cwd" }`
+
+#### GET /api/sessions
+List active sessions (within 15 min). Param: `all=true` for all agents.
+
+Response: `{ sessions: [{ id, agent_id, agent_name, label, branch, cwd, started_at, last_seen_at }] }`
+
+#### PATCH /api/sessions/:id
+Heartbeat (update last_seen_at).
+
+#### DELETE /api/sessions/:id
+Deregister a session.
+
 ### Audit Endpoints
 
 #### GET /api/audit
@@ -505,6 +525,11 @@ hiboss boss inbox                                     # list sub-agent messages
 hiboss boss inbox --priority critical,high            # urgent only
 hiboss boss inbox --count                             # count unread
 hiboss boss reply <msg-id> "Your reply here"          # reply as boss
+
+# Background SSE daemon
+hiboss daemon start                                   # start background SSE listener
+hiboss daemon stop                                    # stop background SSE listener
+hiboss daemon status                                  # check if daemon is running
 ```
 
 ## CLI Config
@@ -520,17 +545,20 @@ Stored in `~/.config/hiboss/config.json`:
 
 ## Message Delivery Architecture
 
-Boss messages reach the agent through three layers:
+Messages reach the agent through four layers:
 
 | Layer | Trigger | Scope | Latency |
 |-------|---------|-------|---------|
-| **PostToolUse hook** | Every tool call (5min TTL cache) | critical/high only | ≤5min |
+| **SSE Daemon** | Background process, reads local file | All messages (boss + peer) | ~2s SSE + next tool call |
+| **PostToolUse hook** | Every tool call | Daemon: local file (0ms); Fallback: a2a 30s TTL, boss 5min TTL | 0ms–5min |
 | **MCP SSE push** | Real-time SSE background listener | All messages (terminal-visible) | Real-time* |
-| **SessionStart hook** | New session start | All unread | Session gap |
+| **SessionStart hook** | New session start | All unread + starts daemon | Session gap |
 
 *MCP `notifications/message` is displayed in terminal but NOT injected into agent context by Claude Code.
 
-Normal/low priority messages wait for SessionStart or manual `hiboss inbox`. Only urgent messages interrupt the agent via PostToolUse hook.
+**With daemon** (default): SSE daemon writes messages to local file → PostToolUse drains file on every tool call → near-instant delivery into agent context.
+
+**Without daemon** (fallback): PostToolUse polls server via HTTP with dual TTL — 30s for peer messages (only delivery mechanism), 5min for boss urgent (also have Telegram/Discord).
 
 ### Channel Resolution Order
 
@@ -795,40 +823,70 @@ Agents can set reaction emojis on messages via `hiboss react <id> <emoji>` (work
 - `hiboss react <id> <emoji>` works on both Discord and Telegram
 - `hiboss channel set discord --webhook-url <url> --bot-token <token> --channel-id <id>` for hybrid mode
 
-### v0.11 — Cross-Session Agent Communication (In Progress)
-**Goal**: Enable direct agent-to-agent messaging across Claude Code sessions (Layer 3).
+### v0.11 — Cross-Session Agent Communication (Done)
+**Goal**: Enable direct agent-to-agent messaging across Claude Code sessions sharing the same API key.
 
-Informed by research on Google A2A, OpenAI Swarm, CrewAI, Claude Code Teams, and academic papers (ALMAS, AgentMesh, LACP). See `docs/design-layer3-cross-session.md` for full design rationale.
+Design principle: Agent = permanent identity (API key), Session = ephemeral workspace (Claude Code instance).
+
+#### First-Class Sessions
+- `sessions` table: id, agent_id, label, branch, cwd, started_at, last_seen_at
+- `POST /api/sessions` — register/upsert session (auto-labeled as `<project>/<branch>`)
+- `GET /api/sessions` — list active sessions (within 15 min staleness window)
+- `PATCH /api/sessions/:id` — heartbeat (update last_seen_at)
+- `DELETE /api/sessions/:id` — deregister session
+- SessionStart hook auto-generates session ID, registers with server
 
 #### Agent-to-Agent Messaging
-- `target_agent_id` column on messages table for direct agent targeting
-- `POST /api/messages` accepts `to` field (agent name or ID) for agent-to-agent sends
-- `direction: agent_to_agent` for inter-agent messages
-- `GET /api/messages?unread=true` includes agent_to_agent messages targeting self
-- `GET /api/messages?from=<agent>` filter by sender agent
-- Delivery via target agent's configured channels (same pipeline as boss messages)
+- `target_agent_id` and `target_session_id` columns on messages table
+- `POST /api/messages` accepts `to` field: resolves agent name → agent ID → session label → session ID
+- `direction: agent_to_agent` — skips Telegram/Discord delivery (peer-only)
+- Smart `--to` resolution: tries agent name, agent ID prefix, session label, session ID prefix
+- `GET /api/messages?unread=true` includes a2a messages targeting self
+- `GET /api/messages?direction=agent_to_agent` filter by direction
+- `GET /api/messages?from=<agent>` filter by sender
 
-#### Session Discovery
-- `role` column on api_keys: orchestrator | worker | reviewer
-- `session_info` JSON column on api_keys: project_dir, git_branch, capabilities
-- `GET /api/agents` returns role + session_info
-- `PUT /api/agents/me/config` accepts role + session_info
-- SessionStart hook auto-registers session metadata (cwd, git branch)
-
-#### Task Context
-- `--to <agent>` flag on `hiboss send` and `hiboss ask`
-- `--task`, `--files`, `--branch` flags for structured context in metadata
-- `--status` flag on `hiboss reply` for task lifecycle (accepted, working, blocked, completed)
-- `hiboss inbox --from <agent>` filter by sender
-- `hiboss inbox --status <state>` filter by task status
-- `hiboss agent config --role <role>` set session role
-- `hiboss agent list` shows role, project, branch columns
+#### Dual TTL Polling
+- PostToolUse: 30-sec TTL for a2a messages (only delivery mechanism), 5-min TTL for boss urgent
+- Heartbeat: session last_seen_at updated every 30 seconds via PostToolUse
 
 #### Hooks
-- SessionStart: auto-register session_info, show agent_to_agent messages
-- PostToolUse: check for urgent agent_to_agent messages
+- SessionStart: register session, show peer sessions, show unread (boss + a2a)
+- PostToolUse: dual TTL check, heartbeat session
+- Clear instructions to use `hiboss reply` (not `hiboss send`) for peer message replies
+
+### v0.12 — Session-Scoped SSE Streaming (Done)
+**Goal**: Real-time message delivery for both boss and peer messages via SSE.
+
+#### SSE Enhancements
+- `GET /api/messages/stream` now includes `agent_to_agent` messages (was boss-only)
+- Optional `?session=` param for session-level message filtering
+- Session-scoped: boss messages + a2a targeting agent (no session) + a2a targeting specific session
+
+#### CLI Updates
+- `hiboss watch` auto-detects session ID, passes to SSE stream
+- `hiboss watch` shows `[peer]`/`[boss]` labels for message origin
+- `hiboss bot` also session-scoped
+
+### v0.13 — Background SSE Daemon & MCP Server (Done)
+**Goal**: Near-real-time message delivery into agent context + MCP tooling.
+
+#### Background SSE Daemon
+- `hiboss daemon start/stop/status` — manage background SSE listener process
+- Daemon maintains SSE connection, writes messages to local file (`/tmp/hiboss-daemon-*.pending`)
+- PostToolUse hook reads from local file (0ms) when daemon is running
+- Falls back to HTTP polling when daemon not running
+- SessionStart hook auto-starts daemon on new session
+- Session-scoped: daemon connects with session ID for filtered streaming
+
+#### MCP Server Updates
+- SSE listener connects with session ID for scoped message streaming
+- `send_to_peer` tool — send messages to peer sessions via MCP
+- `list_sessions` tool — discover active peer sessions
+- Handles `agent_to_agent` message notifications
+- Context reads session ID from CLI's session file
 
 ### v1.0 — Production Ready
+- Session lifecycle: stop hook to deregister, "waiting for work" daemon mode
 - Per-boss channel preferences
 - Boss authentication tokens (API access for bosses)
 - Web dashboard for message history
