@@ -88,11 +88,20 @@ async function handleApplicationCommand(
     return c.json({ type: 4, data: { content: bossCheck.error, flags: 64 } });
   }
   const meta = bossCheck.boss ? { ...payload as Record<string, unknown>, boss_id: bossCheck.boss.id, boss_name: bossCheck.boss.name } : payload;
+  // Auto-link to most recent pending blocking message for this agent
+  let replyTo: string | null = null;
+  const pendingMsg = await c.env.DB
+    .prepare(
+      "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
+    )
+    .bind(agentRow.agent_id)
+    .first<{ id: string }>();
+  if (pendingMsg) replyTo = pendingMsg.id;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', JSON.stringify(meta))
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta))
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);

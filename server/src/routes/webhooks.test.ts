@@ -147,6 +147,67 @@ describe('POST /api/webhooks/telegram', () => {
     expect(data.reply_to).toBeNull();
   });
 
+  it('auto-links standalone message to pending blocking message', async () => {
+    // Mark any existing blocking messages as replied so they don't interfere
+    await env.DB.prepare(
+      "UPDATE messages SET status = 'replied' WHERE agent_id = ? AND mode = 'blocking' AND status IN ('sent', 'delivered')"
+    )
+      .bind(getTestAgentId())
+      .run();
+    const blockingId = 'auto-link-blocking-001';
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Pick option', 'delivered', 'normal')"
+    )
+      .bind(blockingId, getTestAgentId())
+      .run();
+
+    const payload = {
+      message: {
+        message_id: 2001,
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'I choose option B',
+        from: { id: 1, is_bot: false },
+        // No reply_to_message — boss typed a standalone message
+      },
+    };
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { reply_to: string | null };
+    expect(data.reply_to).toBe(blockingId);
+  });
+
+  it('does not auto-link when no pending blocking message exists', async () => {
+    // Clean up any blocking messages first
+    await env.DB.prepare(
+      "UPDATE messages SET status = 'replied' WHERE agent_id = ? AND mode = 'blocking' AND status IN ('sent', 'delivered')"
+    )
+      .bind(getTestAgentId())
+      .run();
+
+    const payload = {
+      message: {
+        message_id: 2002,
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'Just a regular message',
+        from: { id: 1, is_bot: false },
+      },
+    };
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { reply_to: string | null };
+    expect(data.reply_to).toBeNull();
+  });
+
   it('handles inline keyboard callback queries', async () => {
     const parentId = 'callback-test-parent';
     await env.DB.prepare(
