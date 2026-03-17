@@ -383,6 +383,11 @@ Grant agent access. Request: `{ "agent_id": "string" }`
 #### DELETE /api/bosses/:id/access/:agentId
 Revoke agent access.
 
+#### POST /api/bosses/:id/token
+Generate or regenerate a boss auth token. Requires agent API key.
+
+Response: `{ "id", "name", "token": "hb_boss_..." }` (token shown once)
+
 ### Boss Inbox Endpoints (Agent-as-Boss)
 
 #### GET /api/boss/inbox
@@ -402,6 +407,28 @@ Request: `{ "body": "string" }`
 Update message status (mark as read).
 
 Request: `{ "status": "read" }`
+
+### Boss API Endpoints (Boss Token Auth)
+
+Authenticated with boss token (`hb_boss_*`). Role-based access control.
+
+#### GET /api/boss/me
+Boss profile with list of accessible agent IDs.
+
+#### GET /api/boss/agents
+List agents the boss has access to.
+
+#### GET /api/boss/messages
+Messages from accessible agents. Params: `limit`, `offset`, `unread`, `priority`, `agent`.
+
+#### GET /api/boss/messages/:id
+Message detail with replies.
+
+#### POST /api/boss/messages/:id/reply
+Reply to an agent message. Request: `{ "body": "string" }`. Viewer role blocked.
+
+#### GET /api/boss/sessions
+Active sessions for accessible agents.
 
 ### Session Endpoints
 
@@ -915,9 +942,35 @@ Design principle: Agent = permanent identity (API key), Session = ephemeral work
 - Auto-refresh every 10s, dark theme, responsive
 - Auth via URL param `?key=` → localStorage, login form fallback
 
+### v0.15 — Boss Authentication Tokens (Done)
+**Goal**: Direct API access for bosses via their own auth tokens.
+
+#### Boss Tokens
+- `token_hash` column on `bosses` table (SHA-256, same scheme as agent keys)
+- `POST /api/bosses/:id/token` — generate/regenerate a boss token (`hb_boss_*` prefix)
+- Token is shown once on creation (not stored in plaintext)
+
+#### Boss Auth Middleware
+- `bossAuth` middleware: authenticates boss tokens, sets boss context
+- `dualAuth` middleware: accepts either agent or boss tokens
+- Helpers: `getBossId()`, `getBossRole()`, `getBossName()`, `isBossAuth()`
+
+#### Boss API (`/api/boss/*`)
+- `GET /api/boss/me` — boss profile with accessible agent IDs
+- `GET /api/boss/agents` — list agents the boss can access
+- `GET /api/boss/messages` — messages from accessible agents (with filters)
+- `GET /api/boss/messages/:id` — message detail with replies
+- `POST /api/boss/messages/:id/reply` — boss replies to agent (viewer role blocked)
+- `GET /api/boss/sessions` — active sessions for accessible agents
+- Role-based access: admin sees all, manager/viewer sees granted agents only
+
+#### Dashboard
+- Supports both agent and boss tokens with auto-detection
+- Boss mode uses `/api/boss/*` endpoints for messages, sessions, agents
+- Shows "(boss)" label in header when authenticated as boss
+
 ### v1.0 — Production Ready
 - Per-boss channel preferences
-- Boss authentication tokens (API access for bosses)
 - Comprehensive audit logging on all mutations
 
 ## Code Conventions
