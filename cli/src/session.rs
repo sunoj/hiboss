@@ -24,9 +24,14 @@ pub fn session_file_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-session-{}", project_hash()))
 }
 
-/// Path to per-session TTL file for urgent checks.
+/// Path to per-session TTL file for urgent boss checks (5 min).
 pub fn ttl_file_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-urgent-check-{}", project_hash()))
+}
+
+/// Path to per-session TTL file for agent-to-agent checks (30 sec).
+pub fn a2a_ttl_file_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-a2a-check-{}", project_hash()))
 }
 
 /// Read session_id from the session file, if it exists.
