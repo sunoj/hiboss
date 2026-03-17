@@ -325,7 +325,7 @@ const LIMIT = 50;
 const STALE_MIN = 15;
 
 /* -- Filters -- */
-let filters = { direction: '', status: '', priority: '' };
+let filters = { direction: '', status: '', priority: '', search: '' };
 
 /* -- Init -- */
 (function init() {
@@ -444,6 +444,7 @@ async function loadMessages(quiet = false) {
   if (filters.direction) params.set('direction', filters.direction);
   if (filters.status) params.set('status', filters.status);
   if (filters.priority) params.set('priority', filters.priority);
+  if (filters.search) params.set('search', filters.search);
 
   try {
     const endpoint = authMode === 'boss' ? '/api/boss/messages' : '/api/messages';
@@ -465,6 +466,7 @@ function renderMessages(messages, total) {
   html += sel('direction', dirs, filters.direction);
   html += sel('status', stats, filters.status);
   html += sel('priority', pris, filters.priority);
+  html += `<input type="text" id="search-input" placeholder="Search messages..." value="${esc(filters.search)}" style="flex:1;min-width:120px">`;
   html += '</div>';
 
   if (messages.length === 0) {
@@ -519,6 +521,21 @@ function renderMessages(messages, total) {
       loadMessages();
     });
   });
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    let searchTimer = null;
+    searchInput.addEventListener('input', e => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        filters.search = e.target.value.trim();
+        msgOffset = 0;
+        loadMessages();
+      }, 400);
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { clearTimeout(searchTimer); filters.search = e.target.value.trim(); msgOffset = 0; loadMessages(); }
+    });
+  }
 
   // If a message is expanded, load its detail
   if (expandedId) loadMsgDetail(expandedId);
