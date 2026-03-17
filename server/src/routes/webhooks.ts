@@ -41,11 +41,20 @@ router.post('/discord', async (c) => {
   if (routedAgentId) agentRow.agent_id = routedAgentId;
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, agentRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
   const discordMetadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name } : payload;
+  // Auto-link to most recent pending blocking message for this agent
+  let replyTo: string | null = null;
+  const pending = await c.env.DB
+    .prepare(
+      "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
+    )
+    .bind(agentRow.agent_id)
+    .first<{ id: string }>();
+  if (pending) replyTo = pending.id;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', JSON.stringify(discordMetadata))
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, JSON.stringify(discordMetadata))
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
@@ -122,6 +131,16 @@ router.post('/telegram', async (c) => {
       .bind(configRow.agent_id, replyToTgId)
       .first<{ id: string }>();
     if (parent) replyTo = parent.id;
+  }
+  // Auto-link standalone messages (no explicit reply-to) to most recent pending blocking message
+  if (!replyTo && !replyToTgId) {
+    const pending = await c.env.DB
+      .prepare(
+        "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'telegram' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
+      )
+      .bind(configRow.agent_id)
+      .first<{ id: string }>();
+    if (pending) replyTo = pending.id;
   }
   const inserted = await c.env.DB
     .prepare(
