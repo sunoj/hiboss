@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName } from '../middleware/auth';
 import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
+import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 
@@ -144,8 +145,8 @@ routes.get('/messages/:id', async (c) => {
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   const messageId = c.req.param('id');
   const row = await c.env.DB
-    .prepare('SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ?')
-    .bind(messageId, `${messageId}%`)
+    .prepare("SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
   const replies = await c.env.DB
@@ -163,8 +164,8 @@ routes.post('/messages/:id/reply', async (c) => {
   const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
   const messageId = c.req.param('id');
   const parent = await c.env.DB
-    .prepare('SELECT * FROM messages WHERE id = ? OR id LIKE ?')
-    .bind(messageId, `${messageId}%`)
+    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
   if (!parent || !agentIds.includes(parent.agent_id)) return c.text('not found', 404);
   const payload = await c.req.json<Record<string, unknown>>();

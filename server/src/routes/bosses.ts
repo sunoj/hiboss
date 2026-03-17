@@ -29,6 +29,10 @@ const VALID_ROLES: BossRole[] = ['admin', 'manager', 'viewer'];
 const VALID_CHANNELS = ['telegram', 'discord', 'email'];
 const VALID_PRIORITIES = ['critical', 'high', 'normal', 'low'];
 
+export function escapeLike(value: string): string {
+  return value.replace(/([\\%_])/g, '\\$1');
+}
+
 function safeParse(value: string | null): Record<string, unknown> | null {
   if (!value) return null;
   try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
@@ -279,5 +283,5 @@ export const bossesRouter = routes;
 async function findBoss(env: Env, id: string): Promise<BossRow | null> {
   const exact = await env.DB.prepare('SELECT * FROM bosses WHERE id = ?').bind(id).first<BossRow>();
   if (exact) return exact;
-  return env.DB.prepare('SELECT * FROM bosses WHERE id LIKE ? LIMIT 1').bind(`${id}%`).first<BossRow>();
+  return env.DB.prepare("SELECT * FROM bosses WHERE id LIKE ? ESCAPE '\\' LIMIT 1").bind(`${escapeLike(id)}%`).first<BossRow>();
 }

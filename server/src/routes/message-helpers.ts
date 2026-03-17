@@ -84,8 +84,13 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
       binds.push(agentId, agentId);
     }
   } else {
-    clauses.push('(agent_id = ? OR target_agent_id = ? OR target_session_id = ?)');
-    binds.push(agentId, agentId, targetSessionId ?? '');
+    const visibilityClauses = ['agent_id = ?', 'target_agent_id = ?'];
+    binds.push(agentId, agentId);
+    if (targetSessionId) {
+      visibilityClauses.push('target_session_id = ?');
+      binds.push(targetSessionId);
+    }
+    clauses.push(`(${visibilityClauses.join(' OR ')})`);
     if (direction) {
       clauses.push('direction = ?');
       binds.push(direction);
@@ -191,12 +196,16 @@ export async function fetchMessageRow(env: Env, agentId: string, messageId: stri
     .first<MessageRow>();
 }
 
-export async function fetchReplies(env: Env, parentId: string) {
+export async function fetchReplies(env: Env, parentId: string, agentId?: string) {
+  const replyFilter = agentId
+    ? 'WHERE reply_to = ? AND (messages.agent_id = ? OR messages.target_agent_id = ?)'
+    : 'WHERE reply_to = ?';
+  const binds = agentId ? [parentId, agentId, agentId] : [parentId];
   const result = await env.DB
     .prepare(
-      'SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE reply_to = ? ORDER BY messages.created_at ASC'
+      `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id ${replyFilter} ORDER BY messages.created_at ASC`
     )
-    .bind(parentId)
+    .bind(...binds)
     .all<MessageRow>();
   return (result.results ?? []).map(mapMessageRow);
 }
@@ -206,7 +215,7 @@ export async function fetchMessageWithReplies(env: Env, agentId: string, message
   if (!row) {
     return null;
   }
-  const replyList = await fetchReplies(env, row.id);
+  const replyList = await fetchReplies(env, row.id, agentId);
   return { ...mapMessageRow(row), replies: replyList };
 }
 

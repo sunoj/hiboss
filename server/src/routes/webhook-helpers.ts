@@ -25,8 +25,8 @@ function safeJson(value: string | null): Record<string, unknown> | null {
 
 export async function evaluateRoutingRules(env: Env, channel: string, body: string, defaultAgentId: string): Promise<string | null> {
   const rules = await env.DB
-    .prepare('SELECT target_agent_id, pattern FROM routing_rules WHERE channel = ? AND enabled = 1 ORDER BY priority DESC')
-    .bind(channel)
+    .prepare('SELECT target_agent_id, pattern FROM routing_rules WHERE channel = ? AND owner_id = ? AND enabled = 1 ORDER BY priority DESC')
+    .bind(channel, defaultAgentId)
     .all<{ target_agent_id: string; pattern: string }>();
   for (const rule of rules.results ?? []) {
     try {

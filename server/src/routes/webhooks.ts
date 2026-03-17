@@ -12,6 +12,11 @@ import { asString, evaluateRoutingRules, hasBossAccess, mapMessage, resolveBossF
 const router = new Hono<{ Bindings: Env }>({});
 
 router.post('/discord', async (c) => {
+  const discordWebhookSecret = (c.env as Env & { DISCORD_WEBHOOK_SECRET?: string }).DISCORD_WEBHOOK_SECRET;
+  const discordWebhookHeader = c.req.header('X-Webhook-Secret');
+  if (discordWebhookSecret && discordWebhookHeader !== discordWebhookSecret) {
+    return c.text('forbidden', 403);
+  }
   const payload = await c.req.json<Record<string, unknown>>();
   const message = payload['message'] as Record<string, unknown> | undefined;
   if (message && message['author'] && (message['author'] as Record<string, unknown>).bot) return c.text('ignored', 200);
@@ -63,6 +68,11 @@ router.post('/discord', async (c) => {
 });
 
 router.post('/telegram', async (c) => {
+  const telegramWebhookSecret = (c.env as Env & { TELEGRAM_WEBHOOK_SECRET?: string }).TELEGRAM_WEBHOOK_SECRET;
+  const telegramWebhookHeader = c.req.header('X-Telegram-Bot-Api-Secret-Token');
+  if (telegramWebhookSecret && telegramWebhookHeader !== telegramWebhookSecret) {
+    return c.text('forbidden', 403);
+  }
   const payload = await c.req.json<Record<string, unknown>>();
 
   // Handle inline keyboard button press
@@ -186,6 +196,7 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   if (colonIdx < 1) { answer('Invalid'); return c.text('invalid callback data', 400); }
   const msgPrefix = data.slice(0, colonIdx);
   const selectedOption = data.slice(colonIdx + 1);
+  if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) { answer('Invalid'); return c.text('invalid message prefix', 400); }
   const parentMsg = await c.env.DB
     .prepare('SELECT id, metadata FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${msgPrefix}%`, configRow.agent_id)

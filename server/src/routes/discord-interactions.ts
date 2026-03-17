@@ -6,6 +6,7 @@ import { Hono, Context } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
+import { apiAuth } from '../middleware/auth';
 
 interface DiscordInteractionPayload {
   type: number;
@@ -128,6 +129,9 @@ async function handleMessageComponent(
   const selectedOption = customId.slice(colonIndex + 1);
   if (!selectedOption) {
     return c.text('invalid selection', 400);
+  }
+  if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) {
+    return c.text('invalid message prefix', 400);
   }
   const agentRow = await findDiscordAgent(c.env, channelId);
   if (!agentRow) {
@@ -265,7 +269,7 @@ async function checkBossPermission(
   return { boss };
 }
 
-router.post('/register-commands', async (c) => {
+router.post('/register-commands', apiAuth, async (c) => {
   const payload = await c.req.json<{ app_id?: string; bot_token?: string }>();
   if (!payload.app_id || !payload.bot_token) {
     return c.text('app_id and bot_token required', 400);
