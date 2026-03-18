@@ -18,6 +18,7 @@ import {
   delay,
   deliverWithRetry,
   ensureTopicForAgent,
+  expirePreviousOptions,
   extractTelegramMessageId,
   fetchAgentName,
   fetchAllChannelConfigs,
@@ -100,8 +101,10 @@ routes.post('/', async (c) => {
   const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
   const sessionId = typeof payload.session_id === 'string' ? payload.session_id.trim() || null : null;
   const toAgent = typeof payload.to === 'string' ? payload.to.trim() || null : null;
+  const options = parseOptions(payload.options);
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
+  if (options) (rawMetadata as Record<string, unknown>)['options'] = options;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
   const isUrgent = priority === 'critical' || priority === 'high';
   let channelConfigs: { channel: Channel; config: Record<string, unknown> }[] = [];
@@ -179,7 +182,6 @@ routes.post('/', async (c) => {
   if (sessionId && direction === 'agent_to_boss') {
     c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
   }
-  const options = parseOptions(payload.options);
   if (channelConfigs.length > 0 && direction !== 'agent_to_agent') {
     const agentName = await fetchAgentName(c.env, agentId);
     const name = agentName ?? 'agent';
@@ -240,6 +242,9 @@ routes.post('/', async (c) => {
   // Notify target agent for agent-to-agent messages via callback
   if (targetAgentId) {
     c.executionCtx.waitUntil(notifyTargetAgent(c.env, targetAgentId, inserted));
+  }
+  if (options && direction === 'agent_to_boss') {
+    c.executionCtx.waitUntil(expirePreviousOptions(c.env, agentId, sessionId, inserted.id).catch(() => {}));
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.send', 'message', inserted.id, JSON.stringify({ direction, priority, mode })));
   return c.json({ id: inserted.id, status: inserted.status, created_at: inserted.created_at }, 201);
