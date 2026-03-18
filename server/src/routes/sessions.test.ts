@@ -2,13 +2,38 @@
 // Covers session CRUD and status management.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, authHeaders } from '../test-helpers';
+import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { hashApiKey } from '../middleware/auth';
 
 beforeAll(async () => {
   await seedDatabase();
+  const otherAgentKeyHash = await hashApiKey('hb_test_key_1111111111111111');
+  await env.DB
+    .prepare('INSERT INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind('test-agent-id-2', 'test-agent-2', otherAgentKeyHash)
+    .run();
+  const bossTokenHash = await hashApiKey('hb_boss_sessions_token_0001');
+  await env.DB
+    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
+    .bind('Sessions Boss', 'admin', bossTokenHash)
+    .run();
 });
+
+function otherAgentHeaders(): Record<string, string> {
+  return {
+    Authorization: 'Bearer hb_test_key_1111111111111111',
+    'Content-Type': 'application/json',
+  };
+}
+
+function bossHeaders(): Record<string, string> {
+  return {
+    Authorization: 'Bearer hb_boss_sessions_token_0001',
+    'Content-Type': 'application/json',
+  };
+}
 
 describe('POST /api/sessions', () => {
   it('registers a session with ID only', async () => {
@@ -86,6 +111,16 @@ describe('POST /api/sessions', () => {
     const data = await res.json() as any;
     expect(data.label).toBe('/project/main');
   });
+
+  it('rejects cross-agent overwrites', async () => {
+    const res = await SELF.fetch('http://localhost/api/sessions', {
+      method: 'POST',
+      headers: otherAgentHeaders(),
+      body: JSON.stringify({ id: 'sess-test-1', status: 'idle' }),
+    });
+    expect(res.status).toBe(409);
+    expect(await res.text()).toBe('session belongs to another agent');
+  });
 });
 
 describe('GET /api/sessions', () => {
@@ -97,11 +132,26 @@ describe('GET /api/sessions', () => {
     expect(data.sessions.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('lists all agents sessions with ?all=true', async () => {
+  it('ignores ?all=true for agent callers', async () => {
+    await SELF.fetch('http://localhost/api/sessions', {
+      method: 'POST',
+      headers: otherAgentHeaders(),
+      body: JSON.stringify({ id: 'sess-other-agent-1', status: 'idle' }),
+    });
     const res = await SELF.fetch('http://localhost/api/sessions?all=true', { headers: authHeaders() });
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.sessions).toBeInstanceOf(Array);
+    expect(data.sessions.every((session: any) => session.agent_id === getTestAgentId())).toBe(true);
+  });
+
+  it('allows boss callers to list all sessions with ?all=true', async () => {
+    const res = await SELF.fetch('http://localhost/api/sessions?all=true', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    const agentIds = data.sessions.map((session: any) => session.agent_id);
+    expect(agentIds).toContain(getTestAgentId());
+    expect(agentIds).toContain('test-agent-id-2');
   });
 });
 
