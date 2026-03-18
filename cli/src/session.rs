@@ -44,6 +44,11 @@ pub fn daemon_pending_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-daemon-{}.pending", project_hash()))
 }
 
+/// Path to the urgent message file (written by bg-check, read by post-tool-use).
+pub fn urgent_file_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-urgent-{}", project_hash()))
+}
+
 /// Check if the daemon is running by reading the PID file and testing the process.
 pub fn is_daemon_running() -> Option<u32> {
     let pid_str = fs::read_to_string(daemon_pid_path()).ok()?;

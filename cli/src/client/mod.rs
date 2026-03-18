@@ -227,6 +227,28 @@ impl HiBossClient {
         if !resp.status().is_success() { /* ignore heartbeat failures */ }
         Ok(())
     }
+    pub async fn inbox_count(&self, priority: Option<&str>) -> Result<u32, Box<dyn Error>> {
+        let mut req = self.http
+            .get(format!("{}/api/messages", self.base_url))
+            .bearer_auth(&self.api_key)
+            .query(&[("direction", "boss_to_agent"), ("status", "sent,delivered"), ("limit", "0")]);
+        if let Some(p) = priority {
+            req = req.query(&[("priority", p)]);
+        }
+        let resp = req.send().await?;
+        let data: Value = Self::parse_response(resp).await?;
+        Ok(data["total"].as_u64().unwrap_or(0) as u32)
+    }
+    pub async fn inbox_count_a2a(&self) -> Result<u32, Box<dyn Error>> {
+        let resp = self.http
+            .get(format!("{}/api/messages", self.base_url))
+            .bearer_auth(&self.api_key)
+            .query(&[("direction", "agent_to_agent"), ("status", "sent,delivered"), ("limit", "0")])
+            .send()
+            .await?;
+        let data: Value = Self::parse_response(resp).await?;
+        Ok(data["total"].as_u64().unwrap_or(0) as u32)
+    }
     pub async fn react(&self, id: &str, emoji: &str) -> Result<(), Box<dyn Error>> {
         let resp = self.http
             .post(format!("{}/api/messages/{}/react", self.base_url, id))
