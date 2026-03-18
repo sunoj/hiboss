@@ -87,14 +87,14 @@ describe('POST /api/webhooks/telegram', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 404 for unknown chat_id', async () => {
+  it('returns 403 for unknown chat_id', async () => {
     const res = await postTelegramWebhook({
       message: {
         chat: { id: 'missing-chat' },
         text: 'hello',
       },
     });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   it('ignores bot messages', async () => {
@@ -367,9 +367,9 @@ describe('POST /api/webhooks/discord', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 404 for unknown channel_id', async () => {
+  it('returns 403 for unknown channel_id', async () => {
     const res = await postDiscordWebhook({ channel_id: 'unknown', message: { content: 'none' } });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 
   it('ignores bot messages', async () => {

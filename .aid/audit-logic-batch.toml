@@ -1,0 +1,181 @@
+# Logic Audit Batch — Core Business Logic
+# Focus: logic bugs, race conditions, missing validation, auth bypass, edge cases
+
+[[task]]
+name = "audit-auth-security"
+agent = "codex"
+prompt = """
+You are a senior security auditor. Perform a logic audit of the authentication and authorization system in this Hono/Cloudflare Worker project.
+
+Files to audit:
+- server/src/middleware/auth.ts — authentication middleware
+- server/src/routes/sessions.ts — session management
+- server/src/routes/agents.ts — agent key management
+- server/src/routes/bosses.ts — boss management
+
+Focus areas:
+1. **Auth bypass** — can any endpoint be accessed without proper auth? Check all route registrations in server/src/index.ts
+2. **Agent isolation** — can agent A access agent B's messages/sessions? Check ownership validation
+3. **Boss authorization** — can a non-boss access boss-only endpoints?
+4. **Session lifecycle** — are sessions properly created, validated, and cleaned up?
+5. **Key rotation** — are old agent keys properly invalidated?
+6. **SQL injection** — check all D1 database queries for parameter binding
+7. **Missing auth on routes** — cross-reference index.ts route registration with middleware application
+
+Output format:
+For each finding:
+- SEVERITY: critical/high/medium/low
+- LOCATION: file:line
+- DESCRIPTION: what's wrong
+- EVIDENCE: code snippet showing the issue
+- RECOMMENDATION: how to fix
+
+If no issues found in an area, explicitly state "No issues found in [area]".
+"""
+worktree = "audit/auth"
+verify = "cd server && npx tsc --noEmit"
+context = ["server/src/middleware/auth.ts", "server/src/index.ts", "server/src/types.ts"]
+
+[[task]]
+name = "audit-message-flow"
+agent = "codex"
+prompt = """
+You are a senior backend auditor. Perform a logic audit of the message flow system in this Hono/Cloudflare Worker project.
+
+Files to audit:
+- server/src/routes/messages.ts — message CRUD and listing
+- server/src/routes/delivery.ts — message delivery to channels
+- server/src/routes/routing.ts — message routing logic
+- server/src/routes/message-helpers.ts — shared message utilities
+- server/src/routes/groups.ts — message groups
+
+Focus areas:
+1. **Message ownership** — can agent A read/modify agent B's messages? Check all queries filter by correct owner
+2. **Delivery guarantees** — what happens when channel delivery fails? Is the message lost or retried?
+3. **Race conditions** — concurrent message sends, concurrent reads, message status updates
+4. **Routing logic** — are messages routed to the correct channel? What if multiple channels are configured?
+5. **Group isolation** — can messages from one group leak to another?
+6. **Pagination/filtering** — are LIMIT/OFFSET queries safe? Missing WHERE clauses?
+7. **Message state machine** — are valid state transitions enforced (pending→delivered→read, etc)?
+8. **Data consistency** — are related records (messages + deliveries) updated atomically?
+
+Output format:
+For each finding:
+- SEVERITY: critical/high/medium/low
+- LOCATION: file:line
+- DESCRIPTION: what's wrong
+- EVIDENCE: code snippet showing the issue
+- RECOMMENDATION: how to fix
+
+If no issues found in an area, explicitly state "No issues found in [area]".
+"""
+worktree = "audit/messages"
+verify = "cd server && npx tsc --noEmit"
+context = ["server/src/routes/messages.ts", "server/src/routes/delivery.ts", "server/src/routes/routing.ts", "server/src/types.ts"]
+
+[[task]]
+name = "audit-boss-api"
+agent = "codex"
+prompt = """
+You are a senior backend auditor. Perform a logic audit of the Boss API and inbox system.
+
+Files to audit:
+- server/src/routes/boss-api.ts — boss-facing API endpoints
+- server/src/routes/boss-inbox.ts — boss inbox (message retrieval)
+- server/src/routes/reactions.ts — message reactions
+- server/src/routes/discord-interactions.ts — Discord slash command handling
+- server/src/routes/bootstrap.ts — system bootstrap/setup
+
+Focus areas:
+1. **Boss auth** — is boss identity properly verified? Can someone impersonate a boss?
+2. **Inbox correctness** — does the inbox show all messages it should? Does it hide messages it shouldn't?
+3. **Reply routing** — when boss replies, does it reach the correct agent/session?
+4. **Reaction handling** — are reactions properly associated with messages? Authorization checks?
+5. **Discord interaction verification** — is the Discord interaction signature properly verified?
+6. **Bootstrap security** — can bootstrap be called multiple times? Can it be exploited?
+7. **Data leakage** — does the boss API expose internal fields (agent keys, internal IDs) that shouldn't be visible?
+
+Output format:
+For each finding:
+- SEVERITY: critical/high/medium/low
+- LOCATION: file:line
+- DESCRIPTION: what's wrong
+- EVIDENCE: code snippet showing the issue
+- RECOMMENDATION: how to fix
+"""
+worktree = "audit/boss-api"
+verify = "cd server && npx tsc --noEmit"
+context = ["server/src/routes/boss-api.ts", "server/src/routes/boss-inbox.ts", "server/src/routes/reactions.ts", "server/src/types.ts"]
+
+[[task]]
+name = "audit-channels-notify"
+agent = "codex"
+prompt = """
+You are a senior backend auditor. Perform a logic audit of the channel adapters and notification system.
+
+Files to audit:
+- server/src/channels/discord.ts — Discord channel adapter
+- server/src/channels/telegram.ts — Telegram channel adapter
+- server/src/notify.ts — notification dispatch
+- server/src/routes/webhooks.ts — webhook management
+- server/src/routes/webhook-helpers.ts — webhook utilities
+
+Focus areas:
+1. **Channel delivery reliability** — what happens when Discord/Telegram API fails? Is there retry logic?
+2. **Webhook security** — are webhooks validated (secret, signature)? Can someone register a malicious webhook?
+3. **Message formatting** — are messages properly sanitized before sending to Discord/Telegram? XSS/injection in rendered messages?
+4. **Rate limiting** — does the system handle Discord/Telegram rate limits gracefully?
+5. **Channel resolution** — when multiple channels exist, is the correct one selected?
+6. **Notification deduplication** — can the same message be delivered multiple times?
+7. **Error propagation** — do channel failures properly propagate status back to the message system?
+8. **Secret storage** — are channel tokens/secrets properly stored and not logged?
+
+Output format:
+For each finding:
+- SEVERITY: critical/high/medium/low
+- LOCATION: file:line
+- DESCRIPTION: what's wrong
+- EVIDENCE: code snippet showing the issue
+- RECOMMENDATION: how to fix
+"""
+worktree = "audit/channels"
+verify = "cd server && npx tsc --noEmit"
+context = ["server/src/channels/discord.ts", "server/src/channels/telegram.ts", "server/src/notify.ts", "server/src/types.ts"]
+
+[[task]]
+name = "audit-cli-commands"
+agent = "codex"
+prompt = """
+You are a senior Rust auditor. Perform a logic audit of the CLI core commands.
+
+Files to audit:
+- cli/src/commands/send.rs — send message command
+- cli/src/commands/ask.rs — ask (send + wait for reply) command
+- cli/src/commands/reply.rs — reply to message command
+- cli/src/commands/inbox.rs — check inbox
+- cli/src/commands/react.rs — react to message
+- cli/src/session.rs — session management
+- cli/src/config.rs — configuration loading
+- cli/src/types.rs — shared types
+
+Focus areas:
+1. **Session handling** — is session ID consistently used? What if session expires mid-conversation?
+2. **Error handling** — are HTTP errors properly handled? Network timeouts? Invalid JSON responses?
+3. **Config safety** — is config file parsed safely? What if config is corrupted or missing fields?
+4. **Ask timeout logic** — is the polling/SSE wait logic correct? Can it hang forever?
+5. **Reply targeting** — does reply correctly target the message? Can you reply to someone else's message?
+6. **Concurrent access** — if multiple CLI instances run, is config/session file access safe?
+7. **Input validation** — are message bodies, IDs, options validated before sending to server?
+8. **Credential handling** — is the agent key stored securely? Leaked in logs or error messages?
+
+Output format:
+For each finding:
+- SEVERITY: critical/high/medium/low
+- LOCATION: file:line
+- DESCRIPTION: what's wrong
+- EVIDENCE: code snippet showing the issue
+- RECOMMENDATION: how to fix
+"""
+worktree = "audit/cli"
+verify = "cd cli && cargo check"
+context = ["cli/src/commands/send.rs", "cli/src/commands/ask.rs", "cli/src/commands/reply.rs", "cli/src/session.rs", "cli/src/config.rs"]
