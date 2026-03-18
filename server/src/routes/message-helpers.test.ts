@@ -392,15 +392,15 @@ describe('buildInlineKeyboard', () => {
   it('builds one row per option with truncated message ID', () => {
     const result = buildInlineKeyboard('abcdef1234567890', ['Yes', 'No']);
     expect(result).toEqual([
-      [{ text: 'Yes', callback_data: 'abcdef12:Yes' }],
-      [{ text: 'No', callback_data: 'abcdef12:No' }],
+      [{ text: 'Yes', callback_data: 'abcdef123456:Yes' }],
+      [{ text: 'No', callback_data: 'abcdef123456:No' }],
     ]);
   });
 
   it('handles single option', () => {
     const result = buildInlineKeyboard('11223344aabbccdd', ['OK']);
     expect(result).toHaveLength(1);
-    expect(result[0][0].callback_data).toBe('11223344:OK');
+    expect(result[0][0].callback_data).toBe('11223344aabb:OK');
   });
 
   it('handles short message ID', () => {

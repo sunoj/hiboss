@@ -20,6 +20,7 @@ export type { DeliveryResult } from './delivery';
 
 const channelOptions: Channel[] = ['discord', 'telegram', 'email', 'api'];
 export const priorityOptions: Priority[] = ['critical', 'high', 'normal', 'low'];
+const LIKE_ESCAPE_PATTERN = /[%_\\]/g;
 
 export function mapMessageRow(row: MessageRow): MessageResponse {
   return {
@@ -88,8 +89,8 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
     const visibilityClauses = ['agent_id = ?', 'target_agent_id = ?'];
     binds.push(agentId, agentId);
     if (targetSessionId) {
-      visibilityClauses.push('target_session_id = ?');
-      binds.push(targetSessionId);
+      visibilityClauses.push('(target_session_id = ? AND target_agent_id = ?)');
+      binds.push(targetSessionId, agentId);
     }
     clauses.push(`(${visibilityClauses.join(' OR ')})`);
     if (direction) {
@@ -112,7 +113,7 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
   }
   if (from) {
     clauses.push('agent_id IN (SELECT id FROM api_keys WHERE name = ? OR id LIKE ?)');
-    binds.push(from, `${from}%`);
+    binds.push(from, `${from.replace(LIKE_ESCAPE_PATTERN, '\\$&')}%`);
   }
   if (session && !unread) {
     // Show: messages from this session, boss replies to this session's messages,
@@ -245,7 +246,7 @@ export function parseOptions(value: unknown): string[] | undefined {
 }
 
 export function buildInlineKeyboard(messageId: string, options: string[]): { text: string; callback_data: string }[][] {
-  return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 8)}:${opt}` }]);
+  return options.map((opt) => [{ text: opt, callback_data: `${messageId.slice(0, 12)}:${opt}` }]);
 }
 
 export async function checkRateLimit(env: Env, agentId: string, limit: number): Promise<boolean> {
@@ -303,11 +304,11 @@ export async function expirePreviousOptions(
     ? 'AND session_id = ?'
     : 'AND session_id IS NULL';
   const binds = sessionId
-    ? [agentId, excludeMessageId, sessionId]
-    : [agentId, excludeMessageId];
+    ? [agentId, excludeMessageId, sessionId, excludeMessageId]
+    : [agentId, excludeMessageId, excludeMessageId];
   const rows = await env.DB
     .prepare(
-      `SELECT * FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND id != ? ${sessionClause} AND status IN ('sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL ORDER BY created_at DESC`
+      `SELECT * FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND id != ? ${sessionClause} AND status IN ('sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL AND created_at < (SELECT created_at FROM messages WHERE id = ?) ORDER BY created_at DESC`
     )
     .bind(...binds)
     .all<MessageRow>();
