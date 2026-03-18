@@ -181,8 +181,8 @@ routes.patch('/:id', async (c) => {
     return c.text('status is required', 400);
   }
   const existing = await c.env.DB
-    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
+    .prepare('SELECT * FROM messages WHERE id = ?')
+    .bind(messageId)
     .first<MessageRow>();
   if (!existing) {
     return c.text('not found', 404);
@@ -192,8 +192,8 @@ routes.patch('/:id', async (c) => {
     return c.text('no access to this agent', 403);
   }
   const updated = await c.env.DB
-    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE (id = ? OR id LIKE ? ESCAPE '\\') RETURNING *")
-    .bind(status, messageId, `${escapeLike(messageId)}%`)
+    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? RETURNING *")
+    .bind(status, messageId)
     .first<MessageRow>();
   if (!updated) {
     return c.text('not found', 404);
