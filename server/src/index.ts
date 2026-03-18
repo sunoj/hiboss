@@ -7,6 +7,7 @@ import type { Env } from './types';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
 import { bootstrapRouter } from './routes/bootstrap';
+import { joinRouter } from './routes/join';
 import { messagesRouter } from './routes/messages';
 import { streamRouter } from './routes/stream';
 import { groupsRouter } from './routes/groups';
@@ -36,6 +37,7 @@ app.route('/api/boss/inbox', bossInboxRouter);
 app.route('/api/boss', bossApiRouter);
 app.route('/api/audit', auditRouter);
 app.route('/api/sessions', sessionsRouter);
+app.route('/api/join', joinRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api', adminRouter);
 
