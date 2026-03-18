@@ -14,7 +14,10 @@ const router = new Hono<{ Bindings: Env }>({});
 router.post('/discord', async (c) => {
   const discordWebhookSecret = (c.env as Env & { DISCORD_WEBHOOK_SECRET?: string }).DISCORD_WEBHOOK_SECRET;
   const discordWebhookHeader = c.req.header('X-Webhook-Secret');
-  if (discordWebhookSecret && discordWebhookHeader !== discordWebhookSecret) {
+  if (!discordWebhookSecret) {
+    return c.text('webhook secret not configured', 500);
+  }
+  if (discordWebhookHeader !== discordWebhookSecret) {
     return c.text('forbidden', 403);
   }
   const payload = await c.req.json<Record<string, unknown>>();
@@ -70,7 +73,10 @@ router.post('/discord', async (c) => {
 router.post('/telegram', async (c) => {
   const telegramWebhookSecret = (c.env as Env & { TELEGRAM_WEBHOOK_SECRET?: string }).TELEGRAM_WEBHOOK_SECRET;
   const telegramWebhookHeader = c.req.header('X-Telegram-Bot-Api-Secret-Token');
-  if (telegramWebhookSecret && telegramWebhookHeader !== telegramWebhookSecret) {
+  if (!telegramWebhookSecret) {
+    return c.text('webhook secret not configured', 500);
+  }
+  if (telegramWebhookHeader !== telegramWebhookSecret) {
     return c.text('forbidden', 403);
   }
   const payload = await c.req.json<Record<string, unknown>>();
@@ -241,11 +247,19 @@ async function handleTelegramReaction(c: Context<{ Bindings: Env }>, reaction: R
   const chatId = asString(chat?.['id']);
   const tgMsgId = reaction['message_id'] as number | undefined;
   if (!chatId || !tgMsgId) return c.text('invalid reaction', 400);
+  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
+    c.env,
+    'telegram',
+    asString((reaction['user'] as Record<string, unknown>)?.['id']),
+    true
+  );
+  if (bossError) return c.text(bossError, 403);
   const configRow = await c.env.DB
     .prepare("SELECT agent_id FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?")
     .bind(chatId)
     .first<{ agent_id: string }>();
   if (!configRow) return c.text('no agent for chat', 404);
+  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
   // Find hiboss message by telegram_message_id
   const msg = await c.env.DB
     .prepare("SELECT id, metadata FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1")
