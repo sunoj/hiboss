@@ -5,6 +5,7 @@ use crate::types::{AgentsResponse, ChannelsResponse, CreateAgentResponse, Messag
 use reqwest::Client;
 use serde_json::Value;
 use std::error::Error;
+use std::time::Duration;
 fn mime_from_ext(filename: &str) -> String {
     let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
@@ -30,11 +31,25 @@ pub struct HiBossClient {
     base_url: String,
     api_key: String,
     http: Client,
+    poll_http: Client,
 }
 impl HiBossClient {
     pub fn new(server: &str, key: &str) -> Self {
         let trimmed = server.trim_end_matches('/');
-        Self { base_url: trimmed.to_owned(), api_key: key.to_owned(), http: Client::new() }
+        Self {
+            base_url: trimmed.to_owned(),
+            api_key: key.to_owned(),
+            http: Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(30))
+                .build()
+                .expect("failed to build HTTP client"),
+            poll_http: Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(120))
+                .build()
+                .expect("failed to build HTTP client"),
+        }
     }
     pub async fn send_message(&self, req: &SendRequest) -> Result<SendResponse, Box<dyn Error>> {
         let resp = self.http
@@ -109,10 +124,12 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
     pub async fn poll_reply(&self, id: &str, timeout: u32) -> Result<PollResponse, Box<dyn Error>> {
-        let resp = self.http
+        let poll_timeout = u64::from(timeout).saturating_add(30).max(120);
+        let resp = self.poll_http
             .post(format!("{}/api/messages/{}/poll", self.base_url, id))
             .bearer_auth(&self.api_key)
             .query(&[("timeout", timeout.to_string())])
+            .timeout(Duration::from_secs(poll_timeout))
             .send()
             .await?;
         Self::parse_response(resp).await
