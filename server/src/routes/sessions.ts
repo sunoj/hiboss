@@ -4,12 +4,12 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { apiAuth, getAgentId } from '../middleware/auth';
+import { dualAuth, getAgentId, isBossAuth } from '../middleware/auth';
 
 const STALE_MINUTES = 15;
 
 const routes = new Hono<{ Bindings: Env }>({});
-routes.use('*', apiAuth);
+routes.use('*', dualAuth);
 
 type SessionStatus = 'working' | 'blocked' | 'waiting' | 'idle' | 'completed';
 const SESSION_STATUSES: SessionStatus[] = ['working', 'blocked', 'waiting', 'idle', 'completed'];
@@ -28,6 +28,7 @@ interface SessionRow {
 
 // POST /api/sessions — register or update a session
 routes.post('/', async (c) => {
+  if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
   const id = typeof payload.id === 'string' ? payload.id.trim() : '';
@@ -39,20 +40,30 @@ routes.post('/', async (c) => {
   const status: SessionStatus = SESSION_STATUSES.includes(rawStatus as SessionStatus) ? (rawStatus as SessionStatus) : 'working';
   const statusText = typeof payload.status_text === 'string' ? payload.status_text.trim() || null : null;
   // Upsert: insert or update on conflict
-  await c.env.DB
+  const result = await c.env.DB
     .prepare(
       `INSERT INTO sessions (id, agent_id, label, branch, cwd, status, status_text) VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET label = excluded.label, branch = excluded.branch, cwd = excluded.cwd, status = excluded.status, status_text = excluded.status_text, last_seen_at = datetime('now')`
+       ON CONFLICT(id) DO UPDATE SET label = excluded.label, branch = excluded.branch, cwd = excluded.cwd, status = excluded.status, status_text = excluded.status_text, last_seen_at = datetime('now')
+       WHERE sessions.agent_id = excluded.agent_id
+       RETURNING id`
     )
     .bind(id, agentId, label, branch, cwd, status, statusText)
-    .run();
+    .first<{ id: string }>();
+  if (!result) {
+    const existing = await c.env.DB.prepare('SELECT agent_id FROM sessions WHERE id = ?').bind(id).first<{ agent_id: string }>();
+    if (existing && existing.agent_id !== agentId) {
+      return c.text('session belongs to another agent', 409);
+    }
+    return c.text('failed to persist session', 500);
+  }
   return c.json({ id, label, branch, cwd, status, status_text: statusText }, 201);
 });
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
 routes.get('/', async (c) => {
-  const agentId = getAgentId(c);
-  const allAgents = c.req.query('all') === 'true';
+  const bossRequest = isBossAuth(c);
+  const agentId = bossRequest ? null : getAgentId(c);
+  const allAgents = bossRequest && c.req.query('all') === 'true';
   const where = allAgents
     ? `last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`
     : `agent_id = ? AND last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`;
@@ -66,6 +77,7 @@ routes.get('/', async (c) => {
 
 // PATCH /api/sessions/:id — heartbeat with optional status update
 routes.patch('/:id', async (c) => {
+  if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
   const contentType = c.req.header('content-type') || '';
   let status: SessionStatus | undefined;
@@ -95,6 +107,7 @@ routes.patch('/:id', async (c) => {
 
 // DELETE /api/sessions/:id — deregister
 routes.delete('/:id', async (c) => {
+  if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
   await c.env.DB
     .prepare('DELETE FROM sessions WHERE id = ? AND agent_id = ?')
