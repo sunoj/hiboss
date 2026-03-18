@@ -303,9 +303,14 @@ describe('POST /api/webhooks/telegram', () => {
   });
 
   it('rejects reaction updates from unauthorized telegram bosses', async () => {
+    // Insert a boss so that boss-auth mode is active (open access when no bosses exist)
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO bosses (id, name, role, telegram_user_id) VALUES (?, ?, ?, ?)"
+    ).bind('boss-reaction-test', 'Reaction Boss', 'admin', 'known-boss-user').run();
+
     const reactionMessageId = 'reaction-auth-test-001';
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Question?', 'delivered', 'normal', ?)"
+      "INSERT OR IGNORE INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Question?', 'delivered', 'normal', ?)"
     )
       .bind(reactionMessageId, getTestAgentId(), JSON.stringify({ telegram_message_id: 4321 }))
       .run();
@@ -320,6 +325,9 @@ describe('POST /api/webhooks/telegram', () => {
     });
 
     expect(res.status).toBe(403);
+
+    // Clean up to avoid affecting other tests
+    await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind('boss-reaction-test').run();
   });
 });
 

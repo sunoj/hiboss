@@ -138,7 +138,7 @@ routes.post('/', async (c) => {
   if (toAgent) {
     // 1. Try agent by name or id prefix
     const agentTarget = await c.env.DB
-      .prepare('SELECT id FROM api_keys WHERE name = ? OR id LIKE ? LIMIT 1')
+      .prepare("SELECT id FROM api_keys WHERE name = ? OR id LIKE ? ESCAPE '\\' LIMIT 1")
       .bind(toAgent, `${escapeLike(toAgent)}%`)
       .first<{ id: string }>();
     if (agentTarget) {
@@ -147,7 +147,7 @@ routes.post('/', async (c) => {
     } else {
       // 2. Try session by label or id prefix
       const sessionTarget = await c.env.DB
-        .prepare('SELECT id, agent_id FROM sessions WHERE label = ? OR id LIKE ? LIMIT 1')
+        .prepare("SELECT id, agent_id FROM sessions WHERE label = ? OR id LIKE ? ESCAPE '\\' LIMIT 1")
         .bind(toAgent, `${escapeLike(toAgent)}%`)
         .first<{ id: string; agent_id: string }>();
       if (sessionTarget) {

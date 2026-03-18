@@ -112,7 +112,7 @@ export function buildFilters(agentId: string, direction: Direction | null, statu
     binds.push(type);
   }
   if (from) {
-    clauses.push('agent_id IN (SELECT id FROM api_keys WHERE name = ? OR id LIKE ?)');
+    clauses.push("agent_id IN (SELECT id FROM api_keys WHERE name = ? OR id LIKE ? ESCAPE '\\')");
     binds.push(from, `${from.replace(LIKE_ESCAPE_PATTERN, '\\$&')}%`);
   }
   if (session && !unread) {
