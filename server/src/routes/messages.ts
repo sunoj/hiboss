@@ -318,11 +318,13 @@ routes.post('/:id/reply', async (c) => {
   const replyDirection: Direction = parent.direction === 'agent_to_agent'
     ? 'agent_to_agent'
     : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
+  const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
+  const replyTargetSessionId = replyDirection === 'agent_to_agent' ? parent.session_id : null;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id)
+    .bind(agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
@@ -357,6 +359,9 @@ routes.post('/:id/reply', async (c) => {
     .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
     .bind(parent.id)
     .run();
+  if (replyTargetAgentId) {
+    c.executionCtx.waitUntil(notifyTargetAgent(c.env, replyTargetAgentId, inserted));
+  }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.reply', 'message', parent.id));
   return c.json(mapMessageRow(inserted), 201);
 });
