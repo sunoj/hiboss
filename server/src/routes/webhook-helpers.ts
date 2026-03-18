@@ -14,6 +14,27 @@ export function mapMessage(row: MessageRow): MessageResponse {
   return { ...row, metadata: safeJson(row.metadata) };
 }
 
+export async function findEnabledChannelConfig(
+  env: Env,
+  channel: 'telegram' | 'discord',
+  externalId: string
+): Promise<{ agent_id: string; config: string } | null> {
+  const path = channel === 'telegram' ? '$.chat_id' : '$.channel_id';
+  const row = await env.DB
+    .prepare(`SELECT agent_id, config FROM channel_configs WHERE channel = ? AND enabled = 1 AND json_extract(config, '${path}') = ? LIMIT 1`)
+    .bind(channel, externalId)
+    .first<{ agent_id: string; config: string }>();
+  return row ?? null;
+}
+
+export async function findMessageByIdempotencyKey(env: Env, agentId: string, key: string): Promise<MessageRow | null> {
+  const row = await env.DB
+    .prepare('SELECT * FROM messages WHERE agent_id = ? AND idempotency_key = ? LIMIT 1')
+    .bind(agentId, key)
+    .first<MessageRow>();
+  return row ?? null;
+}
+
 function safeJson(value: string | null): Record<string, unknown> | null {
   if (!value) return null;
   try {

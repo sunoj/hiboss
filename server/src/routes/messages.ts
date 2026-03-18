@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Channel, Direction, Env, MessageRow, Mode, Priority, Status } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { notifyBossAgents, notifyTargetAgent } from '../notify';
+import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
 import { reactionsRouter } from './reactions';
 import {
   buildFilters,
@@ -234,13 +235,17 @@ routes.post('/', async (c) => {
           .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
           .bind(...binds)
           .run();
-      } else if (!isUrgent) {
+      } else {
         const firstError = results.find((r) => r.status === 'rejected');
-        const msg = firstError?.status === 'rejected' && firstError.reason instanceof Error ? firstError.reason.message : 'delivery failure';
-        return c.json({ error: msg, id: inserted.id, status: inserted.status }, 502);
+        const message = firstError?.status === 'rejected'
+          ? getDeliveryErrorMessage(firstError.reason)
+          : 'delivery failure';
+        await persistDeliveryFailure(c.env, inserted.id, message);
+        return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'delivery failure';
+      await persistDeliveryFailure(c.env, inserted.id, message);
       return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
     }
   }
@@ -349,8 +354,8 @@ routes.post('/:id/reply', async (c) => {
           .bind(...binds)
           .run();
       }
-    } catch {
-      // Channel delivery failed — message is still stored.
+    } catch (error) {
+      await persistDeliveryFailure(c.env, inserted.id, getDeliveryErrorMessage(error));
     }
   }
   await c.env.DB
