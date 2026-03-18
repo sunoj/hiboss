@@ -205,6 +205,16 @@ boss directly through the Model Context Protocol.
 }
 ```
 
+## Security & Performance
+
+v1.2 includes a comprehensive business logic audit with 16 Critical+High severity fixes:
+
+- **Auth isolation** -- boss API uses boss tokens, sessions enforce cross-agent protection, groups scoped by owner
+- **Webhook hardening** -- channel validation, idempotency dedup, enabled-flag filtering
+- **SQL safety** -- ESCAPE clauses on all LIKE queries, atomic bootstrap, exact ID matching
+- **Delivery reliability** -- failure persistence, Discord replay protection
+- **Hook performance** -- PostToolUse hook runs in ~4ms (was 600ms), all HTTP moved to async background process
+
 ## Self-Hosted
 
 hiboss is fully self-hosted. The server runs on your own Cloudflare account, data
