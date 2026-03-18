@@ -4,7 +4,7 @@ CLI tool for AI agents to send messages to their boss (human or AI) and receive 
 
 ## Agent Instructions
 
-Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionStart (unread messages), PostToolUse (urgent message check), and Stop (session cleanup).
+Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionStart (unread messages + daemon start), PostToolUse (local message drain + async bg-check), and Stop (session cleanup).
 
 ### Session Start
 1. Handle unread messages first — reply with `hiboss reply <id> "response"` before other work.
@@ -61,7 +61,7 @@ Detailed docs moved to `.aid/knowledge/`:
 - **API Reference** — all endpoints, request/response formats
 - **CLI Reference** — complete command reference with examples
 - **Message Delivery** — delivery architecture, channel resolution, hooks
-- **Roadmap History** — version history v0.1 through v1.0
+- **Roadmap History** — version history v0.1 through v1.2
 - **Architecture Decisions** — agent-as-boss, autonomy, multi-agent design
 
 <!-- aid:start -->

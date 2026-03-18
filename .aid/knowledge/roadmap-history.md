@@ -103,3 +103,49 @@ Comprehensive security audit and fixes across the server codebase.
 ### Reliability
 - `insertMessageWithRecovery`: handle idempotency key race condition via UNIQUE constraint catch
 - SSE stream: change `>` to `>=` with `seenMessageIds` dedup (prevent message drops at same timestamp)
+
+## v1.2.0 — Deep Audit, Performance & Dashboard
+
+### Dashboard Rewrite
+- Full rewrite with Vue 3 + Tailwind CSS (CDN-only, no build step)
+- Messages, sessions, and agents tabs with real-time updates
+
+### Options Expiry
+- Poll timeout automatically expires and recycles stale option buttons
+- Options persisted in message metadata for reliable display
+
+### Core Business Logic Audit (16 Critical+High fixes)
+
+**Auth & Isolation**
+- Boss API endpoints switched from `apiAuth` to `bossAuth` (bosses no longer need agent keys)
+- Sessions endpoint uses `dualAuth` with cross-agent upsert protection
+- `?all=true` on sessions restricted to boss callers only
+- Groups scoped by `owner_id` (new column via migration 0017) — agents cannot see/modify other agents' groups
+- A2A replies now correctly set `target_agent_id` and `target_session_id`
+
+**Webhook Hardening**
+- `enabled=1` filter on channel config lookups (disabled channels no longer receive messages)
+- Channel validation on webhook message creation (prevents channel spoofing)
+- Idempotency dedup via `idempotency_key` column (prevents duplicate webhook messages)
+- New helpers: `findEnabledChannelConfig()`, `findMessageByIdempotencyKey()`
+
+**Input Validation & SQL Safety**
+- `ESCAPE` clause added to all LIKE queries (prevents backslash injection)
+- Boss-inbox uses exact ID matching only (removed prefix LIKE)
+- Bootstrap uses atomic INSERT with `WHERE NOT EXISTS` (prevents race conditions)
+- Optional `BOOTSTRAP_SECRET` env var for bootstrap endpoint protection
+
+**Delivery Reliability**
+- `persistDeliveryFailure()` helper saves delivery errors to message metadata
+- Discord timestamp freshness check (300s window) prevents replay attacks
+
+**Removed Vulnerabilities**
+- Removed shell execution (`sh -c`) from `ask` command action handling (was arbitrary code execution risk)
+
+### CLI Performance
+- PostToolUse hook: 600ms → 4ms (150x speedup)
+- Architecture change: PostToolUse is now pure local I/O (file reads only, no HTTP)
+- Background HTTP checks (heartbeat, inbox polling) run in detached `bg-check` subprocess
+- Dual TTL caching: 30s for agent-to-agent, 300s for boss urgent checks
+- Direct HTTP client methods (`inbox_count`, `inbox_count_a2a`) replace subprocess spawning
+- HTTP client split: 30s timeout for normal requests, 120s for long-poll

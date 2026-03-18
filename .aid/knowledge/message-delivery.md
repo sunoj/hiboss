@@ -7,7 +7,8 @@ Messages reach the agent through four layers:
 | Layer | Trigger | Scope | Latency |
 |-------|---------|-------|---------|
 | **SSE Daemon** | Background process, reads local file | All messages (boss + peer) | ~2s SSE + next tool call |
-| **PostToolUse hook** | Every tool call | Daemon: local file (0ms); Fallback: a2a 30s TTL, boss 5min TTL | 0ms–5min |
+| **PostToolUse hook** | Every tool call | Local file drain (~4ms); spawns bg-check if TTL expired | ~4ms |
+| **BgCheck** | Spawned by PostToolUse when TTL expired | Heartbeat + inbox count via HTTP (detached process) | Async |
 | **MCP SSE push** | Real-time SSE background listener | All messages (terminal-visible) | Real-time* |
 | **SessionStart hook** | New session start | All unread + starts daemon | Session gap |
 
@@ -15,7 +16,7 @@ Messages reach the agent through four layers:
 
 **With daemon** (default): SSE daemon writes messages to local file → PostToolUse drains file on every tool call → near-instant delivery into agent context.
 
-**Without daemon** (fallback): PostToolUse polls server via HTTP with dual TTL — 30s for peer messages (only delivery mechanism), 5min for boss urgent (also have Telegram/Discord).
+**Without daemon** (fallback): PostToolUse spawns a detached `bg-check` process when TTL expires — 30s for peer messages, 5min for boss urgent. The bg-check runs HTTP calls asynchronously without blocking the hook. Results are written to a local urgent file, picked up on the next PostToolUse call.
 
 ## Key Design Decisions
 
