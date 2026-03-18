@@ -293,6 +293,29 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
   }
 }
 
+export async function expirePreviousOptions(
+  env: Env,
+  agentId: string,
+  sessionId: string | null,
+  excludeMessageId: string
+): Promise<void> {
+  const sessionClause = sessionId
+    ? 'AND session_id = ?'
+    : 'AND session_id IS NULL';
+  const binds = sessionId
+    ? [agentId, excludeMessageId, sessionId]
+    : [agentId, excludeMessageId];
+  const rows = await env.DB
+    .prepare(
+      `SELECT * FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND id != ? ${sessionClause} AND status IN ('sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL ORDER BY created_at DESC`
+    )
+    .bind(...binds)
+    .all<MessageRow>();
+  for (const row of rows.results ?? []) {
+    await expireMessageOptions(env, agentId, row);
+  }
+}
+
 export function resolveChannelRouting(routingJson: string, priority: string): Channel | undefined {
   try {
     const routing = JSON.parse(routingJson) as Record<string, string>;
