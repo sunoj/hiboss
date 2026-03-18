@@ -4,11 +4,16 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { seedDatabase, getTestAgentId } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
+
+const TELEGRAM_SECRET = 'test-telegram-secret';
+const DISCORD_SECRET = 'test-discord-secret';
 
 beforeAll(async () => {
   await seedDatabase();
+  env.TELEGRAM_WEBHOOK_SECRET = TELEGRAM_SECRET;
+  env.DISCORD_WEBHOOK_SECRET = DISCORD_SECRET;
   const agentId = getTestAgentId();
   await env.DB.prepare(
     'INSERT OR IGNORE INTO channel_configs (agent_id, channel, config) VALUES (?, ?, ?)'
@@ -22,6 +27,28 @@ beforeAll(async () => {
     .run();
 });
 
+async function postTelegramWebhook(payload: Record<string, unknown>): Promise<Response> {
+  return SELF.fetch('https://test.local/api/webhooks/telegram', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': TELEGRAM_SECRET,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function postDiscordWebhook(payload: Record<string, unknown>): Promise<Response> {
+  return SELF.fetch('https://test.local/api/webhooks/discord', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Webhook-Secret': DISCORD_SECRET,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 describe('POST /api/webhooks/telegram', () => {
   it('creates a boss_to_agent message from telegram text', async () => {
     const payload = {
@@ -33,10 +60,7 @@ describe('POST /api/webhooks/telegram', () => {
       },
     };
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await postTelegramWebhook(payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as {
@@ -54,44 +78,32 @@ describe('POST /api/webhooks/telegram', () => {
   });
 
   it('returns 400 when chat is missing', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({ message: { text: 'no chat' } }),
-    });
+    const res = await postTelegramWebhook({ message: { text: 'no chat' } });
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when body is missing', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({ message: { chat: { id: 'test-chat' } } }),
-    });
+    const res = await postTelegramWebhook({ message: { chat: { id: 'test-chat' } } });
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown chat_id', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: {
-          chat: { id: 'missing-chat' },
-          text: 'hello',
-        },
-      }),
+    const res = await postTelegramWebhook({
+      message: {
+        chat: { id: 'missing-chat' },
+        text: 'hello',
+      },
     });
     expect(res.status).toBe(404);
   });
 
   it('ignores bot messages', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: {
-          chat: { id: 'test-chat' },
-          text: 'bot says hi',
-          from: { is_bot: true },
-        },
-      }),
+    const res = await postTelegramWebhook({
+      message: {
+        chat: { id: 'test-chat' },
+        text: 'bot says hi',
+        from: { is_bot: true },
+      },
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('ignored');
@@ -115,10 +127,7 @@ describe('POST /api/webhooks/telegram', () => {
       },
     };
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await postTelegramWebhook(payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { reply_to: string | null; body: string };
@@ -137,10 +146,7 @@ describe('POST /api/webhooks/telegram', () => {
       },
     };
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await postTelegramWebhook(payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { reply_to: string | null };
@@ -171,10 +177,7 @@ describe('POST /api/webhooks/telegram', () => {
       },
     };
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await postTelegramWebhook(payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { reply_to: string | null };
@@ -198,10 +201,7 @@ describe('POST /api/webhooks/telegram', () => {
       },
     };
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await postTelegramWebhook(payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { reply_to: string | null };
@@ -216,19 +216,16 @@ describe('POST /api/webhooks/telegram', () => {
       .bind(parentId, getTestAgentId())
       .run();
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        callback_query: {
-          id: 'cb-1',
-          data: 'ca11bacf:option-one',
-          message: {
-            message_id: 100,
-            chat: { id: 'test-chat', type: 'private' },
-            text: 'Choose option',
-          },
+    const res = await postTelegramWebhook({
+      callback_query: {
+        id: 'cb-1',
+        data: 'ca11bacf:option-one',
+        message: {
+          message_id: 100,
+          chat: { id: 'test-chat', type: 'private' },
+          text: 'Choose option',
         },
-      }),
+      },
     });
 
     expect(res.status).toBe(201);
@@ -247,19 +244,16 @@ describe('POST /api/webhooks/telegram', () => {
       .bind(parentId, getTestAgentId(), JSON.stringify({ actions }))
       .run();
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        callback_query: {
-          id: 'cb-action-1',
-          data: 'ac710cba:Approve',
-          message: {
-            message_id: 200,
-            chat: { id: 'test-chat', type: 'private' },
-            text: 'Deploy?',
-          },
+    const res = await postTelegramWebhook({
+      callback_query: {
+        id: 'cb-action-1',
+        data: 'ac710cba:Approve',
+        message: {
+          message_id: 200,
+          chat: { id: 'test-chat', type: 'private' },
+          text: 'Deploy?',
         },
-      }),
+      },
     });
 
     expect(res.status).toBe(201);
@@ -277,24 +271,55 @@ describe('POST /api/webhooks/telegram', () => {
       .bind(parentId, getTestAgentId())
       .run();
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        callback_query: {
-          id: 'cb-no-action',
-          data: 'a0ac7100:SomeOption',
-          message: {
-            message_id: 201,
-            chat: { id: 'test-chat', type: 'private' },
-            text: 'No actions',
-          },
+    const res = await postTelegramWebhook({
+      callback_query: {
+        id: 'cb-no-action',
+        data: 'a0ac7100:SomeOption',
+        message: {
+          message_id: 201,
+          chat: { id: 'test-chat', type: 'private' },
+          text: 'No actions',
         },
-      }),
+      },
     });
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { metadata: Record<string, unknown> | null };
     expect(data.metadata).toBeNull();
+  });
+
+  it('returns 500 when telegram webhook secret is unset', async () => {
+    env.TELEGRAM_WEBHOOK_SECRET = undefined;
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
+      method: 'POST',
+      body: JSON.stringify({ message: { chat: { id: 'test-chat' }, text: 'hello' } }),
+    });
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('webhook secret not configured');
+
+    env.TELEGRAM_WEBHOOK_SECRET = TELEGRAM_SECRET;
+  });
+
+  it('rejects reaction updates from unauthorized telegram bosses', async () => {
+    const reactionMessageId = 'reaction-auth-test-001';
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Question?', 'delivered', 'normal', ?)"
+    )
+      .bind(reactionMessageId, getTestAgentId(), JSON.stringify({ telegram_message_id: 4321 }))
+      .run();
+
+    const res = await postTelegramWebhook({
+      message_reaction: {
+        chat: { id: 'test-chat', type: 'private' },
+        message_id: 4321,
+        user: { id: 'missing-boss-user', first_name: 'Intruder' },
+        new_reaction: [{ type: 'emoji', emoji: '👍' }],
+      },
+    });
+
+    expect(res.status).toBe(403);
   });
 });
 
@@ -309,10 +334,7 @@ describe('POST /api/webhooks/discord', () => {
       },
     };
 
-    const res = await SELF.fetch('https://test.local/api/webhooks/discord', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const res = await postDiscordWebhook(payload);
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as {
@@ -328,42 +350,47 @@ describe('POST /api/webhooks/discord', () => {
   });
 
   it('returns 400 when channel is missing', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/discord', {
-      method: 'POST',
-      body: JSON.stringify({ message: { content: 'no channel' } }),
-    });
+    const res = await postDiscordWebhook({ message: { content: 'no channel' } });
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when body is missing', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/discord', {
-      method: 'POST',
-      body: JSON.stringify({ channel_id: 'test-discord-ch' }),
-    });
+    const res = await postDiscordWebhook({ channel_id: 'test-discord-ch' });
     expect(res.status).toBe(400);
   });
 
   it('returns 404 for unknown channel_id', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/discord', {
-      method: 'POST',
-      body: JSON.stringify({ channel_id: 'unknown', message: { content: 'none' } }),
-    });
+    const res = await postDiscordWebhook({ channel_id: 'unknown', message: { content: 'none' } });
     expect(res.status).toBe(404);
   });
 
   it('ignores bot messages', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/discord', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: {
-          content: 'bot message',
-          channel_id: 'test-discord-ch',
-          author: { bot: true },
-        },
-      }),
+    const res = await postDiscordWebhook({
+      message: {
+        content: 'bot message',
+        channel_id: 'test-discord-ch',
+        author: { bot: true },
+      },
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('ignored');
+  });
+
+  it('returns 500 when discord webhook secret is unset', async () => {
+    env.DISCORD_WEBHOOK_SECRET = undefined;
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/discord', {
+      method: 'POST',
+      body: JSON.stringify({
+        channel_id: 'test-discord-ch',
+        message: { content: 'Hello from discord', channel_id: 'test-discord-ch', author: { id: 'author', bot: false } },
+      }),
+    });
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe('webhook secret not configured');
+
+    env.DISCORD_WEBHOOK_SECRET = DISCORD_SECRET;
   });
 });
 
@@ -384,15 +411,12 @@ describe('Routing rules integration', () => {
   });
 
   it('routes telegram message to target agent when pattern matches', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: {
-          chat: { id: 'test-chat', type: 'private' },
-          text: 'please deploy to production',
-          from: { id: 1, is_bot: false },
-        },
-      }),
+    const res = await postTelegramWebhook({
+      message: {
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'please deploy to production',
+        from: { id: 1, is_bot: false },
+      },
     });
 
     expect(res.status).toBe(201);
@@ -402,15 +426,12 @@ describe('Routing rules integration', () => {
   });
 
   it('routes to default agent when no pattern matches', async () => {
-    const res = await SELF.fetch('https://test.local/api/webhooks/telegram', {
-      method: 'POST',
-      body: JSON.stringify({
-        message: {
-          chat: { id: 'test-chat', type: 'private' },
-          text: 'hello there',
-          from: { id: 1, is_bot: false },
-        },
-      }),
+    const res = await postTelegramWebhook({
+      message: {
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'hello there',
+        from: { id: 1, is_bot: false },
+      },
     });
 
     expect(res.status).toBe(201);
