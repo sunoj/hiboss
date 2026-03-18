@@ -3,8 +3,9 @@
 // Depends on Hono, auth middleware, and D1 bindings.
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env } from '../types';
-import { apiAuth, getAgentId, hashApiKey } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, hashApiKey } from '../middleware/auth';
 import { logAudit } from '../audit';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
@@ -28,6 +29,13 @@ interface AgentRow {
 const VALID_ROLES: BossRole[] = ['admin', 'manager', 'viewer'];
 const VALID_CHANNELS = ['telegram', 'discord', 'email'];
 const VALID_PRIORITIES = ['critical', 'high', 'normal', 'low'];
+
+function requireAdmin(c: Context<{ Bindings: Env }>): Response | null {
+  if (getBossRole(c) !== 'admin') {
+    return c.json({ error: 'admin required' }, 403);
+  }
+  return null;
+}
 
 export function escapeLike(value: string): string {
   return value.replace(/([\\%_])/g, '\\$1');
@@ -59,10 +67,9 @@ function validatePreferences(prefs: Record<string, unknown>): string | null {
 }
 
 const routes = new Hono<{ Bindings: Env }>({});
-routes.use('*', apiAuth);
+routes.use('*', bossAuth);
 
 routes.get('/', async (c) => {
-  void getAgentId(c);
   const rows = await c.env.DB
     .prepare(
       'SELECT b.*, GROUP_CONCAT(ba.agent_id) AS agent_ids FROM bosses b LEFT JOIN boss_agent_access ba ON ba.boss_id = b.id GROUP BY b.id ORDER BY b.created_at DESC'
@@ -83,7 +90,8 @@ routes.get('/', async (c) => {
 });
 
 routes.post('/', async (c) => {
-  void getAgentId(c);
+  const denied = requireAdmin(c);
+  if (denied) return denied;
   const payload = await c.req.json<Record<string, unknown>>();
   const name = typeof payload.name === 'string' ? payload.name.trim() : '';
   if (!name) {
@@ -103,12 +111,11 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to create boss', 500);
   }
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.create', 'boss', inserted.id, JSON.stringify({ name, role })));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.create', 'boss', inserted.id, JSON.stringify({ name, role })));
   return c.json(inserted, 201);
 });
 
 routes.get('/:id', async (c) => {
-  void getAgentId(c);
   const bossId = c.req.param('id');
   const boss = await findBoss(c.env, bossId);
   if (!boss) {
@@ -122,7 +129,8 @@ routes.get('/:id', async (c) => {
 });
 
 routes.patch('/:id', async (c) => {
-  void getAgentId(c);
+  const denied = requireAdmin(c);
+  if (denied) return denied;
   const bossId = c.req.param('id');
   const boss = await findBoss(c.env, bossId);
   if (!boss) {
@@ -207,12 +215,13 @@ routes.patch('/:id', async (c) => {
   if (!updated) {
     return c.text('not found', 404);
   }
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.update', 'boss', boss.id, JSON.stringify(Object.keys(payload))));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.update', 'boss', boss.id, JSON.stringify(Object.keys(payload))));
   return c.json(updated);
 });
 
 routes.delete('/:id', async (c) => {
-  void getAgentId(c);
+  const denied = requireAdmin(c);
+  if (denied) return denied;
   const bossId = c.req.param('id');
   const result = await c.env.DB
     .prepare('DELETE FROM bosses WHERE id = ?')
@@ -221,12 +230,13 @@ routes.delete('/:id', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.delete', 'boss', bossId));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.delete', 'boss', bossId));
   return c.json({ ok: true });
 });
 
 routes.post('/:id/access', async (c) => {
-  void getAgentId(c);
+  const denied = requireAdmin(c);
+  if (denied) return denied;
   const bossId = c.req.param('id');
   const boss = await findBoss(c.env, bossId);
   if (!boss) {
@@ -241,12 +251,13 @@ routes.post('/:id/access', async (c) => {
     .prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind(boss.id, agentId)
     .run();
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.grant', 'boss', boss.id, agentId));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.grant', 'boss', boss.id, agentId));
   return c.json({ ok: true }, 201);
 });
 
 routes.delete('/:id/access/:agentId', async (c) => {
-  void getAgentId(c);
+  const denied = requireAdmin(c);
+  if (denied) return denied;
   const bossId = c.req.param('id');
   const agentId = c.req.param('agentId');
   const result = await c.env.DB
@@ -256,13 +267,15 @@ routes.delete('/:id/access/:agentId', async (c) => {
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.revoke', 'boss', bossId, agentId));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.revoke', 'boss', bossId, agentId));
   return c.json({ ok: true });
 });
 
 // POST /api/bosses/:id/token — generate or regenerate a boss auth token
 routes.post('/:id/token', async (c) => {
-  void getAgentId(c);
+  if (getBossRole(c) !== 'admin') {
+    return c.json({ error: 'admin required' }, 403);
+  }
   const boss = await findBoss(c.env, c.req.param('id'));
   if (!boss) return c.text('not found', 404);
   const bytes = new Uint8Array(24);
@@ -274,7 +287,7 @@ routes.post('/:id/token', async (c) => {
     .prepare('UPDATE bosses SET token_hash = ? WHERE id = ?')
     .bind(tokenHash, boss.id)
     .run();
-  c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'boss.token', 'boss', boss.id));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.token', 'boss', boss.id));
   return c.json({ id: boss.id, name: boss.name, token });
 });
 

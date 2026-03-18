@@ -7,6 +7,7 @@ import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 export type Env = {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
+  BOOTSTRAP_SECRET?: string;
   DISCORD_PUBLIC_KEY?: string;
 };
 

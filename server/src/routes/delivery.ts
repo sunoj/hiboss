@@ -2,7 +2,7 @@
 // Exports delivery helpers used by messages router.
 // Depends on channel adapters, types, and delay from message-helpers.
 
-import type { Channel, DiscordChannelConfig, TelegramChannelConfig } from '../types';
+import type { Channel, DiscordChannelConfig, Env, TelegramChannelConfig } from '../types';
 import { sendDiscordMessage, type DiscordSendOptions } from '../channels/discord';
 import {
   escapeHtml,
@@ -18,6 +18,16 @@ export type DeliveryResult = { delivered: false } | { delivered: true; telegramM
 
 export function formatAgentMessage(name: string, body: string): string {
   return `[${name}] ${body}`;
+}
+
+export function getDeliveryErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'delivery failure';
+}
+
+export async function persistDeliveryFailure(env: Env, messageId: string, errorMessage: string): Promise<void> {
+  await env.DB.prepare(
+    "UPDATE messages SET metadata = json_set(COALESCE(metadata, '{}'), '$.delivery_error', ?), updated_at = datetime('now') WHERE id = ?"
+  ).bind(errorMessage, messageId).run();
 }
 
 export function requireDiscordConfig(config: Record<string, unknown>): DiscordChannelConfig {

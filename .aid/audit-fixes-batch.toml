@@ -1,0 +1,237 @@
+# Audit Fix Batch — Critical + High issues
+# 15 issues across 5 parallel tasks, zero file overlap
+
+[[task]]
+name = "fix-auth-isolation"
+agent = "codex"
+prompt = """
+Fix 4 authorization/isolation bugs in the hiboss server. All changes must pass `npm test`.
+
+## Bug C1: Boss management endpoints unprotected
+File: server/src/routes/bosses.ts
+Problem: Uses `apiAuth` (agent auth) instead of `bossAuth`. Any agent can create/delete/modify bosses and mint tokens.
+Fix: Change `routes.use('*', apiAuth)` to `routes.use('*', bossAuth)`. Import `bossAuth` and `getBossRole` from `../middleware/auth`. Add admin role check on mutation endpoints (POST, PUT, DELETE, token rotation). GET list can allow any authenticated boss.
+
+## Bug C2: Any agent can rotate any boss token
+File: server/src/routes/bosses.ts
+Problem: `POST /:id/token` has no role check. Any caller can rotate any boss's token.
+Fix: After switching to bossAuth (C1 fix), add check: `if (getBossRole(c) !== 'admin') return c.json({ error: 'admin required' }, 403)` on the token rotation endpoint.
+
+## Bug H1: Any agent can enumerate all sessions
+File: server/src/routes/sessions.ts
+Problem: `GET /api/sessions?all=true` returns all agents' sessions to any authenticated agent.
+Fix: The `?all=true` parameter should only work for boss-authenticated requests. For agent callers, always filter by their own agent_id. Check the auth type from context — if agent auth, ignore `all=true` and always scope to own agent_id.
+
+## Bug H2: Session upsert without ownership check
+File: server/src/routes/sessions.ts
+Problem: `ON CONFLICT(id) DO UPDATE` doesn't verify the existing session belongs to the caller. An agent can overwrite another agent's session.
+Fix: Change the upsert to add a WHERE clause: `ON CONFLICT(id) DO UPDATE SET ... WHERE sessions.agent_id = excluded.agent_id`. If no row was updated (conflict with different agent_id), return 409 Conflict.
+
+## Testing
+Update the corresponding test files (bosses.test.ts, sessions.test.ts) to cover:
+- Boss endpoints reject agent tokens
+- Admin-only operations reject non-admin bosses
+- `?all=true` is ignored for agent callers
+- Session upsert rejects cross-agent overwrites
+
+## Context
+- Auth middleware is in server/src/middleware/auth.ts — it exports apiAuth, bossAuth, getAgentId, getBossId, getBossRole
+- Routes are mounted in server/src/index.ts
+- Run tests with: cd server && npm test
+"""
+worktree = "fix/auth-isolation"
+verify = "cd server && npm test"
+context = ["server/src/routes/bosses.ts", "server/src/routes/sessions.ts", "server/src/middleware/auth.ts", "server/src/index.ts", "server/src/routes/bosses.test.ts", "server/src/routes/sessions.test.ts"]
+
+[[task]]
+name = "fix-group-message"
+agent = "codex"
+prompt = """
+Fix 2 message/group isolation bugs in the hiboss server. All changes must pass `npm test`.
+
+## Bug C3: Group data is global, not owner-scoped
+File: server/src/routes/groups.ts
+Problem: Any authenticated agent can list, modify, delete ALL groups and broadcast messages to ANY agent's inbox. No ownership model.
+Fix:
+1. Create migration server/migrations/0017_group_owner.sql:
+   ```sql
+   ALTER TABLE agent_groups ADD COLUMN owner_id TEXT REFERENCES api_keys(id);
+   UPDATE agent_groups SET owner_id = (SELECT agent_id FROM agent_group_members WHERE group_id = agent_groups.id LIMIT 1);
+   ```
+2. In groups.ts, scope all queries by owner_id = getAgentId(c):
+   - LIST: WHERE owner_id = ?
+   - GET: WHERE id = ? AND owner_id = ?
+   - CREATE: INSERT with owner_id
+   - UPDATE: WHERE id = ? AND owner_id = ?
+   - DELETE: WHERE id = ? AND owner_id = ?
+   - Members: only manage members of own groups
+   - Broadcast: only broadcast to own groups
+
+## Bug H3: Agent-to-agent replies lose recipient
+File: server/src/routes/messages.ts
+Problem: When replying to an A2A message, the reply is inserted without target_agent_id or target_session_id. The intended recipient cannot see it.
+Fix: In the reply creation logic, when direction is 'agent_to_agent':
+1. Look up the parent message
+2. Set target_agent_id = parent.agent_id (the original sender becomes the target)
+3. Set target_session_id = parent.session_id (preserve session context)
+4. Trigger notification to the target agent (call notifyAgentCallback if target has callback_url)
+
+## Testing
+Update groups.test.ts and messages.test.ts to cover:
+- Groups are scoped to owner — agent A cannot see agent B's groups
+- A2A reply correctly sets target_agent_id
+- A2A reply is visible to the target agent
+
+## Context
+- getAgentId(c) returns the authenticated agent's ID
+- Messages already have target_agent_id and target_session_id columns
+- Run tests with: cd server && npm test
+"""
+worktree = "fix/group-message"
+verify = "cd server && npm test"
+context = ["server/src/routes/groups.ts", "server/src/routes/messages.ts", "server/src/routes/groups.test.ts", "server/src/routes/messages.test.ts", "server/src/types.ts"]
+
+[[task]]
+name = "fix-boss-api"
+agent = "codex"
+prompt = """
+Fix 3 boss API bugs in the hiboss server. All changes must pass `npm test`.
+
+## Bug H6: Bootstrap endpoint is unauthenticated and race-prone
+File: server/src/routes/bootstrap.ts
+Problem: Anyone who reaches the service first can mint the initial API key. Two concurrent requests can both succeed.
+Fix:
+1. Add optional BOOTSTRAP_SECRET env var check. If BOOTSTRAP_SECRET is set in Env, require it as a Bearer token or X-Bootstrap-Secret header. If not set, allow unauthenticated (backward compat for initial setup).
+2. Make initialization atomic: use a transaction or change the check to an INSERT that fails on constraint violation rather than SELECT COUNT + INSERT pattern. For example: INSERT INTO api_keys ... WHERE NOT EXISTS (SELECT 1 FROM api_keys) — this is atomic in SQLite.
+
+## Bug H7: Discord interaction timestamp not checked for freshness
+File: server/src/routes/discord-interactions.ts
+Problem: Timestamp from Discord interaction is never checked for freshness. Captured interactions can be replayed.
+Fix: After signature verification passes, check that the timestamp is within 5 minutes of current time:
+```ts
+const timestampSeconds = parseInt(timestamp ?? '0', 10);
+const now = Math.floor(Date.now() / 1000);
+if (Math.abs(now - timestampSeconds) > 300) {
+  return c.text('stale interaction', 401);
+}
+```
+
+## Bug H8: PATCH inbox uses prefix matching, affects wrong messages
+File: server/src/routes/boss-inbox.ts
+Problem: PATCH endpoint uses `id LIKE ?%` which updates all messages sharing a prefix. A boss can accidentally modify unrelated messages.
+Fix: Change the PATCH handler to use exact ID matching only. Remove the `OR id LIKE ? ESCAPE '\\'` clause from both the SELECT and UPDATE queries. Match only by exact `id = ?`.
+
+## Testing
+Update bootstrap.test.ts, discord-interactions.test.ts, boss-inbox.test.ts:
+- Bootstrap rejects without secret when BOOTSTRAP_SECRET is set
+- Bootstrap atomic — second call returns 403
+- Stale Discord timestamps are rejected
+- PATCH only affects exact message ID
+
+## Context
+- Env type is in server/src/types.ts — may need to add BOOTSTRAP_SECRET
+- Discord verification is in discord-interactions.ts
+- Run tests with: cd server && npm test
+"""
+worktree = "fix/boss-api"
+verify = "cd server && npm test"
+context = ["server/src/routes/bootstrap.ts", "server/src/routes/discord-interactions.ts", "server/src/routes/boss-inbox.ts", "server/src/routes/bootstrap.test.ts", "server/src/routes/discord-interactions.test.ts", "server/src/routes/boss-inbox.test.ts", "server/src/types.ts"]
+
+[[task]]
+name = "fix-webhooks"
+agent = "codex"
+prompt = """
+Fix 4 webhook/channel bugs in the hiboss server. All changes must pass `npm test`.
+
+## Bug H9: Webhook relies only on shared secret
+File: server/src/routes/webhooks.ts
+Problem: Webhook authenticity relies only on a header secret. No validation that payload fields (author.id, channel_id, chat_id) match registered webhook configs.
+Fix: After verifying the shared secret, validate that the incoming channel/chat IDs match a registered channel_config:
+- For Discord: verify that the incoming `channel_id` from the payload matches a registered Discord channel_config
+- For Telegram: verify that the incoming `chat_id` matches a registered Telegram channel_config
+- Reject payloads with unregistered channel/chat IDs early with 403
+
+## Bug H10: Telegram resolution ignores enabled flag
+File: server/src/routes/webhooks.ts
+Problem: Channel config queries for Telegram callbacks/reactions don't filter `enabled = 1`. Disabled configs still receive traffic.
+Fix: Add `AND enabled = 1` to ALL channel_config lookups in webhook handlers:
+- Discord channel resolution query
+- Telegram message resolution query
+- Telegram callback resolution query
+- Telegram reaction resolution query
+
+## Bug H11: No webhook event deduplication
+File: server/src/routes/webhooks.ts
+Problem: Provider retries create duplicate messages. No dedup on provider event IDs.
+Fix: Use the idempotency_key column on messages table for dedup:
+- For Discord: use message ID from payload as idempotency_key
+- For Telegram: use update_id or callback_query.id as idempotency_key
+- Before INSERT, check if a message with same idempotency_key exists. If yes, return the existing message instead of creating a duplicate.
+
+## Bug H4: Failed delivery not durable
+File: server/src/routes/delivery.ts
+Problem: Delivery failures are not persisted. Messages can be lost silently.
+Fix:
+1. When ALL delivery attempts fail, update the message status to a trackable state. Use metadata to record the failure reason:
+   ```ts
+   await env.DB.prepare(
+     "UPDATE messages SET metadata = json_set(COALESCE(metadata, '{}'), '$.delivery_error', ?), updated_at = datetime('now') WHERE id = ?"
+   ).bind(errorMessage, messageId).run();
+   ```
+2. For urgent messages where delivery failed on all channels, still return 502 (don't silently succeed).
+
+## Testing
+Update webhooks.test.ts, webhook-helpers.test.ts, delivery.test.ts:
+- Payloads with unregistered channel IDs are rejected
+- Disabled configs are not matched
+- Duplicate webhook events return existing message
+- Delivery failures are persisted in metadata
+
+## Context
+- Messages table has an idempotency_key column (can be used for dedup)
+- Channel configs have enabled column (0 or 1)
+- Run tests with: cd server && npm test
+"""
+worktree = "fix/webhooks"
+verify = "cd server && npm test"
+context = ["server/src/routes/webhooks.ts", "server/src/routes/delivery.ts", "server/src/routes/webhooks.test.ts", "server/src/routes/delivery.test.ts", "server/src/routes/webhook-helpers.ts"]
+
+[[task]]
+name = "fix-cli-safety"
+agent = "codex"
+prompt = """
+Fix 2 CLI safety bugs in the hiboss Rust CLI. All changes must pass `cargo check`.
+
+## Bug C4: Reply metadata triggers arbitrary shell execution (CRITICAL)
+File: cli/src/commands/ask.rs
+Problem: `hiboss ask` executes shell commands from reply metadata.action field. Any party that can produce a reply with metadata.action can trigger arbitrary command execution on the agent's machine.
+Fix: REMOVE the shell execution entirely. Delete the code block that runs `std::process::Command::new("sh").arg("-c").arg(action_cmd)`. Instead, just print the action value as informational text to stderr: `eprintln!("Action: {}", action_cmd);` — the agent can decide what to do with it. Never execute server-provided commands.
+
+## Bug H12: HTTP client has no timeout
+File: cli/src/client/mod.rs
+Problem: `Client::new()` creates a reqwest client with no timeout. Any request can hang forever.
+Fix: Build the client with explicit timeouts:
+```rust
+let http = reqwest::Client::builder()
+    .connect_timeout(std::time::Duration::from_secs(10))
+    .timeout(std::time::Duration::from_secs(30))
+    .build()
+    .expect("failed to build HTTP client");
+```
+For the poll_reply method specifically, since it uses server-side long polling, use a longer timeout:
+- Add a `poll_http` client field with timeout = max(timeout + 30, 120) seconds
+- Or wrap the poll request in tokio::time::timeout
+
+## Testing
+- Verify cargo check passes
+- Verify that the ask command no longer has any std::process::Command usage for action
+- The poll_reply should use the longer timeout client
+
+## Context
+- CLI uses reqwest with rustls-tls
+- ask.rs handles the --timeout flag and polls for replies
+- client/mod.rs is the HTTP client wrapper
+"""
+worktree = "fix/cli-safety"
+verify = "cd cli && cargo check"
+context = ["cli/src/commands/ask.rs", "cli/src/client/mod.rs", "cli/src/types.rs"]

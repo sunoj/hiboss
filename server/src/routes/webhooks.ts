@@ -7,7 +7,15 @@ import type { Env, MessageRow } from '../types';
 import { sendTelegramTyping, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
-import { asString, evaluateRoutingRules, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
+import {
+  asString,
+  evaluateRoutingRules,
+  findEnabledChannelConfig,
+  findMessageByIdempotencyKey,
+  hasBossAccess,
+  mapMessage,
+  resolveBossForChannel,
+} from './webhook-helpers';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -23,6 +31,14 @@ router.post('/discord', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const message = payload['message'] as Record<string, unknown> | undefined;
   if (message && message['author'] && (message['author'] as Record<string, unknown>).bot) return c.text('ignored', 200);
+  const channelId = asString(payload['channel_id']) ?? asString(message?.['channel_id']);
+  const text =
+    asString(message?.['content']) ??
+    asString(payload['content']) ??
+    asString((payload['data'] as Record<string, unknown> | undefined)?.['content']);
+  if (!channelId || !text) return c.text('missing channel or body', 400);
+  const agentRow = await findEnabledChannelConfig(c.env, 'discord', channelId);
+  if (!agentRow) return c.text('forbidden', 403);
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
     c.env,
     'discord',
@@ -30,20 +46,11 @@ router.post('/discord', async (c) => {
     false
   );
   if (bossError) return c.text(bossError, 403);
-  const interactionData = payload['data'] as Record<string, unknown> | undefined;
-  const channelId = asString(payload['channel_id']) ?? asString(message?.['channel_id']);
-  const text =
-    asString(message?.['content']) ??
-    asString(payload['content']) ??
-    asString(interactionData?.['content']);
-  if (!channelId || !text) return c.text('missing channel or body', 400);
-  const agentRow = await c.env.DB
-    .prepare(
-      "SELECT agent_id FROM channel_configs WHERE channel = 'discord' AND json_extract(config, '$.channel_id') = ?"
-    )
-    .bind(channelId)
-    .first<{ agent_id: string }>();
-  if (!agentRow) return c.text('no agent for channel', 404);
+  const idempotencyKey = asString(message?.['id']) ?? asString(payload['id']);
+  if (idempotencyKey) {
+    const existing = await findMessageByIdempotencyKey(c.env, agentRow.agent_id, idempotencyKey);
+    if (existing) return c.json(mapMessage(existing), 200);
+  }
   // Check routing rules: if a rule matches, override the target agent
   const routedAgentId = await evaluateRoutingRules(c.env, 'discord', text, agentRow.agent_id);
   if (routedAgentId) agentRow.agent_id = routedAgentId;
@@ -60,9 +67,9 @@ router.post('/discord', async (c) => {
   if (pending) replyTo = pending.id;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, JSON.stringify(discordMetadata))
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(discordMetadata))
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
@@ -91,6 +98,12 @@ router.post('/telegram', async (c) => {
 
   const message = payload['message'] as Record<string, unknown> | undefined;
   if (message && message['from'] && (message['from'] as Record<string, unknown>).is_bot) return c.text('ignored', 200);
+  const chat = message?.['chat'] as Record<string, unknown> | undefined;
+  const chatId = asString(chat?.['id']);
+  const text = asString(message?.['text']);
+  const threadId = message?.['message_thread_id'] as number | undefined;
+  if (!chatId || !text) return c.text('missing chat or body', 400);
+  if (!(await findEnabledChannelConfig(c.env, 'telegram', chatId))) return c.text('forbidden', 403);
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
     c.env,
     'telegram',
@@ -98,17 +111,12 @@ router.post('/telegram', async (c) => {
     false
   );
   if (bossError) return c.text(bossError, 403);
-  const chat = message?.['chat'] as Record<string, unknown> | undefined;
-  const chatId = asString(chat?.['id']);
-  const text = asString(message?.['text']);
-  const threadId = message?.['message_thread_id'] as number | undefined;
-  if (!chatId || !text) return c.text('missing chat or body', 400);
   // Route by thread ID first (topics mode), then fall back to chat_id only
   let configRow: { agent_id: string; config: string } | null = null;
   if (threadId) {
     configRow = await c.env.DB
       .prepare(
-        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') = ?"
+        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') = ?"
       )
       .bind(chatId, threadId)
       .first<{ agent_id: string; config: string }>();
@@ -116,7 +124,7 @@ router.post('/telegram', async (c) => {
   if (!configRow) {
     configRow = await c.env.DB
       .prepare(
-        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') IS NULL"
+        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') IS NULL"
       )
       .bind(chatId)
       .first<{ agent_id: string; config: string }>();
@@ -124,12 +132,17 @@ router.post('/telegram', async (c) => {
   if (!configRow) {
     configRow = await c.env.DB
       .prepare(
-        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?"
+        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?"
       )
       .bind(chatId)
       .first<{ agent_id: string; config: string }>();
   }
-  if (!configRow) return c.text('no agent for chat', 404);
+  if (!configRow) return c.text('forbidden', 403);
+  const idempotencyKey = asString(payload['update_id']);
+  if (idempotencyKey) {
+    const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, idempotencyKey);
+    if (existing) return c.json(mapMessage(existing), 200);
+  }
   // Check routing rules: if a rule matches, override the target agent
   const routedAgentId = await evaluateRoutingRules(c.env, 'telegram', text, configRow.agent_id);
   if (routedAgentId) configRow.agent_id = routedAgentId;
@@ -160,9 +173,9 @@ router.post('/telegram', async (c) => {
   }
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', text, 'sent', 'normal', replyTo, JSON.stringify(telegramMetadata))
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(telegramMetadata))
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
@@ -181,7 +194,7 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   if (!data || !chatId) return c.text('invalid callback', 400);
   // Look up config first — needed for answerCallbackQuery on all paths
   const configRow = await c.env.DB
-    .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?")
+    .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
     .bind(chatId)
     .first<{ agent_id: string; config: string }>();
   const botToken = configRow ? (JSON.parse(configRow.config) as Record<string, string>).bot_token : undefined;
@@ -189,7 +202,7 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   const answer = (text: string) => {
     if (botToken && queryId) c.executionCtx.waitUntil(answerCallbackQuery(botToken, queryId, text));
   };
-  if (!configRow) { answer('Error'); return c.text('no agent for chat', 404); }
+  if (!configRow) { answer('Error'); return c.text('forbidden', 403); }
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
     c.env, 'telegram', asString((query['from'] as Record<string, unknown>)?.['id']), true
   );
@@ -223,10 +236,17 @@ async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<
   if (bossInfo) {
     replyMetadataRecord = { ...(replyMetadataRecord ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name };
   }
+  if (queryId) {
+    const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, queryId);
+    if (existing) {
+      answer(`Selected: ${existing.body}`);
+      return c.json(mapMessage(existing), 200);
+    }
+  }
   const finalReplyMetadata = replyMetadataRecord ? JSON.stringify(replyMetadataRecord) : null;
   const inserted = await c.env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id, finalReplyMetadata)
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, finalReplyMetadata)
     .first<MessageRow>();
   if (!inserted) { answer('Error'); return c.text('failed to persist', 500); }
   answer(`Selected: ${selectedOption}`);
@@ -255,10 +275,10 @@ async function handleTelegramReaction(c: Context<{ Bindings: Env }>, reaction: R
   );
   if (bossError) return c.text(bossError, 403);
   const configRow = await c.env.DB
-    .prepare("SELECT agent_id FROM channel_configs WHERE channel = 'telegram' AND json_extract(config, '$.chat_id') = ?")
+    .prepare("SELECT agent_id FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
     .bind(chatId)
     .first<{ agent_id: string }>();
-  if (!configRow) return c.text('no agent for chat', 404);
+  if (!configRow) return c.text('forbidden', 403);
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
   // Find hiboss message by telegram_message_id
   const msg = await c.env.DB

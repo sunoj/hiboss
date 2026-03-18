@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Channel, Direction, Env, MessageRow, Mode, Priority, Status } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { notifyBossAgents, notifyTargetAgent } from '../notify';
+import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
 import { reactionsRouter } from './reactions';
 import {
   buildFilters,
@@ -234,13 +235,17 @@ routes.post('/', async (c) => {
           .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
           .bind(...binds)
           .run();
-      } else if (!isUrgent) {
+      } else {
         const firstError = results.find((r) => r.status === 'rejected');
-        const msg = firstError?.status === 'rejected' && firstError.reason instanceof Error ? firstError.reason.message : 'delivery failure';
-        return c.json({ error: msg, id: inserted.id, status: inserted.status }, 502);
+        const message = firstError?.status === 'rejected'
+          ? getDeliveryErrorMessage(firstError.reason)
+          : 'delivery failure';
+        await persistDeliveryFailure(c.env, inserted.id, message);
+        return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'delivery failure';
+      await persistDeliveryFailure(c.env, inserted.id, message);
       return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
     }
   }
@@ -318,11 +323,13 @@ routes.post('/:id/reply', async (c) => {
   const replyDirection: Direction = parent.direction === 'agent_to_agent'
     ? 'agent_to_agent'
     : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
+  const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
+  const replyTargetSessionId = replyDirection === 'agent_to_agent' ? parent.session_id : null;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id)
+    .bind(agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId)
     .first<MessageRow>();
   if (!inserted) {
     return c.text('failed to persist', 500);
@@ -349,14 +356,17 @@ routes.post('/:id/reply', async (c) => {
           .bind(...binds)
           .run();
       }
-    } catch {
-      // Channel delivery failed — message is still stored.
+    } catch (error) {
+      await persistDeliveryFailure(c.env, inserted.id, getDeliveryErrorMessage(error));
     }
   }
   await c.env.DB
     .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
     .bind(parent.id)
     .run();
+  if (replyTargetAgentId) {
+    c.executionCtx.waitUntil(notifyTargetAgent(c.env, replyTargetAgentId, inserted));
+  }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.reply', 'message', parent.id));
   return c.json(mapMessageRow(inserted), 201);
 });
