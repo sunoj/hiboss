@@ -4,13 +4,26 @@
 
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
-import { bossAuth, getBossId, getBossRole, getBossName } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, getBossName, hashApiKey } from '../middleware/auth';
 import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
+
+interface JoinRequestRow {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiKeyRow {
+  id: string;
+  name: string;
+}
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
@@ -201,5 +214,65 @@ routes.get('/sessions', async (c) => {
     .all();
   return c.json({ sessions: rows.results ?? [] });
 });
+
+routes.get('/join-requests', async (c) => {
+  if (getBossRole(c) !== 'admin') return c.text('admin access required', 403);
+  const status = c.req.query('status');
+  const sql = status
+    ? 'SELECT id, name, status, created_at, updated_at FROM join_requests WHERE status = ? ORDER BY created_at DESC'
+    : 'SELECT id, name, status, created_at, updated_at FROM join_requests ORDER BY created_at DESC';
+  const query = c.env.DB.prepare(sql);
+  const rows = status
+    ? await query.bind(status).all<JoinRequestRow>()
+    : await query.all<JoinRequestRow>();
+  return c.json({ requests: rows.results ?? [] });
+});
+
+routes.post('/join-requests/:id/approve', async (c) => {
+  if (getBossRole(c) !== 'admin') return c.text('admin access required', 403);
+  const bossId = getBossId(c);
+  const requestId = c.req.param('id');
+  const request = await c.env.DB.prepare('SELECT * FROM join_requests WHERE id = ?').bind(requestId).first<JoinRequestRow>();
+  if (!request) return c.text('not found', 404);
+  if (request.status !== 'pending') return c.text('request already processed', 400);
+  const key = `hb_${generateHex(16)}`;
+  const keyHash = await hashApiKey(key);
+  const inserted = await c.env.DB
+    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id, name')
+    .bind(request.name, keyHash)
+    .first<ApiKeyRow>();
+  if (!inserted) return c.text('failed to persist', 500);
+  await c.env.DB
+    .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(inserted.id, key, request.id)
+    .run();
+  await c.env.DB
+    .prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+    .bind(bossId, inserted.id)
+    .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'join.approve', 'join_request', request.id));
+  return c.json({ id: request.id, name: request.name, status: 'approved', agent_id: inserted.id, key });
+});
+
+routes.post('/join-requests/:id/reject', async (c) => {
+  if (getBossRole(c) !== 'admin') return c.text('admin access required', 403);
+  const bossId = getBossId(c);
+  const requestId = c.req.param('id');
+  const request = await c.env.DB.prepare('SELECT * FROM join_requests WHERE id = ?').bind(requestId).first<JoinRequestRow>();
+  if (!request) return c.text('not found', 404);
+  if (request.status !== 'pending') return c.text('request already processed', 400);
+  await c.env.DB
+    .prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ?")
+    .bind(request.id)
+    .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'join.reject', 'join_request', request.id));
+  return c.json({ id: request.id, name: request.name, status: 'rejected' });
+});
+
+function generateHex(bytes: number): string {
+  const buf = new Uint8Array(bytes);
+  crypto.getRandomValues(buf);
+  return Array.from(buf).map((v) => v.toString(16).padStart(2, '0')).join('');
+}
 
 export const bossApiRouter = routes;
