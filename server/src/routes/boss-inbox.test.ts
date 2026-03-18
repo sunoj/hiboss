@@ -144,4 +144,30 @@ describe('PATCH /api/boss/inbox/:id', () => {
     const data = await res.json() as any;
     expect(data.status).toBe('read');
   });
+
+  it('updates only the exact message id', async () => {
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
+    ).bind('msg-prefix', subAgentId, 'Primary').run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal')"
+    ).bind('msg-prefix-extra', subAgentId, 'Sibling').run();
+
+    const res = await SELF.fetch('http://localhost/api/boss/inbox/msg-prefix', {
+      method: 'PATCH',
+      headers: bossHeaders(),
+      body: JSON.stringify({ status: 'read' }),
+    });
+
+    expect(res.status).toBe(200);
+
+    const rows = await env.DB
+      .prepare('SELECT id, status FROM messages WHERE id IN (?, ?)')
+      .bind('msg-prefix', 'msg-prefix-extra')
+      .all<{ id: string; status: string }>();
+    const byId = new Map((rows.results ?? []).map((row) => [row.id, row.status]));
+
+    expect(byId.get('msg-prefix')).toBe('read');
+    expect(byId.get('msg-prefix-extra')).toBe('sent');
+  });
 });
