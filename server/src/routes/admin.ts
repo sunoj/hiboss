@@ -9,6 +9,17 @@ import { logAudit } from '../audit';
 
 const router = new Hono<{ Bindings: Env }>({});
 router.use('*', apiAuth);
+router.use('*', async (c, next) => {
+  const agentId = getAgentId(c);
+  const agent = await c.env.DB
+    .prepare('SELECT role FROM api_keys WHERE id = ?')
+    .bind(agentId)
+    .first<{ role: string | null }>();
+  if (agent?.role !== 'admin') {
+    return c.text('admin access required', 403);
+  }
+  await next();
+});
 
 router.post('/keys', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();

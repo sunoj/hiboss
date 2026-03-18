@@ -5,6 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { hashApiKey } from '../middleware/auth';
 import { insertMessageWithRecovery } from './messages';
 import { buildStreamQuery, pruneSeenMessageIds } from './stream';
 
@@ -236,6 +237,52 @@ describe('PATCH /api/messages/:id', () => {
     expect(res.status).toBe(200);
     const data = await res.json() as { status: string };
     expect(data.status).toBe('read');
+  });
+
+  it('rejects backward status transitions', async () => {
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Backward transition test' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const firstPatch = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ status: 'read' }),
+    });
+    expect(firstPatch.status).toBe(200);
+
+    const secondPatch = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ status: 'delivered' }),
+    });
+    expect(secondPatch.status).toBe(400);
+    expect(await secondPatch.text()).toContain('invalid status transition');
+  });
+
+  it('rejects status updates from the target recipient', async () => {
+    const otherApiKey = 'hb_test_key_agent2_patch_000000';
+    const otherKeyHash = await hashApiKey(otherApiKey);
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind('patch-agent-2', 'patch-agent-2', otherKeyHash)
+      .run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Private', 'sent', 'normal', ?)"
+    ).bind('patch-owner-only', getTestAgentId(), 'patch-agent-2').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages/patch-owner-only', {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${otherApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status: 'read' }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.text()).toContain('only message owner can update status');
   });
 
   it('rejects invalid status', async () => {
@@ -653,5 +700,27 @@ describe('Session-scoped messages', () => {
     expect(msg.target_session_id).toBe('target-sess-001');
     expect(msg.target_agent_id).toBe(agentId);
     expect(msg.direction).toBe('agent_to_agent');
+  });
+
+  it('does not expose another agent target_session in non-unread mode', async () => {
+    const { hashApiKey } = await import('../middleware/auth');
+    const key2Hash = await hashApiKey('hb_test_key_agent3_000000');
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind('test-agent-3', 'agent-3', key2Hash).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Other session target', 'sent', 'normal', ?, ?)"
+    ).bind('a2a-other-session-target', 'test-agent-3', 'someone-else', 'sess-shared').run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'My session target', 'sent', 'normal', ?, ?)"
+    ).bind('a2a-my-session-target', 'test-agent-3', agentId, 'sess-shared').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages?target_session=sess-shared', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { messages: { id: string }[] };
+    const ids = data.messages.map(m => m.id);
+    expect(ids).toContain('a2a-my-session-target');
+    expect(ids).not.toContain('a2a-other-session-target');
   });
 });

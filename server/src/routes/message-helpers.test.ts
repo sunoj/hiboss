@@ -31,6 +31,7 @@ import {
   checkRateLimit,
   findByIdempotencyKey,
   inferSessionStatus,
+  expirePreviousOptions,
 } from './message-helpers';
 import type { MessageRow } from '../types';
 
@@ -232,6 +233,12 @@ describe('buildFilters', () => {
     const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, false, undefined, undefined, 'deploy');
     expect(where).toContain('body LIKE ?');
     expect(binds).toContain('%deploy%');
+  });
+
+  it('scopes target_session visibility to the targeted agent', () => {
+    const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, false, undefined, 'sess-123');
+    expect(where).toContain('(target_session_id = ? AND target_agent_id = ?)');
+    expect(binds).toEqual(['a1', 'a1', 'sess-123', 'a1']);
   });
 
   it('adds type filter', () => {
@@ -483,6 +490,33 @@ describe('deliverWithRetry', () => {
       )
     ).rejects.toThrow('permanent');
     expect(attempts).toBe(2);
+  });
+});
+
+describe('expirePreviousOptions', () => {
+  it('limits expiration to messages created before the current message', async () => {
+    let capturedSql = '';
+    let capturedBinds: unknown[] = [];
+    const fakeEnv = {
+      DB: {
+        prepare(sql: string) {
+          capturedSql = sql;
+          return {
+            bind(...binds: unknown[]) {
+              capturedBinds = binds;
+              return {
+                all: async () => ({ results: [] }),
+              };
+            },
+          };
+        },
+      },
+    };
+
+    await expirePreviousOptions(fakeEnv as any, 'agent-1', 'sess-1', 'msg-9');
+
+    expect(capturedSql).toContain('created_at < (SELECT created_at FROM messages WHERE id = ?)');
+    expect(capturedBinds).toEqual(['agent-1', 'msg-9', 'sess-1', 'msg-9']);
   });
 });
 
