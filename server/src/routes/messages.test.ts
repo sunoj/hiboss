@@ -13,6 +13,17 @@ beforeAll(async () => {
   await seedDatabase();
 });
 
+async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<string, string>> {
+  const keyHash = await hashApiKey(apiKey);
+  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind(agentId, agentId, keyHash)
+    .run();
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+}
+
 describe('POST /api/messages', () => {
   it('creates a message with defaults', async () => {
     const res = await SELF.fetch('https://test.local/api/messages', {
@@ -217,6 +228,37 @@ describe('POST /api/messages/:id/reply', () => {
       body: JSON.stringify({ body: 'Reply to nothing' }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('sets target_agent_id on agent-to-agent replies and exposes them to the original sender', async () => {
+    const otherHeaders = await createAgentAuth('reply-agent-2', 'hb_test_key_reply_agent_2_000000');
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', 'Ping', 'sent', 'normal', ?, ?)"
+    ).bind('reply-a2a-parent', getTestAgentId(), 'session-a2a-parent', 'reply-agent-2').run();
+
+    const replyRes = await SELF.fetch('https://test.local/api/messages/reply-a2a-parent/reply', {
+      method: 'POST',
+      headers: otherHeaders,
+      body: JSON.stringify({ body: 'Pong back' }),
+    });
+    expect(replyRes.status).toBe(201);
+    const reply = await replyRes.json() as { id: string; direction: string; target_agent_id: string | null; target_session_id: string | null };
+    expect(reply.direction).toBe('agent_to_agent');
+    expect(reply.target_agent_id).toBe(getTestAgentId());
+    expect(reply.target_session_id).toBe('session-a2a-parent');
+
+    const storedReply = await env.DB.prepare(
+      'SELECT target_agent_id, target_session_id FROM messages WHERE id = ?'
+    ).bind(reply.id).first<{ target_agent_id: string | null; target_session_id: string | null }>();
+    expect(storedReply?.target_agent_id).toBe(getTestAgentId());
+    expect(storedReply?.target_session_id).toBe('session-a2a-parent');
+
+    const senderListRes = await SELF.fetch('https://test.local/api/messages?direction=agent_to_agent', {
+      headers: authHeaders(),
+    });
+    expect(senderListRes.status).toBe(200);
+    const senderList = await senderListRes.json() as { messages: { id: string; body: string }[] };
+    expect(senderList.messages.some((message) => message.id === reply.id && message.body === 'Pong back')).toBe(true);
   });
 });
 
