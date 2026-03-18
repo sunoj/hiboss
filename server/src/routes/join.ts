@@ -29,7 +29,7 @@ type ChannelConfigRow = {
 const router = new Hono<{ Bindings: Env }>({});
 
 router.post('/', async (c) => {
-  const payload = await c.req.json<{ name?: string }>().catch(() => ({}));
+  const payload = await c.req.json<{ name?: string }>().catch((): { name?: string } => ({}));
   const name = payload.name?.trim() || 'new-agent';
   const pollToken = `jt_${generateHex(16)}`;
   const countRow = await c.env.DB.prepare('SELECT COUNT(*) AS cnt FROM api_keys').first<{ cnt: number }>();
