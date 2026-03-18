@@ -1,14 +1,26 @@
 // Integration tests for /api/groups endpoints.
 // Covers group CRUD, membership, and broadcast.
-// Depends on cloudflare:test env and shared test helpers.
+// Depends on cloudflare:test env, auth hashing, and shared test helpers.
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { hashApiKey } from '../middleware/auth';
 
 beforeAll(async () => {
   await seedDatabase();
 });
+
+async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<string, string>> {
+  const keyHash = await hashApiKey(apiKey);
+  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind(agentId, agentId, keyHash)
+    .run();
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+}
 
 describe('GET /api/groups', () => {
   it('returns empty list initially', async () => {
@@ -18,6 +30,36 @@ describe('GET /api/groups', () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as { groups: unknown[] };
     expect(data.groups).toBeInstanceOf(Array);
+  });
+
+  it('scopes groups to the authenticated owner', async () => {
+    const otherHeaders = await createAgentAuth('group-agent-2', 'hb_test_key_group_agent_2_000000');
+    const ownCreate = await SELF.fetch('https://test.local/api/groups', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ name: 'owner-scope-a' }),
+    });
+    const otherCreate = await SELF.fetch('https://test.local/api/groups', {
+      method: 'POST',
+      headers: otherHeaders,
+      body: JSON.stringify({ name: 'owner-scope-b' }),
+    });
+    const otherGroup = await otherCreate.json() as { id: string };
+    expect(ownCreate.status).toBe(201);
+    expect(otherCreate.status).toBe(201);
+
+    const ownList = await SELF.fetch('https://test.local/api/groups', {
+      headers: authHeaders(),
+    });
+    expect(ownList.status).toBe(200);
+    const ownData = await ownList.json() as { groups: { name: string }[] };
+    expect(ownData.groups.some((group) => group.name === 'owner-scope-a')).toBe(true);
+    expect(ownData.groups.some((group) => group.name === 'owner-scope-b')).toBe(false);
+
+    const ownGetOther = await SELF.fetch(`https://test.local/api/groups/${otherGroup.id}`, {
+      headers: authHeaders(),
+    });
+    expect(ownGetOther.status).toBe(404);
   });
 });
 
