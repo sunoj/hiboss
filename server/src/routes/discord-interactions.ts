@@ -44,6 +44,11 @@ router.post('/', async (c) => {
   if (!verified) {
     return c.text('invalid signature', 401);
   }
+  const timestampSeconds = parseInt(timestamp ?? '0', 10);
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestampSeconds) > 300) {
+    return c.text('stale interaction', 401);
+  }
   let payload: DiscordInteractionPayload;
   try {
     payload = JSON.parse(body) as DiscordInteractionPayload;

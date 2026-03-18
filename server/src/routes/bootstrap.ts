@@ -2,7 +2,7 @@
 // Exports POST /api/bootstrap.
 // Depends on Hono, hashing helpers, and Env definition.
 
-import { Hono } from 'hono';
+import { Context, Hono } from 'hono';
 import type { Env } from '../types';
 import { hashApiKey } from '../middleware/auth';
 import { logAudit } from '../audit';
@@ -10,22 +10,18 @@ import { logAudit } from '../audit';
 const router = new Hono<{ Bindings: Env }>({});
 
 router.post('/', async (c) => {
-  const countRow = await c.env.DB
-    .prepare('SELECT COUNT(*) AS count FROM api_keys')
-    .first<{ count: number }>();
-  const count = countRow?.count ?? 0;
-  if (count > 0) {
-    return c.text('already initialized', 403);
+  if (!hasValidBootstrapSecret(c)) {
+    return c.text('unauthorized', 401);
   }
   const name = 'default-agent';
   const key = `hb_${generateHex(16)}`;
   const keyHash = await hashApiKey(key);
   const inserted = await c.env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id, name')
+    .prepare('INSERT INTO api_keys (name, key_hash) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM api_keys) RETURNING id, name')
     .bind(name, keyHash)
     .first<{ id: string; name: string }>();
   if (!inserted) {
-    return c.text('failed to create key', 500);
+    return c.text('already initialized', 403);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'system', 'bootstrap', 'key.create', 'api_key', inserted.id, 'bootstrap'));
   return c.json({ id: inserted.id, name: inserted.name, key }, 201);
@@ -39,4 +35,18 @@ function generateHex(bytes: number): string {
   return Array.from(buf)
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('');
+}
+
+function hasValidBootstrapSecret(c: Context<{ Bindings: Env }>): boolean {
+  const expectedSecret = c.env.BOOTSTRAP_SECRET;
+  if (!expectedSecret) {
+    return true;
+  }
+  const headerSecret = c.req.header('X-Bootstrap-Secret');
+  if (headerSecret === expectedSecret) {
+    return true;
+  }
+  const authorization = c.req.header('Authorization');
+  const bearerPrefix = 'Bearer ';
+  return authorization?.startsWith(bearerPrefix) ? authorization.slice(bearerPrefix.length) === expectedSecret : false;
 }

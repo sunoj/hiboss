@@ -52,12 +52,6 @@ fn parse_actions(raw: &str) -> (Vec<String>, HashMap<String, Value>) {
     (options, actions)
 }
 
-fn tail_lines(s: &str, n: usize) -> String {
-    let lines: Vec<&str> = s.trim().lines().collect();
-    let start = lines.len().saturating_sub(n);
-    lines[start..].join("\n")
-}
-
 pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     // Only send channel when explicitly specified via --channel.
     // When omitted, server uses channel_routing (per-priority) to decide.
@@ -103,48 +97,12 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
     if let Some(replies) = &poll.replies {
         if let Some(reply) = replies.first() {
-            // Check for action in reply metadata and auto-execute
             if let Some(meta) = &reply.metadata {
                 if let Some(Value::String(action_cmd)) = meta.get("action") {
                     if let Some(body) = &reply.body {
                         println!("{}", body);
                     }
-                    eprintln!("Executing action: {}", action_cmd);
-                    let output = std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(action_cmd)
-                        .output();
-                    let feedback = match &output {
-                        Ok(o) if o.status.success() => {
-                            let stdout = String::from_utf8_lossy(&o.stdout);
-                            let tail = tail_lines(&stdout, 5);
-                            if tail.is_empty() {
-                                format!("✅ `{}` succeeded", action_cmd)
-                            } else {
-                                format!("✅ `{}` succeeded:\n{}", action_cmd, tail)
-                            }
-                        }
-                        Ok(o) => {
-                            let stderr = String::from_utf8_lossy(&o.stderr);
-                            let tail = tail_lines(&stderr, 5);
-                            format!("❌ `{}` failed (exit {}):\n{}", action_cmd, o.status, tail)
-                        }
-                        Err(e) => format!("❌ `{}` failed: {}", action_cmd, e),
-                    };
-                    eprintln!("{}", feedback);
-                    // Best-effort: send result back to boss
-                    let _ = client.send_message(&SendRequest {
-                        body: feedback,
-                        mode: "async".to_owned(),
-                        priority: "normal".to_owned(),
-                        channel: None,
-                        metadata: None,
-                        options: None,
-                        file_url: None,
-                        message_type: Some("action_result".to_owned()),
-                        session_id: session::read_session_id(),
-                        to: None,
-                    }).await;
+                    eprintln!("Action: {}", action_cmd);
                     return Ok(());
                 }
             }

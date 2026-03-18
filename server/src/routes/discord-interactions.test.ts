@@ -159,7 +159,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
 
   it('rejects invalid signatures', async () => {
     const body = JSON.stringify({ type: 1 });
-    const timestamp = new Date().toISOString();
+    const timestamp = String(Math.floor(Date.now() / 1000));
     const res = await SELF.fetch(BASE_URL, {
       method: 'POST',
       body,
@@ -173,6 +173,15 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(await res.text()).toBe('invalid signature');
   });
 
+  it('rejects stale timestamps', async () => {
+    const payload = { type: 1 };
+    const staleTimestamp = String(Math.floor(Date.now() / 1000) - 301);
+    const res = await signedFetch(payload, {}, staleTimestamp);
+
+    expect(res.status).toBe(401);
+    expect(await res.text()).toBe('stale interaction');
+  });
+
   it('rejects requests missing signature headers', async () => {
     const res = await SELF.fetch(BASE_URL, {
       method: 'POST',
@@ -183,9 +192,8 @@ describe('POST /api/webhooks/discord-interactions', () => {
   });
 });
 
-async function signedFetch(body: BodyInput, extraHeaders: HeaderMap = {}): Promise<Response> {
+async function signedFetch(body: BodyInput, extraHeaders: HeaderMap = {}, timestamp = String(Math.floor(Date.now() / 1000))): Promise<Response> {
   const payload = typeof body === 'string' ? body : JSON.stringify(body);
-  const timestamp = new Date().toISOString();
   const signature = await signPayload(payload, timestamp);
   const headers: HeaderMap = {
     'Content-Type': 'application/json',

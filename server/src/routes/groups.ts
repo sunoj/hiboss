@@ -26,15 +26,18 @@ const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
 
 routes.get('/', async (c) => {
+  const ownerId = getAgentId(c);
   const rows = await c.env.DB
     .prepare(
-      'SELECT g.*, (SELECT COUNT(*) FROM agent_group_members m WHERE m.group_id = g.id) AS member_count FROM agent_groups g ORDER BY g.name'
+      'SELECT g.*, (SELECT COUNT(*) FROM agent_group_members m WHERE m.group_id = g.id) AS member_count FROM agent_groups g WHERE g.owner_id = ? ORDER BY g.name'
     )
+    .bind(ownerId)
     .all<GroupRow & { member_count: number }>();
   return c.json({ groups: rows.results ?? [] });
 });
 
 routes.post('/', async (c) => {
+  const ownerId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
   const name = typeof payload.name === 'string' ? payload.name.trim() : '';
   if (!name) {
@@ -42,8 +45,8 @@ routes.post('/', async (c) => {
   }
   const description = typeof payload.description === 'string' ? payload.description.trim() : null;
   const inserted = await c.env.DB
-    .prepare('INSERT INTO agent_groups (name, description) VALUES (?, ?) RETURNING *')
-    .bind(name, description)
+    .prepare('INSERT INTO agent_groups (name, description, owner_id) VALUES (?, ?, ?) RETURNING *')
+    .bind(name, description, ownerId)
     .first<GroupRow>();
   if (!inserted) {
     return c.text('failed to create', 500);
@@ -53,8 +56,9 @@ routes.post('/', async (c) => {
 });
 
 routes.get('/:id', async (c) => {
+  const ownerId = getAgentId(c);
   const groupId = c.req.param('id');
-  const group = await findGroup(c.env, groupId);
+  const group = await findGroup(c.env, ownerId, groupId);
   if (!group) {
     return c.text('not found', 404);
   }
@@ -68,10 +72,11 @@ routes.get('/:id', async (c) => {
 });
 
 routes.delete('/:id', async (c) => {
+  const ownerId = getAgentId(c);
   const groupId = c.req.param('id');
   const result = await c.env.DB
-    .prepare('DELETE FROM agent_groups WHERE id = ?')
-    .bind(groupId)
+    .prepare('DELETE FROM agent_groups WHERE id = ? AND owner_id = ?')
+    .bind(groupId, ownerId)
     .run();
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
@@ -81,8 +86,9 @@ routes.delete('/:id', async (c) => {
 });
 
 routes.post('/:id/members', async (c) => {
+  const ownerId = getAgentId(c);
   const groupId = c.req.param('id');
-  const group = await findGroup(c.env, groupId);
+  const group = await findGroup(c.env, ownerId, groupId);
   if (!group) {
     return c.text('group not found', 404);
   }
@@ -100,11 +106,16 @@ routes.post('/:id/members', async (c) => {
 });
 
 routes.delete('/:id/members/:agentId', async (c) => {
+  const ownerId = getAgentId(c);
   const groupId = c.req.param('id');
+  const group = await findGroup(c.env, ownerId, groupId);
+  if (!group) {
+    return c.text('not found', 404);
+  }
   const agentId = c.req.param('agentId');
   const result = await c.env.DB
     .prepare('DELETE FROM agent_group_members WHERE group_id = ? AND agent_id = ?')
-    .bind(groupId, agentId)
+    .bind(group.id, agentId)
     .run();
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
@@ -114,8 +125,9 @@ routes.delete('/:id/members/:agentId', async (c) => {
 });
 
 routes.post('/:id/broadcast', async (c) => {
+  const ownerId = getAgentId(c);
   const groupId = c.req.param('id');
-  const group = await findGroup(c.env, groupId);
+  const group = await findGroup(c.env, ownerId, groupId);
   if (!group) {
     return c.text('group not found', 404);
   }
@@ -150,14 +162,14 @@ routes.post('/:id/broadcast', async (c) => {
 
 export const groupsRouter = routes;
 
-async function findGroup(env: Env, idOrName: string): Promise<GroupRow | null> {
+async function findGroup(env: Env, ownerId: string, idOrName: string): Promise<GroupRow | null> {
   const byId = await env.DB
-    .prepare('SELECT * FROM agent_groups WHERE id = ?')
-    .bind(idOrName)
+    .prepare('SELECT * FROM agent_groups WHERE id = ? AND owner_id = ?')
+    .bind(idOrName, ownerId)
     .first<GroupRow>();
   if (byId) return byId;
   return env.DB
-    .prepare('SELECT * FROM agent_groups WHERE name = ?')
-    .bind(idOrName)
+    .prepare('SELECT * FROM agent_groups WHERE name = ? AND owner_id = ?')
+    .bind(idOrName, ownerId)
     .first<GroupRow>();
 }
