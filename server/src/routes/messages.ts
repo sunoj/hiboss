@@ -41,6 +41,11 @@ import { logAudit } from '../audit';
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  sent: ['delivered', 'read', 'replied', 'expired'],
+  delivered: ['read', 'replied', 'expired'],
+  read: ['replied', 'expired'],
+};
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
 
@@ -48,6 +53,10 @@ const modeOptions: Mode[] = ['async', 'blocking'];
 
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('UNIQUE constraint failed');
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
 }
 
 export async function insertMessageWithRecovery(
@@ -130,7 +139,7 @@ routes.post('/', async (c) => {
     // 1. Try agent by name or id prefix
     const agentTarget = await c.env.DB
       .prepare('SELECT id FROM api_keys WHERE name = ? OR id LIKE ? LIMIT 1')
-      .bind(toAgent, `${toAgent}%`)
+      .bind(toAgent, `${escapeLike(toAgent)}%`)
       .first<{ id: string }>();
     if (agentTarget) {
       targetAgentId = agentTarget.id;
@@ -139,7 +148,7 @@ routes.post('/', async (c) => {
       // 2. Try session by label or id prefix
       const sessionTarget = await c.env.DB
         .prepare('SELECT id, agent_id FROM sessions WHERE label = ? OR id LIKE ? LIMIT 1')
-        .bind(toAgent, `${toAgent}%`)
+        .bind(toAgent, `${escapeLike(toAgent)}%`)
         .first<{ id: string; agent_id: string }>();
       if (sessionTarget) {
         targetAgentId = sessionTarget.agent_id;
@@ -363,6 +372,13 @@ routes.patch('/:id', async (c) => {
   if (!existing) {
     return c.text('not found', 404);
   }
+  if (existing.agent_id !== agentId) {
+    return c.text('only message owner can update status', 403);
+  }
+  const allowed = VALID_TRANSITIONS[existing.status];
+  if (!allowed || !allowed.includes(status)) {
+    return c.text(`invalid status transition from ${existing.status} to ${status}`, 400);
+  }
   const updated = await c.env.DB
     .prepare(
       'UPDATE messages SET status = ?, updated_at = datetime(\'now\') WHERE id = ? RETURNING *'
@@ -395,10 +411,12 @@ routes.post('/:id/poll', async (c) => {
       return c.json(current);
     }
     if (Date.now() >= deadline) {
+      const finalCheck = await fetchMessageWithReplies(c.env, agentId, message.id);
+      if (finalCheck && (finalCheck.replies?.length ?? 0) > 0) {
+        return c.json(finalCheck);
+      }
       c.executionCtx.waitUntil(expireMessageOptions(c.env, agentId, message).catch(() => {}));
-      const fallback = mapMessageRow(message);
-      fallback.replies = [];
-      return c.json(current ?? fallback);
+      return c.json(finalCheck ?? { ...mapMessageRow(message), replies: [] });
     }
     await delay(Math.min(WAIT_INTERVAL_MS, deadline - Date.now()));
   }
