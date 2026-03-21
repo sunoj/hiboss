@@ -5,7 +5,7 @@
 
 import type { Channel, Env, MessageRow } from '../types';
 import { createForumTopic, editMessageReplyMarkup } from '../channels/telegram';
-import { editDiscordMessage } from '../channels/discord';
+import { createDiscordThread, editDiscordMessage } from '../channels/discord';
 import { 
   requireTelegramConfig as _requireTelegramConfig, 
   requireDiscordConfig as _requireDiscordConfig, 
@@ -110,5 +110,49 @@ export async function ensureTopicForAgent(env: Env, agentId: string, channelConf
       .run();
   } catch {
     // Topic creation failed (group may not support topics) — deliver without thread
+  }
+}
+
+/** Auto-create a Discord thread for this session if use_threads is enabled. */
+export async function ensureThreadForSession(
+  env: Env,
+  agentId: string,
+  sessionId: string | null,
+  channelConfig: { channel: Channel; config: Record<string, unknown> },
+  discordMessageId: string | undefined,
+): Promise<string | undefined> {
+  if (channelConfig.channel !== 'discord') return undefined;
+  const cfg = channelConfig.config;
+  if (!cfg['use_threads']) return undefined;
+  if (!sessionId) return undefined;
+
+  const session = await env.DB
+    .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
+    .bind(sessionId)
+    .first<{ discord_thread_id: string | null }>();
+  if (session?.discord_thread_id) return session.discord_thread_id;
+  if (!discordMessageId) return undefined;
+
+  const botToken = cfg['bot_token'] as string | undefined;
+  const channelId = cfg['channel_id'] as string | undefined;
+  if (!botToken || !channelId) return undefined;
+
+  const agentName = await fetchAgentName(env, agentId) ?? 'agent';
+  const sessionRow = await env.DB
+    .prepare('SELECT label, branch FROM sessions WHERE id = ?')
+    .bind(sessionId)
+    .first<{ label: string | null; branch: string | null }>();
+  const threadName = sessionRow?.label ?? sessionRow?.branch ?? `${agentName}-session`;
+
+  try {
+    const threadId = await createDiscordThread(botToken, channelId, discordMessageId, threadName);
+    await env.DB
+      .prepare('UPDATE sessions SET discord_thread_id = ? WHERE id = ?')
+      .bind(threadId, sessionId)
+      .run();
+    return threadId;
+  } catch {
+    // Thread creation failed — deliver without thread
+    return undefined;
   }
 }

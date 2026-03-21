@@ -114,7 +114,22 @@ export async function insertBossDiscordMessage(
   idempotencyKey: string | undefined,
   rawMetadata: Record<string, unknown>
 ): Promise<MessageRow | null> {
-  const agentRow = await findEnabledChannelConfig(env, 'discord', channelId);
+  let agentRow = await findEnabledChannelConfig(env, 'discord', channelId);
+  if (!agentRow) {
+    const threadSession = await env.DB
+      .prepare('SELECT s.agent_id, s.id AS session_id FROM sessions s WHERE s.discord_thread_id = ? LIMIT 1')
+      .bind(channelId)
+      .first<{ agent_id: string; session_id: string }>();
+    if (threadSession) {
+      const cc = await env.DB
+        .prepare("SELECT agent_id, config FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
+        .bind(threadSession.agent_id)
+        .first<{ agent_id: string; config: string }>();
+      if (cc) {
+        agentRow = cc;
+      }
+    }
+  }
   if (!agentRow) return null;
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(env, 'discord', senderUserId, false);
   if (bossError) return null;
