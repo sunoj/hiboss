@@ -10,7 +10,7 @@ use std::error::Error;
 
 #[derive(Debug, Args)]
 pub struct AskArgs {
-    #[arg(long, default_value_t = 300)]
+    #[arg(long, default_value_t = 1800)]
     pub timeout: u32,
     #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,

@@ -71,7 +71,7 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     println!("3. Reply to boss messages with: hiboss reply <id> \"<response>\"");
     println!("4. Check inbox with: hiboss inbox");
     println!("5. Send to peer sessions with: hiboss send --to <session-label-or-id> \"<message>\"");
-    println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" --timeout 300 (run_in_background), then WAIT for boss reply.");
+    println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" (run_in_background), then WAIT for boss reply.");
     println!("IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord.");
 
     // Show peer sessions
@@ -200,7 +200,7 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     // Check if agent asked boss before stopping
     if !session::has_asked() {
         println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
-        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" --timeout 300");
+        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
         println!("Do NOT stop until you have sent this message and received a reply or timeout.");
     }
 
