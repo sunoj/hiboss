@@ -197,7 +197,9 @@ async function api(method: string, path: string, body?: unknown): Promise<unknow
 function loadConfig(): Config {
   const envUrl = process.env.HIBOSS_SERVER_URL?.trim();
   const envKey = process.env.HIBOSS_API_KEY?.trim();
-  const file = readJson(join(homedir(), '.config', 'hiboss', 'config.json'));
+  const home = homedir();
+  const macFile = readJson(join(home, 'Library', 'Application Support', 'hiboss', 'config.json'));
+  const file = (macFile.server || macFile.server_url || macFile.key || macFile.api_key) ? macFile : readJson(join(home, '.config', 'hiboss', 'config.json'));
   const server_url = envUrl || file.server_url || file.server || '';
   const api_key = envKey || file.api_key || file.key || '';
   if (!server_url || !api_key) throw new Error('hiboss config missing server_url/api_key (or HIBOSS_SERVER_URL/HIBOSS_API_KEY)');

@@ -188,6 +188,14 @@ routes.post('/', async (c) => {
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
+  // Set expires_at for messages with options (enables cron-based expiry sweep)
+  if (options && inserted) {
+    const timeoutSec = mode === 'blocking' && typeof payload.timeout === 'number'
+      ? Math.max(60, Math.min(payload.timeout, 3600))
+      : DEFAULT_TIMEOUT_SECONDS;
+    const expiresAt = new Date(Date.now() + timeoutSec * 1000).toISOString();
+    await c.env.DB.prepare('UPDATE messages SET expires_at = ? WHERE id = ?').bind(expiresAt, inserted.id).run();
+  }
   // Auto-update session status based on message characteristics
   if (sessionId && direction === 'agent_to_boss') {
     c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
