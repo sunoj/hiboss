@@ -49,6 +49,21 @@ pub fn urgent_file_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-urgent-{}", project_hash()))
 }
 
+/// Marker file: written by `hiboss ask`, checked by Stop hook.
+pub fn asked_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-asked-{}", project_hash()))
+}
+
+/// Record that `hiboss ask` was called this session.
+pub fn mark_asked() {
+    let _ = fs::write(asked_marker_path(), "1");
+}
+
+/// Check whether `hiboss ask` was called this session.
+pub fn has_asked() -> bool {
+    asked_marker_path().exists()
+}
+
 /// Check if the daemon is running by reading the PID file and testing the process.
 pub fn is_daemon_running() -> Option<u32> {
     let pid_str = fs::read_to_string(daemon_pid_path()).ok()?;

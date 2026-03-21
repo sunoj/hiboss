@@ -94,6 +94,7 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
         to: args.to.clone(),
     };
     let submission = client.send_message(&request).await?;
+    session::mark_asked();
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
     if let Some(replies) = &poll.replies {
         if let Some(reply) = replies.first() {
