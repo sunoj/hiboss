@@ -73,6 +73,7 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     println!("5. Send to peer sessions with: hiboss send --to <session-label-or-id> \"<message>\"");
     println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" (run_in_background), then WAIT for boss reply.");
     println!("IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord.");
+    println!("RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation.");
 
     // Show peer sessions
     show_peer_sessions(&session_id).await;
@@ -202,6 +203,9 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
         println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
         println!("Do NOT stop until you have sent this message and received a reply or timeout.");
+    } else if !session::has_replied() {
+        println!("STOP VIOLATION: You received a boss reply but did not acknowledge it via hiboss.");
+        println!("You MUST run: hiboss send \"<your acknowledgment>\" before stopping.");
     }
 
     // Mark session as completed on the server
@@ -220,5 +224,6 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_file(session::daemon_pending_path());
     let _ = fs::remove_file(session::urgent_file_path());
     let _ = fs::remove_file(session::asked_marker_path());
+    let _ = fs::remove_file(session::replied_marker_path());
     Ok(())
 }

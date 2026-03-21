@@ -1,8 +1,8 @@
 // Purpose: Post a reply to a specific hiboss message.
 // Exports: ReplyArgs and run().
-// Dependencies: clap, crate::client, crate::config.
+// Dependencies: clap, crate::client, crate::config, crate::session.
 
-use crate::{client::HiBossClient, config::Config, helpers::unescape_body};
+use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session};
 use clap::Args;
 use std::error::Error;
 
@@ -17,6 +17,7 @@ pub struct ReplyArgs {
 pub async fn run(args: &ReplyArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let response = client.reply_to(&args.id, &unescape_body(&args.body)).await?;
     eprintln!("Reply posted");
+    session::mark_replied();
     println!("{}", response.id);
     Ok(())
 }
