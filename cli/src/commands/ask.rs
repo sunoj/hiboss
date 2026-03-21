@@ -109,11 +109,13 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
             }
             if let Some(body) = &reply.body {
                 println!("{}", body);
-                let id_short = &reply.id[..8.min(reply.id.len())];
-                eprintln!(
-                    "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
-                    id_short, id_short
-                );
+                if crate::session::should_show_ack_hint() {
+                    let id_short = &reply.id[..8.min(reply.id.len())];
+                    eprintln!(
+                        "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
+                        id_short, id_short
+                    );
+                }
                 return Ok(());
             }
         }

@@ -112,6 +112,21 @@ pub fn has_replied() -> bool {
     replied_marker_path().exists()
 }
 
+/// Marker file: tracks whether the ack hint has been shown this session.
+pub fn ack_hint_shown_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-ack-hint-{}", project_hash()))
+}
+
+/// Show ack hint only once per session; returns true if hint should be printed.
+pub fn should_show_ack_hint() -> bool {
+    let path = ack_hint_shown_path();
+    if path.exists() {
+        return false;
+    }
+    let _ = fs::write(&path, "1");
+    true
+}
+
 /// Check if the daemon is running by reading the PID file and testing the process.
 pub fn is_daemon_running() -> Option<u32> {
     let pid_str = fs::read_to_string(daemon_pid_path()).ok()?;
