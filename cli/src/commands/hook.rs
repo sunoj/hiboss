@@ -225,5 +225,6 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_file(session::urgent_file_path());
     let _ = fs::remove_file(session::asked_marker_path());
     let _ = fs::remove_file(session::replied_marker_path());
+    let _ = fs::remove_file(session::ack_hint_shown_path());
     Ok(())
 }
