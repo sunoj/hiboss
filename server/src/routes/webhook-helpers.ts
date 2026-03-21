@@ -140,7 +140,11 @@ export async function insertBossDiscordMessage(
   const routedAgentId = await evaluateRoutingRules(env, 'discord', text, agentRow.agent_id);
   if (routedAgentId) agentRow.agent_id = routedAgentId;
   if (bossInfo && !(await hasBossAccess(env, bossInfo.id, agentRow.agent_id, bossInfo.role))) return null;
-  const metadata = bossInfo ? { ...rawMetadata, boss_id: bossInfo.id, boss_name: bossInfo.name } : rawMetadata;
+  // Extract discord_message_id from raw Discord payload for reactions support
+  const discordMsgPayload = rawMetadata['discord_msg'] as Record<string, unknown> | undefined;
+  const discordMessageId = typeof discordMsgPayload?.['id'] === 'string' ? discordMsgPayload['id'] as string : undefined;
+  const baseMetadata = discordMessageId ? { ...rawMetadata, discord_message_id: discordMessageId } : rawMetadata;
+  const metadata = bossInfo ? { ...baseMetadata, boss_id: bossInfo.id, boss_name: bossInfo.name } : baseMetadata;
   // Precise reply linking: look up parent by discord_message_id in metadata
   let replyTo: string | null = null;
   if (replyToDiscordMsgId) {

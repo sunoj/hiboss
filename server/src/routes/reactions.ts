@@ -35,7 +35,9 @@ routes.post('/:id/react', async (c) => {
     return c.json({ ok: true });
   }
   if (message.channel === 'discord') {
-    const discordMsgId = typeof meta['discord_message_id'] === 'string' ? meta['discord_message_id'] : undefined;
+    const discordMsgId = typeof meta['discord_message_id'] === 'string' ? meta['discord_message_id']
+      : typeof (meta['discord_msg'] as Record<string, unknown> | undefined)?.['id'] === 'string' ? (meta['discord_msg'] as Record<string, unknown>)['id'] as string
+      : undefined;
     if (!discordMsgId) return c.text('no discord message id found', 400);
     const cc = await selectChannelConfig(c.env, agentId, 'discord');
     const dc = requireDiscordConfig(cc.config);
@@ -52,7 +54,9 @@ routes.get('/:id/reactions', async (c) => {
   if (!message) return c.text('not found', 404);
   const meta = parseMeta(message);
   if (message.channel === 'discord') {
-    const discordMsgId = typeof meta['discord_message_id'] === 'string' ? meta['discord_message_id'] : undefined;
+    const discordMsgId = typeof meta['discord_message_id'] === 'string' ? meta['discord_message_id']
+      : typeof (meta['discord_msg'] as Record<string, unknown> | undefined)?.['id'] === 'string' ? (meta['discord_msg'] as Record<string, unknown>)['id'] as string
+      : undefined;
     if (!discordMsgId) return c.json({ reactions: [] });
     const cc = await selectChannelConfig(c.env, agentId, 'discord');
     const dc = requireDiscordConfig(cc.config);
