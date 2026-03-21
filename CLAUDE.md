@@ -40,7 +40,7 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 - `cli/` — Rust CLI binary (clap for args, reqwest for HTTP, serde for JSON)
 - `server/` — Cloudflare Worker (Hono framework, D1 database)
 - `mcp/` — Claude Code channel plugin (MCP server, Bun, real-time SSE bridge)
-- `mcp-server/` — **Deprecated** (v0.13 MCP server, replaced by `mcp/`)
+- `mcp-server/` — Removed (was v0.13 MCP server, replaced by `mcp/`)
 
 ## Code Conventions
 
