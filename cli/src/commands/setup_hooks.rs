@@ -23,7 +23,7 @@ const GLOBAL_PROMPT: &str = r#"<!-- hiboss:begin -->
 ## hiboss — Boss Communication
 
 Use `hiboss` to communicate with your boss: `send "msg"`, `ask "question"`, `inbox`, `reply <id> "msg"`.
-When task is complete, NEVER just stop. Run `hiboss ask --options "A,B,C" "summary + options" --timeout 300` (background), wait for reply.
+When task is complete, NEVER just stop. Run `hiboss ask --options "A,B,C" "summary + options"` (background), wait for reply.
 <!-- hiboss:end -->"#;
 
 #[derive(Debug, Args)]
