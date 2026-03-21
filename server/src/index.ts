@@ -22,6 +22,7 @@ import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
 import dashboardHtml from './dashboard.html';
 import { handleScheduled } from './scheduled';
+import { discordGatewayRouter } from './routes/discord-gateway-api';
 
 const app = new Hono<{ Bindings: Env }>({});
 
@@ -40,6 +41,7 @@ app.route('/api/audit', auditRouter);
 app.route('/api/sessions', sessionsRouter);
 app.route('/api/join', joinRouter);
 app.route('/api/bootstrap', bootstrapRouter);
+app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
 
 app.get('/dashboard', (c) => c.html(dashboardHtml));
@@ -49,6 +51,8 @@ app.onError((err, c) => {
   console.error(err);
   return c.text('internal server error', 500);
 });
+
+export { DiscordGateway } from './discord-gateway';
 
 export default {
   fetch: app.fetch,

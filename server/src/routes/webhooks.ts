@@ -14,6 +14,7 @@ import {
   findEnabledChannelConfig,
   findMessageByIdempotencyKey,
   hasBossAccess,
+  insertBossDiscordMessage,
   mapMessage,
   resolveBossForChannel,
 } from './webhook-helpers';
@@ -38,43 +39,14 @@ router.post('/discord', async (c) => {
     asString(payload['content']) ??
     asString((payload['data'] as Record<string, unknown> | undefined)?.['content']);
   if (!channelId || !text) return c.text('missing channel or body', 400);
-  const agentRow = await findEnabledChannelConfig(c.env, 'discord', channelId);
-  if (!agentRow) return c.text('forbidden', 403);
-  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
-    c.env,
-    'discord',
-    asString((message?.['author'] as Record<string, unknown>)?.['id']),
-    false
-  );
-  if (bossError) return c.text(bossError, 403);
   const idempotencyKey = asString(message?.['id']) ?? asString(payload['id']);
-  if (idempotencyKey) {
-    const existing = await findMessageByIdempotencyKey(c.env, agentRow.agent_id, idempotencyKey);
-    if (existing) return c.json(mapMessage(existing), 200);
-  }
-  // Check routing rules: if a rule matches, override the target agent
-  const routedAgentId = await evaluateRoutingRules(c.env, 'discord', text, agentRow.agent_id);
-  if (routedAgentId) agentRow.agent_id = routedAgentId;
-  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, agentRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  const discordMetadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name } : payload;
-  // Auto-link to most recent pending blocking message for this agent
-  let replyTo: string | null = null;
-  const pending = await c.env.DB
-    .prepare(
-      "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
-    )
-    .bind(agentRow.agent_id)
-    .first<{ id: string }>();
-  if (pending) replyTo = pending.id;
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(discordMetadata))
-    .first<MessageRow>();
-  if (!inserted) return c.text('failed to persist', 500);
-  c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
-  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord'));
+  const senderUserId = asString((message?.['author'] as Record<string, unknown>)?.['id']);
+  const msgRef = message?.['message_reference'] as Record<string, unknown> | undefined;
+  const replyToDiscordMsgId = asString(msgRef?.['message_id']);
+  const inserted = await insertBossDiscordMessage(c.env, channelId, text, senderUserId, replyToDiscordMsgId, idempotencyKey, payload);
+  if (!inserted) return c.text('forbidden or failed', 403);
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, inserted.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, 'system', 'discord', 'message.send', 'message', inserted.id, 'discord'));
   return c.json(mapMessage(inserted), 201);
 });
 
