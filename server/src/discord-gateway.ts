@@ -50,8 +50,13 @@ export class DiscordGateway implements DurableObject {
       if (!token) return new Response('no bot_token available', { status: 400 });
       this.botToken = token;
       await this.state.storage.put('bot_token', token);
-      await this.connect();
-      return new Response(JSON.stringify({ status: 'connecting' }), { headers: { 'Content-Type': 'application/json' } });
+      try {
+        await this.connect();
+        return new Response(JSON.stringify({ status: 'connected' }), { headers: { 'Content-Type': 'application/json' } });
+      } catch (error) {
+        console.error('[discord-gw] connect failed:', error);
+        return new Response(JSON.stringify({ status: 'error', message: String(error) }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+      }
     }
     if (request.method === 'POST' && url.pathname === '/disconnect') {
       await this.disconnect();
@@ -59,7 +64,7 @@ export class DiscordGateway implements DurableObject {
     }
     if (request.method === 'GET' && url.pathname === '/status') {
       const sessionId = await this.state.storage.get<string>('session_id');
-      const connected = this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+      const connected = !!sessionId;
       return new Response(JSON.stringify({ connected, session_id: sessionId ?? null }), { headers: { 'Content-Type': 'application/json' } });
     }
     return new Response('not found', { status: 404 });
@@ -96,11 +101,20 @@ export class DiscordGateway implements DurableObject {
     }
     const resumeUrl = await this.state.storage.get<string>('resume_gateway_url');
     const url = resumeUrl ?? GATEWAY_URL;
-    const resp = await fetch(url, { headers: { Upgrade: 'websocket' } });
-    const ws = resp.webSocket;
-    if (!ws) throw new Error('WebSocket upgrade failed');
-    ws.accept();
+    const ws = new WebSocket(url);
     this.ws = ws;
+    // Set a short keepalive alarm to keep DO alive for HELLO/IDENTIFY/READY
+    await this.state.storage.setAlarm(Date.now() + 1000);
+    await this.state.storage.put('connecting', true);
+    console.log(`[discord-gw] opening WebSocket to ${url}`);
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => { reject(new Error('WebSocket open timeout')); }, 10000);
+      const onOpen = () => { clearTimeout(timeout); ws.removeEventListener('error', onError); console.log('[discord-gw] WebSocket opened'); resolve(); };
+      const onError = (e: Event) => { clearTimeout(timeout); ws.removeEventListener('open', onOpen); console.error('[discord-gw] WebSocket open error', e); reject(e); };
+      ws.addEventListener('open', onOpen, { once: true });
+      ws.addEventListener('error', onError, { once: true });
+    });
+    await this.state.storage.delete('connecting');
     ws.addEventListener('message', (event) => void this.onMessage(event));
     ws.addEventListener('close', () => void this.onClose());
     ws.addEventListener('error', (e) => console.error('[discord-gw] ws error', e));
@@ -120,8 +134,10 @@ export class DiscordGateway implements DurableObject {
   private async onMessage(event: MessageEvent): Promise<void> {
     let payload: GatewayPayload;
     try {
-      payload = JSON.parse(typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)) as GatewayPayload;
-    } catch { return; }
+      const raw = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer);
+      payload = JSON.parse(raw) as GatewayPayload;
+      console.log(`[discord-gw] recv op=${payload.op} t=${payload.t}`);
+    } catch (e) { console.error('[discord-gw] parse error', e); return; }
 
     if (payload.s !== null) {
       await this.state.storage.put('sequence', payload.s);
