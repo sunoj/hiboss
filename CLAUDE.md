@@ -27,7 +27,9 @@ Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionSt
 ## Architecture
 
 ```
-hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono)
+Claude Code ←stdio/MCP→ hiboss-mcp (local Bun, mcp/)
+                              ↕ SSE + REST
+hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, server/)
                                     ↕ D1 (messages)
                                     ↕ Channel Adapters (Discord, Telegram)
                                     ↕ Boss (human or AI)
@@ -37,6 +39,8 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono)
 
 - `cli/` — Rust CLI binary (clap for args, reqwest for HTTP, serde for JSON)
 - `server/` — Cloudflare Worker (Hono framework, D1 database)
+- `mcp/` — Claude Code channel plugin (MCP server, Bun, real-time SSE bridge)
+- `mcp-server/` — **Deprecated** (v0.13 MCP server, replaced by `mcp/`)
 
 ## Code Conventions
 
@@ -61,7 +65,7 @@ Detailed docs moved to `.aid/knowledge/`:
 - **API Reference** — all endpoints, request/response formats
 - **CLI Reference** — complete command reference with examples
 - **Message Delivery** — delivery architecture, channel resolution, hooks
-- **Roadmap History** — version history v0.1 through v1.2
+- **Roadmap History** — version history v0.1 through v1.3
 - **Architecture Decisions** — agent-as-boss, autonomy, multi-agent design
 
 <!-- aid:start -->

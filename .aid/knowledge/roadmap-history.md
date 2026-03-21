@@ -149,3 +149,42 @@ Comprehensive security audit and fixes across the server codebase.
 - Dual TTL caching: 30s for agent-to-agent, 300s for boss urgent checks
 - Direct HTTP client methods (`inbox_count`, `inbox_count_a2a`) replace subprocess spawning
 - HTTP client split: 30s timeout for normal requests, 120s for long-poll
+
+## v1.3.0 — Claude Code Channel Plugin (MCP)
+
+New local MCP server that runs as a Claude Code plugin/channel, replacing hook-based polling with real-time SSE-driven notifications. Inspired by Anthropic's official Telegram plugin pattern.
+
+### Architecture
+- `mcp/server.ts`: Single-file MCP server (292 lines, Bun runtime)
+- Bridges Claude Code ↔ hiboss server via SSE + REST API
+- Real-time delivery via `notifications/claude/channel` protocol
+- Replaces old `mcp-server/` (v0.13) which used `sendLoggingMessage` (logs, not channel)
+
+### MCP Tools (5)
+- `send`: Send messages to boss or peer agents
+- `ask`: Blocking question with options + poll for reply
+- `reply`: Reply to specific message by ID
+- `react`: Add emoji reaction to a message
+- `inbox`: List unread boss messages
+
+### Plugin Packaging
+- `.claude-plugin/plugin.json`: Plugin manifest for CC discovery
+- `.mcp.json`: Startup config (`bun start`)
+- `skills/configure/SKILL.md`: `/hiboss:configure` skill for credential management
+- Shares config with CLI (`~/.config/hiboss/config.json`)
+
+### Key Patterns
+- SSE reconnection with exponential backoff (1s → 30s)
+- Graceful shutdown on stdin EOF (CC process management)
+- Session registration + cleanup on exit
+- Messages marked as delivered after MCP notification
+- `experimental: { 'claude/channel': {} }` capability declaration
+
+### Supersedes
+- `mcp-server/` (v0.13): Deprecated. Old MCP used logging notifications, not channel protocol. New `mcp/` is lighter (1 file vs 7), needs no build step, and integrates as a proper CC channel plugin.
+- Hook-based integration (SessionStart/PostToolUse): Hooks become fallback. MCP channel provides real-time delivery without polling.
+
+### Migration Path
+1. Phase 1 (current): MCP server ships as standalone plugin
+2. Phase 2: CLI `setup hooks --plugin` installs MCP channel instead of hooks
+3. Phase 3: Plugin is the default; hooks are fallback for non-CC environments
