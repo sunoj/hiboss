@@ -1,0 +1,6 @@
+{
+  "name": "hiboss",
+  "description": "Boss communication channel for AI agents via hiboss server. Real-time messaging with send, ask, reply, react tools.",
+  "version": "1.3.0",
+  "source": "hiboss"
+}
