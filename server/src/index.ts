@@ -21,6 +21,7 @@ import { bossInboxRouter } from './routes/boss-inbox';
 import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
 import dashboardHtml from './dashboard.html';
+import { handleScheduled } from './scheduled';
 
 const app = new Hono<{ Bindings: Env }>({});
 
@@ -49,4 +50,9 @@ app.onError((err, c) => {
   return c.text('internal server error', 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(handleScheduled(env));
+  },
+};
