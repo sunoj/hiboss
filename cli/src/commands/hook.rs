@@ -197,6 +197,13 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_stop() -> Result<(), Box<dyn Error>> {
+    // Check if agent asked boss before stopping
+    if !session::has_asked() {
+        println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
+        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" --timeout 300");
+        println!("Do NOT stop until you have sent this message and received a reply or timeout.");
+    }
+
     // Mark session as completed on the server
     if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
         let _ = client.heartbeat_session(&sid, Some("completed"), Some("Session ended")).await;
@@ -212,5 +219,6 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_file(session::a2a_ttl_file_path());
     let _ = fs::remove_file(session::daemon_pending_path());
     let _ = fs::remove_file(session::urgent_file_path());
+    let _ = fs::remove_file(session::asked_marker_path());
     Ok(())
 }
