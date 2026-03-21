@@ -185,11 +185,27 @@ async function handleMessageComponent(
 }
 
 async function findDiscordAgent(env: Env, channelId: string): Promise<{ agent_id: string } | null> {
-  return env.DB
+  const direct = await env.DB
     .prepare(
       "SELECT agent_id FROM channel_configs WHERE channel = 'discord' AND json_extract(config, '$.channel_id') = ?"
     )
     .bind(channelId)
+    .first<{ agent_id: string }>();
+  if (direct) {
+    return direct;
+  }
+
+  const threadSession = await env.DB
+    .prepare('SELECT agent_id FROM sessions WHERE discord_thread_id = ? LIMIT 1')
+    .bind(channelId)
+    .first<{ agent_id: string }>();
+  if (!threadSession) {
+    return null;
+  }
+
+  return env.DB
+    .prepare("SELECT agent_id FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
+    .bind(threadSession.agent_id)
     .first<{ agent_id: string }>();
 }
 
