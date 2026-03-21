@@ -324,7 +324,61 @@ describe('PATCH /api/messages/:id', () => {
       body: JSON.stringify({ status: 'read' }),
     });
     expect(res.status).toBe(403);
-    expect(await res.text()).toContain('only message owner can update status');
+    expect(await res.text()).toContain('only message owner can update message');
+  });
+
+  it('updates message body', async () => {
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Original body' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Updated body' }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { body: string };
+    expect(data.body).toBe('Updated body');
+  });
+
+  it('updates both status and body', async () => {
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Original body' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ status: 'read', body: 'Updated body' }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { status: string, body: string };
+    expect(data.status).toBe('read');
+    expect(data.body).toBe('Updated body');
+  });
+
+  it('returns 400 when neither status nor body is provided', async () => {
+    const createRes = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'No update test' }),
+    });
+    const { id } = await createRes.json() as { id: string };
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('status or body is required');
   });
 
   it('rejects invalid status', async () => {

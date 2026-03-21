@@ -32,6 +32,7 @@ const TOOL_DEFS = [
   tool('reply', 'Reply to an existing hiboss message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
   tool('react', 'Add a reaction to a hiboss message.', { message_id: field('string'), emoji: field('string') }, ['message_id', 'emoji']),
   tool('inbox', 'List unread boss messages.', { unread: field('boolean'), limit: field('number') }),
+  tool('edit_message', 'Edit the body of a previously sent message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
 ];
 
 let state: { config: Config; session: Session; mcp: Server<Request, ClaudeChannelNotification>; stopping: boolean; shutdownTimer?: ReturnType<typeof setTimeout>; sseAbort?: AbortController } | null = null;
@@ -77,6 +78,7 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<Ca
   if (name === 'reply') return replyTool(args);
   if (name === 'react') return reactTool(args);
   if (name === 'inbox') return inboxTool(args);
+  if (name === 'edit_message') return editMessageTool(args);
   return fail(`Unknown tool: ${name}`);
 }
 
@@ -112,6 +114,12 @@ async function inboxTool(args: Record<string, unknown>): Promise<CallToolResult>
   const data = await api('GET', `/api/messages?unread=${unread}&direction=boss_to_agent&limit=${limit}`) as MessageList;
   const messages = data.messages ?? [];
   return ok(messages.length === 0 ? 'Inbox is empty.' : messages.map(formatMessage).join('\n\n'));
+}
+
+async function editMessageTool(args: Record<string, unknown>): Promise<CallToolResult> {
+  const id = str(args.message_id, 'message_id');
+  const message = await api('PATCH', `/api/messages/${encodeURIComponent(id)}`, { body: str(args.body, 'body') }) as Message;
+  return ok(`Updated ${message.id}.`);
 }
 
 async function sseLoop(): Promise<void> {
