@@ -64,6 +64,23 @@ pub fn has_asked() -> bool {
     asked_marker_path().exists()
 }
 
+/// Marker file: written by send/reply/react after an ask, checked by Stop hook.
+pub fn replied_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-replied-{}", project_hash()))
+}
+
+/// Record that agent sent a reply/reaction after asking.
+pub fn mark_replied() {
+    if has_asked() {
+        let _ = fs::write(replied_marker_path(), "1");
+    }
+}
+
+/// Check whether agent replied after asking.
+pub fn has_replied() -> bool {
+    replied_marker_path().exists()
+}
+
 /// Check if the daemon is running by reading the PID file and testing the process.
 pub fn is_daemon_running() -> Option<u32> {
     let pid_str = fs::read_to_string(daemon_pid_path()).ok()?;

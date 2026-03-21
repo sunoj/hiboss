@@ -76,6 +76,7 @@ pub async fn run(args: &SendArgs, _config: &Config, client: &HiBossClient) -> Re
     };
     let response = client.send_message(&request).await?;
     eprintln!("Message sent");
+    session::mark_replied();
     println!("{}", response.id);
     Ok(())
 }

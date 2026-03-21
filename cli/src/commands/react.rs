@@ -1,8 +1,8 @@
 // Purpose: Set a reaction emoji on a boss message (Telegram or Discord).
 // Exports: ReactArgs and run().
-// Dependencies: clap, crate::client, crate::config.
+// Dependencies: clap, crate::client, crate::config, crate::session.
 
-use crate::{client::HiBossClient, config::Config};
+use crate::{client::HiBossClient, config::Config, session};
 use clap::Args;
 use std::error::Error;
 
@@ -19,5 +19,6 @@ pub struct ReactArgs {
 pub async fn run(args: &ReactArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     client.react(&args.id, &args.emoji).await?;
     eprintln!("Reaction set");
+    session::mark_replied();
     Ok(())
 }
