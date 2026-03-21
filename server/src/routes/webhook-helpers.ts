@@ -115,12 +115,14 @@ export async function insertBossDiscordMessage(
   rawMetadata: Record<string, unknown>
 ): Promise<MessageRow | null> {
   let agentRow = await findEnabledChannelConfig(env, 'discord', channelId);
+  let sessionId: string | null = null;
   if (!agentRow) {
     const threadSession = await env.DB
       .prepare('SELECT s.agent_id, s.id AS session_id FROM sessions s WHERE s.discord_thread_id = ? LIMIT 1')
       .bind(channelId)
       .first<{ agent_id: string; session_id: string }>();
     if (threadSession) {
+      sessionId = threadSession.session_id;
       const cc = await env.DB
         .prepare("SELECT agent_id, config FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
         .bind(threadSession.agent_id)
@@ -130,9 +132,15 @@ export async function insertBossDiscordMessage(
       }
     }
   }
-  if (!agentRow) return null;
+  if (!agentRow) {
+    console.error('[webhook] discord message rejected: no agent found for channel', channelId);
+    return null;
+  }
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(env, 'discord', senderUserId, false);
-  if (bossError) return null;
+  if (bossError) {
+    console.error('[webhook] discord message rejected:', bossError);
+    return null;
+  }
   if (idempotencyKey) {
     const existing = await findMessageByIdempotencyKey(env, agentRow.agent_id, idempotencyKey);
     if (existing) return existing;
@@ -163,8 +171,8 @@ export async function insertBossDiscordMessage(
     if (pending) replyTo = pending.id;
   }
   const inserted = await env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata))
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId)
     .first<MessageRow>();
   return inserted ?? null;
 }
