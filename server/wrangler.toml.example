@@ -15,5 +15,14 @@ bucket_name = "hiboss-attachments"
 type = "Text"
 globs = ["**/*.html"]
 
+[durable_objects]
+bindings = [
+  { name = "DISCORD_GATEWAY", class_name = "DiscordGateway" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DiscordGateway"]
+
 [triggers]
 crons = ["*/5 * * * *"]

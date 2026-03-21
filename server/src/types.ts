@@ -9,6 +9,7 @@ export type Env = {
   ATTACHMENTS: R2Bucket;
   BOOTSTRAP_SECRET?: string;
   DISCORD_PUBLIC_KEY?: string;
+  DISCORD_GATEWAY?: DurableObjectNamespace;
 };
 
 export type Direction = 'agent_to_boss' | 'boss_to_agent' | 'agent_to_agent';

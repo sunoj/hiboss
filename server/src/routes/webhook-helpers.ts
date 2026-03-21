@@ -103,3 +103,49 @@ async function countBosses(env: Env): Promise<number> {
     .first<{ total: number }>();
   return row?.total ?? 0;
 }
+
+/** Shared logic: insert a boss → agent Discord message with precise reply linking. */
+export async function insertBossDiscordMessage(
+  env: Env,
+  channelId: string,
+  text: string,
+  senderUserId: string | undefined,
+  replyToDiscordMsgId: string | undefined,
+  idempotencyKey: string | undefined,
+  rawMetadata: Record<string, unknown>
+): Promise<MessageRow | null> {
+  const agentRow = await findEnabledChannelConfig(env, 'discord', channelId);
+  if (!agentRow) return null;
+  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(env, 'discord', senderUserId, false);
+  if (bossError) return null;
+  if (idempotencyKey) {
+    const existing = await findMessageByIdempotencyKey(env, agentRow.agent_id, idempotencyKey);
+    if (existing) return existing;
+  }
+  const routedAgentId = await evaluateRoutingRules(env, 'discord', text, agentRow.agent_id);
+  if (routedAgentId) agentRow.agent_id = routedAgentId;
+  if (bossInfo && !(await hasBossAccess(env, bossInfo.id, agentRow.agent_id, bossInfo.role))) return null;
+  const metadata = bossInfo ? { ...rawMetadata, boss_id: bossInfo.id, boss_name: bossInfo.name } : rawMetadata;
+  // Precise reply linking: look up parent by discord_message_id in metadata
+  let replyTo: string | null = null;
+  if (replyToDiscordMsgId) {
+    const parent = await env.DB
+      .prepare("SELECT id FROM messages WHERE agent_id = ? AND channel = 'discord' AND json_extract(metadata, '$.discord_message_id') = ? LIMIT 1")
+      .bind(agentRow.agent_id, replyToDiscordMsgId)
+      .first<{ id: string }>();
+    if (parent) replyTo = parent.id;
+  }
+  // Fallback: auto-link to most recent pending blocking message
+  if (!replyTo && !replyToDiscordMsgId) {
+    const pending = await env.DB
+      .prepare("SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1")
+      .bind(agentRow.agent_id)
+      .first<{ id: string }>();
+    if (pending) replyTo = pending.id;
+  }
+  const inserted = await env.DB
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata))
+    .first<MessageRow>();
+  return inserted ?? null;
+}
