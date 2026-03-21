@@ -22,6 +22,7 @@ interface SessionRow {
   cwd: string | null;
   status: SessionStatus;
   status_text: string | null;
+  discord_thread_id: string | null;
   started_at: string;
   last_seen_at: string;
 }

@@ -37,6 +37,7 @@ import {
   validateChannel,
   validateOption,
 } from './message-helpers';
+import { ensureThreadForSession } from './message-options';
 import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
@@ -206,11 +207,24 @@ routes.post('/', async (c) => {
     const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
     // Auto-create Telegram topics for agents with use_topics enabled
     await Promise.all(channelConfigs.map((cc) => ensureTopicForAgent(c.env, agentId, cc)));
+    await Promise.all(channelConfigs.map((cc) => ensureThreadForSession(c.env, agentId, sessionId, cc, undefined)));
     try {
       const results = await Promise.allSettled(
-        channelConfigs.map((cc) =>
-          deliverWithRetry(() => deliverToChannelWithOptions(cc.channel, cc.config, name, body, inlineKeyboard, fileUrl, agentConfig?.avatar_url ?? undefined))
-        )
+        channelConfigs.map(async (cc) => {
+          const effectiveConfig = { ...cc.config };
+          if (cc.channel === 'discord' && sessionId && cc.config['use_threads']) {
+            const sess = await c.env.DB
+              .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
+              .bind(sessionId)
+              .first<{ discord_thread_id: string | null }>();
+            if (sess?.discord_thread_id) {
+              effectiveConfig['channel_id'] = sess.discord_thread_id;
+            }
+          }
+          return deliverWithRetry(
+            () => deliverToChannelWithOptions(cc.channel, effectiveConfig, name, body, inlineKeyboard, fileUrl, agentConfig?.avatar_url ?? undefined)
+          );
+        })
       );
       const deliveryResults = results.map((r, i) => ({
         channel: channelConfigs[i].channel,
@@ -230,6 +244,14 @@ routes.post('/', async (c) => {
         const dcResult = deliveryResults.find((d) => d.discordMessageId);
         if (dcResult?.discordMessageId) {
           meta['discord_message_id'] = dcResult.discordMessageId;
+        }
+        if (dcResult?.discordMessageId && sessionId) {
+          const dcCC = channelConfigs.find((cc) => cc.channel === 'discord');
+          if (dcCC?.config['use_threads']) {
+            c.executionCtx.waitUntil(
+              ensureThreadForSession(c.env, agentId, sessionId, dcCC, dcResult.discordMessageId)
+            );
+          }
         }
         if (isUrgent && channelConfigs.length > 1) {
           meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
