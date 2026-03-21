@@ -48,6 +48,25 @@ export async function getDiscordReactions(botToken: string, channelId: string, m
   return reactions.map((r) => ({ emoji: r.emoji.name, count: r.count }));
 }
 
+export async function createDiscordThread(botToken: string, channelId: string, messageId: string, name: string): Promise<string> {
+  const response = await fetch(
+    `https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/threads`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.slice(0, 100), auto_archive_duration: 1440 }),
+    }
+  );
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`discord thread creation failed ${response.status} ${body}`);
+  }
+  const result = await response.json() as Record<string, unknown>;
+  const threadId = result['id'];
+  if (typeof threadId !== 'string') throw new Error('discord thread creation returned no id');
+  return threadId;
+}
+
 async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {
   const payload: Record<string, unknown> = { content };
   if (options?.username) payload.username = options.username;

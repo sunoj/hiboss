@@ -144,12 +144,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   cwd TEXT,
   status TEXT NOT NULL DEFAULT 'working' CHECK (status IN ('working', 'blocked', 'waiting', 'idle', 'completed')),
   status_text TEXT,
+  discord_thread_id TEXT,
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sessions_discord_thread ON sessions(discord_thread_id) WHERE discord_thread_id IS NOT NULL;
 
 -- Join requests: device onboarding
 CREATE TABLE IF NOT EXISTS join_requests (
