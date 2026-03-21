@@ -188,3 +188,23 @@ New local MCP server that runs as a Claude Code plugin/channel, replacing hook-b
 1. Phase 1 (current): MCP server ships as standalone plugin
 2. Phase 2: CLI `setup hooks --plugin` installs MCP channel instead of hooks
 3. Phase 3: Plugin is the default; hooks are fallback for non-CC environments
+
+## v1.4.0 — Discord Session Threads & Reply Acknowledgment
+
+### Discord Per-Session Thread Isolation
+- Each agent session automatically creates a Discord thread on first message
+- Thread name derived from session label/branch (e.g. `hiboss/main`)
+- Subsequent messages from the same session route to its thread
+- Boss replies within a thread route back to the correct agent+session
+- Enable with `use_threads: true` in Discord channel config
+- New `createDiscordThread()` in discord adapter
+- `ensureThreadForSession()` mirrors Telegram's `ensureTopicForAgent()` pattern
+- Inbound routing: Gateway DO + webhook-helpers resolve thread channel_id → session
+- Migration 0020: `discord_thread_id` column + index on sessions table
+
+### Reply Acknowledgment Enforcement (CLI)
+- `hiboss ask` now outputs reply message ID + stderr reminder after receiving boss reply
+- SessionStart hook injects rule: "acknowledge boss replies via hiboss, not conversation text"
+- Stop hook detects unacknowledged replies (STOP VIOLATION if `has_asked()` but not `has_replied()`)
+- `send`, `reply`, `react` commands set `mark_replied()` marker
+- New session markers: `replied_marker_path()`, `mark_replied()`, `has_replied()`

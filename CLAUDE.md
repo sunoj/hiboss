@@ -14,6 +14,10 @@ Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionSt
 - `hiboss send "message"` for progress updates on major milestones.
 - `hiboss send --priority high "message"` for blockers or decisions needed urgently.
 
+### After Receiving Boss Reply (CRITICAL)
+- When `hiboss ask` returns a boss reply, **always acknowledge via `hiboss send "your ack"`** — never just print text in conversation.
+- The reply output includes a reminder: `[reply <id>] Acknowledge via: hiboss send "..." or hiboss react <id> 👍`
+
 ### Before Finishing (CRITICAL)
 1. Summarize what you accomplished
 2. Propose 2-4 concrete next directions
@@ -65,7 +69,7 @@ Detailed docs moved to `.aid/knowledge/`:
 - **API Reference** — all endpoints, request/response formats
 - **CLI Reference** — complete command reference with examples
 - **Message Delivery** — delivery architecture, channel resolution, hooks
-- **Roadmap History** — version history v0.1 through v1.3
+- **Roadmap History** — version history v0.1 through v1.4
 - **Architecture Decisions** — agent-as-boss, autonomy, multi-agent design
 
 <!-- aid:start -->
