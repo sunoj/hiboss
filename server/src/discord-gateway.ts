@@ -106,11 +106,10 @@ export class DiscordGateway implements DurableObject {
     // Set a short keepalive alarm to keep DO alive for HELLO/IDENTIFY/READY
     await this.state.storage.setAlarm(Date.now() + 1000);
     await this.state.storage.put('connecting', true);
-    console.log(`[discord-gw] opening WebSocket to ${url}`);
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => { reject(new Error('WebSocket open timeout')); }, 10000);
-      const onOpen = () => { clearTimeout(timeout); ws.removeEventListener('error', onError); console.log('[discord-gw] WebSocket opened'); resolve(); };
-      const onError = (e: Event) => { clearTimeout(timeout); ws.removeEventListener('open', onOpen); console.error('[discord-gw] WebSocket open error', e); reject(e); };
+      const onOpen = () => { clearTimeout(timeout); ws.removeEventListener('error', onError); resolve(); };
+      const onError = (e: Event) => { clearTimeout(timeout); ws.removeEventListener('open', onOpen); reject(e); };
       ws.addEventListener('open', onOpen, { once: true });
       ws.addEventListener('error', onError, { once: true });
     });
@@ -134,10 +133,8 @@ export class DiscordGateway implements DurableObject {
   private async onMessage(event: MessageEvent): Promise<void> {
     let payload: GatewayPayload;
     try {
-      const raw = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer);
-      payload = JSON.parse(raw) as GatewayPayload;
-      console.log(`[discord-gw] recv op=${payload.op} t=${payload.t}`);
-    } catch (e) { console.error('[discord-gw] parse error', e); return; }
+      payload = JSON.parse(typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer)) as GatewayPayload;
+    } catch { return; }
 
     if (payload.s !== null) {
       await this.state.storage.put('sequence', payload.s);
@@ -154,14 +151,12 @@ export class DiscordGateway implements DurableObject {
         this.ackReceived = true;
         break;
       case 7: // RECONNECT
-        console.log('[discord-gw] reconnect requested');
-        this.ws?.close(4000, 'reconnect');
+          this.ws?.close(4000, 'reconnect');
         this.ws = null;
         await this.connect();
         break;
       case 9: { // INVALID_SESSION
         const resumable = payload.d as boolean;
-        console.log(`[discord-gw] invalid session, resumable=${resumable}`);
         if (!resumable) {
           await this.state.storage.delete('session_id');
           await this.state.storage.delete('sequence');
@@ -199,7 +194,6 @@ export class DiscordGateway implements DurableObject {
       const ready = data as ReadyData;
       await this.state.storage.put('session_id', ready.session_id);
       await this.state.storage.put('resume_gateway_url', ready.resume_gateway_url);
-      console.log(`[discord-gw] connected, session=${ready.session_id}`);
     } else if (eventName === 'MESSAGE_CREATE') {
       await this.handleMessageCreate(data as MessageCreateData);
     }
