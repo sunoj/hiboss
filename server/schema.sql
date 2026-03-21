@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS messages (
   metadata TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT,
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
 
@@ -46,6 +47,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_idempotency ON messages(agent_id,
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id) WHERE session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id) WHERE target_agent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_target_session ON messages(target_session_id) WHERE target_session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_expires_at ON messages(expires_at) WHERE expires_at IS NOT NULL;
 
 -- Channel configurations (per agent)
 CREATE TABLE IF NOT EXISTS channel_configs (

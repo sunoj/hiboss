@@ -14,3 +14,6 @@ bucket_name = "hiboss-attachments"
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
+
+[triggers]
+crons = ["*/5 * * * *"]
