@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "hiboss": {
+      "command": "bun",
+      "args": ["start"],
+      "cwd": "${pluginRoot}"
+    }
+  }
+}
