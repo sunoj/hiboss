@@ -1,18 +1,49 @@
 // Purpose: Read/write per-project session IDs for message isolation.
 // Exports: session_file_path, read_session_id, write_session_id, project_hash.
-// Dependencies: std::fs, std::env, sha2 (via simple hash).
+// Dependencies: std::fs, std::env, std::sync::OnceLock.
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
-/// Derive a short project hash from cwd for per-project session files.
-pub fn project_hash() -> String {
-    let cwd = std::env::current_dir()
+/// Cached project directory — resolved once per process via env var, git root, or cwd.
+static PROJECT_DIR: OnceLock<String> = OnceLock::new();
+
+fn resolve_project_dir() -> String {
+    // 1. Env var override (set by hiboss setup hooks for reliable hook context)
+    if let Ok(dir) = std::env::var("HIBOSS_PROJECT_DIR") {
+        if !dir.is_empty() {
+            return dir;
+        }
+    }
+    // 2. Git repo root (deterministic regardless of subdirectory)
+    if let Ok(output) = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+    {
+        if output.status.success() {
+            let root = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !root.is_empty() {
+                return root;
+            }
+        }
+    }
+    // 3. Fall back to cwd
+    std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default();
-    // Simple FNV-1a hash → 16 hex chars
+        .unwrap_or_default()
+}
+
+/// Derive a short project hash for per-project session files.
+/// Uses git root (cached) for deterministic results regardless of cwd.
+pub fn project_hash() -> String {
+    let dir = PROJECT_DIR.get_or_init(resolve_project_dir);
+    fnv1a_hash(dir)
+}
+
+fn fnv1a_hash(s: &str) -> String {
     let mut h: u64 = 0xcbf29ce484222325;
-    for b in cwd.as_bytes() {
+    for b in s.as_bytes() {
         h ^= *b as u64;
         h = h.wrapping_mul(0x100000001b3);
     }
