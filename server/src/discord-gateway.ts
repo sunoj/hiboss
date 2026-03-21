@@ -7,7 +7,7 @@ import { insertBossDiscordMessage } from './routes/webhook-helpers';
 import { notifyAgentCallback } from './notify';
 
 const GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
-const INTENTS = (1 << 9) | (1 << 15); // GUILD_MESSAGES + MESSAGE_CONTENT
+const INTENTS = (1 << 0) | (1 << 9) | (1 << 15); // GUILDS + GUILD_MESSAGES + MESSAGE_CONTENT
 
 interface GatewayPayload {
   op: number;
@@ -101,6 +101,7 @@ export class DiscordGateway implements DurableObject {
     }
     const resumeUrl = await this.state.storage.get<string>('resume_gateway_url');
     const url = resumeUrl ?? GATEWAY_URL;
+    console.log(`[discord-gw] connecting to ${url === GATEWAY_URL ? 'gateway' : 'resume-url'}`);
     const ws = new WebSocket(url);
     this.ws = ws;
     // Set a short keepalive alarm to keep DO alive for HELLO/IDENTIFY/READY
@@ -115,7 +116,7 @@ export class DiscordGateway implements DurableObject {
     });
     await this.state.storage.delete('connecting');
     ws.addEventListener('message', (event) => void this.onMessage(event));
-    ws.addEventListener('close', () => void this.onClose());
+    ws.addEventListener('close', (e) => void this.onClose(e));
     ws.addEventListener('error', (e) => console.error('[discord-gw] ws error', e));
   }
 
@@ -194,8 +195,13 @@ export class DiscordGateway implements DurableObject {
       const ready = data as ReadyData;
       await this.state.storage.put('session_id', ready.session_id);
       await this.state.storage.put('resume_gateway_url', ready.resume_gateway_url);
+      console.log('[discord-gw] READY received');
     } else if (eventName === 'MESSAGE_CREATE') {
-      await this.handleMessageCreate(data as MessageCreateData);
+      const msg = data as MessageCreateData;
+      console.log(`[discord-gw] MESSAGE_CREATE channel=${msg.channel_id} author=${msg.author.id} bot=${msg.author.bot ?? false} content=${(msg.content ?? '').slice(0, 50)}`);
+      await this.handleMessageCreate(msg);
+    } else if (eventName) {
+      console.log(`[discord-gw] dispatch: ${eventName}`);
     }
   }
 
@@ -216,9 +222,9 @@ export class DiscordGateway implements DurableObject {
     }
   }
 
-  private async onClose(): Promise<void> {
+  private async onClose(event?: CloseEvent): Promise<void> {
     this.ws = null;
-    console.log('[discord-gw] connection closed');
+    console.log(`[discord-gw] connection closed code=${event?.code} reason=${event?.reason}`);
     // Schedule reconnect via alarm
     if (this.heartbeatInterval > 0) {
       await this.state.storage.setAlarm(Date.now() + 5000);
