@@ -13,11 +13,12 @@ workflows where a human can still step in at any time.
 ## Architecture
 
 ```
-                         +---------------------+
-  hiboss CLI (Rust)      |  hiboss-server      |     Discord / Telegram
-  hiboss MCP Server  <-->|  (Cloudflare Worker) |<--->  Boss (human or AI)
-                         |  D1 + R2 storage    |
-                         +---------------------+
+                              +---------------------+
+  Claude Code <--MCP--> mcp/ |                     |
+                              |  hiboss-server      |     Discord / Telegram
+  hiboss CLI (Rust)  <--HTTP->|  (Cloudflare Worker) |<--->  Boss (human or AI)
+                              |  D1 + R2 storage    |
+                              +---------------------+
 ```
 
 The server runs on Cloudflare Workers with D1 for persistence and R2 for file
@@ -29,7 +30,8 @@ route through whichever you choose.
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (for the CLI)
-- [Node.js](https://nodejs.org/) >= 18 (for the server and MCP server)
+- [Node.js](https://nodejs.org/) >= 18 (for the server)
+- [Bun](https://bun.sh/) (for the MCP channel plugin, optional)
 - A [Cloudflare](https://dash.cloudflare.com/) account with Workers, D1, and R2 enabled
 
 ### 1. Deploy the server
@@ -166,14 +168,27 @@ Each Claude Code session gets a unique session ID. Messages are scoped per sessi
 
 ### Claude Code Integration
 
+**MCP Channel Plugin (recommended)** -- real-time message delivery via the Model Context Protocol:
+
+```bash
+claude --channels plugin:hiboss    # launch with hiboss channel
+/hiboss:configure <server_url> <api_key>  # one-time setup
+```
+
+The MCP plugin connects via SSE for instant message delivery. Messages appear as
+native `<channel>` notifications, and Claude uses MCP tools (send, ask, reply,
+react, inbox) directly -- no shell commands needed.
+
+**Hook-based (fallback)** -- for environments without MCP plugin support:
+
 ```bash
 hiboss setup hooks           # install SessionStart + PostToolUse hooks
 hiboss setup hooks --global  # install for all projects
 hiboss doctor                # validate config, connectivity, channel routing
 ```
 
-The hooks inject unread messages at session start and check for urgent messages
-every 5 minutes during work.
+Hooks inject unread messages at session start and poll for urgent messages
+during work.
 
 ### Discord Bidirectional
 
@@ -185,25 +200,33 @@ hiboss channel discord-setup --app-id <id> --bot-token <token>  # register /msg 
 
 Boss uses `/msg <message>` in Discord to send messages to agents.
 
-## MCP Server
+## MCP Channel Plugin
 
-The MCP server lets AI coding tools (Claude Code, Cursor, etc.) communicate with the
-boss directly through the Model Context Protocol.
+The MCP plugin runs as a local Bun process that bridges Claude Code to the hiboss
+server via SSE streaming. It provides real-time message delivery and native MCP tools.
+
+**Tools:** `send`, `ask`, `reply`, `react`, `inbox`
+
+**Setup (manual):**
 
 ```json
 {
   "mcpServers": {
     "hiboss": {
-      "command": "node",
-      "args": ["/path/to/hiboss/mcp-server/dist/index.js"],
+      "command": "bun",
+      "args": ["start"],
+      "cwd": "/path/to/hiboss/mcp",
       "env": {
-        "HIBOSS_SERVER": "https://hiboss-server.<you>.workers.dev",
-        "HIBOSS_KEY": "hb_your_api_key"
+        "HIBOSS_SERVER_URL": "https://hiboss-server.<you>.workers.dev",
+        "HIBOSS_API_KEY": "hb_your_api_key"
       }
     }
   }
 }
 ```
+
+Or configure via the shared config file (`~/.config/hiboss/config.json`) used by both
+the CLI and MCP plugin.
 
 ## Security & Performance
 
@@ -226,7 +249,7 @@ No external services, no telemetry, no third-party dependencies beyond Cloudflar
 ```
 cli/           Rust CLI binary (clap, reqwest, tokio)
 server/        Cloudflare Worker (Hono, D1, R2)
-mcp-server/    MCP server for AI coding tools (TypeScript)
+mcp/           Claude Code channel plugin (Bun, MCP, SSE bridge)
 ```
 
 ## License

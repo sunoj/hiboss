@@ -1,60 +1,72 @@
--- hiboss D1 database schema
+-- hiboss D1 database schema (consolidated from migrations 0001-0018)
+-- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- API keys for agent authentication
 CREATE TABLE IF NOT EXISTS api_keys (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  name TEXT NOT NULL,           -- human-readable name for this agent
-  key_hash TEXT NOT NULL UNIQUE,-- SHA-256 hash of the API key
-  callback_url TEXT,            -- webhook URL for push notifications
+  name TEXT NOT NULL,
+  key_hash TEXT NOT NULL UNIQUE,
+  callback_url TEXT,
   default_priority TEXT NOT NULL DEFAULT 'normal' CHECK (default_priority IN ('critical', 'high', 'normal', 'low')),
-  rate_limit INTEGER,           -- max messages per minute, NULL = unlimited
+  rate_limit INTEGER,
+  channel_routing TEXT,
+  avatar_url TEXT,
+  role TEXT,
+  session_info TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_used_at TEXT
 );
 
--- Messages between agents and bosses
+-- Messages between agents, bosses, and peer agents
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  agent_id TEXT NOT NULL,       -- which agent sent/receives this
-  direction TEXT NOT NULL CHECK (direction IN ('agent_to_boss', 'boss_to_agent')),
+  agent_id TEXT NOT NULL,
+  direction TEXT NOT NULL CHECK (direction IN ('agent_to_boss', 'boss_to_agent', 'agent_to_agent')),
   mode TEXT NOT NULL CHECK (mode IN ('async', 'blocking')),
-  channel TEXT CHECK (channel IN ('discord', 'telegram', 'email')),
+  channel TEXT CHECK (channel IN ('discord', 'telegram', 'email', 'api')),
   body TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read', 'replied')),
-  reply_to TEXT REFERENCES messages(id),  -- if this is a reply, points to original
+  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read', 'replied', 'expired')),
+  reply_to TEXT REFERENCES messages(id),
   priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('critical', 'high', 'normal', 'low')),
-  idempotency_key TEXT,        -- client-provided key for dedup
-  metadata TEXT,                -- JSON blob for extra data
+  type TEXT DEFAULT 'text',
+  target_agent_id TEXT,
+  target_session_id TEXT,
+  session_id TEXT,
+  idempotency_key TEXT,
+  metadata TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_messages_agent ON messages(agent_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(agent_id, direction, status);
+CREATE INDEX IF NOT EXISTS idx_messages_reply ON messages(reply_to);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_idempotency ON messages(agent_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id) WHERE session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id) WHERE target_agent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_target_session ON messages(target_session_id) WHERE target_session_id IS NOT NULL;
 
 -- Channel configurations (per agent)
 CREATE TABLE IF NOT EXISTS channel_configs (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   agent_id TEXT NOT NULL,
   channel TEXT NOT NULL CHECK (channel IN ('discord', 'telegram', 'email')),
-  config TEXT NOT NULL,         -- JSON: { webhook_url, chat_id, email, etc. }
+  config TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (agent_id) REFERENCES api_keys(id),
   UNIQUE(agent_id, channel)
 );
 
--- Indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_messages_agent ON messages(agent_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(agent_id, direction, status);
-CREATE INDEX IF NOT EXISTS idx_messages_reply ON messages(reply_to);
-
--- Routing rules: keyword/regex patterns route incoming boss messages to agents
+-- Routing rules: regex patterns route incoming boss messages to agents
 CREATE TABLE IF NOT EXISTS routing_rules (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  owner_id TEXT NOT NULL,          -- boss (api_key id) who owns this rule
+  owner_id TEXT NOT NULL,
   channel TEXT NOT NULL CHECK (channel IN ('discord', 'telegram', 'email')),
-  pattern TEXT NOT NULL,           -- regex pattern to match message body
-  target_agent_id TEXT NOT NULL,   -- agent to route matching messages to
-  priority INTEGER NOT NULL DEFAULT 0, -- higher = evaluated first
+  pattern TEXT NOT NULL,
+  target_agent_id TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 0,
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (owner_id) REFERENCES api_keys(id),
@@ -63,15 +75,15 @@ CREATE TABLE IF NOT EXISTS routing_rules (
 
 CREATE INDEX IF NOT EXISTS idx_routing_rules_channel ON routing_rules(channel, enabled, priority DESC);
 
--- Agent groups: named groups for broadcast messaging
+-- Agent groups for broadcast messaging
 CREATE TABLE IF NOT EXISTS agent_groups (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL UNIQUE,
   description TEXT,
+  owner_id TEXT REFERENCES api_keys(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Agent group membership
 CREATE TABLE IF NOT EXISTS agent_group_members (
   group_id TEXT NOT NULL,
   agent_id TEXT NOT NULL,
@@ -80,3 +92,74 @@ CREATE TABLE IF NOT EXISTS agent_group_members (
   FOREIGN KEY (group_id) REFERENCES agent_groups(id) ON DELETE CASCADE,
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
+
+-- Boss management
+CREATE TABLE IF NOT EXISTS bosses (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'manager', 'viewer')),
+  telegram_user_id TEXT,
+  discord_user_id TEXT,
+  agent_id TEXT REFERENCES api_keys(id),
+  token_hash TEXT,
+  preferences TEXT DEFAULT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id) WHERE telegram_user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_discord ON bosses(discord_user_id) WHERE discord_user_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_token ON bosses(token_hash) WHERE token_hash IS NOT NULL;
+
+-- Boss-agent access control
+CREATE TABLE IF NOT EXISTS boss_agent_access (
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL REFERENCES api_keys(id),
+  PRIMARY KEY (boss_id, agent_id)
+);
+
+-- Audit log
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  actor_type TEXT NOT NULL CHECK (actor_type IN ('boss', 'agent', 'system')),
+  actor_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  resource_type TEXT,
+  resource_id TEXT,
+  details TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_type, actor_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action, created_at DESC);
+
+-- Sessions: ephemeral workspace registrations
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  label TEXT,
+  branch TEXT,
+  cwd TEXT,
+  status TEXT NOT NULL DEFAULT 'working' CHECK (status IN ('working', 'blocked', 'waiting', 'idle', 'completed')),
+  status_text TEXT,
+  started_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (agent_id) REFERENCES api_keys(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_id, last_seen_at DESC);
+
+-- Join requests: device onboarding
+CREATE TABLE IF NOT EXISTS join_requests (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  name TEXT NOT NULL,
+  poll_token TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  api_key_id TEXT REFERENCES api_keys(id),
+  api_key TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_join_requests_token ON join_requests(poll_token);
+CREATE INDEX IF NOT EXISTS idx_join_requests_status ON join_requests(status, created_at DESC);
