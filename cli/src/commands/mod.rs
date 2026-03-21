@@ -19,6 +19,7 @@ pub mod send;
 pub mod ss;
 pub mod status;
 pub mod hook;
+pub(crate) mod hook_helpers;
 pub mod setup;
 pub mod setup_hooks;
 pub mod watch;

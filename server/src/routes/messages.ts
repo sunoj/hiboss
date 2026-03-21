@@ -374,27 +374,45 @@ routes.post('/:id/reply', async (c) => {
 routes.patch('/:id', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
+  const body = typeof payload.body === 'string' ? payload.body.trim() : undefined;
   const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read', 'replied', 'expired']);
-  if (!status) {
-    return c.text('status is required', 400);
+  if (!status && !body) {
+    return c.text('status or body is required', 400);
   }
   const existing = await fetchMessageRow(c.env, agentId, c.req.param('id'));
   if (!existing) {
     return c.text('not found', 404);
   }
   if (existing.agent_id !== agentId) {
-    return c.text('only message owner can update status', 403);
+    return c.text('only message owner can update message', 403);
   }
-  const allowed = VALID_TRANSITIONS[existing.status];
-  if (!allowed || !allowed.includes(status)) {
-    return c.text(`invalid status transition from ${existing.status} to ${status}`, 400);
+
+  const updates: string[] = ["updated_at = datetime('now')"];
+  const binds: unknown[] = [];
+
+  if (status) {
+    const allowed = VALID_TRANSITIONS[existing.status];
+    if (!allowed || !allowed.includes(status)) {
+      return c.text(`invalid status transition from ${existing.status} to ${status}`, 400);
+    }
+    updates.push('status = ?');
+    binds.push(status);
   }
+
+  if (body) {
+    updates.push('body = ?');
+    binds.push(body);
+  }
+
+  binds.push(existing.id);
+
   const updated = await c.env.DB
     .prepare(
-      'UPDATE messages SET status = ?, updated_at = datetime(\'now\') WHERE id = ? RETURNING *'
+      `UPDATE messages SET ${updates.join(', ')} WHERE id = ? RETURNING *`
     )
-    .bind(status, existing.id)
+    .bind(...binds)
     .first<MessageRow>();
+
   if (!updated) {
     return c.text('update failed', 500);
   }
