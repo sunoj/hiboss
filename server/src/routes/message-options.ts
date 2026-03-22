@@ -120,6 +120,7 @@ export async function ensureThreadForSession(
   sessionId: string | null,
   channelConfig: { channel: Channel; config: Record<string, unknown> },
   discordMessageId: string | undefined,
+  messageBody?: string,
 ): Promise<string | undefined> {
   if (channelConfig.channel !== 'discord') return undefined;
   const cfg = channelConfig.config;
@@ -137,12 +138,16 @@ export async function ensureThreadForSession(
   const channelId = cfg['channel_id'] as string | undefined;
   if (!botToken || !channelId) return undefined;
 
-  const agentName = await fetchAgentName(env, agentId) ?? 'agent';
   const sessionRow = await env.DB
     .prepare('SELECT label, branch FROM sessions WHERE id = ?')
     .bind(sessionId)
     .first<{ label: string | null; branch: string | null }>();
-  const threadName = sessionRow?.label ?? sessionRow?.branch ?? `${agentName}-session`;
+  // Thread title: "repo/branch: first message summary" (max 100 chars for Discord)
+  const prefix = sessionRow?.label ?? sessionRow?.branch;
+  const summary = messageBody ? messageBody.split('\n')[0].slice(0, 60) : undefined;
+  const threadName = prefix && summary
+    ? `${prefix}: ${summary}`.slice(0, 100)
+    : prefix ?? summary ?? `${await fetchAgentName(env, agentId) ?? 'agent'}-session`;
 
   try {
     const threadId = await createDiscordThread(botToken, channelId, discordMessageId, threadName);

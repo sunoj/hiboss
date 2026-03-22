@@ -67,6 +67,25 @@ pub(crate) fn get_git_branch() -> Option<String> {
         })
 }
 
+/// Get repo name from git remote origin URL, falling back to directory name.
+pub(crate) fn get_repo_name() -> Option<String> {
+    // Try git remote origin URL first (e.g. git@github.com:user/repo.git -> repo)
+    if let Some(name) = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .output()
+        .ok()
+        .and_then(|o| if o.status.success() { Some(String::from_utf8_lossy(&o.stdout).trim().to_owned()) } else { None })
+        .and_then(|url| {
+            let s = url.trim_end_matches(".git");
+            s.rsplit('/').next().map(|n| n.to_owned())
+        })
+    {
+        if !name.is_empty() { return Some(name); }
+    }
+    // Fall back to cwd directory name
+    std::env::current_dir().ok().and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+}
+
 /// Show active peer sessions for cross-session collaboration.
 pub(crate) async fn show_peer_sessions(my_session_id: &str) {
     let client = match build_client() {
