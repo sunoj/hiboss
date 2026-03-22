@@ -1,0 +1,138 @@
+# P2 tech debt: edit_message MCP tool + split hook.rs
+
+[[tasks]]
+name = "edit-message-tool"
+agent = "gemini"
+worktree = "feat/edit-message-tool"
+prompt = """
+Add an `edit_message` MCP tool to let agents update the body of messages they sent.
+
+## Step 1: Server — extend PATCH /api/messages/:id
+
+File: server/src/routes/messages.ts (around line 374)
+
+The existing PATCH handler only accepts `status`. Extend it to also accept an optional `body` field:
+
+```typescript
+routes.patch('/:id', async (c) => {
+  const agentId = getAgentId(c);
+  const payload = await c.req.json<Record<string, unknown>>();
+  const body = typeof payload.body === 'string' ? payload.body.trim() : undefined;
+  const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read', 'replied', 'expired']);
+  if (!status && !body) {
+    return c.text('status or body is required', 400);
+  }
+  // ... existing fetch + ownership check ...
+  // Build dynamic update
+  const updates: string[] = ["updated_at = datetime('now')"];
+  const binds: unknown[] = [];
+  if (status) {
+    // existing status transition validation
+    const allowed = VALID_TRANSITIONS[existing.status];
+    if (!allowed || !allowed.includes(status)) {
+      return c.text(`invalid status transition`, 400);
+    }
+    updates.push('status = ?');
+    binds.push(status);
+  }
+  if (body) {
+    updates.push('body = ?');
+    binds.push(body);
+  }
+  binds.push(existing.id);
+  // ... execute update + return ...
+});
+```
+
+Key rules:
+- body edit is only allowed if `existing.agent_id === agentId` (already checked)
+- body must be non-empty string
+- status and body can be updated together or separately
+- Keep existing status transition validation
+
+## Step 2: Server test
+
+Add a test in server/src/routes/messages.test.ts for the new body edit:
+1. PATCH /:id with `{ body: "updated text" }` returns 200 with updated body
+2. PATCH /:id with `{}` (no status, no body) returns 400
+3. PATCH /:id with both `{ status: "read", body: "new" }` works
+
+## Step 3: MCP — add edit_message tool
+
+File: mcp/server.ts
+
+1. Add tool definition after existing tools (around line 34):
+```typescript
+tool('edit_message', 'Edit the body of a previously sent message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
+```
+
+2. Add handler in callTool (around line 80):
+```typescript
+if (name === 'edit_message') return editMessageTool(args);
+```
+
+3. Add implementation:
+```typescript
+async function editMessageTool(args: Record<string, unknown>): Promise<CallToolResult> {
+  const id = str(args.message_id, 'message_id');
+  const message = await api('PATCH', `/api/messages/${encodeURIComponent(id)}`, { body: str(args.body, 'body') }) as Message;
+  return ok(`Updated ${message.id}.`);
+}
+```
+
+## Rules
+- Follow existing code patterns exactly
+- Do NOT change any existing function signatures
+- Server file ≤ 300 lines (it's currently 435 — don't make it larger, the new code replaces existing code)
+- MCP file ≤ 300 lines (currently 292 — adds ~8 lines)
+- Run `cd server && npx vitest run` to verify all tests pass
+"""
+context = ["server/src/routes/messages.ts:265-300", "server/src/routes/messages.ts:374-402", "mcp/server.ts:29-35", "mcp/server.ts:73-81"]
+
+[[tasks]]
+name = "split-hook-rs"
+agent = "gemini"
+worktree = "refactor/split-hook-rs"
+prompt = """
+Refactor cli/src/commands/hook.rs (337 lines) by extracting utility functions into a new module.
+
+## Current file analysis
+
+hook.rs has two distinct groups:
+
+**Group A — Event handlers (keep in hook.rs ~170 lines)**
+- HookArgs, HookEvent (structs + enum, lines 16-32)
+- run() (lines 34-42)
+- run_session_start() (lines 44-93)
+- run_post_tool_use() (lines 95-154)
+- run_bg_check() (lines 156-199)
+- run_stop() (lines 201-218)
+
+**Group B — Utilities (move to hook_helpers.rs ~170 lines)**
+- is_ttl_expired() (lines 220-228)
+- start_daemon_if_needed() (lines 230-250)
+- build_client() (lines 252-258)
+- get_git_branch() (lines 260-273)
+- show_peer_sessions() (lines 275-297)
+- generate_session_id() (lines 299-320)
+- get_inbox_count() (lines 322-327)
+- get_a2a_inbox_count() (lines 329-337)
+- BOSS_TTL_SECONDS, A2A_TTL_SECONDS constants (lines 13-14)
+
+## Requirements
+
+1. Create cli/src/commands/hook_helpers.rs with Group B functions + constants
+2. Slim down hook.rs to Group A + imports from hook_helpers
+3. Update cli/src/commands/mod.rs to add `mod hook_helpers;` (or `pub(crate) mod hook_helpers;`)
+4. Each file gets a 2-4 line header comment
+5. Each file ≤ 300 lines
+6. Do NOT change any function signatures or behavior
+7. Run `cargo check` from the cli/ directory to verify it compiles
+
+## Rules
+- Maintain existing visibility: functions used only within hook.rs stay pub(crate) or pub(super)
+- Move the use statements that are only needed by Group B to hook_helpers.rs
+- hook.rs should `use super::hook_helpers::*;` or import specific items
+- Keep it simple — just move functions, don't refactor logic
+"""
+context = ["cli/src/commands/hook.rs", "cli/src/commands/mod.rs"]

@@ -1,0 +1,51 @@
+# Fix: SessionStart hook idempotency + Stop hook session file safety
+# Root cause: duplicate SessionStart hooks create 2 sessions; stop hook deletes shared session file unconditionally
+
+[[tasks]]
+agent = "codex"
+prompt = """
+Fix two bugs in cli/src/commands/hook.rs:
+
+## Bug 1: run_session_start should be idempotent
+If the session file already exists (session::read_session_id() returns Some), do NOT create a new session.
+Just reuse the existing session ID — skip generate_session_id(), write_session_id(), and register_session().
+Still proceed with start_daemon_if_needed() and printing the instructions.
+
+Change run_session_start() to:
+1. Check if session::read_session_id() returns Some(existing_id)
+2. If yes, use existing_id as session_id, skip write + register
+3. If no, generate and register as before
+4. Rest of function (daemon, printing, peers, inbox) stays the same
+
+## Bug 2: run_stop should only delete session file if it owns it
+The stop hook should remember its session ID at the start of stop, then only delete the session file if it still contains the same ID.
+
+Change run_stop() line ~221:
+Instead of unconditionally deleting session_file_path(), do:
+1. Read session ID before any server calls
+2. After server calls, re-read the file and only delete if it still matches
+
+Here's the pattern:
+```rust
+let my_session_id = session::read_session_id();
+
+// Mark session as completed on the server
+if let (Ok(client), Some(ref sid)) = (build_client(), &my_session_id) {
+    let _ = client.heartbeat_session(sid, Some("completed"), Some("Session ended")).await;
+}
+// ... daemon cleanup ...
+
+// Only delete session file if it still belongs to us (another session may have overwritten it)
+if let Some(ref my_sid) = my_session_id {
+    if session::read_session_id().as_deref() == Some(my_sid.as_str()) {
+        let _ = fs::remove_file(session::session_file_path());
+    }
+}
+// Other temp files are safe to always clean up
+```
+
+Do NOT change any other files. Only modify cli/src/commands/hook.rs.
+"""
+worktree = "fix/session-hook-dedup"
+verify = "cd cli && cargo check"
+context = ["cli/src/commands/hook.rs", "cli/src/session.rs:read_session_id,write_session_id,session_file_path"]
