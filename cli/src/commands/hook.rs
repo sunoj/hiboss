@@ -40,27 +40,39 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_session_start() -> Result<(), Box<dyn Error>> {
-    // Generate a unique session ID for message isolation
-    let session_id = generate_session_id();
-    let _ = session::write_session_id(&session_id);
+    // Idempotent: reuse existing session if file already exists (handles duplicate hooks)
+    let session_id = if let Some(existing) = session::read_session_id() {
+        existing
+    } else {
+        let id = generate_session_id();
+        let _ = session::write_session_id(&id);
 
-    // Resolve branch and cwd for session registration
-    let branch = get_git_branch();
-    let cwd = std::env::current_dir()
-        .ok()
-        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()));
+        // Resolve branch, cwd, and repo name for session registration
+        let branch = get_git_branch();
+        let cwd = std::env::current_dir()
+            .ok()
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()));
+        let repo_name = get_repo_name();
+        // Label: "repo/branch" for thread titles (e.g. "hiboss/main")
+        let label = match (&repo_name, &branch) {
+            (Some(r), Some(b)) => Some(format!("{}/{}", r, b)),
+            (Some(r), None) => Some(r.clone()),
+            _ => None,
+        };
 
-    // Register session with the server (best-effort)
-    if let Ok(client) = build_client() {
-        let _ = client.register_session(
-            &session_id,
-            branch.as_deref(),
-            cwd.as_deref(),
-            None,
-            Some("working"),
-            None,
-        ).await;
-    }
+        // Register session with the server (best-effort)
+        if let Ok(client) = build_client() {
+            let _ = client.register_session(
+                &id,
+                branch.as_deref(),
+                cwd.as_deref(),
+                label.as_deref(),
+                Some("working"),
+                None,
+            ).await;
+        }
+        id
+    };
 
     // Start background SSE daemon for real-time message delivery
     start_daemon_if_needed();
@@ -198,6 +210,9 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_stop() -> Result<(), Box<dyn Error>> {
+    // Capture our session ID before any cleanup
+    let my_session_id = session::read_session_id();
+
     // Check if agent asked boss before stopping
     if !session::has_asked() {
         println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
@@ -209,16 +224,20 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     }
 
     // Mark session as completed on the server
-    if let (Ok(client), Some(sid)) = (build_client(), session::read_session_id()) {
-        let _ = client.heartbeat_session(&sid, Some("completed"), Some("Session ended")).await;
+    if let (Ok(client), Some(sid)) = (build_client(), &my_session_id) {
+        let _ = client.heartbeat_session(sid, Some("completed"), Some("Session ended")).await;
     }
     // Stop the SSE daemon
     if let Some(pid) = session::is_daemon_running() {
         let _ = Command::new("kill").arg(pid.to_string()).output();
         let _ = fs::remove_file(session::daemon_pid_path());
     }
-    // Clean up temp files
-    let _ = fs::remove_file(session::session_file_path());
+    // Only delete session file if it still belongs to us (another session may have overwritten it)
+    if let Some(ref my_sid) = my_session_id {
+        if session::read_session_id().as_deref() == Some(my_sid.as_str()) {
+            let _ = fs::remove_file(session::session_file_path());
+        }
+    }
     let _ = fs::remove_file(session::ttl_file_path());
     let _ = fs::remove_file(session::a2a_ttl_file_path());
     let _ = fs::remove_file(session::daemon_pending_path());

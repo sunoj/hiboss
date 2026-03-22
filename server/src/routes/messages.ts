@@ -249,7 +249,7 @@ routes.post('/', async (c) => {
           const dcCC = channelConfigs.find((cc) => cc.channel === 'discord');
           if (dcCC?.config['use_threads']) {
             c.executionCtx.waitUntil(
-              ensureThreadForSession(c.env, agentId, sessionId, dcCC, dcResult.discordMessageId)
+              ensureThreadForSession(c.env, agentId, sessionId, dcCC, dcResult.discordMessageId, body)
             );
           }
         }
