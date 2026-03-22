@@ -1,0 +1,104 @@
+# Batch: options expiry cron — add expires_at column + scheduled sweep
+
+[[tasks]]
+agent = "codex"
+name = "migration-expires-at"
+prompt = """
+In the hiboss server (server/ directory), add a D1 migration and update the consolidated schema:
+
+1. Create `server/migrations/0019_expires_at.sql`:
+```sql
+ALTER TABLE messages ADD COLUMN expires_at TEXT;
+CREATE INDEX idx_messages_expires_at ON messages(expires_at) WHERE expires_at IS NOT NULL;
+```
+
+2. Update `server/schema.sql` — add the `expires_at TEXT` column to the messages CREATE TABLE (after `updated_at`), and add the index at the bottom with the other message indexes.
+
+Only touch these two files. No other changes.
+"""
+dir = "."
+verify = "cd server && npx wrangler d1 migrations list hiboss-db --local 2>&1 | tail -5"
+
+[[tasks]]
+agent = "codex"
+name = "set-expires-at-on-create"
+prompt = """
+In `server/src/routes/messages.ts`, modify the POST / handler to set `expires_at` when a message has options.
+
+The logic:
+- After the INSERT succeeds and we have `inserted`, if `options` is truthy (message has options), compute expires_at.
+- Default timeout is 300 seconds (use the existing `DEFAULT_TIMEOUT_SECONDS` constant which is already 300).
+- For blocking mode messages, read the timeout from the request payload if provided: `const timeoutSec = typeof payload.timeout === 'number' ? Math.max(60, Math.min(payload.timeout, 3600)) : DEFAULT_TIMEOUT_SECONDS;` — but only when options are present.
+- For async mode with options, always use DEFAULT_TIMEOUT_SECONDS.
+- Compute: `const expiresAt = new Date(Date.now() + timeoutSec * 1000).toISOString();`
+- Update the inserted row: `await env.DB.prepare("UPDATE messages SET expires_at = ? WHERE id = ?").bind(expiresAt, inserted.id).run();`
+- Do this BEFORE the channel delivery block (before `if (channelConfigs.length > 0)`), so expires_at is set even if delivery fails.
+
+Also update the poll handler (POST /:id/poll): it already reads timeout from query param. No changes needed there since it already calls expireMessageOptions on timeout.
+
+Only modify `server/src/routes/messages.ts`. Keep changes minimal.
+"""
+dir = "."
+verify = "cd server && npx tsc --noEmit 2>&1 | head -20"
+
+[[tasks]]
+agent = "codex"
+name = "scheduled-handler"
+prompt = """
+In the hiboss server, add a Cloudflare Worker scheduled handler that sweeps expired options messages.
+
+1. Create `server/src/scheduled.ts`:
+```typescript
+// Periodic sweep that expires options messages past their expires_at deadline.
+// Exports the scheduled handler for Cloudflare Worker cron triggers.
+// Depends on Env type and expireMessageOptions from message-options.
+
+import type { Env, MessageRow } from './types';
+import { expireMessageOptions } from './routes/message-options';
+
+const BATCH_SIZE = 50;
+
+export async function handleScheduled(env: Env): Promise<void> {
+  const now = new Date().toISOString();
+  const rows = await env.DB
+    .prepare(
+      `SELECT * FROM messages WHERE expires_at IS NOT NULL AND expires_at < ? AND status IN ('sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL LIMIT ?`
+    )
+    .bind(now, BATCH_SIZE)
+    .all<MessageRow>();
+
+  for (const row of rows.results ?? []) {
+    try {
+      await expireMessageOptions(env, row.agent_id, row);
+    } catch {
+      // Log but continue — don't let one failure block others
+      console.error(`Failed to expire message ${row.id}`);
+    }
+  }
+}
+```
+
+2. Modify `server/src/index.ts` — add the scheduled export:
+- Import: `import { handleScheduled } from './scheduled';`
+- After `export default app;`, change the export to:
+```typescript
+export default {
+  fetch: app.fetch,
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(handleScheduled(env));
+  },
+};
+```
+
+3. Add to `server/wrangler.toml` at the end:
+```toml
+[triggers]
+crons = ["*/5 * * * *"]
+```
+
+This runs the sweep every 5 minutes.
+
+Only touch these 3 files. Keep changes minimal.
+"""
+dir = "."
+verify = "cd server && npx tsc --noEmit 2>&1 | head -20"

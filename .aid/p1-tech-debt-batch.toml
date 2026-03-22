@@ -1,0 +1,113 @@
+# P1 tech debt: tests + refactor
+
+[[tasks]]
+name = "stream-reactions-tests"
+agent = "codex"
+worktree = "chore/add-missing-tests"
+prompt = """
+Add tests for two untested server route files: stream.ts and reactions.ts.
+
+## Context
+- Project: hiboss (AI agent ↔ boss communication)
+- Server: Cloudflare Worker with Hono framework, D1 database
+- Test framework: vitest (see server/vitest.config.mts)
+- Test pattern: see existing test files in server/src/routes/*.test.ts for the pattern
+- Test helpers: server/src/test-helpers.ts provides createTestEnv() and related utilities
+
+## File 1: server/src/routes/stream.ts (134 lines)
+SSE streaming endpoint at GET /api/messages/stream
+- Polls D1 every 2s for new messages (boss_to_agent + agent_to_agent)
+- Sends SSE events (event: message\ndata: {...}\n\n)
+- Marks messages as delivered
+- Supports session filtering (?session=X)
+- Has keepalive every 15s
+- Max duration 5 minutes
+- Already has exported pure functions: buildStreamQuery, pruneSeenMessageIds
+
+Create: server/src/routes/stream.test.ts
+Tests needed:
+1. buildStreamQuery returns correct SQL for agent-only (no session)
+2. buildStreamQuery returns correct SQL with session ID
+3. pruneSeenMessageIds clears set when no rows
+4. pruneSeenMessageIds clears set when floor advances past lastCheck
+5. pruneSeenMessageIds keeps set when floor <= lastCheck
+6. Integration: GET /stream returns SSE content-type headers
+7. Integration: GET /stream delivers pending messages as SSE events
+
+## File 2: server/src/routes/reactions.ts (71 lines)
+Reaction endpoints: POST /:id/react and GET /:id/reactions
+- POST /react: Sends emoji reaction to Telegram message (via stored telegram_message_id)
+- GET /reactions: Returns reactions from Discord (via stored discord_message_id) or metadata
+
+Create: server/src/routes/reactions.test.ts
+Tests needed:
+1. POST /:id/react returns 400 when emoji missing
+2. POST /:id/react returns 404 for unknown message
+3. POST /:id/react returns 400 for non-telegram channel
+4. GET /:id/reactions returns empty array for message without reactions
+5. GET /:id/reactions returns reactions from metadata
+
+## Rules
+- Follow existing test patterns exactly (look at messages.test.ts, admin.test.ts)
+- Use test-helpers.ts createTestEnv() for D1 mock
+- Each test file ≤ 300 lines
+- No mocking external HTTP calls (Telegram/Discord) — only test local logic and DB
+- File headers: 2-4 line comment (purpose, exports, deps)
+"""
+context = ["server/src/routes/stream.ts", "server/src/routes/reactions.ts", "server/src/test-helpers.ts", "server/src/routes/admin.test.ts:1-60"]
+
+[[tasks]]
+name = "split-message-helpers"
+agent = "codex"
+worktree = "refactor/split-message-helpers"
+prompt = """
+Refactor server/src/routes/message-helpers.ts (393 lines) into smaller focused modules.
+
+## Current file analysis
+message-helpers.ts is a "kitchen sink" with these categories:
+
+**Group A — DB Queries (move to message-queries.ts ~100 lines)**
+- fetchMessageRow (lines 183-199)
+- fetchReplies (lines 201-213)
+- fetchMessageWithReplies (lines 215-222)
+- fetchAgentName (lines 225-231)
+- findByIdempotencyKey (lines 260-265)
+- checkRateLimit (lines 252-258)
+- selectChannelConfig (lines 151-169)
+- fetchAllChannelConfigs (lines 171-180)
+
+**Group B — Options/expiry (move to message-options.ts ~100 lines)**
+- parseOptions (lines 238-246)
+- buildInlineKeyboard (lines 248-250)
+- expireMessageOptions (lines 267-295)
+- expirePreviousOptions (lines 297-318)
+- resolveChannelRouting (lines 320-329)
+- ensureTopicForAgent (lines 332-349)
+
+**Group C — Keep in message-helpers.ts (~190 lines)**
+- mapMessageRow, safeParse, normalizeMetadata (mapping)
+- validateOption, validateChannel (validation)
+- buildFilters, parsePriorityFilter, clampNumber (query building)
+- inferSessionStatus (session)
+- extractTelegramMessageId (metadata)
+- delay (util)
+- Re-exports from delivery.ts (keep as-is)
+- Add re-exports from message-queries.ts and message-options.ts
+
+## Requirements
+
+1. Create server/src/routes/message-queries.ts with Group A functions
+2. Create server/src/routes/message-options.ts with Group B functions
+3. Slim down message-helpers.ts to Group C + re-exports from all modules
+4. Update server/src/routes/messages.ts imports if needed (should still import from message-helpers.ts since it re-exports)
+5. Verify: messages.ts should NOT need any import changes if message-helpers.ts re-exports everything
+
+## Rules
+- Each new file gets a 2-4 line header comment
+- Each file ≤ 300 lines
+- Functions ≤ 50 lines
+- Move shared type imports as needed
+- Do NOT change any function signatures or behavior
+- Run `npx vitest run` at the end to verify all 385+ tests still pass
+"""
+context = ["server/src/routes/message-helpers.ts", "server/src/routes/messages.ts:1-20", "server/src/routes/delivery.ts:1-10", "server/src/types.ts"]

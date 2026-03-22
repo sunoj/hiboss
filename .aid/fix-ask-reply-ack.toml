@@ -1,0 +1,148 @@
+# Fix: AI must acknowledge boss replies via hiboss, not conversation text
+# Three changes across cli/src/
+
+[[tasks]]
+name = "fix-ask-reply-ack"
+agent = "codex"
+prompt = """
+Make these 3 changes in cli/src/ to ensure AI agents acknowledge boss replies via hiboss commands:
+
+## Fix 1: cli/src/commands/ask.rs
+
+When a boss reply is received (lines 99-114), output the reply message ID on stderr as a reminder.
+
+Change lines 99-114 from:
+```rust
+    if let Some(replies) = &poll.replies {
+        if let Some(reply) = replies.first() {
+            if let Some(meta) = &reply.metadata {
+                if let Some(Value::String(action_cmd)) = meta.get("action") {
+                    if let Some(body) = &reply.body {
+                        println!("{}", body);
+                    }
+                    eprintln!("Action: {}", action_cmd);
+                    return Ok(());
+                }
+            }
+            if let Some(body) = &reply.body {
+                println!("{}", body);
+                return Ok(());
+            }
+        }
+    }
+```
+
+To (add reply ID + reminder on stderr):
+```rust
+    if let Some(replies) = &poll.replies {
+        if let Some(reply) = replies.first() {
+            if let Some(meta) = &reply.metadata {
+                if let Some(Value::String(action_cmd)) = meta.get("action") {
+                    if let Some(body) = &reply.body {
+                        println!("{}", body);
+                    }
+                    eprintln!("Action: {}", action_cmd);
+                    return Ok(());
+                }
+            }
+            if let Some(body) = &reply.body {
+                println!("{}", body);
+                let id_short = &reply.id[..8.min(reply.id.len())];
+                eprintln!("[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍", id_short, id_short);
+                return Ok(());
+            }
+        }
+    }
+```
+
+## Fix 2: cli/src/commands/hook.rs
+
+In the run_session_start() function, add rule 6 after the existing IMPORTANT line (line 75). Add this new println! after the line about PEER messages:
+
+```rust
+    println!("RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation.");
+```
+
+## Fix 3: Track post-ask acknowledgment
+
+### 3a. cli/src/session.rs — add 3 functions after has_asked():
+
+```rust
+/// Marker file: written by send/reply/react after an ask, checked by Stop hook.
+pub fn replied_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-replied-{}", project_hash()))
+}
+
+/// Record that agent sent a reply/reaction after asking.
+pub fn mark_replied() {
+    if has_asked() {
+        let _ = fs::write(replied_marker_path(), "1");
+    }
+}
+
+/// Check whether agent replied after asking.
+pub fn has_replied() -> bool {
+    replied_marker_path().exists()
+}
+```
+
+### 3b. cli/src/commands/send.rs — add session::mark_replied() call
+
+After the `eprintln!("Message sent");` line (line 78), add:
+```rust
+    session::mark_replied();
+```
+
+### 3c. cli/src/commands/reply.rs — add session::mark_replied() call
+
+After the `eprintln!("Reply posted");` line (line 19), add:
+```rust
+    session::mark_replied();
+```
+Also add `use crate::session;` to the imports.
+
+### 3d. cli/src/commands/react.rs — add session::mark_replied() call
+
+After the `eprintln!("Reaction set");` line (line 21), add:
+```rust
+    session::mark_replied();
+```
+Also add `use crate::session;` to the imports.
+
+### 3e. cli/src/commands/hook.rs — enhance Stop hook
+
+In run_stop(), change the has_asked() check to also check has_replied(). Replace:
+```rust
+    if !session::has_asked() {
+        println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
+        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        println!("Do NOT stop until you have sent this message and received a reply or timeout.");
+    }
+```
+
+With:
+```rust
+    if !session::has_asked() {
+        println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
+        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        println!("Do NOT stop until you have sent this message and received a reply or timeout.");
+    } else if !session::has_replied() {
+        println!("STOP VIOLATION: You received a boss reply but did not acknowledge it via hiboss.");
+        println!("You MUST run: hiboss send \"<your acknowledgment>\" before stopping.");
+    }
+```
+
+Also add cleanup of the replied marker in the cleanup section. After:
+```rust
+    let _ = fs::remove_file(session::asked_marker_path());
+```
+
+Add:
+```rust
+    let _ = fs::remove_file(session::replied_marker_path());
+```
+
+IMPORTANT: Only modify the files listed above. Do not change any other files. Keep all changes minimal and surgical.
+"""
+worktree = "fix/ask-reply-ack"
+verify = "cd cli && cargo check"

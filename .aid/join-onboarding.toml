@@ -1,0 +1,464 @@
+# Easy Device Onboarding: Join + Boss Approval Flow
+# 3 parallel tasks: server join endpoints, boss API, CLI init rewrite
+
+[batch]
+name = "easy-device-onboarding"
+parallel = true
+
+[[tasks]]
+agent = "codex"
+name = "server-join-endpoints"
+worktree = "feat/join-endpoints"
+verify = "cd server && npx tsc --noEmit"
+context = [
+  "server/src/types.ts",
+  "server/src/routes/bootstrap.ts",
+  "server/src/routes/delivery.ts",
+  "server/src/channels/telegram.ts",
+  "server/src/channels/discord.ts",
+  "server/src/routes/webhooks.ts",
+  "server/src/middleware/auth.ts",
+  "server/src/index.ts",
+  "server/src/audit.ts",
+  "server/migrations/0001_init.sql",
+]
+prompt = """
+Create the server-side "join" feature for easy new-device onboarding. This involves 4 files.
+
+## 1. Create: server/migrations/0018_join_requests.sql
+
+```sql
+-- Join requests for new device onboarding.
+-- New devices POST /api/join, get a poll_token, and wait for boss approval.
+
+CREATE TABLE IF NOT EXISTS join_requests (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  name TEXT NOT NULL,
+  poll_token TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  api_key_id TEXT REFERENCES api_keys(id),
+  api_key TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_join_requests_token ON join_requests(poll_token);
+CREATE INDEX IF NOT EXISTS idx_join_requests_status ON join_requests(status, created_at DESC);
+```
+
+## 2. Create: server/src/routes/join.ts
+
+Hono router with TWO endpoints. NO auth required (these are the onboarding path).
+
+### POST / (mounted at /api/join)
+- Body: `{ name?: string }` — name defaults to "new-agent" if not provided
+- Generate poll_token: `jt_${generateHex(16)}` (same generateHex pattern as bootstrap.ts)
+- Check if ANY api_keys exist: `SELECT COUNT(*) AS cnt FROM api_keys`
+  - If cnt === 0 (first device ever): AUTO-APPROVE
+    - Create api_key: generate `hb_${generateHex(16)}`, hash with `hashApiKey`, INSERT INTO api_keys
+    - Create join_request with status='approved', api_key_id, api_key (the raw key)
+    - Return 201: `{ request_id: id, poll_token, status: "approved", key, agent_id }`
+  - If cnt > 0 (existing setup): create join_request with status='pending'
+    - Send channel notifications (see below)
+    - Return 201: `{ request_id: id, poll_token, status: "pending" }`
+- Log audit: action='join.request'
+
+Channel notification logic (when pending):
+1. Query ALL enabled channel configs: `SELECT DISTINCT channel, config FROM channel_configs WHERE enabled = 1`
+2. Deduplicate by (channel, chat_id) for telegram or (channel, channel_id/webhook_url) for discord
+3. For each unique channel config:
+   - Telegram: use `sendTelegramMessage(tgConfig, message, { inlineKeyboard })` from channels/telegram.ts
+     - Message: `"🆕 <b>New device wants to join</b>\nName: ${escapeHtml(name)}\nRequest: ${id.slice(0, 8)}"`
+     - inlineKeyboard: `[[{text: "✅ Approve", callback_data: "join:approve:" + id}, {text: "❌ Reject", callback_data: "join:reject:" + id}]]`
+   - Discord: use `sendDiscordMessage(dcConfig, message, { components })` from channels/discord.ts
+     - Message: `"🆕 **New device wants to join**\nName: ${name}\nRequest: ${id.slice(0, 8)}"`
+     - components: Discord button components (type:1 action row with type:2 buttons, style:3 for approve/style:4 for reject, custom_id same as callback_data)
+4. Wrap in try/catch — notification failures should NOT fail the join request
+
+### GET /status (mounted at /api/join/status)
+- Query param: `?token=<poll_token>`
+- If no token: return 400 "token is required"
+- Look up: `SELECT * FROM join_requests WHERE poll_token = ?`
+- If not found: return 404 "not found"
+- Return: `{ status, name, request_id: id, key?: api_key, agent_id?: api_key_id }`
+  - Only include key and agent_id if status is 'approved' and api_key is not null
+  - After returning approved status WITH key: clear the key (one-time retrieval):
+    `UPDATE join_requests SET api_key = NULL, updated_at = datetime('now') WHERE id = ?`
+
+## 3. Modify: server/src/routes/webhooks.ts
+
+In the `handleCallbackQuery` function, add a check at the VERY TOP (line ~189, before `const data = asString(query['data'])`... actually right AFTER the data extraction but BEFORE the configRow lookup for message handling):
+
+After the line `if (!data || !chatId) return c.text('invalid callback', 400);` add:
+
+```typescript
+// Handle join request callbacks (approve/reject new devices)
+if (data.startsWith('join:')) {
+  return handleJoinCallback(c, query, data, chatId);
+}
+```
+
+Add a new function `handleJoinCallback`:
+```typescript
+async function handleJoinCallback(
+  c: Context<{ Bindings: Env }>,
+  query: Record<string, unknown>,
+  data: string,
+  chatId: string
+): Promise<Response> {
+  const queryId = asString(query['id']);
+  // Get bot token from any telegram config for this chat
+  const configRow = await c.env.DB
+    .prepare("SELECT config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? LIMIT 1")
+    .bind(chatId)
+    .first<{ config: string }>();
+  const botToken = configRow ? (JSON.parse(configRow.config) as Record<string, string>).bot_token : undefined;
+  const answer = (text: string) => {
+    if (botToken && queryId) c.executionCtx.waitUntil(answerCallbackQuery(botToken, queryId, text));
+  };
+
+  // Parse: join:approve:requestId or join:reject:requestId
+  const parts = data.split(':');
+  if (parts.length !== 3) { answer('Invalid'); return c.text('invalid join callback', 400); }
+  const action = parts[1]; // 'approve' or 'reject'
+  const requestId = parts[2];
+
+  const request = await c.env.DB
+    .prepare("SELECT * FROM join_requests WHERE id = ? AND status = 'pending'")
+    .bind(requestId)
+    .first<{ id: string; name: string; status: string }>();
+  if (!request) {
+    answer('Request not found or already processed');
+    return c.text('not found', 404);
+  }
+
+  if (action === 'approve') {
+    // Create api_key
+    const key = `hb_${generateHex(16)}`;
+    const keyHash = await hashApiKey(key);
+    const inserted = await c.env.DB
+      .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id')
+      .bind(request.name, keyHash)
+      .first<{ id: string }>();
+    if (!inserted) { answer('Error'); return c.text('failed', 500); }
+    // Update join request
+    await c.env.DB
+      .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ?")
+      .bind(inserted.id, key, requestId)
+      .run();
+    answer('✅ Approved');
+    // Edit original message
+    const chatMsg = query['message'] as Record<string, unknown> | undefined;
+    const msgId = chatMsg?.['message_id'] as number | undefined;
+    if (botToken && msgId) {
+      c.executionCtx.waitUntil(editMessageReplyMarkup(botToken, chatId, msgId, `✅ Approved: ${request.name}`));
+    }
+    c.executionCtx.waitUntil(logAudit(c.env, 'system', 'telegram', 'join.approve', 'join_request', requestId, request.name));
+    return c.json({ ok: true, status: 'approved' });
+  }
+
+  if (action === 'reject') {
+    await c.env.DB
+      .prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ?")
+      .bind(requestId)
+      .run();
+    answer('❌ Rejected');
+    const chatMsg = query['message'] as Record<string, unknown> | undefined;
+    const msgId = chatMsg?.['message_id'] as number | undefined;
+    if (botToken && msgId) {
+      c.executionCtx.waitUntil(editMessageReplyMarkup(botToken, chatId, msgId, `❌ Rejected: ${request.name}`));
+    }
+    c.executionCtx.waitUntil(logAudit(c.env, 'system', 'telegram', 'join.reject', 'join_request', requestId, request.name));
+    return c.json({ ok: true, status: 'rejected' });
+  }
+
+  answer('Unknown action');
+  return c.text('unknown action', 400);
+}
+```
+
+IMPORTANT: You need to import `hashApiKey` and `editMessageReplyMarkup` and `answerCallbackQuery` and `logAudit` — check existing imports in the file and add what's missing. The `generateHex` function should be added locally (same pattern as bootstrap.ts) or imported.
+
+## 4. Modify: server/src/index.ts
+
+Add import and mount:
+```typescript
+import { joinRouter } from './routes/join';
+// Mount BEFORE bootstrap (more specific path first)
+app.route('/api/join', joinRouter);
+```
+
+## Code conventions
+- TypeScript strict mode, no `any` at boundaries
+- Hono framework: `c.json()` for JSON, `c.text()` for errors
+- All state changes must use `logAudit(env, actorType, actorId, action, resourceType, resourceId, details)`
+- Files ≤ 300 lines, functions ≤ 50 lines
+- Add file header comment (purpose, exports, deps) to new files
+- Follow existing patterns exactly — look at bootstrap.ts and webhooks.ts
+"""
+
+[[tasks]]
+agent = "codex"
+name = "boss-join-api"
+worktree = "feat/boss-join-api"
+verify = "cd server && npx tsc --noEmit"
+context = [
+  "server/src/routes/boss-api.ts",
+  "server/src/middleware/auth.ts",
+  "server/src/types.ts",
+  "server/src/audit.ts",
+  "server/migrations/0001_init.sql",
+]
+prompt = """
+Add join request management endpoints to the boss API so bosses can list, approve, and reject join requests from the dashboard or API.
+
+## Modify: server/src/routes/boss-api.ts
+
+Add THREE new endpoints to the EXISTING router (append before the `export const bossApiRouter = routes;` line):
+
+### GET /join-requests
+- List join requests (admin only)
+- If getBossRole(c) !== 'admin', return 403 "admin access required"
+- Optional query filter: `?status=pending` (or 'approved', 'rejected')
+- Query: `SELECT id, name, status, created_at, updated_at FROM join_requests ORDER BY created_at DESC`
+  - If status filter provided: add `WHERE status = ?`
+- Return: `{ requests: [...] }`
+
+### POST /join-requests/:id/approve
+- Admin only (check getBossRole(c) === 'admin')
+- Look up: `SELECT * FROM join_requests WHERE id = ?`
+- If not found: 404
+- If status !== 'pending': return 400 "request already processed"
+- Create api_key:
+  - Generate key: `hb_${generateHex(16)}`
+  - Hash: `await hashApiKey(key)` (import from middleware/auth)
+  - Insert: `INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id, name`
+- Update join_request: `UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ?`
+- Grant boss access: `INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)`
+- Log audit: action='join.approve', resourceType='join_request', resourceId=request.id
+- Return 200: `{ id, name, status: "approved", agent_id: inserted.id, key }`
+
+### POST /join-requests/:id/reject
+- Admin only
+- Look up join_request by id
+- If not found: 404
+- If not pending: 400 "request already processed"
+- Update: `SET status = 'rejected', updated_at = datetime('now')`
+- Log audit: action='join.reject'
+- Return 200: `{ id, name, status: "rejected" }`
+
+Add the `generateHex` helper function at the bottom (same pattern as admin.ts):
+```typescript
+function generateHex(bytes: number): string {
+  const buf = new Uint8Array(bytes);
+  crypto.getRandomValues(buf);
+  return Array.from(buf).map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+```
+
+Import `hashApiKey` from '../middleware/auth' (add to existing import).
+
+## Code conventions
+- Follow existing patterns in boss-api.ts EXACTLY
+- Use bossAuth middleware (already applied to all routes)
+- Use getBossId(c) and getBossRole(c) for access control
+- Use logAudit for all state changes
+- No `any` types
+- Functions ≤ 50 lines
+"""
+
+[[tasks]]
+agent = "codex"
+name = "cli-join-init"
+worktree = "feat/cli-join-init"
+verify = "cd cli && cargo check"
+context = [
+  "cli/src/commands/init.rs",
+  "cli/src/config.rs",
+  "cli/src/main.rs",
+  "cli/src/types.rs",
+]
+prompt = """
+Rewrite the CLI `init` command to use the new join-based onboarding flow instead of the old bootstrap endpoint.
+
+## Rewrite: cli/src/commands/init.rs
+
+Replace the entire file content with the new join flow:
+
+```rust
+// Purpose: Initialize hiboss by joining a server via the join/approve flow.
+// Exports: InitArgs, run().
+// Dependencies: clap, reqwest, serde, colored, crate::config.
+
+use crate::config::{save_config, Config};
+use clap::Args;
+use colored::Colorize;
+use reqwest::{Client, StatusCode};
+use serde::Deserialize;
+use std::error::Error;
+
+#[derive(Debug, Args)]
+pub struct InitArgs {
+    #[arg(value_name = "server")]
+    pub server: String,
+}
+
+#[derive(Deserialize)]
+struct JoinResponse {
+    request_id: String,
+    poll_token: String,
+    status: String,
+    #[serde(default)]
+    key: Option<String>,
+    #[serde(default)]
+    agent_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct JoinStatusResponse {
+    status: String,
+    #[serde(default)]
+    key: Option<String>,
+    #[serde(default)]
+    agent_id: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+}
+
+pub async fn run(args: &InitArgs, config: &mut Config) -> Result<(), Box<dyn Error>> {
+    let server = args.server.trim_end_matches('/');
+    let name = detect_name();
+    let client = Client::new();
+
+    // Step 1: Send join request
+    let resp = client
+        .post(format!("{}/api/join", server))
+        .json(&serde_json::json!({ "name": name }))
+        .send()
+        .await?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("join request failed ({}): {}", status, body).into());
+    }
+
+    let join: JoinResponse = resp.json().await?;
+
+    // Step 2: Handle response
+    if join.status == "approved" {
+        // Auto-approved (first device)
+        let key = join.key.ok_or("server returned approved but no key")?;
+        let agent_id = join.agent_id.unwrap_or_default();
+        save_init(config, server, &key)?;
+        print_success(server, &name, &agent_id);
+        return Ok(());
+    }
+
+    // Step 3: Pending — poll for approval
+    eprintln!(
+        "{} Waiting for boss approval... (request: {})",
+        "⏳".yellow(),
+        &join.request_id[..8.min(join.request_id.len())]
+    );
+    eprintln!("   The boss has been notified on their channel.");
+
+    let poll_url = format!("{}/api/join/status?token={}", server, join.poll_token);
+    let timeout = std::time::Duration::from_secs(300);
+    let start = std::time::Instant::now();
+    let mut polls = 0u32;
+
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        polls += 1;
+
+        if start.elapsed() > timeout {
+            eprintln!(
+                "{} Timed out waiting for approval. Ask your boss to approve, then run:",
+                "⏱".red()
+            );
+            eprintln!("  hiboss init {}", server);
+            return Err("approval timed out".into());
+        }
+
+        let status_resp = client.get(&poll_url).send().await;
+        let status_resp = match status_resp {
+            Ok(r) => r,
+            Err(_) => continue, // Network hiccup, retry
+        };
+
+        if !status_resp.status().is_success() {
+            continue;
+        }
+
+        let status: JoinStatusResponse = match status_resp.json().await {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        match status.status.as_str() {
+            "approved" => {
+                let key = status.key.ok_or("approved but no key returned")?;
+                let agent_id = status.agent_id.unwrap_or_default();
+                let display_name = status.name.unwrap_or_else(|| name.clone());
+                save_init(config, server, &key)?;
+                eprintln!();
+                print_success(server, &display_name, &agent_id);
+                return Ok(());
+            }
+            "rejected" => {
+                eprintln!("\n{} Request rejected by boss.", "❌".red());
+                return Err("join request rejected".into());
+            }
+            _ => {
+                // Still pending — show liveness dot every 10 polls
+                if polls % 10 == 0 {
+                    eprint!(".");
+                }
+            }
+        }
+    }
+}
+
+fn detect_name() -> String {
+    // Try USER env var, fall back to hostname-like detection
+    if let Ok(user) = std::env::var("USER") {
+        if !user.is_empty() {
+            return user;
+        }
+    }
+    if let Ok(hostname) = std::env::var("HOSTNAME") {
+        if !hostname.is_empty() {
+            return hostname;
+        }
+    }
+    "new-agent".to_string()
+}
+
+fn save_init(config: &mut Config, server: &str, key: &str) -> Result<(), Box<dyn Error>> {
+    config.server = Some(server.to_string());
+    config.key = Some(key.to_string());
+    save_config(config)?;
+    Ok(())
+}
+
+fn print_success(server: &str, name: &str, agent_id: &str) {
+    let short_id = if agent_id.len() >= 8 { &agent_id[..8] } else { agent_id };
+    eprintln!(
+        "{} Initialized! Server: {}, Agent: {} ({})",
+        "✅".green(),
+        server,
+        name.bold(),
+        short_id
+    );
+    eprintln!("   Run {} to install Claude Code hooks.", "hiboss setup hooks".cyan());
+}
+```
+
+Make sure:
+- No unwrap() in production code
+- Use colored crate (already in dependencies)
+- File header comment present
+- Functions ≤ 50 lines each
+- Total file ≤ 150 lines
+- Error messages are user-friendly
+"""

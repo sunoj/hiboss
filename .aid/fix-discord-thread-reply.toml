@@ -1,0 +1,99 @@
+[[tasks]]
+agent = "codex"
+name = "fix-thread-reply-webhook-helpers"
+prompt = """
+Fix two bugs in server/src/routes/webhook-helpers.ts in the insertBossDiscordMessage function:
+
+BUG 1: When a boss replies in a Discord thread, the message is inserted WITHOUT session_id. The function already looks up the session via discord_thread_id (line 119-131), but never passes the session_id to the INSERT statement.
+
+Fix: After finding threadSession, save the session_id. Then include session_id in the INSERT statement.
+
+Current code (line 117-169):
+```typescript
+export async function insertBossDiscordMessage(...): Promise<MessageRow | null> {
+  let agentRow = await findEnabledChannelConfig(env, 'discord', channelId);
+  if (!agentRow) {
+    const threadSession = await env.DB
+      .prepare('SELECT s.agent_id, s.id AS session_id FROM sessions s WHERE s.discord_thread_id = ? LIMIT 1')
+      .bind(channelId)
+      .first<{ agent_id: string; session_id: string }>();
+    if (threadSession) {
+      const cc = await env.DB
+        .prepare("SELECT agent_id, config FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
+        .bind(threadSession.agent_id)
+        .first<{ agent_id: string; config: string }>();
+      if (cc) {
+        agentRow = cc;
+      }
+    }
+  }
+  // ... later:
+  const inserted = await env.DB
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata))
+    .first<MessageRow>();
+```
+
+Required changes:
+1. Save `threadSession.session_id` into a variable (e.g. `let sessionId: string | null = null;`) before the if block
+2. Set `sessionId = threadSession.session_id;` when threadSession is found (inside the `if (threadSession)` block)
+3. Add `session_id` to the INSERT columns and bind the sessionId value
+
+The INSERT should become:
+```sql
+INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+```
+
+BUG 2: Add console.error logging when the function returns null silently, so we can debug delivery issues:
+- After `if (!agentRow) return null;` at line 133, add: `console.error('[webhook] discord message rejected: no agent found for channel', channelId);`
+- After `if (bossError) return null;` at line 135, add: `console.error('[webhook] discord message rejected:', bossError);`
+
+IMPORTANT: Keep the file under 300 lines. Do NOT change any other logic. Only make these two surgical changes.
+"""
+dir = "."
+verify = "cd server && npx tsc --noEmit"
+
+[[tasks]]
+agent = "codex"
+name = "fix-thread-reply-discord-interactions"
+prompt = """
+Fix server/src/routes/discord-interactions.ts: the findDiscordAgent function (line 187-194) does NOT have a thread fallback. When a slash command or button interaction happens inside a Discord thread, `channel_id` is the thread ID, not the parent channel ID. So the channel_configs lookup fails.
+
+Current code:
+```typescript
+async function findDiscordAgent(env: Env, channelId: string): Promise<{ agent_id: string } | null> {
+  return env.DB
+    .prepare(
+      "SELECT agent_id FROM channel_configs WHERE channel = 'discord' AND json_extract(config, '$.channel_id') = ?"
+    )
+    .bind(channelId)
+    .first<{ agent_id: string }>();
+}
+```
+
+Add a thread fallback: if the channel_configs lookup returns null, check the sessions table for a matching discord_thread_id, then look up the channel_config for that agent:
+
+```typescript
+async function findDiscordAgent(env: Env, channelId: string): Promise<{ agent_id: string } | null> {
+  const direct = await env.DB
+    .prepare("SELECT agent_id FROM channel_configs WHERE channel = 'discord' AND json_extract(config, '$.channel_id') = ?")
+    .bind(channelId)
+    .first<{ agent_id: string }>();
+  if (direct) return direct;
+  // Thread fallback: channel_id might be a thread ID
+  const threadSession = await env.DB
+    .prepare('SELECT agent_id FROM sessions WHERE discord_thread_id = ? LIMIT 1')
+    .bind(channelId)
+    .first<{ agent_id: string }>();
+  if (!threadSession) return null;
+  return env.DB
+    .prepare("SELECT agent_id FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
+    .bind(threadSession.agent_id)
+    .first<{ agent_id: string }>();
+}
+```
+
+IMPORTANT: Only change the findDiscordAgent function. Do NOT touch anything else in the file. Import Env from '../types' is already available.
+"""
+dir = "."
+verify = "cd server && npx tsc --noEmit"
