@@ -1,26 +1,2 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "hiboss hook session-start",
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "hiboss hook stop",
-            "type": "command"
-          }
-        ],
-        "matcher": ""
-      }
-    ]
-  }
 }
