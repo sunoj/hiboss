@@ -100,13 +100,30 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) {
         .filter(|s| s.id != my_session_id)
         .collect();
     if !peers.is_empty() {
-        println!("Active peer sessions (use hiboss send --to <label-or-id> to message):");
+        println!("Active peer sessions (use hiboss send --broadcast to notify all):");
         for s in &peers {
             let id_short: String = s.id.chars().take(8).collect();
             let label = s.label.as_deref().unwrap_or("-");
-            let agent = s.agent_name.as_deref().unwrap_or(&s.agent_id);
-            println!("  {}  {}  ({})", id_short, label, agent);
+            let status = s.status.as_deref().unwrap_or("working");
+            let icon = match status {
+                "working" => "🔨",
+                "blocked" => "🚫",
+                "waiting" => "⏳",
+                "idle" => "💤",
+                "completed" => "✅",
+                _ => "•",
+            };
+            let status_text = s.status_text.as_deref().unwrap_or("");
+            let detail = if status_text.is_empty() {
+                format!("{} {}", icon, status)
+            } else if status_text.len() > 60 {
+                format!("{} {}: {}...", icon, status, &status_text[..57])
+            } else {
+                format!("{} {}: {}", icon, status, status_text)
+            };
+            println!("  {}  {}  {}", id_short, label, detail);
         }
+        println!("COORDINATE: Before starting work, broadcast your plan: hiboss send --broadcast \"Working on X\"");
     }
 }
 

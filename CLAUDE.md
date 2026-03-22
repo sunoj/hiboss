@@ -9,10 +9,18 @@ Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionSt
 ### Session Start
 1. Handle unread messages first — reply with `hiboss reply <id> "response"` before other work.
 2. Report your plan: `hiboss send "Starting work on X. Plan: 1) ... 2) ... 3) ..."`
+3. If peer sessions are active, broadcast your work plan: `hiboss send --broadcast "Working on X in files Y"`
 
 ### During Work
 - `hiboss send "message"` for progress updates on major milestones.
 - `hiboss send --priority high "message"` for blockers or decisions needed urgently.
+
+### Cross-Session Coordination
+When peer sessions are active on the same project:
+- **Broadcast before starting**: `hiboss send --broadcast "Working on X"` — prevents conflicts
+- **Broadcast on completion**: `hiboss send --broadcast "Done with X, files Y changed"` — keeps peers informed
+- **Direct message**: `hiboss send --to <label> "message"` — for targeted coordination
+- **Check peer status**: `hiboss ss` — see what other sessions are doing
 
 ### After Receiving Boss Reply (CRITICAL)
 - When `hiboss ask` returns a boss reply, **always acknowledge via `hiboss send "your ack"`** — never just print text in conversation.
