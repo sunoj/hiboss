@@ -35,9 +35,10 @@ export function requireDiscordConfig(config: Record<string, unknown>): DiscordCh
   const webhookUrl = config['webhook_url'];
   const channelId = typeof config['channel_id'] === 'string' ? config['channel_id'] : undefined;
   const botToken = typeof config['bot_token'] === 'string' ? config['bot_token'] : undefined;
+  const threadId = typeof config['thread_id'] === 'string' ? config['thread_id'] : undefined;
   if (typeof webhookUrl === 'string') {
-    // Webhook mode — also keep bot_token/channel_id for reactions
-    return { webhook_url: webhookUrl, avatar_url: avatarUrl, bot_token: botToken, channel_id: channelId };
+    // Webhook mode — also keep bot_token/channel_id for reactions, thread_id for thread routing
+    return { webhook_url: webhookUrl, avatar_url: avatarUrl, bot_token: botToken, channel_id: channelId, thread_id: threadId };
   }
   if (!channelId || !botToken) {
     throw new Error('discord config malformed');

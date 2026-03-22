@@ -16,7 +16,7 @@ export interface DiscordSendResult {
 
 export async function sendDiscordMessage(config: DiscordChannelConfig, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {
   if (config.webhook_url) {
-    return sendViaWebhook(config.webhook_url, content, options);
+    return sendViaWebhook(config.webhook_url, content, options, config.thread_id);
   }
   if (config.bot_token && config.channel_id) {
     return sendViaBot(config.bot_token, config.channel_id, content, options?.components);
@@ -67,13 +67,15 @@ export async function createDiscordThread(botToken: string, channelId: string, m
   return threadId;
 }
 
-async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {
+async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions, threadId?: string): Promise<DiscordSendResult> {
   const payload: Record<string, unknown> = { content };
   if (options?.username) payload.username = options.username;
   if (options?.avatarUrl) payload.avatar_url = options.avatarUrl;
   if (options?.components) payload.components = options.components;
   // ?wait=true makes Discord return the created message with its ID
-  const url = webhookUrl.includes('?') ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+  // thread_id routes the webhook message into a thread
+  let url = webhookUrl.includes('?') ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+  if (threadId) url += `&thread_id=${encodeURIComponent(threadId)}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
