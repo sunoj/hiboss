@@ -219,6 +219,7 @@ routes.post('/', async (c) => {
               .first<{ discord_thread_id: string | null }>();
             if (sess?.discord_thread_id) {
               effectiveConfig['channel_id'] = sess.discord_thread_id;
+              effectiveConfig['thread_id'] = sess.discord_thread_id;
             }
           }
           return deliverWithRetry(
