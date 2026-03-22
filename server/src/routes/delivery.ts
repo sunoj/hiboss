@@ -138,9 +138,14 @@ function inlineKeyboardToDiscordComponents(keyboard: { text: string; callback_da
   }));
 }
 
+function sanitizeDiscordUsername(name: string): string {
+  // Discord forbids "discord", "clyde", "webhook" (case-insensitive) in webhook usernames
+  return name.replace(/discord/gi, 'dscrd').replace(/clyde/gi, 'clyd').replace(/webhook/gi, 'wbhk');
+}
+
 function discordOptions(config: DiscordChannelConfig, agentName: string, avatarUrl?: string): DiscordSendOptions | undefined {
   if (!config.webhook_url) return undefined;
-  return { username: `${agentName} (hiboss)`, avatarUrl: avatarUrl ?? config.avatar_url };
+  return { username: sanitizeDiscordUsername(agentName).slice(0, 80), avatarUrl: avatarUrl ?? config.avatar_url };
 }
 
 export async function deliverWithRetry<T>(
