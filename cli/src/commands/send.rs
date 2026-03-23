@@ -39,6 +39,11 @@ pub async fn run(args: &SendArgs, _config: &Config, client: &HiBossClient) -> Re
         return Err("Cannot use --broadcast and --to together".into());
     }
 
+    // Read-before-write: check for unread messages before sending (skip for broadcasts/a2a)
+    if args.to.is_none() && !args.broadcast {
+        warn_unread_messages(client).await;
+    }
+
     // Handle broadcast: send to all active peer sessions
     if args.broadcast {
         return run_broadcast(args, client).await;
@@ -116,6 +121,27 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     session::mark_broadcast();
     session::mark_replied();
     Ok(())
+}
+
+/// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
+async fn warn_unread_messages(client: &HiBossClient) {
+    let boss_count = client.inbox_count(None).await.unwrap_or(0);
+    let a2a_count = client.inbox_count_a2a().await.unwrap_or(0);
+    if boss_count > 0 || a2a_count > 0 {
+        if boss_count > 0 {
+            println!(
+                "UNREAD WARNING: You have {} unread boss message(s). Read them FIRST: hiboss inbox",
+                boss_count
+            );
+        }
+        if a2a_count > 0 {
+            println!(
+                "UNREAD WARNING: You have {} unread peer message(s). Read them FIRST: hiboss inbox --direction agent_to_agent",
+                a2a_count
+            );
+        }
+        println!("Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages.");
+    }
 }
 
 fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
