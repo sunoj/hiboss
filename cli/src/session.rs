@@ -147,6 +147,33 @@ pub fn broadcast_remind_ttl_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-broadcast-remind-{}", project_hash()))
 }
 
+/// Queue file for message IDs to be marked as read by bg-check.
+pub fn read_queue_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-read-queue-{}", project_hash()))
+}
+
+/// Append message IDs to the read queue (one per line).
+pub fn queue_mark_read(ids: &[&str]) {
+    if ids.is_empty() { return; }
+    let content = ids.join("\n") + "\n";
+    // Append to file
+    let path = read_queue_path();
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    let _ = fs::write(&path, format!("{}{}", existing, content));
+}
+
+/// Drain message IDs from the read queue. Returns IDs to mark.
+pub fn drain_read_queue() -> Vec<String> {
+    let path = read_queue_path();
+    let tmp = path.with_extension("draining");
+    if fs::rename(&path, &tmp).is_err() {
+        return vec![];
+    }
+    let content = fs::read_to_string(&tmp).unwrap_or_default();
+    let _ = fs::remove_file(&tmp);
+    content.lines().filter(|l| !l.is_empty()).map(|l| l.to_owned()).collect()
+}
+
 /// Marker file: tracks whether the ack hint has been shown this session.
 pub fn ack_hint_shown_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-ack-hint-{}", project_hash()))
