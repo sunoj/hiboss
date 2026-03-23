@@ -113,6 +113,7 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     }
 
     eprintln!("Broadcast sent to {} peer session(s)", sent);
+    session::mark_broadcast();
     session::mark_replied();
     Ok(())
 }

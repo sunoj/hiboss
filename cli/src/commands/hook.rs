@@ -89,8 +89,11 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     println!("COORDINATE: When peer sessions are active, broadcast your work plan BEFORE starting: hiboss send --broadcast \"Working on X in files Y\"");
     println!("RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation.");
 
-    // Show peer sessions
-    show_peer_sessions(&session_id).await;
+    // Show peer sessions and auto-broadcast if peers exist
+    let has_peers = show_peer_sessions(&session_id).await;
+    if has_peers {
+        auto_broadcast_session_start().await;
+    }
 
     // Show unread boss messages
     let boss_count = get_inbox_count();
@@ -138,11 +141,23 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    // 3. Spawn bg-check in background if any TTL expired (non-blocking)
+    // 3. Remind about broadcasting if peers are active and no recent broadcast
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+    if session::had_peers_active() {
+        let remind_expired = is_ttl_expired(
+            &session::broadcast_remind_ttl_path(), now, BROADCAST_REMIND_TTL_SECONDS,
+        );
+        if remind_expired {
+            let _ = fs::write(session::broadcast_remind_ttl_path(), now.to_string());
+            println!("BROADCAST REMINDER: You have active peer sessions. Share your progress:");
+            println!("  hiboss send --broadcast \"<what you're working on and current status>\"");
+        }
+    }
+
+    // 4. Spawn bg-check in background if any TTL expired (non-blocking)
     let a2a_expired = is_ttl_expired(&session::a2a_ttl_file_path(), now, A2A_TTL_SECONDS);
     let boss_expired = is_ttl_expired(&session::ttl_file_path(), now, BOSS_TTL_SECONDS);
     if a2a_expired || boss_expired {
@@ -225,6 +240,12 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         println!("You MUST run: hiboss send \"<your acknowledgment>\" before stopping.");
     }
 
+    // Check if agent broadcast to peers during session
+    if session::had_peers_active() && !session::has_broadcast() {
+        println!("BROADCAST VIOLATION: Peer sessions were active but you never broadcast your progress.");
+        println!("You MUST run: hiboss send --broadcast \"<what you worked on>\" before stopping.");
+    }
+
     // Mark session as completed on the server
     if let (Ok(client), Some(sid)) = (build_client(), &my_session_id) {
         let _ = client.heartbeat_session(sid, Some("completed"), Some("Session ended")).await;
@@ -247,5 +268,8 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_file(session::asked_marker_path());
     let _ = fs::remove_file(session::replied_marker_path());
     let _ = fs::remove_file(session::ack_hint_shown_path());
+    let _ = fs::remove_file(session::broadcast_marker_path());
+    let _ = fs::remove_file(session::peers_active_marker_path());
+    let _ = fs::remove_file(session::broadcast_remind_ttl_path());
     Ok(())
 }
