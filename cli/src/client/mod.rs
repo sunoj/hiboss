@@ -240,7 +240,7 @@ impl HiBossClient {
         let mut req = self.http
             .get(format!("{}/api/messages", self.base_url))
             .bearer_auth(&self.api_key)
-            .query(&[("direction", "boss_to_agent"), ("status", "sent,delivered"), ("limit", "0")]);
+            .query(&[("direction", "boss_to_agent"), ("unread", "true"), ("limit", "0")]);
         if let Some(p) = priority {
             req = req.query(&[("priority", p)]);
         }
@@ -252,7 +252,7 @@ impl HiBossClient {
         let resp = self.http
             .get(format!("{}/api/messages", self.base_url))
             .bearer_auth(&self.api_key)
-            .query(&[("direction", "agent_to_agent"), ("status", "sent,delivered"), ("limit", "0")])
+            .query(&[("direction", "agent_to_agent"), ("unread", "true"), ("limit", "0")])
             .send()
             .await?;
         let data: Value = Self::parse_response(resp).await?;
