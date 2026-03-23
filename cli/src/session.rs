@@ -112,6 +112,41 @@ pub fn has_replied() -> bool {
     replied_marker_path().exists()
 }
 
+/// Marker file: written when agent broadcasts to peers, checked by Stop hook.
+pub fn broadcast_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-broadcast-{}", project_hash()))
+}
+
+/// Record that agent broadcast to peers this session.
+pub fn mark_broadcast() {
+    let _ = fs::write(broadcast_marker_path(), "1");
+}
+
+/// Check whether agent has broadcast to peers this session.
+pub fn has_broadcast() -> bool {
+    broadcast_marker_path().exists()
+}
+
+/// Marker file: tracks whether peers were active during this session.
+pub fn peers_active_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-peers-active-{}", project_hash()))
+}
+
+/// Record that peer sessions were detected during this session.
+pub fn mark_peers_active() {
+    let _ = fs::write(peers_active_marker_path(), "1");
+}
+
+/// Check whether peer sessions were active during this session.
+pub fn had_peers_active() -> bool {
+    peers_active_marker_path().exists()
+}
+
+/// TTL file for broadcast reminders (avoid spamming every PostToolUse).
+pub fn broadcast_remind_ttl_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-broadcast-remind-{}", project_hash()))
+}
+
 /// Marker file: tracks whether the ack hint has been shown this session.
 pub fn ack_hint_shown_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-ack-hint-{}", project_hash()))

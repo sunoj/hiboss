@@ -86,20 +86,21 @@ pub(crate) fn get_repo_name() -> Option<String> {
     std::env::current_dir().ok().and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
 }
 
-/// Show active peer sessions for cross-session collaboration.
-pub(crate) async fn show_peer_sessions(my_session_id: &str) {
+/// Show active peer sessions for cross-session collaboration. Returns true if peers exist.
+pub(crate) async fn show_peer_sessions(my_session_id: &str) -> bool {
     let client = match build_client() {
         Ok(c) => c,
-        Err(_) => return,
+        Err(_) => return false,
     };
     let sessions = match client.list_sessions().await {
         Ok(s) => s,
-        Err(_) => return,
+        Err(_) => return false,
     };
     let peers: Vec<_> = sessions.sessions.iter()
-        .filter(|s| s.id != my_session_id)
+        .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
         .collect();
     if !peers.is_empty() {
+        session::mark_peers_active();
         println!("Active peer sessions (use hiboss send --broadcast to notify all):");
         for s in &peers {
             let id_short: String = s.id.chars().take(8).collect();
@@ -124,8 +125,52 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) {
             println!("  {}  {}  {}", id_short, label, detail);
         }
         println!("COORDINATE: Before starting work, broadcast your plan: hiboss send --broadcast \"Working on X\"");
+        return true;
     }
+    false
 }
+
+/// Auto-broadcast session start to peer sessions (best-effort, no failure propagation).
+pub(crate) async fn auto_broadcast_session_start() {
+    let client = match build_client() {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let branch = get_git_branch().unwrap_or_else(|| "unknown".to_owned());
+    let cwd = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .unwrap_or_else(|| ".".to_owned());
+    let body = format!("Session started on {}, working in {}", branch, cwd);
+
+    let my_session_id = session::read_session_id().unwrap_or_default();
+    let sessions = match client.list_sessions().await {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    for peer in sessions.sessions.iter()
+        .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
+    {
+        let target = peer.label.as_deref().unwrap_or(&peer.id);
+        let request = crate::types::SendRequest {
+            body: body.clone(),
+            mode: "async".to_owned(),
+            priority: "low".to_owned(),
+            channel: None,
+            metadata: None,
+            options: None,
+            file_url: None,
+            message_type: Some("session_start".to_owned()),
+            session_id: session::read_session_id(),
+            to: Some(target.to_owned()),
+        };
+        let _ = client.send_message(&request).await;
+    }
+    session::mark_broadcast();
+}
+
+/// TTL for broadcast reminders in PostToolUse (10 minutes).
+pub(crate) const BROADCAST_REMIND_TTL_SECONDS: u64 = 600;
 
 /// Generate a UUID v4-style session ID from /dev/urandom.
 pub(crate) fn generate_session_id() -> String {
