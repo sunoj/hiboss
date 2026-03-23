@@ -461,6 +461,17 @@ routes.patch('/:id', async (c) => {
   return c.json(mapMessageRow(updated));
 });
 
+// Bulk mark all unread messages as read
+routes.post('/mark-all-read', async (c) => {
+  const agentId = getAgentId(c);
+  const result = await c.env.DB
+    .prepare("UPDATE messages SET status = 'read', updated_at = datetime('now') WHERE agent_id = ? AND status IN ('sent', 'delivered')")
+    .bind(agentId)
+    .run();
+  const count = result.meta.changes ?? 0;
+  return c.json({ marked: count });
+});
+
 // React and reactions endpoints are in reactions.ts
 routes.route('/', reactionsRouter);
 

@@ -70,6 +70,8 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
                 Some("working"),
                 None,
             ).await;
+            // Mark all existing messages as read so unread count starts at 0
+            let _ = client.mark_all_read().await;
         }
         id
     };

@@ -227,6 +227,15 @@ impl HiBossClient {
         if !resp.status().is_success() { /* ignore heartbeat failures */ }
         Ok(())
     }
+    pub async fn mark_all_read(&self) -> Result<u32, Box<dyn Error>> {
+        let resp = self.http
+            .post(format!("{}/api/messages/mark-all-read", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        let data: Value = Self::parse_response(resp).await?;
+        Ok(data["marked"].as_u64().unwrap_or(0) as u32)
+    }
     pub async fn inbox_count(&self, priority: Option<&str>) -> Result<u32, Box<dyn Error>> {
         let mut req = self.http
             .get(format!("{}/api/messages", self.base_url))
