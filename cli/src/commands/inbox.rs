@@ -72,10 +72,19 @@ pub async fn run(args: &InboxArgs, _config: &Config, client: &HiBossClient) -> R
             println!("{:<10} {:<22} {:<12} {:<50} {}", id, origin_label, priority_display, truncated, time_label.dimmed());
         }
     }
-    if args.ack {
-        for message in &response.messages {
-            let _ = client.update_status(&message.id, "read").await;
+    // Auto-mark displayed messages as read (always, not just with --ack)
+    let ids_to_mark: Vec<_> = response.messages.iter()
+        .filter(|m| {
+            let status = m.status.as_deref().unwrap_or("");
+            status == "sent" || status == "delivered"
+        })
+        .map(|m| m.id.as_str())
+        .collect();
+    if !ids_to_mark.is_empty() {
+        for id in &ids_to_mark {
+            let _ = client.update_status(id, "read").await;
         }
+        eprintln!("Marked {} message(s) as read", ids_to_mark.len());
     }
     Ok(())
 }

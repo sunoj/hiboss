@@ -100,7 +100,7 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     let a2a_count = get_a2a_inbox_count();
     if boss_count > 0 || a2a_count > 0 {
         println!("You have {} unread messages:", boss_count + a2a_count);
-        if let Ok(out) = Command::new("hiboss").args(["inbox", "--ack"]).output() {
+        if let Ok(out) = Command::new("hiboss").args(["inbox"]).output() {
             print!("{}", String::from_utf8_lossy(&out.stdout));
         }
         println!("Handle these messages first. Reply with: hiboss reply <id> \"response\"");
@@ -114,6 +114,7 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     let pending = session::drain_pending_messages();
     if !pending.is_empty() {
         println!("REAL-TIME: {} new messages arrived via SSE daemon:", pending.len());
+        let mut ids_to_mark: Vec<String> = Vec::new();
         for line in &pending {
             if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
                 let direction = msg["direction"].as_str().unwrap_or("");
@@ -126,8 +127,14 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
                 } else {
                     println!("  [boss] {} ({}): {}", agent, id_short, body);
                 }
+                if !id.is_empty() {
+                    ids_to_mark.push(id.to_owned());
+                }
             }
         }
+        // Queue displayed messages for auto-read marking (bg-check will process)
+        let id_refs: Vec<&str> = ids_to_mark.iter().map(|s| s.as_str()).collect();
+        session::queue_mark_read(&id_refs);
         println!("Reply with: hiboss reply <id> \"response\"");
     }
 
@@ -187,6 +194,12 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
         Ok(c) => c,
         Err(_) => return Ok(()),
     };
+
+    // Process read queue: mark displayed messages as read
+    let read_ids = session::drain_read_queue();
+    for id in &read_ids {
+        let _ = client.update_status(id, "read").await;
+    }
 
     // Heartbeat
     if let Some(sid) = session::read_session_id() {
@@ -271,5 +284,6 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_file(session::broadcast_marker_path());
     let _ = fs::remove_file(session::peers_active_marker_path());
     let _ = fs::remove_file(session::broadcast_remind_ttl_path());
+    let _ = fs::remove_file(session::read_queue_path());
     Ok(())
 }
