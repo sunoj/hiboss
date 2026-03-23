@@ -53,6 +53,11 @@ fn parse_actions(raw: &str) -> (Vec<String>, HashMap<String, Value>) {
 }
 
 pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    // Read-before-write: check for unread messages before asking (skip for a2a)
+    if args.to.is_none() {
+        warn_unread_messages(client).await;
+    }
+
     // Only send channel when explicitly specified via --channel.
     // When omitted, server uses channel_routing (per-priority) to decide.
     let channel = args.channel.clone();
@@ -123,4 +128,25 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
     eprintln!("No reply yet");
     println!("{}", submission.id);
     Ok(())
+}
+
+/// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
+async fn warn_unread_messages(client: &HiBossClient) {
+    let boss_count = client.inbox_count(None).await.unwrap_or(0);
+    let a2a_count = client.inbox_count_a2a().await.unwrap_or(0);
+    if boss_count > 0 || a2a_count > 0 {
+        if boss_count > 0 {
+            println!(
+                "UNREAD WARNING: You have {} unread boss message(s). Read them FIRST: hiboss inbox",
+                boss_count
+            );
+        }
+        if a2a_count > 0 {
+            println!(
+                "UNREAD WARNING: You have {} unread peer message(s). Read them FIRST: hiboss inbox --direction agent_to_agent",
+                a2a_count
+            );
+        }
+        println!("Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages.");
+    }
 }
