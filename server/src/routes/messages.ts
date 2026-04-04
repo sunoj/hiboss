@@ -457,7 +457,7 @@ routes.post('/:id/forward', async (c) => {
     return c.json(mapMessageRow(forwarded), 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'forward failed';
-    const status = message === 'no channel configured' ? 400 : 502;
+    const status = message === 'no channel configured' ? 400 : message === 'cannot forward boss messages' ? 403 : 502;
     return c.text(message, status);
   }
 });

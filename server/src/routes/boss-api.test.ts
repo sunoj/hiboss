@@ -234,6 +234,20 @@ describe('POST /api/boss/messages/:id/forward', () => {
     expect(res.status).toBe(400);
     expect(await res.text()).toContain('channel must be discord or telegram');
   });
+
+  it('rejects forwarding boss-authored messages', async () => {
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'api', ?, 'sent', 'normal')"
+    ).bind('boss-forward-blocked', getTestAgentId(), 'Do not forward this').run();
+
+    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-forward-blocked/forward', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ channel: 'telegram' }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('cannot forward boss messages');
+  });
 });
 
 describe('GET /api/boss/sessions', () => {

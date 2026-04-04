@@ -8,6 +8,7 @@ import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
+import { findTelegramSessionRoute } from './session-channels';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 
 type TelegramConfigRow = { agent_id: string; config: string };
@@ -18,9 +19,10 @@ export async function handleTelegramCallbackQuery(c: TelegramContext, query: Rec
   const queryId = asString(query['id']);
   const chatMsg = query['message'] as Record<string, unknown> | undefined;
   const chatId = asString((chatMsg?.['chat'] as Record<string, unknown> | undefined)?.['id']);
+  const threadId = readMessageThreadId(chatMsg);
   if (!data || !chatId) return c.text('invalid callback', 400);
 
-  const configRow = await findTelegramConfigRow(c.env, chatId);
+  const configRow = await findTelegramConfigRow(c.env, chatId, threadId);
   const botToken = readBotToken(configRow?.config);
   const answer = (text: string) => answerTelegramCallback(c, botToken, queryId, text);
   if (!configRow) {
@@ -44,13 +46,11 @@ export async function handleTelegramCallbackQuery(c: TelegramContext, query: Rec
 export async function handleTelegramReaction(c: TelegramContext, reaction: Record<string, unknown>): Promise<Response> {
   const chatId = asString((reaction['chat'] as Record<string, unknown> | undefined)?.['id']);
   const tgMsgId = typeof reaction['message_id'] === 'number' ? reaction['message_id'] : undefined;
+  const threadId = readMessageThreadId(reaction);
   if (!chatId || !tgMsgId) return c.text('invalid reaction', 400);
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(c.env, 'telegram', asString((reaction['user'] as Record<string, unknown>)?.['id']), true);
   if (bossError) return c.text(bossError, 403);
-  const configRow = await c.env.DB
-    .prepare("SELECT agent_id FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
-    .bind(chatId)
-    .first<{ agent_id: string }>();
+  const configRow = await findTelegramConfigRow(c.env, chatId, threadId);
   if (!configRow) return c.text('forbidden', 403);
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
   const msg = await c.env.DB
@@ -120,6 +120,9 @@ async function handleJoinCallback(
   if (bossError) return replyWithAnswer(c, botToken, queryId, bossError, c.text(bossError, 403));
   const parsed = parseJoinCallbackData(data);
   if (!parsed) return replyWithAnswer(c, botToken, queryId, 'Invalid', c.text('invalid callback data', 400));
+  if (parsed.action === 'approve' && bossInfo && bossInfo.role !== 'admin') {
+    return replyWithAnswer(c, botToken, queryId, 'Admin required', c.text('admin required', 403));
+  }
   const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);
   if (result.error) return replyWithAnswer(c, botToken, queryId, result.answerText, c.text(result.error, result.statusCode));
   answer(result.answerText);
@@ -161,7 +164,25 @@ function buildCallbackReplyMetadata(
   return bossInfo ? { ...(replyMetadata ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name } : replyMetadata;
 }
 
-async function findTelegramConfigRow(env: Env, chatId: string): Promise<TelegramConfigRow | null> {
+async function findTelegramConfigRow(env: Env, chatId: string, threadId: number | undefined): Promise<TelegramConfigRow | null> {
+  if (threadId) {
+    const sessionRoute = await findTelegramSessionRoute(env, chatId, threadId);
+    if (sessionRoute) return { agent_id: sessionRoute.agent_id, config: sessionRoute.config };
+    const threaded = await env.DB
+      .prepare(
+        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') = ?",
+      )
+      .bind(chatId, threadId)
+      .first<TelegramConfigRow>();
+    return threaded ?? null;
+  }
+  const unthreaded = await env.DB
+    .prepare(
+      "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') IS NULL",
+    )
+    .bind(chatId)
+    .first<TelegramConfigRow>();
+  if (unthreaded) return unthreaded;
   return env.DB
     .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
     .bind(chatId)
@@ -189,6 +210,10 @@ function replyWithAnswer(c: TelegramContext, botToken: string | undefined, query
 
 function chatMessage(query: Record<string, unknown>): { message_id?: number; text?: unknown; chat?: Record<string, unknown> } | undefined {
   return query['message'] as { message_id?: number; text?: unknown; chat?: Record<string, unknown> } | undefined;
+}
+
+function readMessageThreadId(message: Record<string, unknown> | undefined): number | undefined {
+  return typeof message?.['message_thread_id'] === 'number' ? message['message_thread_id'] : undefined;
 }
 
 function parseMessageCallbackData(data: string): { msgPrefix: string; selectedOption: string } | null {
