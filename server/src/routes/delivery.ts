@@ -3,7 +3,7 @@
 // Depends on channel adapters, types, and delay from message-helpers.
 
 import type { Channel, DiscordChannelConfig, Env, TelegramChannelConfig } from '../types';
-import { sendDiscordMessage, type DiscordSendOptions } from '../channels/discord';
+import { sendDiscordMessage, sendDiscordTyping, type DiscordSendOptions } from '../channels/discord';
 import {
   escapeHtml,
   formatTelegramAgentMessage,
@@ -76,6 +76,7 @@ export async function deliverReply(
   if (channel === 'discord') {
     const dc = requireDiscordConfig(config);
     const opts = discordOptions(dc, agentName, agentAvatarUrl);
+    await sendDiscordTyping(dc);
     const result = await sendDiscordMessage(dc, opts ? body : formatAgentMessage(agentName, body), opts);
     return { delivered: true, discordMessageId: result.messageId };
   }
@@ -102,9 +103,12 @@ export async function deliverToChannelWithOptions(
   if (channel === 'discord') {
     const dc = requireDiscordConfig(config);
     const opts = discordOptions(dc, agentName, agentAvatarUrl);
-    const text = opts ? body : formatAgentMessage(agentName, body);
+    const baseText = opts ? body : formatAgentMessage(agentName, body);
     const components = inlineKeyboard ? inlineKeyboardToDiscordComponents(inlineKeyboard) : undefined;
-    const result = await sendDiscordMessage(dc, fileUrl ? `${text}\n${fileUrl}` : text, { ...opts, components });
+    const content = formatDiscordContent(baseText, fileUrl);
+    const sendOptions = buildDiscordSendOptions(opts, components, fileUrl);
+    await sendDiscordTyping(dc);
+    const result = await sendDiscordMessage(dc, content, sendOptions);
     return { delivered: true, discordMessageId: result.messageId };
   }
   if (channel === 'telegram') {
@@ -146,6 +150,39 @@ function sanitizeDiscordUsername(name: string): string {
 function discordOptions(config: DiscordChannelConfig, agentName: string, avatarUrl?: string): DiscordSendOptions | undefined {
   if (!config.webhook_url) return undefined;
   return { username: sanitizeDiscordUsername(agentName).slice(0, 80), avatarUrl: avatarUrl ?? config.avatar_url };
+}
+
+function buildDiscordSendOptions(
+  baseOptions: DiscordSendOptions | undefined,
+  components?: unknown[],
+  fileUrl?: string,
+): DiscordSendOptions | undefined {
+  const options: DiscordSendOptions = baseOptions ? { ...baseOptions } : {};
+  if (components) options.components = components;
+  if (fileUrl) {
+    if (isImageUrl(fileUrl)) {
+      options.embeds = [{ image: { url: fileUrl } }];
+    } else {
+      options.fileUrl = fileUrl;
+    }
+  }
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
+function formatDiscordContent(text: string, fileUrl?: string): string {
+  if (!fileUrl || isImageUrl(fileUrl)) return text;
+  const attachmentLabel = getDiscordAttachmentLabel(fileUrl);
+  return text ? `${text}\nAttachment: ${attachmentLabel}` : `Attachment: ${attachmentLabel}`;
+}
+
+function getDiscordAttachmentLabel(fileUrl: string): string {
+  try {
+    const candidate = new URL(fileUrl).pathname.split('/').filter(Boolean).pop();
+    if (candidate) return decodeURIComponent(candidate);
+  } catch {
+    return 'attachment';
+  }
+  return 'attachment';
 }
 
 export async function deliverWithRetry<T>(

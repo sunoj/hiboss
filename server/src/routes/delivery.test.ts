@@ -3,7 +3,18 @@
 // Only tests pure functions and API channel (no external HTTP calls).
 // Depends on vitest only (no D1/cloudflare:test needed for pure functions).
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../channels/discord', async () => {
+  const actual = await vi.importActual<typeof import('../channels/discord')>('../channels/discord');
+  return {
+    ...actual,
+    sendDiscordMessage: vi.fn(async () => ({ messageId: 'discord-msg-1' })),
+    sendDiscordTyping: vi.fn(async () => {}),
+  };
+});
+
+import { sendDiscordMessage, sendDiscordTyping } from '../channels/discord';
 import {
   formatAgentMessage,
   requireDiscordConfig,
@@ -12,6 +23,15 @@ import {
   deliverToChannelWithOptions,
   deliverWithRetry,
 } from './delivery';
+
+const mockedSendDiscordMessage = vi.mocked(sendDiscordMessage);
+const mockedSendDiscordTyping = vi.mocked(sendDiscordTyping);
+
+beforeEach(() => {
+  mockedSendDiscordMessage.mockClear();
+  mockedSendDiscordTyping.mockClear();
+  mockedSendDiscordMessage.mockResolvedValue({ messageId: 'discord-msg-1' });
+});
 
 describe('formatAgentMessage', () => {
   it('wraps name in brackets', () => {
@@ -84,6 +104,15 @@ describe('deliverReply — api channel', () => {
     const result = await deliverReply('email', {}, 'agent', 'test body');
     expect(result).toEqual({ delivered: false });
   });
+
+  it('sends discord typing before posting a bot reply', async () => {
+    const result = await deliverReply('discord', { channel_id: 'chan-1', bot_token: 'bot-1' }, 'agent', 'test body');
+
+    expect(result).toEqual({ delivered: true, discordMessageId: 'discord-msg-1' });
+    expect(mockedSendDiscordTyping).toHaveBeenCalledWith({ channel_id: 'chan-1', bot_token: 'bot-1' });
+    expect(mockedSendDiscordMessage).toHaveBeenCalledWith({ channel_id: 'chan-1', bot_token: 'bot-1' }, '[agent] test body', undefined);
+    expect(mockedSendDiscordTyping.mock.invocationCallOrder[0]).toBeLessThan(mockedSendDiscordMessage.mock.invocationCallOrder[0]);
+  });
 });
 
 describe('deliverToChannelWithOptions — api channel', () => {
@@ -95,6 +124,48 @@ describe('deliverToChannelWithOptions — api channel', () => {
   it('returns delivered:false for email channel', async () => {
     const result = await deliverToChannelWithOptions('email', {}, 'agent', 'body');
     expect(result).toEqual({ delivered: false });
+  });
+
+  it('uses a discord image embed instead of appending the file URL', async () => {
+    const result = await deliverToChannelWithOptions(
+      'discord',
+      { webhook_url: 'https://discord.test/webhook' },
+      'agent',
+      'body',
+      undefined,
+      'https://files.test/photo.png'
+    );
+
+    expect(result).toEqual({ delivered: true, discordMessageId: 'discord-msg-1' });
+    expect(mockedSendDiscordTyping).toHaveBeenCalledWith({ webhook_url: 'https://discord.test/webhook', avatar_url: undefined, bot_token: undefined, channel_id: undefined, thread_id: undefined });
+    expect(mockedSendDiscordMessage).toHaveBeenCalledWith(
+      { webhook_url: 'https://discord.test/webhook', avatar_url: undefined, bot_token: undefined, channel_id: undefined, thread_id: undefined },
+      'body',
+      {
+        username: 'agent',
+        avatarUrl: undefined,
+        embeds: [{ image: { url: 'https://files.test/photo.png' } }],
+      }
+    );
+  });
+
+  it('passes non-image discord files to the adapter with descriptive content', async () => {
+    const result = await deliverToChannelWithOptions(
+      'discord',
+      { channel_id: 'chan-1', bot_token: 'bot-1' },
+      'agent',
+      'body',
+      undefined,
+      'https://files.test/report.pdf'
+    );
+
+    expect(result).toEqual({ delivered: true, discordMessageId: 'discord-msg-1' });
+    expect(mockedSendDiscordMessage).toHaveBeenCalledWith(
+      { channel_id: 'chan-1', bot_token: 'bot-1' },
+      '[agent] body\nAttachment: report.pdf',
+      { fileUrl: 'https://files.test/report.pdf' }
+    );
+    expect(mockedSendDiscordTyping.mock.invocationCallOrder[0]).toBeLessThan(mockedSendDiscordMessage.mock.invocationCallOrder[0]);
   });
 });
 
