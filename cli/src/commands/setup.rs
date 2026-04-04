@@ -20,6 +20,8 @@ use self::setup_support::{
     list_text_channels,
     register_telegram_commands,
     select_chat,
+    telegram_set_webhook_payload,
+    telegram_webhook_secret_reminder,
     tg_api,
 };
 
@@ -44,6 +46,8 @@ pub struct SetupTelegramArgs {
     pub bot_token: Option<String>,
     #[arg(long, help = "Chat ID (skip auto-detection)")]
     pub chat_id: Option<String>,
+    #[arg(long, help = "Secret token sent by Telegram and verified by the server webhook")]
+    pub webhook_secret: Option<String>,
     #[arg(long, help = "Enable per-agent topic threads in a Telegram group")]
     pub use_topics: bool,
 }
@@ -141,10 +145,12 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
     let base = server_url.trim_end_matches('/');
     let webhook_url = format!("{}/api/webhooks/telegram", base);
     eprint!("  Setting webhook... ");
-    let wh: Value = tg_api(&http, &bot_token, "setWebhook", &json!({
-        "url": webhook_url,
-        "allowed_updates": ["message", "callback_query", "message_reaction"]
-    })).await?;
+    let wh: Value = tg_api(
+        &http,
+        &bot_token,
+        "setWebhook",
+        &telegram_set_webhook_payload(&webhook_url, args.webhook_secret.as_deref()),
+    ).await?;
     if wh["ok"].as_bool() == Some(true) { eprintln!("OK"); }
     else { eprintln!("WARNING: {}", wh["description"].as_str().unwrap_or("?")); }
 
@@ -158,6 +164,9 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
 
     eprintln!("\n=== Telegram setup complete! ===");
     eprintln!("Bot @{} connected to chat {}.", bot_name, chat_id);
+    if let Some(reminder) = telegram_webhook_secret_reminder(args.webhook_secret.as_deref()) {
+        eprintln!("{}", reminder);
+    }
     eprintln!("Try: hiboss send \"Hello from my agent!\"");
     Ok(())
 }

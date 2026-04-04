@@ -5,7 +5,7 @@
 import type { Channel, DiscordChannelConfig, Env, TelegramChannelConfig } from '../types';
 import { sendDiscordMessage, sendDiscordTyping, type DiscordSendOptions } from '../channels/discord';
 import {
-  escapeHtml,
+  formatTelegramAttachmentCaption,
   formatTelegramAgentMessage,
   isImageUrl,
   sendTelegramDocument,
@@ -126,7 +126,7 @@ export async function deliverToChannelWithOptions(
     const messageThreadId = await fetchSessionTelegramTopicId(env, sessionId);
     let telegramMessageId: number | undefined;
     if (fileUrl) {
-      const caption = escapeHtml(`[${agentName}] ${body}`);
+      const caption = formatTelegramAttachmentCaption(agentName, body);
       if (isImageUrl(fileUrl)) {
         telegramMessageId = await sendTelegramPhoto(tgConfig, fileUrl, caption, { messageThreadId });
       } else {

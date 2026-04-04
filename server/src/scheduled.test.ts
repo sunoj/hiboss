@@ -2,7 +2,7 @@
 // Verifies SQL selection, queue state transitions, and error handling with fake D1.
 // Depends on Vitest plus module mocks for delivery and expiry helpers.
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleScheduled } from './scheduled';
 
 function makeExpiryRow(id: string, agentId: string, opts: string[] = ['A', 'B']) {
@@ -21,7 +21,7 @@ function makeExpiryRow(id: string, agentId: string, opts: string[] = ['A', 'B'])
   };
 }
 
-function makeQueueRow(id: string, messageId: string, agentId: string) {
+function makeQueueRow(id: string, messageId: string, agentId: string, attempts = 0) {
   return {
     id,
     message_id: messageId,
@@ -29,6 +29,7 @@ function makeQueueRow(id: string, messageId: string, agentId: string) {
     channel: 'telegram' as const,
     config: JSON.stringify({ bot_token: 'token', chat_id: 'chat' }),
     scheduled_at: '2026-03-21T00:05:00Z',
+    attempts,
   };
 }
 
@@ -85,6 +86,16 @@ function makeFakeEnv({
                   all: async () => ({ results: queueRows }),
                 };
               }
+              if (sql.startsWith("UPDATE delivery_queue SET status = 'pending', scheduled_at = ?")) {
+                return {
+                  run: async () => ({ success: true }),
+                };
+              }
+              if (sql.startsWith("UPDATE delivery_queue SET status = 'pending' WHERE status = 'failed'")) {
+                return {
+                  run: async () => ({ success: true }),
+                };
+              }
               if (sql.startsWith("UPDATE delivery_queue SET status = 'processing'")) {
                 return {
                   run: async () => ({ meta: { changes: 1 } }),
@@ -124,8 +135,14 @@ const mockedDeliverAgentMessage = vi.mocked(deliverAgentMessage);
 
 describe('handleScheduled', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-21T00:05:00.000Z'));
     mockedExpire.mockClear();
     mockedDeliverAgentMessage.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('expires messages past their expires_at', async () => {
@@ -180,7 +197,7 @@ describe('handleScheduled', () => {
   });
 
   it('marks queued delivery as failed when channel delivery throws', async () => {
-    const queueRow = makeQueueRow('queue-2', 'queued-msg-2', 'agent-b');
+    const queueRow = makeQueueRow('queue-2', 'queued-msg-2', 'agent-b', 1);
     const queuedMessage = makeQueuedMessage('queued-msg-2', 'agent-b');
     const { env, preparedStatements } = makeFakeEnv({
       queueRows: [queueRow],
@@ -193,6 +210,8 @@ describe('handleScheduled', () => {
 
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'failed'"))).toBe(true);
     expect(preparedStatements.some((stmt) => stmt.sql.includes("json_set(COALESCE(metadata, '{}'), '$.delivery_error'"))).toBe(true);
+    const failureUpdate = preparedStatements.find((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'failed'"));
+    expect(failureUpdate?.binds[1]).toBe('2026-03-21T00:07:00.000Z');
   });
 
   it('queries expiry rows and pending queue rows with limits', async () => {
@@ -208,5 +227,21 @@ describe('handleScheduled', () => {
     expect(queueQuery?.sql).toContain("status = 'pending'");
     expect(queueQuery?.sql).toContain('scheduled_at <= ?');
     expect(queueQuery?.binds[1]).toBe(50);
+  });
+
+  it('reclaims stale processing rows and retries eligible failures before selecting pending work', async () => {
+    const { env, preparedStatements } = makeFakeEnv({});
+
+    await handleScheduled(env as never);
+
+    const reclaimIndex = preparedStatements.findIndex((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'pending', scheduled_at = ?"));
+    const retryIndex = preparedStatements.findIndex((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'pending' WHERE status = 'failed'"));
+    const selectIndex = preparedStatements.findIndex((stmt) => stmt.sql.includes('FROM delivery_queue'));
+
+    expect(reclaimIndex).toBeGreaterThan(-1);
+    expect(retryIndex).toBeGreaterThan(-1);
+    expect(selectIndex).toBeGreaterThan(retryIndex);
+    expect(preparedStatements[reclaimIndex]?.binds[1]).toBe('2026-03-21T00:00:00.000Z');
+    expect(preparedStatements[retryIndex]?.binds).toEqual([3, '2026-03-21T00:05:00.000Z']);
   });
 });

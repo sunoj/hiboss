@@ -3,7 +3,12 @@
 // Depends on channel adapters, delivery formatters, and route query helpers.
 
 import { editDiscordMessage } from '../channels/discord';
-import { editTelegramMessageText, formatTelegramAgentMessage } from '../channels/telegram';
+import {
+  editTelegramCaption,
+  editTelegramMessageText,
+  formatTelegramAgentMessage,
+  formatTelegramAttachmentCaption,
+} from '../channels/telegram';
 import type { Env, MessageRow } from '../types';
 import { formatAgentMessage, requireDiscordConfig, requireTelegramConfig } from './delivery';
 import { extractTelegramMessageId, fetchAgentName, selectChannelConfig } from './message-helpers';
@@ -35,6 +40,10 @@ async function editTelegramMirror(env: Env, message: MessageRow): Promise<void> 
   const channelConfig = await selectChannelConfig(env, message.agent_id, 'telegram');
   const telegramConfig = requireTelegramConfig(channelConfig.config);
   const displayName = await fetchDisplayName(env, message);
+  if (messageHasFileUrl(message.metadata)) {
+    await editTelegramCaption(telegramConfig, telegramMessageId, formatTelegramAttachmentCaption(displayName, message.body));
+    return;
+  }
   await editTelegramMessageText(telegramConfig, telegramMessageId, formatTelegramAgentMessage(displayName, message.body));
 }
 
@@ -79,4 +88,14 @@ function extractDiscordMessageId(metadata: string | null): string | undefined {
     return undefined;
   }
   return undefined;
+}
+
+function messageHasFileUrl(metadata: string | null): boolean {
+  if (!metadata) return false;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    return typeof parsed['file_url'] === 'string' && parsed['file_url'].trim().length > 0;
+  } catch {
+    return false;
+  }
 }
