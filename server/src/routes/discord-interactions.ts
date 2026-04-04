@@ -183,6 +183,9 @@ async function handleDiscordJoinCallback(
   if (!parsed) {
     return c.text('invalid callback data', 400);
   }
+  if (parsed.action === 'approve' && boss && boss.role !== 'admin') {
+    return c.text('admin required', 403);
+  }
   const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);
   if (!result.error) {
     c.executionCtx.waitUntil(logAudit(c.env, boss ? 'boss' : 'system', boss?.id ?? 'discord', result.auditAction, 'join_request', parsed.requestId, result.auditDetails));

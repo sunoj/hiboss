@@ -31,6 +31,9 @@ export async function forwardMessage(
   original: MessageRow,
   targetChannel: ForwardChannel,
 ): Promise<MessageRow> {
+  if (original.direction === 'boss_to_agent') {
+    throw new Error('cannot forward boss messages');
+  }
   const channelConfig = await selectChannelConfig(env, original.agent_id, targetChannel);
   if (channelConfig.channel !== targetChannel) {
     throw new Error('no channel configured');

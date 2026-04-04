@@ -168,6 +168,7 @@ async function findTelegramTarget(env: Env, chatId: string, threadId: number | u
       .bind(chatId, threadId)
       .first<TelegramConfigRow>();
     if (threaded) return { configRow: threaded, targetSessionId: null };
+    return null;
   }
   const unthreaded = await env.DB
     .prepare(
