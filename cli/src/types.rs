@@ -96,6 +96,59 @@ pub struct ChannelsResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct ChannelStats {
+    pub channel: String,
+    pub total_sent: u32,
+    pub total_delivered: u32,
+    pub total_failed: u32,
+    pub last_delivery_at: Option<String>,
+    pub last_error: Option<String>,
+    pub last_error_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeliveryErrorInfo {
+    pub channel: String,
+    #[serde(default)]
+    pub message_id: Option<String>,
+    pub last_error: Option<String>,
+    pub last_error_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeliveryQueueStatus {
+    pub total: u32,
+    #[serde(default)]
+    pub by_status: Vec<QueueStatusCount>,
+    #[serde(default)]
+    pub oldest_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QueueStatusCount {
+    pub status: String,
+    pub total: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DirectionCount {
+    pub channel: String,
+    pub direction: String,
+    pub total: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChannelStatsResponse {
+    pub channels: Vec<ChannelStats>,
+    #[serde(default)]
+    pub recent_errors: Vec<DeliveryErrorInfo>,
+    #[serde(default)]
+    pub delivery_queue: Option<DeliveryQueueStatus>,
+    #[serde(default)]
+    pub direction_counts: Vec<DirectionCount>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReplyRequest {
     pub body: String,
 }

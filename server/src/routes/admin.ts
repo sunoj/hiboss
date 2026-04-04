@@ -1,11 +1,12 @@
 // Admin routes for creating API keys and managing channel configs.
-// Exports POST /api/keys, GET /api/channels, and PUT /api/channels/:channel.
+// Exports POST /api/keys, GET /api/channels, GET /api/channels/stats, and PUT /api/channels/:channel.
 // Depends on Hono, auth middleware, hashing helpers, and shared types.
 
 import { Hono } from 'hono';
 import type { Channel, ChannelConfigRow, Env } from '../types';
 import { apiAuth, getAgentId, hashApiKey } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { getChannelStatsResponse } from './admin-channel-stats';
 
 const router = new Hono<{ Bindings: Env }>({});
 router.use('*', apiAuth);
@@ -63,6 +64,12 @@ router.get('/channels', async (c) => {
     created_at: row.created_at,
   }));
   return c.json({ channels });
+});
+
+router.get('/channels/stats', async (c) => {
+  const agentId = getAgentId(c);
+  const verbose = c.req.query('verbose') === '1' || c.req.query('verbose') === 'true';
+  return c.json(await getChannelStatsResponse(c.env, agentId, verbose));
 });
 
 router.put('/channels/:channel', async (c) => {
