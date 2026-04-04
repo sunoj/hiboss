@@ -94,8 +94,8 @@ export function buildFilters(
         binds.push(agentId);
       }
     } else if (targetSessionId) {
-      clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
-      binds.push(agentId, agentId, targetSessionId);
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND (target_session_id IS NULL OR target_session_id = ?)) OR (target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
+      binds.push(agentId, targetSessionId, agentId, targetSessionId);
     } else {
       clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent'))");
       binds.push(agentId, agentId);
@@ -132,9 +132,9 @@ export function buildFilters(
   }
   if (session && !unread) {
     // Show: messages from this session, boss replies to this session's messages,
-    // and boss-initiated messages (reply_to IS NULL) visible to all sessions.
-    clauses.push("(session_id = ? OR reply_to IN (SELECT id FROM messages WHERE session_id = ?) OR (direction = 'boss_to_agent' AND reply_to IS NULL))");
-    binds.push(session, session);
+    // boss-initiated agent-wide messages, and boss messages targeted to this session.
+    clauses.push("(session_id = ? OR reply_to IN (SELECT id FROM messages WHERE session_id = ?) OR (direction = 'boss_to_agent' AND ((reply_to IS NULL AND target_session_id IS NULL) OR target_session_id = ?)))");
+    binds.push(session, session, session);
   }
   if (search) {
     clauses.push('body LIKE ?');

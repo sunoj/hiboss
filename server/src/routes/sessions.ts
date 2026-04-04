@@ -23,6 +23,7 @@ interface SessionRow {
   status: SessionStatus;
   status_text: string | null;
   discord_thread_id: string | null;
+  telegram_topic_id: number | null;
   started_at: string;
   last_seen_at: string;
 }
@@ -110,6 +111,10 @@ routes.patch('/:id', async (c) => {
 routes.delete('/:id', async (c) => {
   if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
+  await c.env.DB
+    .prepare('UPDATE sessions SET telegram_topic_id = NULL WHERE id = ? AND agent_id = ?')
+    .bind(c.req.param('id'), agentId)
+    .run();
   await c.env.DB
     .prepare('DELETE FROM sessions WHERE id = ? AND agent_id = ?')
     .bind(c.req.param('id'), agentId)
