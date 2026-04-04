@@ -206,6 +206,7 @@ describe('buildFilters', () => {
 
   it('includes target_session_id in unread filter when provided', () => {
     const { where, binds } = buildFilters('a1', null, 'sent', undefined, undefined, undefined, true, undefined, 'sess-123');
+    expect(where).toContain("target_session_id IS NULL OR target_session_id = ?");
     expect(where).toContain('target_session_id = ?');
     expect(binds).toContain('sess-123');
   });
@@ -219,7 +220,8 @@ describe('buildFilters', () => {
   it('adds session filter in non-unread mode', () => {
     const { where, binds } = buildFilters('a1', null, null, undefined, undefined, 'sess-abc');
     expect(where).toContain('session_id = ?');
-    expect(where).toContain("direction = 'boss_to_agent' AND reply_to IS NULL");
+    expect(where).toContain("direction = 'boss_to_agent'");
+    expect(where).toContain('target_session_id = ?');
     expect(binds).toContain('sess-abc');
   });
 

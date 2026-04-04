@@ -28,11 +28,12 @@ describe('stream helpers', () => {
     it('returns correct SQL with session ID', () => {
       const sessionId = 'sess-123';
       const { sql, buildBinds } = buildStreamQuery(agentId, sessionId);
+      expect(sql).toContain("messages.target_session_id IS NULL OR messages.target_session_id = ?");
       expect(sql).toContain('messages.target_session_id = ?');
       expect(sql).toContain('messages.target_session_id IS NULL');
       
       const binds = buildBinds('2026-01-01 00:00:00');
-      expect(binds).toEqual(['2026-01-01 00:00:00', agentId, agentId, sessionId]);
+      expect(binds).toEqual(['2026-01-01 00:00:00', agentId, sessionId, agentId, sessionId]);
     });
   });
 

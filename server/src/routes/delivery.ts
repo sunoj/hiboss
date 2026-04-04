@@ -13,6 +13,7 @@ import {
   sendTelegramPhoto,
 } from '../channels/telegram';
 import { delay } from './message-helpers';
+import { fetchTelegramTopicIdForSession } from './session-channels';
 
 export type DeliveryResult = { delivered: false } | { delivered: true; telegramMessageId?: number; discordMessageId?: string };
 
@@ -69,6 +70,8 @@ export async function deliverReply(
   body: string,
   replyToTelegramId?: number,
   agentAvatarUrl?: string,
+  env?: Env,
+  sessionId?: string | null,
 ): Promise<DeliveryResult> {
   if (channel === 'api') {
     return { delivered: true };
@@ -82,7 +85,11 @@ export async function deliverReply(
   }
   if (channel === 'telegram') {
     const tgBody = formatTelegramAgentMessage(agentName, body);
-    const telegramMessageId = await sendTelegramMessage(requireTelegramConfig(config), tgBody, { replyToMessageId: replyToTelegramId });
+    const messageThreadId = await fetchSessionTelegramTopicId(env, sessionId);
+    const telegramMessageId = await sendTelegramMessage(requireTelegramConfig(config), tgBody, {
+      replyToMessageId: replyToTelegramId,
+      messageThreadId,
+    });
     return { delivered: true, telegramMessageId };
   }
   return { delivered: false };
@@ -96,6 +103,8 @@ export async function deliverToChannelWithOptions(
   inlineKeyboard?: { text: string; callback_data: string }[][],
   fileUrl?: string,
   agentAvatarUrl?: string,
+  env?: Env,
+  sessionId?: string | null,
 ): Promise<DeliveryResult> {
   if (channel === 'api') {
     return { delivered: true };
@@ -114,16 +123,17 @@ export async function deliverToChannelWithOptions(
   if (channel === 'telegram') {
     const tgConfig = requireTelegramConfig(config);
     const tgBody = formatTelegramAgentMessage(agentName, body);
+    const messageThreadId = await fetchSessionTelegramTopicId(env, sessionId);
     let telegramMessageId: number | undefined;
     if (fileUrl) {
       const caption = escapeHtml(`[${agentName}] ${body}`);
       if (isImageUrl(fileUrl)) {
-        telegramMessageId = await sendTelegramPhoto(tgConfig, fileUrl, caption);
+        telegramMessageId = await sendTelegramPhoto(tgConfig, fileUrl, caption, { messageThreadId });
       } else {
-        telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, caption);
+        telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, caption, { messageThreadId });
       }
     } else {
-      telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard });
+      telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
     }
     return { delivered: true, telegramMessageId };
   }
@@ -202,4 +212,9 @@ export async function deliverWithRetry<T>(
     }
   }
   throw lastError;
+}
+
+async function fetchSessionTelegramTopicId(env?: Env, sessionId?: string | null): Promise<number | undefined> {
+  if (!env || !sessionId) return undefined;
+  return fetchTelegramTopicIdForSession(env, sessionId);
 }

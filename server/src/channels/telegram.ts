@@ -183,10 +183,17 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
   // Fallback: if sendDocument fails, send URL as text message
   if (!response.ok) {
     const label = caption ? stripHtmlTags(caption) : 'Attachment';
-    const fallbackText = `${label}\n📎 ${docUrl}`;
+    const fallbackPayload: Record<string, unknown> = {
+      chat_id: config.chat_id,
+      text: `${label}\n📎 ${docUrl}`,
+    };
+    if (threadId) fallbackPayload.message_thread_id = threadId;
+    if (options?.replyToMessageId) {
+      fallbackPayload.reply_parameters = { message_id: options.replyToMessageId };
+    }
     response = await fetch(
       `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: config.chat_id, text: fallbackText }) }
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) }
     );
     if (!response.ok) {
       throw new Error(`telegram sendDocument fallback failed ${response.status}`);
