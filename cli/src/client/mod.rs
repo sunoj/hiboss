@@ -1,7 +1,7 @@
 // Purpose: Define HiBossClient plus messaging, admin, and upload helpers.
 // Exports: HiBossClient struct, core messaging + admin methods, upload and helpers.
 // Dependencies: reqwest, serde_json, crate::types, std::error::Error.
-use crate::types::{AgentsResponse, ChannelsResponse, CreateAgentResponse, ReactionsResponse, SendRequest, SendResponse, UploadResponse};
+use crate::types::{AgentsResponse, ChannelStatsResponse, ChannelsResponse, CreateAgentResponse, ReactionsResponse, SendRequest, SendResponse, UploadResponse};
 use reqwest::Client;
 use serde_json::Value;
 use std::error::Error;
@@ -92,6 +92,16 @@ impl HiBossClient {
             .bearer_auth(&self.api_key)
             .send()
             .await?;
+        Self::parse_response(resp).await
+    }
+    pub async fn list_channel_stats(&self, verbose: bool) -> Result<ChannelStatsResponse, Box<dyn Error>> {
+        let mut req = self.http
+            .get(format!("{}/api/channels/stats", self.base_url))
+            .bearer_auth(&self.api_key);
+        if verbose {
+            req = req.query(&[("verbose", "1")]);
+        }
+        let resp = req.send().await?;
         Self::parse_response(resp).await
     }
     pub async fn get_agent_config(&self) -> Result<Value, Box<dyn Error>> {
