@@ -4,7 +4,7 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, group, hook, init, inbox, react, read, reply, route, send, setup, ss, status, watch};
+use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group, hook, init, inbox, react, read, reply, route, send, setup, ss, status, watch};
 use hiboss::config;
 use std::error::Error;
 
@@ -31,6 +31,8 @@ enum Commands {
     Reply(reply::ReplyArgs),
     #[command(about = "Edit the body of a previously sent message")]
     Edit(edit::Edit),
+    #[command(about = "Forward a message to another channel")]
+    Forward(forward::Forward),
     #[command(about = "Check the status of a sent message")]
     Status(status::StatusArgs),
     #[command(about = "Manage agent identities")]
@@ -120,6 +122,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::React(args) => react::run(args, &config, &client).await?,
         Commands::Reply(args) => reply::run(args, &config, &client).await?,
         Commands::Edit(args) => edit::run(args, &config, &client).await?,
+        Commands::Forward(args) => forward::run(args, &config, &client).await?,
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
         Commands::Channel(args) => channel::run(args, &config, &client).await?,

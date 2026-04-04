@@ -85,6 +85,16 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
 
+    pub async fn forward_message(&self, id: &str, channel: &str) -> Result<Message, Box<dyn Error>> {
+        let resp = self.http
+            .post(format!("{}/api/messages/{}/forward", self.base_url, id))
+            .bearer_auth(&self.api_key)
+            .json(&serde_json::json!({ "channel": channel }))
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
     pub async fn poll_reply(&self, id: &str, timeout: u32) -> Result<PollResponse, Box<dyn Error>> {
         let poll_timeout = u64::from(timeout).saturating_add(30).max(120);
         let resp = self.poll_http
