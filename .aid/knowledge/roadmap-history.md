@@ -208,3 +208,40 @@ New local MCP server that runs as a Claude Code plugin/channel, replacing hook-b
 - Stop hook detects unacknowledged replies (STOP VIOLATION if `has_asked()` but not `has_replied()`)
 - `send`, `reply`, `react` commands set `mark_replied()` marker
 - New session markers: `replied_marker_path()`, `mark_replied()`, `has_replied()`
+
+## v1.5.0 — Channel Parity & Feature Completeness
+
+### Discord Improvements
+- **File Attachments**: Proper multipart form-data upload for non-image files, embed images via Discord embeds (instead of appending URL as text)
+- **Typing Indicator**: `sendDiscordTyping()` fires before every Discord message delivery, matching Telegram's behavior
+- **Boss Reaction Capture**: Gateway DO now handles `MESSAGE_REACTION_ADD` and `MESSAGE_REACTION_REMOVE` events via new `GUILD_MESSAGE_REACTIONS` intent
+- New `discord-gateway-reactions.ts` module with `lookupDiscordAgentId()` and `persistDiscordReaction()` helpers
+- Reactions stored in message metadata matching Telegram's `{ emoji, user }` format
+
+### Telegram Per-Session Forum Topics
+- Each session creates its own Telegram forum topic (mirrors Discord's per-session threads)
+- Migration 0021: `telegram_topic_id` column + index on sessions table
+- New `session-channels.ts` with `ensureTopicForSession()` and `fetchTelegramTopicIdForSession()`
+- Delivery functions use session topic ID instead of per-agent `message_thread_id`
+- Webhook inbound routes messages from topics to correct session via `telegram_topic_id` lookup
+
+### Message Editing
+- Server: PATCH `/api/messages/:id` now accepts `{ body }` for body updates (agent_to_boss only)
+- Channel propagation: edits propagate to Discord (via `editDiscordMessage`) and Telegram (via new `editTelegramMessageText`)
+- Propagation runs via `waitUntil` (fire-and-forget, best-effort)
+- Audit logging for `message.edit` events
+- CLI: new `hiboss edit <id> "body"` command
+- MCP: existing `edit_message` tool now works end-to-end
+
+### MCP Tool Additions
+- `search`: Full-text search across messages via `?search=` query param
+- `list_sessions`: List active sessions with id, label, status, agent_name
+- Refactored tool helpers into `mcp/tool-helpers.ts`
+
+### Dashboard Enhancements
+- **Reaction Display**: Messages show reaction pills (`👍 boss`) from metadata
+- **File Attachment Viewer**: Inline image thumbnails for photos, download links for documents
+- **Edited Indicator**: "(edited)" badge when `updated_at` differs from `created_at`
+- **Options/Poll Display**: Option buttons with selected state highlighting, expired dimming
+- **Session Filter**: Messages tab can filter by session ID
+- **Session Thread Links**: Discord thread IDs and Telegram topic IDs shown as badges in session cards
