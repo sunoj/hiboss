@@ -7,7 +7,6 @@ import { escapeHtml, sendTelegramMessage } from '../channels/telegram';
 import { apiAuth } from '../middleware/auth';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
-import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
 import { requireTelegramConfig } from './delivery';
 import {
