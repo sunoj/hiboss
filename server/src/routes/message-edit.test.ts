@@ -3,7 +3,7 @@
 // Depends on cloudflare:test, D1 fixtures, and shared auth helpers.
 
 import { env, SELF } from 'cloudflare:test';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
@@ -11,6 +11,11 @@ const API_BASE = 'https://test.local/api/messages';
 
 beforeAll(async () => {
   await seedDatabase();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('PATCH /api/messages/:id', () => {
@@ -115,6 +120,38 @@ describe('PATCH /api/messages/:id', () => {
       id: created.id,
       body: 'message-edit:combined-updated',
       status: 'delivered',
+    });
+  });
+
+  it('edits Telegram media mirrors via caption updates', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, ?, ?, 1)'
+    ).bind(getTestAgentId(), 'telegram', JSON.stringify({ bot_token: 'tg-token', chat_id: 'chat-1' })).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'async', 'telegram', ?, 'delivered', 'normal', ?)"
+    ).bind(
+      'message-edit-telegram-caption',
+      getTestAgentId(),
+      'message-edit:caption-source',
+      JSON.stringify({ telegram_message_id: 42, file_url: 'https://files.test/report.pdf' }),
+    ).run();
+
+    const res = await SELF.fetch(`${API_BASE}/message-edit-telegram-caption`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'message-edit:caption-updated' }),
+    });
+
+    expect(res.status).toBe(200);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.telegram.org/bottg-token/editMessageCaption');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      chat_id: 'chat-1',
+      message_id: 42,
+      caption: '[test-agent] message-edit:caption-updated',
     });
   });
 });

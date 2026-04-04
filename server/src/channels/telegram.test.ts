@@ -2,8 +2,19 @@
 // Tests escapeHtml, formatTelegramAgentMessage, and isImageUrl.
 // Depends on vitest.
 
-import { describe, expect, it } from 'vitest';
-import { escapeHtml, formatTelegramAgentMessage, isImageUrl } from './telegram';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  editTelegramCaption,
+  escapeHtml,
+  formatTelegramAgentMessage,
+  formatTelegramAttachmentCaption,
+  isImageUrl,
+} from './telegram';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('escapeHtml', () => {
   it('returns plain text unchanged', () => {
@@ -53,6 +64,12 @@ describe('formatTelegramAgentMessage', () => {
   });
 });
 
+describe('formatTelegramAttachmentCaption', () => {
+  it('escapes attachment captions without adding html tags', () => {
+    expect(formatTelegramAttachmentCaption('A&B', 'x<y')).toBe('[A&amp;B] x&lt;y');
+  });
+});
+
 describe('isImageUrl', () => {
   it('returns true for .jpg', () => {
     expect(isImageUrl('https://example.com/photo.jpg')).toBe(true);
@@ -98,5 +115,23 @@ describe('isImageUrl', () => {
 
   it('returns false when no extension', () => {
     expect(isImageUrl('https://example.com/image')).toBe(false);
+  });
+});
+
+describe('editTelegramCaption', () => {
+  it('uses Telegram editMessageCaption', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await editTelegramCaption({ bot_token: 'tg-token', chat_id: 'chat-1' }, 42, '[agent] update');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.telegram.org/bottg-token/editMessageCaption');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      chat_id: 'chat-1',
+      message_id: 42,
+      caption: '[agent] update',
+      parse_mode: 'HTML',
+    });
   });
 });
