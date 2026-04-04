@@ -28,6 +28,37 @@ async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<
   };
 }
 
+function toUtcTime(value: Date): string {
+  return value.toISOString().slice(11, 16);
+}
+
+async function setupQuietHoursAgent(agentId: string, apiKey: string): Promise<Record<string, string>> {
+  const headers = await createAgentAuth(agentId, apiKey);
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, ?, ?, 1)'
+  ).bind(`cfg-${agentId}`, agentId, 'api', JSON.stringify({})).run();
+
+  const now = new Date();
+  const quietStart = new Date(now.getTime() - 60_000);
+  const quietEnd = new Date(now.getTime() + 60_000);
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO bosses (id, name, role, preferences) VALUES (?, ?, ?, ?)'
+  ).bind(
+    `boss-${agentId}`,
+    `Boss ${agentId}`,
+    'manager',
+    JSON.stringify({
+      quiet_hours_start: toUtcTime(quietStart),
+      quiet_hours_end: toUtcTime(quietEnd),
+      timezone: 'UTC',
+    }),
+  ).run();
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)'
+  ).bind(`boss-${agentId}`, agentId).run();
+  return headers;
+}
+
 describe('POST /api/messages', () => {
   it('creates a message with defaults', async () => {
     const res = await SELF.fetch('https://test.local/api/messages', {
@@ -67,6 +98,56 @@ describe('POST /api/messages', () => {
       body: JSON.stringify({ body: 'Urgent!', priority: 'high', mode: 'blocking' }),
     });
     expect(res.status).toBe(201);
+  });
+
+  it('queues normal-priority delivery when a boss is in quiet hours', async () => {
+    const quietHeaders = await setupQuietHoursAgent('quiet-agent-normal', 'hb_test_key_quiet_normal_000000');
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: quietHeaders,
+      body: JSON.stringify({ body: 'Queue this for later' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as { id: string };
+
+    const queueRow = await env.DB
+      .prepare('SELECT channel, status, scheduled_at FROM delivery_queue WHERE message_id = ?')
+      .bind(data.id)
+      .first<{ channel: string; status: string; scheduled_at: string }>();
+    expect(queueRow?.channel).toBe('api');
+    expect(queueRow?.status).toBe('pending');
+    expect(new Date(queueRow!.scheduled_at).getTime()).toBeGreaterThan(Date.now());
+
+    const messageRow = await env.DB
+      .prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(data.id)
+      .first<{ status: string }>();
+    expect(messageRow?.status).toBe('sent');
+  });
+
+  it('delivers high-priority messages immediately even during quiet hours', async () => {
+    const quietHeaders = await setupQuietHoursAgent('quiet-agent-high', 'hb_test_key_quiet_high_000000');
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: quietHeaders,
+      body: JSON.stringify({ body: 'Deliver now', priority: 'high' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as { id: string };
+
+    const queueCount = await env.DB
+      .prepare('SELECT COUNT(*) AS total FROM delivery_queue WHERE message_id = ?')
+      .bind(data.id)
+      .first<{ total: number }>();
+    expect(queueCount?.total).toBe(0);
+
+    const messageRow = await env.DB
+      .prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(data.id)
+      .first<{ status: string }>();
+    expect(messageRow?.status).toBe('delivered');
   });
 });
 
