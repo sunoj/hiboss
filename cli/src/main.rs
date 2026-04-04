@@ -99,8 +99,8 @@ async fn run() -> Result<(), Box<dyn Error>> {
             setup::run(args)?;
             return Ok(());
         }
-        Commands::Doctor(_) => {
-            doctor::run(&config).await?;
+        Commands::Doctor(args) => {
+            doctor::run(args, &config).await?;
             return Ok(());
         }
         Commands::Daemon(args) => {
