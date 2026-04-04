@@ -197,6 +197,7 @@ const Icon = {
       <template v-else-if="name==='spark'"><path d="M12 2v4"/><path d="m15 5-3-3-3 3"/><path d="M3 7h18a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H8l-5 3V9a2 2 0 0 1 2-2Z"/></template>
       <template v-else-if="name==='info'"><circle cx="12" cy="12" r="9"/><path d="M12 10v5"/><path d="M12 7h.01"/></template>
       <template v-else-if="name==='file'"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M9 11h2"/><path d="M9 19h6"/></template>
+      <template v-else-if="name==='forward'"><path d="M15 14 20 9l-5-5"/><path d="M4 20v-2a4 4 0 0 1 4-4h12"/><path d="M10 4H8a4 4 0 0 0-4 4v2"/></template>
     </svg>
   `
 };
@@ -247,7 +248,7 @@ const MessagesTab = {
     authMode: { type: String, required: true },
     refreshing: { type: Boolean, default: false }
   },
-  emits: ['filter', 'search', 'toggle', 'paginate', 'reply', 'reply-keydown', 'option'],
+  emits: ['filter', 'search', 'toggle', 'paginate', 'reply', 'reply-keydown', 'option', 'forward-toggle', 'forward-send'],
   setup(props, { emit }) {
     const searchDraft = ref(props.state.filters.search);
     const sessionDraft = ref(props.state.filters.session);
@@ -295,6 +296,10 @@ const MessagesTab = {
       if (messageOptionsExpired(detail) || (detail && detail.status === 'replied')) return 'border-border bg-black/10 text-ink-faint';
       return active ? 'border-accent/40 bg-accent-soft text-accent hover:bg-accent/20' : 'border-border bg-black/20 text-ink-muted';
     }
+    function forwardTargets(message) {
+      const current = message && (message.channel === 'discord' || message.channel === 'telegram') ? message.channel : '';
+      return ['discord', 'telegram'].filter(channel => channel !== current);
+    }
     return {
       searchDraft,
       sessionDraft,
@@ -315,6 +320,7 @@ const MessagesTab = {
       messageOptionsExpired,
       directionLabel,
       directionTone,
+      forwardTargets,
       priorityChip,
       statusChip
     };
@@ -387,6 +393,27 @@ const MessagesTab = {
                   </td>
                   <td class="px-4 py-3 text-right text-xs text-ink-muted">
                     <div class="flex items-center justify-end gap-2">
+                      <div v-if="authMode === 'boss' && forwardTargets(message).length" class="relative">
+                        <button
+                          @click.stop="$emit('forward-toggle', message.id)"
+                          :disabled="state.sendingForwardId === message.id"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-black/20 text-ink-muted transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Forward message"
+                        >
+                          <Icon name="forward" cls="h-4 w-4" />
+                        </button>
+                        <div v-if="state.forwardMenuId === message.id" class="absolute right-0 top-10 z-10 min-w-32 rounded-2xl border border-border bg-surface p-2 shadow-card">
+                          <button
+                            v-for="channel in forwardTargets(message)"
+                            :key="message.id + ':' + channel"
+                            @click.stop="$emit('forward-send', message.id, channel)"
+                            class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs capitalize text-ink-muted transition hover:bg-surface-hover hover:text-ink"
+                          >
+                            <span>{{ channel }}</span>
+                            <Icon :name="channel === 'discord' ? 'spark' : 'send'" cls="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
                       <span>{{ relTime(message.created_at) }}</span>
                       <span v-if="isEdited(message)" class="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ink-faint">(edited)</span>
                     </div>
@@ -951,6 +978,8 @@ const App = {
       details: {},
       detailLoading: {},
       replyDrafts: {},
+      forwardMenuId: '',
+      sendingForwardId: '',
       sendingReplyId: '',
       optionSendingId: '',
       get page() { return Math.floor(this.offset / this.limit) + 1; },
@@ -1130,6 +1159,9 @@ const App = {
       messages.expandedId = messages.expandedId === id ? null : id;
       if (messages.expandedId) await loadMessageDetail(id, false);
     }
+    function toggleForwardMenu(id) {
+      messages.forwardMenuId = messages.forwardMenuId === id ? '' : id;
+    }
     function setMessageFilter(key, value) {
       messages.filters[key] = value;
       messages.offset = 0;
@@ -1195,6 +1227,25 @@ const App = {
         toast('Failed to send option', 'error');
       } finally {
         messages.optionSendingId = '';
+      }
+    }
+    async function sendMessageForward(id, channel) {
+      const targetChannel = String(channel || '').trim();
+      if (!targetChannel || messages.sendingForwardId) return;
+      messages.sendingForwardId = id;
+      try {
+        await apiFetch('/api/boss/messages/' + id + '/forward', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: targetChannel })
+        });
+        messages.forwardMenuId = '';
+        await loadMessages(true);
+        toast('Message forwarded', 'success');
+      } catch {
+        toast('Failed to forward message', 'error');
+      } finally {
+        messages.sendingForwardId = '';
       }
     }
     function normalizeSessionItem(item) {
@@ -1502,10 +1553,12 @@ const App = {
       setMessageFilter,
       setMessageSearch,
       toggleMessage,
+      toggleForwardMenu,
       paginateMessages,
       updateMessageReply,
       handleMessageReplyKeydown,
       sendOptionReply,
+      sendMessageForward,
       toggleSession,
       setSessionDraft,
       sendToSession,
@@ -1592,6 +1645,8 @@ const App = {
             @reply="updateMessageReply"
             @reply-keydown="handleMessageReplyKeydown"
             @option="sendOptionReply"
+            @forward-toggle="toggleForwardMenu"
+            @forward-send="sendMessageForward"
           />
           <SessionsTab
             v-else-if="activeTab === 'sessions'"
