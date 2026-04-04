@@ -49,6 +49,23 @@ CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id) WHER
 CREATE INDEX IF NOT EXISTS idx_messages_target_session ON messages(target_session_id) WHERE target_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_expires_at ON messages(expires_at) WHERE expires_at IS NOT NULL;
 
+-- Deferred channel deliveries blocked by boss quiet hours
+CREATE TABLE IF NOT EXISTS delivery_queue (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  message_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  config TEXT NOT NULL,
+  scheduled_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'delivered', 'failed')),
+  error TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (message_id) REFERENCES messages(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_queue_pending ON delivery_queue(status, scheduled_at) WHERE status = 'pending';
+
 -- Channel configurations (per agent)
 CREATE TABLE IF NOT EXISTS channel_configs (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),

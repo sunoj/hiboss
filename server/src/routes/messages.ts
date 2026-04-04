@@ -7,6 +7,8 @@ import type { Channel, Direction, Env, MessageRow, Mode, Priority, Status } from
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { notifyBossAgents, notifyTargetAgent } from '../notify';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
+import { deliverAgentMessage } from './agent-delivery';
+import { getAgentQuietHoursEnd } from './quiet-hours';
 import { reactionsRouter } from './reactions';
 import {
   buildFilters,
@@ -15,13 +17,10 @@ import {
   clampNumber,
   expireMessageOptions,
   deliverReply,
-  deliverToChannelWithOptions,
   delay,
   deliverWithRetry,
-  ensureTopicForAgent,
   expirePreviousOptions,
   extractTelegramMessageId,
-  fetchAgentName,
   fetchAllChannelConfigs,
   findByIdempotencyKey,
   fetchMessageRow,
@@ -38,9 +37,8 @@ import {
   validateChannel,
   validateOption,
 } from './message-helpers';
-import { ensureThreadForSession } from './message-options';
-import { ensureTopicForSession } from './session-channels';
 import { propagateMessageEdit } from './message-edit';
+import { ensureTopicForSession } from './session-channels';
 import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
@@ -62,6 +60,20 @@ function isUniqueConstraintError(error: unknown): boolean {
 
 function escapeLike(value: string): string {
   return value.replace(/[%_\\]/g, '\\$&');
+}
+
+async function enqueueDelivery(
+  env: Env,
+  messageId: string,
+  agentId: string,
+  channel: Channel,
+  config: Record<string, unknown>,
+  scheduledAt: Date,
+): Promise<void> {
+  await env.DB
+    .prepare('INSERT INTO delivery_queue (message_id, agent_id, channel, config, scheduled_at) VALUES (?, ?, ?, ?, ?)')
+    .bind(messageId, agentId, channel, JSON.stringify(config), scheduledAt.toISOString())
+    .run();
 }
 
 export async function insertMessageWithRecovery(
@@ -204,54 +216,34 @@ routes.post('/', async (c) => {
   if (sessionId && direction === 'agent_to_boss') {
     c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
   }
-  if (channelConfigs.length > 0 && direction !== 'agent_to_agent') {
-    const agentName = await fetchAgentName(c.env, agentId) ?? 'agent';
-    let displayName = agentName;
-    let sessionLabel: string | null = null;
-    if (sessionId) {
-      const sess = await c.env.DB
-        .prepare('SELECT label FROM sessions WHERE id = ?')
-        .bind(sessionId)
-        .first<{ label: string | null }>();
-      sessionLabel = sess?.label ?? null;
-      if (sessionLabel) displayName = `${sessionLabel} (${agentName})`;
+  let queuedForQuietHours = false;
+  if (channelConfigs.length > 0 && direction === 'agent_to_boss' && !isUrgent) {
+    const quietHoursEnd = await getAgentQuietHoursEnd(c.env, agentId);
+    if (quietHoursEnd) {
+      await enqueueDelivery(c.env, inserted.id, agentId, channelConfigs[0].channel, channelConfigs[0].config, quietHoursEnd);
+      queuedForQuietHours = true;
     }
+  }
+  if (channelConfigs.length > 0 && direction !== 'agent_to_agent' && !queuedForQuietHours) {
+    const agentRow = await c.env.DB
+      .prepare('SELECT name FROM api_keys WHERE id = ?')
+      .bind(agentId)
+      .first<{ name: string }>();
+    const resolvedAgentName = agentRow?.name ?? 'agent';
     const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
-    // Auto-create Telegram topics for agents with use_topics enabled
-    await Promise.all(channelConfigs.map((cc) => ensureTopicForAgent(c.env, agentId, cc)));
-    await Promise.all(channelConfigs.map((cc) => ensureThreadForSession(c.env, agentId, sessionId, cc, undefined)));
-    await Promise.all(channelConfigs.map((cc) => {
-      if (cc.channel !== 'telegram' || !sessionId) return Promise.resolve(undefined);
-      return ensureTopicForSession(c.env, sessionId, agentName, sessionLabel, requireTelegramConfig(cc.config));
-    }));
     try {
       const results = await Promise.allSettled(
-        channelConfigs.map(async (cc) => {
-          const effectiveConfig = { ...cc.config };
-          if (cc.channel === 'discord' && sessionId && cc.config['use_threads']) {
-            const sess = await c.env.DB
-              .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-              .bind(sessionId)
-              .first<{ discord_thread_id: string | null }>();
-            if (sess?.discord_thread_id) {
-              effectiveConfig['channel_id'] = sess.discord_thread_id;
-              effectiveConfig['thread_id'] = sess.discord_thread_id;
-            }
-          }
-          return deliverWithRetry(
-            () => deliverToChannelWithOptions(
-              cc.channel,
-              effectiveConfig,
-              displayName,
-              body,
-              inlineKeyboard,
-              fileUrl,
-              agentConfig?.avatar_url ?? undefined,
-              c.env,
-              sessionId,
-            )
-          );
-        })
+        channelConfigs.map((cc) =>
+          deliverAgentMessage(c.env, cc, {
+            agentId,
+            agentName: resolvedAgentName,
+            body,
+            sessionId,
+            inlineKeyboard,
+            fileUrl,
+            avatarUrl: agentConfig?.avatar_url ?? undefined,
+          })
+        )
       );
       const deliveryResults = results.map((r, i) => ({
         channel: channelConfigs[i].channel,
@@ -271,14 +263,6 @@ routes.post('/', async (c) => {
         const dcResult = deliveryResults.find((d) => d.discordMessageId);
         if (dcResult?.discordMessageId) {
           meta['discord_message_id'] = dcResult.discordMessageId;
-        }
-        if (dcResult?.discordMessageId && sessionId) {
-          const dcCC = channelConfigs.find((cc) => cc.channel === 'discord');
-          if (dcCC?.config['use_threads']) {
-            c.executionCtx.waitUntil(
-              ensureThreadForSession(c.env, agentId, sessionId, dcCC, dcResult.discordMessageId, body)
-            );
-          }
         }
         if (isUrgent && channelConfigs.length > 1) {
           meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
@@ -307,7 +291,7 @@ routes.post('/', async (c) => {
     }
   }
   // Notify boss-agents for API channel messages (agent-as-boss)
-  if (channel === 'api') {
+  if (channel === 'api' && !queuedForQuietHours) {
     c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));
   }
   // Notify target agent for agent-to-agent messages via callback
