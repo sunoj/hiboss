@@ -7,7 +7,7 @@ import type { Env, MessageRow } from '../types';
 import { sendTelegramTyping, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
-import { hashApiKey } from '../middleware/auth';
+import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
 import {
   asString,
@@ -353,27 +353,6 @@ async function handleTelegramReaction(c: Context<{ Bindings: Env }>, reaction: R
   return c.json({ ok: true });
 }
 
-type JoinCallbackAction = 'approve' | 'reject';
-
-type JoinCallbackResult = {
-  answerText: string;
-  auditAction: string;
-  auditDetails: string;
-  joinStatus: 'approved' | 'rejected';
-  messageText: string;
-  statusCode: 200 | 404 | 409;
-  error?: string;
-  apiKeyId?: string;
-};
-
-function parseJoinCallbackData(data: string): { action: JoinCallbackAction; requestId: string } | null {
-  const match = /^join:(approve|reject):([0-9a-f]{32})$/i.exec(data);
-  if (!match) {
-    return null;
-  }
-  return { action: match[1].toLowerCase() as JoinCallbackAction, requestId: match[2].toLowerCase() };
-}
-
 async function findTelegramBotToken(env: Env, chatId: string): Promise<string | undefined> {
   const configRow = await env.DB
     .prepare("SELECT config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? LIMIT 1")
@@ -388,93 +367,6 @@ async function findTelegramBotToken(env: Env, chatId: string): Promise<string | 
   } catch {
     return undefined;
   }
-}
-
-async function approveJoinRequest(env: Env, requestId: string): Promise<JoinCallbackResult> {
-  const joinRequest = await env.DB
-    .prepare("SELECT id, name, status FROM join_requests WHERE id = ?")
-    .bind(requestId)
-    .first<{ id: string; name: string; status: string }>();
-  if (!joinRequest) {
-    return joinErrorResult('Not found', 'join request not found', 404);
-  }
-  if (joinRequest.status !== 'pending') {
-    return joinErrorResult(`Already ${joinRequest.status}`, `join request already ${joinRequest.status}`, 409);
-  }
-  const key = `hb_${generateHex(16)}`;
-  const keyHash = await hashApiKey(key);
-  const apiKey = await env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id')
-    .bind(joinRequest.name, keyHash)
-    .first<{ id: string }>();
-  if (!apiKey) {
-    return joinErrorResult('Error', 'failed to create api key', 409);
-  }
-  const update = await env.DB
-    .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
-    .bind(apiKey.id, key, requestId)
-    .run();
-  if (!update.meta.changes) {
-    await env.DB.prepare('DELETE FROM api_keys WHERE id = ?').bind(apiKey.id).run();
-    return joinErrorResult('Already handled', 'join request no longer pending', 409);
-  }
-  return {
-    answerText: '✅ Approved',
-    auditAction: 'join_request.approve',
-    auditDetails: joinRequest.name,
-    joinStatus: 'approved',
-    messageText: '✅ Approved',
-    statusCode: 200,
-    apiKeyId: apiKey.id,
-  };
-}
-
-async function rejectJoinRequest(env: Env, requestId: string): Promise<JoinCallbackResult> {
-  const joinRequest = await env.DB
-    .prepare("SELECT name, status FROM join_requests WHERE id = ?")
-    .bind(requestId)
-    .first<{ name: string; status: string }>();
-  if (!joinRequest) {
-    return joinErrorResult('Not found', 'join request not found', 404);
-  }
-  if (joinRequest.status !== 'pending') {
-    return joinErrorResult(`Already ${joinRequest.status}`, `join request already ${joinRequest.status}`, 409);
-  }
-  const update = await env.DB
-    .prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
-    .bind(requestId)
-    .run();
-  if (!update.meta.changes) {
-    return joinErrorResult('Already handled', 'join request no longer pending', 409);
-  }
-  return {
-    answerText: '❌ Rejected',
-    auditAction: 'join_request.reject',
-    auditDetails: joinRequest.name,
-    joinStatus: 'rejected',
-    messageText: '❌ Rejected',
-    statusCode: 200,
-  };
-}
-
-function joinErrorResult(answerText: string, error: string, statusCode: 404 | 409): JoinCallbackResult {
-  return {
-    answerText,
-    auditAction: 'join_request.error',
-    auditDetails: error,
-    joinStatus: 'rejected',
-    messageText: answerText,
-    statusCode,
-    error,
-  };
-}
-
-function generateHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
 }
 
 // Boss auth, routing, and mapping helpers are in webhook-helpers.ts
