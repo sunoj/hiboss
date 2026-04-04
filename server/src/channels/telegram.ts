@@ -18,6 +18,10 @@ export function formatTelegramAgentMessage(agentName: string, body: string): str
   return `<b>[${escapeHtml(agentName)}]</b> ${escapeHtml(body)}`;
 }
 
+export function formatTelegramAttachmentCaption(agentName: string, body: string): string {
+  return escapeHtml(`[${agentName}] ${body}`);
+}
+
 export async function sendTelegramMessage(config: TelegramChannelConfig, content: string, options?: SendOptions): Promise<number | undefined> {
   if (!config.bot_token || !config.chat_id) {
     throw new Error('telegram config incomplete');
@@ -97,38 +101,11 @@ export async function answerCallbackQuery(botToken: string, callbackQueryId: str
 }
 
 export async function editTelegramMessageText(config: TelegramChannelConfig, messageId: number, content: string): Promise<void> {
-  let payload: Record<string, unknown> = {
-    chat_id: config.chat_id,
-    message_id: messageId,
-    text: content,
-    parse_mode: 'HTML',
-  };
-  let response = await fetch(
-    `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/editMessageText`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }
-  );
-  if (!response.ok) {
-    const errorBody = await response.text();
-    if (errorBody.includes("can't parse entities")) {
-      payload = { ...payload, parse_mode: undefined, text: stripHtmlTags(content) };
-      response = await fetch(
-        `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/editMessageText`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }
-      );
-    }
-    if (!response.ok) {
-      const finalError = errorBody.includes("can't parse entities") ? await response.text() : errorBody;
-      throw new Error(`telegram edit failed ${response.status} ${finalError}`);
-    }
-  }
+  await editTelegramMessage(config, messageId, content, 'editMessageText', 'text');
+}
+
+export async function editTelegramCaption(config: TelegramChannelConfig, messageId: number, content: string): Promise<void> {
+  await editTelegramMessage(config, messageId, content, 'editMessageCaption', 'caption');
 }
 
 export async function editMessageReplyMarkup(botToken: string, chatId: string, messageId: number, text: string): Promise<void> {
@@ -281,4 +258,34 @@ export async function createForumTopic(botToken: string, chatId: string, name: s
 
 function stripHtmlTags(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+}
+
+async function editTelegramMessage(
+  config: TelegramChannelConfig,
+  messageId: number,
+  content: string,
+  method: 'editMessageText' | 'editMessageCaption',
+  contentKey: 'text' | 'caption',
+): Promise<void> {
+  let payload: Record<string, unknown> = { chat_id: config.chat_id, message_id: messageId, [contentKey]: content, parse_mode: 'HTML' };
+  let response = await postTelegramEdit(config.bot_token, method, payload);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    if (errorBody.includes("can't parse entities")) {
+      payload = { ...payload, parse_mode: undefined, [contentKey]: stripHtmlTags(content) };
+      response = await postTelegramEdit(config.bot_token, method, payload);
+    }
+    if (!response.ok) {
+      const finalError = errorBody.includes("can't parse entities") ? await response.text() : errorBody;
+      throw new Error(`telegram edit failed ${response.status} ${finalError}`);
+    }
+  }
+}
+
+function postTelegramEdit(botToken: string, method: 'editMessageText' | 'editMessageCaption', payload: Record<string, unknown>): Promise<Response> {
+  return fetch(`https://api.telegram.org/bot${encodeURIComponent(botToken)}/${method}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 }

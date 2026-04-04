@@ -33,6 +33,9 @@ describe('dashboard pwa routes', () => {
     expect(swText).toContain("const VERSION = 'hiboss-pwa-v1';");
     expect(swText).toContain('hiboss — reconnecting...');
     expect(swText).toContain("url.pathname.startsWith('/api/')");
+    expect(swText).toContain('event.respondWith(fetch(request));');
+    expect(swText).toContain("url.hostname === 'unpkg.com' && url.pathname.startsWith('/vue@')");
+    expect(swText).not.toContain('API_CACHE');
 
     const dashboardRes = await SELF.fetch('https://test.local/dashboard');
     expect(dashboardRes.status).toBe(200);

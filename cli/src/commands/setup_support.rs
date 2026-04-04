@@ -34,6 +34,23 @@ pub async fn register_telegram_commands(http: &Client, bot_token: &str) -> Resul
     .await
 }
 
+pub fn telegram_set_webhook_payload(webhook_url: &str, webhook_secret: Option<&str>) -> Value {
+    let mut payload = json!({
+        "url": webhook_url,
+        "allowed_updates": ["message", "callback_query", "message_reaction"]
+    });
+    if let Some(secret) = webhook_secret.filter(|value| !value.trim().is_empty()) {
+        payload["secret_token"] = Value::String(secret.to_owned());
+    }
+    payload
+}
+
+pub fn telegram_webhook_secret_reminder(webhook_secret: Option<&str>) -> Option<String> {
+    webhook_secret
+        .filter(|value| !value.trim().is_empty())
+        .map(|_| "Reminder: set TELEGRAM_WEBHOOK_SECRET to the same value in your server environment.".to_owned())
+}
+
 pub fn extract_chats(updates: &Value) -> Vec<(String, String)> {
     let mut chats: Vec<(String, String)> = Vec::new();
     let Some(arr) = updates["result"].as_array() else { return chats };
@@ -113,7 +130,11 @@ pub fn extract_telegram_bot_token(channels: &[ChannelInfo]) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_telegram_bot_token;
+    use super::{
+        extract_telegram_bot_token,
+        telegram_set_webhook_payload,
+        telegram_webhook_secret_reminder,
+    };
     use crate::types::ChannelInfo;
     use serde_json::json;
 
@@ -137,5 +158,22 @@ mod tests {
         ];
 
         assert_eq!(extract_telegram_bot_token(&channels).as_deref(), Some("telegram-token"));
+    }
+
+    #[test]
+    fn includes_secret_token_in_webhook_payload_when_present() {
+        let payload = telegram_set_webhook_payload("https://hiboss.test/api/webhooks/telegram", Some("secret-123"));
+        assert_eq!(payload["secret_token"], "secret-123");
+        assert_eq!(
+            telegram_webhook_secret_reminder(Some("secret-123")).as_deref(),
+            Some("Reminder: set TELEGRAM_WEBHOOK_SECRET to the same value in your server environment."),
+        );
+    }
+
+    #[test]
+    fn omits_secret_token_and_reminder_when_secret_is_missing() {
+        let payload = telegram_set_webhook_payload("https://hiboss.test/api/webhooks/telegram", None);
+        assert!(payload.get("secret_token").is_none());
+        assert!(telegram_webhook_secret_reminder(None).is_none());
     }
 }
