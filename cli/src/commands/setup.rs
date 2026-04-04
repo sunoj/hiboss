@@ -2,6 +2,9 @@
 // Exports: SetupArgs, SetupCommand, run (hooks), run_with_client (channels).
 // Dependencies: clap, serde_json, reqwest, crate::client, crate::config, setup_hooks.
 
+#[path = "setup_support.rs"]
+mod setup_support;
+
 use crate::client::HiBossClient;
 use crate::commands::setup_hooks::{self, SetupHooksArgs};
 use crate::config::Config;
@@ -9,6 +12,16 @@ use clap::{Args, Subcommand};
 use serde_json::{json, Value};
 use std::error::Error;
 use std::io::{self, Write};
+
+use self::setup_support::{
+    discord_api,
+    extract_chats,
+    extract_telegram_bot_token,
+    list_text_channels,
+    register_telegram_commands,
+    select_chat,
+    tg_api,
+};
 
 #[derive(Debug, Args)]
 pub struct SetupArgs { #[command(subcommand)] pub command: SetupCommand }
@@ -19,6 +32,8 @@ pub enum SetupCommand {
     Hooks(SetupHooksArgs),
     #[command(about = "Guided Telegram bot setup")]
     Telegram(SetupTelegramArgs),
+    #[command(name = "telegram-commands", about = "Register Telegram bot commands from saved channel config")]
+    TelegramCommands,
     #[command(about = "Guided Discord bot setup")]
     Discord(SetupDiscordArgs),
 }
@@ -57,6 +72,7 @@ pub fn needs_client(args: &SetupArgs) -> bool {
 pub async fn run_with_client(args: &SetupArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     match &args.command {
         SetupCommand::Telegram(tg) => run_telegram_setup(tg, config, client).await,
+        SetupCommand::TelegramCommands => run_telegram_commands_setup(client).await,
         SetupCommand::Discord(dc) => run_discord_setup(dc, config, client).await,
         SetupCommand::Hooks(_) => unreachable!(),
     }
@@ -146,6 +162,21 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
     Ok(())
 }
 
+async fn run_telegram_commands_setup(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let channels = client.list_channels().await?;
+    let bot_token = extract_telegram_bot_token(&channels.channels)
+        .ok_or("enabled telegram channel with bot_token not found")?;
+    eprint!("Registering Telegram bot commands... ");
+    let response = register_telegram_commands(&reqwest::Client::new(), &bot_token).await?;
+    if response["ok"].as_bool() != Some(true) {
+        let description = response["description"].as_str().unwrap_or("unknown error");
+        return Err(format!("Telegram command registration failed: {}", description).into());
+    }
+    eprintln!("OK");
+    eprintln!("Registered /msg and /status.");
+    Ok(())
+}
+
 async fn run_discord_setup(args: &SetupDiscordArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let http = reqwest::Client::new();
     let server_url = config.require_server()?;
@@ -226,75 +257,4 @@ async fn run_discord_setup(args: &SetupDiscordArgs, config: &Config, client: &Hi
     eprintln!("     wrangler secret put DISCORD_PUBLIC_KEY\n");
     eprintln!("Try: hiboss send \"Hello from Discord!\"");
     Ok(())
-}
-
-async fn tg_api(http: &reqwest::Client, token: &str, method: &str, body: &Value) -> Result<Value, Box<dyn Error>> {
-    let resp = http.post(format!("https://api.telegram.org/bot{}/{}", token, method))
-        .json(body).send().await?;
-    if !resp.status().is_success() {
-        return Err(format!("Telegram API {} failed ({})", method, resp.status()).into());
-    }
-    Ok(resp.json().await?)
-}
-
-fn extract_chats(updates: &Value) -> Vec<(String, String)> {
-    let mut chats: Vec<(String, String)> = Vec::new();
-    let Some(arr) = updates["result"].as_array() else { return chats };
-    for update in arr.iter().rev() {
-        let chat = &update["message"]["chat"];
-        let Some(id) = chat["id"].as_i64().map(|v| v.to_string()) else { continue };
-        if chats.iter().any(|(cid, _)| cid == &id) { continue; }
-        let title = chat["title"].as_str().or(chat["first_name"].as_str()).unwrap_or("?").to_owned();
-        chats.push((id, title));
-    }
-    chats
-}
-fn select_chat(chats: &[(String, String)]) -> Result<String, Box<dyn Error>> {
-    if chats.len() == 1 {
-        eprintln!("found: {} ({})", chats[0].1, chats[0].0);
-        return Ok(chats[0].0.clone());
-    }
-    eprintln!("found {} chats:\n", chats.len());
-    for (i, (id, title)) in chats.iter().enumerate() {
-        eprintln!("  [{}] {} (ID: {})", i + 1, title, id);
-    }
-    let choice = prompt("\nSelect chat number [1]: ")?;
-    let idx: usize = choice.parse().unwrap_or(1);
-    if idx < 1 || idx > chats.len() { return Err("Invalid selection".into()); }
-    Ok(chats[idx - 1].0.clone())
-}
-
-async fn discord_api(http: &reqwest::Client, token: &str, method: &str, path: &str, body: Option<&Value>) -> Result<Value, Box<dyn Error>> {
-    let url = format!("https://discord.com/api/v10/{}", path);
-    let mut req = match method {
-        "POST" => http.post(&url),
-        _ => http.get(&url),
-    };
-    req = req.header("Authorization", format!("Bot {}", token));
-    if let Some(b) = body { req = req.json(b); }
-    let resp = req.send().await?;
-    if !resp.status().is_success() {
-        return Err(format!("Discord API {} failed ({})", path, resp.status()).into());
-    }
-    Ok(resp.json().await?)
-}
-async fn list_text_channels(http: &reqwest::Client, token: &str, guilds: &[Value]) -> Vec<(String, String, String)> {
-    let mut all: Vec<(String, String, String)> = Vec::new();
-    for guild in guilds {
-        let guild_id = guild["id"].as_str().unwrap_or_default();
-        let guild_name = guild["name"].as_str().unwrap_or("?").to_owned();
-        let path = format!("guilds/{}/channels", guild_id);
-        let Ok(channels_val) = discord_api(http, token, "GET", &path, None).await else { continue };
-        let Ok(channels): Result<Vec<Value>, _> = serde_json::from_value(channels_val) else { continue };
-        for ch in &channels {
-            if ch["type"].as_u64() == Some(0) {
-                all.push((
-                    ch["id"].as_str().unwrap_or("?").to_owned(),
-                    ch["name"].as_str().unwrap_or("?").to_owned(),
-                    guild_name.clone(),
-                ));
-            }
-        }
-    }
-    all
 }
