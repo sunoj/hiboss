@@ -13,6 +13,7 @@ const TEXT_ENCODER = new TextEncoder();
 type BodyInput = string | Record<string, unknown>;
 
 type HeaderMap = Record<string, string>;
+type InteractionResponse = { type: number; data?: { content?: string; components?: unknown[]; flags?: number } };
 
 const TEST_AGENT_ID = getTestAgentId();
 
@@ -20,6 +21,9 @@ let testPrivateKey: CryptoKey;
 
 beforeAll(async () => {
   await seedDatabase();
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS join_requests (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, poll_token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')), api_key_id TEXT REFERENCES api_keys(id), api_key TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))"
+  ).run();
   await env.DB.prepare(
     'INSERT OR IGNORE INTO channel_configs (agent_id, channel, config) VALUES (?, ?, ?)'
   )
@@ -52,7 +56,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
 
     const res = await signedFetch(payload);
     expect(res.status).toBe(200);
-    const responseBody = await res.json();
+    const responseBody = await res.json() as InteractionResponse;
     expect(responseBody.data?.content).toBe('Message sent to agent.');
 
     const stored = await env.DB
@@ -88,7 +92,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
 
     const res = await signedFetch(payload);
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as InteractionResponse;
     expect(data.type).toBe(7);
     expect(data.data?.content).toContain('Pick one:');
     expect(data.data?.content).toContain('✅ Selected: optionA');
@@ -102,6 +106,38 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(reply).not.toBeNull();
     expect(reply?.body).toBe('optionA');
     expect(reply?.reply_to).toBe(parentId);
+  });
+
+  it('approves a join request from a Discord button callback', async () => {
+    const requestId = 'a077e0fa00000001aabbccdd00000001';
+    await env.DB
+      .prepare("INSERT INTO join_requests (id, name, poll_token, status) VALUES (?, ?, ?, 'pending')")
+      .bind(requestId, 'discord-join-test', 'jt_discord_join_test')
+      .run();
+
+    const payload = {
+      type: 3,
+      channel_id: CHANNEL_ID,
+      data: { custom_id: `join:approve:${requestId}` },
+      message: { content: 'Join request for discord-join-test' },
+    };
+
+    const res = await signedFetch(payload);
+    expect(res.status).toBe(200);
+    const data = await res.json() as InteractionResponse;
+    expect(data.type).toBe(7);
+    expect(data.data?.content).toContain('Join request for discord-join-test');
+    expect(data.data?.content).toContain('✅ Approved');
+    expect(data.data?.components).toEqual([]);
+
+    const approved = await env.DB
+      .prepare('SELECT status, api_key_id, api_key FROM join_requests WHERE id = ?')
+      .bind(requestId)
+      .first<{ status: string; api_key_id: string | null; api_key: string | null }>();
+
+    expect(approved?.status).toBe('approved');
+    expect(approved?.api_key_id).toBeTruthy();
+    expect(approved?.api_key?.startsWith('hb_')).toBe(true);
   });
 
   it('copies action metadata into button replies', async () => {
@@ -151,7 +187,7 @@ describe('POST /api/webhooks/discord-interactions', () => {
     };
     const res = await signedFetch(payload);
     expect(res.status).toBe(200);
-    const data = await res.json();
+    const data = await res.json() as InteractionResponse;
     expect(data.type).toBe(4);
     expect(data.data?.content).toBe('No agent configured for this channel.');
     expect(data.data?.flags).toBe(64);

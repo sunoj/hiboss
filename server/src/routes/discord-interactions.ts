@@ -7,25 +7,12 @@ import type { Env, MessageRow } from '../types';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { apiAuth } from '../middleware/auth';
+import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
+import { asString, checkBossPermission, findDiscordAgent, resolveBossForChannel } from './webhook-helpers';
 
-interface DiscordInteractionPayload {
-  type: number;
-  data?: DiscordInteractionData;
-  channel_id?: string;
-  member?: { user?: { id?: string } };
-  message?: { content?: string };
-}
-
-interface DiscordInteractionData {
-  name?: string;
-  options?: DiscordInteractionOption[];
-  custom_id?: string;
-}
-
-type DiscordInteractionOption = {
-  name: string;
-  value?: unknown;
-};
+interface DiscordInteractionPayload { type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
+interface DiscordInteractionData { name?: string; options?: DiscordInteractionOption[]; custom_id?: string }
+type DiscordInteractionOption = { name: string; value?: unknown };
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -81,9 +68,7 @@ async function handleApplicationCommand(
   }
   const messageOption = payload.data?.options?.find((option) => option.name === 'message');
   const message = asString(messageOption?.value);
-  if (!message) {
-    return c.text('message option required', 400);
-  }
+  if (!message) return c.text('message option required', 400);
   const agentRow = await findDiscordAgent(c.env, channelId);
   if (!agentRow) {
     return c.json({ type: 4, data: { content: 'No agent configured for this channel.', flags: 64 } });
@@ -93,7 +78,9 @@ async function handleApplicationCommand(
   if (bossCheck.error) {
     return c.json({ type: 4, data: { content: bossCheck.error, flags: 64 } });
   }
-  const meta = bossCheck.boss ? { ...payload as Record<string, unknown>, boss_id: bossCheck.boss.id, boss_name: bossCheck.boss.name } : payload;
+  const meta = bossCheck.boss
+    ? { ...(payload as unknown as Record<string, unknown>), boss_id: bossCheck.boss.id, boss_name: bossCheck.boss.name }
+    : payload;
   // Auto-link to most recent pending blocking message for this agent
   let replyTo: string | null = null;
   const pendingMsg = await c.env.DB
@@ -109,9 +96,7 @@ async function handleApplicationCommand(
     )
     .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta))
     .first<MessageRow>();
-  if (!inserted) {
-    return c.text('failed to persist', 500);
-  }
+  if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossCheck.boss ? 'boss' : 'system', bossCheck.boss?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord-slash'));
   return c.json({ type: 4, data: { content: 'Message sent to agent.' } });
@@ -126,18 +111,17 @@ async function handleMessageComponent(
   if (!channelId || !customId) {
     return c.text('missing channel or custom_id', 400);
   }
+  if (customId.startsWith('join:')) {
+    return handleDiscordJoinCallback(c, payload, customId, channelId);
+  }
   const colonIndex = customId.indexOf(':');
   if (colonIndex < 1) {
     return c.text('invalid custom_id format', 400);
   }
   const msgPrefix = customId.slice(0, colonIndex);
   const selectedOption = customId.slice(colonIndex + 1);
-  if (!selectedOption) {
-    return c.text('invalid selection', 400);
-  }
-  if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) {
-    return c.text('invalid message prefix', 400);
-  }
+  if (!selectedOption) return c.text('invalid selection', 400);
+  if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) return c.text('invalid message prefix', 400);
   const agentRow = await findDiscordAgent(c.env, channelId);
   if (!agentRow) {
     return c.json({ type: 4, data: { content: 'No agent configured for this channel.', flags: 64 } });
@@ -174,9 +158,7 @@ async function handleMessageComponent(
       replyMetadata
     )
     .first<MessageRow>();
-  if (!inserted) {
-    return c.text('failed to persist', 500);
-  }
+  if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, btnBossCheck.boss ? 'boss' : 'system', btnBossCheck.boss?.id ?? 'discord', 'message.callback', 'message', parentMsg.id, selectedOption));
   // Type 7 = UPDATE_MESSAGE: replaces the original message and removes buttons
@@ -184,29 +166,29 @@ async function handleMessageComponent(
   return c.json({ type: 7, data: { content: `${originalContent}\n\n✅ Selected: ${selectedOption}`, components: [] } });
 }
 
-async function findDiscordAgent(env: Env, channelId: string): Promise<{ agent_id: string } | null> {
-  const direct = await env.DB
-    .prepare(
-      "SELECT agent_id FROM channel_configs WHERE channel = 'discord' AND json_extract(config, '$.channel_id') = ?"
-    )
-    .bind(channelId)
-    .first<{ agent_id: string }>();
-  if (direct) {
-    return direct;
+async function handleDiscordJoinCallback(
+  c: Context<{ Bindings: Env }>,
+  payload: DiscordInteractionPayload,
+  customId: string,
+  channelId: string
+): Promise<Response> {
+  if (!(await findDiscordAgent(c.env, channelId))) {
+    return c.json({ type: 4, data: { content: 'No agent configured for this channel.', flags: 64 } });
   }
-
-  const threadSession = await env.DB
-    .prepare('SELECT agent_id FROM sessions WHERE discord_thread_id = ? LIMIT 1')
-    .bind(channelId)
-    .first<{ agent_id: string }>();
-  if (!threadSession) {
-    return null;
+  const { boss, error } = await resolveBossForChannel(c.env, 'discord', payload.member?.user?.id, true);
+  if (error) {
+    return c.json({ type: 4, data: { content: formatBossLookupError(error), flags: 64 } });
   }
-
-  return env.DB
-    .prepare("SELECT agent_id FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
-    .bind(threadSession.agent_id)
-    .first<{ agent_id: string }>();
+  const parsed = parseJoinCallbackData(customId);
+  if (!parsed) {
+    return c.text('invalid callback data', 400);
+  }
+  const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);
+  if (!result.error) {
+    c.executionCtx.waitUntil(logAudit(c.env, boss ? 'boss' : 'system', boss?.id ?? 'discord', result.auditAction, 'join_request', parsed.requestId, result.auditDetails));
+    if (result.apiKeyId) c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', result.apiKeyId, 'join-approve'));
+  }
+  return c.json({ type: 7, data: { content: formatUpdatedMessage(payload.message?.content, result.messageText), components: [] } });
 }
 
 function getActionMetadata(metadata: string | null, selectedOption: string): string | null {
@@ -225,16 +207,6 @@ function getActionMetadata(metadata: string | null, selectedOption: string): str
   return null;
 }
 
-function asString(value: unknown): string | undefined {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (typeof value === 'number') {
-    return value.toString();
-  }
-  return undefined;
-}
-
 async function verifyDiscordSignature(
   publicKey: string,
   signature: string,
@@ -245,8 +217,8 @@ async function verifyDiscordSignature(
   if (!subtle) {
     return false;
   }
-  const publicKeyBytes = hexToUint8Array(publicKey);
-  const signatureBytes = hexToUint8Array(signature);
+  const publicKeyBytes = hexToArrayBuffer(publicKey);
+  const signatureBytes = hexToArrayBuffer(signature);
   const payload = new TextEncoder().encode(timestamp + body);
   const algorithms = ['Ed25519', 'NODE-ED25519'] as const;
   for (const name of algorithms) {
@@ -262,35 +234,22 @@ async function verifyDiscordSignature(
   return false;
 }
 
-function hexToUint8Array(hex: string): Uint8Array {
+function hexToArrayBuffer(hex: string): ArrayBuffer {
   const normalized = hex.startsWith('0x') ? hex.slice(2) : hex;
   const evened = normalized.length % 2 === 0 ? normalized : `0${normalized}`;
   const array = new Uint8Array(evened.length / 2);
   for (let i = 0; i < evened.length; i += 2) {
     array[i / 2] = parseInt(evened.slice(i, i + 2), 16);
   }
-  return array;
+  return array.buffer.slice(0);
 }
 
-async function checkBossPermission(
-  env: Env,
-  channel: 'discord' | 'telegram',
-  userId: string | undefined,
-  agentId: string,
-  allowViewer: boolean
-): Promise<{ boss: { id: string; name: string; role: string } | null; error?: string }> {
-  const countRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM bosses').first<{ total: number }>();
-  if ((countRow?.total ?? 0) === 0) return { boss: null };
-  if (!userId) return { boss: null, error: 'Unknown sender' };
-  const col = channel === 'telegram' ? 'telegram_user_id' : 'discord_user_id';
-  const boss = await env.DB.prepare(`SELECT id, name, role FROM bosses WHERE ${col} = ? LIMIT 1`).bind(userId).first<{ id: string; name: string; role: string }>();
-  if (!boss) return { boss: null, error: 'Unknown sender' };
-  if (!allowViewer && boss.role === 'viewer') return { boss: null, error: 'Viewer cannot send messages' };
-  if (boss.role !== 'admin') {
-    const access = await env.DB.prepare('SELECT 1 AS ok FROM boss_agent_access WHERE boss_id = ? AND agent_id = ? LIMIT 1').bind(boss.id, agentId).first<{ ok: number }>();
-    if (!access) return { boss: null, error: 'No access to this agent' };
-  }
-  return { boss };
+function formatUpdatedMessage(originalContent: string | undefined, resultText: string): string {
+  return originalContent ? `${originalContent}\n\n${resultText}` : resultText;
+}
+
+function formatBossLookupError(error: string): string {
+  return error === 'viewer cannot send messages' ? 'Viewer cannot send messages' : 'Unknown sender';
 }
 
 router.post('/register-commands', apiAuth, async (c) => {
@@ -304,14 +263,11 @@ router.post('/register-commands', apiAuth, async (c) => {
     description: 'Send a message to the AI agent monitoring this channel',
     options: [{ name: 'message', description: 'The message to send', type: 3, required: true }],
   };
-  const response = await fetch(
-    `https://discord.com/api/v10/applications/${encodeURIComponent(payload.app_id)}/commands`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bot ${payload.bot_token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(command),
-    }
-  );
+  const response = await fetch(`https://discord.com/api/v10/applications/${encodeURIComponent(payload.app_id)}/commands`, {
+    method: 'POST',
+    headers: { Authorization: `Bot ${payload.bot_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  });
   if (!response.ok) {
     const body = await response.text();
     return c.text(body, 502);
