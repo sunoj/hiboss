@@ -1,10 +1,11 @@
-// Tests for shared message forwarding helpers.
-// Covers channel validation and successful forward persistence with attachment metadata.
-// Depends on cloudflare:test env, seeded D1 state, and mocked global fetch.
+// Tests for message forwarding helpers and the agent forward endpoint.
+// Covers helper validation plus route-level forwarding, ownership, and missing-message checks.
+// Depends on cloudflare:test env, seeded D1 state, shared auth helpers, and mocked fetch.
 
-import { env } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { getTestAgentId, seedDatabase } from '../test-helpers';
+import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
+import { hashApiKey } from '../middleware/auth';
 import type { MessageRow } from '../types';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 
@@ -15,9 +16,14 @@ beforeAll(async () => {
 afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  await env.DB.prepare('DELETE FROM channel_configs WHERE agent_id = ? AND channel = ?').bind(getTestAgentId(), 'telegram').run();
+  await env.DB.prepare('DELETE FROM channel_configs WHERE agent_id = ? AND channel IN (?, ?)').bind(getTestAgentId(), 'telegram', 'discord').run();
+  await env.DB.prepare("DELETE FROM channel_configs WHERE agent_id = 'forward-route-owner'").run();
   await env.DB.prepare("DELETE FROM messages WHERE reply_to LIKE 'forward-helper-%'").run();
+  await env.DB.prepare("DELETE FROM messages WHERE reply_to LIKE 'forward-route-%'").run();
   await env.DB.prepare("DELETE FROM messages WHERE id LIKE 'forward-helper-%'").run();
+  await env.DB.prepare("DELETE FROM messages WHERE id LIKE 'forward-route-%'").run();
+  await env.DB.prepare("DELETE FROM messages WHERE body LIKE 'forward-route:%'").run();
+  await env.DB.prepare("DELETE FROM audit_log WHERE action = 'message.forward'").run();
 });
 
 describe('validateForwardChannel', () => {
@@ -62,3 +68,72 @@ describe('forwardMessage', () => {
     expect(metadata.telegram_message_id).toBe(4242);
   });
 });
+
+describe('POST /api/messages/:id/forward', () => {
+  it('creates a forwarded message linked to the original message', async () => {
+    await env.DB.prepare(
+      "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
+    ).bind(getTestAgentId(), JSON.stringify({ chat_id: 'forward-route-chat', bot_token: 'forward-route-bot' })).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'delivered', 'normal')"
+    ).bind('forward-route-source', getTestAgentId(), 'forward-route:source-body').run();
+
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 71 } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await SELF.fetch('https://test.local/api/messages/forward-route-source/forward', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ channel: 'telegram' }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      agent_id: getTestAgentId(),
+      channel: 'telegram',
+      type: 'forwarded',
+      reply_to: 'forward-route-source',
+      body: '[Forwarded from discord] forward-route:source-body',
+    });
+  });
+
+  it('does not let a different agent forward another agent message', async () => {
+    await createAgentHeaders('forward-route-owner', 'hb_forward_owner_key_000000000000');
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', ?, 'sent', 'normal', ?)"
+    ).bind('forward-route-owned-by-other', 'forward-route-owner', 'forward-route:other-owner', getTestAgentId()).run();
+
+    const res = await SELF.fetch('https://test.local/api/messages/forward-route-owned-by-other/forward', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ channel: 'discord' }),
+    });
+
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('forbidden');
+  });
+
+  it('returns 404 when the source message does not exist', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages/forward-route-missing/forward', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ channel: 'telegram' }),
+    });
+
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe('not found');
+  });
+});
+
+async function createAgentHeaders(agentId: string, apiKey: string): Promise<Record<string, string>> {
+  const keyHash = await hashApiKey(apiKey);
+  await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind(agentId, agentId, keyHash)
+    .run();
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+}
