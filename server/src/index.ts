@@ -21,10 +21,23 @@ import { bossInboxRouter } from './routes/boss-inbox';
 import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
 import dashboardHtml from './dashboard.html';
+// @ts-ignore JS string module exports the service worker source.
+import swJs from './sw.js';
+// @ts-ignore JS string module exports the inline SVG icon markup.
+import iconSvg from './icon.js';
 import { handleScheduled } from './scheduled';
 import { discordGatewayRouter } from './routes/discord-gateway-api';
 
 const app = new Hono<{ Bindings: Env }>({});
+const manifest = {
+  name: 'hiboss',
+  short_name: 'hiboss',
+  start_url: '/dashboard',
+  display: 'standalone',
+  background_color: '#0d1117',
+  theme_color: '#161b22',
+  icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
+};
 
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
@@ -44,6 +57,9 @@ app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
 
+app.get('/sw.js', (c) => c.body(swJs, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } }));
+app.get('/manifest.json', (c) => c.json(manifest));
+app.get('/icon.svg', (c) => c.body(iconSvg, { headers: { 'Content-Type': 'image/svg+xml; charset=utf-8' } }));
 app.get('/dashboard', (c) => c.html(dashboardHtml));
 app.get('/', (c) => c.text('hiboss server'));
 
