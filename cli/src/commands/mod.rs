@@ -10,6 +10,7 @@ pub mod channel;
 pub mod config;
 pub mod daemon;
 pub mod doctor;
+pub mod edit;
 pub mod init;
 pub mod inbox;
 pub mod react;
