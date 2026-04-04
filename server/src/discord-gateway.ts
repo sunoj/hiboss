@@ -1,13 +1,15 @@
 // Durable Object that maintains a WebSocket connection to Discord Gateway.
-// Receives MESSAGE_CREATE events and inserts boss messages into D1.
-// Depends on Discord Gateway v10 protocol, DO storage for session state, and webhook-helpers.
+// Receives Discord message and reaction events and syncs them into D1.
+// Depends on Discord Gateway v10 protocol, DO storage, and discord/webhook helpers.
 
 import type { Env, MessageRow } from './types';
+import type { DiscordReactionChangeData } from './discord-gateway-reactions';
+import { lookupDiscordAgentId, persistDiscordReaction } from './discord-gateway-reactions';
 import { insertBossDiscordMessage } from './routes/webhook-helpers';
 import { notifyAgentCallback } from './notify';
 
 const GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
-const INTENTS = (1 << 0) | (1 << 9) | (1 << 15); // GUILDS + GUILD_MESSAGES + MESSAGE_CONTENT
+const INTENTS = (1 << 0) | (1 << 9) | (1 << 10) | (1 << 15); // GUILDS + GUILD_MESSAGES + GUILD_MESSAGE_REACTIONS + MESSAGE_CONTENT
 
 interface GatewayPayload {
   op: number;
@@ -191,23 +193,35 @@ export class DiscordGateway implements DurableObject {
   }
 
   private async handleDispatch(eventName: string | null, data: unknown): Promise<void> {
-    if (eventName === 'READY') {
-      const ready = data as ReadyData;
-      await this.state.storage.put('session_id', ready.session_id);
-      await this.state.storage.put('resume_gateway_url', ready.resume_gateway_url);
-      console.log('[discord-gw] READY received');
-    } else if (eventName === 'MESSAGE_CREATE') {
-      const msg = data as MessageCreateData;
-      console.log(`[discord-gw] MESSAGE_CREATE channel=${msg.channel_id} author=${msg.author.id} bot=${msg.author.bot ?? false} content=${(msg.content ?? '').slice(0, 50)}`);
-      await this.handleMessageCreate(msg);
-    } else if (eventName) {
-      console.log(`[discord-gw] dispatch: ${eventName}`);
+    switch (eventName) {
+      case 'READY': {
+        const ready = data as ReadyData;
+        await this.state.storage.put('session_id', ready.session_id);
+        await this.state.storage.put('resume_gateway_url', ready.resume_gateway_url);
+        console.log('[discord-gw] READY received');
+        return;
+      }
+      case 'MESSAGE_CREATE': {
+        const msg = data as MessageCreateData;
+        console.log(`[discord-gw] MESSAGE_CREATE channel=${msg.channel_id} author=${msg.author.id} bot=${msg.author.bot ?? false} content=${(msg.content ?? '').slice(0, 50)}`);
+        await this.handleMessageCreate(msg);
+        return;
+      }
+      case 'MESSAGE_REACTION_ADD':
+      case 'MESSAGE_REACTION_REMOVE':
+        await this.handleMessageReaction(data as DiscordReactionChangeData, eventName === 'MESSAGE_REACTION_ADD' ? 'add' : 'remove');
+        return;
+      default:
+        if (eventName) {
+          console.log(`[discord-gw] dispatch: ${eventName}`);
+        }
     }
   }
 
   private async handleMessageCreate(msg: MessageCreateData): Promise<void> {
     if (msg.author.bot) return; // Ignore bot messages
     if (!msg.content) return;
+    if (!(await this.findAgentByDiscordChannel(msg.channel_id))) return;
     const replyToDiscordMsgId = msg.message_reference?.message_id;
     try {
       const inserted = await insertBossDiscordMessage(
@@ -220,6 +234,21 @@ export class DiscordGateway implements DurableObject {
     } catch (error) {
       console.error(`[discord-gw] message insert failed: ${error}`);
     }
+  }
+
+  private async handleMessageReaction(reaction: DiscordReactionChangeData, action: 'add' | 'remove'): Promise<void> {
+    if (!reaction.emoji.name) return;
+    const agentId = await this.findAgentByDiscordChannel(reaction.channel_id);
+    if (!agentId) return;
+    try {
+      await persistDiscordReaction(this.env, agentId, reaction, action);
+    } catch (error) {
+      console.error(`[discord-gw] reaction ${action} failed: ${error}`);
+    }
+  }
+
+  private findAgentByDiscordChannel(channelId: string): Promise<string | null> {
+    return lookupDiscordAgentId(this.env, channelId);
   }
 
   private async onClose(event?: CloseEvent): Promise<void> {
