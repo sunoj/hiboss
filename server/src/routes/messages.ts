@@ -40,6 +40,7 @@ import {
 import { propagateMessageEdit } from './message-edit';
 import { ensureTopicForSession } from './session-channels';
 import { logAudit } from '../audit';
+import { forwardMessage, validateForwardChannel } from './message-forward';
 
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
@@ -434,6 +435,31 @@ routes.post('/:id/reply', async (c) => {
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.reply', 'message', parent.id));
   return c.json(mapMessageRow(inserted), 201);
+});
+
+routes.post('/:id/forward', async (c) => {
+  const agentId = getAgentId(c);
+  const original = await fetchMessageRow(c.env, agentId, c.req.param('id'));
+  if (!original) {
+    return c.text('not found', 404);
+  }
+  if (original.agent_id !== agentId) {
+    return c.text('forbidden', 403);
+  }
+  const payload = await c.req.json<Record<string, unknown>>();
+  const targetChannel = validateForwardChannel(payload.channel);
+  if (!targetChannel) {
+    return c.text('channel must be discord or telegram', 400);
+  }
+  try {
+    const forwarded = await forwardMessage(c.env, original, targetChannel);
+    c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.forward', 'message', original.id, targetChannel));
+    return c.json(mapMessageRow(forwarded), 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'forward failed';
+    const status = message === 'no channel configured' ? 400 : 502;
+    return c.text(message, status);
+  }
 });
 
 routes.patch('/:id', async (c) => {

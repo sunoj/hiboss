@@ -3,7 +3,7 @@
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
 import { env, SELF } from 'cloudflare:test';
-import { describe, it, expect, beforeAll } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
@@ -31,6 +31,11 @@ beforeAll(async () => {
   await env.DB.prepare(
     "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'high')"
   ).bind('boss-api-msg-2', getTestAgentId(), 'Deploy completed successfully').run();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function bossHeaders(): Record<string, string> {
@@ -212,6 +217,22 @@ describe('POST /api/boss/messages/:id/reply', () => {
       body: JSON.stringify({ body: 'Reply' }),
     });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/boss/messages/:id/forward', () => {
+  it('rejects invalid target channels', async () => {
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'sent', 'normal')"
+    ).bind('boss-forward-source', getTestAgentId(), 'Ship this update').run();
+
+    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-forward-source/forward', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ channel: 'api' }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('channel must be discord or telegram');
   });
 });
 

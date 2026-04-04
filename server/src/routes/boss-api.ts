@@ -9,9 +9,9 @@ import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpe
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
+import { forwardMessage, validateForwardChannel } from './message-forward';
 
 const MAX_LIMIT = 100;
-
 interface JoinRequestRow {
   id: string;
   name: string;
@@ -19,12 +19,10 @@ interface JoinRequestRow {
   created_at: string;
   updated_at: string;
 }
-
 interface ApiKeyRow {
   id: string;
   name: string;
 }
-
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
 
@@ -108,8 +106,6 @@ routes.get('/messages', async (c) => {
 
   const clauses: string[] = [];
   const binds: (string | number)[] = [];
-
-  // Filter by accessible agents (or specific agent)
   if (agentFilter) {
     const match = agentIds.find((id) => id === agentFilter || id.startsWith(agentFilter));
     if (!match) return c.json({ messages: [], total: 0 });
@@ -122,7 +118,6 @@ routes.get('/messages', async (c) => {
 
   const directionFilter = c.req.query('direction');
   if (directionFilter === 'all') {
-    // No direction filter — show all directions for session views
   } else {
     clauses.push("direction = 'agent_to_boss'");
   }
@@ -200,6 +195,31 @@ routes.post('/messages/:id/reply', async (c) => {
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.reply', 'message', parent.id, bossName));
   return c.json(mapMessageRow(inserted), 201);
+});
+
+routes.post('/messages/:id/forward', async (c) => {
+  const bossId = getBossId(c);
+  const role = getBossRole(c);
+  if (role === 'viewer') return c.text('viewer cannot send messages', 403);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
+  const messageId = c.req.param('id');
+  const original = await c.env.DB
+    .prepare("SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE messages.id = ? OR messages.id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
+    .first<MessageRow>();
+  if (!original || !agentIds.includes(original.agent_id)) return c.text('not found', 404);
+  const payload = await c.req.json<Record<string, unknown>>();
+  const targetChannel = validateForwardChannel(payload.channel);
+  if (!targetChannel) return c.text('channel must be discord or telegram', 400);
+  try {
+    const forwarded = await forwardMessage(c.env, original, targetChannel);
+    c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.forward', 'message', original.id, targetChannel));
+    return c.json(mapMessageRow(forwarded), 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'forward failed';
+    const status = message === 'no channel configured' ? 400 : 502;
+    return c.text(message, status);
+  }
 });
 
 /** GET /api/boss/sessions — list sessions for accessible agents */

@@ -34,6 +34,7 @@ const TOOL_DEFS = [
   tool('send', 'Send a new hiboss message.', { body: field('string'), to: field('string'), priority: enumField(['critical', 'high', 'normal', 'low']), options: field('string') }, ['body']),
   tool('ask', 'Ask boss for input and block until reply or timeout.', { body: field('string'), options: field('string'), timeout: field('number') }, ['body']),
   tool('reply', 'Reply to an existing hiboss message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
+  tool('forward', 'Forward an existing hiboss message to another channel.', { message_id: field('string'), channel: enumField(['discord', 'telegram']) }, ['message_id', 'channel']),
   tool('react', 'Add a reaction to a hiboss message.', { message_id: field('string'), emoji: field('string') }, ['message_id', 'emoji']),
   tool('send_file', 'Send a file to boss via hiboss.', { file_path: field('string'), body: field('string'), to: field('string'), priority: enumField(['critical', 'high', 'normal', 'low']) }, ['file_path']),
   tool('inbox', 'List unread boss messages.', { unread: field('boolean'), limit: field('number') }),
@@ -83,6 +84,7 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<Ca
   if (name === 'send') return sendTool(args);
   if (name === 'ask') return askTool(args);
   if (name === 'reply') return replyTool(args);
+  if (name === 'forward') return forwardTool(args);
   if (name === 'react') return reactTool(args);
   if (name === 'send_file') return sendFileTool(args);
   if (name === 'inbox') return inboxTool(args);
@@ -111,7 +113,11 @@ async function replyTool(args: Record<string, unknown>): Promise<CallToolResult>
   const message = await api('POST', `/api/messages/${encodeURIComponent(id)}/reply`, { body: str(args.body, 'body') }) as Message;
   return ok(`Replied with ${message.id}.`);
 }
-
+async function forwardTool(args: Record<string, unknown>): Promise<CallToolResult> {
+  const id = str(args.message_id, 'message_id');
+  const message = await api('POST', `/api/messages/${encodeURIComponent(id)}/forward`, { channel: str(args.channel, 'channel') }) as Message;
+  return ok(`Forwarded as ${message.id}.`);
+}
 async function reactTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const id = str(args.message_id, 'message_id');
   await api('POST', `/api/messages/${encodeURIComponent(id)}/react`, { emoji: str(args.emoji, 'emoji') });
