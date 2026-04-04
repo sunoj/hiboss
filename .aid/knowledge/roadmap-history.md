@@ -245,3 +245,58 @@ New local MCP server that runs as a Claude Code plugin/channel, replacing hook-b
 - **Options/Poll Display**: Option buttons with selected state highlighting, expired dimming
 - **Session Filter**: Messages tab can filter by session ID
 - **Session Thread Links**: Discord thread IDs and Telegram topic IDs shown as badges in session cards
+
+## v1.6.0 — Full Feature Expansion
+
+### Telegram Bot Commands
+- `/msg <text>` command for Telegram — matches Discord's /msg slash command
+- `/status` command shows active session status inline
+- Bot command entity detection in webhook handler
+- `hiboss setup telegram-commands` CLI subcommand to register commands via BotFather API
+- `POST /api/webhooks/telegram/register-commands` API endpoint
+- Refactored webhook handlers: `telegram-webhook-actions.ts` for callback + reaction handlers
+
+### Discord Join/Onboard Flow
+- Discord button click callbacks now handle `join:approve` and `join:reject`
+- Shared join logic extracted to `join-helpers.ts` (used by both Telegram and Discord handlers)
+- Discord interactions handler detects `join:` prefix and routes to join callback
+- Complete feature parity with Telegram's approve/reject join flow
+
+### MCP File Attachment Tool
+- New `send_file` tool in MCP server
+- Reads local file, uploads to R2 via `/api/attachments/upload`
+- Sends message with `file_url` for channel delivery
+- File size validation (10MB limit), error handling
+- Separate module: `mcp/send-file.ts` with tests
+
+### Quiet Hours Server-Side Enforcement
+- Server queues normal/low priority messages during boss quiet hours
+- Migration 0022: `delivery_queue` table with scheduling
+- `quiet-hours.ts` module: timezone-aware quiet hours check, overnight range support
+- Scheduled worker drains delivery queue when quiet hours end
+- Critical/high priority messages always deliver immediately
+- `agent-delivery.ts` helper for consolidated delivery logic
+
+### Channel Health Diagnostics
+- `GET /api/channels/stats` endpoint: per-channel delivery counts, failure rates, timestamps
+- `hiboss doctor` now shows "Channel Health" section with delivery success rates
+- `--verbose` flag shows last errors, delivery queue status
+- `admin-channel-stats.ts` server module with SQL aggregation queries
+
+### Dashboard PWA
+- Service worker (`sw.js`) with cache-first CDN strategy, network-first API
+- Web app manifest for "Add to Home Screen" on mobile
+- SVG icon served inline
+- Mobile bottom navigation bar on small screens
+- Pull-to-refresh gesture on messages tab
+- Touch-friendly 44px tap targets
+
+### Message Forwarding Between Channels
+- `POST /api/messages/:id/forward` endpoint with target channel
+- CLI: `hiboss forward <id> --channel <target>` command
+- MCP: `forward` tool
+- Dashboard: forward button on messages with channel dropdown
+- Forwarded messages linked via `reply_to` with `type: 'forwarded'`
+
+### Not Merged (pending re-implementation)
+- **Delivery Retry Queue**: WS5 had merge conflicts with quiet-hours infrastructure. The delivery_queue table exists (from quiet hours). Retry logic with exponential backoff needs re-implementation on the merged codebase.
