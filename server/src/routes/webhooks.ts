@@ -1,14 +1,15 @@
 // Webhook endpoints for Discord and Telegram to deliver boss messages.
-// Exports POST handlers that insert boss_to_agent rows and return the message.
-// Depends on Hono, the D1 binding, and shared message typings.
+// Exports POST handlers plus Telegram command registration for bot commands.
+// Depends on Hono, auth middleware, channel adapters, and webhook helpers.
 
-import { Hono, Context } from 'hono';
-import type { Env, MessageRow } from '../types';
-import { sendTelegramTyping, answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegram';
+import { Context, Hono } from 'hono';
+import { escapeHtml, sendTelegramMessage } from '../channels/telegram';
+import { apiAuth } from '../middleware/auth';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
+import { requireTelegramConfig } from './delivery';
 import {
   asString,
   evaluateRoutingRules,
@@ -19,6 +20,8 @@ import {
   mapMessage,
   resolveBossForChannel,
 } from './webhook-helpers';
+import { handleTelegramCallbackQuery, handleTelegramReaction } from './telegram-webhook-actions';
+import type { Env, MessageRow } from '../types';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -51,6 +54,27 @@ router.post('/discord', async (c) => {
   return c.json(mapMessage(inserted), 201);
 });
 
+router.post('/telegram/register-commands', apiAuth, async (c) => {
+  const payload = await c.req.json<{ bot_token?: string }>();
+  if (!payload.bot_token) {
+    return c.text('bot_token required', 400);
+  }
+  const response = await fetch(`https://api.telegram.org/bot${encodeURIComponent(payload.bot_token)}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      commands: [
+        { command: 'msg', description: 'Send a message to the AI agent' },
+        { command: 'status', description: 'Show agent session status' },
+      ],
+    }),
+  });
+  if (!response.ok) {
+    return c.text(await response.text(), 502);
+  }
+  return c.json(await response.json(), 201);
+});
+
 router.post('/telegram', async (c) => {
   const telegramWebhookSecret = (c.env as Env & { TELEGRAM_WEBHOOK_SECRET?: string }).TELEGRAM_WEBHOOK_SECRET;
   const telegramWebhookHeader = c.req.header('X-Telegram-Bot-Api-Secret-Token');
@@ -61,312 +85,156 @@ router.post('/telegram', async (c) => {
     return c.text('forbidden', 403);
   }
   const payload = await c.req.json<Record<string, unknown>>();
-
-  // Handle inline keyboard button press
   const callbackQuery = payload['callback_query'] as Record<string, unknown> | undefined;
-  if (callbackQuery) return handleCallbackQuery(c, callbackQuery);
-
-  // Handle boss reaction on a message
+  if (callbackQuery) return handleTelegramCallbackQuery(c, callbackQuery);
   const reaction = payload['message_reaction'] as Record<string, unknown> | undefined;
   if (reaction) return handleTelegramReaction(c, reaction);
-
-  const message = payload['message'] as Record<string, unknown> | undefined;
-  if (message && message['from'] && (message['from'] as Record<string, unknown>).is_bot) return c.text('ignored', 200);
-  const chat = message?.['chat'] as Record<string, unknown> | undefined;
-  const chatId = asString(chat?.['id']);
-  const text = asString(message?.['text']);
-  const threadId = message?.['message_thread_id'] as number | undefined;
-  if (!chatId || !text) return c.text('missing chat or body', 400);
-  if (!(await findEnabledChannelConfig(c.env, 'telegram', chatId))) return c.text('forbidden', 403);
-  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
-    c.env,
-    'telegram',
-    asString((message?.['from'] as Record<string, unknown>)?.['id']),
-    false
-  );
-  if (bossError) return c.text(bossError, 403);
-  // Route by thread ID first (topics mode), then fall back to chat_id only
-  let configRow: { agent_id: string; config: string } | null = null;
-  let targetSessionId: string | null = null;
-  if (threadId) {
-    const sessionRoute = await findTelegramSessionRoute(c.env, chatId, threadId);
-    if (sessionRoute) {
-      configRow = { agent_id: sessionRoute.agent_id, config: sessionRoute.config };
-      targetSessionId = sessionRoute.session_id;
-    } else {
-      configRow = await c.env.DB
-        .prepare(
-          "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') = ?"
-        )
-        .bind(chatId, threadId)
-        .first<{ agent_id: string; config: string }>();
-    }
-  }
-  if (!configRow) {
-    configRow = await c.env.DB
-      .prepare(
-        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') IS NULL"
-      )
-      .bind(chatId)
-      .first<{ agent_id: string; config: string }>();
-  }
-  if (!configRow) {
-    configRow = await c.env.DB
-      .prepare(
-        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?"
-      )
-      .bind(chatId)
-      .first<{ agent_id: string; config: string }>();
-  }
-  if (!configRow) return c.text('forbidden', 403);
-  const idempotencyKey = asString(payload['update_id']);
-  if (idempotencyKey) {
-    const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, idempotencyKey);
-    if (existing) return c.json(mapMessage(existing), 200);
-  }
-  // Check routing rules: if a rule matches, override the target agent
-  const routedAgentId = targetSessionId ? null : await evaluateRoutingRules(c.env, 'telegram', text, configRow.agent_id);
-  if (routedAgentId) configRow.agent_id = routedAgentId;
-  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  const telegramMetadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name } : payload;
-  // Detect Telegram reply-to and link to original hiboss message
-  const replyToMessage = message?.['reply_to_message'] as Record<string, unknown> | undefined;
-  const replyToTgId = replyToMessage?.['message_id'] as number | undefined;
-  let replyTo: string | null = null;
-  if (replyToTgId) {
-    const parent = await c.env.DB
-      .prepare(
-        "SELECT id FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1"
-      )
-      .bind(configRow.agent_id, replyToTgId)
-      .first<{ id: string }>();
-    if (parent) replyTo = parent.id;
-  }
-  // Auto-link standalone messages (no explicit reply-to) to most recent pending blocking message
-  if (!replyTo && !replyToTgId) {
-    const pending = await c.env.DB
-      .prepare(
-        "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'telegram' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
-      )
-      .bind(configRow.agent_id)
-      .first<{ id: string }>();
-    if (pending) replyTo = pending.id;
-  }
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(
-      configRow.agent_id,
-      'boss_to_agent',
-      'async',
-      'telegram',
-      text,
-      'sent',
-      'normal',
-      replyTo,
-      idempotencyKey ?? null,
-      JSON.stringify(telegramMetadata),
-      targetSessionId,
-    )
-    .first<MessageRow>();
-  if (!inserted) return c.text('failed to persist', 500);
-  c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
-  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.send', 'message', inserted.id, 'telegram'));
-  return c.json(mapMessage(inserted), 201);
+  return handleTelegramMessage(c, payload);
 });
 
 export const webhooksRouter = router;
 
-async function handleCallbackQuery(c: Context<{ Bindings: Env }>, query: Record<string, unknown>): Promise<Response> {
-  const data = asString(query['data']);
-  const queryId = asString(query['id']);
-  const chatMsg = query['message'] as Record<string, unknown> | undefined;
-  const chat = chatMsg?.['chat'] as Record<string, unknown> | undefined;
-  const chatId = asString(chat?.['id']);
-  if (!data || !chatId) return c.text('invalid callback', 400);
-  if (data.startsWith('join:')) {
-    return handleJoinCallback(c, query, data, chatId);
-  }
-  // Look up config first — needed for answerCallbackQuery on all paths
-  const configRow = await c.env.DB
-    .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
-    .bind(chatId)
-    .first<{ agent_id: string; config: string }>();
-  const botToken = configRow ? (JSON.parse(configRow.config) as Record<string, string>).bot_token : undefined;
-  // Helper: always dismiss Telegram loading spinner, even on errors
-  const answer = (text: string) => {
-    if (botToken && queryId) c.executionCtx.waitUntil(answerCallbackQuery(botToken, queryId, text));
-  };
-  if (!configRow) { answer('Error'); return c.text('forbidden', 403); }
+type TelegramCommand = { body: string | null; name: 'msg' | 'status' };
+type TelegramConfigRow = { agent_id: string; config: string };
+type TelegramWebhookContext = Context<{ Bindings: Env }>;
+
+async function handleTelegramMessage(c: TelegramWebhookContext, payload: Record<string, unknown>): Promise<Response> {
+  const message = payload['message'] as Record<string, unknown> | undefined;
+  if (message && message['from'] && (message['from'] as Record<string, unknown>).is_bot) return c.text('ignored', 200);
+  const chatId = asString((message?.['chat'] as Record<string, unknown> | undefined)?.['id']);
+  const text = asString(message?.['text']);
+  const threadId = typeof message?.['message_thread_id'] === 'number' ? message['message_thread_id'] : undefined;
+  if (!chatId || !text) return c.text('missing chat or body', 400);
+  if (!(await findEnabledChannelConfig(c.env, 'telegram', chatId))) return c.text('forbidden', 403);
+
+  const target = await findTelegramTarget(c.env, chatId, threadId);
+  if (!target) return c.text('forbidden', 403);
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
-    c.env, 'telegram', asString((query['from'] as Record<string, unknown>)?.['id']), true
+    c.env,
+    'telegram',
+    asString((message?.['from'] as Record<string, unknown>)?.['id']),
+    false,
   );
-  if (bossError) { answer(bossError); return c.text(bossError, 403); }
-  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) {
-    answer('No access'); return c.text('no access to this agent', 403);
+  if (bossError) return c.text(bossError, 403);
+  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, target.configRow.agent_id, bossInfo.role))) {
+    return c.text('no access to this agent', 403);
   }
-  // data format: "msgIdPrefix:selectedOption"
-  const colonIdx = data.indexOf(':');
-  if (colonIdx < 1) { answer('Invalid'); return c.text('invalid callback data', 400); }
-  const msgPrefix = data.slice(0, colonIdx);
-  const selectedOption = data.slice(colonIdx + 1);
-  if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) { answer('Invalid'); return c.text('invalid message prefix', 400); }
-  const parentMsg = await c.env.DB
-    .prepare('SELECT id, metadata, status FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
-    .bind(`${msgPrefix}%`, configRow.agent_id)
-    .first<{ id: string; metadata: string | null; status: string }>();
-  if (!parentMsg) { answer('Not found'); return c.text('message not found', 404); }
-  if (parentMsg.status === 'expired') { answer('Options expired'); return c.text('options expired', 410); }
-  // If parent has actions in metadata, copy the matched action to reply metadata
-  let replyMetadataRecord: Record<string, unknown> | null = null;
-  if (parentMsg.metadata) {
-    try {
-      const parentMeta = JSON.parse(parentMsg.metadata) as Record<string, unknown>;
-      const actions = parentMeta['actions'] as Record<string, string> | undefined;
-      if (actions && typeof actions === 'object' && actions[selectedOption]) {
-        replyMetadataRecord = { action: actions[selectedOption] };
-      }
-    } catch { /* ignore parse errors */ }
+
+  const command = extractTelegramCommand(message, text);
+  if (command?.name === 'status') return handleTelegramStatusCommand(c, target.configRow, threadId);
+  const body = command?.name === 'msg' ? command.body : text;
+  if (!body) return c.text('missing chat or body', 400);
+  return createTelegramBossMessage(c, payload, message, body, target, bossInfo);
+}
+
+async function createTelegramBossMessage(
+  c: TelegramWebhookContext,
+  payload: Record<string, unknown>,
+  message: Record<string, unknown> | undefined,
+  body: string,
+  target: { configRow: TelegramConfigRow; targetSessionId: string | null },
+  bossInfo: { id: string; name: string; role: string } | null,
+): Promise<Response> {
+  const idempotencyKey = asString(payload['update_id']);
+  if (idempotencyKey) {
+    const existing = await findMessageByIdempotencyKey(c.env, target.configRow.agent_id, idempotencyKey);
+    if (existing) return c.json(mapMessage(existing), 200);
   }
-  if (bossInfo) {
-    replyMetadataRecord = { ...(replyMetadataRecord ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name };
-  }
-  if (queryId) {
-    const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, queryId);
-    if (existing) {
-      answer(`Selected: ${existing.body}`);
-      return c.json(mapMessage(existing), 200);
-    }
-  }
-  const finalReplyMetadata = replyMetadataRecord ? JSON.stringify(replyMetadataRecord) : null;
+  const routedAgentId = target.targetSessionId ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
+  const agentId = routedAgentId ?? target.configRow.agent_id;
+  const replyTo = await resolveTelegramReplyTo(c.env, agentId, message);
+  const metadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name } : payload;
   const inserted = await c.env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, finalReplyMetadata)
+    .prepare(
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    )
+    .bind(agentId, 'boss_to_agent', 'async', 'telegram', body, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), target.targetSessionId)
     .first<MessageRow>();
-  if (!inserted) { answer('Error'); return c.text('failed to persist', 500); }
-  answer(`Selected: ${selectedOption}`);
-  const originalMsgId = chatMsg?.['message_id'] as number | undefined;
-  const originalText = (chatMsg?.['text'] as string) ?? '';
-  if (botToken && originalMsgId) {
-    c.executionCtx.waitUntil(
-      editMessageReplyMarkup(botToken, chatId, originalMsgId, `${originalText}\n\n✅ Selected: ${selectedOption}`)
-    );
-  }
-  c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
-  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.callback', 'message', parentMsg.id, selectedOption));
+  if (!inserted) return c.text('failed to persist', 500);
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentId, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.send', 'message', inserted.id, 'telegram'));
   return c.json(mapMessage(inserted), 201);
 }
 
-async function handleJoinCallback(
-  c: Context<{ Bindings: Env }>,
-  query: Record<string, unknown>,
-  data: string,
-  chatId: string
-): Promise<Response> {
-  const botToken = await findTelegramBotToken(c.env, chatId);
-  const queryId = asString(query['id']);
-  const answer = (text: string) => {
-    if (botToken && queryId) c.executionCtx.waitUntil(answerCallbackQuery(botToken, queryId, text));
-  };
-  if (!botToken) {
-    answer('Error');
-    return c.text('forbidden', 403);
+async function findTelegramTarget(env: Env, chatId: string, threadId: number | undefined): Promise<{ configRow: TelegramConfigRow; targetSessionId: string | null } | null> {
+  if (threadId) {
+    const sessionRoute = await findTelegramSessionRoute(env, chatId, threadId);
+    if (sessionRoute) {
+      return { configRow: { agent_id: sessionRoute.agent_id, config: sessionRoute.config }, targetSessionId: sessionRoute.session_id };
+    }
+    const threaded = await env.DB
+      .prepare(
+        "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') = ?",
+      )
+      .bind(chatId, threadId)
+      .first<TelegramConfigRow>();
+    if (threaded) return { configRow: threaded, targetSessionId: null };
   }
-  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
-    c.env,
-    'telegram',
-    asString((query['from'] as Record<string, unknown>)?.['id']),
-    true
-  );
-  if (bossError) {
-    answer(bossError);
-    return c.text(bossError, 403);
-  }
-  const parsed = parseJoinCallbackData(data);
-  if (!parsed) {
-    answer('Invalid');
-    return c.text('invalid callback data', 400);
-  }
-  const result = parsed.action === 'approve'
-    ? await approveJoinRequest(c.env, parsed.requestId)
-    : await rejectJoinRequest(c.env, parsed.requestId);
-  if (result.error) {
-    answer(result.answerText);
-    return c.text(result.error, result.statusCode);
-  }
-  answer(result.answerText);
-  const chatMsg = query['message'] as Record<string, unknown> | undefined;
-  const messageId = chatMsg?.['message_id'] as number | undefined;
-  const originalText = (chatMsg?.['text'] as string) ?? '';
-  if (messageId) {
-    c.executionCtx.waitUntil(editMessageReplyMarkup(botToken, chatId, messageId, `${originalText}\n\n${result.messageText}`));
-  }
-  c.executionCtx.waitUntil(logAudit(
-    c.env,
-    bossInfo ? 'boss' : 'system',
-    bossInfo?.id ?? 'telegram',
-    result.auditAction,
-    'join_request',
-    parsed.requestId,
-    result.auditDetails
-  ));
-  if (result.apiKeyId) {
-    c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', result.apiKeyId, 'join-approve'));
-  }
-  return c.json({ status: result.joinStatus });
-}
-
-async function handleTelegramReaction(c: Context<{ Bindings: Env }>, reaction: Record<string, unknown>): Promise<Response> {
-  const chat = reaction['chat'] as Record<string, unknown> | undefined;
-  const chatId = asString(chat?.['id']);
-  const tgMsgId = reaction['message_id'] as number | undefined;
-  if (!chatId || !tgMsgId) return c.text('invalid reaction', 400);
-  const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
-    c.env,
-    'telegram',
-    asString((reaction['user'] as Record<string, unknown>)?.['id']),
-    true
-  );
-  if (bossError) return c.text(bossError, 403);
-  const configRow = await c.env.DB
-    .prepare("SELECT agent_id FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
+  const unthreaded = await env.DB
+    .prepare(
+      "SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? AND json_extract(config, '$.message_thread_id') IS NULL",
+    )
     .bind(chatId)
-    .first<{ agent_id: string }>();
-  if (!configRow) return c.text('forbidden', 403);
-  if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  // Find hiboss message by telegram_message_id
-  const msg = await c.env.DB
-    .prepare("SELECT id, metadata FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1")
-    .bind(configRow.agent_id, tgMsgId)
-    .first<{ id: string; metadata: string | null }>();
-  if (!msg) return c.text('ok', 200); // Unknown message, ignore
-  // Extract new reaction list
-  const newReactions = reaction['new_reaction'] as { type: string; emoji?: string }[] | undefined;
-  const emojis = (newReactions ?? []).filter((r) => r.type === 'emoji' && r.emoji).map((r) => r.emoji as string);
-  const user = reaction['user'] as Record<string, unknown> | undefined;
-  const userName = asString(user?.['first_name']) ?? asString(user?.['username']) ?? 'boss';
-  // Update message metadata with reactions
-  const meta = msg.metadata ? JSON.parse(msg.metadata) as Record<string, unknown> : {};
-  meta['reactions'] = emojis.map((e) => ({ emoji: e, user: userName }));
-  await c.env.DB.prepare('UPDATE messages SET metadata = ? WHERE id = ?').bind(JSON.stringify(meta), msg.id).run();
-  return c.json({ ok: true });
-}
-
-async function findTelegramBotToken(env: Env, chatId: string): Promise<string | undefined> {
-  const configRow = await env.DB
-    .prepare("SELECT config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ? LIMIT 1")
+    .first<TelegramConfigRow>();
+  if (unthreaded) return { configRow: unthreaded, targetSessionId: null };
+  const fallback = await env.DB
+    .prepare("SELECT agent_id, config FROM channel_configs WHERE channel = 'telegram' AND enabled = 1 AND json_extract(config, '$.chat_id') = ?")
     .bind(chatId)
-    .first<{ config: string }>();
-  if (!configRow) {
-    return undefined;
-  }
-  try {
-    const config = JSON.parse(configRow.config) as Record<string, unknown>;
-    return typeof config['bot_token'] === 'string' ? config['bot_token'] : undefined;
-  } catch {
-    return undefined;
-  }
+    .first<TelegramConfigRow>();
+  return fallback ? { configRow: fallback, targetSessionId: null } : null;
 }
 
-// Boss auth, routing, and mapping helpers are in webhook-helpers.ts
+async function resolveTelegramReplyTo(env: Env, agentId: string, message: Record<string, unknown> | undefined): Promise<string | null> {
+  const replyToTgId = (message?.['reply_to_message'] as Record<string, unknown> | undefined)?.['message_id'] as number | undefined;
+  if (replyToTgId) {
+    const parent = await env.DB
+      .prepare("SELECT id FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1")
+      .bind(agentId, replyToTgId)
+      .first<{ id: string }>();
+    return parent?.id ?? null;
+  }
+  const pending = await env.DB
+    .prepare(
+      "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'telegram' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(agentId)
+    .first<{ id: string }>();
+  return pending?.id ?? null;
+}
+
+function extractTelegramCommand(message: Record<string, unknown> | undefined, text: string): TelegramCommand | null {
+  const entities = Array.isArray(message?.['entities']) ? (message?.['entities'] as Record<string, unknown>[]) : [];
+  const entity = entities.find((value) => value['type'] === 'bot_command' && value['offset'] === 0);
+  const length = typeof entity?.['length'] === 'number' ? entity['length'] : 0;
+  if (length < 2) return null;
+  const commandText = text.slice(0, length);
+  const commandName = commandText.slice(1).split('@')[0];
+  if (commandName !== 'msg' && commandName !== 'status') return null;
+  return { name: commandName, body: text.slice(length).trimStart() || null };
+}
+
+async function handleTelegramStatusCommand(c: TelegramWebhookContext, configRow: TelegramConfigRow, threadId: number | undefined): Promise<Response> {
+  const sessions = await c.env.DB
+    .prepare("SELECT * FROM sessions WHERE agent_id = ? AND last_seen_at > datetime('now', '-15 minutes') ORDER BY last_seen_at DESC")
+    .bind(configRow.agent_id)
+    .all<{ label: string | null; status: string; status_text: string | null }>();
+  const agent = await c.env.DB.prepare('SELECT name FROM api_keys WHERE id = ?').bind(configRow.agent_id).first<{ name: string }>();
+  const config = requireTelegramConfig(JSON.parse(configRow.config) as Record<string, unknown>);
+  await sendTelegramMessage(config, formatTelegramStatusMessage(agent?.name ?? configRow.agent_id, sessions.results ?? []), {
+    messageThreadId: threadId,
+  });
+  return c.json({ ok: true }, 200);
+}
+
+function formatTelegramStatusMessage(agentName: string, sessions: { label: string | null; status: string; status_text: string | null }[]): string {
+  if (!sessions.length) {
+    return `<b>${escapeHtml(agentName)}</b>\nNo active sessions in the last 15 minutes.`;
+  }
+  const lines = sessions.map((session) => {
+    const label = escapeHtml(session.label ?? 'unnamed');
+    const status = escapeHtml(session.status);
+    const details = session.status_text ? ` (${escapeHtml(session.status_text)})` : '';
+    return `• ${label}: ${status}${details}`;
+  });
+  return `<b>${escapeHtml(agentName)}</b>\n${sessions.length} active session(s)\n${lines.join('\n')}`;
+}
