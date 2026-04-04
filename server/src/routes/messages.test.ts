@@ -3,7 +3,7 @@
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
 import { env, SELF } from 'cloudflare:test';
-import { describe, it, expect, beforeAll } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 import { insertMessageWithRecovery } from './messages';
@@ -11,6 +11,10 @@ import { buildStreamQuery, pruneSeenMessageIds } from './stream';
 
 beforeAll(async () => {
   await seedDatabase();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 async function createAgentAuth(agentId: string, apiKey: string): Promise<Record<string, string>> {
@@ -362,6 +366,77 @@ describe('PATCH /api/messages/:id', () => {
     const data = await res.json() as { status: string, body: string };
     expect(data.status).toBe('read');
     expect(data.body).toBe('Updated body');
+  });
+
+  it('rejects body edits for non-agent_to_boss messages', async () => {
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'Boss sent this', 'sent', 'normal')"
+    ).bind('patch-body-forbidden', getTestAgentId()).run();
+
+    const res = await SELF.fetch('https://test.local/api/messages/patch-body-forbidden', {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Should not apply' }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.text()).toContain('only agent_to_boss messages can be edited');
+  });
+
+  it('propagates discord message edits and records audit log', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, ?, ?, 1)'
+    ).bind('cfg-discord-edit', getTestAgentId(), 'discord', JSON.stringify({ webhook_url: 'https://discord.example/webhook' })).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'delivered', 'normal', ?)"
+    ).bind('patch-discord-edit', getTestAgentId(), 'Original', JSON.stringify({ discord_message_id: 'dc-msg-1' })).run();
+
+    const res = await SELF.fetch('https://test.local/api/messages/patch-discord-edit', {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Edited remotely' }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { body: string };
+    expect(data.body).toBe('Edited remotely');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://discord.example/webhook/messages/dc-msg-1');
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'PATCH' });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ content: 'Edited remotely' });
+
+    const audit = await env.DB
+      .prepare("SELECT action, resource_id, details FROM audit_log WHERE action = 'message.edit' AND resource_id = ? ORDER BY created_at DESC LIMIT 1")
+      .bind('patch-discord-edit')
+      .first<{ action: string; resource_id: string; details: string | null }>();
+    expect(audit?.action).toBe('message.edit');
+    expect(audit?.resource_id).toBe('patch-discord-edit');
+    expect(audit?.details).toContain('"channel":"discord"');
+  });
+
+  it('propagates telegram message edits', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config, enabled) VALUES (?, ?, ?, ?, 1)'
+    ).bind('cfg-telegram-edit', getTestAgentId(), 'telegram', JSON.stringify({ chat_id: 'chat-1', bot_token: 'token-1' })).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'async', 'telegram', ?, 'delivered', 'normal', ?)"
+    ).bind('patch-telegram-edit', getTestAgentId(), 'Original', JSON.stringify({ telegram_message_id: 77 })).run();
+
+    const res = await SELF.fetch('https://test.local/api/messages/patch-telegram-edit', {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Updated <body>' }),
+    });
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.telegram.org/bottoken-1/editMessageText');
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      chat_id: 'chat-1',
+      message_id: 77,
+      parse_mode: 'HTML',
+      text: '<b>[test-agent]</b> Updated &lt;body&gt;',
+    });
   });
 
   it('returns 400 when neither status nor body is provided', async () => {
