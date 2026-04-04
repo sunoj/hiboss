@@ -5,8 +5,11 @@ Deps: Vue 3 global build, Tailwind CDN, existing hiboss HTTP API endpoints. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#161b22">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>hiboss dashboard</title>
+<link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -34,6 +37,8 @@ tailwind.config = {
 };
 </script>
 <style>
+html { background: #0d1117; overscroll-behavior-y: contain; }
+body { padding-bottom: env(safe-area-inset-bottom); }
 .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
 .fade-up { animation: fade-up .18s ease-out; }
 @keyframes pulse-dot {
@@ -48,6 +53,14 @@ tailwind.config = {
 ::-webkit-scrollbar-track { background: #0d1117; }
 ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+@media (max-width: 639px) {
+  button,
+  select,
+  input:not([type='checkbox']),
+  textarea {
+    min-height: 44px;
+  }
+}
 </style>
 </head>
 <body class="min-h-screen bg-[radial-gradient(circle_at_top,rgba(88,166,255,0.12),transparent_34%)] bg-gradient-to-b from-[#0b0f14] to-[#0d1117] text-ink antialiased">
@@ -59,6 +72,8 @@ const LIMIT = 50;
 const STALE_MINUTES = 15;
 const AUTO_REFRESH_MS = 10000;
 const EDITED_THRESHOLD_MS = 5000;
+const PULL_REFRESH_TRIGGER = 72;
+const PULL_REFRESH_MAX = 120;
 const SESSION_COLUMNS = [{ key: 'working', label: 'Working', icon: 'wrench' }, { key: 'blocked', label: 'Blocked', icon: 'blocked' }, { key: 'waiting', label: 'Waiting', icon: 'clock' }, { key: 'idle', label: 'Idle', icon: 'moon' }, { key: 'completed', label: 'Completed', icon: 'check' }];
 const FILTER_DIRECTIONS = [{ value: '', label: 'All directions' }, { value: 'agent_to_boss', label: 'Agent to Boss' }, { value: 'boss_to_agent', label: 'Boss to Agent' }, { value: 'agent_to_agent', label: 'Agent to Agent' }];
 const FILTER_STATUSES = [{ value: '', label: 'All statuses' }, { value: 'sent', label: 'Sent' }, { value: 'delivered', label: 'Delivered' }, { value: 'read', label: 'Read' }, { value: 'replied', label: 'Replied' }, { value: 'expired', label: 'Expired' }];
@@ -66,6 +81,12 @@ const FILTER_PRIORITIES = [{ value: '', label: 'All priorities' }, { value: 'cri
 const PRIORITY_OPTIONS = ['critical', 'high', 'normal', 'low'];
 const ROLE_OPTIONS = ['', 'orchestrator', 'worker', 'reviewer'];
 const CHANNEL_OPTIONS = ['discord', 'telegram', 'email'];
+const NAV_ITEMS = [
+  { key: 'messages', label: 'Messages', icon: 'mail' },
+  { key: 'sessions', label: 'Sessions', icon: 'grid' },
+  { key: 'agents', label: 'Agents', icon: 'users' },
+  { key: 'settings', label: 'Settings', icon: 'settings', bossOnly: true }
+];
 function nowMs() { return Date.now(); }
 function normalizeTs(ts) { return !ts ? null : (ts.endsWith('Z') ? ts : ts + 'Z'); }
 function parseDateMs(ts) { const normalized = normalizeTs(ts); return normalized ? new Date(normalized).getTime() : NaN; }
@@ -247,12 +268,17 @@ const MessagesTab = {
     authMode: { type: String, required: true },
     refreshing: { type: Boolean, default: false }
   },
-  emits: ['filter', 'search', 'toggle', 'paginate', 'reply', 'reply-keydown', 'option'],
+  emits: ['filter', 'search', 'toggle', 'paginate', 'reply', 'reply-keydown', 'option', 'refresh'],
   setup(props, { emit }) {
     const searchDraft = ref(props.state.filters.search);
     const sessionDraft = ref(props.state.filters.session);
+    const pullDistance = ref(0);
+    const pullDragging = ref(false);
+    const pullArmed = ref(false);
     let searchTimer = null;
     let sessionTimer = null;
+    let pullStartY = 0;
+    let trackingPull = false;
     watch(() => props.state.filters.search, value => {
       if (value !== searchDraft.value) searchDraft.value = value;
     });
@@ -279,6 +305,39 @@ const MessagesTab = {
         emit('filter', 'session', sessionDraft.value);
       }
     }
+    function resetPull() {
+      trackingPull = false;
+      pullDragging.value = false;
+      pullArmed.value = false;
+      pullDistance.value = 0;
+    }
+    function onPullStart(event) {
+      const touch = event.touches && event.touches[0];
+      if (!touch || props.refreshing || window.scrollY > 0) {
+        trackingPull = false;
+        return;
+      }
+      pullStartY = touch.clientY;
+      trackingPull = true;
+    }
+    function onPullMove(event) {
+      if (!trackingPull) return;
+      const touch = event.touches && event.touches[0];
+      if (!touch || window.scrollY > 0) {
+        resetPull();
+        return;
+      }
+      const delta = Math.max(0, touch.clientY - pullStartY);
+      if (delta === 0) return;
+      pullDragging.value = true;
+      pullDistance.value = Math.min(PULL_REFRESH_MAX, Math.round(delta * 0.55));
+      pullArmed.value = pullDistance.value >= PULL_REFRESH_TRIGGER;
+    }
+    function onPullEnd() {
+      const shouldRefresh = trackingPull && pullArmed.value && !props.refreshing;
+      resetPull();
+      if (shouldRefresh) emit('refresh');
+    }
     function optionsFor(detail) {
       const options = messageOptions(detail);
       if (props.authMode !== 'boss') return [];
@@ -295,13 +354,25 @@ const MessagesTab = {
       if (messageOptionsExpired(detail) || (detail && detail.status === 'replied')) return 'border-border bg-black/10 text-ink-faint';
       return active ? 'border-accent/40 bg-accent-soft text-accent hover:bg-accent/20' : 'border-border bg-black/20 text-ink-muted';
     }
+    const pullIndicatorHeight = computed(() => props.refreshing ? 52 : Math.min(52, pullDistance.value));
+    const pullLabel = computed(() => props.refreshing ? 'Refreshing messages...' : pullArmed.value ? 'Release to refresh' : 'Pull to refresh');
+    const pullStyle = computed(() => pullDistance.value ? { transform: 'translateY(' + pullDistance.value + 'px)' } : {});
+    const showPullIndicator = computed(() => pullDragging.value || props.refreshing);
     return {
       searchDraft,
       sessionDraft,
+      pullArmed,
+      pullIndicatorHeight,
+      pullLabel,
+      pullStyle,
+      showPullIndicator,
       onSearchInput,
       onSearchKeydown,
       onSessionInput,
       onSessionKeydown,
+      onPullStart,
+      onPullMove,
+      onPullEnd,
       optionsFor,
       optionClass,
       prettyMetadata,
@@ -320,7 +391,23 @@ const MessagesTab = {
     };
   },
   template: `
-    <section class="space-y-4">
+    <div class="overflow-hidden">
+      <div class="sm:hidden transition-[height] duration-150" :style="{ height: showPullIndicator ? pullIndicatorHeight + 'px' : '0px' }">
+        <div class="flex h-full items-end justify-center pb-2">
+          <div class="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated/95 px-3 py-2 text-xs text-ink-muted shadow-card">
+            <span :class="['h-2.5 w-2.5 rounded-full', refreshing ? 'bg-green pulse-dot' : pullArmed ? 'bg-accent' : 'bg-ink-faint']"></span>
+            <span>{{ pullLabel }}</span>
+          </div>
+        </div>
+      </div>
+      <section
+        class="space-y-4 transition-transform duration-150"
+        :style="pullStyle"
+        @touchstart.passive="onPullStart"
+        @touchmove.passive="onPullMove"
+        @touchend.passive="onPullEnd"
+        @touchcancel.passive="onPullEnd"
+      >
       <div class="flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 p-4 shadow-card md:flex-row md:items-center">
         <div class="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <select :value="state.filters.direction" @change="$emit('filter', 'direction', $event.target.value)" class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
@@ -507,7 +594,8 @@ const MessagesTab = {
           <button @click="$emit('paginate', 1)" :disabled="state.offset + state.limit >= state.total" class="rounded-full border border-border px-4 py-2 text-ink transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40">Next</button>
         </div>
       </div>
-    </section>
+      </section>
+    </div>
   `
 };
 const SessionsTab = {
@@ -997,6 +1085,7 @@ const App = {
     const refreshEnabled = computed(() => authReady.value && activeTab.value !== 'settings');
     const authBadgeLabel = computed(() => authMode.value === 'boss' ? 'Boss' : 'Agent');
     const authBadgeClass = computed(() => authMode.value === 'boss' ? 'bg-purple text-black' : 'bg-accent-soft text-accent');
+    const navItems = computed(() => NAV_ITEMS.filter(item => !item.bossOnly || authMode.value === 'boss'));
     function toast(message, type) {
       const id = String(nowMs()) + Math.random();
       toasts.value.push({ id, message, type: type === 'error' ? 'error' : 'success' });
@@ -1066,6 +1155,10 @@ const App = {
       localStorage.removeItem('hiboss_key');
       localStorage.removeItem('hiboss_auth_mode');
       stopRefresh();
+    }
+    function registerServiceWorker() {
+      if (!('serviceWorker' in navigator)) return;
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
     async function init() {
       const params = new URLSearchParams(window.location.search);
@@ -1143,6 +1236,10 @@ const App = {
     function paginateMessages(dir) {
       messages.offset = Math.max(0, messages.offset + dir * messages.limit);
       messages.expandedId = null;
+      loadMessages(false);
+    }
+    function refreshMessagesFromPull() {
+      if (messages.loading) return;
       loadMessages(false);
     }
     function updateMessageReply(kind, id, value) {
@@ -1473,8 +1570,20 @@ const App = {
       }
       await loadCurrentTab(false);
     });
+    function tabButtonClass(tab, mobile) {
+      const active = activeTab.value === tab;
+      if (mobile) {
+        return active
+          ? 'flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-2xl bg-accent-soft px-3 py-2 text-xs font-medium text-accent ring-1 ring-accent/40'
+          : 'flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-xs font-medium text-ink-muted transition hover:bg-surface-hover hover:text-ink';
+      }
+      return active
+        ? 'inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm transition bg-accent-soft text-accent ring-1 ring-accent/40'
+        : 'inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm transition text-ink-muted hover:bg-surface-hover hover:text-ink';
+    }
     onMounted(async () => {
       document.documentElement.classList.add('dark');
+      registerServiceWorker();
       await init();
       startRefresh();
     });
@@ -1488,6 +1597,7 @@ const App = {
       authBadgeLabel,
       authBadgeClass,
       activeTab,
+      navItems,
       meName,
       refreshEnabled,
       quietRefreshing,
@@ -1499,8 +1609,10 @@ const App = {
       prettyMetadata,
       submitLogin,
       logout,
+      tabButtonClass,
       setMessageFilter,
       setMessageSearch,
+      refreshMessagesFromPull,
       toggleMessage,
       paginateMessages,
       updateMessageReply,
@@ -1559,32 +1671,21 @@ const App = {
             </div>
           </div>
           <div class="mx-auto max-w-7xl px-4">
-            <nav class="flex gap-2 overflow-x-auto pb-3">
-              <button @click="activeTab = 'messages'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'messages' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
-                <Icon name="mail" cls="h-4 w-4" />
-                <span>Messages</span>
-              </button>
-              <button @click="activeTab = 'sessions'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'sessions' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
-                <Icon name="grid" cls="h-4 w-4" />
-                <span>Sessions</span>
-              </button>
-              <button @click="activeTab = 'agents'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'agents' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
-                <Icon name="users" cls="h-4 w-4" />
-                <span>Agents</span>
-              </button>
-              <button v-if="authMode === 'boss'" @click="activeTab = 'settings'" :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition', activeTab === 'settings' ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink-muted hover:bg-surface-hover hover:text-ink']">
-                <Icon name="settings" cls="h-4 w-4" />
-                <span>Settings</span>
+            <nav class="hidden gap-2 overflow-x-auto pb-3 sm:flex">
+              <button v-for="item in navItems" :key="item.key" @click="activeTab = item.key" :class="tabButtonClass(item.key, false)">
+                <Icon :name="item.icon" cls="h-4 w-4" />
+                <span>{{ item.label }}</span>
               </button>
             </nav>
           </div>
         </header>
-        <main class="mx-auto max-w-7xl px-4 py-6">
+        <main class="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:pb-6">
           <MessagesTab
             v-if="activeTab === 'messages'"
             :state="messages"
             :auth-mode="authMode"
             :refreshing="refreshEnabled && quietRefreshing"
+            @refresh="refreshMessagesFromPull"
             @filter="setMessageFilter"
             @search="setMessageSearch"
             @toggle="toggleMessage"
@@ -1623,6 +1724,14 @@ const App = {
             @save="saveSettings"
           />
         </main>
+        <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 backdrop-blur sm:hidden">
+          <div class="mx-auto grid max-w-7xl gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2" :style="{ gridTemplateColumns: 'repeat(' + navItems.length + ', minmax(0, 1fr))' }">
+            <button v-for="item in navItems" :key="item.key + '-mobile'" @click="activeTab = item.key" :class="tabButtonClass(item.key, true)">
+              <Icon :name="item.icon" cls="h-4 w-4" />
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
+        </nav>
       </div>
       <ToastStack :items="toasts" />
     </div>
