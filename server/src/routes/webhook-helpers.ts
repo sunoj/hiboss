@@ -59,6 +59,24 @@ export async function evaluateRoutingRules(env: Env, channel: string, body: stri
   return null;
 }
 
+export async function findDiscordAgent(env: Env, channelId: string): Promise<{ agent_id: string } | null> {
+  const direct = await findEnabledChannelConfig(env, 'discord', channelId);
+  if (direct) {
+    return { agent_id: direct.agent_id };
+  }
+  const threadSession = await env.DB
+    .prepare('SELECT agent_id FROM sessions WHERE discord_thread_id = ? LIMIT 1')
+    .bind(channelId)
+    .first<{ agent_id: string }>();
+  if (!threadSession) {
+    return null;
+  }
+  return env.DB
+    .prepare("SELECT agent_id FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
+    .bind(threadSession.agent_id)
+    .first<{ agent_id: string }>();
+}
+
 type BossLookupError = 'unknown sender' | 'viewer cannot send messages';
 
 export async function resolveBossForChannel(
@@ -95,6 +113,22 @@ export async function hasBossAccess(env: Env, bossId: string, agentId: string, b
     .bind(bossId, agentId)
     .first<{ present: number }>();
   return !!row;
+}
+
+export async function checkBossPermission(
+  env: Env,
+  channel: 'discord' | 'telegram',
+  userId: string | undefined,
+  agentId: string,
+  allowViewer: boolean
+): Promise<{ boss: { id: string; name: string; role: string } | null; error?: string }> {
+  const { boss, error } = await resolveBossForChannel(env, channel, userId, allowViewer);
+  if (error === 'unknown sender') return { boss: null, error: 'Unknown sender' };
+  if (error === 'viewer cannot send messages') return { boss: null, error: 'Viewer cannot send messages' };
+  if (boss && !(await hasBossAccess(env, boss.id, agentId, boss.role))) {
+    return { boss: null, error: 'No access to this agent' };
+  }
+  return { boss };
 }
 
 async function countBosses(env: Env): Promise<number> {
