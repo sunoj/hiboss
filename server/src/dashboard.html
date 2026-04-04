@@ -58,6 +58,7 @@ const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, watch } 
 const LIMIT = 50;
 const STALE_MINUTES = 15;
 const AUTO_REFRESH_MS = 10000;
+const EDITED_THRESHOLD_MS = 5000;
 const SESSION_COLUMNS = [{ key: 'working', label: 'Working', icon: 'wrench' }, { key: 'blocked', label: 'Blocked', icon: 'blocked' }, { key: 'waiting', label: 'Waiting', icon: 'clock' }, { key: 'idle', label: 'Idle', icon: 'moon' }, { key: 'completed', label: 'Completed', icon: 'check' }];
 const FILTER_DIRECTIONS = [{ value: '', label: 'All directions' }, { value: 'agent_to_boss', label: 'Agent to Boss' }, { value: 'boss_to_agent', label: 'Boss to Agent' }, { value: 'agent_to_agent', label: 'Agent to Agent' }];
 const FILTER_STATUSES = [{ value: '', label: 'All statuses' }, { value: 'sent', label: 'Sent' }, { value: 'delivered', label: 'Delivered' }, { value: 'read', label: 'Read' }, { value: 'replied', label: 'Replied' }, { value: 'expired', label: 'Expired' }];
@@ -93,8 +94,54 @@ function parseMetadata(value) {
     return { raw: String(value) };
   }
 }
+function messageMetadata(message) { return parseMetadata(message && message.metadata) || {}; }
 function prettyMetadata(value) { if (!value) return ''; return JSON.stringify(parseMetadata(value), null, 2); }
 function truncate(text, length) { const raw = String(text || ''); return raw.length > length ? raw.slice(0, length) + '…' : raw; }
+function fileNameFromUrl(url) {
+  try {
+    const path = new URL(String(url)).pathname;
+    const fileName = path.split('/').filter(Boolean).pop();
+    return fileName ? decodeURIComponent(fileName) : 'attachment';
+  } catch {
+    const clean = String(url).split('?')[0].split('#')[0];
+    return clean.split('/').filter(Boolean).pop() || 'attachment';
+  }
+}
+function messageAttachment(message) {
+  const fileUrl = messageMetadata(message).file_url;
+  if (typeof fileUrl !== 'string' || !fileUrl.trim()) return null;
+  const url = fileUrl.trim();
+  return { url, name: fileNameFromUrl(url), image: /\.(png|jpe?g|gif|webp)(?:$|[?#])/i.test(url) };
+}
+function messageReactions(message) {
+  const reactions = messageMetadata(message).reactions;
+  if (!Array.isArray(reactions)) return [];
+  return reactions
+    .filter(item => item && typeof item.emoji === 'string')
+    .map(item => ({ emoji: item.emoji, user: typeof item.user === 'string' && item.user.trim() ? item.user.trim() : 'unknown' }));
+}
+function messageOptions(message) {
+  const options = messageMetadata(message).options;
+  return Array.isArray(options) ? options.map(option => String(option || '').trim()).filter(Boolean) : [];
+}
+function messageSelectedOption(message, relatedMessages) {
+  const meta = messageMetadata(message);
+  if (typeof meta.selected_option === 'string' && meta.selected_option.trim()) return meta.selected_option.trim();
+  const options = messageOptions(message);
+  const replies = Array.isArray(message && message.replies)
+    ? message.replies
+    : Array.isArray(relatedMessages)
+      ? relatedMessages.filter(item => item && item.reply_to === (message && message.id))
+      : [];
+  const match = replies.find(reply => options.includes(String(reply.body || '').trim()));
+  return match ? String(match.body).trim() : '';
+}
+function messageOptionsExpired(message) { return Boolean(message && (message.status === 'expired' || messageMetadata(message).options_expired === true)); }
+function isEdited(message) {
+  const created = parseDateMs(message && message.created_at);
+  const updated = parseDateMs(message && message.updated_at);
+  return Number.isFinite(created) && Number.isFinite(updated) && updated - created > EDITED_THRESHOLD_MS;
+}
 function avatarStyle(name) {
   const initial = String(name || '?').trim().charAt(0).toUpperCase() || '?';
   const hue = (initial.charCodeAt(0) % 12) * 30;
@@ -106,6 +153,31 @@ function directionTone(direction) { return ({ agent_to_boss: 'text-accent', boss
 function directionLabel(direction) { return ({ agent_to_boss: 'agent → boss', boss_to_agent: 'boss → agent', agent_to_agent: 'agent → agent' })[direction] || (direction || '-'); }
 function sessionBorder(status) { return ({ working: 'border-green', blocked: 'border-red', waiting: 'border-yellow', idle: 'border-ink-faint', completed: 'border-accent' })[status] || 'border-border'; }
 function sessionHeader(status) { return ({ working: 'text-green border-green', blocked: 'text-red border-red', waiting: 'text-yellow border-yellow', idle: 'text-ink-dim border-ink-faint', completed: 'text-accent border-accent' })[status] || 'text-ink-muted border-border'; }
+function sessionLinks(session) {
+  const items = [];
+  const discordThreadId = session && (session.discord_thread_id || session.thread_id);
+  const discordGuildId = session && (session.discord_guild_id || session.guild_id);
+  if (discordThreadId) {
+    items.push({
+      key: 'discord-' + discordThreadId,
+      label: String(discordThreadId),
+      kind: 'discord',
+      url: discordGuildId ? 'https://discord.com/channels/' + discordGuildId + '/' + discordThreadId : '',
+      classes: 'border-accent/30 bg-accent-soft text-accent'
+    });
+  }
+  const telegramTopicId = session && (session.telegram_topic_id ?? session.message_thread_id ?? session.topic_id);
+  if (telegramTopicId !== undefined && telegramTopicId !== null && String(telegramTopicId).trim()) {
+    items.push({
+      key: 'telegram-' + telegramTopicId,
+      label: String(telegramTopicId),
+      kind: 'telegram',
+      url: '',
+      classes: 'border-border bg-black/20 text-ink-muted'
+    });
+  }
+  return items;
+}
 const Icon = {
   props: { name: { type: String, required: true }, cls: { type: String, default: '' } },
   template: `
@@ -124,6 +196,7 @@ const Icon = {
       <template v-else-if="name==='wrench'"><path d="m14.7 6.3 3 3"/><path d="m20.6 4.4-3.9 3.9a6 6 0 0 1-8.5 8.5L3.4 21l-1.4-1.4 4.8-4.8a6 6 0 0 1 8.5-8.5l3.9-3.9"/></template>
       <template v-else-if="name==='spark'"><path d="M12 2v4"/><path d="m15 5-3-3-3 3"/><path d="M3 7h18a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H8l-5 3V9a2 2 0 0 1 2-2Z"/></template>
       <template v-else-if="name==='info'"><circle cx="12" cy="12" r="9"/><path d="M12 10v5"/><path d="M12 7h.01"/></template>
+      <template v-else-if="name==='file'"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M9 11h2"/><path d="M9 19h6"/></template>
     </svg>
   `
 };
@@ -177,43 +250,69 @@ const MessagesTab = {
   emits: ['filter', 'search', 'toggle', 'paginate', 'reply', 'reply-keydown', 'option'],
   setup(props, { emit }) {
     const searchDraft = ref(props.state.filters.search);
-    let timer = null;
+    const sessionDraft = ref(props.state.filters.session);
+    let searchTimer = null;
+    let sessionTimer = null;
     watch(() => props.state.filters.search, value => {
       if (value !== searchDraft.value) searchDraft.value = value;
     });
+    watch(() => props.state.filters.session, value => {
+      if (value !== sessionDraft.value) sessionDraft.value = value;
+    });
     function onSearchInput() {
-      clearTimeout(timer);
-      timer = setTimeout(() => emit('search', searchDraft.value), 400);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => emit('search', searchDraft.value), 400);
     }
     function onSearchKeydown(event) {
       if (event.key === 'Enter') {
-        clearTimeout(timer);
+        clearTimeout(searchTimer);
         emit('search', searchDraft.value);
       }
     }
+    function onSessionInput() {
+      clearTimeout(sessionTimer);
+      sessionTimer = setTimeout(() => emit('filter', 'session', sessionDraft.value), 250);
+    }
+    function onSessionKeydown(event) {
+      if (event.key === 'Enter') {
+        clearTimeout(sessionTimer);
+        emit('filter', 'session', sessionDraft.value);
+      }
+    }
     function optionsFor(detail) {
-      const meta = parseMetadata(detail && detail.metadata);
-      const options = Array.isArray(meta && meta.options) ? meta.options : [];
+      const options = messageOptions(detail);
       if (props.authMode !== 'boss') return [];
       if (!detail) return [];
       if (detail.status === 'expired' || detail.status === 'replied') return [];
       if (!['sent', 'delivered', 'read'].includes(detail.status)) return [];
-      if (meta && meta.options_expired === true) return [];
+      if (messageOptionsExpired(detail)) return [];
       return options;
     }
-    function showExpiredIndicator(detail) {
-      const meta = parseMetadata(detail && detail.metadata);
-      return Boolean(meta && meta.options_expired === true);
+    function optionClass(detail, option) {
+      const active = optionsFor(detail).includes(option);
+      const selected = detail && detail.status === 'replied' && messageSelectedOption(detail) === option;
+      if (selected) return 'border-green/30 bg-green-soft text-green';
+      if (messageOptionsExpired(detail) || (detail && detail.status === 'replied')) return 'border-border bg-black/10 text-ink-faint';
+      return active ? 'border-accent/40 bg-accent-soft text-accent hover:bg-accent/20' : 'border-border bg-black/20 text-ink-muted';
     }
     return {
       searchDraft,
+      sessionDraft,
       onSearchInput,
       onSearchKeydown,
+      onSessionInput,
+      onSessionKeydown,
       optionsFor,
-      showExpiredIndicator,
+      optionClass,
       prettyMetadata,
       relTime,
       truncate,
+      isEdited,
+      messageReactions,
+      messageAttachment,
+      messageOptions,
+      messageSelectedOption,
+      messageOptionsExpired,
       directionLabel,
       directionTone,
       priorityChip,
@@ -223,7 +322,7 @@ const MessagesTab = {
   template: `
     <section class="space-y-4">
       <div class="flex flex-col gap-3 rounded-3xl border border-border bg-surface/90 p-4 shadow-card md:flex-row md:items-center">
-        <div class="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <select :value="state.filters.direction" @change="$emit('filter', 'direction', $event.target.value)" class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
             <option v-for="option in state.filterDirections" :key="option.value || 'all-dir'" :value="option.value">{{ option.label }}</option>
           </select>
@@ -233,6 +332,7 @@ const MessagesTab = {
           <select :value="state.filters.priority" @change="$emit('filter', 'priority', $event.target.value)" class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
             <option v-for="option in state.filterPriorities" :key="option.value || 'all-priority'" :value="option.value">{{ option.label }}</option>
           </select>
+          <input v-model="sessionDraft" @input="onSessionInput" @keydown="onSessionKeydown" type="text" placeholder="Filter by session..." class="rounded-full border border-border bg-black/20 px-4 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
           <label class="relative block">
             <Icon name="search" cls="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
             <input v-model="searchDraft" @input="onSearchInput" @keydown="onSearchKeydown" type="text" placeholder="Search messages..." class="w-full rounded-full border border-border bg-black/20 py-2 pl-11 pr-4 text-sm text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
@@ -285,7 +385,12 @@ const MessagesTab = {
                       <span>{{ message.status }}</span>
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-right text-xs text-ink-muted">{{ relTime(message.created_at) }}</td>
+                  <td class="px-4 py-3 text-right text-xs text-ink-muted">
+                    <div class="flex items-center justify-end gap-2">
+                      <span>{{ relTime(message.created_at) }}</span>
+                      <span v-if="isEdited(message)" class="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-ink-faint">(edited)</span>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="state.expandedId === message.id" class="border-t border-border-light bg-black/10">
                   <td colspan="7" class="px-4 py-4">
@@ -295,6 +400,22 @@ const MessagesTab = {
                     </div>
                     <div v-else-if="state.details[message.id]" class="fade-up rounded-2xl border border-border bg-surface p-5">
                       <div class="mb-4 whitespace-pre-wrap break-words rounded-2xl border border-border bg-black/20 px-4 py-4 text-sm leading-6 text-ink">{{ state.details[message.id].body }}</div>
+                      <div v-if="messageAttachment(state.details[message.id])" class="mb-4">
+                        <a v-if="messageAttachment(state.details[message.id]).image" :href="messageAttachment(state.details[message.id]).url" target="_blank" rel="noreferrer" class="inline-block overflow-hidden rounded-2xl border border-border bg-black/20 transition hover:border-accent/40">
+                          <img :src="messageAttachment(state.details[message.id]).url" :alt="messageAttachment(state.details[message.id]).name" class="max-h-72 max-w-[300px] object-cover" />
+                        </a>
+                        <div v-else class="inline-flex items-center gap-3 rounded-2xl border border-border bg-black/20 px-4 py-3 text-sm text-ink-muted">
+                          <Icon name="file" cls="h-5 w-5 shrink-0 text-ink-faint" />
+                          <span class="max-w-[14rem] truncate text-ink">{{ messageAttachment(state.details[message.id]).name }}</span>
+                          <a :href="messageAttachment(state.details[message.id]).url" target="_blank" rel="noreferrer" class="text-accent transition hover:text-white">Download</a>
+                        </div>
+                      </div>
+                      <div v-if="messageReactions(state.details[message.id]).length" class="mb-4 flex flex-wrap gap-2">
+                        <span v-for="reaction in messageReactions(state.details[message.id])" :key="reaction.emoji + ':' + reaction.user" class="inline-flex items-center gap-1 rounded-full border border-border bg-black/20 px-2.5 py-1 text-xs text-ink-muted">
+                          <span>{{ reaction.emoji }}</span>
+                          <span>{{ reaction.user }}</span>
+                        </span>
+                      </div>
                       <div class="mb-4 flex flex-wrap gap-2 text-xs text-ink-muted">
                         <span class="rounded-full border border-border px-3 py-1 font-mono">{{ state.details[message.id].id }}</span>
                         <span class="rounded-full border border-border px-3 py-1">Channel: {{ state.details[message.id].channel || 'none' }}</span>
@@ -302,8 +423,9 @@ const MessagesTab = {
                         <span class="rounded-full border border-border px-3 py-1">Mode: {{ state.details[message.id].mode }}</span>
                         <span v-if="state.details[message.id].session_id" class="rounded-full border border-border px-3 py-1 font-mono">Session: {{ state.details[message.id].session_id.slice(0, 8) }}</span>
                         <span class="rounded-full border border-border px-3 py-1">{{ state.details[message.id].created_at }}</span>
+                        <span v-if="isEdited(state.details[message.id])" class="rounded-full border border-border px-3 py-1">{{ state.details[message.id].updated_at }} (edited)</span>
                       </div>
-                      <div v-if="showExpiredIndicator(state.details[message.id])" class="mb-4 inline-flex items-center gap-2 rounded-full border border-orange/30 bg-orange-soft px-3 py-1.5 text-xs font-medium text-orange">
+                      <div v-if="messageOptionsExpired(state.details[message.id])" class="mb-4 inline-flex items-center gap-2 rounded-full border border-orange/30 bg-orange-soft px-3 py-1.5 text-xs font-medium text-orange">
                         <Icon name="clock" cls="h-3.5 w-3.5" />
                         <span>&#x23F0; Options expired</span>
                       </div>
@@ -311,15 +433,18 @@ const MessagesTab = {
                         <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Metadata</div>
                         <pre class="overflow-x-auto rounded-2xl border border-border bg-black/20 px-4 py-3 text-xs leading-5 text-ink-muted">{{ prettyMetadata(state.details[message.id].metadata) }}</pre>
                       </div>
-                      <div v-if="optionsFor(state.details[message.id]).length" class="mb-4">
-                        <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Quick reply options</div>
+                      <div v-if="messageOptions(state.details[message.id]).length" class="mb-4">
+                        <div class="mb-2 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-ink-muted">
+                          <span>Options</span>
+                          <span v-if="state.details[message.id].status === 'replied' && messageSelectedOption(state.details[message.id])" class="normal-case tracking-normal text-green">Selected: {{ messageSelectedOption(state.details[message.id]) }}</span>
+                        </div>
                         <div class="flex flex-wrap gap-2">
                           <button
-                            v-for="option in optionsFor(state.details[message.id])"
+                            v-for="option in messageOptions(state.details[message.id])"
                             :key="option"
-                            @click.stop="$emit('option', state.details[message.id].id, option)"
-                            :disabled="state.optionSendingId === state.details[message.id].id"
-                            class="rounded-full border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            @click.stop="optionsFor(state.details[message.id]).includes(option) && $emit('option', state.details[message.id].id, option)"
+                            :disabled="state.optionSendingId === state.details[message.id].id || !optionsFor(state.details[message.id]).includes(option)"
+                            :class="['rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60', optionClass(state.details[message.id], option)]"
                           >
                             {{ option }}
                           </button>
@@ -357,6 +482,10 @@ const MessagesTab = {
                               <span>{{ reply.agent_name || (reply.agent_id ? reply.agent_id.slice(0, 8) : '') }}</span>
                               <span class="mx-2">·</span>
                               <span>{{ relTime(reply.created_at) }}</span>
+                              <template v-if="isEdited(reply)">
+                                <span class="mx-2">·</span>
+                                <span>(edited)</span>
+                              </template>
                             </div>
                           </div>
                         </div>
@@ -395,9 +524,16 @@ const SessionsTab = {
       directionLabel,
       relTime,
       truncate,
+      isEdited,
+      messageAttachment,
+      messageReactions,
+      messageOptions,
+      messageSelectedOption,
+      messageOptionsExpired,
       avatarStyle,
       sessionBorder,
-      sessionHeader
+      sessionHeader,
+      sessionLinks
     };
   },
   template: `
@@ -447,6 +583,18 @@ const SessionsTab = {
                     <span v-if="session.stale" class="inline-flex h-2 w-2 rounded-full bg-yellow pulse-dot"></span>
                   </div>
                   <div v-if="session.status_text" class="mt-2 truncate text-xs text-ink-dim">{{ session.status_text }}</div>
+                  <div v-if="sessionLinks(session).length" class="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    <template v-for="link in sessionLinks(session)" :key="link.key">
+                      <a v-if="link.url" :href="link.url" target="_blank" rel="noreferrer" @click.stop class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 transition hover:text-white" :class="link.classes">
+                        <Icon :name="link.kind === 'telegram' ? 'info' : 'spark'" cls="h-3.5 w-3.5" />
+                        <span>{{ link.kind === 'telegram' ? 'Topic' : 'Thread' }} {{ link.label }}</span>
+                      </a>
+                      <span v-else class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1" :class="link.classes">
+                        <Icon :name="link.kind === 'telegram' ? 'info' : 'spark'" cls="h-3.5 w-3.5" />
+                        <span>{{ link.kind === 'telegram' ? 'Topic' : 'Thread' }} {{ link.label }}</span>
+                      </span>
+                    </template>
+                  </div>
                   <div class="mt-3 text-[11px] text-ink-faint">{{ relTime(session.last_seen_at) }}</div>
                 </div>
               </div>
@@ -460,6 +608,10 @@ const SessionsTab = {
                     <span class="rounded-full border border-border px-3 py-1 font-mono">{{ session.id }}</span>
                     <span class="rounded-full border border-border px-3 py-1 capitalize">{{ session.status }}</span>
                     <span class="rounded-full border border-border px-3 py-1">{{ relTime(session.last_seen_at) }}</span>
+                    <template v-for="link in sessionLinks(session)" :key="'detail-' + link.key">
+                      <a v-if="link.url" :href="link.url" target="_blank" rel="noreferrer" class="rounded-full border px-3 py-1 transition hover:text-white" :class="link.classes">{{ link.kind === 'telegram' ? 'Topic' : 'Thread' }}: {{ link.label }}</a>
+                      <span v-else class="rounded-full border px-3 py-1" :class="link.classes">{{ link.kind === 'telegram' ? 'Topic' : 'Thread' }}: {{ link.label }}</span>
+                    </template>
                   </div>
                   <div v-if="!state.details[session.id] || !state.details[session.id].length" class="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-ink-muted">
                     No messages in this session
@@ -468,9 +620,40 @@ const SessionsTab = {
                     <div v-for="message in state.details[session.id]" :key="message.id" class="rounded-2xl border border-border bg-surface px-4 py-3">
                       <div class="mb-2 flex items-start justify-between gap-3 text-xs">
                         <span :class="directionTone(message.direction)">{{ directionLabel(message.direction) }}</span>
-                        <span class="text-ink-faint">{{ relTime(message.created_at) }}</span>
+                        <div class="flex items-center gap-2 text-ink-faint">
+                          <span>{{ relTime(message.created_at) }}</span>
+                          <span v-if="isEdited(message)" class="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em]">(edited)</span>
+                        </div>
                       </div>
                       <div class="whitespace-pre-wrap break-words text-sm leading-6 text-ink">{{ truncate(message.body, 300) }}</div>
+                      <div v-if="messageAttachment(message)" class="mt-3">
+                        <a v-if="messageAttachment(message).image" :href="messageAttachment(message).url" target="_blank" rel="noreferrer" class="inline-block overflow-hidden rounded-2xl border border-border bg-black/20 transition hover:border-accent/40">
+                          <img :src="messageAttachment(message).url" :alt="messageAttachment(message).name" class="max-h-56 max-w-[300px] object-cover" />
+                        </a>
+                        <div v-else class="inline-flex items-center gap-3 rounded-2xl border border-border bg-black/20 px-4 py-3 text-sm text-ink-muted">
+                          <Icon name="file" cls="h-5 w-5 shrink-0 text-ink-faint" />
+                          <span class="max-w-[12rem] truncate text-ink">{{ messageAttachment(message).name }}</span>
+                          <a :href="messageAttachment(message).url" target="_blank" rel="noreferrer" class="text-accent transition hover:text-white">Download</a>
+                        </div>
+                      </div>
+                      <div v-if="messageReactions(message).length" class="mt-3 flex flex-wrap gap-2">
+                        <span v-for="reaction in messageReactions(message)" :key="reaction.emoji + ':' + reaction.user" class="inline-flex items-center gap-1 rounded-full border border-border bg-black/20 px-2.5 py-1 text-xs text-ink-muted">
+                          <span>{{ reaction.emoji }}</span>
+                          <span>{{ reaction.user }}</span>
+                        </span>
+                      </div>
+                      <div v-if="messageOptions(message).length" class="mt-3">
+                        <div class="mb-2 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-ink-muted">
+                          <span>Options</span>
+                          <span v-if="message.status === 'replied' && messageSelectedOption(message, state.details[session.id])" class="normal-case tracking-normal text-green">Selected: {{ messageSelectedOption(message, state.details[session.id]) }}</span>
+                          <span v-else-if="messageOptionsExpired(message)" class="normal-case tracking-normal text-orange">Expired</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                          <span v-for="option in messageOptions(message)" :key="option" :class="['rounded-full border px-3 py-1 text-xs', message.status === 'replied' && messageSelectedOption(message, state.details[session.id]) === option ? 'border-green/30 bg-green-soft text-green' : messageOptionsExpired(message) || message.status === 'replied' ? 'border-border bg-black/10 text-ink-faint' : 'border-border bg-black/20 text-ink-muted']">
+                            {{ option }}
+                          </span>
+                        </div>
+                      </div>
                       <div v-if="authMode === 'boss' && message.direction === 'agent_to_boss'" class="mt-3 space-y-2">
                         <input
                           :value="state.replyDrafts[message.id] || ''"
@@ -761,7 +944,7 @@ const App = {
       offset: 0,
       limit: LIMIT,
       expandedId: null,
-      filters: { direction: '', status: '', priority: '', search: '' },
+      filters: { direction: '', status: '', priority: '', session: '', search: '' },
       filterDirections: FILTER_DIRECTIONS,
       filterStatuses: FILTER_STATUSES,
       filterPriorities: FILTER_PRIORITIES,
@@ -914,6 +1097,7 @@ const App = {
       if (messages.filters.direction) params.set('direction', messages.filters.direction);
       if (messages.filters.status) params.set('status', messages.filters.status);
       if (messages.filters.priority) params.set('priority', messages.filters.priority);
+      if (messages.filters.session) params.set('session', messages.filters.session);
       if (messages.filters.search) params.set('search', messages.filters.search);
       const endpoint = authMode.value === 'boss' ? '/api/boss/messages?' : '/api/messages?';
       try {
