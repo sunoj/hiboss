@@ -77,6 +77,29 @@ describe('POST /api/webhooks/telegram', () => {
     expect(data.metadata?.message).toBeDefined();
   });
 
+  it('targets the matching session when a telegram forum topic maps to telegram_topic_id', async () => {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, telegram_topic_id) VALUES (?, ?, ?, 'working', ?)"
+    )
+      .bind('tg-topic-session-1', getTestAgentId(), 'topic-session', 4444)
+      .run();
+
+    const res = await postTelegramWebhook({
+      message: {
+        message_id: 43,
+        message_thread_id: 4444,
+        chat: { id: 'test-chat', type: 'supergroup' },
+        text: 'Topic scoped hello',
+        from: { id: 1, is_bot: false },
+      },
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { target_session_id: string | null; body: string };
+    expect(data.target_session_id).toBe('tg-topic-session-1');
+    expect(data.body).toBe('Topic scoped hello');
+  });
+
   it('returns 400 when chat is missing', async () => {
     const res = await postTelegramWebhook({ message: { text: 'no chat' } });
     expect(res.status).toBe(400);

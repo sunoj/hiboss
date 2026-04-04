@@ -92,13 +92,13 @@ export function buildStreamQuery(agentId: string, sessionId?: string) {
   if (sessionId) {
     // Session-scoped: boss messages + a2a targeting this agent (no session) + a2a targeting this session
     const where = `WHERE messages.status = 'sent' AND messages.created_at >= ? AND (
-      (messages.agent_id = ? AND messages.direction = 'boss_to_agent')
+      (messages.agent_id = ? AND messages.direction = 'boss_to_agent' AND (messages.target_session_id IS NULL OR messages.target_session_id = ?))
       OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.target_session_id IS NULL)
       OR (messages.target_session_id = ? AND messages.direction = 'agent_to_agent')
     ) ORDER BY messages.created_at ASC`;
     return {
       sql: `${baseCols} ${where}`,
-      buildBinds: (lastCheck: string) => [lastCheck, agentId, agentId, sessionId],
+      buildBinds: (lastCheck: string) => [lastCheck, agentId, sessionId, agentId, sessionId],
     };
   }
 
