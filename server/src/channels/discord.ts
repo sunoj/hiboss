@@ -109,20 +109,34 @@ async function sendViaWebhook(webhookUrl: string, content: string, options?: Dis
 
 export async function editDiscordMessage(config: DiscordChannelConfig, messageId: string, content: string, components?: unknown[]): Promise<void> {
   if (config.webhook_url) {
-    const url = `${config.webhook_url}/messages/${encodeURIComponent(messageId)}`;
-    const payload: Record<string, unknown> = { content, components: components ?? [] };
-    await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    let url = `${config.webhook_url}/messages/${encodeURIComponent(messageId)}`;
+    if (config.thread_id) {
+      url += `?thread_id=${encodeURIComponent(config.thread_id)}`;
+    }
+    const payload: Record<string, unknown> = { content };
+    if (components) payload.components = components;
+    const response = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`discord edit failed ${response.status} ${body}`);
+    }
     return;
   }
   if (config.bot_token && config.channel_id) {
-    const payload: Record<string, unknown> = { content, components: components ?? [] };
-    await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(config.channel_id)}/messages/${encodeURIComponent(messageId)}`, {
+    const payload: Record<string, unknown> = { content };
+    if (components) payload.components = components;
+    const response = await fetch(`https://discord.com/api/v10/channels/${encodeURIComponent(config.channel_id)}/messages/${encodeURIComponent(messageId)}`, {
       method: 'PATCH',
       headers: { Authorization: `Bot ${config.bot_token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`discord edit failed ${response.status} ${body}`);
+    }
     return;
   }
+  throw new Error('discord config incomplete: need webhook_url or bot_token+channel_id');
 }
 
 async function sendViaBot(botToken: string, channelId: string, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {

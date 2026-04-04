@@ -10,12 +10,15 @@ import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult, type Notification, type Request } from '@modelcontextprotocol/sdk/types.js';
+import { enumField, fail, field, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
 
 type Config = { server_url: string; api_key: string; agent_name?: string };
 type FileConfig = Partial<Config> & { server?: string; key?: string };
 type Message = { id: string; body: string; direction: string; priority?: string; type?: string | null; reply_to?: string | null; agent_name?: string | null; agent_id?: string; status?: string; replies?: Message[] };
 type MessageList = { messages?: Message[] };
 type Session = { id: string };
+type SessionInfo = { id: string; label?: string | null; status?: string | null; agent_name?: string | null };
+type SessionList = { sessions?: SessionInfo[] };
 type ClaudeChannelNotification = Notification & { method: 'notifications/claude/channel'; params: { content: string; meta: { source: 'hiboss'; message_id: string; direction: string; from: string; priority?: string; type?: string | null; reply_to?: string | null } } };
 
 const VERSION = '1.3.0';
@@ -32,6 +35,8 @@ const TOOL_DEFS = [
   tool('reply', 'Reply to an existing hiboss message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
   tool('react', 'Add a reaction to a hiboss message.', { message_id: field('string'), emoji: field('string') }, ['message_id', 'emoji']),
   tool('inbox', 'List unread boss messages.', { unread: field('boolean'), limit: field('number') }),
+  tool('search', 'Search hiboss messages by text.', { query: field('string'), limit: field('number') }, ['query']),
+  tool('list_sessions', 'List active hiboss sessions.', { all: field('boolean') }),
   tool('edit_message', 'Edit the body of a previously sent message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
 ];
 
@@ -78,6 +83,8 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<Ca
   if (name === 'reply') return replyTool(args);
   if (name === 'react') return reactTool(args);
   if (name === 'inbox') return inboxTool(args);
+  if (name === 'search') return searchTool(args);
+  if (name === 'list_sessions') return listSessionsTool(args);
   if (name === 'edit_message') return editMessageTool(args);
   return fail(`Unknown tool: ${name}`);
 }
@@ -112,8 +119,21 @@ async function inboxTool(args: Record<string, unknown>): Promise<CallToolResult>
   const unread = boolOr(args.unread, true);
   const limit = intOr(args.limit, 10);
   const data = await api('GET', `/api/messages?unread=${unread}&direction=boss_to_agent&limit=${limit}`) as MessageList;
-  const messages = data.messages ?? [];
-  return ok(messages.length === 0 ? 'Inbox is empty.' : messages.map(formatMessage).join('\n\n'));
+  return ok(formatMessageList(data.messages ?? [], 'Inbox is empty.'));
+}
+
+async function searchTool(args: Record<string, unknown>): Promise<CallToolResult> {
+  const query = str(args.query, 'query');
+  const limit = intOr(args.limit, 10);
+  const data = await api('GET', `/api/messages?search=${encodeURIComponent(query)}&limit=${limit}`) as MessageList;
+  return ok(formatMessageList(data.messages ?? [], 'No messages found.'));
+}
+
+async function listSessionsTool(args: Record<string, unknown>): Promise<CallToolResult> {
+  const all = boolOr(args.all, false);
+  const suffix = all ? '?all=true' : '';
+  const data = await api('GET', `/api/sessions${suffix}`) as SessionList;
+  return ok(formatSessionList(data.sessions ?? [], 'No active sessions.'));
 }
 
 async function editMessageTool(args: Record<string, unknown>): Promise<CallToolResult> {
@@ -225,14 +245,8 @@ async function shutdown(reason: string): Promise<void> {
   process.exit(0);
 }
 
-function formatMessage(msg: Message): string {
-  const from = msg.agent_name || msg.agent_id || 'unknown';
-  return `[${msg.id}] from=${from} priority=${msg.priority || 'normal'} type=${msg.type || 'text'}\n${msg.body}`;
-}
-
 function latestReply(message: Message): Message | null {
-  const replies = message.replies ?? [];
-  return replies.length > 0 ? replies[replies.length - 1] : null;
+  return latestReplyFromList(message.replies ?? []);
 }
 
 function readJson(path: string): FileConfig {
@@ -267,12 +281,6 @@ function intOr(value: unknown, fallback: number): number {
 function boolOr(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
-function ok(text: string): CallToolResult {
-  return { content: [{ type: 'text', text }] };
-}
-function fail(text: string): CallToolResult {
-  return { content: [{ type: 'text', text }], isError: true };
-}
 function mustState(): NonNullable<typeof state> {
   if (!state) throw new Error('server state unavailable');
   return state;
@@ -286,16 +294,6 @@ function errorMessage(error: unknown): string {
 function log(message: string): void {
   process.stderr.write(`[hiboss-mcp] ${message}\n`);
 }
-function field(type: 'string' | 'number' | 'boolean') {
-  return { type };
-}
-function enumField(values: string[]) {
-  return { type: 'string', enum: values };
-}
-function tool(name: string, description: string, properties: Record<string, unknown>, required?: string[]) {
-  return { name, description, inputSchema: { type: 'object', properties, required: required && required.length ? required : undefined } };
-}
-
 main().catch((error) => {
   log(`startup failed: ${errorMessage(error)}`);
   process.exit(1);
