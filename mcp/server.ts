@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult, type Notification, type Request } from '@modelcontextprotocol/sdk/types.js';
+import { sendFile } from './send-file.js';
 import { enumField, fail, field, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
 
 type Config = { server_url: string; api_key: string; agent_name?: string };
@@ -34,6 +35,7 @@ const TOOL_DEFS = [
   tool('ask', 'Ask boss for input and block until reply or timeout.', { body: field('string'), options: field('string'), timeout: field('number') }, ['body']),
   tool('reply', 'Reply to an existing hiboss message.', { message_id: field('string'), body: field('string') }, ['message_id', 'body']),
   tool('react', 'Add a reaction to a hiboss message.', { message_id: field('string'), emoji: field('string') }, ['message_id', 'emoji']),
+  tool('send_file', 'Send a file to boss via hiboss.', { file_path: field('string'), body: field('string'), to: field('string'), priority: enumField(['critical', 'high', 'normal', 'low']) }, ['file_path']),
   tool('inbox', 'List unread boss messages.', { unread: field('boolean'), limit: field('number') }),
   tool('search', 'Search hiboss messages by text.', { query: field('string'), limit: field('number') }, ['query']),
   tool('list_sessions', 'List active hiboss sessions.', { all: field('boolean') }),
@@ -82,6 +84,7 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<Ca
   if (name === 'ask') return askTool(args);
   if (name === 'reply') return replyTool(args);
   if (name === 'react') return reactTool(args);
+  if (name === 'send_file') return sendFileTool(args);
   if (name === 'inbox') return inboxTool(args);
   if (name === 'search') return searchTool(args);
   if (name === 'list_sessions') return listSessionsTool(args);
@@ -114,34 +117,34 @@ async function reactTool(args: Record<string, unknown>): Promise<CallToolResult>
   await api('POST', `/api/messages/${encodeURIComponent(id)}/react`, { emoji: str(args.emoji, 'emoji') });
   return ok(`Reacted to ${id}.`);
 }
-
 async function inboxTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const unread = boolOr(args.unread, true);
   const limit = intOr(args.limit, 10);
   const data = await api('GET', `/api/messages?unread=${unread}&direction=boss_to_agent&limit=${limit}`) as MessageList;
   return ok(formatMessageList(data.messages ?? [], 'Inbox is empty.'));
 }
-
 async function searchTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const query = str(args.query, 'query');
   const limit = intOr(args.limit, 10);
   const data = await api('GET', `/api/messages?search=${encodeURIComponent(query)}&limit=${limit}`) as MessageList;
   return ok(formatMessageList(data.messages ?? [], 'No messages found.'));
 }
-
 async function listSessionsTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const all = boolOr(args.all, false);
   const suffix = all ? '?all=true' : '';
   const data = await api('GET', `/api/sessions${suffix}`) as SessionList;
   return ok(formatSessionList(data.sessions ?? [], 'No active sessions.'));
 }
-
 async function editMessageTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const id = str(args.message_id, 'message_id');
   const message = await api('PATCH', `/api/messages/${encodeURIComponent(id)}`, { body: str(args.body, 'body') }) as Message;
   return ok(`Updated ${message.id}.`);
 }
-
+async function sendFileTool(args: Record<string, unknown>): Promise<CallToolResult> {
+  const { config, session } = mustState();
+  const result = await sendFile({ serverUrl: config.server_url, apiKey: config.api_key, sessionId: session.id }, { filePath: str(args.file_path, 'file_path'), body: optStr(args.body), to: optStr(args.to), priority: optStr(args.priority) });
+  return ok(`Sent ${result.messageId}. Attachment: ${result.url}`);
+}
 async function sseLoop(): Promise<void> {
   let backoff = 1000;
   while (state && !state.stopping) {
@@ -248,33 +251,26 @@ async function shutdown(reason: string): Promise<void> {
 function latestReply(message: Message): Message | null {
   return latestReplyFromList(message.replies ?? []);
 }
-
 function readJson(path: string): FileConfig {
   try { return JSON.parse(readFileSync(path, 'utf8')) as FileConfig; } catch { return {}; }
 }
-
 function authHeaders(config: Config, extra?: Record<string, string>): Record<string, string> {
   return { Authorization: `Bearer ${config.api_key}`, ...extra };
 }
-
 function compact<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
 }
-
 function str(value: unknown, name: string): string {
   if (typeof value === 'string' && value.trim()) return value.trim();
   throw new Error(`${name} is required`);
 }
-
 function optStr(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
-
 function splitOptions(value: unknown): string[] | undefined {
   const text = optStr(value);
   return text ? text.split(',').map((item) => item.trim()).filter(Boolean) : undefined;
 }
-
 function intOr(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(1, Math.trunc(value)) : fallback;
 }
