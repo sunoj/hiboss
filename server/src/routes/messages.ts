@@ -463,7 +463,7 @@ routes.patch('/:id', async (c) => {
     return c.text('update failed', 500);
   }
   if (body) {
-    await propagateMessageEdit(c.env, updated);
+    c.executionCtx.waitUntil(propagateMessageEdit(c.env, updated));
     c.executionCtx.waitUntil(
       logAudit(c.env, 'agent', agentId, 'message.edit', 'message', updated.id, JSON.stringify({ channel: updated.channel }))
     );
