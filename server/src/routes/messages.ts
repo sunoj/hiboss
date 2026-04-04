@@ -32,12 +32,14 @@ import {
   parseOptions,
   parsePriorityFilter,
   priorityOptions,
+  requireTelegramConfig,
   resolveChannelRouting,
   selectChannelConfig,
   validateChannel,
   validateOption,
 } from './message-helpers';
 import { ensureThreadForSession } from './message-options';
+import { ensureTopicForSession } from './session-channels';
 import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
@@ -204,17 +206,23 @@ routes.post('/', async (c) => {
   if (channelConfigs.length > 0 && direction !== 'agent_to_agent') {
     const agentName = await fetchAgentName(c.env, agentId) ?? 'agent';
     let displayName = agentName;
+    let sessionLabel: string | null = null;
     if (sessionId) {
       const sess = await c.env.DB
         .prepare('SELECT label FROM sessions WHERE id = ?')
         .bind(sessionId)
         .first<{ label: string | null }>();
-      if (sess?.label) displayName = `${sess.label} (${agentName})`;
+      sessionLabel = sess?.label ?? null;
+      if (sessionLabel) displayName = `${sessionLabel} (${agentName})`;
     }
     const inlineKeyboard = options ? buildInlineKeyboard(inserted.id, options) : undefined;
     // Auto-create Telegram topics for agents with use_topics enabled
     await Promise.all(channelConfigs.map((cc) => ensureTopicForAgent(c.env, agentId, cc)));
     await Promise.all(channelConfigs.map((cc) => ensureThreadForSession(c.env, agentId, sessionId, cc, undefined)));
+    await Promise.all(channelConfigs.map((cc) => {
+      if (cc.channel !== 'telegram' || !sessionId) return Promise.resolve(undefined);
+      return ensureTopicForSession(c.env, sessionId, agentName, sessionLabel, requireTelegramConfig(cc.config));
+    }));
     try {
       const results = await Promise.allSettled(
         channelConfigs.map(async (cc) => {
@@ -230,7 +238,17 @@ routes.post('/', async (c) => {
             }
           }
           return deliverWithRetry(
-            () => deliverToChannelWithOptions(cc.channel, effectiveConfig, displayName, body, inlineKeyboard, fileUrl, agentConfig?.avatar_url ?? undefined)
+            () => deliverToChannelWithOptions(
+              cc.channel,
+              effectiveConfig,
+              displayName,
+              body,
+              inlineKeyboard,
+              fileUrl,
+              agentConfig?.avatar_url ?? undefined,
+              c.env,
+              sessionId,
+            )
           );
         })
       );
@@ -377,13 +395,33 @@ routes.post('/:id/reply', async (c) => {
       const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
       const agentRow = await c.env.DB.prepare('SELECT name, avatar_url FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string; avatar_url: string | null }>();
       let replyDisplayName = agentRow?.name ?? 'agent';
+      let sessionLabel: string | null = null;
       if (parent.session_id) {
         const sess = await c.env.DB.prepare('SELECT label FROM sessions WHERE id = ?').bind(parent.session_id).first<{ label: string | null }>();
-        if (sess?.label) replyDisplayName = `${sess.label} (${replyDisplayName})`;
+        sessionLabel = sess?.label ?? null;
+        if (sessionLabel) replyDisplayName = `${sessionLabel} (${replyDisplayName})`;
+      }
+      if (channelConfig.channel === 'telegram' && parent.session_id) {
+        await ensureTopicForSession(
+          c.env,
+          parent.session_id,
+          agentRow?.name ?? 'agent',
+          sessionLabel,
+          requireTelegramConfig(channelConfig.config),
+        );
       }
       const telegramReplyId = extractTelegramMessageId(parent.metadata);
       const result = await deliverWithRetry(() =>
-        deliverReply(channelConfig.channel, channelConfig.config, replyDisplayName, body, telegramReplyId, agentRow?.avatar_url ?? undefined)
+        deliverReply(
+          channelConfig.channel,
+          channelConfig.config,
+          replyDisplayName,
+          body,
+          telegramReplyId,
+          agentRow?.avatar_url ?? undefined,
+          c.env,
+          parent.session_id,
+        )
       );
       if (result.delivered) {
         const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];

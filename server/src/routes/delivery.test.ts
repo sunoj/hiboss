@@ -3,7 +3,8 @@
 // Only tests pure functions and API channel (no external HTTP calls).
 // Depends on vitest only (no D1/cloudflare:test needed for pure functions).
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Env } from '../types';
 
 vi.mock('../channels/discord', async () => {
   const actual = await vi.importActual<typeof import('../channels/discord')>('../channels/discord');
@@ -169,6 +170,58 @@ describe('deliverToChannelWithOptions — api channel', () => {
   });
 });
 
+describe('telegram session topics', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('uses session telegram_topic_id instead of config message_thread_id for replies', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 321 } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await deliverReply(
+      'telegram',
+      { chat_id: 'chat-1', bot_token: 'tg-token', message_thread_id: 42 },
+      'agent',
+      'hello',
+      99,
+      undefined,
+      createEnvWithTelegramTopic(777),
+      'sess-1',
+    );
+
+    expect(result).toEqual({ delivered: true, telegramMessageId: 321 });
+    expect(readPayload(fetchMock, 0).message_thread_id).toBe(777);
+    expect(readPayload(fetchMock, 1).message_thread_id).toBe(777);
+  });
+
+  it('uses session telegram_topic_id for option deliveries', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 654 } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await deliverToChannelWithOptions(
+      'telegram',
+      { chat_id: 'chat-1', bot_token: 'tg-token', message_thread_id: 42 },
+      'agent',
+      'hello',
+      [[{ text: 'Pick', callback_data: 'pick' }]],
+      undefined,
+      undefined,
+      createEnvWithTelegramTopic(888),
+      'sess-2',
+    );
+
+    expect(result).toEqual({ delivered: true, telegramMessageId: 654 });
+    expect(readPayload(fetchMock, 0).message_thread_id).toBe(888);
+    expect(readPayload(fetchMock, 1).message_thread_id).toBe(888);
+  });
+});
+
 describe('deliverWithRetry', () => {
   it('resolves on first attempt', async () => {
     const result = await deliverWithRetry(() => Promise.resolve('ok'));
@@ -191,3 +244,23 @@ describe('deliverWithRetry', () => {
       .rejects.toThrow('permanent');
   });
 });
+
+function createEnvWithTelegramTopic(topicId: number): Env {
+  return {
+    DB: {
+      prepare() {
+        return {
+          bind() {
+            return {
+              first: async () => ({ telegram_topic_id: topicId }),
+            };
+          },
+        };
+      },
+    },
+  } as unknown as Env;
+}
+
+function readPayload(fetchMock: ReturnType<typeof vi.fn>, callIndex: number): Record<string, unknown> {
+  return JSON.parse(fetchMock.mock.calls[callIndex]?.[1]?.body as string) as Record<string, unknown>;
+}
