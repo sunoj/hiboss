@@ -38,6 +38,7 @@ import {
   validateOption,
 } from './message-helpers';
 import { ensureThreadForSession } from './message-options';
+import { propagateMessageEdit } from './message-edit';
 import { logAudit } from '../audit';
 
 const MAX_LIMIT = 100;
@@ -428,6 +429,9 @@ routes.patch('/:id', async (c) => {
   if (existing.agent_id !== agentId) {
     return c.text('only message owner can update message', 403);
   }
+  if (body && existing.direction !== 'agent_to_boss') {
+    return c.text('only agent_to_boss messages can be edited', 403);
+  }
 
   const updates: string[] = ["updated_at = datetime('now')"];
   const binds: unknown[] = [];
@@ -457,6 +461,12 @@ routes.patch('/:id', async (c) => {
 
   if (!updated) {
     return c.text('update failed', 500);
+  }
+  if (body) {
+    await propagateMessageEdit(c.env, updated);
+    c.executionCtx.waitUntil(
+      logAudit(c.env, 'agent', agentId, 'message.edit', 'message', updated.id, JSON.stringify({ channel: updated.channel }))
+    );
   }
   return c.json(mapMessageRow(updated));
 });
