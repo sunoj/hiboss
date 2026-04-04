@@ -3,8 +3,8 @@
 // Depends on cloudflare:test env and shared test helpers.
 
 import { env, SELF } from 'cloudflare:test';
-import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, getTestAgentId } from '../test-helpers';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
+import { authHeaders, seedDatabase, getTestAgentId } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 const TELEGRAM_SECRET = 'test-telegram-secret';
@@ -25,6 +25,11 @@ beforeAll(async () => {
   )
     .bind(agentId, 'discord', '{"channel_id":"test-discord-ch","bot_token":"fake-token"}')
     .run();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 async function postTelegramWebhook(payload: Record<string, unknown>): Promise<Response> {
@@ -75,6 +80,64 @@ describe('POST /api/webhooks/telegram', () => {
     expect(data.direction).toBe('boss_to_agent');
     expect(data.body).toBe('Hello from telegram');
     expect(data.metadata?.message).toBeDefined();
+  });
+
+  it('creates a boss_to_agent message from /msg command text', async () => {
+    const payload = {
+      update_id: 6001,
+      message: {
+        message_id: 601,
+        chat: { id: 'test-chat', type: 'private' },
+        text: '/msg Deploy the hotfix',
+        entities: [{ type: 'bot_command', offset: 0, length: 4 }],
+        from: { id: 1, is_bot: false },
+      },
+    };
+
+    const res = await postTelegramWebhook(payload);
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { body: string; direction: string };
+    expect(data.direction).toBe('boss_to_agent');
+    expect(data.body).toBe('Deploy the hotfix');
+  });
+
+  it('sends session status back to telegram for /status commands', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 901 } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, status_text, last_seen_at) VALUES (?, ?, ?, ?, ?, datetime('now'))"
+    )
+      .bind('status-session-1', getTestAgentId(), 'main', 'working', 'building')
+      .run();
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, status_text, last_seen_at) VALUES (?, ?, ?, ?, ?, datetime('now'))"
+    )
+      .bind('status-session-2', getTestAgentId(), 'review', 'blocked', 'waiting for approval')
+      .run();
+
+    const res = await postTelegramWebhook({
+      update_id: 6002,
+      message: {
+        message_id: 602,
+        chat: { id: 'test-chat', type: 'private' },
+        text: '/status',
+        entities: [{ type: 'bot_command', offset: 0, length: 7 }],
+        from: { id: 1, is_bot: false },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const sendCall = fetchMock.mock.calls[1] as [RequestInfo | URL, RequestInit];
+    const sendPayload = JSON.parse(String(sendCall[1].body)) as { chat_id: string; text: string };
+    expect(sendPayload.chat_id).toBe('test-chat');
+    expect(sendPayload.text).toContain('test-agent');
+    expect(sendPayload.text).toContain('2 active session');
+    expect(sendPayload.text).toContain('main: working (building)');
+    expect(sendPayload.text).toContain('review: blocked (waiting for approval)');
   });
 
   it('targets the matching session when a telegram forum topic maps to telegram_topic_id', async () => {
@@ -422,6 +485,30 @@ describe('POST /api/webhooks/discord', () => {
     expect(await res.text()).toBe('webhook secret not configured');
 
     env.DISCORD_WEBHOOK_SECRET = DISCORD_SECRET;
+  });
+});
+
+describe('POST /api/webhooks/telegram/register-commands', () => {
+  it('registers Telegram bot commands through the Bot API', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true, result: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await SELF.fetch('https://test.local/api/webhooks/telegram/register-commands', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ bot_token: 'telegram-register-token' }),
+    });
+
+    expect(res.status).toBe(201);
+    const registerCall = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+    expect(String(registerCall[0])).toContain('/setMyCommands');
+    const payload = JSON.parse(String(registerCall[1].body)) as {
+      commands: Array<{ command: string; description: string }>;
+    };
+    expect(payload.commands).toEqual([
+      { command: 'msg', description: 'Send a message to the AI agent' },
+      { command: 'status', description: 'Show agent session status' },
+    ]);
   });
 });
 
