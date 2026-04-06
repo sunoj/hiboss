@@ -245,32 +245,38 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     // Capture our session ID before any cleanup
     let my_session_id = session::read_session_id();
 
-    // Check if agent asked boss before stopping
-    if !session::has_asked() {
-        println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
-        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
-        println!("Do NOT stop until you have sent this message and received a reply or timeout.");
-    } else if !session::has_replied() {
-        println!("STOP VIOLATION: You received a boss reply but did not acknowledge it via hiboss.");
-        println!("You MUST run: hiboss send \"<your acknowledgment>\" before stopping.");
+    // Detect violations
+    let ask_violation = !session::has_asked();
+    let reply_violation = !ask_violation && !session::has_replied();
+    let broadcast_violation = session::had_peers_active() && !session::has_broadcast();
+    let has_violation = ask_violation || reply_violation || broadcast_violation;
+
+    // Block exit on first violation, allow through on retry
+    if has_violation && !session::was_stop_blocked() {
+        session::mark_stop_blocked();
+        if ask_violation {
+            println!("BLOCKED: You cannot stop without asking the boss for next steps.");
+            println!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        } else if reply_violation {
+            println!("BLOCKED: You received a boss reply but did not acknowledge it.");
+            println!("Run: hiboss send \"<your acknowledgment>\"");
+        }
+        if broadcast_violation {
+            println!("BLOCKED: Peer sessions were active but you never broadcast your progress.");
+            println!("Run: hiboss send --broadcast \"<what you worked on>\"");
+        }
+        println!("Fix the above, then you may stop. (This block applies once per session.)");
+        std::process::exit(1);
     }
 
-    // Check if agent broadcast to peers during session
-    if session::had_peers_active() && !session::has_broadcast() {
-        println!("BROADCAST VIOLATION: Peer sessions were active but you never broadcast your progress.");
-        println!("You MUST run: hiboss send --broadcast \"<what you worked on>\" before stopping.");
-    }
-
-    // Mark session as completed on the server
+    // Second attempt or no violations — proceed with cleanup
     if let (Ok(client), Some(sid)) = (build_client(), &my_session_id) {
         let _ = client.heartbeat_session(sid, Some("completed"), Some("Session ended")).await;
     }
-    // Stop the SSE daemon
     if let Some(pid) = session::is_daemon_running() {
         let _ = Command::new("kill").arg(pid.to_string()).output();
         let _ = fs::remove_file(session::daemon_pid_path());
     }
-    // Only delete session file if it still belongs to us (another session may have overwritten it)
     if let Some(ref my_sid) = my_session_id {
         if session::read_session_id().as_deref() == Some(my_sid.as_str()) {
             let _ = fs::remove_file(session::session_file_path());
@@ -287,5 +293,6 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     let _ = fs::remove_file(session::peers_active_marker_path());
     let _ = fs::remove_file(session::broadcast_remind_ttl_path());
     let _ = fs::remove_file(session::read_queue_path());
+    let _ = fs::remove_file(session::stop_blocked_marker_path());
     Ok(())
 }
