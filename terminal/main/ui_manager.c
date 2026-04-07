@@ -82,6 +82,12 @@ static void create_splash_screen(const char *title, const char *subtitle)
     lv_label_set_text(lbl_sub, subtitle);
     lv_obj_set_style_text_color(lbl_sub, lv_color_hex(0x888888), 0);
     lv_obj_align(lbl_sub, LV_ALIGN_CENTER, 0, 20);
+
+    // Version
+    lv_obj_t *lbl_ver = lv_label_create(scr_splash);
+    lv_label_set_text(lbl_ver, "v3");
+    lv_obj_set_style_text_color(lbl_ver, lv_color_hex(0x444444), 0);
+    lv_obj_align(lbl_ver, LV_ALIGN_BOTTOM_MID, 0, -20);
 }
 
 static void create_idle_screen(void)

@@ -62,21 +62,40 @@ void wifi_connect(void)
         .sta = {
             .ssid = CONFIG_WIFI_SSID,
             .password = CONFIG_WIFI_PASSWORD,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+            .threshold.authmode = WIFI_AUTH_OPEN,
         },
     };
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    // Scan and log visible networks
+    wifi_scan_config_t scan_cfg = { .show_hidden = true };
+    esp_wifi_scan_start(&scan_cfg, true);
+    uint16_t ap_count = 0;
+    esp_wifi_scan_get_ap_num(&ap_count);
+    ESP_LOGI(TAG, "WiFi scan: %d networks found", ap_count);
+    if (ap_count > 0) {
+        uint16_t max = ap_count > 20 ? 20 : ap_count;
+        wifi_ap_record_t *ap_list = malloc(max * sizeof(wifi_ap_record_t));
+        esp_wifi_scan_get_ap_records(&max, ap_list);
+        for (int i = 0; i < max; i++) {
+            ESP_LOGI(TAG, "  [%d] %s | RSSI:%d | Ch:%d", i, ap_list[i].ssid, ap_list[i].rssi, ap_list[i].primary);
+        }
+        free(ap_list);
+    }
+
+    // Now connect
+    esp_wifi_connect();
     ESP_LOGI(TAG, "Connecting to %s...", CONFIG_WIFI_SSID);
+    // Wait up to 15 seconds, then proceed anyway (poll task will wait for WiFi)
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-        WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+        WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, pdMS_TO_TICKS(15000));
 
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "WiFi connected");
     } else {
-        ESP_LOGE(TAG, "WiFi connection failed");
+        ESP_LOGW(TAG, "WiFi not connected yet, continuing startup");
     }
 }
 

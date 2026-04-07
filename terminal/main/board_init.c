@@ -13,6 +13,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "esp_timer.h"
+#include "lcd_vendor_init.h"
 
 static const char *TAG = "board";
 
@@ -36,9 +37,9 @@ static const char *TAG = "board";
 // Touch INT pin — LOW when touch is active, HIGH when idle
 #define TOUCH_PIN_INT   GPIO_NUM_4
 
-// IO expander (TCA9554PWR) — controls LCD reset via EXIO0
+// IO expander (TCA9554PWR) — controls LCD reset via EXIO2
 #define TCA9554_ADDR    0x20
-#define EXIO_LCD_RST    0  // EXIO pin 0 = LCD reset
+#define EXIO_LCD_RST    2  // EXIO pin 2 = LCD reset (from Waveshare demo: TCA9554_EXIO2)
 
 // Display
 #define LCD_H_RES       360
@@ -141,7 +142,7 @@ static void lcd_init(void)
         .cs_gpio_num = LCD_PIN_CS,
         .dc_gpio_num = -1,  // not used in QSPI mode
         .spi_mode = 0,
-        .pclk_hz = LCD_CLK_HZ,
+        .pclk_hz = 40 * 1000 * 1000,  // 40MHz (safe for QSPI after init)
         .trans_queue_depth = 10,
         .lcd_cmd_bits = LCD_CMD_BITS,
         .lcd_param_bits = LCD_PARAM_BITS,
@@ -151,11 +152,19 @@ static void lcd_init(void)
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_cfg, &g_panel_io_handle));
 
-    // ST77916 panel
+    // ST77916 panel with vendor-specific init commands
+    st77916_vendor_config_t vendor_cfg = {
+        .init_cmds = lcd_vendor_init_cmds,
+        .init_cmds_size = LCD_VENDOR_INIT_CMD_COUNT,
+        .flags = {
+            .use_qspi_interface = 1,
+        },
+    };
     esp_lcd_panel_dev_config_t panel_cfg = {
-        .reset_gpio_num = -1,  // reset via IO expander, not GPIO
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .reset_gpio_num = -1,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
+        .vendor_config = &vendor_cfg,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st77916(g_panel_io_handle, &panel_cfg, &g_panel_handle));
 
@@ -193,7 +202,16 @@ static void touch_init(void)
             .interrupt = 0,  // INT is active LOW
         },
     };
-    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816s(tp_io, &tp_cfg, &g_touch_handle));
+    esp_err_t touch_err = esp_lcd_touch_new_i2c_cst816s(tp_io, &tp_cfg, &g_touch_handle);
+    if (touch_err != ESP_OK) {
+        ESP_LOGW(TAG, "Touch init failed (%s), retrying...", esp_err_to_name(touch_err));
+        vTaskDelay(pdMS_TO_TICKS(100));
+        touch_err = esp_lcd_touch_new_i2c_cst816s(tp_io, &tp_cfg, &g_touch_handle);
+        if (touch_err != ESP_OK) {
+            ESP_LOGE(TAG, "Touch init failed after retry, continuing without touch");
+            g_touch_handle = NULL;
+        }
+    }
 
     ESP_LOGI(TAG, "Touch (CST816S) initialized");
 }
@@ -203,8 +221,10 @@ static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
     data->state = LV_INDEV_STATE_RELEASED;
 
+    // No touch controller available
+    if (!g_touch_handle) return;
+
     // Gate on INT pin: CST816S pulls INT LOW when touch is active.
-    // Skip I2C read entirely when no touch — avoids NACK errors.
     if (gpio_get_level(TOUCH_PIN_INT) != 0) {
         return;
     }
@@ -233,8 +253,8 @@ static void board_lvgl_port_init(void)
     const lvgl_port_display_cfg_t disp_cfg = {
         .io_handle = g_panel_io_handle,
         .panel_handle = g_panel_handle,
-        .buffer_size = LCD_H_RES * 40,
-        .double_buffer = true,
+        .buffer_size = LCD_H_RES * 20,  // 20 lines — small enough to avoid watchdog
+        .double_buffer = false,
         .hres = LCD_H_RES,
         .vres = LCD_V_RES,
         .rotation = {
@@ -244,6 +264,7 @@ static void board_lvgl_port_init(void)
         },
         .flags = {
             .buff_spiram = true,
+            .swap_bytes = true,  // ST77916 expects big-endian RGB565
         },
     };
     lvgl_port_add_disp(&disp_cfg);
