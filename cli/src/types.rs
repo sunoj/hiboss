@@ -50,6 +50,7 @@ pub struct SendResponse {
     pub id: String,
     pub status: String,
     pub created_at: String,
+    pub warning: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
