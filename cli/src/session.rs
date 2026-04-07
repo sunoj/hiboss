@@ -174,21 +174,6 @@ pub fn drain_read_queue() -> Vec<String> {
     content.lines().filter(|l| !l.is_empty()).map(|l| l.to_owned()).collect()
 }
 
-/// Marker file: written on first stop-block, prevents blocking again.
-pub fn stop_blocked_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-stop-blocked-{}", project_hash()))
-}
-
-/// Check whether stop was already blocked once this session.
-pub fn was_stop_blocked() -> bool {
-    stop_blocked_marker_path().exists()
-}
-
-/// Record that stop was blocked once.
-pub fn mark_stop_blocked() {
-    let _ = fs::write(stop_blocked_marker_path(), "1");
-}
-
 /// Marker file: tracks whether the ack hint has been shown this session.
 pub fn ack_hint_shown_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-ack-hint-{}", project_hash()))

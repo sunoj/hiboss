@@ -242,57 +242,25 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_stop() -> Result<(), Box<dyn Error>> {
-    // Capture our session ID before any cleanup
-    let my_session_id = session::read_session_id();
-
-    // Detect violations
-    let ask_violation = !session::has_asked();
-    let reply_violation = !ask_violation && !session::has_replied();
-    let broadcast_violation = session::had_peers_active() && !session::has_broadcast();
-    let has_violation = ask_violation || reply_violation || broadcast_violation;
-
-    // Block exit on first violation, allow through on retry
-    if has_violation && !session::was_stop_blocked() {
-        session::mark_stop_blocked();
-        if ask_violation {
-            println!("BLOCKED: You cannot stop without asking the boss for next steps.");
-            println!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
-        } else if reply_violation {
-            println!("BLOCKED: You received a boss reply but did not acknowledge it.");
-            println!("Run: hiboss send \"<your acknowledgment>\"");
-        }
-        if broadcast_violation {
-            println!("BLOCKED: Peer sessions were active but you never broadcast your progress.");
-            println!("Run: hiboss send --broadcast \"<what you worked on>\"");
-        }
-        println!("Fix the above, then you may stop. (This block applies once per session.)");
+    // Only gate: must have called `hiboss ask` before exiting.
+    // No cleanup here — Claude Code fires Stop on every exit attempt,
+    // including ones the user cancels. Cleaning up markers here would
+    // delete the asked-marker and cause false BLOCKED on the next attempt.
+    // Session cleanup is handled by session-start (idempotent re-init).
+    if !session::has_asked() {
+        eprintln!("BLOCKED: You cannot stop without asking the boss for next steps.");
+        eprintln!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
         std::process::exit(1);
     }
 
-    // Second attempt or no violations — proceed with cleanup
-    if let (Ok(client), Some(sid)) = (build_client(), &my_session_id) {
+    // Best-effort: mark session completed on server
+    if let (Ok(client), Some(sid)) = (build_client(), &session::read_session_id()) {
         let _ = client.heartbeat_session(sid, Some("completed"), Some("Session ended")).await;
     }
+    // Kill SSE daemon if running
     if let Some(pid) = session::is_daemon_running() {
         let _ = Command::new("kill").arg(pid.to_string()).output();
         let _ = fs::remove_file(session::daemon_pid_path());
     }
-    if let Some(ref my_sid) = my_session_id {
-        if session::read_session_id().as_deref() == Some(my_sid.as_str()) {
-            let _ = fs::remove_file(session::session_file_path());
-        }
-    }
-    let _ = fs::remove_file(session::ttl_file_path());
-    let _ = fs::remove_file(session::a2a_ttl_file_path());
-    let _ = fs::remove_file(session::daemon_pending_path());
-    let _ = fs::remove_file(session::urgent_file_path());
-    let _ = fs::remove_file(session::asked_marker_path());
-    let _ = fs::remove_file(session::replied_marker_path());
-    let _ = fs::remove_file(session::ack_hint_shown_path());
-    let _ = fs::remove_file(session::broadcast_marker_path());
-    let _ = fs::remove_file(session::peers_active_marker_path());
-    let _ = fs::remove_file(session::broadcast_remind_ttl_path());
-    let _ = fs::remove_file(session::read_queue_path());
-    let _ = fs::remove_file(session::stop_blocked_marker_path());
     Ok(())
 }
