@@ -30,7 +30,7 @@ static int s_message_count = 0;
 static SemaphoreHandle_t s_msg_mutex;
 
 // HTTP response buffer
-#define HTTP_BUF_SIZE 4096
+#define HTTP_BUF_SIZE 16384
 static char s_http_buf[HTTP_BUF_SIZE];
 static int s_http_buf_len = 0;
 
@@ -142,7 +142,7 @@ static void poll_messages(void)
     s_http_buf[0] = '\0';
 
     char url[256];
-    snprintf(url, sizeof(url), "%s/api/boss/messages?unread=true&limit=10", s_server_url);
+    snprintf(url, sizeof(url), "%s/api/boss/messages?unread=true&limit=3", s_server_url);
 
     char auth_header[160];
     snprintf(auth_header, sizeof(auth_header), "Bearer %s", s_boss_api_key);
@@ -243,10 +243,8 @@ esp_err_t hiboss_mark_read(const char *message_id)
 
     const char *json_str = "{\"status\":\"read\"}";
 
-    s_http_buf_len = 0;
     esp_http_client_config_t config = {
         .url = url,
-        .event_handler = http_event_handler,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .timeout_ms = 5000,
     };
