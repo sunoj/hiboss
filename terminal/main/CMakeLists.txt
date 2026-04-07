@@ -15,4 +15,6 @@ idf_component_register(
         json
         esp_psram
         driver
+    PRIV_REQUIRES
+        mbedtls
 )

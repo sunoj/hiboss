@@ -136,7 +136,7 @@ static void create_messages_screen(const hiboss_message_t *msgs, int count)
 
     // Unread count badge
     if (count > 1) {
-        char badge[16];
+        char badge[24];
         snprintf(badge, sizeof(badge), "+%d more", count - 1);
         lv_obj_t *lbl_badge = lv_label_create(scr_messages);
         lv_label_set_text(lbl_badge, badge);
