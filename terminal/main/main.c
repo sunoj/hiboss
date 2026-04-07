@@ -27,6 +27,11 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    // Suppress noisy I2C NACK errors from touch polling (CST816S sleeps when idle)
+    esp_log_level_set("i2c.master", ESP_LOG_WARN);
+    esp_log_level_set("lcd_panel.io.i2c", ESP_LOG_NONE);
+    esp_log_level_set("CST816S", ESP_LOG_WARN);
+
     ESP_LOGI(TAG, "hiboss-terminal starting...");
 
     // Initialize hardware: LCD, touch, audio codecs

@@ -12,6 +12,7 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "esp_timer.h"
 
 static const char *TAG = "board";
 
@@ -45,6 +46,7 @@ static const char *TAG = "board";
 
 // Exported handles for ui_manager
 esp_lcd_panel_handle_t g_panel_handle = NULL;
+esp_lcd_panel_io_handle_t g_panel_io_handle = NULL;
 esp_lcd_touch_handle_t g_touch_handle = NULL;
 i2c_master_bus_handle_t g_i2c_bus = NULL;
 
@@ -132,7 +134,6 @@ static void lcd_init(void)
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_SPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
 
     // Panel IO (QSPI)
-    esp_lcd_panel_io_handle_t io_handle = NULL;
     esp_lcd_panel_io_spi_config_t io_cfg = {
         .cs_gpio_num = LCD_PIN_CS,
         .dc_gpio_num = -1,  // not used in QSPI mode
@@ -145,7 +146,7 @@ static void lcd_init(void)
             .quad_mode = 1,
         },
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_cfg, &io_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi(LCD_SPI_HOST, &io_cfg, &g_panel_io_handle));
 
     // ST77916 panel
     esp_lcd_panel_dev_config_t panel_cfg = {
@@ -153,7 +154,7 @@ static void lcd_init(void)
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_st77916(io_handle, &panel_cfg, &g_panel_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_st77916(g_panel_io_handle, &panel_cfg, &g_panel_handle));
 
     // Reset via IO expander, then init
     lcd_reset_via_exio();
@@ -183,6 +184,49 @@ static void touch_init(void)
     ESP_LOGI(TAG, "Touch (CST816S) initialized");
 }
 
+// --- Touch read callback (fault-tolerant) ---
+static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
+{
+    static uint32_t last_read_ms = 0;
+    static bool last_pressed = false;
+    static uint16_t last_x = 0, last_y = 0;
+
+    data->state = LV_INDEV_STATE_RELEASED;
+
+    // Throttle I2C reads: CST816S NACKs when idle, flooding logs.
+    // Read at most every 50ms (20 Hz is plenty for touch).
+    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
+    if (now - last_read_ms < 50) {
+        if (last_pressed) {
+            data->point.x = last_x;
+            data->point.y = last_y;
+            data->state = LV_INDEV_STATE_PRESSED;
+        }
+        return;
+    }
+    last_read_ms = now;
+
+    // Gracefully handle I2C NACK (CST816S sleeps when no touch)
+    esp_err_t err = esp_lcd_touch_read_data(g_touch_handle);
+    if (err != ESP_OK) {
+        last_pressed = false;
+        return;
+    }
+
+    uint16_t x[1], y[1];
+    uint8_t count = 0;
+    if (esp_lcd_touch_get_coordinates(g_touch_handle, x, y, NULL, &count, 1) && count > 0) {
+        last_x = x[0];
+        last_y = y[0];
+        last_pressed = true;
+        data->point.x = x[0];
+        data->point.y = y[0];
+        data->state = LV_INDEV_STATE_PRESSED;
+    } else {
+        last_pressed = false;
+    }
+}
+
 // --- LVGL port setup ---
 static void board_lvgl_port_init(void)
 {
@@ -191,7 +235,7 @@ static void board_lvgl_port_init(void)
 
     // Add display
     const lvgl_port_display_cfg_t disp_cfg = {
-        .io_handle = NULL,  // already initialized
+        .io_handle = g_panel_io_handle,
         .panel_handle = g_panel_handle,
         .buffer_size = LCD_H_RES * 40,
         .double_buffer = true,
@@ -208,12 +252,12 @@ static void board_lvgl_port_init(void)
     };
     lvgl_port_add_disp(&disp_cfg);
 
-    // Add touch input
-    const lvgl_port_touch_cfg_t touch_cfg = {
-        .disp = lv_display_get_default(),
-        .handle = g_touch_handle,
-    };
-    lvgl_port_add_touch(&touch_cfg);
+    // Add touch input manually (esp_lvgl_port's touch handler crashes on I2C NACK
+    // because CST816S enters low-power mode when no touch is active)
+    lv_indev_t *indev = lv_indev_create();
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(indev, touch_read_cb);
+    lv_indev_set_display(indev, lv_display_get_default());
 
     ESP_LOGI(TAG, "LVGL port initialized (display + touch)");
 }
