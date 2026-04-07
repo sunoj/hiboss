@@ -196,16 +196,21 @@ describe('buildFilters', () => {
     expect(where).not.toContain('priority');
   });
 
-  it('uses incoming filter for unread', () => {
-    const { where, binds } = buildFilters('a1', null, 'sent', undefined, undefined, undefined, true);
-    expect(where).toContain("direction = 'boss_to_agent'");
-    expect(where).toContain("direction = 'agent_to_agent'");
-    expect(where).toContain('status = ?');
+  it('uses status-aware filter for unread (boss=sent, a2a=sent+delivered)', () => {
+    const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, true);
+    expect(where).toContain("direction = 'boss_to_agent' AND status = 'sent'");
+    expect(where).toContain("direction = 'agent_to_agent' AND status IN ('sent', 'delivered')");
     expect(binds).toContain('a1');
   });
 
+  it('uses sent+delivered for unread a2a-only filter', () => {
+    const { where } = buildFilters('a1', 'agent_to_agent', null, undefined, undefined, undefined, true);
+    expect(where).toContain("direction = 'agent_to_agent'");
+    expect(where).toContain("status IN ('sent', 'delivered')");
+  });
+
   it('includes target_session_id in unread filter when provided', () => {
-    const { where, binds } = buildFilters('a1', null, 'sent', undefined, undefined, undefined, true, undefined, 'sess-123');
+    const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, true, undefined, 'sess-123');
     expect(where).toContain("target_session_id IS NULL OR target_session_id = ?");
     expect(where).toContain('target_session_id = ?');
     expect(binds).toContain('sess-123');
@@ -226,7 +231,7 @@ describe('buildFilters', () => {
   });
 
   it('skips session filter in unread mode', () => {
-    const { where } = buildFilters('a1', null, 'sent', undefined, undefined, 'sess-abc', true);
+    const { where } = buildFilters('a1', null, null, undefined, undefined, 'sess-abc', true);
     // In unread mode, session filter is not applied (target_session is used instead)
     expect(where).not.toContain('session_id = ?');
   });

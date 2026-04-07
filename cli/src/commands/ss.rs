@@ -88,7 +88,9 @@ async fn run_board(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
             let label = s.label.as_deref().unwrap_or("-");
             let agent = s.agent_name.as_deref().unwrap_or(&s.agent_id);
             let text = s.status_text.as_deref().unwrap_or("");
-            let text_display = if text.len() > 60 { format!("{}...", &text[..57]) } else { text.to_string() };
+            let text_display = if text.chars().count() > 60 {
+                format!("{}...", text.chars().take(57).collect::<String>())
+            } else { text.to_string() };
             println!("  {} {} ({}) {}", id_short.dimmed(), label, agent.dimmed(), text_display.dimmed());
         }
     }
