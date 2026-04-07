@@ -5,7 +5,7 @@
 
 import type { Channel, Env, MessageRow } from '../types';
 import { createForumTopic, editMessageReplyMarkup } from '../channels/telegram';
-import { createDiscordThread, editDiscordMessage } from '../channels/discord';
+import { createDiscordThread, addDiscordThreadMember, editDiscordMessage } from '../channels/discord';
 import { 
   requireTelegramConfig as _requireTelegramConfig, 
   requireDiscordConfig as _requireDiscordConfig, 
@@ -155,6 +155,14 @@ export async function ensureThreadForSession(
       .prepare('UPDATE sessions SET discord_thread_id = ? WHERE id = ?')
       .bind(threadId, sessionId)
       .run();
+    // Add boss(es) to thread so they get notifications (bot-created threads only include the bot)
+    const bosses = await env.DB
+      .prepare('SELECT b.discord_user_id FROM bosses b JOIN boss_agent_access ba ON ba.boss_id = b.id WHERE ba.agent_id = ? AND b.discord_user_id IS NOT NULL')
+      .bind(agentId)
+      .all<{ discord_user_id: string }>();
+    for (const boss of bosses.results ?? []) {
+      await addDiscordThreadMember(botToken, threadId, boss.discord_user_id).catch(() => {});
+    }
     return threadId;
   } catch {
     // Thread creation failed — deliver without thread

@@ -91,6 +91,17 @@ export async function createDiscordThread(botToken: string, channelId: string, m
   return threadId;
 }
 
+export async function addDiscordThreadMember(botToken: string, threadId: string, userId: string): Promise<void> {
+  const response = await fetch(
+    `https://discord.com/api/v10/channels/${encodeURIComponent(threadId)}/thread-members/${encodeURIComponent(userId)}`,
+    { method: 'PUT', headers: { Authorization: `Bot ${botToken}` } }
+  );
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`discord thread member add failed ${response.status} ${body}`);
+  }
+}
+
 async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions, threadId?: string): Promise<DiscordSendResult> {
   const attachment = options?.fileUrl ? await downloadDiscordAttachment(options.fileUrl) : undefined;
   const payload = buildDiscordPayload(content, options, attachment ? [toAttachmentMetadata(attachment)] : undefined);
