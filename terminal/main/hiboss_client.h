@@ -1,5 +1,5 @@
 // hiboss_client: HTTP client for hiboss server API (boss-authenticated).
-// Exports: hiboss_client_init(), hiboss_poll_task(), hiboss_reply().
+// Exports: hiboss_client_init(), hiboss_poll_task(), hiboss_reply(), hiboss_mark_read(), hiboss_react().
 // Deps: esp_http_client, cJSON, wifi_manager.
 
 #pragma once
@@ -30,6 +30,12 @@ void hiboss_poll_task(void *arg);
 
 // Send a reply to a message. Body is the reply text.
 esp_err_t hiboss_reply(const char *message_id, const char *body);
+
+// Mark a message as read on the server.
+esp_err_t hiboss_mark_read(const char *message_id);
+
+// React to a message with an emoji.
+esp_err_t hiboss_react(const char *message_id, const char *emoji);
 
 // Get the latest unread messages (filled by poll task).
 int hiboss_get_messages(hiboss_message_t *out, int max_count);

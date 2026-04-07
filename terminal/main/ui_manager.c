@@ -26,6 +26,7 @@ static void create_splash_screen(const char *title, const char *subtitle);
 static void create_idle_screen(void);
 static void create_messages_screen(const hiboss_message_t *msgs, int count);
 static void option_btn_event_cb(lv_event_t *e);
+static void react_btn_event_cb(lv_event_t *e);
 
 void ui_init(void)
 {
@@ -155,16 +156,14 @@ static void create_messages_screen(const hiboss_message_t *msgs, int count)
 
     // Option buttons (if message has options)
     if (msg->has_options) {
-        // Parse comma-separated options
         char opts_copy[256];
         strncpy(opts_copy, msg->options, sizeof(opts_copy) - 1);
         opts_copy[sizeof(opts_copy) - 1] = '\0';
 
-        int btn_y = 200;
+        int btn_y = 190;
         char *token = strtok(opts_copy, ",");
         int opt_idx = 0;
         while (token && opt_idx < 4) {
-            // Trim whitespace
             while (*token == ' ') token++;
 
             lv_obj_t *btn = lv_btn_create(scr_messages);
@@ -178,15 +177,34 @@ static void create_messages_screen(const hiboss_message_t *msgs, int count)
             lv_obj_set_style_text_color(lbl, lv_color_hex(0x00d4ff), 0);
             lv_obj_center(lbl);
 
-            // Store option text as user data for callback
             char *opt_text = lv_malloc(strlen(token) + 1);
             strcpy(opt_text, token);
             lv_obj_add_event_cb(btn, option_btn_event_cb, LV_EVENT_CLICKED, opt_text);
 
-            btn_y += 42;
+            btn_y += 40;
             opt_idx++;
             token = strtok(NULL, ",");
         }
+    }
+
+    // Quick react buttons (always shown at bottom)
+    static const char *react_emojis[] = { "OK", "NO", "??" };
+    static const char *react_values[] = { "\xF0\x9F\x91\x8D", "\xE2\x9D\x8C", "\xE2\x9D\x93" };  // 👍 ❌ ❓
+    for (int i = 0; i < 3; i++) {
+        lv_obj_t *btn = lv_btn_create(scr_messages);
+        lv_obj_set_size(btn, 80, 36);
+        lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, (i - 1) * 90, -20);
+        lv_obj_set_style_bg_color(btn, lv_color_hex(0x2a2a3e), 0);
+        lv_obj_set_style_radius(btn, 18, 0);
+
+        lv_obj_t *lbl = lv_label_create(btn);
+        lv_label_set_text(lbl, react_emojis[i]);
+        lv_obj_set_style_text_color(lbl, lv_color_hex(0xffffff), 0);
+        lv_obj_center(lbl);
+
+        char *emoji = lv_malloc(8);
+        strcpy(emoji, react_values[i]);
+        lv_obj_add_event_cb(btn, react_btn_event_cb, LV_EVENT_CLICKED, emoji);
     }
 }
 
@@ -196,11 +214,16 @@ static void option_btn_event_cb(lv_event_t *e)
     if (!option_text) return;
 
     ESP_LOGI(TAG, "Option selected: %s", option_text);
-
-    // Send reply in a separate task to avoid blocking LVGL
-    // For MVP, we do it inline (brief block is acceptable)
     hiboss_reply(s_current_msg.id, option_text);
-
-    // Show confirmation
     ui_show_splash("Sent!", option_text);
+}
+
+static void react_btn_event_cb(lv_event_t *e)
+{
+    char *emoji = (char *)lv_event_get_user_data(e);
+    if (!emoji) return;
+
+    ESP_LOGI(TAG, "React: %s", emoji);
+    hiboss_react(s_current_msg.id, emoji);
+    ui_show_splash("Reacted!", emoji);
 }
