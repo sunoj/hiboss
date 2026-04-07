@@ -4,6 +4,7 @@
 
 use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest};
 use clap::Args;
+use colored::Colorize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
@@ -75,6 +76,9 @@ pub async fn run(args: &SendArgs, _config: &Config, client: &HiBossClient) -> Re
     };
     let response = client.send_message(&request).await?;
     eprintln!("Message sent");
+    if let Some(warning) = &response.warning {
+        eprintln!("{}", format!("Warning: {warning}").yellow());
+    }
     session::mark_replied();
     println!("{}", response.id);
     Ok(())

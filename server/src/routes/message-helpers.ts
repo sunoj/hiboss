@@ -82,10 +82,10 @@ export function buildFilters(
 ) {
   const clauses: string[] = [];
   const binds: (string | number)[] = [];
-  // Unread: boss messages for this agent, agent-to-agent targeting this agent, or session-targeted messages
+  // Unread: boss messages (status='sent') + a2a messages (status IN 'sent','delivered')
+  // SSE marks a2a as 'delivered' before inbox polls, so 'delivered' is still unread for inbox purposes
   if (unread) {
     if (direction === 'agent_to_agent') {
-      // Narrowed unread: only agent-to-agent messages targeting this agent/session
       if (targetSessionId) {
         clauses.push("((target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
         binds.push(agentId, targetSessionId);
@@ -93,11 +93,12 @@ export function buildFilters(
         clauses.push("(target_agent_id = ? AND direction = 'agent_to_agent')");
         binds.push(agentId);
       }
+      clauses.push("status IN ('sent', 'delivered')");
     } else if (targetSessionId) {
-      clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND (target_session_id IS NULL OR target_session_id = ?)) OR (target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND status = 'sent' AND (target_session_id IS NULL OR target_session_id = ?)) OR (target_agent_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered') AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered')))");
       binds.push(agentId, targetSessionId, agentId, targetSessionId);
     } else {
-      clauses.push("((agent_id = ? AND direction = 'boss_to_agent') OR (target_agent_id = ? AND direction = 'agent_to_agent'))");
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND status = 'sent') OR (target_agent_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered')))");
       binds.push(agentId, agentId);
     }
   } else {
