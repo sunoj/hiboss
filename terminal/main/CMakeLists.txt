@@ -22,4 +22,5 @@ idf_component_register(
         esp_driver_ledc
     PRIV_REQUIRES
         mbedtls
+        esp_timer
 )
