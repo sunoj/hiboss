@@ -40,6 +40,26 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_session_start() -> Result<(), Box<dyn Error>> {
+    // Clean up stale marker files from any previous session for this project.
+    // These are per-project (keyed by project hash), so they persist across sessions
+    // unless explicitly cleaned. Stop hook does NOT clean them (Claude Code fires Stop
+    // on every exit attempt including user-cancelled ones).
+    for path in [
+        session::asked_marker_path(),
+        session::replied_marker_path(),
+        session::ack_hint_shown_path(),
+        session::broadcast_marker_path(),
+        session::peers_active_marker_path(),
+        session::broadcast_remind_ttl_path(),
+        session::read_queue_path(),
+        session::urgent_file_path(),
+        session::daemon_pending_path(),
+        session::ttl_file_path(),
+        session::a2a_ttl_file_path(),
+    ] {
+        let _ = fs::remove_file(path);
+    }
+
     // Idempotent: reuse existing session if file already exists (handles duplicate hooks)
     let session_id = if let Some(existing) = session::read_session_id() {
         existing
@@ -250,6 +270,7 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     if !session::has_asked() {
         println!("BLOCKED: You cannot stop without asking the boss for next steps.");
         println!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
         std::process::exit(1);
     }
 

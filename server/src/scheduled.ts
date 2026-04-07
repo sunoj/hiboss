@@ -165,14 +165,14 @@ async function markQueueProcessing(env: Env, queueId: string, now: string): Prom
 
 async function markQueueDelivered(env: Env, queueId: string): Promise<void> {
   await env.DB
-    .prepare("UPDATE delivery_queue SET status = 'delivered', error = NULL WHERE id = ?")
+    .prepare("UPDATE delivery_queue SET status = 'delivered', error = NULL WHERE id = ? AND status = 'processing'")
     .bind(queueId)
     .run();
 }
 
 async function markQueueFailed(env: Env, queueId: string, error: string, nextRetryAt: string): Promise<void> {
   await env.DB
-    .prepare("UPDATE delivery_queue SET status = 'failed', error = ?, scheduled_at = ? WHERE id = ?")
+    .prepare("UPDATE delivery_queue SET status = 'failed', error = ?, scheduled_at = ? WHERE id = ? AND status = 'processing'")
     .bind(error, nextRetryAt, queueId)
     .run();
 }
