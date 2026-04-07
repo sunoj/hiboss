@@ -126,6 +126,10 @@ static void parse_messages(const char *json_str)
             if (new_count > had_messages) {
                 audio_play_notification();
             }
+            // Mark displayed messages as read on server
+            for (int i = 0; i < new_count; i++) {
+                hiboss_mark_read(new_msgs[i].id);
+            }
         } else {
             ui_show_idle();
         }
@@ -226,6 +230,81 @@ esp_err_t hiboss_reply(const char *message_id, const char *body)
     }
 
     ESP_LOGI(TAG, "Reply sent to %s", message_id);
+    return ESP_OK;
+}
+
+esp_err_t hiboss_mark_read(const char *message_id)
+{
+    char url[256];
+    snprintf(url, sizeof(url), "%s/api/boss/messages/%s", s_server_url, message_id);
+
+    char auth_header[160];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", s_boss_api_key);
+
+    const char *json_str = "{\"status\":\"read\"}";
+
+    s_http_buf_len = 0;
+    esp_http_client_config_t config = {
+        .url = url,
+        .event_handler = http_event_handler,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .timeout_ms = 5000,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_method(client, HTTP_METHOD_PATCH);
+    esp_http_client_set_header(client, "Authorization", auth_header);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, json_str, strlen(json_str));
+
+    esp_err_t err = esp_http_client_perform(client);
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
+
+    if (err != ESP_OK || status != 200) {
+        ESP_LOGW(TAG, "Mark-read failed for %s (HTTP %d)", message_id, status);
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
+esp_err_t hiboss_react(const char *message_id, const char *emoji)
+{
+    char url[256];
+    snprintf(url, sizeof(url), "%s/api/boss/messages/%s/react", s_server_url, message_id);
+
+    char auth_header[160];
+    snprintf(auth_header, sizeof(auth_header), "Bearer %s", s_boss_api_key);
+
+    cJSON *payload = cJSON_CreateObject();
+    cJSON_AddStringToObject(payload, "emoji", emoji);
+    char *json_str = cJSON_PrintUnformatted(payload);
+    cJSON_Delete(payload);
+
+    s_http_buf_len = 0;
+    esp_http_client_config_t config = {
+        .url = url,
+        .event_handler = http_event_handler,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .timeout_ms = 5000,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+    esp_http_client_set_header(client, "Authorization", auth_header);
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_post_field(client, json_str, strlen(json_str));
+
+    esp_err_t err = esp_http_client_perform(client);
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
+    free(json_str);
+
+    if (err != ESP_OK || status != 200) {
+        ESP_LOGW(TAG, "React failed for %s (HTTP %d)", message_id, status);
+        return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Reacted %s to %s", emoji, message_id);
     return ESP_OK;
 }
 
