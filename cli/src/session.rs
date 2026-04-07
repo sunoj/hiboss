@@ -95,6 +95,19 @@ pub fn has_asked() -> bool {
     asked_marker_path().exists()
 }
 
+/// Marker: stop hook already warned once this session — don't block again.
+pub fn stop_warned_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-stop-warned-{}", project_hash()))
+}
+
+pub fn mark_stop_warned() {
+    let _ = fs::write(stop_warned_marker_path(), "1");
+}
+
+pub fn has_stop_warned() -> bool {
+    stop_warned_marker_path().exists()
+}
+
 /// Marker file: written by send/reply/react after an ask, checked by Stop hook.
 pub fn replied_marker_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-replied-{}", project_hash()))
