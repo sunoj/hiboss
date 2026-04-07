@@ -289,6 +289,111 @@ routes.post('/join-requests/:id/reject', async (c) => {
   return c.json({ id: request.id, name: request.name, status: 'rejected' });
 });
 
+/** PATCH /api/boss/messages/:id — boss marks a message as read */
+routes.patch('/messages/:id', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  const messageId = c.req.param('id');
+  const payload = await c.req.json<Record<string, unknown>>();
+  const status = typeof payload.status === 'string' ? payload.status.trim() : '';
+  if (!['read', 'delivered'].includes(status)) return c.text('status must be read or delivered', 400);
+  const row = await c.env.DB
+    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
+    .first<MessageRow>();
+  if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
+  const updated = await c.env.DB
+    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? RETURNING *")
+    .bind(status, row.id)
+    .first<MessageRow>();
+  if (!updated) return c.text('update failed', 500);
+  return c.json(mapMessageRow(updated));
+});
+
+/** POST /api/boss/messages/:id/react — boss reacts to a message with emoji */
+routes.post('/messages/:id/react', async (c) => {
+  const bossId = getBossId(c);
+  const role = getBossRole(c);
+  if (role === 'viewer') return c.text('viewer cannot react', 403);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
+  const messageId = c.req.param('id');
+  const row = await c.env.DB
+    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(messageId, `${escapeLike(messageId)}%`)
+    .first<MessageRow>();
+  if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
+  const payload = await c.req.json<Record<string, unknown>>();
+  const emoji = typeof payload.emoji === 'string' ? payload.emoji.trim() : '';
+  if (!emoji) return c.text('emoji is required', 400);
+  // Store reaction in message metadata
+  const meta: Record<string, unknown> = row.metadata ? JSON.parse(row.metadata) : {};
+  const reactions = Array.isArray(meta['reactions']) ? meta['reactions'] as { emoji: string; boss_id: string }[] : [];
+  reactions.push({ emoji, boss_id: bossId });
+  meta['reactions'] = reactions;
+  await c.env.DB
+    .prepare("UPDATE messages SET metadata = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(meta), row.id)
+    .run();
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.react', 'message', row.id, emoji));
+  // Notify agent via callback
+  const replyRow: MessageRow = { ...row, body: emoji, direction: 'boss_to_agent', status: 'sent' };
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, row.agent_id, replyRow));
+  return c.json({ ok: true, emoji, message_id: row.id });
+});
+
+/** GET /api/boss/stream — SSE stream of new agent messages for the boss */
+routes.get('/stream', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  if (agentIds.length === 0) return c.text('no agents', 403);
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  c.executionCtx.waitUntil(bossStreamLoop(writer, encoder, c.env, bossId, agentIds));
+
+  return new Response(readable, {
+    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' },
+  });
+});
+
+const BOSS_POLL_MS = 3000;
+const BOSS_KEEPALIVE_MS = 15000;
+const BOSS_MAX_DURATION_MS = 5 * 60 * 1000;
+
+async function bossStreamLoop(
+  writer: WritableStreamDefaultWriter, encoder: TextEncoder,
+  env: Env, bossId: string, agentIds: string[],
+): Promise<void> {
+  const start = Date.now();
+  let lastCheck = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  let lastKeepalive = Date.now();
+  const seenIds = new Set<string>();
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const sql = `SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE agent_id IN (${placeholders}) AND direction = 'agent_to_boss' AND status = 'sent' AND messages.created_at >= ? ORDER BY messages.created_at ASC`;
+
+  try {
+    while (Date.now() - start < BOSS_MAX_DURATION_MS) {
+      const rows = await env.DB.prepare(sql).bind(...agentIds, lastCheck).all<MessageRow>();
+      for (const row of rows.results ?? []) {
+        if (seenIds.has(row.id)) continue;
+        const data = JSON.stringify(mapMessageRow(row));
+        await writer.write(encoder.encode(`event: message\ndata: ${data}\n\n`));
+        await env.DB.prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?").bind(row.id).run();
+        seenIds.add(row.id);
+        lastCheck = row.created_at;
+      }
+      if (Date.now() - lastKeepalive >= BOSS_KEEPALIVE_MS) {
+        await writer.write(encoder.encode(': keepalive\n\n'));
+        lastKeepalive = Date.now();
+      }
+      await new Promise((r) => setTimeout(r, BOSS_POLL_MS));
+    }
+  } catch { /* client disconnected */ } finally {
+    try { await writer.close(); } catch { /* already closed */ }
+  }
+}
+
 function generateHex(bytes: number): string {
   const buf = new Uint8Array(bytes);
   crypto.getRandomValues(buf);
