@@ -6,6 +6,7 @@ idf_component_register(
         "hiboss_client.c"
         "ui_manager.c"
         "audio_manager.c"
+        "font_cn_16.c"
     INCLUDE_DIRS "."
     REQUIRES
         esp_wifi
