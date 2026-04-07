@@ -129,8 +129,9 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
 
 /// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
 async fn warn_unread_messages(client: &HiBossClient) {
-    let boss_count = client.inbox_count(None).await.unwrap_or(0);
-    let a2a_count = client.inbox_count_a2a().await.unwrap_or(0);
+    let sid = crate::session::read_session_id();
+    let boss_count = client.inbox_count(None, sid.as_deref()).await.unwrap_or(0);
+    let a2a_count = client.inbox_count_a2a(sid.as_deref()).await.unwrap_or(0);
     if boss_count > 0 || a2a_count > 0 {
         if boss_count > 0 {
             println!(
