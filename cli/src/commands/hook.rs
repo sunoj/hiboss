@@ -248,8 +248,8 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     // delete the asked-marker and cause false BLOCKED on the next attempt.
     // Session cleanup is handled by session-start (idempotent re-init).
     if !session::has_asked() {
-        eprintln!("BLOCKED: You cannot stop without asking the boss for next steps.");
-        eprintln!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        println!("BLOCKED: You cannot stop without asking the boss for next steps.");
+        println!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
         std::process::exit(1);
     }
 
