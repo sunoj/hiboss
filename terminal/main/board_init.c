@@ -33,6 +33,9 @@ static const char *TAG = "board";
 #define I2C_PIN_SDA     GPIO_NUM_11
 #define I2C_PIN_SCL     GPIO_NUM_10
 
+// Touch INT pin — LOW when touch is active, HIGH when idle
+#define TOUCH_PIN_INT   GPIO_NUM_4
+
 // IO expander (TCA9554PWR) — controls LCD reset via EXIO0
 #define TCA9554_ADDR    0x20
 #define EXIO_LCD_RST    0  // EXIO pin 0 = LCD reset
@@ -173,11 +176,22 @@ static void touch_init(void)
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(g_i2c_bus, &tp_io_cfg, &tp_io));
 
+    // Configure touch INT pin as input (LOW = touch active)
+    gpio_config_t int_cfg = {
+        .pin_bit_mask = (1ULL << TOUCH_PIN_INT),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+    };
+    gpio_config(&int_cfg);
+
     esp_lcd_touch_config_t tp_cfg = {
         .x_max = LCD_H_RES,
         .y_max = LCD_V_RES,
-        .rst_gpio_num = -1,  // reset via IO expander if needed
-        .int_gpio_num = -1,  // no interrupt pin connected directly
+        .rst_gpio_num = -1,
+        .int_gpio_num = TOUCH_PIN_INT,
+        .levels = {
+            .interrupt = 0,  // INT is active LOW
+        },
     };
     ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816s(tp_io, &tp_cfg, &g_touch_handle));
 
@@ -187,43 +201,25 @@ static void touch_init(void)
 // --- Touch read callback (fault-tolerant) ---
 static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
-    static uint32_t last_read_ms = 0;
-    static bool last_pressed = false;
-    static uint16_t last_x = 0, last_y = 0;
-
     data->state = LV_INDEV_STATE_RELEASED;
 
-    // Throttle I2C reads: CST816S NACKs when idle, flooding logs.
-    // Read at most every 50ms (20 Hz is plenty for touch).
-    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000);
-    if (now - last_read_ms < 50) {
-        if (last_pressed) {
-            data->point.x = last_x;
-            data->point.y = last_y;
-            data->state = LV_INDEV_STATE_PRESSED;
-        }
+    // Gate on INT pin: CST816S pulls INT LOW when touch is active.
+    // Skip I2C read entirely when no touch — avoids NACK errors.
+    if (gpio_get_level(TOUCH_PIN_INT) != 0) {
         return;
     }
-    last_read_ms = now;
 
-    // Gracefully handle I2C NACK (CST816S sleeps when no touch)
     esp_err_t err = esp_lcd_touch_read_data(g_touch_handle);
     if (err != ESP_OK) {
-        last_pressed = false;
         return;
     }
 
     uint16_t x[1], y[1];
     uint8_t count = 0;
     if (esp_lcd_touch_get_coordinates(g_touch_handle, x, y, NULL, &count, 1) && count > 0) {
-        last_x = x[0];
-        last_y = y[0];
-        last_pressed = true;
         data->point.x = x[0];
         data->point.y = y[0];
         data->state = LV_INDEV_STATE_PRESSED;
-    } else {
-        last_pressed = false;
     }
 }
 
