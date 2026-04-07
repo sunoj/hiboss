@@ -229,7 +229,7 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
     }
 
     // Urgent boss message check
-    let count = match client.inbox_count(Some("critical,high")).await {
+    let count = match client.inbox_count(Some("critical,high"), session::read_session_id().as_deref()).await {
         Ok(c) => c,
         Err(_) => 0,
     };
@@ -244,7 +244,7 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 
     // A2A message check (only when daemon not running)
     if session::is_daemon_running().is_none() {
-        let a2a_count = match client.inbox_count_a2a().await {
+        let a2a_count = match client.inbox_count_a2a(session::read_session_id().as_deref()).await {
             Ok(c) => c,
             Err(_) => 0,
         };

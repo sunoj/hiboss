@@ -172,7 +172,7 @@ impl HiBossClient {
         let data: Value = Self::parse_response(resp).await?;
         Ok(data["marked"].as_u64().unwrap_or(0) as u32)
     }
-    pub async fn inbox_count(&self, priority: Option<&str>) -> Result<u32, Box<dyn Error>> {
+    pub async fn inbox_count(&self, priority: Option<&str>, session_id: Option<&str>) -> Result<u32, Box<dyn Error>> {
         let mut req = self.http
             .get(format!("{}/api/messages", self.base_url))
             .bearer_auth(&self.api_key)
@@ -180,17 +180,22 @@ impl HiBossClient {
         if let Some(p) = priority {
             req = req.query(&[("priority", p)]);
         }
+        if let Some(sid) = session_id {
+            req = req.query(&[("target_session", sid)]);
+        }
         let resp = req.send().await?;
         let data: Value = Self::parse_response(resp).await?;
         Ok(data["total"].as_u64().unwrap_or(0) as u32)
     }
-    pub async fn inbox_count_a2a(&self) -> Result<u32, Box<dyn Error>> {
-        let resp = self.http
+    pub async fn inbox_count_a2a(&self, session_id: Option<&str>) -> Result<u32, Box<dyn Error>> {
+        let mut req = self.http
             .get(format!("{}/api/messages", self.base_url))
             .bearer_auth(&self.api_key)
-            .query(&[("direction", "agent_to_agent"), ("unread", "true"), ("limit", "0")])
-            .send()
-            .await?;
+            .query(&[("direction", "agent_to_agent"), ("unread", "true"), ("limit", "0")]);
+        if let Some(sid) = session_id {
+            req = req.query(&[("target_session", sid)]);
+        }
+        let resp = req.send().await?;
         let data: Value = Self::parse_response(resp).await?;
         Ok(data["total"].as_u64().unwrap_or(0) as u32)
     }
