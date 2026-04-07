@@ -153,6 +153,7 @@ routes.post('/', async (c) => {
   let targetAgentId: string | null = null;
   let targetSessionId: string | null = null;
   let direction: Direction = 'agent_to_boss';
+  let targetWarning: string | null = null;
   if (toAgent) {
     // 1. Try agent by name or id prefix
     const agentTarget = await c.env.DB
@@ -163,15 +164,24 @@ routes.post('/', async (c) => {
       targetAgentId = agentTarget.id;
       direction = 'agent_to_agent';
     } else {
-      // 2. Try session by label or id prefix
+      // 2. Try session by label or id prefix, prefer most recently active
       const sessionTarget = await c.env.DB
-        .prepare("SELECT id, agent_id FROM sessions WHERE label = ? OR id LIKE ? ESCAPE '\\' LIMIT 1")
+        .prepare("SELECT id, agent_id, status, last_seen_at FROM sessions WHERE label = ? OR id LIKE ? ESCAPE '\\' ORDER BY last_seen_at DESC LIMIT 1")
         .bind(toAgent, `${escapeLike(toAgent)}%`)
-        .first<{ id: string; agent_id: string }>();
+        .first<{ id: string; agent_id: string; status: string | null; last_seen_at: string | null }>();
       if (sessionTarget) {
         targetAgentId = sessionTarget.agent_id;
         targetSessionId = sessionTarget.id;
         direction = 'agent_to_agent';
+        // Warn if target session is completed or stale (>15 min)
+        if (sessionTarget.status === 'completed') {
+          targetWarning = `target session '${toAgent}' is completed`;
+        } else if (sessionTarget.last_seen_at) {
+          const lastSeen = new Date(sessionTarget.last_seen_at + 'Z').getTime();
+          if (Date.now() - lastSeen > 15 * 60 * 1000) {
+            targetWarning = `target session '${toAgent}' last seen ${Math.round((Date.now() - lastSeen) / 60000)}m ago`;
+          }
+        }
       } else {
         return c.text(`target not found: ${toAgent}`, 404);
       }
@@ -303,15 +313,17 @@ routes.post('/', async (c) => {
     c.executionCtx.waitUntil(expirePreviousOptions(c.env, agentId, sessionId, inserted.id).catch(() => {}));
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.send', 'message', inserted.id, JSON.stringify({ direction, priority, mode })));
-  return c.json({ id: inserted.id, status: inserted.status, created_at: inserted.created_at }, 201);
+  const response: Record<string, unknown> = { id: inserted.id, status: inserted.status, created_at: inserted.created_at };
+  if (targetWarning) response.warning = targetWarning;
+  return c.json(response, 201);
 });
 
 routes.get('/', async (c) => {
   const agentId = getAgentId(c);
   const unread = c.req.query('unread') === 'true';
   const directionParam = c.req.query('direction') || undefined;
-  const statusParam = unread ? 'sent' : c.req.query('status') || undefined;
   const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent', 'agent_to_agent']);
+  const statusParam = unread ? undefined : c.req.query('status') || undefined;
   const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const typeFilter = c.req.query('type') || undefined;
