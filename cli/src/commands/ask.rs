@@ -103,6 +103,8 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
     if let Some(replies) = &poll.replies {
         if let Some(reply) = replies.first() {
+            // Mark reply as read so it doesn't trigger unread warnings later
+            let _ = client.update_status(&reply.id, "read").await;
             if let Some(meta) = &reply.metadata {
                 if let Some(Value::String(action_cmd)) = meta.get("action") {
                     if let Some(body) = &reply.body {
