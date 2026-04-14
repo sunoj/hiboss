@@ -118,7 +118,12 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) -> bool {
             let detail = if status_text.is_empty() {
                 format!("{} {}", icon, status)
             } else if status_text.len() > 60 {
-                format!("{} {}: {}...", icon, status, &status_text[..57])
+                let truncate_at = status_text.char_indices()
+                    .map(|(i, _)| i)
+                    .take_while(|&i| i <= 57)
+                    .last()
+                    .unwrap_or(0);
+                format!("{} {}: {}...", icon, status, &status_text[..truncate_at])
             } else {
                 format!("{} {}: {}", icon, status, status_text)
             };
