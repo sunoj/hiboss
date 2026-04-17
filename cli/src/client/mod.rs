@@ -27,6 +27,15 @@ fn mime_from_ext(filename: &str) -> String {
     }
     .to_owned()
 }
+
+fn format_http_error(prefix: &str, status: reqwest::StatusCode, req_id: Option<String>, body: String) -> String {
+    let suffix = req_id
+        .filter(|id| !id.is_empty())
+        .map(|id| format!(" [req-id={id}]"))
+        .unwrap_or_default();
+    format!("{prefix} ({status}): {body}{suffix}")
+}
+
 pub struct HiBossClient {
     base_url: String,
     api_key: String,
@@ -136,8 +145,9 @@ impl HiBossClient {
             .await?;
         if !resp.status().is_success() {
             let status = resp.status();
+            let req_id = resp.headers().get("x-request-id").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
             let text = resp.text().await.unwrap_or_default();
-            return Err(format!("session register failed ({status}): {text}").into());
+            return Err(format_http_error("session register failed", status, req_id, text).into());
         }
         Ok(())
     }
@@ -208,8 +218,9 @@ impl HiBossClient {
             .await?;
         if !resp.status().is_success() {
             let status = resp.status();
+            let req_id = resp.headers().get("x-request-id").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
             let body = resp.text().await.unwrap_or_default();
-            return Err(format!("react failed ({}): {}", status, body).into());
+            return Err(format_http_error("react failed", status, req_id, body).into());
         }
         Ok(())
     }
@@ -247,9 +258,37 @@ impl HiBossClient {
             Ok(parsed)
         } else {
             let status = resp.status();
+            let req_id = resp.headers().get("x-request-id").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
             let body = resp.text().await.unwrap_or_default();
-            Err(format!("request failed ({}): {}", status, body).into())
+            Err(format_http_error("request failed", status, req_id, body).into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_http_error;
+
+    #[test]
+    fn format_http_error_includes_non_empty_request_id() {
+        let message = format_http_error(
+            "request failed",
+            reqwest::StatusCode::BAD_GATEWAY,
+            Some("req-123".to_owned()),
+            "bad gateway".to_owned(),
+        );
+        assert_eq!(message, "request failed (502 Bad Gateway): bad gateway [req-id=req-123]");
+    }
+
+    #[test]
+    fn format_http_error_omits_empty_request_id() {
+        let message = format_http_error(
+            "request failed",
+            reqwest::StatusCode::BAD_GATEWAY,
+            Some(String::new()),
+            "bad gateway".to_owned(),
+        );
+        assert_eq!(message, "request failed (502 Bad Gateway): bad gateway");
     }
 }
 mod bosses;

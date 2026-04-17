@@ -27,8 +27,9 @@ import swJs from './sw.js';
 import iconSvg from './icon.js';
 import { handleScheduled } from './scheduled';
 import { discordGatewayRouter } from './routes/discord-gateway-api';
+import { requestId } from './middleware/request-id';
 
-const app = new Hono<{ Bindings: Env }>({});
+const app = new Hono<{ Bindings: Env; Variables: { reqId: string } }>({});
 const manifest = {
   name: 'hiboss',
   short_name: 'hiboss',
@@ -38,6 +39,8 @@ const manifest = {
   theme_color: '#161b22',
   icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' }],
 };
+
+app.use('*', requestId);
 
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
@@ -64,8 +67,26 @@ app.get('/dashboard', (c) => c.html(dashboardHtml));
 app.get('/', (c) => c.text('hiboss server'));
 
 app.onError((err, c) => {
-  console.error(err);
-  return c.text('internal server error', 500);
+  const error = err as { message?: unknown; name?: unknown; stack?: unknown } | null | undefined;
+  const reqId = c.get('reqId') || crypto.randomUUID();
+  const messageValue = error?.message ?? String(err);
+  const message = typeof messageValue === 'string' ? messageValue : String(messageValue);
+  const name = typeof error?.name === 'string' ? error.name : undefined;
+  const stack = typeof error?.stack === 'string' ? error.stack : undefined;
+  const payload = {
+    ts: new Date().toISOString(),
+    level: 'error',
+    reqId,
+    method: c.req.method,
+    path: c.req.path,
+    status: 500,
+    message,
+    name,
+    stack,
+  };
+  console.error(JSON.stringify(payload));
+  c.header('x-request-id', reqId);
+  return c.json({ error: 'internal server error', request_id: reqId }, 500);
 });
 
 export { DiscordGateway } from './discord-gateway';
