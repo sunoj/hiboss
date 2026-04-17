@@ -127,6 +127,7 @@ mod tests {
             id: "rsp-1".to_string(),
             status: "ok".to_string(),
             created_at: "2026-03-16T01:00:00Z".to_string(),
+            warning: None,
         };
         assert_roundtrip(&response);
     }
