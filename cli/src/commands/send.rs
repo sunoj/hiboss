@@ -101,8 +101,8 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     let mut sent = 0u32;
 
     for peer in &peers {
-        // Target by session label (repo/branch) or fall back to session ID
-        let target = peer.label.as_deref().unwrap_or(&peer.id);
+        // Target by exact session ID — labels (repo/branch) collide across sessions and the
+        // server resolves a colliding label to the newest same-label session (often self).
         let request = SendRequest {
             body: body.clone(),
             mode: "async".to_owned(),
@@ -113,11 +113,11 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
             file_url: None,
             message_type: args.message_type.clone(),
             session_id: session::read_session_id(),
-            to: Some(target.to_owned()),
+            to: Some(peer.id.clone()),
         };
         match client.send_message(&request).await {
             Ok(_) => sent += 1,
-            Err(e) => eprintln!("Failed to send to {}: {}", target, e),
+            Err(e) => eprintln!("Failed to send to {}: {}", peer.label.as_deref().unwrap_or(&peer.id), e),
         }
     }
 

@@ -971,4 +971,50 @@ describe('Session-scoped messages', () => {
     expect(ids).toContain('a2a-my-session-target');
     expect(ids).not.toContain('a2a-other-session-target');
   });
+
+  it('excludes a session own broadcasts from its unread (self-authored a2a)', async () => {
+    // A session that authored an a2a message (session_id == query session) must never
+    // see it as unread, even if it was self-targeted (target_session_id == session_id).
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Self broadcast', 'sent', 'normal', ?, ?, ?)"
+    ).bind('a2a-self-broadcast', agentId, agentId, 'sess-self', 'sess-self').run();
+    // A genuine peer message authored by a different session, targeted at sess-self.
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Peer broadcast', 'sent', 'normal', ?, ?, ?)"
+    ).bind('a2a-peer-broadcast', agentId, agentId, 'sess-self', 'sess-peer').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages?unread=true&target_session=sess-self&limit=100', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { messages: { id: string }[] };
+    const ids = data.messages.map(m => m.id);
+    expect(ids).not.toContain('a2a-self-broadcast');
+    expect(ids).toContain('a2a-peer-broadcast');
+  });
+
+  it('does not resolve a colliding label back to the sender own session', async () => {
+    // Two sessions share a label; the sender is the most recently active. Sending to that
+    // label must resolve to the OTHER session, never self.
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO sessions (id, agent_id, label, last_seen_at) VALUES (?, ?, ?, datetime('now', '-1 minute'))"
+    ).bind('collide-peer', agentId, 'shared-label').run();
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO sessions (id, agent_id, label, last_seen_at) VALUES (?, ?, ?, datetime('now'))"
+    ).bind('collide-self', agentId, 'shared-label').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Broadcast', to: 'shared-label', session_id: 'collide-self' }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+    const getRes = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+      headers: authHeaders(),
+    });
+    const msg = await getRes.json() as { target_session_id: string | null };
+    expect(msg.target_session_id).toBe('collide-peer');
+    expect(msg.target_session_id).not.toBe('collide-self');
+  });
 });

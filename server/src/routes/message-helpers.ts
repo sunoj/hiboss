@@ -87,16 +87,19 @@ export function buildFilters(
   if (unread) {
     if (direction === 'agent_to_agent') {
       if (targetSessionId) {
-        clauses.push("((target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent'))");
-        binds.push(agentId, targetSessionId);
+        // Exclude self-authored a2a so a session never sees its own broadcasts as unread.
+        clauses.push("((target_agent_id = ? AND direction = 'agent_to_agent' AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent')) AND (session_id IS NULL OR session_id != ?)");
+        binds.push(agentId, targetSessionId, targetSessionId);
       } else {
         clauses.push("(target_agent_id = ? AND direction = 'agent_to_agent')");
         binds.push(agentId);
       }
       clauses.push("status IN ('sent', 'delivered')");
     } else if (targetSessionId) {
-      clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND status = 'sent' AND (target_session_id IS NULL OR target_session_id = ?)) OR (target_agent_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered') AND target_session_id IS NULL) OR (target_session_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered')))");
-      binds.push(agentId, targetSessionId, agentId, targetSessionId);
+      // Self-exclusion (session_id != ?) is scoped to the a2a sub-clauses only;
+      // boss_to_agent replies legitimately carry the target session's id.
+      clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND status = 'sent' AND (target_session_id IS NULL OR target_session_id = ?)) OR (target_agent_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered') AND target_session_id IS NULL AND (session_id IS NULL OR session_id != ?)) OR (target_session_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered') AND (session_id IS NULL OR session_id != ?)))");
+      binds.push(agentId, targetSessionId, agentId, targetSessionId, targetSessionId, targetSessionId);
     } else {
       clauses.push("((agent_id = ? AND direction = 'boss_to_agent' AND status = 'sent') OR (target_agent_id = ? AND direction = 'agent_to_agent' AND status IN ('sent', 'delivered')))");
       binds.push(agentId, agentId);

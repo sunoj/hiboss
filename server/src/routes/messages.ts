@@ -164,10 +164,13 @@ routes.post('/', async (c) => {
       targetAgentId = agentTarget.id;
       direction = 'agent_to_agent';
     } else {
-      // 2. Try session by label or id prefix, prefer most recently active
+      // 2. Try session by label or id prefix, prefer most recently active.
+      // Exclude the sender's own session so a colliding label can never self-target
+      // (all sessions of one agent share a key; the newest same-label session is often self).
+      const excludeSelf = sessionId ? ' AND id != ?' : '';
       const sessionTarget = await c.env.DB
-        .prepare("SELECT id, agent_id, status, last_seen_at FROM sessions WHERE label = ? OR id LIKE ? ESCAPE '\\' ORDER BY last_seen_at DESC LIMIT 1")
-        .bind(toAgent, `${escapeLike(toAgent)}%`)
+        .prepare(`SELECT id, agent_id, status, last_seen_at FROM sessions WHERE (label = ? OR id LIKE ? ESCAPE '\\')${excludeSelf} ORDER BY last_seen_at DESC LIMIT 1`)
+        .bind(...(sessionId ? [toAgent, `${escapeLike(toAgent)}%`, sessionId] : [toAgent, `${escapeLike(toAgent)}%`]))
         .first<{ id: string; agent_id: string; status: string | null; last_seen_at: string | null }>();
       if (sessionTarget) {
         targetAgentId = sessionTarget.agent_id;

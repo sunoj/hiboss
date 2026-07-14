@@ -156,7 +156,8 @@ pub(crate) async fn auto_broadcast_session_start() {
     for peer in sessions.sessions.iter()
         .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
     {
-        let target = peer.label.as_deref().unwrap_or(&peer.id);
+        // Target by exact session ID — labels collide across sessions and the server
+        // resolves a colliding label to the newest same-label session (often self).
         let request = crate::types::SendRequest {
             body: body.clone(),
             mode: "async".to_owned(),
@@ -167,7 +168,7 @@ pub(crate) async fn auto_broadcast_session_start() {
             file_url: None,
             message_type: Some("session_start".to_owned()),
             session_id: session::read_session_id(),
-            to: Some(target.to_owned()),
+            to: Some(peer.id.clone()),
         };
         let _ = client.send_message(&request).await;
     }
