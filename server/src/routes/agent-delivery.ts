@@ -72,22 +72,32 @@ async function buildEffectiveConfig(
   channelConfig: { channel: Channel; config: Record<string, unknown> },
   sessionId: string | null,
 ): Promise<{ channel: Channel; config: Record<string, unknown> }> {
-  if (channelConfig.channel !== 'discord' || !sessionId || !channelConfig.config['use_threads']) {
-    return { channel: channelConfig.channel, config: { ...channelConfig.config } };
-  }
+  const base = { channel: channelConfig.channel, config: { ...channelConfig.config } };
+  if (channelConfig.channel !== 'discord') return base;
+  const threadChannel = await resolveDiscordChannelId(env, channelConfig.config, sessionId);
+  if (!threadChannel || threadChannel === channelConfig.config['channel_id']) return base;
+  return {
+    channel: channelConfig.channel,
+    config: { ...channelConfig.config, channel_id: threadChannel, thread_id: threadChannel },
+  };
+}
+
+/**
+ * Resolve the Discord channel a session's messages actually land in.
+ * With thread routing on, messages post into the session's thread, so
+ * reactions/edits must target that thread id, not the parent channel_id.
+ * Falls back to the config's channel_id when there's no session thread.
+ */
+export async function resolveDiscordChannelId(
+  env: Env,
+  config: Record<string, unknown>,
+  sessionId: string | null,
+): Promise<string | undefined> {
+  const base = typeof config['channel_id'] === 'string' ? config['channel_id'] : undefined;
+  if (!sessionId || !config['use_threads']) return base;
   const session = await env.DB
     .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
     .bind(sessionId)
     .first<{ discord_thread_id: string | null }>();
-  if (!session?.discord_thread_id) {
-    return { channel: channelConfig.channel, config: { ...channelConfig.config } };
-  }
-  return {
-    channel: channelConfig.channel,
-    config: {
-      ...channelConfig.config,
-      channel_id: session.discord_thread_id,
-      thread_id: session.discord_thread_id,
-    },
-  };
+  return session?.discord_thread_id ?? base;
 }
