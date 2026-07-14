@@ -88,3 +88,31 @@ describe('GET /api/messages/:id/reactions', () => {
     expect(data.reactions).toEqual(reactions);
   });
 });
+
+describe('resolveDiscordChannelId (thread routing)', () => {
+  const agentId = getTestAgentId();
+
+  it('returns the session thread id when threads are enabled', async () => {
+    const { resolveDiscordChannelId } = await import('./agent-delivery');
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO sessions (id, agent_id, discord_thread_id) VALUES (?, ?, ?)"
+    ).bind('rd-sess-thread', agentId, 'thread-999').run();
+    const channelId = await resolveDiscordChannelId(env, { channel_id: 'parent-000', use_threads: true }, 'rd-sess-thread');
+    expect(channelId).toBe('thread-999'); // NOT the parent channel — this is the bug fix
+  });
+
+  it('falls back to config channel_id when threads are disabled', async () => {
+    const { resolveDiscordChannelId } = await import('./agent-delivery');
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO sessions (id, agent_id, discord_thread_id) VALUES (?, ?, ?)"
+    ).bind('rd-sess-nothread', agentId, 'thread-888').run();
+    const channelId = await resolveDiscordChannelId(env, { channel_id: 'parent-000' }, 'rd-sess-nothread');
+    expect(channelId).toBe('parent-000');
+  });
+
+  it('falls back to config channel_id when the session has no thread', async () => {
+    const { resolveDiscordChannelId } = await import('./agent-delivery');
+    const channelId = await resolveDiscordChannelId(env, { channel_id: 'parent-000', use_threads: true }, 'no-such-session');
+    expect(channelId).toBe('parent-000');
+  });
+});

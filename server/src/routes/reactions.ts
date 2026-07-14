@@ -14,6 +14,7 @@ import {
   requireTelegramConfig,
   selectChannelConfig,
 } from './message-helpers';
+import { resolveDiscordChannelId } from './agent-delivery';
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
@@ -41,8 +42,10 @@ routes.post('/:id/react', async (c) => {
     if (!discordMsgId) return c.text('no discord message id found', 400);
     const cc = await selectChannelConfig(c.env, agentId, 'discord');
     const dc = requireDiscordConfig(cc.config);
-    if (!dc.bot_token || !dc.channel_id) return c.text('discord bot_token and channel_id required for reactions', 400);
-    await addDiscordReaction(dc.bot_token, dc.channel_id, discordMsgId, emoji);
+    // Messages post into the session thread (when enabled), so react there — not the parent channel.
+    const channelId = await resolveDiscordChannelId(c.env, cc.config, message.session_id ?? null);
+    if (!dc.bot_token || !channelId) return c.text('discord bot_token and channel_id required for reactions', 400);
+    await addDiscordReaction(dc.bot_token, channelId, discordMsgId, emoji);
     return c.json({ ok: true });
   }
   return c.text('reactions not supported on this channel', 400);
@@ -60,8 +63,9 @@ routes.get('/:id/reactions', async (c) => {
     if (!discordMsgId) return c.json({ reactions: [] });
     const cc = await selectChannelConfig(c.env, agentId, 'discord');
     const dc = requireDiscordConfig(cc.config);
-    if (!dc.bot_token || !dc.channel_id) return c.json({ reactions: [] });
-    const reactions = await getDiscordReactions(dc.bot_token, dc.channel_id, discordMsgId);
+    const channelId = await resolveDiscordChannelId(c.env, cc.config, message.session_id ?? null);
+    if (!dc.bot_token || !channelId) return c.json({ reactions: [] });
+    const reactions = await getDiscordReactions(dc.bot_token, channelId, discordMsgId);
     return c.json({ reactions });
   }
   const reactions = meta['reactions'] as { emoji: string; user?: string }[] | undefined;
