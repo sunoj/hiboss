@@ -54,6 +54,26 @@ describe('POST /api/messages/:id/react', () => {
     expect(res.status).toBe(400);
     expect(await res.text()).toBe('reactions not supported on this channel');
   });
+
+  it('returns 400 (not 500) when discord config lacks bot_token', async () => {
+    // Webhook-only config: no bot_token/channel_id — reactions can't work, but must
+    // fail cleanly with 400, not throw a 500 from requireDiscordConfig.
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'discord', ?, 1)"
+    ).bind(agentId, JSON.stringify({ webhook_url: 'https://discord.com/api/webhooks/x/y' })).run();
+    const msgId = 'react-discord-no-token';
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel, metadata) VALUES (?, ?, 'boss_to_agent', 'async', 'Discord msg', 'sent', 'discord', ?)"
+    ).bind(msgId, agentId, JSON.stringify({ discord_message_id: '123' })).run();
+
+    const res = await SELF.fetch(`https://test.local/api/messages/${msgId}/react`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ emoji: '👍' }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toBe('discord bot_token and channel_id required for reactions');
+  });
 });
 
 describe('GET /api/messages/:id/reactions', () => {
