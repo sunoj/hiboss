@@ -7,6 +7,7 @@ import { answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegra
 import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
+import { claimOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
@@ -93,6 +94,9 @@ async function handleMessageCallback(
     const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, queryId);
     if (existing) return replyWithAnswer(c, botToken, queryId, `Selected: ${existing.body}`, c.json(mapMessage(existing), 200));
   }
+  const claim = await claimOptionReply(c.env, parentMsg, parsed.selectedOption);
+  const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
+  if (rejection) return rejection;
   const metadata = buildCallbackReplyMetadata(parentMsg.metadata, parsed.selectedOption, bossInfo);
   const inserted = await c.env.DB
     .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
@@ -100,10 +104,32 @@ async function handleMessageCallback(
     .first<MessageRow>();
   if (!inserted) return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
   answerTelegramCallback(c, botToken, queryId, `Selected: ${parsed.selectedOption}`);
-  await updateCallbackMessage(botToken, chatMessage(query), parsed.selectedOption);
+  await updateCallbackMessage(botToken, chatMessage(query), `✅ Selected: ${parsed.selectedOption}`);
+  if (claim.kind === 'not_option') await markParentReplied(c.env, parentMsg.id);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.callback', 'message', parentMsg.id, parsed.selectedOption));
   return c.json(mapMessage(inserted), 201);
+}
+
+async function telegramClaimRejection(
+  c: TelegramContext,
+  claim: OptionClaimResult,
+  botToken: string | undefined,
+  queryId: string | undefined,
+  query: Record<string, unknown>,
+): Promise<Response | null> {
+  if (claim.kind === 'invalid_choice') {
+    return replyWithAnswer(c, botToken, queryId, 'Invalid selection', c.text('invalid selection', 400));
+  }
+  if (claim.kind !== 'resolved') return null;
+  answerTelegramCallback(c, botToken, queryId, 'Already selected');
+  await updateCallbackMessage(botToken, chatMessage(query), '⚠️ Already selected elsewhere');
+  return c.text('option already resolved', 409);
+}
+
+async function markParentReplied(env: Env, messageId: string): Promise<void> {
+  await env.DB.prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
+    .bind(messageId).run();
 }
 
 async function handleJoinCallback(
@@ -139,12 +165,12 @@ async function handleJoinCallback(
 async function updateCallbackMessage(
   botToken: string | undefined,
   message: { message_id?: number; text?: unknown; chat?: Record<string, unknown> } | undefined,
-  selectedOption: string,
+  resultText: string,
 ): Promise<void> {
   const chatId = asString(message?.chat?.['id']);
   const messageId = message?.message_id;
   if (botToken && chatId && messageId) {
-    await editMessageReplyMarkup(botToken, chatId, messageId, `${(message.text as string) ?? ''}\n\n✅ Selected: ${selectedOption}`);
+    await editMessageReplyMarkup(botToken, chatId, messageId, `${(message.text as string) ?? ''}\n\n${resultText}`);
   }
 }
 

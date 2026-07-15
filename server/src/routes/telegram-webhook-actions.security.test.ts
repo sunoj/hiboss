@@ -73,8 +73,13 @@ describe('Telegram webhook security', () => {
       "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
     ).bind('tg-sec-thread-agent', JSON.stringify({ chat_id: 'tg-sec-topic-chat', bot_token: 'thread-token', message_thread_id: 777 })).run();
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Choose', 'delivered', 'normal')"
-    ).bind(parentId, 'tg-sec-thread-agent').run();
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Choose', 'delivered', 'normal', ?, ?)"
+    ).bind(
+      parentId,
+      'tg-sec-thread-agent',
+      JSON.stringify({ options: ['approve'] }),
+      new Date(Date.now() + 60_000).toISOString(),
+    ).run();
 
     const res = await postTelegramWebhook({
       callback_query: {
@@ -99,6 +104,9 @@ describe('Telegram webhook security', () => {
       body: 'approve',
       reply_to: parentId,
     });
+    const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(parentId).first<{ status: string }>();
+    expect(parent?.status).toBe('replied');
   });
 
   it('routes reactions by telegram topic instead of generic chat config', async () => {
