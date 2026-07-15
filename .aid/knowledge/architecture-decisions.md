@@ -31,6 +31,16 @@ Email well-served by external CLIs (agentmail-cli, resend). Only Discord and Tel
 ### Hook Resilience
 Hooks must NEVER produce errors. Always exit 0 with graceful fallbacks. Write TTL timestamps before checks to prevent retry storms.
 
+### Convergent Option Selection
+Option messages use fan-out delivery with a single global resolution state:
+- Every Boss SSE connection receives every currently active option message.
+- Delivery is never claimed by one client; only selection is exclusive.
+- Selection uses an atomic conditional update, so exactly one client wins.
+- A resolved or expired parent disappears from every stream through a `resolved`
+  event, and external Discord/Telegram controls are withdrawn as best-effort side
+  effects.
+- Option values are structured arrays. Never infer choice boundaries from commas.
+
 ### Webhook Security (v1.1.0)
 Webhook endpoints validate request origin via optional secret tokens:
 - `TELEGRAM_WEBHOOK_SECRET` — checked against `X-Telegram-Bot-Api-Secret-Token` header

@@ -2,6 +2,7 @@
 // Exports: test submodules.
 // Dependencies: test submodules.
 
+mod ask;
 mod helpers;
 mod setup;
 mod types_config;

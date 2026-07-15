@@ -8,6 +8,7 @@ enum AppConstants {
     enum API {
         static let reconnectDelay: Duration = .seconds(2)
         static let requestTimeout: TimeInterval = 15
+        static let historyLimit = 100
     }
 
     enum Island {

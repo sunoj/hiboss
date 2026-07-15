@@ -161,7 +161,7 @@ GET /api/messages?from=lead-agent    // filter by sender
 hiboss send --to auth-worker "Implement OAuth2 login flow"
 
 # Ask with options (blocking)
-hiboss ask --to auth-worker --options "Done,Blocked" "Implement OAuth2"
+hiboss ask --to auth-worker --option "Done" --option "Blocked" "Implement OAuth2"
 
 # Inbox shows all incoming (boss + agent)
 hiboss inbox
@@ -252,7 +252,7 @@ hiboss reply <id> --status completed "Done. PR: feat/x, all tests pass"
 
 # OR: Worker is blocked
 hiboss ask --to lead --reply-to <id> --status blocked \
-  --options "Option A,Option B" "Blocked on DB schema decision"
+  --option "Option A" --option "Option B" "Blocked on DB schema decision"
 ```
 
 The `--status` flag sets `metadata.task_status` on the reply. The orchestrator can query:
@@ -318,12 +318,13 @@ This matches how `aid` works today, but across CC sessions instead of lightweigh
    Planner → Implementer → Tester → Reviewer
 ```
 
-Each stage hands off to the next. The `--actions` feature enables this:
+Each stage hands off to the next. Repeatable `--action` flags enable this:
 
 ```bash
 # Implementer finishes, triggers tester
 hiboss ask --to reviewer \
-  --actions "Approved:hiboss send --to tester 'Start testing feat/x',Rejected:hiboss send --to implementer 'Rework needed'" \
+  --action "Approved=hiboss send --to tester 'Start testing feat/x'" \
+  --action "Rejected=hiboss send --to implementer 'Rework needed'" \
   "Review feat/x branch"
 ```
 

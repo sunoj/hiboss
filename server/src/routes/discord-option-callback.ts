@@ -7,6 +7,7 @@ import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
 import { claimOptionReply } from './boss-option-reply';
+import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
 
 interface DiscordOptionPayload {
@@ -41,6 +42,11 @@ export async function handleDiscordOptionCallback(
   const reply = await insertReply(c.env, parent, selection.option, agentRow.agent_id);
   if (!reply) return c.text('failed to persist', 500);
   if (claim.kind === 'not_option') await markParentReplied(c.env, parent.id);
+  if (claim.kind === 'claimed') {
+    c.executionCtx.waitUntil(
+      withdrawResolvedOptions(c.env, agentRow.agent_id, parent, selection.option).catch(() => {}),
+    );
+  }
 
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, reply));
   const actor = permission.boss ? 'boss' : 'system';
@@ -62,11 +68,11 @@ async function findParent(
   env: Env,
   messagePrefix: string,
   agentId: string,
-): Promise<Pick<MessageRow, 'id' | 'metadata' | 'status'> | null> {
+): Promise<MessageRow | null> {
   return env.DB
-    .prepare('SELECT id, metadata, status FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare('SELECT * FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${messagePrefix}%`, agentId)
-    .first<Pick<MessageRow, 'id' | 'metadata' | 'status'>>();
+    .first<MessageRow>();
 }
 
 async function insertReply(

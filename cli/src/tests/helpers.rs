@@ -1,5 +1,5 @@
 // Unit tests for shared helper functions and command-local utilities.
-// Tests short_id, truncate from helpers module; escape_applescript and parse_options locally.
+// Tests short_id and truncate from helpers module plus local AppleScript escaping.
 // Dependencies: crate::helpers.
 
 #[cfg(test)]
@@ -12,17 +12,6 @@ mod tests {
             .replace('\\', "\\\\")
             .replace('"', "\\\"")
             .replace('\n', "\\n")
-    }
-
-    fn parse_options(input: Option<&str>) -> Option<Vec<String>> {
-        input
-            .map(|o| {
-                o.split(',')
-                    .map(|s| s.trim().to_owned())
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<_>>()
-            })
-            .filter(|v| !v.is_empty())
     }
 
     // --- short_id tests ---
@@ -119,47 +108,6 @@ mod tests {
     #[test]
     fn escape_empty_string() {
         assert_eq!(escape_applescript(""), "");
-    }
-
-    // --- parse_options tests ---
-
-    #[test]
-    fn options_comma_separated() {
-        assert_eq!(
-            parse_options(Some("A,B,C")),
-            Some(vec!["A".to_string(), "B".to_string(), "C".to_string()])
-        );
-    }
-
-    #[test]
-    fn options_with_whitespace() {
-        assert_eq!(
-            parse_options(Some(" A , B ")),
-            Some(vec!["A".to_string(), "B".to_string()])
-        );
-    }
-
-    #[test]
-    fn options_empty_segments_filtered() {
-        assert_eq!(parse_options(Some(",,")), None);
-    }
-
-    #[test]
-    fn options_empty_string() {
-        assert_eq!(parse_options(Some("")), None);
-    }
-
-    #[test]
-    fn options_single_value() {
-        assert_eq!(
-            parse_options(Some("single")),
-            Some(vec!["single".to_string()])
-        );
-    }
-
-    #[test]
-    fn options_none_input() {
-        assert_eq!(parse_options(None), None);
     }
 
     // --- unescape_body tests ---

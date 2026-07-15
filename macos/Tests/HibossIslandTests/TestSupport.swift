@@ -27,10 +27,12 @@ actor ScriptedBossAPI: BossServing {
     private let replyError: TestError?
     private let replyOutcome: ReplyOutcome
     private let eventInterval: Duration
+    private let history: [HistoryMessage]
     private(set) var recordedReplies: [RecordedReply] = []
 
     init(
         messages: [OptionMessage],
+        history: [HistoryMessage] = [],
         replyError: TestError? = nil,
         replyOutcome: ReplyOutcome = .accepted,
         eventInterval: Duration = .zero
@@ -39,6 +41,7 @@ actor ScriptedBossAPI: BossServing {
         self.replyError = replyError
         self.replyOutcome = replyOutcome
         self.eventInterval = eventInterval
+        self.history = history
     }
 
     init(events: [BossEvent], eventInterval: Duration) {
@@ -46,6 +49,7 @@ actor ScriptedBossAPI: BossServing {
         self.replyError = nil
         self.replyOutcome = .accepted
         self.eventInterval = eventInterval
+        self.history = []
     }
 
     func messageStream() -> AsyncThrowingStream<BossEvent, Error> {
@@ -67,6 +71,25 @@ actor ScriptedBossAPI: BossServing {
         if let replyError { throw replyError }
         recordedReplies.append(RecordedReply(messageID: messageID, choice: choice))
         return replyOutcome
+    }
+
+    func fetchHistory() async throws -> [HistoryMessage] {
+        history
+    }
+}
+
+extension HistoryMessage {
+    static func fixture(id: MessageID, body: String) -> HistoryMessage {
+        HistoryMessage(
+            id: id,
+            body: body,
+            agentName: "Test Agent",
+            direction: "agent_to_boss",
+            status: "delivered",
+            priority: "normal",
+            metadata: nil,
+            createdAt: "2026-07-15 10:00:00"
+        )
     }
 }
 

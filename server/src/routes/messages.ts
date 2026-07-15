@@ -128,7 +128,9 @@ routes.post('/', async (c) => {
   const messageType = typeof payload.type === 'string' ? payload.type.trim() : 'text';
   const sessionId = typeof payload.session_id === 'string' ? payload.session_id.trim() || null : null;
   const toAgent = typeof payload.to === 'string' ? payload.to.trim() || null : null;
-  const options = parseOptions(payload.options);
+  const optionsResult = parseOptions(payload.options);
+  if (!optionsResult.ok) return c.text(optionsResult.error, 400);
+  const options = optionsResult.value;
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   if (options) (rawMetadata as Record<string, unknown>)['options'] = options;

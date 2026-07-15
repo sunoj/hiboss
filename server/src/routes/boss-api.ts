@@ -12,6 +12,7 @@ import { logAudit } from '../audit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 import { claimOptionReply } from './boss-option-reply';
 import { streamBossOptions } from './boss-option-stream';
+import { withdrawResolvedOptions } from './message-options';
 
 const MAX_LIMIT = 100;
 interface JoinRequestRow {
@@ -198,6 +199,11 @@ routes.post('/messages/:id/reply', async (c) => {
       .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
       .bind(parent.id)
       .run();
+  }
+  if (optionClaim.kind === 'claimed') {
+    c.executionCtx.waitUntil(
+      withdrawResolvedOptions(c.env, parent.agent_id, parent, body).catch(() => {}),
+    );
   }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.reply', 'message', parent.id, bossName));

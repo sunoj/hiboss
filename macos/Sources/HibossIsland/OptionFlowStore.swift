@@ -1,5 +1,5 @@
-// Coordinates the user-visible flow from streamed option messages to boss replies.
-// Exports: OptionFlowStore, ConnectionState, and PresentationState.
+// Coordinates message history and the streamed option-to-reply flow.
+// Exports: OptionFlowStore plus connection, history, and presentation states.
 // Dependencies: BossServing domain contract and Combine observation.
 
 import Combine
@@ -28,17 +28,27 @@ enum PresentationState: Equatable {
     case failed(String)
 }
 
+enum HistoryState: Equatable {
+    case idle
+    case loading
+    case loaded
+    case failed(String)
+}
+
 @MainActor
 final class OptionFlowStore: ObservableObject {
     @Published private(set) var activeMessage: OptionMessage?
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var presentationState: PresentationState = .idle
+    @Published private(set) var historyMessages: [HistoryMessage] = []
+    @Published private(set) var historyState: HistoryState = .idle
 
     private let reconnectDelay: Duration
     private var api: (any BossServing)?
     private var queuedMessages: [OptionMessage] = []
     private var seenMessageIDs: Set<MessageID> = []
     private var streamTask: Task<Void, Never>?
+    private var historyTask: Task<Void, Never>?
     private var expirationTasks: [MessageID: Task<Void, Never>] = [:]
 
     init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
@@ -52,19 +62,37 @@ final class OptionFlowStore: ObservableObject {
         streamTask = Task { [weak self] in
             await self?.consumeStreams(from: api)
         }
+        refreshHistoryInBackground()
     }
 
     func disconnect() {
         streamTask?.cancel()
+        historyTask?.cancel()
         expirationTasks.values.forEach { $0.cancel() }
         streamTask = nil
+        historyTask = nil
         expirationTasks.removeAll()
         api = nil
         activeMessage = nil
         queuedMessages.removeAll()
         seenMessageIDs.removeAll()
         presentationState = .idle
+        historyMessages.removeAll()
+        historyState = .idle
         connectionState = .disconnected
+    }
+
+    func refreshHistory() async {
+        guard let api else { return }
+        historyState = .loading
+        do {
+            historyMessages = try await api.fetchHistory()
+            historyState = .loaded
+        } catch where Task.isCancelled {
+            return
+        } catch {
+            historyState = .failed(error.localizedDescription)
+        }
     }
 
     func choose(_ choice: String) async {
@@ -75,6 +103,7 @@ final class OptionFlowStore: ObservableObject {
         do {
             _ = try await api.reply(to: message.id, with: choice)
             resolve(message.id)
+            refreshHistoryInBackground()
         } catch {
             presentationState = .failed(error.localizedDescription)
         }
@@ -101,8 +130,17 @@ final class OptionFlowStore: ObservableObject {
 
     private func receive(_ event: BossEvent) {
         switch event {
-        case let .message(message): receive(message)
+        case let .message(message):
+            receive(message)
+            refreshHistoryInBackground()
         case let .resolved(resolution): resolve(resolution.id)
+        }
+    }
+
+    private func refreshHistoryInBackground() {
+        historyTask?.cancel()
+        historyTask = Task { [weak self] in
+            await self?.refreshHistory()
         }
     }
 

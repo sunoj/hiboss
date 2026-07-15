@@ -9,6 +9,8 @@ export type Env = {
   ATTACHMENTS: R2Bucket;
   BOOTSTRAP_SECRET?: string;
   DISCORD_PUBLIC_KEY?: string;
+  DISCORD_WEBHOOK_SECRET?: string;
+  TELEGRAM_WEBHOOK_SECRET?: string;
   DISCORD_GATEWAY?: DurableObjectNamespace;
 };
 

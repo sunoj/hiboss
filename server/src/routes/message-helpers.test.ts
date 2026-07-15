@@ -370,35 +370,35 @@ describe('requireTelegramConfig', () => {
 });
 
 describe('parseOptions', () => {
-  it('returns string array as-is', () => {
-    expect(parseOptions(['a', 'b'])).toEqual(['a', 'b']);
+  it('accepts arrays and preserves commas inside options', () => {
+    expect(parseOptions([' a,b ', 'c'])).toEqual({ ok: true, value: ['a,b', 'c'] });
   });
 
-  it('returns undefined for empty array', () => {
-    expect(parseOptions([])).toBeUndefined();
+  it('accepts an omitted options field', () => {
+    expect(parseOptions(undefined)).toEqual({ ok: true, value: undefined });
   });
 
-  it('parses comma-separated string', () => {
-    expect(parseOptions('a,b,c')).toEqual(['a', 'b', 'c']);
+  it('rejects comma-separated strings', () => {
+    expect(parseOptions('a,b,c').ok).toBe(false);
   });
 
-  it('trims whitespace in comma-separated string', () => {
-    expect(parseOptions(' a , b ')).toEqual(['a', 'b']);
+  it('rejects empty arrays and empty options', () => {
+    expect(parseOptions([]).ok).toBe(false);
+    expect(parseOptions(['a', '  ']).ok).toBe(false);
   });
 
-  it('returns undefined for empty string', () => {
-    expect(parseOptions('')).toBeUndefined();
-    expect(parseOptions('  ')).toBeUndefined();
+  it('rejects more than five options', () => {
+    expect(parseOptions(['1', '2', '3', '4', '5', '6']).ok).toBe(false);
   });
 
-  it('returns undefined for non-string non-array', () => {
-    expect(parseOptions(123)).toBeUndefined();
-    expect(parseOptions(null)).toBeUndefined();
-    expect(parseOptions(undefined)).toBeUndefined();
+  it('rejects duplicate options', () => {
+    expect(parseOptions(['a', ' a ']).ok).toBe(false);
   });
 
-  it('returns undefined for array with non-strings', () => {
-    expect(parseOptions([1, 2, 3])).toBeUndefined();
+  it('rejects non-array values and non-string elements', () => {
+    expect(parseOptions(null).ok).toBe(false);
+    expect(parseOptions(123).ok).toBe(false);
+    expect(parseOptions([1, 2, 3]).ok).toBe(false);
   });
 });
 

@@ -29,10 +29,11 @@ When peer sessions are active on the same project:
 ### Before Finishing (CRITICAL)
 1. Summarize what you accomplished
 2. Propose 2-4 concrete next directions
-3. Send via `hiboss ask --options` (**never** `hiboss send` for completion messages):
+3. Send via repeatable `hiboss ask --option` flags (**never** `hiboss send` for completion messages):
    ```bash
-   hiboss ask --options "Short A,Short B,Short C" "Summary.\n\nNext options:\n1. Short A — details\n2. Short B — details\n3. Short C — details" --timeout 300
+   hiboss ask --option "Short A" --option "Short B" --option "Short C" "Summary.\n\nNext options:\n1. Short A — details\n2. Short B — details\n3. Short C — details" --timeout 300
    ```
+   Never use the removed plural `--options` / `--actions` flags or comma-join choices.
 4. Run with `run_in_background: true` and **wait for the boss's reply**
 5. Only stop if: boss says stop, OR ask times out
 

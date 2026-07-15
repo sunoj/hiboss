@@ -629,13 +629,33 @@ describe('POST /api/messages with metadata', () => {
     expect(msg.metadata?.['task']).toBe('test-123');
   });
 
-  it('accepts options as array', async () => {
+  it('accepts option arrays and preserves commas inside an option', async () => {
     const res = await SELF.fetch('https://test.local/api/messages', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ body: 'Choose one', options: ['A', 'B', 'C'] }),
+      body: JSON.stringify({ body: 'Choose one', options: ['A, recommended', 'B'] }),
     });
     expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+    const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+      .bind(id).first<{ metadata: string }>();
+    expect(JSON.parse(row?.metadata ?? '{}').options).toEqual(['A, recommended', 'B']);
+  });
+
+  it('rejects string options and arrays with more than five choices', async () => {
+    const stringResult = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Choose one', options: 'A,B' }),
+    });
+    const overflowResult = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Choose one', options: ['1', '2', '3', '4', '5', '6'] }),
+    });
+
+    expect(stringResult.status).toBe(400);
+    expect(overflowResult.status).toBe(400);
   });
 });
 

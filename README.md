@@ -83,7 +83,7 @@ hiboss send "Hello boss!"
 
 ### Optional: macOS Island client
 
-The native client in [`macos/`](macos/) shows `hiboss ask --options` choices in
+The native client in [`macos/`](macos/) shows `hiboss ask --option` choices in
 either a compact top-screen island or a standard window. It connects directly
 to the existing Boss SSE and reply APIs. See the
 [`macOS setup guide`](macos/README.md) for build and Boss Token instructions.
@@ -96,20 +96,24 @@ to the existing Boss SSE and reply APIs. See the
 hiboss send "Deployment complete"                  # async message
 hiboss send --priority high "Build failed"         # urgent message
 hiboss ask "Option A or B?" --timeout 60           # blocking, wait for reply
-hiboss ask --options "A,B,C" "Pick one"            # quick-reply buttons
-hiboss ask --actions "Approve:make deploy,Reject" "Deploy to prod?"  # action buttons
+hiboss ask --option "A" --option "B" --option "C" "Pick one" # quick replies
+hiboss ask --action "Approve=make deploy" --action "Reject=echo no" "Deploy?"
 hiboss send --file ./screenshot.png "See attached" # file attachment
 hiboss send --type task_update "Build deployed"    # typed messages
 ```
 
+`--option` and `--action` are repeatable singular flags. The removed plural forms
+are rejected with migration guidance because comma-separated values cannot safely
+represent option text that itself contains commas.
+
 ### Action Buttons
 
-`--actions` creates Telegram/Discord buttons that trigger commands when pressed.
+Repeat `--action "LABEL=COMMAND"` to create Telegram/Discord buttons that run commands.
 The executed command's result (success/failure + output) is automatically sent back
 to the boss as a `type=action_result` message.
 
 ```bash
-hiboss ask --actions "Merge:git merge feature,Reject:echo no" "Merge this PR?"
+hiboss ask --action "Merge=git merge feature" --action "Reject=echo no" "Merge this PR?"
 # Boss taps "Merge" → `git merge feature` runs → result sent back automatically
 ```
 

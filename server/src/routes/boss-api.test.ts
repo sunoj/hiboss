@@ -218,6 +218,44 @@ describe('POST /api/boss/messages/:id/reply', () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it('removes Discord buttons when an API client selects an option', async () => {
+    const messageId = `boss-api-discord-option-${Date.now()}`;
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'discord', ?)"
+    ).bind(
+      `boss-api-discord-config-${Date.now()}`,
+      getTestAgentId(),
+      JSON.stringify({ webhook_url: 'https://discord.test/webhook' }),
+    ).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', ?, 'delivered', 'normal', ?, ?)"
+    ).bind(
+      messageId,
+      getTestAgentId(),
+      'Choose cleanup',
+      JSON.stringify({ options: ['Approve', 'Wait'], discord_message_id: 'discord-option-1' }),
+      new Date(Date.now() + 60_000).toISOString(),
+    ).run();
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await SELF.fetch(`http://localhost/api/boss/messages/${messageId}/reply`, {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'Approve' }),
+    });
+
+    expect(res.status).toBe(201);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://discord.test/webhook/messages/discord-option-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"components":[]'),
+      }),
+    );
+  });
 });
 
 describe('POST /api/boss/messages/:id/forward', () => {
