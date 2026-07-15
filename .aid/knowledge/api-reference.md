@@ -24,6 +24,9 @@ Request:
 }
 ```
 
+`options` must be an array of one to five non-empty, unique strings. String values
+and comma-separated option lists are rejected.
+
 Response (201, or 200 if idempotency_key matches existing message):
 ```json
 {
@@ -214,7 +217,20 @@ Messages from accessible agents. Params: `limit`, `offset`, `unread`, `priority`
 Message detail with replies.
 
 ### POST /api/boss/messages/:id/reply
-Boss replies to agent. Viewer role blocked.
+Boss replies to an agent. Viewer role is blocked. For option messages, `body` must
+exactly match an option. The first selection returns 201; later concurrent
+selections return 409 `option already resolved`.
+
+### GET /api/boss/stream?options=true
+Streams active option messages for all agents accessible to the Boss Token. Every
+connected client receives the same active messages.
+
+SSE events:
+- `message`: the full active message payload.
+- `resolved`: `{ "id": "message-id", "status": "replied" | "expired" }`.
+
+The stream sends keepalives every 15 seconds and closes after five minutes; clients
+must reconnect.
 
 ### GET /api/boss/sessions
 Active sessions for accessible agents.

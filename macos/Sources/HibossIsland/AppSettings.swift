@@ -60,13 +60,21 @@ final class AppSettings: ObservableObject {
         self.defaults = defaults
         self.keychain = keychain
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
-        bossToken = (try? keychain.read()) ?? ""
+        bossToken = ""
         presentationMode = OptionPresentationMode(
             rawValue: defaults.string(forKey: AppConstants.Storage.presentationMode) ?? ""
         ) ?? .island
         showsStatusItem = defaults.object(forKey: AppConstants.Storage.showsStatusItem) == nil
             ? true
             : defaults.bool(forKey: AppConstants.Storage.showsStatusItem)
+    }
+
+    func loadToken() async {
+        let keychain = keychain
+        let storedToken = try? await Task.detached(priority: .userInitiated) {
+            try keychain.read()
+        }.value
+        bossToken = storedToken ?? ""
     }
 
     var isConfigured: Bool {

@@ -89,11 +89,16 @@ cmd.arg("send")
 
 ### Layer 2: Interactive Approvals (aid-side changes only)
 
-Use `hiboss ask --actions` to let the boss approve/reject from Telegram/Discord:
+Use repeatable `hiboss ask --action "LABEL=COMMAND"` flags for Telegram/Discord approvals:
+
+Do not use the removed plural flags or comma-join choices. A comma is valid option
+text and is therefore never treated as a separator.
 
 ```bash
 # Merge approval with action buttons
-hiboss ask --actions "Merge:aid merge t-123 --yes,Retry:aid retry t-123,Skip" \
+hiboss ask --action "Merge=aid merge t-123 --yes" \
+  --action "Retry=aid retry t-123" \
+  --action "Skip=echo skipped" \
   "Task t-123 ready to merge:
 - Agent: codex
 - Files: src/foo.rs, src/bar.rs
@@ -107,7 +112,9 @@ Boss taps "Merge" in Telegram → `aid merge t-123 --yes` executes → result au
 **Best-of winner selection**:
 
 ```bash
-hiboss ask --options "codex ($3.20),opencode ($0.50),cursor ($2.10)" \
+hiboss ask --option "codex ($3.20)" \
+  --option "opencode ($0.50)" \
+  --option "cursor ($2.10)" \
   "Best-of-3 complete for 'implement retry logic'. Pick winner:" \
   --timeout 300
 ```
@@ -123,8 +130,9 @@ fn notify_merge_ready(task: &Task) {
     );
     let mut cmd = Command::new("hiboss");
     cmd.arg("ask")
-       .arg("--actions")
-       .arg(format!("Merge:aid merge {} --yes,Retry:aid retry {},Skip", task.id, task.id))
+       .arg("--action").arg(format!("Merge=aid merge {} --yes", task.id))
+       .arg("--action").arg(format!("Retry=aid retry {}", task.id))
+       .arg("--action").arg("Skip=echo skipped")
        .arg(&body)
        .arg("--timeout").arg("300");
     // Fire and forget -- action result auto-sent by hiboss
@@ -205,9 +213,9 @@ not a rendering engine. aid should format its own messages.
 | Typed messages | Categorize notifications | `--type aid_task_complete` |
 | Priority routing | Urgent = Telegram, normal = Discord | `--priority high` |
 | File attachments | Send diffs, logs | `--file /tmp/diff.txt` |
-| Action buttons | Merge/retry/reject from chat | `--actions "Merge:aid merge t-1"` |
+| Action buttons | Merge/retry/reject from chat | `--action "Merge=aid merge t-1"` |
 | Action feedback | Boss sees command result | Automatic after button press |
-| Quick-reply options | Best-of winner selection | `--options "codex,opencode"` |
+| Quick-reply options | Best-of winner selection | `--option "codex" --option "opencode"` |
 | Session isolation | Per-session message scoping | Automatic via session_id |
 
 ## Implementation Priority
@@ -215,5 +223,5 @@ not a rendering engine. aid should format its own messages.
 1. **Enable `[hiboss]` in aid config** -- works today with zero code changes
 2. **Smarter priority mapping** -- change `notify.rs` to use `--priority high` for failures
 3. **Add `--type`** -- pass message types for better organization
-4. **Interactive approvals** -- use `hiboss ask --actions` for merge workflows
+4. **Interactive approvals** -- use repeated `hiboss ask --action` flags for merge workflows
 5. **Agent-as-boss loop** -- for autonomous multi-session orchestration

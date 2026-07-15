@@ -115,7 +115,7 @@ In run_stop(), change the has_asked() check to also check has_replied(). Replace
 ```rust
     if !session::has_asked() {
         println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
-        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        println!("You MUST run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\"");
         println!("Do NOT stop until you have sent this message and received a reply or timeout.");
     }
 ```
@@ -124,7 +124,7 @@ With:
 ```rust
     if !session::has_asked() {
         println!("STOP VIOLATION: You are stopping without asking the boss for next steps.");
-        println!("You MUST run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        println!("You MUST run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\"");
         println!("Do NOT stop until you have sent this message and received a reply or timeout.");
     } else if !session::has_replied() {
         println!("STOP VIOLATION: You received a boss reply but did not acknowledge it via hiboss.");

@@ -46,3 +46,16 @@ Agents set reaction emojis via `hiboss react <id> <emoji>` (works on both Discor
 - 👀 → message seen
 - 🔨 → working on it
 - ✅ → done/replied
+
+## Boss Option Fan-Out
+
+`GET /api/boss/stream?options=true` is intentionally different from a work queue.
+Each connected macOS or API client receives the same active option messages. The
+server tracks delivery independently inside each SSE connection and does not mark
+an option as owned by a client.
+
+When a client replies with an exact option value, an atomic status update chooses
+the first winner. Other clients receive a `resolved` SSE event and withdraw their
+local UI. The same resolution path removes Discord buttons and Telegram inline
+keyboards, regardless of whether the winning selection came from the API, Discord,
+or Telegram. Expiry produces the same withdrawal behavior with status `expired`.

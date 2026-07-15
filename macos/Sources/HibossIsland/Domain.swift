@@ -1,5 +1,5 @@
-// Domain contracts for streamed option messages and boss replies.
-// Exports: MessageID, OptionMessage, ConnectionConfig, and BossServing.
+// Domain contracts for message history, streamed options, and boss replies.
+// Exports: message models, ConnectionConfig, and BossServing.
 // Dependencies: Foundation Codable and async sequence primitives.
 
 import Foundation
@@ -72,6 +72,37 @@ struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
+struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
+    let id: MessageID
+    let body: String
+    let agentName: String?
+    let direction: String
+    let status: String
+    let priority: String
+    let metadata: MessageMetadata?
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case body
+        case agentName = "agent_name"
+        case direction
+        case status
+        case priority
+        case metadata
+        case createdAt = "created_at"
+    }
+
+    var options: [String] {
+        metadata?.options ?? []
+    }
+}
+
+struct HistoryResponse: Codable, Equatable, Sendable {
+    let messages: [HistoryMessage]
+    let total: Int
+}
+
 enum ResolutionStatus: String, Codable, Equatable, Sendable {
     case replied
     case expired
@@ -99,5 +130,6 @@ struct ConnectionConfig: Equatable, Sendable {
 
 protocol BossServing: Sendable {
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error>
+    func fetchHistory() async throws -> [HistoryMessage]
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome
 }

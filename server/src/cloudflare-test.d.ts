@@ -1,12 +1,13 @@
 // Type declarations for cloudflare:test virtual module.
-// Provides D1Database binding type for test env access.
-// Depends on @cloudflare/workers-types.
+// Extends the current Cloudflare Vitest environment with HiBoss bindings.
+// Depends on the worker Env contract and vitest-pool cloudflare:test types.
 
-import type { D1Database } from '@cloudflare/workers-types';
+import type { Env as WorkerEnv } from './types';
 
-declare module 'cloudflare:test' {
-  interface ProvidedEnv {
-    DB: D1Database;
-    TEST_MIGRATIONS: string;
+declare global {
+  namespace Cloudflare {
+    interface Env extends WorkerEnv {
+      TEST_MIGRATIONS: string;
+    }
   }
 }

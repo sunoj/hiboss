@@ -1,5 +1,5 @@
 // HTTP and SSE client for the existing HiBoss boss API.
-// Exports: HibossAPI and verifyConnection for authenticated server access.
+// Exports: HibossAPI with history, option streaming, replies, and verification.
 // Dependencies: Foundation URLSession, BossServing, and OptionMessage Codable.
 
 import Foundation
@@ -52,6 +52,19 @@ final class HibossAPI: BossServing, @unchecked Sendable {
         }
         try validate(response)
         return .accepted
+    }
+
+    func fetchHistory() async throws -> [HistoryMessage] {
+        let endpoint = apiURL.appendingPathComponent("messages").appending(
+            queryItems: [
+                URLQueryItem(name: "direction", value: "all"),
+                URLQueryItem(name: "limit", value: String(AppConstants.API.historyLimit)),
+            ]
+        )
+        let request = authorizedRequest(url: endpoint, method: "GET")
+        let (data, response) = try await session.data(for: request)
+        try validate(response)
+        return try decoder.decode(HistoryResponse.self, from: data).messages
     }
 
     func verifyConnection() async throws {

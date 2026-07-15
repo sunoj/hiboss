@@ -8,6 +8,7 @@ import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
 import { claimOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { withdrawResolvedOptions } from './message-options';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
@@ -85,9 +86,9 @@ async function handleMessageCallback(
     return c.text('invalid callback data', 400);
   }
   const parentMsg = await c.env.DB
-    .prepare('SELECT id, metadata, status FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
+    .prepare('SELECT * FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
     .bind(`${parsed.msgPrefix}%`, configRow.agent_id)
-    .first<{ id: string; metadata: string | null; status: string }>();
+    .first<MessageRow>();
   if (!parentMsg) return replyWithAnswer(c, botToken, queryId, 'Not found', c.text('message not found', 404));
   if (parentMsg.status === 'expired') return replyWithAnswer(c, botToken, queryId, 'Options expired', c.text('options expired', 410));
   if (queryId) {
@@ -106,6 +107,11 @@ async function handleMessageCallback(
   answerTelegramCallback(c, botToken, queryId, `Selected: ${parsed.selectedOption}`);
   await updateCallbackMessage(botToken, chatMessage(query), `✅ Selected: ${parsed.selectedOption}`);
   if (claim.kind === 'not_option') await markParentReplied(c.env, parentMsg.id);
+  if (claim.kind === 'claimed') {
+    c.executionCtx.waitUntil(
+      withdrawResolvedOptions(c.env, configRow.agent_id, parentMsg, parsed.selectedOption).catch(() => {}),
+    );
+  }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, configRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.callback', 'message', parentMsg.id, parsed.selectedOption));
   return c.json(mapMessage(inserted), 201);

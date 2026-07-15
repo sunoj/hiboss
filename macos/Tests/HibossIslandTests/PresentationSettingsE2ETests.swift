@@ -28,6 +28,25 @@ final class PresentationSettingsE2ETests: XCTestCase {
         XCTAssertFalse(restored.showsStatusItem)
     }
 
+    func testLoadsStoredTokenAfterSettingsInitialization() async {
+        let settings = AppSettings(
+            defaults: isolatedDefaults(),
+            keychain: StubTokenStore(token: "stored-boss-token")
+        )
+
+        XCTAssertEqual(settings.bossToken, "")
+        await settings.loadToken()
+        XCTAssertEqual(settings.bossToken, "stored-boss-token")
+    }
+
+    func testClosingLastWindowKeepsApplicationRunning() {
+        let delegate = AppDelegate()
+
+        XCTAssertFalse(
+            delegate.applicationShouldTerminateAfterLastWindowClosed(.shared)
+        )
+    }
+
     func testLongQuestionAndOptionExpandPresentationHeight() {
         let compact = message(body: "Choose", option: "Continue")
         let long = message(
@@ -39,6 +58,33 @@ final class PresentationSettingsE2ETests: XCTestCase {
         let longHeight = OptionPanelLayout.expandedHeight(for: long)
 
         XCTAssertGreaterThan(longHeight, compactHeight + 80)
+    }
+
+    func testDecodesMessageHistoryWithRepliesAndOptionMetadata() throws {
+        let payload = """
+        {
+          "messages": [{
+            "id": "history-message",
+            "body": "Choose a cleanup path",
+            "agent_name": "Build Agent",
+            "direction": "agent_to_boss",
+            "status": "replied",
+            "priority": "normal",
+            "metadata": { "options": ["Safe, recommended", "Fast"] },
+            "created_at": "2026-07-15 10:00:00"
+          }],
+          "total": 1
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            HistoryResponse.self,
+            from: Data(payload.utf8)
+        )
+
+        XCTAssertEqual(response.total, 1)
+        XCTAssertEqual(response.messages.first?.agentName, "Build Agent")
+        XCTAssertEqual(response.messages.first?.options, ["Safe, recommended", "Fast"])
     }
 
     private func message(body: String, option: String) -> OptionMessage {
@@ -61,6 +107,12 @@ final class PresentationSettingsE2ETests: XCTestCase {
 }
 
 private struct StubTokenStore: TokenStoring {
-    func read() throws -> String? { nil }
+    let token: String?
+
+    init(token: String? = nil) {
+        self.token = token
+    }
+
+    func read() throws -> String? { token }
     func write(_ token: String) throws {}
 }

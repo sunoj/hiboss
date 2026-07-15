@@ -3,10 +3,13 @@
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
 use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest};
-use clap::Args;
+use clap::{ArgAction, Args};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::fmt::{Display, Formatter};
+
+const MAX_CHOICES: usize = 5;
 
 #[derive(Debug, Args)]
 pub struct AskArgs {
@@ -14,10 +17,36 @@ pub struct AskArgs {
     pub timeout: u32,
     #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,
-    #[arg(long, help = "Quick-reply options (comma-separated: A,B,C)")]
-    pub options: Option<String>,
-    #[arg(long, help = "Action buttons (Label:command pairs, comma-separated: Approve:aid merge t-1,Reject)")]
-    pub actions: Option<String>,
+    #[arg(
+        long = "option",
+        action = ArgAction::Append,
+        conflicts_with = "actions",
+        value_name = "TEXT",
+        help = "Quick-reply option; repeat for each choice (commas are preserved)"
+    )]
+    pub options: Vec<String>,
+    #[arg(
+        long = "options",
+        hide = true,
+        value_name = "REMOVED",
+        value_parser = reject_legacy_options
+    )]
+    legacy_options: Option<String>,
+    #[arg(
+        long = "action",
+        action = ArgAction::Append,
+        conflicts_with = "options",
+        value_name = "LABEL=COMMAND",
+        help = "Action button; repeat for each label and command"
+    )]
+    pub actions: Vec<String>,
+    #[arg(
+        long = "actions",
+        hide = true,
+        value_name = "REMOVED",
+        value_parser = reject_legacy_actions
+    )]
+    legacy_actions: Option<String>,
     #[arg(long, help = "Local file to upload and attach")]
     pub file: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
@@ -26,73 +55,114 @@ pub struct AskArgs {
     pub body: String,
 }
 
-/// Parse --actions "Approve:aid merge t-1,Reject" into (options, actions_map).
-/// Labels without a command just become options with no action.
-fn parse_actions(raw: &str) -> (Vec<String>, HashMap<String, Value>) {
-    let mut options = Vec::new();
-    let mut actions = HashMap::new();
-    for part in raw.split(',') {
-        let part = part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        if let Some(idx) = part.find(':') {
-            let label = part[..idx].trim().to_owned();
-            let command = part[idx + 1..].trim().to_owned();
-            if !label.is_empty() {
-                options.push(label.clone());
-                if !command.is_empty() {
-                    actions.insert(label, Value::String(command));
-                }
-            }
-        } else {
-            options.push(part.to_owned());
+fn reject_legacy_options(_: &str) -> Result<String, String> {
+    Err(
+        "--options was removed because comma-separated choices are ambiguous; repeat --option once per choice, for example: --option \"A\" --option \"B\""
+            .to_owned(),
+    )
+}
+
+fn reject_legacy_actions(_: &str) -> Result<String, String> {
+    Err(
+        "--actions was removed; repeat --action once per LABEL=COMMAND pair, for example: --action \"Approve=deploy\" --action \"Reject=echo no\""
+            .to_owned(),
+    )
+}
+
+#[derive(Debug)]
+pub(crate) struct ChoicePayload {
+    pub(crate) options: Option<Vec<String>>,
+    pub(crate) actions: HashMap<String, Value>,
+}
+
+#[derive(Debug)]
+pub(crate) enum AskInputError {
+    EmptyChoice,
+    InvalidAction,
+    MixedChoiceTypes,
+    TooManyChoices,
+    DuplicateChoice(String),
+}
+
+impl Display for AskInputError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyChoice => write!(formatter, "options and action labels cannot be empty"),
+            Self::InvalidAction => write!(formatter, "actions must use LABEL=COMMAND with non-empty values"),
+            Self::MixedChoiceTypes => write!(formatter, "--option and --action cannot be combined"),
+            Self::TooManyChoices => write!(formatter, "a message can contain at most {MAX_CHOICES} choices"),
+            Self::DuplicateChoice(choice) => write!(formatter, "duplicate choice: {choice}"),
         }
     }
-    (options, actions)
+}
+
+impl Error for AskInputError {}
+
+impl AskArgs {
+    pub(crate) fn choice_payload(&self) -> Result<ChoicePayload, AskInputError> {
+        if !self.options.is_empty() && !self.actions.is_empty() {
+            return Err(AskInputError::MixedChoiceTypes);
+        }
+        if !self.actions.is_empty() {
+            return parse_actions(&self.actions);
+        }
+        let options = normalize_choices(&self.options)?;
+        Ok(ChoicePayload { options, actions: HashMap::new() })
+    }
+}
+
+fn parse_actions(values: &[String]) -> Result<ChoicePayload, AskInputError> {
+    let mut labels = Vec::with_capacity(values.len());
+    let mut actions = HashMap::with_capacity(values.len());
+    for value in values {
+        let (label, command) = value.split_once('=').ok_or(AskInputError::InvalidAction)?;
+        let label = label.trim();
+        let command = command.trim();
+        if label.is_empty() || command.is_empty() {
+            return Err(AskInputError::InvalidAction);
+        }
+        labels.push(label.to_owned());
+        actions.insert(label.to_owned(), Value::String(command.to_owned()));
+    }
+    let options = normalize_choices(&labels)?;
+    Ok(ChoicePayload { options, actions })
+}
+
+fn normalize_choices(values: &[String]) -> Result<Option<Vec<String>>, AskInputError> {
+    if values.is_empty() {
+        return Ok(None);
+    }
+    if values.len() > MAX_CHOICES {
+        return Err(AskInputError::TooManyChoices);
+    }
+    let mut seen = HashSet::with_capacity(values.len());
+    let mut choices = Vec::with_capacity(values.len());
+    for value in values {
+        let choice = value.trim();
+        if choice.is_empty() {
+            return Err(AskInputError::EmptyChoice);
+        }
+        if !seen.insert(choice.to_owned()) {
+            return Err(AskInputError::DuplicateChoice(choice.to_owned()));
+        }
+        choices.push(choice.to_owned());
+    }
+    Ok(Some(choices))
 }
 
 pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    // Read-before-write: check for unread messages before asking (skip for a2a)
     if args.to.is_none() {
         warn_unread_messages(client).await;
     }
-
-    // Only send channel when explicitly specified via --channel.
-    // When omitted, server uses channel_routing (per-priority) to decide.
-    let channel = args.channel.clone();
-    let mut metadata: Option<HashMap<String, Value>> = None;
-
-    // Parse --actions or --options
-    let options = if let Some(ref actions_str) = args.actions {
-        let (opts, actions_map) = parse_actions(actions_str);
-        if !actions_map.is_empty() {
-            let mut meta = HashMap::new();
-            meta.insert("actions".to_owned(), serde_json::to_value(&actions_map)?);
-            metadata = Some(meta);
-        }
-        if opts.is_empty() { None } else { Some(opts) }
-    } else {
-        args.options.as_ref().map(|o| {
-            o.split(',').map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>()
-        }).filter(|v| !v.is_empty())
-    };
-
-    let file_url = if let Some(ref path) = args.file {
-        let upload = client.upload_file(path).await?;
-        eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
-        Some(upload.url)
-    } else {
-        None
-    };
-
+    let choices = args.choice_payload()?;
+    let file_url = upload_attachment(client, args.file.as_deref()).await?;
     let request = SendRequest {
         body: unescape_body(&args.body),
         mode: "blocking".to_owned(),
         priority: "normal".to_owned(),
-        channel,
-        metadata,
-        options,
+        channel: args.channel.clone(),
+        metadata: action_metadata(&choices.actions)?,
+        options: choices.options,
         file_url,
         message_type: None,
         session_id: session::read_session_id(),
@@ -101,9 +171,35 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
     session::mark_asked();
     let submission = client.send_message(&request).await?;
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
-    if let Some(replies) = &poll.replies {
+    print_poll_result(&submission.id, poll.replies.as_deref(), client).await
+}
+
+async fn upload_attachment(
+    client: &HiBossClient,
+    path: Option<&str>,
+) -> Result<Option<String>, Box<dyn Error>> {
+    let Some(path) = path else { return Ok(None) };
+    let upload = client.upload_file(path).await?;
+    eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
+    Ok(Some(upload.url))
+}
+
+fn action_metadata(actions: &HashMap<String, Value>) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
+    if actions.is_empty() {
+        return Ok(None);
+    }
+    let mut metadata = HashMap::new();
+    metadata.insert("actions".to_owned(), serde_json::to_value(actions)?);
+    Ok(Some(metadata))
+}
+
+async fn print_poll_result(
+    submission_id: &str,
+    replies: Option<&[crate::types::Message]>,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    if let Some(replies) = replies {
         if let Some(reply) = replies.first() {
-            // Mark reply as read so it doesn't trigger unread warnings later
             let _ = client.update_status(&reply.id, "read").await;
             if let Some(meta) = &reply.metadata {
                 if let Some(Value::String(action_cmd)) = meta.get("action") {
@@ -128,7 +224,7 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
         }
     }
     eprintln!("No reply yet");
-    println!("{}", submission.id);
+    println!("{submission_id}");
     Ok(())
 }
 

@@ -4,7 +4,7 @@
  */
 
 import type { Channel, Env, MessageRow } from '../types';
-import { createForumTopic, editMessageReplyMarkup } from '../channels/telegram';
+import { createForumTopic, editMessageReplyMarkup, removeInlineKeyboard } from '../channels/telegram';
 import { createDiscordThread, addDiscordThreadMember, editDiscordMessage } from '../channels/discord';
 import { 
   requireTelegramConfig as _requireTelegramConfig, 
@@ -14,14 +14,26 @@ import {
 import { selectChannelConfig, fetchAgentName } from './message-queries';
 import { extractTelegramMessageId } from './message-helpers';
 
-export function parseOptions(value: unknown): string[] | undefined {
-  if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
-    return value.length > 0 ? (value as string[]) : undefined;
+const MAX_MESSAGE_OPTIONS = 5;
+const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
+
+export type OptionsParseResult =
+  | { ok: true; value: string[] | undefined }
+  | { ok: false; error: string };
+
+export function parseOptions(value: unknown): OptionsParseResult {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_MESSAGE_OPTIONS) {
+    return { ok: false, error: OPTIONS_ERROR };
   }
-  if (typeof value === 'string' && value.trim()) {
-    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  if (!value.every((option): option is string => typeof option === 'string')) {
+    return { ok: false, error: OPTIONS_ERROR };
   }
-  return undefined;
+  const options = value.map((option) => option.trim());
+  if (options.some((option) => !option) || new Set(options).size !== options.length) {
+    return { ok: false, error: OPTIONS_ERROR };
+  }
+  return { ok: true, value: options };
 }
 
 export function buildInlineKeyboard(messageId: string, options: string[]): { text: string; callback_data: string }[][] {
@@ -57,6 +69,61 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
       await editDiscordMessage(dcConfig, dcMsgId, expiredText, []);
     }
   }
+}
+
+export async function withdrawResolvedOptions(
+  env: Env,
+  agentId: string,
+  message: MessageRow,
+  selectedOption: string,
+): Promise<void> {
+  const metadata = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
+  metadata['options_resolved'] = true;
+  metadata['selected_option'] = selectedOption;
+  delete metadata['actions'];
+  await env.DB.prepare("UPDATE messages SET metadata = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(metadata), message.id).run();
+  await Promise.allSettled([
+    removeTelegramOptions(env, agentId, metadata),
+    removeDiscordOptions(env, agentId, message, metadata),
+  ]);
+}
+
+async function removeTelegramOptions(
+  env: Env,
+  agentId: string,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  const messageId = metadata['telegram_message_id'];
+  if (typeof messageId !== 'number') return;
+  const channel = await selectChannelConfig(env, agentId, 'telegram');
+  const config = _requireTelegramConfig(channel.config);
+  await removeInlineKeyboard(config.bot_token, config.chat_id, messageId);
+}
+
+async function removeDiscordOptions(
+  env: Env,
+  agentId: string,
+  message: MessageRow,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  const messageId = metadata['discord_message_id'];
+  if (typeof messageId !== 'string') return;
+  const channel = await selectChannelConfig(env, agentId, 'discord');
+  const effectiveConfig = await resolveDiscordConfig(env, message, channel.config);
+  await editDiscordMessage(_requireDiscordConfig(effectiveConfig), messageId, undefined, []);
+}
+
+async function resolveDiscordConfig(
+  env: Env,
+  message: MessageRow,
+  config: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  if (!message.session_id || !config['use_threads']) return config;
+  const session = await env.DB.prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
+    .bind(message.session_id).first<{ discord_thread_id: string | null }>();
+  if (!session?.discord_thread_id) return config;
+  return { ...config, channel_id: session.discord_thread_id, thread_id: session.discord_thread_id };
 }
 
 export async function expirePreviousOptions(

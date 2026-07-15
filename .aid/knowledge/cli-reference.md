@@ -29,10 +29,13 @@ hiboss send --to worker-1 --task "Implement OAuth2" --files src/auth/ # with con
 ```bash
 hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
-hiboss ask --options "A,B,C" "Pick one:\n1. A\n2. B\n3. C"
-hiboss ask --actions "Approve:aid merge t-123,Reject:echo rejected" "Deploy?"
+hiboss ask --option "A" --option "B" --option "C" "Pick one:\n1. A\n2. B\n3. C"
+hiboss ask --action "Approve=aid merge t-123" --action "Reject=echo rejected" "Deploy?"
 hiboss ask --to reviewer "Review feat/oauth branch"
 ```
+
+`--option` and `--action` are singular repeatable flags. The removed plural flags
+must not be used, and choices must not be joined with commas.
 
 ## Inbox
 ```bash

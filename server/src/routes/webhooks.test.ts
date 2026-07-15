@@ -500,7 +500,7 @@ describe('POST /api/webhooks/telegram/register-commands', () => {
     });
 
     expect(res.status).toBe(201);
-    const registerCall = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+    const registerCall = fetchMock.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit];
     expect(String(registerCall[0])).toContain('/setMyCommands');
     const payload = JSON.parse(String(registerCall[1].body)) as {
       commands: Array<{ command: string; description: string }>;

@@ -66,6 +66,17 @@ final class OptionFlowE2ETests: XCTestCase {
         ])
     }
 
+    func testLoadsMessageHistoryWhenConnecting() async throws {
+        let history = [HistoryMessage.fixture(id: "history-1", body: "Deployment complete")]
+        let api = ScriptedBossAPI(messages: [], history: history)
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+
+        store.connect(api: api)
+        try await waitUntil { store.historyMessages == history }
+
+        XCTAssertEqual(store.historyState, .loaded)
+    }
+
     func testIgnoresExpiredAndDuplicateOptionMessages() async throws {
         let expired = OptionMessage.fixture(
             id: "expired",

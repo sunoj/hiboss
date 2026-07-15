@@ -11,24 +11,10 @@ struct HibossIslandApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra(
-            "HiBoss Island",
-            systemImage: "capsule.tophalf.filled",
-            isInserted: statusItemBinding
-        ) {
-            MenuContent(
-                settings: appDelegate.settings,
-                flow: appDelegate.flow,
-                showSettings: appDelegate.showSettings
-            )
+        Window("HiBoss", id: "main") {
+            MainView(settings: appDelegate.settings, flow: appDelegate.flow)
         }
-    }
-
-    private var statusItemBinding: Binding<Bool> {
-        Binding(
-            get: { appDelegate.isStatusItemInserted },
-            set: { appDelegate.isStatusItemInserted = $0 }
-        )
+        .defaultSize(width: 840, height: 600)
     }
 }
 
@@ -36,49 +22,39 @@ struct HibossIslandApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let settings: AppSettings
     let flow = OptionFlowStore()
-    @Published var isStatusItemInserted: Bool
     private var panelController: IslandPanelController?
-    private var settingsWindowController: SettingsWindowController?
+    private var statusItem: NSStatusItem?
     private var cancellables: Set<AnyCancellable> = []
 
     override init() {
         let settings = AppSettings()
         self.settings = settings
-        isStatusItemInserted = settings.showsStatusItem
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings)
-        settingsWindowController = SettingsWindowController(settings: settings, flow: flow)
-        if case let .success(config) = settings.connectionConfig() {
-            flow.connect(api: HibossAPI(config: config))
-        } else {
-            presentSettingsWhenReady()
+        Task { [weak self] in
+            guard let self else { return }
+            await settings.loadToken()
+            connectIfConfigured()
         }
     }
 
-    func showSettings() {
-        settingsWindowController?.present()
+    func applicationShouldTerminateAfterLastWindowClosed(
+        _ sender: NSApplication
+    ) -> Bool {
+        false
     }
 
-    func applicationShouldHandleReopen(
-        _ sender: NSApplication,
-        hasVisibleWindows flag: Bool
-    ) -> Bool {
-        if !flag { showSettings() }
-        return true
+    private func connectIfConfigured() {
+        if case let .success(config) = settings.connectionConfig() {
+            flow.connect(api: HibossAPI(config: config))
+        }
     }
 
     private func observePresentationPreferences() {
-        settings.$showsStatusItem
-            .removeDuplicates()
-            .sink { [weak self] isVisible in
-                self?.isStatusItemInserted = isVisible
-            }
-            .store(in: &cancellables)
-
         Publishers.CombineLatest(
             settings.$presentationMode.removeDuplicates(),
             settings.$showsStatusItem.removeDuplicates()
@@ -88,37 +64,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             NSApp.setActivationPolicy(needsDock ? .regular : .accessory)
         }
         .store(in: &cancellables)
+
+        settings.$showsStatusItem
+            .removeDuplicates()
+            .sink { [weak self] isVisible in
+                self?.setStatusItemVisible(isVisible)
+            }
+            .store(in: &cancellables)
+
+        flow.$connectionState
+            .removeDuplicates()
+            .sink { [weak self] _ in self?.refreshStatusMenu() }
+            .store(in: &cancellables)
     }
 
-    private func presentSettingsWhenReady() {
-        DispatchQueue.main.async { [weak self] in
-            self?.showSettings()
+    private func setStatusItemVisible(_ isVisible: Bool) {
+        guard isVisible else {
+            if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
+            statusItem = nil
+            return
         }
-    }
-}
-
-private struct MenuContent: View {
-    @ObservedObject var settings: AppSettings
-    @ObservedObject var flow: OptionFlowStore
-    let showSettings: () -> Void
-
-    var body: some View {
-        Label(flow.connectionState.label, systemImage: statusIcon)
-        Divider()
-        Button("Reconnect") { reconnect() }
-            .disabled(!settings.isConfigured)
-        Button("Settings…", action: showSettings)
-        Divider()
-        Button("Quit HiBoss Island") { NSApp.terminate(nil) }
-            .keyboardShortcut("q")
+        guard statusItem == nil else { return }
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.image = NSImage(
+            systemSymbolName: "capsule.tophalf.filled",
+            accessibilityDescription: "HiBoss Island"
+        )
+        item.button?.toolTip = "HiBoss Island"
+        statusItem = item
+        refreshStatusMenu()
     }
 
-    private var statusIcon: String {
-        flow.connectionState == .connected ? "dot.radiowaves.left.and.right" : "circle.dotted"
+    private func refreshStatusMenu() {
+        guard let statusItem else { return }
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: flow.connectionState.label, action: nil, keyEquivalent: ""))
+        menu.addItem(.separator())
+        menu.addItem(menuItem("Reconnect", action: #selector(reconnect)))
+        menu.addItem(menuItem("Open HiBoss…", action: #selector(showMainWindow)))
+        menu.addItem(.separator())
+        menu.addItem(menuItem("Quit HiBoss Island", action: #selector(quit)))
+        statusItem.menu = menu
     }
 
-    private func reconnect() {
+    private func menuItem(_ title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @objc private func reconnect() {
         guard case let .success(config) = settings.connectionConfig() else { return }
         flow.connect(api: HibossAPI(config: config))
+    }
+
+    @objc private func showMainWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first(where: { $0.title == "HiBoss" })?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
     }
 }

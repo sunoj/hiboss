@@ -108,7 +108,8 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     println!("4. Check inbox with: hiboss inbox");
     println!("5. Send to peer sessions with: hiboss send --to <session-label-or-id> \"<message>\"");
     println!("6. Broadcast to ALL peer sessions: hiboss send --broadcast \"<what you're working on>\"");
-    println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\" (run_in_background), then WAIT for boss reply.");
+    println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\" (run_in_background), then WAIT for boss reply.");
+    println!("CLI SYNTAX: Repeat singular --option or --action for each choice. Never use removed --options/--actions or comma-separated choice lists.");
     println!("IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord.");
     println!("COORDINATE: When peer sessions are active, broadcast your work plan BEFORE starting: hiboss send --broadcast \"Working on X in files Y\"");
     println!("RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation.");
@@ -277,7 +278,7 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         session::mark_stop_warned();
         // stdout: AI sees detailed instructions
         println!("BLOCKED: You cannot stop without asking the boss for next steps.");
-        println!("Run: hiboss ask --options \"Opt1,Opt2\" \"summary and options\"");
+        println!("Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\"");
         let _ = std::io::Write::flush(&mut std::io::stdout());
         // stderr: human sees a short note
         eprintln!("ask boss first");

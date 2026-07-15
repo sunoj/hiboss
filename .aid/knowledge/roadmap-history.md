@@ -2,6 +2,33 @@
 
 All versions through v1.0 are complete and shipped.
 
+## Current Unreleased — Convergent Options and Native macOS Client
+
+### Option Contract and CLI
+- `hiboss ask` uses repeatable singular `--option "TEXT"` and
+  `--action "LABEL=COMMAND"` flags.
+- Options containing commas are preserved verbatim; the removed plural flags emit
+  migration guidance instead of restoring ambiguous comma splitting.
+- The server accepts only arrays of one to five non-empty, unique option strings.
+
+### Multi-Client Resolution
+- Every connected Boss client independently receives each active option message.
+- The first valid selection atomically changes the parent message to `replied`;
+  concurrent later selections receive HTTP 409.
+- Boss SSE streams emit a `resolved` event to every client after selection or
+  expiry, so all local option pickers withdraw.
+- API, Discord, and Telegram selections remove outstanding Discord components and
+  Telegram inline keyboards.
+
+### HiBoss Island for macOS
+- The signed native app has a main History/Settings window and fetches the latest
+  100 Boss-visible messages without maintaining a second local database.
+- The option UI supports top-screen island and standard window presentation.
+- Closing the main window leaves the SSE listener running; reopening the app
+  restores the same process and window.
+- The optional menu bar icon uses native `NSStatusItem`, avoiding SwiftUI scene
+  loops when hidden. Keychain reads run asynchronously after launch.
+
 ## v0.1 — Core
 Rust CLI (send, ask, inbox, read, reply, status, agent, bot, watch, init, config, channel). Cloudflare Worker server with D1. Discord + Telegram adapters. Multi-agent support. MCP server.
 
