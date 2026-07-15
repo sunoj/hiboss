@@ -78,9 +78,14 @@ describe('POST /api/webhooks/discord-interactions', () => {
     const parentId = 'b077e0fa00000001aabbccdd00000001';
     await env.DB
       .prepare(
-        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'parent', 'delivered', 'normal')"
+        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'parent', 'delivered', 'normal', ?, ?)"
       )
-      .bind(parentId, TEST_AGENT_ID)
+      .bind(
+        parentId,
+        TEST_AGENT_ID,
+        JSON.stringify({ options: ['optionA'] }),
+        new Date(Date.now() + 60_000).toISOString(),
+      )
       .run();
 
     const payload = {
@@ -106,6 +111,9 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(reply).not.toBeNull();
     expect(reply?.body).toBe('optionA');
     expect(reply?.reply_to).toBe(parentId);
+    const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(parentId).first<{ status: string }>();
+    expect(parent?.status).toBe('replied');
   });
 
   it('approves a join request from a Discord button callback', async () => {

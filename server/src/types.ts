@@ -36,6 +36,7 @@ export interface MessageRow {
   session_id: string | null;
   idempotency_key: string | null;
   metadata: string | null;
+  expires_at?: string | null;
   created_at: string;
   updated_at: string;
   agent_name?: string | null;
@@ -57,6 +58,7 @@ export interface MessageResponse {
   session_id?: string | null;
   idempotency_key?: string | null;
   metadata: Metadata;
+  expires_at?: string | null;
   created_at: string;
   updated_at: string;
   replies?: MessageResponse[];

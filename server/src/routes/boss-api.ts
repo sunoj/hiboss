@@ -10,6 +10,8 @@ import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
+import { claimOptionReply } from './boss-option-reply';
+import { streamBossOptions } from './boss-option-stream';
 
 const MAX_LIMIT = 100;
 interface JoinRequestRow {
@@ -179,6 +181,9 @@ routes.post('/messages/:id/reply', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const body = typeof payload.body === 'string' ? payload.body.trim() : '';
   if (!body) return c.text('body is required', 400);
+  const optionClaim = await claimOptionReply(c.env, parent, body);
+  if (optionClaim.kind === 'invalid_choice') return c.text('body must match an option', 400);
+  if (optionClaim.kind === 'resolved') return c.text('option already resolved', 409);
   const bossName = getBossName(c);
   const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });
   const inserted = await c.env.DB
@@ -188,10 +193,12 @@ routes.post('/messages/:id/reply', async (c) => {
     .bind(parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata)
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
-  await c.env.DB
-    .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
-    .bind(parent.id)
-    .run();
+  if (optionClaim.kind === 'not_option') {
+    await c.env.DB
+      .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
+      .bind(parent.id)
+      .run();
+  }
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.reply', 'message', parent.id, bossName));
   return c.json(mapMessageRow(inserted), 201);
@@ -350,7 +357,10 @@ routes.get('/stream', async (c) => {
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
 
-  c.executionCtx.waitUntil(bossStreamLoop(writer, encoder, c.env, bossId, agentIds));
+  const stream = c.req.query('options') === 'true'
+    ? streamBossOptions(writer, encoder, c.env, agentIds)
+    : bossStreamLoop(writer, encoder, c.env, bossId, agentIds);
+  c.executionCtx.waitUntil(stream);
 
   return new Response(readable, {
     headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' },

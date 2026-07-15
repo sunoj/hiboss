@@ -7,6 +7,7 @@ import type { Env, MessageRow } from '../types';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { apiAuth } from '../middleware/auth';
+import { handleDiscordOptionCallback } from './discord-option-callback';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { asString, checkBossPermission, findDiscordAgent, resolveBossForChannel } from './webhook-helpers';
 
@@ -114,56 +115,7 @@ async function handleMessageComponent(
   if (customId.startsWith('join:')) {
     return handleDiscordJoinCallback(c, payload, customId, channelId);
   }
-  const colonIndex = customId.indexOf(':');
-  if (colonIndex < 1) {
-    return c.text('invalid custom_id format', 400);
-  }
-  const msgPrefix = customId.slice(0, colonIndex);
-  const selectedOption = customId.slice(colonIndex + 1);
-  if (!selectedOption) return c.text('invalid selection', 400);
-  if (!/^[0-9a-f]{8,}$/i.test(msgPrefix)) return c.text('invalid message prefix', 400);
-  const agentRow = await findDiscordAgent(c.env, channelId);
-  if (!agentRow) {
-    return c.json({ type: 4, data: { content: 'No agent configured for this channel.', flags: 64 } });
-  }
-  const btnUserId = payload.member?.user?.id;
-  const btnBossCheck = await checkBossPermission(c.env, 'discord', btnUserId ? String(btnUserId) : undefined, agentRow.agent_id, true);
-  if (btnBossCheck.error) {
-    return c.json({ type: 4, data: { content: btnBossCheck.error, flags: 64 } });
-  }
-  const parentMsg = await c.env.DB
-    .prepare('SELECT id, metadata, status FROM messages WHERE id LIKE ? AND agent_id = ? LIMIT 1')
-    .bind(`${msgPrefix}%`, agentRow.agent_id)
-    .first<{ id: string; metadata: string | null; status: string }>();
-  if (!parentMsg) {
-    return c.text('message not found', 404);
-  }
-  if (parentMsg.status === 'expired') {
-    return c.json({ type: 4, data: { content: '⏰ Options expired', flags: 64 } });
-  }
-  const replyMetadata = getActionMetadata(parentMsg.metadata, selectedOption);
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(
-      agentRow.agent_id,
-      'boss_to_agent',
-      'async',
-      'discord',
-      selectedOption,
-      'sent',
-      'normal',
-      parentMsg.id,
-      replyMetadata
-    )
-    .first<MessageRow>();
-  if (!inserted) return c.text('failed to persist', 500);
-  c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
-  c.executionCtx.waitUntil(logAudit(c.env, btnBossCheck.boss ? 'boss' : 'system', btnBossCheck.boss?.id ?? 'discord', 'message.callback', 'message', parentMsg.id, selectedOption));
-  // Type 7 = UPDATE_MESSAGE: replaces the original message and removes buttons
-  const originalContent = payload.message?.content ?? '';
-  return c.json({ type: 7, data: { content: `${originalContent}\n\n✅ Selected: ${selectedOption}`, components: [] } });
+  return handleDiscordOptionCallback(c, payload, customId, channelId);
 }
 
 async function handleDiscordJoinCallback(
@@ -192,22 +144,6 @@ async function handleDiscordJoinCallback(
     if (result.apiKeyId) c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', result.apiKeyId, 'join-approve'));
   }
   return c.json({ type: 7, data: { content: formatUpdatedMessage(payload.message?.content, result.messageText), components: [] } });
-}
-
-function getActionMetadata(metadata: string | null, selectedOption: string): string | null {
-  if (!metadata) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(metadata) as Record<string, unknown>;
-    const actions = parsed['actions'] as Record<string, string> | undefined;
-    if (actions && typeof actions === 'object' && actions[selectedOption]) {
-      return JSON.stringify({ action: actions[selectedOption] });
-    }
-  } catch {
-    // ignore malformed metadata
-  }
-  return null;
 }
 
 async function verifyDiscordSignature(

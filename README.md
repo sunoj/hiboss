@@ -81,6 +81,13 @@ hiboss channel set discord --webhook-url <WEBHOOK_URL>
 hiboss send "Hello boss!"
 ```
 
+### Optional: macOS Island client
+
+The native client in [`macos/`](macos/) shows `hiboss ask --options` choices in
+either a compact top-screen island or a standard window. It connects directly
+to the existing Boss SSE and reply APIs. See the
+[`macOS setup guide`](macos/README.md) for build and Boss Token instructions.
+
 ## Features
 
 ### Messaging
