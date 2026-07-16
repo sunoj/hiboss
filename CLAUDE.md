@@ -34,7 +34,7 @@ When peer sessions are active on the same project:
    hiboss ask --option "Short A" --option "Short B" --option "Short C" "Summary.\n\nNext options:\n1. Short A — details\n2. Short B — details\n3. Short C — details" --timeout 300
    ```
    Never use the removed plural `--options` / `--actions` flags or comma-join choices.
-4. Run with `run_in_background: true` and **wait for the boss's reply**
+4. Run it using your tool call's own `run_in_background: true` parameter (NOT shell `&`/`nohup`/`disown` — those detach the process from harness tracking, so a reply can never be delivered back to you) and **wait for the boss's reply**
 5. Only stop if: boss says stop, OR ask times out
 
 ## Architecture

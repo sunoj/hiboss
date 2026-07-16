@@ -170,6 +170,10 @@ pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Res
     };
     session::mark_asked();
     let submission = client.send_message(&request).await?;
+    eprintln!(
+        "[ask {}] sent, waiting up to {}s for reply (recover anytime via: hiboss status {})",
+        submission.id, args.timeout, submission.id
+    );
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
     print_poll_result(&submission.id, poll.replies.as_deref(), client).await
 }
