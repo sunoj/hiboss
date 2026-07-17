@@ -95,17 +95,44 @@ final class OptionFlowStore: ObservableObject {
         }
     }
 
-    func choose(_ choice: String) async {
-        guard let message = activeMessage, message.options.contains(choice), let api else {
-            return
+    /// `messageID` is the message the caller was looking at: a skip or a stream resolution can
+    /// advance `activeMessage` between the click and this call, and the answer must not follow.
+    @discardableResult
+    func choose(_ choice: String, for messageID: MessageID) async -> Bool {
+        guard let message = activeMessage, message.id == messageID,
+              message.options.contains(choice) else { return false }
+        return await send(choice, for: message)
+    }
+
+    /// Answers with free-form text instead of one of the offered options.
+    /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
+    @discardableResult
+    func submit(_ reply: String, for messageID: MessageID) async -> Bool {
+        let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let message = activeMessage, message.id == messageID, !trimmed.isEmpty else {
+            return false
         }
-        presentationState = .submitting(choice)
+        return await send(trimmed, for: message)
+    }
+
+    /// Dismisses the message locally only — the agent keeps waiting and other channels can still answer.
+    func skip() {
+        guard let message = activeMessage else { return }
+        resolve(message.id)
+    }
+
+    @discardableResult
+    private func send(_ body: String, for message: OptionMessage) async -> Bool {
+        guard let api else { return false }
+        presentationState = .submitting(body)
         do {
-            _ = try await api.reply(to: message.id, with: choice)
+            _ = try await api.reply(to: message.id, with: body)
             resolve(message.id)
             refreshHistoryInBackground()
+            return true
         } catch {
             presentationState = .failed(error.localizedDescription)
+            return false
         }
     }
 
