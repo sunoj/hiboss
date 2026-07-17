@@ -95,17 +95,23 @@ final class OptionFlowStore: ObservableObject {
         }
     }
 
-    func choose(_ choice: String) async {
-        guard let message = activeMessage, message.options.contains(choice) else { return }
-        await send(choice, for: message)
+    /// `messageID` is the message the caller was looking at: a skip or a stream resolution can
+    /// advance `activeMessage` between the click and this call, and the answer must not follow.
+    @discardableResult
+    func choose(_ choice: String, for messageID: MessageID) async -> Bool {
+        guard let message = activeMessage, message.id == messageID,
+              message.options.contains(choice) else { return false }
+        return await send(choice, for: message)
     }
 
     /// Answers with free-form text instead of one of the offered options.
     /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
     @discardableResult
-    func submit(_ reply: String) async -> Bool {
+    func submit(_ reply: String, for messageID: MessageID) async -> Bool {
         let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let message = activeMessage, !trimmed.isEmpty else { return false }
+        guard let message = activeMessage, message.id == messageID, !trimmed.isEmpty else {
+            return false
+        }
         return await send(trimmed, for: message)
     }
 
