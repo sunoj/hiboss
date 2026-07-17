@@ -13,6 +13,8 @@ enum OptionPanelLayout {
     private static let optionVerticalPadding: CGFloat = 18
     private static let optionSpacing: CGFloat = 7
     private static let minimumOptionHeight: CGFloat = 35
+    /// Reply input row plus the stack spacing above it.
+    private static let replyFieldHeight: CGFloat = 45
 
     static func expandedHeight(
         for message: OptionMessage,
@@ -33,7 +35,9 @@ enum OptionPanelLayout {
             )
         }
         let gaps = CGFloat(max(optionHeights.count - 1, 0)) * optionSpacing
-        return ceil(verticalChrome + bodyHeight + optionHeights.reduce(0, +) + gaps)
+        let optionsHeight: CGFloat = optionHeights.reduce(0, +) + gaps
+        let chrome: CGFloat = verticalChrome + replyFieldHeight
+        return ceil(chrome + bodyHeight + optionsHeight)
     }
 
     private static func textHeight(_ text: String, font: NSFont, width: CGFloat) -> CGFloat {

@@ -95,7 +95,7 @@ async function handleMessageCallback(
     const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, queryId);
     if (existing) return replyWithAnswer(c, botToken, queryId, `Selected: ${existing.body}`, c.json(mapMessage(existing), 200));
   }
-  const claim = await claimOptionReply(c.env, parentMsg, parsed.selectedOption);
+  const claim = await claimOptionReply(c.env, parentMsg, parsed.selectedOption, false);
   const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
   if (rejection) return rejection;
   const metadata = buildCallbackReplyMetadata(parentMsg.metadata, parsed.selectedOption, bossInfo);
