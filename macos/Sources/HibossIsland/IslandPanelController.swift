@@ -56,11 +56,17 @@ final class IslandPanelController {
     private let optionWindow: NSWindow
     private let flow: OptionFlowStore
     private let settings: AppSettings
+    private let soundPlayer: any SoundPlaying
     private var cancellables: Set<AnyCancellable> = []
 
-    init(flow: OptionFlowStore, settings: AppSettings) {
+    init(
+        flow: OptionFlowStore,
+        settings: AppSettings,
+        soundPlayer: any SoundPlaying = SystemSoundPlayer()
+    ) {
         self.flow = flow
         self.settings = settings
+        self.soundPlayer = soundPlayer
         panel = IslandPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -111,9 +117,23 @@ final class IslandPanelController {
             }
             .store(in: &cancellables)
 
+        // activeMessage publishes once per question reaching the panel — including the ones
+        // that surface from the queue behind a skip — and nil when it clears.
+        flow.$activeMessage
+            .sink { [weak self] message in
+                guard message != nil else { return }
+                self?.announce()
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in self?.reposition() }
             .store(in: &cancellables)
+    }
+
+    private func announce() {
+        guard settings.playsSound else { return }
+        soundPlayer.play(settings.alertSound)
     }
 
     private func updatePresentation(

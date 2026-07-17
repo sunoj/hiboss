@@ -28,6 +28,34 @@ final class PresentationSettingsE2ETests: XCTestCase {
         XCTAssertFalse(restored.showsStatusItem)
     }
 
+    func testDefaultsToAnAudibleGlassAlert() {
+        let settings = AppSettings(defaults: isolatedDefaults(), keychain: StubTokenStore())
+
+        XCTAssertTrue(settings.playsSound)
+        XCTAssertEqual(settings.alertSound, .glass)
+    }
+
+    func testRestoresAMutedAlertAndItsChosenSoundOnNextLaunch() {
+        let defaults = isolatedDefaults()
+        let initial = AppSettings(defaults: defaults, keychain: StubTokenStore())
+
+        initial.playsSound = false
+        initial.alertSound = .submarine
+
+        let restored = AppSettings(defaults: defaults, keychain: StubTokenStore())
+        XCTAssertFalse(restored.playsSound)
+        XCTAssertEqual(restored.alertSound, .submarine)
+    }
+
+    func testFallsBackWhenStoredSoundIsNoLongerOffered() {
+        let defaults = isolatedDefaults()
+        defaults.set("RetiredSound", forKey: AppConstants.Storage.alertSound)
+
+        let settings = AppSettings(defaults: defaults, keychain: StubTokenStore())
+
+        XCTAssertEqual(settings.alertSound, .fallback)
+    }
+
     func testLoadsStoredTokenAfterSettingsInitialization() async {
         let settings = AppSettings(
             defaults: isolatedDefaults(),
