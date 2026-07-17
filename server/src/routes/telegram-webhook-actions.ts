@@ -95,7 +95,7 @@ async function handleMessageCallback(
     const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, queryId);
     if (existing) return replyWithAnswer(c, botToken, queryId, `Selected: ${existing.body}`, c.json(mapMessage(existing), 200));
   }
-  const claim = await claimOptionReply(c.env, parentMsg);
+  const claim = await claimOptionReply(c.env, parentMsg, parsed.selectedOption, false);
   const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
   if (rejection) return rejection;
   const metadata = buildCallbackReplyMetadata(parentMsg.metadata, parsed.selectedOption, bossInfo);
@@ -124,6 +124,9 @@ async function telegramClaimRejection(
   queryId: string | undefined,
   query: Record<string, unknown>,
 ): Promise<Response | null> {
+  if (claim.kind === 'invalid_choice') {
+    return replyWithAnswer(c, botToken, queryId, 'Invalid selection', c.text('invalid selection', 400));
+  }
   if (claim.kind !== 'resolved') return null;
   answerTelegramCallback(c, botToken, queryId, 'Already selected');
   await updateCallbackMessage(botToken, chatMessage(query), '⚠️ Already selected elsewhere');

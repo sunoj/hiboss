@@ -6,17 +6,30 @@ import type { Env, MessageRow } from '../types';
 
 export type OptionClaimResult =
   | { kind: 'not_option' }
+  | { kind: 'invalid_choice' }
   | { kind: 'claimed' }
   | { kind: 'resolved' };
 
 type OptionReplyParent = Pick<MessageRow, 'id' | 'metadata'>;
 
-/** Any non-empty reply claims the option message — free-form text is a valid answer. */
+/**
+ * Claims an option message for `choice`.
+ *
+ * `allowFreeText` must be false for channel callbacks: Telegram callback_data is
+ * client-supplied and both callback paths admit viewer-role bosses, so binding the
+ * reply to an offered option is what stops a viewer from turning a button press into
+ * an arbitrary agent instruction. Only the boss API — which rejects viewers outright —
+ * passes true.
+ */
 export async function claimOptionReply(
   env: Env,
   parent: OptionReplyParent,
+  choice: string,
+  allowFreeText: boolean,
 ): Promise<OptionClaimResult> {
-  if (!parseOptions(parent.metadata)) return { kind: 'not_option' };
+  const options = parseOptions(parent.metadata);
+  if (!options) return { kind: 'not_option' };
+  if (!allowFreeText && !options.includes(choice)) return { kind: 'invalid_choice' };
 
   const now = new Date().toISOString();
   const claimed = await env.DB.prepare(

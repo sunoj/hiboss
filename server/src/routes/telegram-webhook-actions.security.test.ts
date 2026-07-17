@@ -18,6 +18,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  await env.DB.prepare("DELETE FROM boss_agent_access WHERE boss_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM bosses WHERE telegram_user_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM messages WHERE id LIKE 'tg-sec-%' OR agent_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM sessions WHERE id LIKE 'tg-sec-%' OR agent_id LIKE 'tg-sec-%'").run();
@@ -107,6 +108,50 @@ describe('Telegram webhook security', () => {
     const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind(parentId).first<{ status: string }>();
     expect(parent?.status).toBe('replied');
+  });
+
+  it('rejects forged callback_data that is not one of the offered options', async () => {
+    const parentId = 'facef00d000000000000000000000001';
+    await createAgent('tg-sec-forge-agent');
+    await env.DB.prepare(
+      "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
+    ).bind('tg-sec-forge-agent', JSON.stringify({ chat_id: 'tg-sec-forge-chat', bot_token: 'forge-token' })).run();
+    await env.DB.prepare(
+      "INSERT INTO bosses (id, name, role, telegram_user_id) VALUES (?, ?, ?, ?)"
+    ).bind('tg-sec-boss-forge-viewer', 'Viewer Boss', 'viewer', 'tg-sec-viewer-2').run();
+    await env.DB.prepare(
+      'INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)'
+    ).bind('tg-sec-boss-forge-viewer', 'tg-sec-forge-agent').run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Choose', 'delivered', 'normal', ?, ?)"
+    ).bind(
+      parentId,
+      'tg-sec-forge-agent',
+      JSON.stringify({ options: ['approve'] }),
+      new Date(Date.now() + 60_000).toISOString(),
+    ).run();
+
+    const res = await postTelegramWebhook({
+      callback_query: {
+        id: 'tg-sec-callback-forge',
+        data: 'facef00d:rm -rf / --no-preserve-root',
+        from: { id: 'tg-sec-viewer-2' },
+        message: {
+          message_id: 4,
+          chat: { id: 'tg-sec-forge-chat', type: 'private' },
+          text: 'Choose',
+        },
+      },
+    });
+
+    expect(res.status).toBe(400);
+    const reply = await env.DB.prepare('SELECT body FROM messages WHERE reply_to = ?')
+      .bind(parentId)
+      .first<{ body: string }>();
+    expect(reply).toBeNull();
+    const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(parentId).first<{ status: string }>();
+    expect(parent?.status).toBe('delivered');
   });
 
   it('routes reactions by telegram topic instead of generic chat config', async () => {

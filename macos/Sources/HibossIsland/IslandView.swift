@@ -33,7 +33,9 @@ struct IslandView: View {
                         errorLabel
                     }
                 }
-                ReplyField(text: $replyText, isSubmitting: isSubmitting, submit: submitReply)
+                ReplyField(text: $replyText, isSubmitting: isSubmitting) {
+                    submitReply(for: message.id)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.top, 13)
@@ -64,10 +66,10 @@ struct IslandView: View {
         }
     }
 
-    private func submitReply() {
+    private func submitReply(for messageID: MessageID) {
         let pending = replyText
         Task {
-            if await flow.submit(pending) { replyText = "" }
+            if await flow.submit(pending, for: messageID) { replyText = "" }
         }
     }
 
@@ -75,7 +77,7 @@ struct IslandView: View {
         VStack(spacing: 7) {
             ForEach(message.options, id: \.self) { option in
                 OptionButton(title: option) {
-                    Task { await flow.choose(option) }
+                    Task { await flow.choose(option, for: message.id) }
                 }
                 .disabled(isSubmitting)
             }

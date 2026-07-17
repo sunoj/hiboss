@@ -54,9 +54,9 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == first.id }
-        await store.choose("Ship")
+        await store.choose("Ship", for: first.id)
         try await waitUntil { store.activeMessage?.id == second.id }
-        await store.choose("No")
+        await store.choose("No", for: second.id)
 
         XCTAssertNil(store.activeMessage)
         let replies = await api.recordedReplies
@@ -89,7 +89,7 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == message.id }
-        let submitted = await store.submit("  Roll back to v1.6.8 instead  ")
+        let submitted = await store.submit("  Roll back to v1.6.8 instead  ", for: message.id)
 
         XCTAssertTrue(submitted)
         XCTAssertNil(store.activeMessage)
@@ -106,10 +106,29 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == message.id }
-        let submitted = await store.submit("   \n ")
+        let submitted = await store.submit("   \n ", for: message.id)
 
         XCTAssertFalse(submitted)
         XCTAssertEqual(store.activeMessage?.id, message.id)
+        let replies = await api.recordedReplies
+        XCTAssertTrue(replies.isEmpty)
+    }
+
+    func testDoesNotSendADraftToTheMessageThatReplacedTheSkippedOne() async throws {
+        let first = OptionMessage.fixture(id: "abandoned", options: ["Ship"])
+        let second = OptionMessage.fixture(id: "successor", options: ["Ship"])
+        let api = ScriptedBossAPI(messages: [first, second])
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+
+        store.connect(api: api)
+        try await waitUntil { store.activeMessage?.id == first.id }
+        store.skip()
+        let submitted = await store.submit("Meant for the first one", for: first.id)
+        let chose = await store.choose("Ship", for: first.id)
+
+        XCTAssertFalse(submitted)
+        XCTAssertFalse(chose)
+        XCTAssertEqual(store.activeMessage?.id, second.id)
         let replies = await api.recordedReplies
         XCTAssertTrue(replies.isEmpty)
     }
@@ -137,7 +156,7 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == current.id }
-        await store.choose("Continue")
+        await store.choose("Continue", for: current.id)
 
         XCTAssertNil(store.activeMessage)
         let replies = await api.recordedReplies
@@ -151,7 +170,7 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == message.id }
-        await store.choose("Retry")
+        await store.choose("Retry", for: message.id)
 
         XCTAssertEqual(store.activeMessage?.id, message.id)
         XCTAssertEqual(store.presentationState, .failed("The reply was rejected."))
@@ -201,7 +220,7 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == message.id }
-        await store.choose("Approve")
+        await store.choose("Approve", for: message.id)
 
         XCTAssertNil(store.activeMessage)
         XCTAssertEqual(store.presentationState, .idle)

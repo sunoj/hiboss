@@ -36,7 +36,8 @@ export async function handleDiscordOptionCallback(
   if (!parent) return c.text('message not found', 404);
   if (parent.status === 'expired') return expiredResponse(c);
 
-  const claim = await claimOptionReply(c.env, parent);
+  const claim = await claimOptionReply(c.env, parent, selection.option, false);
+  if (claim.kind === 'invalid_choice') return c.text('invalid selection', 400);
   if (claim.kind === 'resolved') return resolvedResponse(c, payload.message?.content);
   const reply = await insertReply(c.env, parent, selection.option, agentRow.agent_id);
   if (!reply) return c.text('failed to persist', 500);
