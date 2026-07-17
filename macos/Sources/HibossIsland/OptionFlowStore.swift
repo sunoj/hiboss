@@ -96,16 +96,37 @@ final class OptionFlowStore: ObservableObject {
     }
 
     func choose(_ choice: String) async {
-        guard let message = activeMessage, message.options.contains(choice), let api else {
-            return
-        }
-        presentationState = .submitting(choice)
+        guard let message = activeMessage, message.options.contains(choice) else { return }
+        await send(choice, for: message)
+    }
+
+    /// Answers with free-form text instead of one of the offered options.
+    /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
+    @discardableResult
+    func submit(_ reply: String) async -> Bool {
+        let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let message = activeMessage, !trimmed.isEmpty else { return false }
+        return await send(trimmed, for: message)
+    }
+
+    /// Dismisses the message locally only — the agent keeps waiting and other channels can still answer.
+    func skip() {
+        guard let message = activeMessage else { return }
+        resolve(message.id)
+    }
+
+    @discardableResult
+    private func send(_ body: String, for message: OptionMessage) async -> Bool {
+        guard let api else { return false }
+        presentationState = .submitting(body)
         do {
-            _ = try await api.reply(to: message.id, with: choice)
+            _ = try await api.reply(to: message.id, with: body)
             resolve(message.id)
             refreshHistoryInBackground()
+            return true
         } catch {
             presentationState = .failed(error.localizedDescription)
+            return false
         }
     }
 

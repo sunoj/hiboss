@@ -65,6 +65,29 @@ describe('Boss option stream lifecycle', () => {
     await stream.cancel();
   });
 
+  it('lets a free-form reply claim an option message and withdraw it everywhere', async () => {
+    const messageId = `free-text-${Date.now()}`;
+    await insertOptionMessage(messageId, 60);
+    const stream = await openOptionStream();
+    expect(await readEvent(stream)).toContain(messageId);
+
+    const reply = await replyTo(messageId, 'Roll back instead');
+    expect(reply.status).toBe(201);
+
+    expect(await readEvent(stream, 5_000)).toContain('event: resolved');
+    const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(messageId)
+      .first<{ status: string }>();
+    expect(parent?.status).toBe('replied');
+    const inserted = await env.DB.prepare('SELECT body FROM messages WHERE reply_to = ?')
+      .bind(messageId)
+      .first<{ body: string }>();
+    expect(inserted?.body).toBe('Roll back instead');
+    expect((await replyTo(messageId, 'Approve')).status).toBe(409);
+
+    await stream.cancel();
+  });
+
   it('ignores legacy option rows without an expiry', async () => {
     const messageId = `legacy-undated-${Date.now()}`;
     await env.DB.prepare(
