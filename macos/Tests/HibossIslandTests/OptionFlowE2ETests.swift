@@ -133,6 +133,33 @@ final class OptionFlowE2ETests: XCTestCase {
         XCTAssertTrue(replies.isEmpty)
     }
 
+    func testExpiryBandDrainsFromFullToEmptyAcrossTheVisibleWindow() {
+        let start = Date()
+        let progress = ExpiryProgress(startedAt: start, expiresAt: start.addingTimeInterval(100))
+
+        XCTAssertEqual(progress.fraction(at: start), 1)
+        XCTAssertEqual(progress.fraction(at: start.addingTimeInterval(50)), 0.5, accuracy: 0.001)
+        XCTAssertEqual(progress.fraction(at: start.addingTimeInterval(100)), 0)
+        XCTAssertEqual(progress.fraction(at: start.addingTimeInterval(500)), 0)
+    }
+
+    func testExpiryBandEscalatesUrgencyAsTheDeadlineNears() {
+        let start = Date()
+        let progress = ExpiryProgress(startedAt: start, expiresAt: start.addingTimeInterval(100))
+
+        XCTAssertEqual(progress.urgency(at: start), .calm)
+        XCTAssertEqual(progress.urgency(at: start.addingTimeInterval(70)), .caution)
+        XCTAssertEqual(progress.urgency(at: start.addingTimeInterval(90)), .urgent)
+    }
+
+    func testExpiryBandReadsEmptyForAnAlreadyExpiredWindow() {
+        let start = Date()
+        let progress = ExpiryProgress(startedAt: start, expiresAt: start)
+
+        XCTAssertEqual(progress.fraction(at: start), 0)
+        XCTAssertEqual(progress.urgency(at: start), .urgent)
+    }
+
     func testLoadsMessageHistoryWhenConnecting() async throws {
         let history = [HistoryMessage.fixture(id: "history-1", body: "Deployment complete")]
         let api = ScriptedBossAPI(messages: [], history: history)
