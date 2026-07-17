@@ -123,6 +123,9 @@ final class OptionFlowE2ETests: XCTestCase {
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == first.id }
         store.skip()
+        // The successor arrives over the stream, so wait for it rather than assume it queued.
+        try await waitUntil { store.activeMessage?.id == second.id }
+
         let submitted = await store.submit("Meant for the first one", for: first.id)
         let chose = await store.choose("Ship", for: first.id)
 

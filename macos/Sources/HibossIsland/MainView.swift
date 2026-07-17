@@ -128,8 +128,20 @@ private struct HistoryRow: View {
 struct SettingsPaneView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
+    /// Previews the pick — choosing a sound you cannot hear is choosing blind.
+    let soundPlayer: any SoundPlaying
     @State private var statusMessage = ""
     @State private var isConnecting = false
+
+    init(
+        settings: AppSettings,
+        flow: OptionFlowStore,
+        soundPlayer: any SoundPlaying = SystemSoundPlayer()
+    ) {
+        self.settings = settings
+        self.flow = flow
+        self.soundPlayer = soundPlayer
+    }
 
     var body: some View {
         Form {
@@ -145,6 +157,16 @@ struct SettingsPaneView: View {
                 }
                 .pickerStyle(.segmented)
                 Toggle("Show menu bar icon", isOn: $settings.showsStatusItem)
+            }
+            Section("Alert") {
+                Toggle("Play a sound for new questions", isOn: $settings.playsSound)
+                Picker("Sound", selection: $settings.alertSound) {
+                    ForEach(OptionSound.allCases) { sound in
+                        Text(sound.label).tag(sound)
+                    }
+                }
+                .disabled(!settings.playsSound)
+                .onChange(of: settings.alertSound) { soundPlayer.play(settings.alertSound) }
             }
             Section {
                 HStack {
