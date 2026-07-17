@@ -49,6 +49,12 @@ final class AppSettings: ObservableObject {
     @Published var showsStatusItem: Bool {
         didSet { defaults.set(showsStatusItem, forKey: AppConstants.Storage.showsStatusItem) }
     }
+    @Published var playsSound: Bool {
+        didSet { defaults.set(playsSound, forKey: AppConstants.Storage.playsSound) }
+    }
+    @Published var alertSound: OptionSound {
+        didSet { defaults.set(alertSound.rawValue, forKey: AppConstants.Storage.alertSound) }
+    }
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
@@ -67,6 +73,12 @@ final class AppSettings: ObservableObject {
         showsStatusItem = defaults.object(forKey: AppConstants.Storage.showsStatusItem) == nil
             ? true
             : defaults.bool(forKey: AppConstants.Storage.showsStatusItem)
+        playsSound = defaults.object(forKey: AppConstants.Storage.playsSound) == nil
+            ? true
+            : defaults.bool(forKey: AppConstants.Storage.playsSound)
+        alertSound = OptionSound(
+            rawValue: defaults.string(forKey: AppConstants.Storage.alertSound) ?? ""
+        ) ?? .fallback
     }
 
     func loadToken() async {
