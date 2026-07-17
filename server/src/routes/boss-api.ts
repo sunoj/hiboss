@@ -182,8 +182,7 @@ routes.post('/messages/:id/reply', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const body = typeof payload.body === 'string' ? payload.body.trim() : '';
   if (!body) return c.text('body is required', 400);
-  const optionClaim = await claimOptionReply(c.env, parent, body);
-  if (optionClaim.kind === 'invalid_choice') return c.text('body must match an option', 400);
+  const optionClaim = await claimOptionReply(c.env, parent);
   if (optionClaim.kind === 'resolved') return c.text('option already resolved', 409);
   const bossName = getBossName(c);
   const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });

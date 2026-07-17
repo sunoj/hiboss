@@ -6,20 +6,17 @@ import type { Env, MessageRow } from '../types';
 
 export type OptionClaimResult =
   | { kind: 'not_option' }
-  | { kind: 'invalid_choice' }
   | { kind: 'claimed' }
   | { kind: 'resolved' };
 
 type OptionReplyParent = Pick<MessageRow, 'id' | 'metadata'>;
 
+/** Any non-empty reply claims the option message — free-form text is a valid answer. */
 export async function claimOptionReply(
   env: Env,
   parent: OptionReplyParent,
-  choice: string,
 ): Promise<OptionClaimResult> {
-  const options = parseOptions(parent.metadata);
-  if (!options) return { kind: 'not_option' };
-  if (!options.includes(choice)) return { kind: 'invalid_choice' };
+  if (!parseOptions(parent.metadata)) return { kind: 'not_option' };
 
   const now = new Date().toISOString();
   const claimed = await env.DB.prepare(

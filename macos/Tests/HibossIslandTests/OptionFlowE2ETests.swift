@@ -66,6 +66,54 @@ final class OptionFlowE2ETests: XCTestCase {
         ])
     }
 
+    func testSkipDismissesLocallyWithoutReplyingAndShowsNextMessage() async throws {
+        let first = OptionMessage.fixture(id: "skipped", options: ["Ship", "Wait"])
+        let second = OptionMessage.fixture(id: "next", options: ["Yes"])
+        let api = ScriptedBossAPI(messages: [first, second])
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+
+        store.connect(api: api)
+        try await waitUntil { store.activeMessage?.id == first.id }
+        store.skip()
+
+        try await waitUntil { store.activeMessage?.id == second.id }
+        XCTAssertEqual(store.presentationState, .ready)
+        let replies = await api.recordedReplies
+        XCTAssertTrue(replies.isEmpty)
+    }
+
+    func testSubmitsFreeTextReplyThatIsNotOneOfTheOptions() async throws {
+        let message = OptionMessage.fixture(id: "free-text", options: ["Ship", "Wait"])
+        let api = ScriptedBossAPI(messages: [message])
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+
+        store.connect(api: api)
+        try await waitUntil { store.activeMessage?.id == message.id }
+        let submitted = await store.submit("  Roll back to v1.6.8 instead  ")
+
+        XCTAssertTrue(submitted)
+        XCTAssertNil(store.activeMessage)
+        let replies = await api.recordedReplies
+        XCTAssertEqual(replies, [
+            RecordedReply(messageID: "free-text", choice: "Roll back to v1.6.8 instead"),
+        ])
+    }
+
+    func testRejectsEmptyFreeTextReplyWithoutCallingTheServer() async throws {
+        let message = OptionMessage.fixture(id: "blank", options: ["Ship"])
+        let api = ScriptedBossAPI(messages: [message])
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+
+        store.connect(api: api)
+        try await waitUntil { store.activeMessage?.id == message.id }
+        let submitted = await store.submit("   \n ")
+
+        XCTAssertFalse(submitted)
+        XCTAssertEqual(store.activeMessage?.id, message.id)
+        let replies = await api.recordedReplies
+        XCTAssertTrue(replies.isEmpty)
+    }
+
     func testLoadsMessageHistoryWhenConnecting() async throws {
         let history = [HistoryMessage.fixture(id: "history-1", body: "Deployment complete")]
         let api = ScriptedBossAPI(messages: [], history: history)
