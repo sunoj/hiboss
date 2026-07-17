@@ -22,6 +22,8 @@ enum AppConstants {
         static let serverURL = "hiboss.serverURL"
         static let presentationMode = "hiboss.presentationMode"
         static let showsStatusItem = "hiboss.showsStatusItem"
+        static let playsSound = "hiboss.playsSound"
+        static let alertSound = "hiboss.alertSound"
         static let keychainService = "ai.hiboss.island.stable"
         static let keychainAccount = "boss-token"
     }
