@@ -116,6 +116,38 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(parent?.status).toBe('replied');
   });
 
+  it('rejects a forged custom_id that is not one of the offered options', async () => {
+    const parentId = 'b077e0fb00000001aabbccdd00000001';
+    await env.DB
+      .prepare(
+        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'parent', 'delivered', 'normal', ?, ?)"
+      )
+      .bind(
+        parentId,
+        TEST_AGENT_ID,
+        JSON.stringify({ options: ['optionA'] }),
+        new Date(Date.now() + 60_000).toISOString(),
+      )
+      .run();
+
+    const res = await signedFetch({
+      type: 3,
+      channel_id: CHANNEL_ID,
+      data: { custom_id: 'b077e0fb:rm -rf / --no-preserve-root' },
+      message: { content: 'Pick one:' },
+    });
+
+    expect(res.status).toBe(400);
+    const reply = await env.DB
+      .prepare('SELECT body FROM messages WHERE reply_to = ?')
+      .bind(parentId)
+      .first<{ body: string }>();
+    expect(reply).toBeNull();
+    const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(parentId).first<{ status: string }>();
+    expect(parent?.status).toBe('delivered');
+  });
+
   it('approves a join request from a Discord button callback', async () => {
     const requestId = 'a077e0fa00000001aabbccdd00000001';
     await env.DB
