@@ -78,7 +78,10 @@ final class IslandPanelController {
         observeFlow()
     }
 
+    /// The surface is always black, so system-drawn parts — caret, selection, placeholders —
+    /// must render for dark regardless of the user's system appearance.
     private func configurePanel() {
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
@@ -90,6 +93,7 @@ final class IslandPanelController {
     }
 
     private func configureWindow() {
+        optionWindow.appearance = NSAppearance(named: .darkAqua)
         optionWindow.title = "HiBoss Options"
         optionWindow.isReleasedWhenClosed = false
         optionWindow.level = .floating

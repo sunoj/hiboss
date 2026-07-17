@@ -30,9 +30,9 @@ struct IslandView: View {
                             .foregroundStyle(.white)
                             .fixedSize(horizontal: false, vertical: true)
                         optionList(message)
-                        errorLabel
                     }
                 }
+                errorLabel
                 ReplyField(text: $replyText, isSubmitting: isSubmitting) {
                     submitReply(for: message.id)
                 }
@@ -42,6 +42,7 @@ struct IslandView: View {
             .padding(.bottom, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(surfaceShape)
+            .overlay(ExpiryBand(expiresAt: message.expirationDate, surfaceStyle: surfaceStyle))
             .onChange(of: message.id) { replyText = "" }
         }
     }
@@ -171,22 +172,121 @@ private struct SkipButton: View {
     }
 }
 
+/// How much of the expiry band is left, and how alarmed it should look.
+/// The band spans the time left when the panel appeared, not the server's original window:
+/// delivery lag would otherwise make it drain to zero before the question actually expires.
+struct ExpiryProgress: Equatable {
+    let startedAt: Date
+    let expiresAt: Date
+
+    enum Urgency: Equatable {
+        case calm
+        case caution
+        case urgent
+    }
+
+    private static let urgentFraction = 0.15
+    private static let cautionFraction = 0.4
+
+    /// 1 when the question is fresh, 0 once it has expired.
+    func fraction(at now: Date) -> Double {
+        let total = expiresAt.timeIntervalSince(startedAt)
+        guard total > 0 else { return 0 }
+        return max(0, min(1, expiresAt.timeIntervalSince(now) / total))
+    }
+
+    func urgency(at now: Date) -> Urgency {
+        let fraction = fraction(at: now)
+        if fraction <= Self.urgentFraction { return .urgent }
+        if fraction <= Self.cautionFraction { return .caution }
+        return .calm
+    }
+}
+
+/// Drains a stroke around the panel edge as the question approaches its expiry.
+private struct ExpiryBand: View {
+    let expiresAt: Date?
+    let surfaceStyle: OptionSurfaceStyle
+    @State private var startedAt = Date()
+
+    private static let lineWidth: CGFloat = 1
+
+    var body: some View {
+        if let expiresAt {
+            let progress = ExpiryProgress(startedAt: startedAt, expiresAt: expiresAt)
+            TimelineView(.animation(minimumInterval: 0.05)) { context in
+                let fraction = progress.fraction(at: context.date)
+                let color = color(for: progress.urgency(at: context.date))
+                band.trim(from: 0, to: fraction)
+                    .stroke(color, style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round))
+                    .shadow(color: color.opacity(0.7), radius: 2.5)
+                    .padding(Self.lineWidth / 2)
+                    .allowsHitTesting(false)
+            }
+            .onChange(of: expiresAt) { startedAt = Date() }
+        }
+    }
+
+    private func color(for urgency: ExpiryProgress.Urgency) -> Color {
+        switch urgency {
+        case .urgent: .red
+        case .caution: .orange
+        case .calm: .green
+        }
+    }
+
+    private var band: AnyShape {
+        switch surfaceStyle {
+        case .island: AnyShape(IslandBandPath(bottomRadius: 24))
+        case .window: AnyShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+}
+
+/// The island's outline minus its top edge, which sits flush against the menu bar.
+/// Runs top-left → down → across the bottom → up → top-right, so trimming drains it
+/// back toward the top-left corner.
+private struct IslandBandPath: Shape {
+    let bottomRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - bottomRadius))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX + bottomRadius, y: rect.maxY),
+            control: CGPoint(x: rect.minX, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX - bottomRadius, y: rect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRadius),
+            control: CGPoint(x: rect.maxX, y: rect.maxY)
+        )
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        return path
+    }
+}
+
 private struct ReplyField: View {
     @Binding var text: String
     let isSubmitting: Bool
     let submit: () -> Void
 
+    /// Recessed, not raised: the option buttons above are the raised surface, so the field
+    /// sinks below the panel instead of matching their fill and reading as another button.
     var body: some View {
         HStack(spacing: 7) {
-            TextField("Reply with your own instruction…", text: $text)
+            TextField("", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundStyle(.white)
+                .tint(.white.opacity(0.8))
                 .onSubmit(submit)
+                .overlay(alignment: .leading) { placeholder }
             Button(action: submit) {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(canSubmit ? 0.9 : 0.25))
+                    .foregroundStyle(canSubmit ? .white : .white.opacity(0.22))
             }
             .buttonStyle(.plain)
             .disabled(!canSubmit)
@@ -194,10 +294,28 @@ private struct ReplyField: View {
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.09))
-        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(Color.black.opacity(0.45))
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
         .disabled(isSubmitting)
     }
+
+    /// Drawn by hand: the system placeholder takes its color from the effective appearance,
+    /// which renders it near-invisible against this always-black panel.
+    @ViewBuilder
+    private var placeholder: some View {
+        if text.isEmpty {
+            Text("Reply with your own instruction…")
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.4))
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 11, style: .continuous)
+    }
+
 
     private var canSubmit: Bool {
         !isSubmitting && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
