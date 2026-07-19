@@ -306,8 +306,8 @@ routes.post('/', async (c) => {
       return c.json({ error: message, id: inserted.id, status: inserted.status }, 502);
     }
   }
-  // Notify boss-agents for API channel messages (agent-as-boss)
-  if (channel === 'api' && !queuedForQuietHours) {
+  // Notify boss-agents and boss iOS devices after immediate agent-to-boss delivery.
+  if (direction === 'agent_to_boss' && !queuedForQuietHours) {
     c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));
   }
   // Notify target agent for agent-to-agent messages via callback

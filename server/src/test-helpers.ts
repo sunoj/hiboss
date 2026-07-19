@@ -34,6 +34,8 @@ const SCHEMA_STATEMENTS = [
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL',
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_token ON bosses(token_hash) WHERE token_hash IS NOT NULL',
   "CREATE TABLE IF NOT EXISTS boss_agent_access (boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, agent_id TEXT NOT NULL REFERENCES api_keys(id), PRIMARY KEY (boss_id, agent_id))",
+  "CREATE TABLE IF NOT EXISTS boss_devices (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, device_token TEXT NOT NULL UNIQUE, bundle_id TEXT NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'production')), platform TEXT NOT NULL DEFAULT 'ios' CHECK (platform = 'ios'), created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')), last_seen_at TEXT NOT NULL DEFAULT (datetime('now')))",
+  'CREATE INDEX IF NOT EXISTS idx_boss_devices_boss ON boss_devices(boss_id, last_seen_at DESC)',
   "CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), actor_type TEXT NOT NULL CHECK (actor_type IN ('boss', 'agent', 'system')), actor_id TEXT NOT NULL, action TEXT NOT NULL, resource_type TEXT, resource_id TEXT, details TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
   'CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_type, actor_id, created_at DESC)',
   'CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action, created_at DESC)',

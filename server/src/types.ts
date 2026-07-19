@@ -12,6 +12,9 @@ export type Env = {
   DISCORD_WEBHOOK_SECRET?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
   DISCORD_GATEWAY?: DurableObjectNamespace;
+  APNS_KEY_ID?: string;
+  APNS_TEAM_ID?: string;
+  APNS_AUTH_KEY?: string;
 };
 
 export type Direction = 'agent_to_boss' | 'boss_to_agent' | 'agent_to_agent';
