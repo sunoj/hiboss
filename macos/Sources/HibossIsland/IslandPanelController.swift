@@ -3,6 +3,7 @@
 // Dependencies: AppKit windows, SwiftUI hosting, Combine, and app constants.
 
 import AppKit
+import HibossKit
 import Combine
 import SwiftUI
 

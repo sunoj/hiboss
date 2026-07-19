@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI, AppKit, Combine, settings, flow, and panel controller.
 
 import AppKit
+import HibossKit
 import Combine
 import SwiftUI
 

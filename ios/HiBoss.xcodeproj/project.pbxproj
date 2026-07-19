@@ -1,0 +1,688 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698713D5102923E7503E7814 /* DemoData.swift */; };
+		1553776326486621FD350726 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C168405A30C4BEEF41971C62 /* InboxView.swift */; };
+		1AF4333A617AE66DA09E64C5 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8732DC9D272987A1B036C854 /* ConnectionStore.swift */; };
+		335B4FE46BDAA8A5C0A2BBF0 /* ReplySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */; };
+		45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C85DD59D113BDF201E19A /* SettingsView.swift */; };
+		4806ED4EF03F14CEBB6030CB /* DecisionActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */; };
+		4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F038DB693219FA633FDAACC /* InboxStore.swift */; };
+		62015DFCC83862ABE5CF7571 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */; };
+		68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B18F7757D87683A1F768E5 /* HiBossApp.swift */; };
+		730FCA421FE4E885AEF3B2F6 /* RespondIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */; };
+		7600F8475AE8F778AA97A714 /* MessageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8FDF2319CA7E57192C7679 /* MessageCard.swift */; };
+		761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */; };
+		7C9EC0BB0D4A317081113175 /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B54DB8245ABD2D293FC27D /* PushManager.swift */; };
+		8285A0578EE66FFEE5F46114 /* HibossKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0812026A36C6DC3A7D604423 /* HibossKit */; };
+		86203834974A33A8C0E3584B /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA3966B5965FDF38682FE72 /* ConnectView.swift */; };
+		9975477625707226F0569D49 /* RespondIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */; };
+		9A601988E4CF388CDA003659 /* DecisionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6984921D9196A67C9F627A26 /* DecisionActivity.swift */; };
+		9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */; };
+		A6D52D02F7F9A096BEC123B0 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */; };
+		A8BD159F4B6E41CFBE919BEA /* HibossKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6130F24DC3B95160884D0B5A /* HibossKit */; };
+		B390797FAB6B075E3C8D234C /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB277BBD9EEE996D38F2992 /* Palette.swift */; };
+		B5B66607B04766A23954B1F2 /* MessageDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8777BA30B4CFEDD31CCB85E /* MessageDisplay.swift */; };
+		B82836BF6AC8B4E9325F8EA7 /* HiBossWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B97C7284B01AC80CE892A264 /* Priority.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E38393C7F0BB67A364CC15 /* Priority.swift */; };
+		BF0F1C80922111AE10208255 /* HiBossWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */; };
+		D707E905303289002E122935 /* DecisionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */; };
+		DBCC47DE56A53759D0FA4159 /* CountdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978AF84900C9EC8584C7AAA /* CountdownText.swift */; };
+		E840803EA89DCF2369E683E7 /* DecisionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6984921D9196A67C9F627A26 /* DecisionActivity.swift */; };
+		F2A955D7979A57ED705CFB78 /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E7782E6F85B6837B7AA3E88 /* MessagesView.swift */; };
+		F3DA72E26461EDBB50251B9A /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C50796B18EE77AC58212D46 /* Typography.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EAE2BBC2D617708415CE448B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 406E7AE4875C0584318C5D68 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FA6A7E5C1D5DF1FA06939EE7;
+			remoteInfo = HiBossWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		125090E604DB336BA1F1B75F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B82836BF6AC8B4E9325F8EA7 /* HiBossWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		04E38393C7F0BB67A364CC15 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
+		10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HiBossWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		1AB277BBD9EEE996D38F2992 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		2C50796B18EE77AC58212D46 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
+		35B18F7757D87683A1F768E5 /* HiBossApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiBossApp.swift; sourceTree = "<group>"; };
+		3978AF84900C9EC8584C7AAA /* CountdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownText.swift; sourceTree = "<group>"; };
+		3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		3E7782E6F85B6837B7AA3E88 /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
+		4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionLiveActivity.swift; sourceTree = "<group>"; };
+		4F038DB693219FA633FDAACC /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
+		6984921D9196A67C9F627A26 /* DecisionActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionActivity.swift; sourceTree = "<group>"; };
+		698713D5102923E7503E7814 /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
+		6BA3966B5965FDF38682FE72 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
+		7141C8FE7EA391AD4C3B160C /* HibossKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HibossKit; path = ../HibossKit; sourceTree = SOURCE_ROOT; };
+		714548036141EBBCA3849272 /* HiBoss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HiBoss.entitlements; sourceTree = "<group>"; };
+		7CA31A0E63F84D54574E1FAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRow.swift; sourceTree = "<group>"; };
+		80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RespondIntent.swift; sourceTree = "<group>"; };
+		8732DC9D272987A1B036C854 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
+		8CFB25F024143937E73B4640 /* HiBoss.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HiBoss.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiBossWidgetsBundle.swift; sourceTree = "<group>"; };
+		9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplySheet.swift; sourceTree = "<group>"; };
+		BF8FDF2319CA7E57192C7679 /* MessageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCard.swift; sourceTree = "<group>"; };
+		C168405A30C4BEEF41971C62 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
+		CE512B87AB4778E24208134F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D8777BA30B4CFEDD31CCB85E /* MessageDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDisplay.swift; sourceTree = "<group>"; };
+		E0B54DB8245ABD2D293FC27D /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
+		E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionActivityManager.swift; sourceTree = "<group>"; };
+		FC8C85DD59D113BDF201E19A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6AB6EB2E89AB5840F5D528CE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A8BD159F4B6E41CFBE919BEA /* HibossKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D4BB730000634C3BD181B56B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8285A0578EE66FFEE5F46114 /* HibossKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		271CCF4B4ED3115ADE46D0A2 /* Push */ = {
+			isa = PBXGroup;
+			children = (
+				9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */,
+				E0B54DB8245ABD2D293FC27D /* PushManager.swift */,
+			);
+			path = Push;
+			sourceTree = "<group>";
+		};
+		37D6B819C97B91C25A737074 /* Preview */ = {
+			isa = PBXGroup;
+			children = (
+				698713D5102923E7503E7814 /* DemoData.swift */,
+			);
+			path = Preview;
+			sourceTree = "<group>";
+		};
+		39BD8E216F9DDEC28570BD8D /* Connection */ = {
+			isa = PBXGroup;
+			children = (
+				8732DC9D272987A1B036C854 /* ConnectionStore.swift */,
+			);
+			path = Connection;
+			sourceTree = "<group>";
+		};
+		5D60A2C6CE16EE123EDF1F3C /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				1AB277BBD9EEE996D38F2992 /* Palette.swift */,
+				2C50796B18EE77AC58212D46 /* Typography.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		6D8BAEC89A27FA527B4D6C36 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				7141C8FE7EA391AD4C3B160C /* HibossKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		75E8EF9FA44EFDD9F86CD9FF /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				6984921D9196A67C9F627A26 /* DecisionActivity.swift */,
+				80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		85CC4B4C7B9CC76E3B758F10 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8CFB25F024143937E73B4640 /* HiBoss.app */,
+				10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		877BAE3BD4C4E061252831E1 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */,
+			);
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		98D47BDA8CAB95724B6F411C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				39BD8E216F9DDEC28570BD8D /* Connection */,
+				E8A479B7491E9CFD214AD32B /* Inbox */,
+				877BAE3BD4C4E061252831E1 /* LiveActivity */,
+				D5CF5C7983FCE2040268149E /* Messages */,
+				E8DACD9D6268737952779CF5 /* Model */,
+				E8688147A14C727D9C8FD36B /* Onboarding */,
+				37D6B819C97B91C25A737074 /* Preview */,
+				271CCF4B4ED3115ADE46D0A2 /* Push */,
+				FB03F7CEAD066A6CD1FCFBC8 /* Settings */,
+				F14C6E022235C0E8BDBA4B61 /* Shell */,
+				5D60A2C6CE16EE123EDF1F3C /* Theme */,
+				FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */,
+				714548036141EBBCA3849272 /* HiBoss.entitlements */,
+				35B18F7757D87683A1F768E5 /* HiBossApp.swift */,
+				CE512B87AB4778E24208134F /* Info.plist */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A5DE21E4345468BB7FED7EF3 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */,
+				8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */,
+				7CA31A0E63F84D54574E1FAB /* Info.plist */,
+			);
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		BF821F47919F06102D7E8F3C = {
+			isa = PBXGroup;
+			children = (
+				98D47BDA8CAB95724B6F411C /* App */,
+				6D8BAEC89A27FA527B4D6C36 /* Packages */,
+				75E8EF9FA44EFDD9F86CD9FF /* Shared */,
+				A5DE21E4345468BB7FED7EF3 /* Widgets */,
+				85CC4B4C7B9CC76E3B758F10 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D5CF5C7983FCE2040268149E /* Messages */ = {
+			isa = PBXGroup;
+			children = (
+				3E7782E6F85B6837B7AA3E88 /* MessagesView.swift */,
+			);
+			path = Messages;
+			sourceTree = "<group>";
+		};
+		E8688147A14C727D9C8FD36B /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				6BA3966B5965FDF38682FE72 /* ConnectView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		E8A479B7491E9CFD214AD32B /* Inbox */ = {
+			isa = PBXGroup;
+			children = (
+				3978AF84900C9EC8584C7AAA /* CountdownText.swift */,
+				7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */,
+				4F038DB693219FA633FDAACC /* InboxStore.swift */,
+				C168405A30C4BEEF41971C62 /* InboxView.swift */,
+				BF8FDF2319CA7E57192C7679 /* MessageCard.swift */,
+				AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */,
+			);
+			path = Inbox;
+			sourceTree = "<group>";
+		};
+		E8DACD9D6268737952779CF5 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				D8777BA30B4CFEDD31CCB85E /* MessageDisplay.swift */,
+				04E38393C7F0BB67A364CC15 /* Priority.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		F14C6E022235C0E8BDBA4B61 /* Shell */ = {
+			isa = PBXGroup;
+			children = (
+				3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */,
+			);
+			path = Shell;
+			sourceTree = "<group>";
+		};
+		FB03F7CEAD066A6CD1FCFBC8 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				FC8C85DD59D113BDF201E19A /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CEF1407928B021227FDFACC5 /* HiBoss */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8C92A964448B8E569BEE6992 /* Build configuration list for PBXNativeTarget "HiBoss" */;
+			buildPhases = (
+				E53073958738815F1E427074 /* Sources */,
+				4D15819F497CE952623A2C6E /* Resources */,
+				D4BB730000634C3BD181B56B /* Frameworks */,
+				125090E604DB336BA1F1B75F /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F62F3A0B553FC6F6D8317E83 /* PBXTargetDependency */,
+			);
+			name = HiBoss;
+			packageProductDependencies = (
+				0812026A36C6DC3A7D604423 /* HibossKit */,
+			);
+			productName = HiBoss;
+			productReference = 8CFB25F024143937E73B4640 /* HiBoss.app */;
+			productType = "com.apple.product-type.application";
+		};
+		FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4FC174B983D15C03A7C34BB1 /* Build configuration list for PBXNativeTarget "HiBossWidgets" */;
+			buildPhases = (
+				667EEB8F2D1DAEB61664192B /* Sources */,
+				6AB6EB2E89AB5840F5D528CE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HiBossWidgets;
+			packageProductDependencies = (
+				6130F24DC3B95160884D0B5A /* HibossKit */,
+			);
+			productName = HiBossWidgets;
+			productReference = 10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		406E7AE4875C0584318C5D68 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					CEF1407928B021227FDFACC5 = {
+						ProvisioningStyle = Automatic;
+					};
+					FA6A7E5C1D5DF1FA06939EE7 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A1ECD2581EDAA34645024A29 /* Build configuration list for PBXProject "HiBoss" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = BF821F47919F06102D7E8F3C;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				80E1C2DD347B725FF00D27CE /* XCLocalSwiftPackageReference "../HibossKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 85CC4B4C7B9CC76E3B758F10 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CEF1407928B021227FDFACC5 /* HiBoss */,
+				FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4D15819F497CE952623A2C6E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				62015DFCC83862ABE5CF7571 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		667EEB8F2D1DAEB61664192B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E840803EA89DCF2369E683E7 /* DecisionActivity.swift in Sources */,
+				D707E905303289002E122935 /* DecisionLiveActivity.swift in Sources */,
+				BF0F1C80922111AE10208255 /* HiBossWidgetsBundle.swift in Sources */,
+				9975477625707226F0569D49 /* RespondIntent.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E53073958738815F1E427074 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */,
+				86203834974A33A8C0E3584B /* ConnectView.swift in Sources */,
+				1AF4333A617AE66DA09E64C5 /* ConnectionStore.swift in Sources */,
+				DBCC47DE56A53759D0FA4159 /* CountdownText.swift in Sources */,
+				9A601988E4CF388CDA003659 /* DecisionActivity.swift in Sources */,
+				4806ED4EF03F14CEBB6030CB /* DecisionActivityManager.swift in Sources */,
+				0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */,
+				68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */,
+				761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */,
+				4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */,
+				1553776326486621FD350726 /* InboxView.swift in Sources */,
+				7600F8475AE8F778AA97A714 /* MessageCard.swift in Sources */,
+				B5B66607B04766A23954B1F2 /* MessageDisplay.swift in Sources */,
+				F2A955D7979A57ED705CFB78 /* MessagesView.swift in Sources */,
+				B390797FAB6B075E3C8D234C /* Palette.swift in Sources */,
+				B97C7284B01AC80CE892A264 /* Priority.swift in Sources */,
+				7C9EC0BB0D4A317081113175 /* PushManager.swift in Sources */,
+				335B4FE46BDAA8A5C0A2BBF0 /* ReplySheet.swift in Sources */,
+				730FCA421FE4E885AEF3B2F6 /* RespondIntent.swift in Sources */,
+				A6D52D02F7F9A096BEC123B0 /* RootTabView.swift in Sources */,
+				45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */,
+				F3DA72E26461EDBB50251B9A /* Typography.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F62F3A0B553FC6F6D8317E83 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */;
+			targetProxy = EAE2BBC2D617708415CE448B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2ABD8194C346D8CDB491AACA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios.widgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		30C3B2D645C4B38CD6BC5E45 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		3B1D4E213E6CF5733E8E4810 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		729BB6C84D71EB4029911402 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_ENTITLEMENTS = App/HiBoss.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C03775187A5ED7B1D6EC773C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_ENTITLEMENTS = App/HiBoss.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FF44CC5BEE6D65BE5BE1B510 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios.widgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4FC174B983D15C03A7C34BB1 /* Build configuration list for PBXNativeTarget "HiBossWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FF44CC5BEE6D65BE5BE1B510 /* Debug */,
+				2ABD8194C346D8CDB491AACA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8C92A964448B8E569BEE6992 /* Build configuration list for PBXNativeTarget "HiBoss" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C03775187A5ED7B1D6EC773C /* Debug */,
+				729BB6C84D71EB4029911402 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A1ECD2581EDAA34645024A29 /* Build configuration list for PBXProject "HiBoss" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				30C3B2D645C4B38CD6BC5E45 /* Debug */,
+				3B1D4E213E6CF5733E8E4810 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		80E1C2DD347B725FF00D27CE /* XCLocalSwiftPackageReference "../HibossKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../HibossKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0812026A36C6DC3A7D604423 /* HibossKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HibossKit;
+		};
+		6130F24DC3B95160884D0B5A /* HibossKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HibossKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 406E7AE4875C0584318C5D68 /* Project object */;
+}

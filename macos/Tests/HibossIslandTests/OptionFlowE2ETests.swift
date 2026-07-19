@@ -3,6 +3,7 @@
 // Dependencies: XCTest, OptionFlowStore, and ScriptedBossAPI.
 
 import XCTest
+import HibossKit
 @testable import HibossIsland
 
 @MainActor

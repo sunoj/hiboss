@@ -1,24 +1,11 @@
 // Persists connection and presentation preferences, with tokens in Keychain.
-// Exports: AppSettings, OptionPresentationMode, and TokenStoring.
-// Dependencies: Foundation UserDefaults, Combine observation, and Security Keychain.
+// Exports: AppSettings and OptionPresentationMode.
+// Dependencies: HibossKit keychain/config, Foundation UserDefaults, and Combine.
 
 import Combine
 import Foundation
+import HibossKit
 import Security
-
-enum SettingsError: Error, LocalizedError {
-    case invalidServerURL
-    case missingToken
-    case keychain(OSStatus)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidServerURL: "Enter a valid HTTP or HTTPS server URL."
-        case .missingToken: "Enter a Boss Token."
-        case let .keychain(status): "Keychain operation failed (\(status))."
-        }
-    }
-}
 
 enum OptionPresentationMode: String, CaseIterable, Identifiable, Sendable {
     case island
@@ -32,11 +19,6 @@ enum OptionPresentationMode: String, CaseIterable, Identifiable, Sendable {
         case .window: "Window"
         }
     }
-}
-
-protocol TokenStoring: Sendable {
-    func read() throws -> String?
-    func write(_ token: String) throws
 }
 
 @MainActor
@@ -97,16 +79,7 @@ final class AppSettings: ObservableObject {
     }
 
     func connectionConfig() -> Result<ConnectionConfig, SettingsError> {
-        let address = serverAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        let token = bossToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: address),
-              let scheme = url.scheme?.lowercased(),
-              ["http", "https"].contains(scheme),
-              url.host != nil else {
-            return .failure(.invalidServerURL)
-        }
-        guard !token.isEmpty else { return .failure(.missingToken) }
-        return .success(ConnectionConfig(serverURL: url, bossToken: token))
+        makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken)
     }
 
     func save() -> Result<ConnectionConfig, SettingsError> {
@@ -121,36 +94,5 @@ final class AppSettings: ObservableObject {
         } catch {
             return .failure(.keychain(errSecIO))
         }
-    }
-}
-
-struct KeychainStore: TokenStoring {
-    func read() throws -> String? {
-        var query = baseQuery
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw SettingsError.keychain(status) }
-        guard let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    func write(_ token: String) throws {
-        let data = Data(token.utf8)
-        SecItemDelete(baseQuery as CFDictionary)
-        var item = baseQuery
-        item[kSecValueData as String] = data
-        let status = SecItemAdd(item as CFDictionary, nil)
-        guard status == errSecSuccess else { throw SettingsError.keychain(status) }
-    }
-
-    private var baseQuery: [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: AppConstants.Storage.keychainService,
-            kSecAttrAccount as String: AppConstants.Storage.keychainAccount,
-        ]
     }
 }

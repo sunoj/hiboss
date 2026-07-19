@@ -12,6 +12,8 @@ import { logAudit } from '../audit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 import { claimOptionReply } from './boss-option-reply';
 import { streamBossOptions } from './boss-option-stream';
+import { streamBossFeed } from './boss-feed-stream';
+import { getBossOverview } from './boss-overview';
 import { withdrawResolvedOptions } from './message-options';
 
 const MAX_LIMIT = 100;
@@ -57,6 +59,13 @@ routes.get('/me', async (c) => {
   if (!boss) return c.text('not found', 404);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   return c.json({ ...boss, preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
+});
+
+/** GET /api/boss/overview — dashboard KPIs, priority distribution, session status, channel health */
+routes.get('/overview', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  return c.json(await getBossOverview(c.env, agentIds));
 });
 
 /** GET /api/boss/me/preferences — get boss preferences */
@@ -364,7 +373,9 @@ routes.get('/stream', async (c) => {
 
   const stream = c.req.query('options') === 'true'
     ? streamBossOptions(writer, encoder, c.env, agentIds)
-    : bossStreamLoop(writer, encoder, c.env, bossId, agentIds);
+    : c.req.query('feed') === 'true'
+      ? streamBossFeed(writer, encoder, c.env, agentIds)
+      : bossStreamLoop(writer, encoder, c.env, bossId, agentIds);
   c.executionCtx.waitUntil(stream);
 
   return new Response(readable, {

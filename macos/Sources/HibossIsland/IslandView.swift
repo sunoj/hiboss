@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI and OptionFlowStore observation.
 
 import SwiftUI
+import HibossKit
 
 enum OptionSurfaceStyle: Sendable {
     case island

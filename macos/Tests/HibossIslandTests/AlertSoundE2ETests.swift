@@ -3,6 +3,7 @@
 // Dependencies: XCTest, IslandPanelController, AppSettings, and a recording player.
 
 import Combine
+import HibossKit
 import XCTest
 @testable import HibossIsland
 
