@@ -4,11 +4,11 @@
 
 import Foundation
 
-enum HibossAPIError: Error, LocalizedError {
+public enum HibossAPIError: Error, LocalizedError {
     case invalidResponse
     case requestFailed(status: Int, message: String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .invalidResponse:
             "The server returned an invalid response."
@@ -18,17 +18,17 @@ enum HibossAPIError: Error, LocalizedError {
     }
 }
 
-final class HibossAPI: BossServing, @unchecked Sendable {
+public final class HibossAPI: BossServing, @unchecked Sendable {
     private let config: ConnectionConfig
     private let session: URLSession
     private let decoder = JSONDecoder()
 
-    init(config: ConnectionConfig, session: URLSession = .shared) {
+    public init(config: ConnectionConfig, session: URLSession = .shared) {
         self.config = config
         self.session = session
     }
 
-    func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
+    public func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -42,7 +42,7 @@ final class HibossAPI: BossServing, @unchecked Sendable {
         }
     }
 
-    func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
+    public func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         let endpoint = messageEndpoint(messageID).appendingPathComponent("reply")
         var request = authorizedRequest(url: endpoint, method: "POST")
         request.httpBody = try JSONEncoder().encode(ReplyPayload(body: choice))
@@ -54,7 +54,7 @@ final class HibossAPI: BossServing, @unchecked Sendable {
         return .accepted
     }
 
-    func fetchHistory() async throws -> [HistoryMessage] {
+    public func fetchHistory() async throws -> [HistoryMessage] {
         let endpoint = apiURL.appendingPathComponent("messages").appending(
             queryItems: [
                 URLQueryItem(name: "direction", value: "all"),
@@ -67,7 +67,7 @@ final class HibossAPI: BossServing, @unchecked Sendable {
         return try decoder.decode(HistoryResponse.self, from: data).messages
     }
 
-    func verifyConnection() async throws {
+    public func verifyConnection() async throws {
         let endpoint = apiURL.appendingPathComponent("me")
         let request = authorizedRequest(url: endpoint, method: "GET")
         let (_, response) = try await session.data(for: request)
@@ -136,16 +136,16 @@ private struct ReplyPayload: Encodable {
     let body: String
 }
 
-struct SSEEventDecoder {
+public struct SSEEventDecoder {
     let decoder: JSONDecoder
     private var eventName = "message"
     private var dataLines: [String] = []
 
-    init(decoder: JSONDecoder) {
+    public init(decoder: JSONDecoder) {
         self.decoder = decoder
     }
 
-    mutating func consume(line: String) -> BossEvent? {
+    public mutating func consume(line: String) -> BossEvent? {
         if line.isEmpty { return finish() }
         if line.hasPrefix("event:") {
             eventName = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
@@ -157,7 +157,7 @@ struct SSEEventDecoder {
         return finish()
     }
 
-    mutating func finish() -> BossEvent? {
+    public mutating func finish() -> BossEvent? {
         guard !dataLines.isEmpty else { return nil }
         defer {
             dataLines.removeAll(keepingCapacity: true)

@@ -1,6 +1,6 @@
 // Swift package manifest for the native HiBoss Island menu-bar app.
 // Exports: HibossIsland executable and its test target.
-// Dependencies: Apple SwiftUI, AppKit, Foundation, and Security frameworks only.
+// Dependencies: HibossKit shared package plus SwiftUI, AppKit, and Security.
 
 // swift-tools-version: 6.0
 import PackageDescription
@@ -11,11 +11,17 @@ let package = Package(
     products: [
         .executable(name: "HibossIsland", targets: ["HibossIsland"]),
     ],
+    dependencies: [
+        .package(path: "../HibossKit"),
+    ],
     targets: [
-        .executableTarget(name: "HibossIsland"),
+        .executableTarget(
+            name: "HibossIsland",
+            dependencies: [.product(name: "HibossKit", package: "HibossKit")]
+        ),
         .testTarget(
             name: "HibossIslandTests",
-            dependencies: ["HibossIsland"]
+            dependencies: ["HibossIsland", .product(name: "HibossKit", package: "HibossKit")]
         ),
     ]
 )

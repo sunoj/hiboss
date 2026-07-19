@@ -3,6 +3,7 @@
 // Dependencies: HibossIsland domain and service interfaces.
 
 import Foundation
+import HibossKit
 @testable import HibossIsland
 
 struct RecordedReply: Equatable, Sendable {
