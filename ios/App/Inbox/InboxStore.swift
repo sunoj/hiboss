@@ -60,10 +60,11 @@ final class InboxStore: ObservableObject {
         historyTask = Task { [weak self] in
             do {
                 let messages = try await api.fetchHistory()
-                guard !Task.isCancelled else { return }
-                self?.history = messages
-                self?.loadError = nil
-                self?.pruneWithdrawn()
+                guard !Task.isCancelled, let self else { return }
+                self.history = messages
+                self.loadError = nil
+                self.pruneWithdrawn()
+                await DecisionActivityManager.sync(pending: self.pending)
             } catch where Task.isCancelled {
                 return
             } catch {
