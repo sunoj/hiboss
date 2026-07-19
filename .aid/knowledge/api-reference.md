@@ -232,6 +232,36 @@ SSE events:
 The stream sends keepalives every 15 seconds and closes after five minutes; clients
 must reconnect.
 
+### GET /api/boss/stream?feed=true
+Read-only SSE feed of **all** messages the boss can see, across every direction
+(`agent_to_boss`, `boss_to_agent`, `agent_to_agent`). Unlike the option/agent
+streams it is a passive monitor and **never mutates message status**. Used by the
+web console's live message feed. Same `message` event shape; 15s keepalives, 5min cap.
+
+### GET /api/boss/overview
+Single-shot dashboard aggregate for the web console 总览:
+```json
+{
+  "kpis": { "activeSessions": 5, "workingSessions": 3, "pendingDecisions": 4,
+            "blockingPending": 2, "unread1h": 12 },
+  "priorityDistribution": { "critical": 6, "high": 14, "normal": 28, "low": 9 },
+  "sessionStatus": { "working": 3, "waiting": 1, "blocked": 1, "idle": 0, "completed": 7 },
+  "channels": [ { "channel": "discord", "configured": true },
+                { "channel": "telegram", "configured": false },
+                { "channel": "api", "configured": true } ]
+}
+```
+Priority distribution and session status are over the last 24h; `activeSessions`
+counts sessions seen in the last 15 minutes.
+
+### POST /api/boss/devices
+Registers an iOS device's APNs token for push. Body:
+`{ "token": "<apns-hex>", "bundleId": "ai.hiboss.ios", "environment": "sandbox"|"production", "platform": "ios" }`.
+Upserts by device token for the authenticated boss. Returns `{ "ok": true }`.
+
+### DELETE /api/boss/devices/:token
+Unregisters a device token for the authenticated boss.
+
 ### GET /api/boss/sessions
 Active sessions for accessible agents.
 

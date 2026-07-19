@@ -53,6 +53,10 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 - `cli/` — Rust CLI binary (clap for args, reqwest for HTTP, serde for JSON)
 - `server/` — Cloudflare Worker (Hono framework, D1 database)
 - `mcp/` — Claude Code channel plugin (MCP server, Bun, real-time SSE bridge)
+- `HibossKit/` — shared Swift package (domain models, boss API client, option flow, keychain) used by both native clients
+- `macos/` — native macOS boss client "HiBoss Island" (SwiftUI + AppKit, menu-bar app, Dynamic-Island-style option picker); depends on HibossKit
+- `ios/` — native iOS boss client (SwiftUI, XcodeGen project). Inbox, Live Activity (Dynamic Island decision card + App Intents), APNs push. Bundle `ai.hiboss.ios` + widget extension. `xcodegen generate` builds the Xcode project
+- `terminal/` — ESP32 hardware terminal (ESP-IDF + LVGL round LCD), separate device firmware
 - `mcp-server/` — Removed (was v0.13 MCP server, replaced by `mcp/`)
 
 ## Code Conventions
