@@ -95,18 +95,21 @@ async function notifyBossDevices(
 
 function buildBossPushPayload(message: MessageRow, agentName: string, bossId: string): ApnsPayload {
   const options = extractOptions(message.metadata);
+  const category = options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE';
   const payload: ApnsPayload = {
     aps: {
       alert: { title: agentName || 'HiBoss', body: truncateBody(message.body) },
       sound: 'default',
       'interruption-level': interruptionLevel(message.priority),
       'thread-id': bossId,
+      // iOS renders the notification's action buttons from aps.category.
+      category,
     },
     messageId: message.id,
     agentName,
     priority: message.priority,
     direction: message.direction,
-    category: options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE',
+    category,
   };
   if (options) {
     payload.options = options;

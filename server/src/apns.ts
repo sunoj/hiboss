@@ -13,6 +13,7 @@ export interface ApnsPayload {
     sound: 'default';
     'interruption-level': ApnsInterruptionLevel;
     'thread-id': string;
+    category?: string;
   };
   [key: string]: unknown;
 }
