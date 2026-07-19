@@ -3,6 +3,7 @@
 // Dependencies: XCTest, isolated UserDefaults, AppSettings, and layout sizing.
 
 import Foundation
+import HibossKit
 import XCTest
 @testable import HibossIsland
 

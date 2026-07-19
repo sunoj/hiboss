@@ -5,13 +5,13 @@
 import Combine
 import Foundation
 
-enum ConnectionState: Equatable {
+public enum ConnectionState: Equatable {
     case disconnected
     case connecting
     case connected
     case failed(String)
 
-    var label: String {
+    public var label: String {
         switch self {
         case .disconnected: "Disconnected"
         case .connecting: "Connecting"
@@ -21,14 +21,14 @@ enum ConnectionState: Equatable {
     }
 }
 
-enum PresentationState: Equatable {
+public enum PresentationState: Equatable {
     case idle
     case ready
     case submitting(String)
     case failed(String)
 }
 
-enum HistoryState: Equatable {
+public enum HistoryState: Equatable {
     case idle
     case loading
     case loaded
@@ -36,12 +36,12 @@ enum HistoryState: Equatable {
 }
 
 @MainActor
-final class OptionFlowStore: ObservableObject {
-    @Published private(set) var activeMessage: OptionMessage?
-    @Published private(set) var connectionState: ConnectionState = .disconnected
-    @Published private(set) var presentationState: PresentationState = .idle
-    @Published private(set) var historyMessages: [HistoryMessage] = []
-    @Published private(set) var historyState: HistoryState = .idle
+public final class OptionFlowStore: ObservableObject {
+    @Published public private(set) var activeMessage: OptionMessage?
+    @Published public private(set) var connectionState: ConnectionState = .disconnected
+    @Published public private(set) var presentationState: PresentationState = .idle
+    @Published public private(set) var historyMessages: [HistoryMessage] = []
+    @Published public private(set) var historyState: HistoryState = .idle
 
     private let reconnectDelay: Duration
     private var api: (any BossServing)?
@@ -51,11 +51,11 @@ final class OptionFlowStore: ObservableObject {
     private var historyTask: Task<Void, Never>?
     private var expirationTasks: [MessageID: Task<Void, Never>] = [:]
 
-    init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
+    public init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
         self.reconnectDelay = reconnectDelay
     }
 
-    func connect(api: any BossServing) {
+    public func connect(api: any BossServing) {
         disconnect()
         self.api = api
         connectionState = .connecting
@@ -65,7 +65,7 @@ final class OptionFlowStore: ObservableObject {
         refreshHistoryInBackground()
     }
 
-    func disconnect() {
+    public func disconnect() {
         streamTask?.cancel()
         historyTask?.cancel()
         expirationTasks.values.forEach { $0.cancel() }
@@ -82,7 +82,7 @@ final class OptionFlowStore: ObservableObject {
         connectionState = .disconnected
     }
 
-    func refreshHistory() async {
+    public func refreshHistory() async {
         guard let api else { return }
         historyState = .loading
         do {
@@ -98,7 +98,7 @@ final class OptionFlowStore: ObservableObject {
     /// `messageID` is the message the caller was looking at: a skip or a stream resolution can
     /// advance `activeMessage` between the click and this call, and the answer must not follow.
     @discardableResult
-    func choose(_ choice: String, for messageID: MessageID) async -> Bool {
+    public func choose(_ choice: String, for messageID: MessageID) async -> Bool {
         guard let message = activeMessage, message.id == messageID,
               message.options.contains(choice) else { return false }
         return await send(choice, for: message)
@@ -107,7 +107,7 @@ final class OptionFlowStore: ObservableObject {
     /// Answers with free-form text instead of one of the offered options.
     /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
     @discardableResult
-    func submit(_ reply: String, for messageID: MessageID) async -> Bool {
+    public func submit(_ reply: String, for messageID: MessageID) async -> Bool {
         let trimmed = reply.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let message = activeMessage, message.id == messageID, !trimmed.isEmpty else {
             return false
@@ -116,7 +116,7 @@ final class OptionFlowStore: ObservableObject {
     }
 
     /// Dismisses the message locally only — the agent keeps waiting and other channels can still answer.
-    func skip() {
+    public func skip() {
         guard let message = activeMessage else { return }
         resolve(message.id)
     }

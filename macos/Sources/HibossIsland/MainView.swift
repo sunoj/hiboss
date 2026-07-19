@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI, AppSettings, HibossAPI, and OptionFlowStore.
 
 import SwiftUI
+import HibossKit
 
 struct MainView: View {
     @ObservedObject var settings: AppSettings
