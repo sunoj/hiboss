@@ -15,14 +15,14 @@ final class ConnectionStore: ObservableObject {
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
 
-    private static let service = "ai.hiboss.ios"
-
     init(
         defaults: UserDefaults = .standard,
         keychain: (any TokenStoring)? = nil
     ) {
         self.defaults = defaults
-        self.keychain = keychain ?? KeychainStore(service: ConnectionStore.service, account: "boss-token")
+        self.keychain = keychain ?? KeychainStore(
+            service: HiBossStore.keychainService, account: HiBossStore.keychainAccount
+        )
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
     }

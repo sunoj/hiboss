@@ -24,8 +24,10 @@ targets:
     platform: iOS
     sources:
       - path: App
+      - path: Shared
     dependencies:
       - package: HibossKit
+      - target: HiBossWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios
@@ -35,5 +37,22 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGNING_ALLOWED: NO
+
+  HiBossWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+      - path: Shared
+    dependencies:
+      - package: HibossKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.widgets
+        INFOPLIST_FILE: Widgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         CODE_SIGNING_ALLOWED: NO
