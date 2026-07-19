@@ -1,0 +1,122 @@
+// First-run connection screen: server URL + Boss Token, verified on connect.
+// Exports: ConnectView that populates the ConnectionStore on success.
+// Dependencies: SwiftUI, HibossKit, theme tokens.
+
+import SwiftUI
+
+struct ConnectView: View {
+    @ObservedObject var connection: ConnectionStore
+    @State private var connecting = false
+    @State private var error: String?
+    @FocusState private var focus: Field?
+
+    enum Field { case server, token }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 0)
+            logo
+            Text("Connect to HiBoss")
+                .font(.hbH2)
+                .foregroundStyle(Theme.ink)
+                .padding(.top, 22)
+            Text("Point the app at your HiBoss server and paste a Boss Token.")
+                .font(.hbSmall)
+                .foregroundStyle(Theme.ink2)
+                .padding(.top, 4)
+
+            field(title: "SERVER URL", text: $connection.serverAddress,
+                  placeholder: "https://hiboss.you.workers.dev", field: .server, secure: false)
+                .padding(.top, 26)
+            field(title: "BOSS TOKEN", text: $connection.bossToken,
+                  placeholder: "hb_…", field: .token, secure: true)
+                .padding(.top, 14)
+
+            if let error {
+                Text(error)
+                    .font(.hbCaption)
+                    .foregroundStyle(Theme.negative)
+                    .padding(.top, 12)
+            }
+
+            connectButton.padding(.top, 22)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.paper.ignoresSafeArea())
+    }
+
+    private var logo: some View {
+        Text("h")
+            .font(.system(size: 26, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(uiColor: UIColor(rgb: 0xECEBE7)))
+            .frame(width: 52, height: 52)
+            .background(
+                LinearGradient(
+                    colors: [Color(uiColor: UIColor(rgb: 0x3A3A36)), Color(uiColor: UIColor(rgb: 0x171715))],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+    }
+
+    private func field(
+        title: String, text: Binding<String>, placeholder: String,
+        field: Field, secure: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).hbLabel().foregroundStyle(Theme.ink4)
+            Group {
+                if secure {
+                    SecureField(placeholder, text: text)
+                } else {
+                    TextField(placeholder, text: text)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                }
+            }
+            .font(.hbBody)
+            .focused($focus, equals: field)
+            .padding(.horizontal, 14)
+            .frame(height: 48)
+            .background(Theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(focus == field ? Theme.ink3 : Theme.line2, lineWidth: 1)
+            )
+        }
+    }
+
+    private var connectButton: some View {
+        Button(action: connect) {
+            HStack(spacing: 8) {
+                if connecting { ProgressView().tint(.white) }
+                Text(connecting ? "Connecting…" : "Connect")
+                    .font(.hbBodyStrong)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Theme.ink)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(connecting)
+    }
+
+    private func connect() {
+        focus = nil
+        error = nil
+        connecting = true
+        Task {
+            let result = await connection.connect()
+            connecting = false
+            if case let .failure(failure) = result {
+                error = failure.localizedDescription
+            }
+        }
+    }
+}

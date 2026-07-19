@@ -93,7 +93,10 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public let direction: String
     public let status: String
     public let priority: String
+    public let channel: String?
+    public let mode: String?
     public let metadata: MessageMetadata?
+    public let expiresAt: String?
     public let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -103,7 +106,10 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         case direction
         case status
         case priority
+        case channel
+        case mode
         case metadata
+        case expiresAt = "expires_at"
         case createdAt = "created_at"
     }
 
@@ -114,7 +120,10 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         direction: String,
         status: String,
         priority: String,
+        channel: String? = nil,
+        mode: String? = nil,
         metadata: MessageMetadata? = nil,
+        expiresAt: String? = nil,
         createdAt: String
     ) {
         self.id = id
@@ -123,12 +132,24 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         self.direction = direction
         self.status = status
         self.priority = priority
+        self.channel = channel
+        self.mode = mode
         self.metadata = metadata
+        self.expiresAt = expiresAt
         self.createdAt = createdAt
     }
 
     public var options: [String] {
         metadata?.options ?? []
+    }
+
+    public var expirationDate: Date? {
+        guard let expiresAt else { return nil }
+        return (try? Date(expiresAt, strategy: .iso8601))
+            ?? (try? Date(
+                expiresAt,
+                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+            ))
     }
 }
 
