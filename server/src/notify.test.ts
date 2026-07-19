@@ -104,7 +104,12 @@ describe('notifyBossAgents', () => {
     if (!call) throw new Error('missing APNs fetch call');
     const init = call[1];
     const sentPayload = JSON.parse(String(init?.body)) as {
-      aps: { alert: { title: string; body: string }; 'interruption-level': string; 'thread-id': string };
+      aps: {
+        alert: { title: string; body: string };
+        'interruption-level': string;
+        'thread-id': string;
+        category: string;
+      };
       category: string;
       options: string[];
       agentName: string;
@@ -115,6 +120,8 @@ describe('notifyBossAgents', () => {
     expect(sentPayload.aps.alert.body).toHaveLength(150);
     expect(sentPayload.aps['interruption-level']).toBe('time-sensitive');
     expect(sentPayload.aps['thread-id']).toBe(bossId);
+    // iOS reads the action category from aps.category, not the top-level key.
+    expect(sentPayload.aps.category).toBe('HIBOSS_OPTIONS');
     expect(sentPayload.category).toBe('HIBOSS_OPTIONS');
     expect(sentPayload.options).toEqual(['Approve', 'Reject']);
     expect(sentPayload.agentName).toBe('Push Agent');

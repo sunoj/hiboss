@@ -74,6 +74,22 @@ public final class HibossAPI: BossServing, @unchecked Sendable {
         try validate(response)
     }
 
+    /// Registers this device's APNs token so the server can push to it.
+    public func registerDevice(
+        token: String,
+        bundleId: String,
+        environment: String,
+        platform: String = "ios"
+    ) async throws {
+        let endpoint = apiURL.appendingPathComponent("devices")
+        var request = authorizedRequest(url: endpoint, method: "POST")
+        request.httpBody = try JSONEncoder().encode(
+            DeviceRegistration(token: token, bundleId: bundleId, environment: environment, platform: platform)
+        )
+        let (_, response) = try await session.data(for: request)
+        try validate(response)
+    }
+
     private var apiURL: URL {
         config.serverURL
             .appendingPathComponent("api")
@@ -134,6 +150,13 @@ public final class HibossAPI: BossServing, @unchecked Sendable {
 
 private struct ReplyPayload: Encodable {
     let body: String
+}
+
+private struct DeviceRegistration: Encodable {
+    let token: String
+    let bundleId: String
+    let environment: String
+    let platform: String
 }
 
 public struct SSEEventDecoder {
