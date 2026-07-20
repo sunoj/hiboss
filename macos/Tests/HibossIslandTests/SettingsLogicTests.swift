@@ -146,6 +146,30 @@ final class SettingsLogicTests: XCTestCase {
         XCTAssertEqual(next.days, [1, 3, 5])
     }
 
+    func testQuietHoursClockFormattingRoundTripsHourAndMinute() {
+        let reference = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 20, hour: 12, minute: 0)
+        ) ?? .now
+        let date = QuietHoursClockFormatting.date(fromClock: "22:05", reference: reference)
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+
+        XCTAssertEqual(components.hour, 22)
+        XCTAssertEqual(components.minute, 5)
+        XCTAssertEqual(QuietHoursClockFormatting.clockString(from: date), "22:05")
+    }
+
+    func testQuietHoursClockFormattingFallsBackForMalformedInput() {
+        let reference = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 7, day: 20, hour: 12, minute: 0)
+        ) ?? .now
+        let date = QuietHoursClockFormatting.date(fromClock: "noon", reference: reference)
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+
+        XCTAssertEqual(components.hour, 0)
+        XCTAssertEqual(components.minute, 0)
+        XCTAssertEqual(QuietHoursClockFormatting.weekdayTitle(dayIndex: 1), "Monday")
+    }
+
     func testClockTimeValidationAcceptsStrictTwentyFourHourTimes() {
         XCTAssertTrue(SettingsPreferencesLogic.isValidClockTime("00:00"))
         XCTAssertTrue(SettingsPreferencesLogic.isValidClockTime("23:59"))
