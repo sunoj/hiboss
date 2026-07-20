@@ -54,7 +54,7 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 - `server/` — Cloudflare Worker (Hono framework, D1 database)
 - `mcp/` — Claude Code channel plugin (MCP server, Bun, real-time SSE bridge)
 - `HibossKit/` — shared Swift package (domain models, boss API client, option flow, keychain) used by both native clients
-- `macos/` — native macOS boss client "HiBoss Island" (SwiftUI + AppKit, menu-bar app, Dynamic-Island-style option picker); depends on HibossKit
+- `macos/` — native macOS boss client "HiBoss Island" (SwiftUI + AppKit, menu-bar app, Dynamic-Island-style option picker); depends on HibossKit. `History/` and `Settings/` hold the two window surfaces. **Read `docs/macos-design-v2.md` before changing this UI** — it is a native-first contract (system controls, semantic colours, no hex in views, no `.system(size:)`), written after a palette-driven first attempt shipped something that read as a web page in a window
 - `ios/` — native iOS boss client (SwiftUI, XcodeGen project). Inbox, Live Activity (Dynamic Island decision card + App Intents), APNs push. Bundle `ai.hiboss.ios` + widget extension. `xcodegen generate` builds the Xcode project
 - `terminal/` — ESP32 hardware terminal (ESP-IDF + LVGL round LCD), separate device firmware
 - `mcp-server/` — Removed (was v0.13 MCP server, replaced by `mcp/`)
