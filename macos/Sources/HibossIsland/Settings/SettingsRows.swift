@@ -38,6 +38,34 @@ struct SettingsPaneHeader: View {
     }
 }
 
+/// States plainly that a pane's settings are stored but not yet acted on.
+/// These preferences persist to the server, but nothing consults them at delivery time
+/// yet — showing the controls without saying so would make them read as working switches.
+struct SettingsNotAppliedNotice: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(DesignTokens.Colors.warn)
+            Text("Saved, but not applied yet. Delivery still follows each agent's channel "
+                 + "configuration; these preferences take effect in a later release.")
+                .font(DesignTokens.Fonts.caption)
+                .foregroundStyle(DesignTokens.Colors.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DesignTokens.Colors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.control))
+        .overlay {
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.control)
+                .stroke(DesignTokens.Colors.line2, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct SettingsSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
