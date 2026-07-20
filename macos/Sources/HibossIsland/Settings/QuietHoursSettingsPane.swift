@@ -9,80 +9,68 @@ struct QuietHoursSettingsPane: View {
     @ObservedObject var preferencesStore: BossPreferencesStore
 
     var body: some View {
-        SettingsPaneBody(pane: .quietHours) {
-            SettingsNotAppliedNotice()
-            SettingsSection(title: "Schedule") {
-                SettingsRow(title: "Quiet Hours", caption: "Silence normal & low; critical still alerts.") {
-                    Toggle("", isOn: enabledBinding)
-                        .labelsHidden()
-                }
-                SettingsRow(title: "Time range", caption: "Use 24-hour HH:mm local times.") {
-                    HStack(spacing: 8) {
-                        timeField("Start", text: startBinding)
-                        Text("→").foregroundStyle(Color.secondary)
-                        timeField("End", text: endBinding)
+        Form {
+            Section {
+                Toggle("Quiet Hours", isOn: enabledBinding)
+                DatePicker(
+                    "Starts",
+                    selection: startBinding,
+                    displayedComponents: .hourAndMinute
+                )
+                DatePicker(
+                    "Ends",
+                    selection: endBinding,
+                    displayedComponents: .hourAndMinute
+                )
+                Picker("Timezone", selection: timezoneBinding) {
+                    ForEach(timezoneChoices, id: \.self) { timezone in
+                        Text(timezone).tag(timezone)
                     }
                 }
-                SettingsRow(title: "Days", caption: "Choose the weekdays quiet hours apply.") {
-                    HStack(spacing: 6) {
-                        ForEach(SettingsPreferencesLogic.weekDays) { day in
-                            dayButton(day)
-                        }
+                Toggle("Critical bypass", isOn: criticalBypassBinding)
+            } header: {
+                Text("Schedule")
+            } footer: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Silence normal & low priority alerts; critical can still alert when bypass is on.")
+                        .foregroundStyle(.secondary)
+                    SettingsNotAppliedNotice()
+                    if let message = SettingsPreferencesLogic.validationMessage(
+                        for: preferencesStore.preferences
+                    ) {
+                        Text(message)
+                            .foregroundStyle(.red)
                     }
-                }
-                SettingsRow(title: "Timezone", caption: "Used by the server schedule.") {
-                    Picker("", selection: timezoneBinding) {
-                        ForEach(timezoneChoices, id: \.self) { timezone in
-                            Text(timezone).tag(timezone)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 230)
-                }
-                LastSettingsRow(title: "Critical bypass", caption: "Critical questions bypass quiet hours.") {
-                    Toggle("", isOn: criticalBypassBinding)
-                        .labelsHidden()
                 }
             }
-            if let message = SettingsPreferencesLogic.validationMessage(for: preferencesStore.preferences) {
-                Text(message)
-                    .font(Font.caption)
-                    .foregroundStyle(Color.red)
+
+            Section {
+                ForEach(SettingsPreferencesLogic.weekDays) { day in
+                    Toggle(
+                        QuietHoursClockFormatting.weekdayTitle(dayIndex: day.index),
+                        isOn: dayBinding(day)
+                    )
+                }
+            } header: {
+                Text("Days")
+            } footer: {
+                Text("Choose the weekdays quiet hours apply.")
+                    .foregroundStyle(.secondary)
             }
         }
+        .formStyle(.grouped)
     }
 
     private var timezoneChoices: [String] {
         let current = SettingsPreferencesLogic.quietHours(from: preferencesStore.preferences).timezone
-        let common = ["UTC", "America/Los_Angeles", "America/New_York", "Europe/London", "Asia/Bangkok"]
+        let common = [
+            "UTC",
+            "America/Los_Angeles",
+            "America/New_York",
+            "Europe/London",
+            "Asia/Bangkok",
+        ]
         return Array(Set(common + [current])).sorted()
-    }
-
-    private func timeField(_ prompt: String, text: Binding<String>) -> some View {
-        TextField(prompt, text: text)
-            .textFieldStyle(.roundedBorder)
-            .font(.system(size: 13).monospaced())
-            .frame(width: 62)
-    }
-
-    private func dayButton(_ day: QuietHoursDay) -> some View {
-        let isSelected = Set(SettingsPreferencesLogic.quietHours(from: preferencesStore.preferences).days)
-            .contains(day.index)
-        return Button {
-            updateQuietHours(SettingsPreferencesLogic.toggledDay(day.index, in: quietHours))
-        } label: {
-            Text(day.label)
-                .font(Font.body)
-                .foregroundStyle(isSelected ? Color(nsColor: .windowBackgroundColor) : Color.secondary)
-                .frame(width: 26, height: 26)
-                .background(isSelected ? Color.primary : Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 7)
-                        .stroke(isSelected ? .clear : Color(nsColor: .separatorColor), lineWidth: 1)
-                }
-        }
-        .buttonStyle(.plain)
     }
 
     private var quietHours: QuietHours {
@@ -105,19 +93,19 @@ struct QuietHoursSettingsPane: View {
         }
     }
 
-    private var startBinding: Binding<String> {
+    private var startBinding: Binding<Date> {
         Binding {
-            quietHours.start
+            QuietHoursClockFormatting.date(fromClock: quietHours.start)
         } set: { value in
-            updateQuietHours(quietHours.with(start: value))
+            updateQuietHours(quietHours.with(start: QuietHoursClockFormatting.clockString(from: value)))
         }
     }
 
-    private var endBinding: Binding<String> {
+    private var endBinding: Binding<Date> {
         Binding {
-            quietHours.end
+            QuietHoursClockFormatting.date(fromClock: quietHours.end)
         } set: { value in
-            updateQuietHours(quietHours.with(end: value))
+            updateQuietHours(quietHours.with(end: QuietHoursClockFormatting.clockString(from: value)))
         }
     }
 
@@ -126,6 +114,14 @@ struct QuietHoursSettingsPane: View {
             quietHours.timezone
         } set: { value in
             updateQuietHours(quietHours.with(timezone: value))
+        }
+    }
+
+    private func dayBinding(_ day: QuietHoursDay) -> Binding<Bool> {
+        Binding {
+            Set(quietHours.days).contains(day.index)
+        } set: { _ in
+            updateQuietHours(SettingsPreferencesLogic.toggledDay(day.index, in: quietHours))
         }
     }
 
