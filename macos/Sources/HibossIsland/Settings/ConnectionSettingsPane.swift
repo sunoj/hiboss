@@ -13,58 +13,50 @@ struct ConnectionSettingsPane: View {
     let reconnect: () -> Void
 
     var body: some View {
-        SettingsPaneBody(pane: .connection) {
-            statusCard
-            SettingsSection(title: "Credentials") {
-                SettingsRow(title: "Server URL", caption: "HTTP endpoint for the HiBoss daemon.") {
-                    TextField("https://hiboss.local", text: $settings.serverAddress)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 13).monospaced())
-                        .frame(width: 280)
+        Form {
+            Section {
+                LabeledContent("Status") {
+                    Label {
+                        Text(connectionTitle)
+                    } icon: {
+                        Image(systemName: statusSymbol)
+                            .foregroundStyle(statusTint)
+                    }
                 }
-                LastSettingsRow(title: "Boss Token", caption: "Stored locally in Keychain.") {
-                    SecureField("Token", text: $settings.bossToken)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 280)
+                LabeledContent("Endpoint") {
+                    Text(connectionDetail)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
+                Button("Reconnect", action: reconnect)
+                    .disabled(isConnecting)
+            } header: {
+                Text("Daemon")
+            }
+
+            Section {
+                TextField("Server URL", text: $settings.serverAddress)
+                    .font(.system(.body, design: .monospaced))
+                SecureField("Boss Token", text: $settings.bossToken)
+            } header: {
+                Text("Credentials")
+            } footer: {
+                Text("Token is stored locally in Keychain.")
+                    .foregroundStyle(.secondary)
             }
         }
+        .formStyle(.grouped)
     }
 
-    private var statusCard: some View {
-        HStack(spacing: 12) {
-            PulsingStatusDot(isActive: flow.connectionState == .connected)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(connectionTitle)
-                    .font(Font.headline)
-                    .foregroundStyle(Color.primary)
-                HStack(spacing: 8) {
-                    Text(connectionDetail)
-                        .font(Font.caption.monospaced())
-                        .tracking(0.7)
-                    Text("SSE")
-                        .font(Font.caption.monospaced())
-                        .tracking(0.7)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: DesignTokens.Radius.tile)
-                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-                        }
-                }
-                .foregroundStyle(Color.secondary)
-            }
-            Spacer()
-            Button("Reconnect", action: reconnect)
-                .disabled(isConnecting)
-        }
-        .padding(14)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
-        .overlay {
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-        }
+    private var statusSymbol: String {
+        flow.connectionState == .connected ? "circle.fill" : "circle"
+    }
+
+    private var statusTint: Color {
+        flow.connectionState == .connected
+            ? DesignTokens.live
+            : Color(nsColor: .tertiaryLabelColor)
     }
 
     private var connectionTitle: String {
@@ -79,8 +71,8 @@ struct ConnectionSettingsPane: View {
     private var connectionDetail: String {
         if !statusMessage.isEmpty { return statusMessage }
         guard case let .success(config) = settings.connectionConfig() else {
-            return "not configured · --ms"
+            return "not configured"
         }
-        return "\(config.serverURL.host ?? config.serverURL.absoluteString) · --ms"
+        return config.serverURL.host ?? config.serverURL.absoluteString
     }
 }

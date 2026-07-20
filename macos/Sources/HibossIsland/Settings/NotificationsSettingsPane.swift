@@ -10,32 +10,23 @@ struct NotificationsSettingsPane: View {
     @ObservedObject var preferencesStore: BossPreferencesStore
 
     var body: some View {
-        SettingsPaneBody(pane: .notifications) {
-            SettingsSection(title: "Delivery") {
-                SettingsRow(title: "Option display", caption: "Choose how incoming questions open.") {
-                    optionDisplayControl
-                        .frame(width: 260)
+        Form {
+            Section {
+                Picker("Option display", selection: $settings.optionDisplayMode) {
+                    ForEach(OptionDisplayMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
                 }
-                SettingsRow(title: "Critical bypasses Do Not Disturb", caption: "Critical questions can still alert.") {
-                    Toggle("", isOn: criticalBypassBinding)
-                        .labelsHidden()
-                }
-                LastSettingsRow(title: "Show menu bar icon", caption: "Keep HiBoss visible in the macOS menu bar.") {
-                    Toggle("", isOn: $settings.showsStatusItem)
-                        .labelsHidden()
-                }
+                Toggle("Critical bypasses Do Not Disturb", isOn: criticalBypassBinding)
+                Toggle("Show menu bar icon", isOn: $settings.showsStatusItem)
+            } header: {
+                Text("Delivery")
+            } footer: {
+                Text("Critical questions can still alert; the menu bar icon keeps HiBoss visible.")
+                    .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private var optionDisplayControl: some View {
-        Picker("", selection: $settings.optionDisplayMode) {
-            ForEach(OptionDisplayMode.allCases) { mode in
-                Text(mode.label).tag(mode)
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.segmented)
+        .formStyle(.grouped)
     }
 
     private var criticalBypassBinding: Binding<Bool> {

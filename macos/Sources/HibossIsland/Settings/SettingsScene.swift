@@ -38,7 +38,6 @@ struct SettingsScene: View {
             footer
         }
         .frame(minWidth: 820, minHeight: 560)
-        .background(Color(nsColor: .windowBackgroundColor))
         .task { await loadPreferencesIfConfigured() }
     }
 
@@ -46,10 +45,8 @@ struct SettingsScene: View {
         List(SettingsPane.allCases, selection: $selection) { pane in
             Label(pane.title, systemImage: pane.icon)
                 .tag(pane)
-                .font(Font.body)
         }
-        .scrollContentBackground(.hidden)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .listStyle(.sidebar)
     }
 
     @ViewBuilder
@@ -100,9 +97,8 @@ struct SettingsScene: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(alignment: .top) {
-            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
+            Divider()
         }
     }
 
