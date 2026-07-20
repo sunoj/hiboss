@@ -122,12 +122,15 @@ extension HistoryMessage {
         }
     }
 
-    var historyPriorityGlyph: String {
+    /// `nil` for normal priority. A glyph on every row is noise — an empty circle beside each
+    /// name says nothing, and drowns the two priorities that actually want attention. Mail
+    /// shows a flag only when there is a flag.
+    var historyPriorityGlyph: String? {
         switch priority.lowercased() {
         case "critical": "exclamationmark.octagon.fill"
         case "high": "exclamationmark.triangle.fill"
         case "low": "arrow.down.circle"
-        default: "circle"
+        default: nil
         }
     }
 
