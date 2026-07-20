@@ -114,3 +114,29 @@ logic and those tests. This pass changes presentation only.
 the system between light and dark must carry every surface with it, with no hardcoded colour
 left stranded. Grep your own diff for `system(size:` and `Color(hex:` — both should return
 nothing outside `DesignTokens.swift`.
+
+Then **build the app bundle and look at it** (`bash macos/scripts/build-app.sh`). This is not
+optional for visual work: three real defects in the first native pass survived a clean build,
+a clean diff and 61 green tests, and were obvious the moment the app was on screen — a
+toolbar item clipped at `.navigation`, an avatar filled with `controlBackgroundColor` that
+was invisible against a white list, and a meaningless glyph drawn on every normal-priority
+row.
+
+## 7. Status — where the next UI round picks up
+
+Shipped 2026-07-20 as PRs #5 (History), #6 (Settings) and #7 (visual fixes), head `4732a6f`,
+installed to `/Applications/HiBoss Island.app`. `server/` is byte-for-byte unchanged by the
+whole redesign — **no deploy is required**.
+
+Open items:
+
+1. **The island overlay's bottom corner is code-verified only.** Window mode was fixed (an
+   opaque `NSWindow` painted its square backdrop outside the SwiftUI rounding) and the
+   island's expiry band now traces true circular arcs matching its fill — but the option
+   panel renders only when a live question arrives, so nobody has actually seen it. Confirm
+   before assuming it is fixed.
+2. **Do not remove `SettingsNotAppliedNotice`** from Channels & Routing or Quiet Hours. Those
+   preferences persist to the server and nothing enforces them yet — see
+   `boss-preferences-enforcement.md`. The notice is deliberate; it goes when enforcement
+   ships, not before.
+3. General UI polish continues in a later session at the user's request.
