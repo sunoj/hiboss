@@ -1,6 +1,6 @@
 // HTTP and SSE client for the existing HiBoss boss API.
-// Exports: HibossAPI with history, option streaming, replies, and verification.
-// Dependencies: Foundation URLSession, BossServing, and OptionMessage Codable.
+// Exports: HibossAPI with history, options, preferences, replies, and verification.
+// Dependencies: Foundation URLSession, BossServing, and Codable domain contracts.
 
 import Foundation
 
@@ -18,7 +18,7 @@ public enum HibossAPIError: Error, LocalizedError {
     }
 }
 
-public final class HibossAPI: BossServing, @unchecked Sendable {
+public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Sendable {
     private let config: ConnectionConfig
     private let session: URLSession
     private let decoder = JSONDecoder()
@@ -65,6 +65,23 @@ public final class HibossAPI: BossServing, @unchecked Sendable {
         let (data, response) = try await session.data(for: request)
         try validate(response)
         return try decoder.decode(HistoryResponse.self, from: data).messages
+    }
+
+    public func fetchPreferences() async throws -> BossPreferences {
+        let endpoint = apiURL.appendingPathComponent("me").appendingPathComponent("preferences")
+        let request = authorizedRequest(url: endpoint, method: "GET")
+        let (data, response) = try await session.data(for: request)
+        try validate(response)
+        return try decoder.decode(BossPreferences.self, from: data)
+    }
+
+    public func updatePreferences(_ preferences: BossPreferences) async throws -> BossPreferences {
+        let endpoint = apiURL.appendingPathComponent("me").appendingPathComponent("preferences")
+        var request = authorizedRequest(url: endpoint, method: "PUT")
+        request.httpBody = try JSONEncoder().encode(preferences)
+        let (data, response) = try await session.data(for: request)
+        try validate(response)
+        return try decoder.decode(BossPreferences.self, from: data)
     }
 
     public func verifyConnection() async throws {
