@@ -1,158 +1,116 @@
-# macOS Client — Design v2 Spec
+# macOS Client — Native Design Contract
 
-Source of truth: Claude Design project `7eb92e64`, file `macOS HiBoss Island.dc.html`,
-built on the `ming's work` design foundations (`colors_and_type.css`).
+> **This supersedes the palette-driven contract used for the first pass.** That version
+> specified a fixed hex palette, banned system colours, and declared the client
+> "always dark". The result was judged "像一个网页套壳" — a web page in a window — and that
+> was a fair verdict: a light system title bar sat on a hardcoded near-black body, and every
+> control was hand-drawn. The information architecture below was fine. The *execution*
+> rules have been replaced.
 
-This document is the implementation contract for the macOS client redesign. Where this
-document and a screenshot disagree, this document wins.
+## 0. The rule that overrides everything
 
-## 1. Design language
+**If AppKit or SwiftUI has a control for it, use that control.** Do not hand-draw chrome.
 
-"朴素 / plain": near-monochrome, flat and matte, hairline structure, generous whitespace,
-one quiet accent at most. Prefer borders over shadows. Modest, slightly squared radii.
+A hand-built segmented control, a `TextField` styled to look like a search box, a `List` row
+rebuilt as a bordered card — each is individually defensible and collectively reads as "not
+a Mac app". Native controls bring focus rings, keyboard traversal, accessibility, contrast
+settings, right-click behaviour, the user's accent colour, and appearance changes for free.
+Every one of those was missing from the first pass.
 
-### Palette (dark — the macOS client is always dark)
+If you believe a native control genuinely cannot express something, say so in your final
+report and explain why. Do not silently reimplement it.
 
-| Token | Value | Use |
-|---|---|---|
-| `ink` | `#ECEBE7` | primary text |
-| `ink-2` | `#A7A6A0` | secondary text |
-| `ink-3` | `#7A7974` | muted / captions |
-| `ink-4` | `#54534F` | faint / disabled |
-| `paper` | `#161614` | window background |
-| `surface` | `#1E1E1C` | cards, panels |
-| `surface-2` | `#262624` | filled control / hover |
-| `surface-3` | `#2F2F2C` | pressed |
-| `line` | `#2C2C29` | hairline |
-| `line-2` | `#3A3A36` | stronger hairline |
-| `pos` | `#5E7257` | positive / connected |
-| `neg` | `#97574B` | negative |
-| `warn` | `#9A7B43` | caution |
+## 1. Colour
 
-Priority accents (used only as small dots/labels, never as fills):
-`critical #C46A5A` · `high #C79A57` · `normal #7A7974` · `low #54534F`.
+**Never write a hex value in a view.** Use the semantic system colours:
 
-Status-light green for the live/connected pulse: `#6E8A5E`.
-
-### Type
-
-Sans is the system font (SwiftUI default) — the web mock uses IBM Plex Sans, but on macOS
-use the platform font rather than bundling a face. **Monospace is load-bearing**: use
-`.monospaced` for timestamps, priority labels, server URLs, latency, and status chips.
-
-| Role | Size / weight |
+| Need | Use |
 |---|---|
-| pane title | 18 semibold |
-| section header | 13 semibold |
-| row title | 13 semibold |
-| body | 13 regular |
-| caption | 12 regular, `ink-3` |
-| mono label | 11 medium, uppercase, tracked +0.06em, `ink-3` |
+| primary text | `Color.primary` / `.foregroundStyle(.primary)` |
+| secondary text | `.secondary` |
+| dimmer still | `.tertiary`, `Color(nsColor: .tertiaryLabelColor)` |
+| control / card background | `Color(nsColor: .controlBackgroundColor)` |
+| window background | `Color(nsColor: .windowBackgroundColor)` |
+| hairline | `Color(nsColor: .separatorColor)` or a plain `Divider()` |
+| selection | `Color(nsColor: .selectedContentBackgroundColor)` — or just let `List` do it |
+| elevated / floating surface | `.background(.regularMaterial)` |
 
-Radii: 6 small controls · 8 segmented/pill · 11 cards and rows · 14 window.
+`DesignTokens` now contains **only** priority accents and the live-connection tint, because
+those carry meaning the system has no colour for. It is already written — use it, and do not
+extend it without justification.
 
-## 2. History window (main window)
+**The window follows the system appearance.** Do not set `NSAppearance` on the main or
+Settings window, and do not force a dark background. The only always-dark surface is the
+floating island panel (`IslandPanelController.configurePanel`), a deliberate self-contained
+overlay that is out of scope here.
 
-The main window. Native title bar (see §5 — the design mock's in-window tab switcher is
-replaced by native macOS conventions).
+## 2. Type
 
-**Toolbar row** — segmented filter `All | Unread N | Blocking`, spacer, search field
-("Search messages…"). Connection state lives in the title bar accessory as a pulsing dot
-plus mono label (`SSE connected` in `pos`, otherwise `ink-3`).
+Use semantic text styles — `.font(.body)`, `.headline`, `.callout`, `.subheadline`,
+`.caption`. **Do not use `.system(size:)`**; the first pass used it 29 times, which freezes
+type against the user's text-size and accessibility settings.
 
-**Message rows** — 11pt radius, hairline border, `surface-2` fill when unread/selected,
-transparent otherwise. Unread rows carry a 3pt full-height accent bar in the priority
-colour on the leading edge.
+Monospace is still welcome where it means something — timestamps, IDs, server URLs, latency
+— via `.monospaced()` or `.font(.system(.caption, design: .monospaced))`. But uppercase
+tracked mono labels used as decoration are a web affectation; drop them.
 
-Row layout, leading to trailing:
-- 30x30 avatar tile, radius 8, `#26221F` fill, `line-2` border, 2-letter mono monogram
-  derived from the agent name. The boss's own messages use a gradient tile and `Me`.
-- Header line: agent name (13 semibold) · direction glyph · priority + mode mono label ·
-  spacer · timestamp (10 mono, `ink-4`).
-- Body line: 13pt, `ink` when unread and `ink-2` when read, max 2 lines, truncated.
-- Footer chips: delivery status chip (bordered, 10 mono — `● delivered` in `warn`,
-  `✓ replied` in `pos`, `● read` in `ink-3`) and any reactions.
+## 3. History window
 
-Direction glyphs: `arrow.right` agent→boss · `arrow.left` boss→agent ·
-`arrow.left.arrow.right` agent↔agent (show the peer name for this case).
+Native window, native title bar, appearance follows the system.
 
-Empty and failure states keep `ContentUnavailableView`.
+- **Search** — `.searchable(text:placement:)`. Not a hand-built field. It puts the search
+  field in the toolbar where Mac users expect it, and gives ⌘F for free.
+- **All / Unread / Blocking** — `Picker` with `.pickerStyle(.segmented)`, placed in
+  `.toolbar` as a `ToolbarItem`/`ToolbarItemGroup`.
+- **Connection status** — a small toolbar item: SF Symbol plus short label, `.secondary`
+  when idle, `DesignTokens.live` when connected. Not a floating pill.
+- **Refresh** — `ToolbarItem` with `Image(systemName: "arrow.clockwise")`.
+- **Rows** — a real `List`. Let `List` own selection, alternating background, inset spacing
+  and hover. **No card borders, no per-row rounded rectangles, no manual highlight.** Row
+  content: agent avatar, name as `.headline`, body as `.body` truncated to two lines, and a
+  trailing `.secondary` timestamp. Express unread the way Mail does — a subtle leading
+  indicator or `.badge()` — not a coloured border.
+- **Priority / direction** — small SF Symbols tinted with the priority accent, each with an
+  accessibility label. Not `NORMAL · ASYNC` uppercase mono text.
+- **Avatar** — keep the two-letter monogram, but size it to the row and use
+  `.controlBackgroundColor` with a `Circle()` or small `RoundedRectangle`, matching Mail and
+  Messages rather than a bordered web square.
+- Keep `ContentUnavailableView` for empty and failure states — already the native answer.
 
-## 3. Settings window
+## 4. Settings window
 
-Native `Settings` scene (⌘,), sidebar + detail, 210pt sidebar.
+Target look: **macOS System Settings**.
 
-Panes, in order: **Connection** · **Notifications** · **Channels & Routing** ·
-**Quiet Hours** · **Presentation** · **System & Doctor** · **About**.
+- Keep the native `Settings` scene (⌘,) and `NavigationSplitView`.
+- Sidebar: `List(selection:)` with `.listStyle(.sidebar)` so it gets real sidebar vibrancy.
+  Each row is a `Label(_:systemImage:)`. Do not set a background colour on it — the vibrancy
+  is the point, and painting over it is what flattened the first pass.
+- Each pane: `Form { Section { … } }` with `.formStyle(.grouped)`. That gives native grouped
+  rows, correct label/control alignment and row heights for free — replacing the hand-built
+  `SettingsRow` stack.
+- Controls: `Toggle` (native switch), `Picker`, `TextField`/`SecureField` with standard
+  styling, and `DatePicker(displayedComponents: .hourAndMinute)` for quiet-hours times
+  instead of a hand-parsed text field.
+- The routing matrix is the one genuinely custom widget. Build it as a `Grid` of native
+  `Toggle`s (`.toggleStyle(.checkbox)`) with a real header row — not hand-drawn circles.
+- `SettingsNotAppliedNotice` stays on Channels & Routing and Quiet Hours (those preferences
+  are stored but not enforced — see `boss-preferences-enforcement.md`). Re-express it
+  natively: SF Symbol + `.secondary` `.callout`, or a `Section` footer.
+- The footer's "Save & Connect" is a standard `.borderedProminent` button; status text beside
+  it is `.secondary`.
 
-Every pane: 18 semibold title, then a 13pt `ink-3` subtitle describing the pane, then
-content. Rows are label + caption on the leading side, control trailing, separated by
-hairlines. Footer strip across the bottom: live status on the left (pulsing dot + mono
-`Listening`), primary button `Save & Connect` on the right.
+## 5. Information architecture (unchanged from the first pass)
 
-### Connection
-Server URL, boss token (secure). A connection status card at the top: pulsing dot, bold
-state line ("Connected · daemon running"), mono detail line (`host · 38ms`), an `SSE`
-mono chip, and a `Reconnect` button.
+Settings panes, in order: **Connection · Notifications · Channels & Routing · Quiet Hours ·
+Presentation · System & Doctor · About**.
 
-### Notifications
-`Option display` segmented control (Island / Window / Banner), `Critical bypasses Do Not
-Disturb` toggle, `Show menu bar icon` toggle.
+Row content, filters, unread counting and the "blocking" definition are unchanged and are
+already covered by passing tests in `HistoryLogicTests` / `SettingsLogicTests` — keep that
+logic and those tests. This pass changes presentation only.
 
-### Channels & Routing
-The priority routing matrix — a bordered table, header row on `surface-2`:
+## 6. Verification
 
-```
-PRIORITY   | Discord | Telegram | API |            Sound
-critical   |    ●    |    ●     |  ●  |          Alarm ⌄
-high       |    ○    |    ●     |  ○  |          Glass ⌄
-normal     |    ●    |    ○     |  ○  |            Pop ⌄
-low        |    ●    |    ○     |  ○  |           None ⌄
-```
-
-Each cell is a 20pt toggle circle: on = `pos`-tinted fill with `#6E8A5E` border and an
-`#8FB07E` inner dot; off = hollow with a `line-2` border. The priority label is a mono
-name preceded by an 8pt rounded square in the priority colour.
-
-Channel enablement persists to the server (`routing` in boss preferences). **Sound is a
-per-priority client-side preference** and does not go to the server. Changing a sound
-previews it — choosing a sound you cannot hear is choosing blind.
-
-### Quiet Hours
-Master toggle, caption "Silence normal & low; critical still alerts." Then a start→end
-time range control and a 7-day selector (M T W T F S S, 26pt squares, radius 7; selected
-= `ink` fill with `paper` text, unselected = `surface-2` with `line-2` border). A
-timezone picker. A `critical_bypass` toggle.
-
-### System & Doctor
-Daemon/hook health, server reachability, last error — read-only diagnostics.
-
-### About
-Version, build, links.
-
-## 4. Island / option surface
-
-Unchanged in behaviour. Two corrections:
-
-1. **Window mode corner defect.** `IslandPanelController.configureWindow()` creates an
-   opaque `.titled` NSWindow whose square darkAqua backdrop shows through outside the
-   SwiftUI `RoundedRectangle(cornerRadius: 18)` — visible as black square corners at the
-   bottom of the panel. Window mode must become a transparent, borderless, rounded,
-   draggable floating panel: `backgroundColor = .clear`, `isOpaque = false`, corners
-   masked, movable by its background. `configurePanel()` (the island) already does this
-   correctly and is the reference.
-2. Island bottom corner radius is 24 and its background shape and expiry-band path must
-   describe the *same* curve, so the fill never protrudes past the stroke.
-
-Motion: appears from the top with a spring; the timer counts down; choosing an option
-shows a "Replied" confirmation then retracts; if answered on Discord/Telegram first it
-fades to "Resolved elsewhere."
-
-## 5. Deliberate deviations from the mock
-
-- The mock puts History and Settings in one window behind a top segmented switcher. We
-  use macOS conventions instead: History is the main window, Settings is a native
-  `Settings` scene opened with ⌘,.
-- The mock renders IBM Plex Sans; we use the system font, keeping monospace for the
-  textural mono labels.
-- The mock's macOS menu bar and traffic-light chrome are drawn by the platform, not by us.
+`swift build && swift test` in `macos/`. Beyond green tests, check by reasoning: switching
+the system between light and dark must carry every surface with it, with no hardcoded colour
+left stranded. Grep your own diff for `system(size:` and `Color(hex:` — both should return
+nothing outside `DesignTokens.swift`.

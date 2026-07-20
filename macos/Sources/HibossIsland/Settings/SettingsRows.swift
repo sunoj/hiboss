@@ -18,7 +18,7 @@ struct SettingsPaneBody<Content: View>: View {
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .background(DesignTokens.Colors.paper)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
@@ -28,11 +28,11 @@ struct SettingsPaneHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(pane.title)
-                .font(DesignTokens.Fonts.paneTitle)
-                .foregroundStyle(DesignTokens.Colors.ink)
+                .font(Font.title3.weight(.semibold))
+                .foregroundStyle(Color.primary)
             Text(pane.subtitle)
-                .font(DesignTokens.Fonts.body)
-                .foregroundStyle(DesignTokens.Colors.ink3)
+                .font(Font.body)
+                .foregroundStyle(Color.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -46,21 +46,21 @@ struct SettingsNotAppliedNotice: View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: "info.circle")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(DesignTokens.Colors.warn)
+                .foregroundStyle(Color.orange)
             Text("Saved, but not applied yet. Delivery still follows each agent's channel "
                  + "configuration; these preferences take effect in a later release.")
-                .font(DesignTokens.Fonts.caption)
-                .foregroundStyle(DesignTokens.Colors.ink2)
+                .font(Font.caption)
+                .foregroundStyle(Color.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DesignTokens.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.control))
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.tile))
         .overlay {
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.control)
-                .stroke(DesignTokens.Colors.line2, lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.tile)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
     }
@@ -73,17 +73,17 @@ struct SettingsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title.uppercased())
-                .font(DesignTokens.Fonts.monoLabel)
+                .font(Font.caption.monospaced())
                 .tracking(0.7)
-                .foregroundStyle(DesignTokens.Colors.ink3)
+                .foregroundStyle(Color.secondary)
             VStack(spacing: 0) {
                 content
             }
-            .background(DesignTokens.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.row))
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
             .overlay {
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.row)
-                    .stroke(DesignTokens.Colors.line, lineWidth: 1)
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
             }
         }
     }
@@ -98,11 +98,11 @@ struct SettingsRow<Control: View>: View {
         HStack(alignment: .center, spacing: 18) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(DesignTokens.Fonts.rowTitle)
-                    .foregroundStyle(DesignTokens.Colors.ink)
+                    .font(Font.headline)
+                    .foregroundStyle(Color.primary)
                 Text(caption)
-                    .font(DesignTokens.Fonts.caption)
-                    .foregroundStyle(DesignTokens.Colors.ink3)
+                    .font(Font.caption)
+                    .foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 18)
             control
@@ -111,7 +111,7 @@ struct SettingsRow<Control: View>: View {
         .padding(.vertical, 12)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(DesignTokens.Colors.line)
+                .fill(Color(nsColor: .separatorColor))
                 .frame(height: 1)
                 .padding(.leading, 14)
         }
@@ -127,11 +127,11 @@ struct LastSettingsRow<Control: View>: View {
         HStack(alignment: .center, spacing: 18) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(DesignTokens.Fonts.rowTitle)
-                    .foregroundStyle(DesignTokens.Colors.ink)
+                    .font(Font.headline)
+                    .foregroundStyle(Color.primary)
                 Text(caption)
-                    .font(DesignTokens.Fonts.caption)
-                    .foregroundStyle(DesignTokens.Colors.ink3)
+                    .font(Font.caption)
+                    .foregroundStyle(Color.secondary)
             }
             Spacer(minLength: 18)
             control
@@ -147,11 +147,11 @@ struct PulsingStatusDot: View {
 
     var body: some View {
         Circle()
-            .fill(isActive ? DesignTokens.Colors.live : DesignTokens.Colors.ink4)
+            .fill(isActive ? DesignTokens.live : Color(nsColor: .tertiaryLabelColor))
             .frame(width: 8, height: 8)
             .overlay {
                 Circle()
-                    .stroke(isActive ? DesignTokens.Colors.live : .clear, lineWidth: 1)
+                    .stroke(isActive ? DesignTokens.live : .clear, lineWidth: 1)
                     .scaleEffect(pulse ? 2.2 : 1)
                     .opacity(pulse ? 0 : 0.55)
             }
@@ -173,14 +173,14 @@ struct SettingsFooterStatus: View {
             HStack(spacing: 8) {
                 PulsingStatusDot(isActive: isActive)
                 Text(text.uppercased())
-                    .font(DesignTokens.Fonts.monoLabel)
+                    .font(Font.caption.monospaced())
                     .tracking(0.7)
-                    .foregroundStyle(DesignTokens.Colors.ink3)
+                    .foregroundStyle(Color.secondary)
             }
             if let error {
                 Text(error)
-                    .font(DesignTokens.Fonts.caption)
-                    .foregroundStyle(DesignTokens.Colors.neg)
+                    .font(Font.caption)
+                    .foregroundStyle(Color.red)
                     .lineLimit(2)
             }
         }
@@ -194,15 +194,15 @@ struct RoutingToggle: View {
     var body: some View {
         Button(action: action) {
             Circle()
-                .fill(isOn ? DesignTokens.Colors.pos.opacity(0.55) : .clear)
+                .fill(isOn ? DesignTokens.live.opacity(0.55) : .clear)
                 .frame(width: 20, height: 20)
                 .overlay {
                     Circle()
-                        .stroke(isOn ? DesignTokens.Colors.live : DesignTokens.Colors.line2, lineWidth: 1)
+                        .stroke(isOn ? DesignTokens.live : Color(nsColor: .separatorColor), lineWidth: 1)
                 }
                 .overlay {
                     Circle()
-                        .fill(isOn ? DesignTokens.Colors.liveInner : .clear)
+                        .fill(isOn ? DesignTokens.live : .clear)
                         .frame(width: 7, height: 7)
                 }
         }
@@ -215,10 +215,10 @@ extension MessagePriority {
 
     var settingsColor: Color {
         switch self {
-        case .critical: DesignTokens.Colors.critical
-        case .high: DesignTokens.Colors.high
-        case .normal: DesignTokens.Colors.normal
-        case .low: DesignTokens.Colors.low
+        case .critical: DesignTokens.Priority.critical
+        case .high: DesignTokens.Priority.high
+        case .normal: DesignTokens.Priority.normal
+        case .low: DesignTokens.Priority.low
         }
     }
 }

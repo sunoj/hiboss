@@ -25,10 +25,10 @@ struct HistoryView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbarRow
-            Divider().overlay(DesignTokens.Colors.line)
+            Divider().overlay(Color(nsColor: .separatorColor))
             historyContent
         }
-        .background(DesignTokens.Colors.paper)
+        .background(Color(nsColor: .windowBackgroundColor))
         .task {
             if flow.historyState == .idle { await flow.refreshHistory() }
         }
@@ -56,44 +56,44 @@ struct HistoryView: View {
                 Button { segment = item } label: {
                     Text(item.title(unreadCount: unreadCount))
                         .font(.system(size: 12, weight: segment == item ? .medium : .regular))
-                        .foregroundStyle(segment == item ? DesignTokens.Colors.ink : DesignTokens.Colors.ink3)
+                        .foregroundStyle(segment == item ? Color.primary : Color.secondary)
                         .padding(.horizontal, 13)
                         .frame(height: 28)
-                        .background(segment == item ? DesignTokens.Colors.surface : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.control))
+                        .background(segment == item ? Color(nsColor: .controlBackgroundColor) : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.tile))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(3)
-        .background(DesignTokens.Colors.surface2)
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.pill))
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
     }
 
     private var searchField: some View {
         TextField("Search messages…", text: $searchText)
             .textFieldStyle(.plain)
             .font(.system(size: 13))
-            .foregroundStyle(DesignTokens.Colors.ink)
+            .foregroundStyle(Color.primary)
             .padding(.horizontal, 10)
             .frame(width: 210, height: 30)
-            .background(DesignTokens.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.pill))
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.pill)
-                    .strokeBorder(DesignTokens.Colors.line2, lineWidth: 1)
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
+                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
             )
     }
 
     private var connectionAccessory: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(flow.connectionState == .connected ? DesignTokens.Colors.live : DesignTokens.Colors.ink3)
+                .fill(flow.connectionState == .connected ? DesignTokens.live : Color.secondary)
                 .frame(width: 7, height: 7)
             Text(connectionLabel)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .tracking(0.6)
-                .foregroundStyle(flow.connectionState == .connected ? DesignTokens.Colors.pos : DesignTokens.Colors.ink3)
+                .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : Color.secondary)
         }
     }
 
@@ -103,13 +103,13 @@ struct HistoryView: View {
         } label: {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(DesignTokens.Colors.ink2)
+                .foregroundStyle(Color.secondary)
                 .frame(width: 30, height: 30)
-                .background(DesignTokens.Colors.surface)
-                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.pill))
+                .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
                 .overlay(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.pill)
-                        .strokeBorder(DesignTokens.Colors.line2, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -121,7 +121,7 @@ struct HistoryView: View {
     private var historyContent: some View {
         if flow.historyMessages.isEmpty, flow.historyState == .loading {
             ProgressView("Loading messages…")
-                .foregroundStyle(DesignTokens.Colors.ink2)
+                .foregroundStyle(Color.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if flow.historyMessages.isEmpty || messages.isEmpty {
             ContentUnavailableView(
