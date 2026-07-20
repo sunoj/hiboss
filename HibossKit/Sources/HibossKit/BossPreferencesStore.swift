@@ -39,6 +39,7 @@ public final class BossPreferencesStore: ObservableObject {
             preferences = try await api.fetchPreferences()
             state = .loaded
         } catch where Task.isCancelled {
+            state = .idle
             return
         } catch {
             state = .failed(error.localizedDescription)
@@ -51,6 +52,7 @@ public final class BossPreferencesStore: ObservableObject {
             preferences = try await api.updatePreferences(preferences)
             state = .loaded
         } catch where Task.isCancelled {
+            state = .idle
             return
         } catch {
             state = .failed(error.localizedDescription)
