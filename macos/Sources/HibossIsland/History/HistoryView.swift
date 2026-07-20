@@ -33,9 +33,12 @@ struct HistoryView: View {
             }
     }
 
+    /// The filter sits in `.principal` — the centre slot Mail and Xcode use for a segmented
+    /// control. At `.navigation` it crowded in beside the traffic lights and collided with
+    /// the window title. Status and refresh travel together on the trailing side.
     @ToolbarContentBuilder
     private var historyToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+        ToolbarItem(placement: .principal) {
             Picker("Filter", selection: $segment) {
                 ForEach(HistorySegment.allCases) { item in
                     Text(item.title(unreadCount: unreadCount)).tag(item)
@@ -43,15 +46,13 @@ struct HistoryView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 320)
+            .frame(minWidth: 240)
             .accessibilityLabel("Message filter")
         }
 
-        ToolbarItem(placement: .status) {
+        ToolbarItemGroup(placement: .primaryAction) {
             connectionStatus
-        }
 
-        ToolbarItem(placement: .primaryAction) {
             Button {
                 Task { await flow.refreshHistory() }
             } label: {
@@ -63,12 +64,14 @@ struct HistoryView: View {
         }
     }
 
+    /// Icon-only, with the state in the tooltip: a toolbar item that grows with its label
+    /// gets squeezed and clipped as the window narrows, which is what "SSE connected" did.
     private var connectionStatus: some View {
-        Label(flow.connectionState.label, systemImage: connectionSymbol)
-            .font(.caption)
+        Image(systemName: connectionSymbol)
             .foregroundStyle(
                 flow.connectionState == .connected ? DesignTokens.live : Color.secondary
             )
+            .help(flow.connectionState.label)
             .accessibilityLabel("Connection: \(flow.connectionState.label)")
     }
 

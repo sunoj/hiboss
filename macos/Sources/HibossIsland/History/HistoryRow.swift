@@ -36,13 +36,15 @@ struct HistoryRow: View {
             .accessibilityLabel(message.isUnreadHistoryMessage ? "Unread" : "Read")
     }
 
+    /// Filled with `.quaternary` rather than `controlBackgroundColor`: the latter resolves to
+    /// the same white as the list itself in light appearance, leaving the monogram floating
+    /// with no visible tile. This stays a step off the background in both appearances.
     private var avatar: some View {
         Text(message.historyMonogram)
             .font(.caption.weight(.medium))
-            .foregroundStyle(Color.primary)
+            .foregroundStyle(Color.secondary)
             .frame(width: 28, height: 28)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(Circle())
+            .background(.quaternary, in: Circle())
             .accessibilityHidden(true)
     }
 
@@ -53,10 +55,12 @@ struct HistoryRow: View {
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
 
-            Image(systemName: message.historyPriorityGlyph)
-                .font(.caption)
-                .foregroundStyle(priorityColor)
-                .accessibilityLabel(message.historyPriorityAccessibilityLabel)
+            if let glyph = message.historyPriorityGlyph {
+                Image(systemName: glyph)
+                    .font(.caption)
+                    .foregroundStyle(priorityColor)
+                    .accessibilityLabel(message.historyPriorityAccessibilityLabel)
+            }
 
             Image(systemName: message.historyDirectionGlyph)
                 .font(.caption)
