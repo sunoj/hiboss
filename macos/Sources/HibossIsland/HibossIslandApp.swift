@@ -16,12 +16,21 @@ struct HibossIslandApp: App {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow)
         }
         .defaultSize(width: 840, height: 600)
+
+        Settings {
+            SettingsScene(
+                settings: appDelegate.settings,
+                flow: appDelegate.flow,
+                preferencesStore: appDelegate.preferencesStore
+            )
+        }
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let settings: AppSettings
+    let preferencesStore: BossPreferencesStore
     let flow = OptionFlowStore()
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
@@ -30,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     override init() {
         let settings = AppSettings()
         self.settings = settings
+        preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
         super.init()
     }
 
@@ -52,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private func connectIfConfigured() {
         if case let .success(config) = settings.connectionConfig() {
             flow.connect(api: HibossAPI(config: config))
+            Task { await preferencesStore.load() }
         }
     }
 

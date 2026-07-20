@@ -6,6 +6,7 @@ import AppKit
 
 /// A macOS system alert sound. Raw values are the names under /System/Library/Sounds.
 enum OptionSound: String, CaseIterable, Identifiable, Sendable {
+    case none = "None"
     case ping = "Ping"
     case glass = "Glass"
     case hero = "Hero"
@@ -29,6 +30,7 @@ protocol SoundPlaying: Sendable {
 
 struct SystemSoundPlayer: SoundPlaying {
     func play(_ sound: OptionSound) {
+        guard sound != .none else { return }
         NSSound(named: sound.rawValue)?.play()
     }
 }
