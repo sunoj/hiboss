@@ -8,8 +8,9 @@ import { apiAuth, getAgentId } from '../middleware/auth';
 import { notifyBossAgents, notifyTargetAgent } from '../notify';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
 import { deliverAgentMessage } from './agent-delivery';
-import { getAgentQuietHoursEnd } from './quiet-hours';
+import { getAgentQuietHoursEnd, getBossQuietHoursEnd } from './quiet-hours';
 import { reactionsRouter } from './reactions';
+import { resolveBossRoutingChannels, type BossRoutingResolution } from './boss-preferences';
 import {
   buildFilters,
   buildInlineKeyboard,
@@ -77,6 +78,22 @@ async function enqueueDelivery(
     .run();
 }
 
+async function selectBossRoutingChannelConfigs(
+  env: Env,
+  agentId: string,
+  channels: Channel[],
+): Promise<{ channel: Channel; config: Record<string, unknown> }[]> {
+  if (channels.length === 0) return [];
+  const rows = await env.DB
+    .prepare(`SELECT channel, config FROM channel_configs WHERE agent_id = ? AND enabled = 1 AND channel IN (${channels.map(() => '?').join(', ')})`)
+    .bind(agentId, ...channels)
+    .all<{ channel: Channel; config: string }>();
+  const order = new Map(channels.map((channel, index) => [channel, index]));
+  return (rows.results ?? [])
+    .map((row) => ({ channel: row.channel, config: JSON.parse(row.config) as Record<string, unknown> }))
+    .sort((a, b) => (order.get(a.channel) ?? 0) - (order.get(b.channel) ?? 0));
+}
+
 export async function insertMessageWithRecovery(
   env: Env,
   agentId: string,
@@ -137,20 +154,7 @@ routes.post('/', async (c) => {
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
   const isUrgent = priority === 'critical' || priority === 'high';
   let channelConfigs: { channel: Channel; config: Record<string, unknown> }[] = [];
-  try {
-    if (isUrgent) {
-      channelConfigs = await fetchAllChannelConfigs(c.env, agentId);
-      if (requestedChannel) {
-        // Put requested channel first, keep others
-        channelConfigs.sort((a, b) => (a.channel === requestedChannel ? -1 : b.channel === requestedChannel ? 1 : 0));
-      }
-    } else {
-      const single = await selectChannelConfig(c.env, agentId, requestedChannel);
-      channelConfigs = [single];
-    }
-  } catch {
-    // No channel configured — message will be stored without delivery.
-  }
+  let bossRouting: BossRoutingResolution = { kind: 'not_configured' };
   // Resolve targeting: try agent name/id first, then session label/id
   let targetAgentId: string | null = null;
   let targetSessionId: string | null = null;
@@ -193,7 +197,27 @@ routes.post('/', async (c) => {
     }
   }
   // Agent-to-agent messages use 'api' channel; others use resolved channel config
-  const channel = direction === 'agent_to_agent' ? 'api' : (channelConfigs[0]?.channel ?? requestedChannel ?? null);
+  try {
+    if (direction === 'agent_to_boss') {
+      bossRouting = await resolveBossRoutingChannels(c.env, agentId, priority);
+      if (bossRouting.kind === 'channels') {
+        channelConfigs = await selectBossRoutingChannelConfigs(c.env, agentId, bossRouting.channels);
+      } else if (bossRouting.kind === 'not_configured' && isUrgent) {
+        channelConfigs = await fetchAllChannelConfigs(c.env, agentId);
+        if (requestedChannel) {
+          // Put requested channel first, keep others
+          channelConfigs.sort((a, b) => (a.channel === requestedChannel ? -1 : b.channel === requestedChannel ? 1 : 0));
+        }
+      } else if (bossRouting.kind === 'not_configured') {
+        const single = await selectChannelConfig(c.env, agentId, requestedChannel);
+        channelConfigs = [single];
+      }
+    }
+  } catch {
+    // No channel configured — message will be stored without delivery.
+  }
+  const fallbackChannel = bossRouting.kind === 'not_configured' ? requestedChannel ?? null : null;
+  const channel = direction === 'agent_to_agent' ? 'api' : (channelConfigs[0]?.channel ?? fallbackChannel);
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   if (idempotencyKey) {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
@@ -233,10 +257,14 @@ routes.post('/', async (c) => {
     c.executionCtx.waitUntil(inferSessionStatus(c.env, agentId, sessionId, mode, priority as string, body));
   }
   let queuedForQuietHours = false;
-  if (channelConfigs.length > 0 && direction === 'agent_to_boss' && !isUrgent) {
-    const quietHoursEnd = await getAgentQuietHoursEnd(c.env, agentId);
+  if (channelConfigs.length > 0 && direction === 'agent_to_boss') {
+    const bossQuietHoursEnd = await getBossQuietHoursEnd(c.env, agentId, priority);
+    const legacyQuietHoursEnd = bossQuietHoursEnd || isUrgent ? null : await getAgentQuietHoursEnd(c.env, agentId);
+    const quietHoursEnd = bossQuietHoursEnd ?? legacyQuietHoursEnd;
     if (quietHoursEnd) {
-      await enqueueDelivery(c.env, inserted.id, agentId, channelConfigs[0].channel, channelConfigs[0].config, quietHoursEnd);
+      await Promise.all(channelConfigs.map((cc) =>
+        enqueueDelivery(c.env, inserted.id, agentId, cc.channel, cc.config, quietHoursEnd)
+      ));
       queuedForQuietHours = true;
     }
   }
@@ -307,7 +335,9 @@ routes.post('/', async (c) => {
     }
   }
   // Notify boss-agents and boss iOS devices after immediate agent-to-boss delivery.
-  if (direction === 'agent_to_boss' && !queuedForQuietHours) {
+  const shouldNotifyBossApi = bossRouting.kind === 'not_configured'
+    || (bossRouting.kind === 'channels' && bossRouting.channels.includes('api'));
+  if (direction === 'agent_to_boss' && !queuedForQuietHours && shouldNotifyBossApi) {
     c.executionCtx.waitUntil(notifyBossAgents(c.env, agentId, inserted));
   }
   // Notify target agent for agent-to-agent messages via callback
