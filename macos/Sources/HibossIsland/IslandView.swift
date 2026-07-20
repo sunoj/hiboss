@@ -247,21 +247,25 @@ private struct ExpiryBand: View {
 /// The island's outline minus its top edge, which sits flush against the menu bar.
 /// Runs top-left → down → across the bottom → up → top-right, so trimming drains it
 /// back toward the top-left corner.
+///
+/// The corners are true circular arcs, matching the `UnevenRoundedRectangle` that fills
+/// the surface. A quadratic curve through the same corner point cuts inside that arc,
+/// which let the black fill protrude past this stroke at the bottom corners.
 private struct IslandBandPath: Shape {
     let bottomRadius: CGFloat
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - bottomRadius))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX + bottomRadius, y: rect.maxY),
-            control: CGPoint(x: rect.minX, y: rect.maxY)
+        path.addArc(
+            tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
+            tangent2End: CGPoint(x: rect.maxX, y: rect.maxY),
+            radius: bottomRadius
         )
-        path.addLine(to: CGPoint(x: rect.maxX - bottomRadius, y: rect.maxY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.maxY - bottomRadius),
-            control: CGPoint(x: rect.maxX, y: rect.maxY)
+        path.addArc(
+            tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
+            tangent2End: CGPoint(x: rect.maxX, y: rect.minY),
+            radius: bottomRadius
         )
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
         return path

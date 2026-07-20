@@ -1,0 +1,194 @@
+// Testable logic for filtering, searching, and presenting history messages.
+// Exports: HistorySegment, HistoryTimestamp, and HistoryMessage display helpers.
+// Dependencies: Foundation date parsing and HibossKit HistoryMessage.
+
+import Foundation
+import HibossKit
+
+enum HistorySegment: String, CaseIterable, Identifiable {
+    case all
+    case unread
+    case blocking
+
+    var id: Self { self }
+
+    func title(unreadCount: Int) -> String {
+        switch self {
+        case .all: "All"
+        case .unread: "Unread \(unreadCount)"
+        case .blocking: "Blocking"
+        }
+    }
+
+    func includes(_ message: HistoryMessage) -> Bool {
+        switch self {
+        case .all: true
+        case .unread: message.isUnreadHistoryMessage
+        case .blocking: message.isBlockingHistoryMessage
+        }
+    }
+}
+
+enum HistoryMessageLogic {
+    static func filtered(
+        _ messages: [HistoryMessage],
+        segment: HistorySegment,
+        searchText: String
+    ) -> [HistoryMessage] {
+        messages.filter { message in
+            segment.includes(message) && message.matchesHistorySearch(searchText)
+        }
+    }
+
+    static func unreadCount(in messages: [HistoryMessage]) -> Int {
+        messages.filter(\.isUnreadHistoryMessage).count
+    }
+}
+
+enum HistoryTimestamp {
+    static func date(from rawValue: String) -> Date? {
+        (try? Date(rawValue, strategy: .iso8601))
+            ?? (try? Date(
+                rawValue,
+                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+            ))
+            ?? dateFormatter("yyyy-MM-dd HH:mm:ss").date(from: rawValue)
+    }
+
+    static func shortLocalTime(
+        from rawValue: String,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
+        guard let date = date(from: rawValue) else { return "Unknown" }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private static func dateFormatter(_ format: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = format
+        return formatter
+    }
+}
+
+extension HistoryMessage {
+    var isBossHistoryMessage: Bool {
+        normalizedDirection == "boss_to_agent"
+    }
+
+    var isUnreadHistoryMessage: Bool {
+        normalizedStatus == "delivered" || normalizedStatus == "unread"
+    }
+
+    var isBlockingHistoryMessage: Bool {
+        hasActiveHistoryOptions && !isResolvedHistoryMessage
+    }
+
+    var historyDisplayName: String {
+        isBossHistoryMessage ? "Me" : clean(agentName) ?? "Agent"
+    }
+
+    var historyMonogram: String {
+        HistoryMessage.monogram(
+            agentName: agentName,
+            isBossMessage: isBossHistoryMessage
+        )
+    }
+
+    var historyTimestamp: String {
+        HistoryTimestamp.shortLocalTime(from: createdAt)
+    }
+
+    var historyDirectionGlyph: String {
+        switch normalizedDirection {
+        case "agent_to_boss": "arrow.right"
+        case "boss_to_agent": "arrow.left"
+        default: "arrow.left.arrow.right"
+        }
+    }
+
+    var historyPriorityModeLabel: String {
+        [priority, mode]
+            .compactMap(clean)
+            .map { $0.uppercased() }
+            .joined(separator: " · ")
+    }
+
+    var historyStatusChip: String {
+        switch normalizedStatus {
+        case "replied": "✓ replied"
+        case "read": "● read"
+        case "expired": "● expired"
+        default: "● \(normalizedStatus)"
+        }
+    }
+
+    static func monogram(agentName: String?, isBossMessage: Bool) -> String {
+        if isBossMessage { return "Me" }
+        let cleaned = clean(agentName) ?? "Agent"
+        let parts = cleaned
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+        let letters = monogramLetters(from: parts.isEmpty ? [cleaned] : parts)
+        return letters.uppercased()
+    }
+
+    func matchesHistorySearch(_ searchText: String) -> Bool {
+        let terms = searchText
+            .lowercased()
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+        guard !terms.isEmpty else { return true }
+        let haystack = searchableHistoryText.lowercased()
+        return terms.allSatisfy { haystack.contains($0) }
+    }
+
+    private var hasActiveHistoryOptions: Bool {
+        guard metadata?.isExpired != true else { return false }
+        return options.contains { clean($0) != nil }
+    }
+
+    private var isResolvedHistoryMessage: Bool {
+        ["replied", "expired", "resolved"].contains(normalizedStatus)
+    }
+
+    private var normalizedStatus: String {
+        status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var normalizedDirection: String {
+        direction.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var searchableHistoryText: String {
+        [
+            body,
+            agentName,
+            direction,
+            status,
+            priority,
+            channel,
+            mode,
+            options.joined(separator: " "),
+        ].compactMap { $0 }.joined(separator: " ")
+    }
+
+    private static func monogramLetters(from parts: [String]) -> String {
+        if parts.count >= 2 {
+            return parts.prefix(2).compactMap(\.first).map(String.init).joined()
+        }
+        return String(parts[0].prefix(2))
+    }
+}
+
+private func clean(_ value: String?) -> String? {
+    let cleaned = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    return cleaned.isEmpty ? nil : cleaned
+}
