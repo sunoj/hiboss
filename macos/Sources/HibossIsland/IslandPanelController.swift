@@ -99,6 +99,11 @@ final class IslandPanelController {
         panel.contentView = NSHostingView(rootView: IslandView(flow: flow))
     }
 
+    /// The rounded surface is drawn in SwiftUI, so the window itself must be transparent.
+    /// An opaque window would paint its square darkAqua backdrop outside that rounding —
+    /// black square corners poking past the panel's bottom edge. The titlebar stays in the
+    /// style mask (borderless windows cannot become key) but is hidden and made see-through,
+    /// leaving the panel draggable by its background and able to focus the reply field.
     private func configureWindow() {
         optionWindow.appearance = NSAppearance(named: .darkAqua)
         optionWindow.title = "HiBoss Options"
@@ -106,10 +111,26 @@ final class IslandPanelController {
         optionWindow.level = .floating
         optionWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         optionWindow.minSize = NSSize(width: AppConstants.Island.width, height: 180)
+        optionWindow.styleMask.insert(.fullSizeContentView)
+        optionWindow.titlebarAppearsTransparent = true
+        optionWindow.titleVisibility = .hidden
+        optionWindow.backgroundColor = .clear
+        optionWindow.isOpaque = false
+        optionWindow.hasShadow = true
+        optionWindow.isMovableByWindowBackground = true
+        for button in Self.titlebarButtons {
+            optionWindow.standardWindowButton(button)?.isHidden = true
+        }
         optionWindow.contentView = NSHostingView(
             rootView: IslandView(flow: flow, surfaceStyle: .window)
         )
     }
+
+    /// Dismissal lives on the panel's own close control, so the traffic lights would only
+    /// draw a second, differently-shaped affordance over the rounded surface.
+    private static let titlebarButtons: [NSWindow.ButtonType] = [
+        .closeButton, .miniaturizeButton, .zoomButton,
+    ]
 
     private func observeFlow() {
         Publishers.CombineLatest(flow.$activeMessage, settings.$presentationMode)
