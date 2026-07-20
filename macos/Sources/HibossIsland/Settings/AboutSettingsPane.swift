@@ -6,29 +6,32 @@ import SwiftUI
 
 struct AboutSettingsPane: View {
     var body: some View {
-        SettingsPaneBody(pane: .about) {
-            SettingsSection(title: "HiBoss Island") {
-                SettingsRow(title: "Version", caption: "Marketing version from the app bundle.") {
-                    valueText(bundleValue("CFBundleShortVersionString"))
+        Form {
+            Section {
+                LabeledContent("Version") {
+                    Text(bundleValue("CFBundleShortVersionString"))
+                        .foregroundStyle(.secondary)
                 }
-                SettingsRow(title: "Build", caption: "Build number from the app bundle.") {
-                    valueText(bundleValue("CFBundleVersion"))
+                LabeledContent("Build") {
+                    Text(bundleValue("CFBundleVersion"))
+                        .foregroundStyle(.secondary)
                 }
-                LastSettingsRow(title: "Project", caption: "Open the HiBoss project site.") {
-                    Link("hiboss.ai", destination: URL(string: "https://hiboss.ai") ?? URL(fileURLWithPath: "/"))
+                LabeledContent("Project") {
+                    if let url = URL(string: "https://hiboss.ai") {
+                        Link("hiboss.ai", destination: url)
+                    } else {
+                        Text("hiboss.ai")
+                            .foregroundStyle(.secondary)
+                    }
                 }
+            } header: {
+                Text("HiBoss Island")
             }
         }
+        .formStyle(.grouped)
     }
 
     private func bundleValue(_ key: String) -> String {
         Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "Development"
-    }
-
-    private func valueText(_ text: String) -> some View {
-        Text(text)
-            .font(Font.caption.monospaced())
-            .tracking(0.7)
-            .foregroundStyle(Color.secondary)
     }
 }
