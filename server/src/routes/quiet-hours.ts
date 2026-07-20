@@ -2,8 +2,7 @@
 // Exports pure window calculations plus agent-level preference lookup from D1.
 // Depends on Intl.DateTimeFormat and the shared Env binding type.
 
-import type { Env, Priority } from '../types';
-import { parseBossPreferences } from './boss-preferences';
+import type { Env } from '../types';
 
 interface LocalTime {
   hours: number;
@@ -23,7 +22,6 @@ interface QuietHoursRow {
   quiet_start: string | null;
   quiet_end: string | null;
   timezone: string | null;
-  quiet_days: string | null;
 }
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -35,14 +33,12 @@ export function isInQuietHours(
   quietEnd: string | null,
   timezone: string | null,
   now: Date = new Date(),
-  days: readonly number[] | null = null,
 ): boolean {
   const start = parseLocalTime(quietStart);
   const end = parseLocalTime(quietEnd);
   if (!start || !end) return false;
 
   const localNow = getZonedDateParts(now, resolveTimeZone(timezone));
-  if (days && !days.includes(getLocalDayOfWeek(localNow))) return false;
   const currentMinutes = localNow.hours * 60 + localNow.minutes;
   const startMinutes = start.hours * 60 + start.minutes;
   const endMinutes = end.hours * 60 + end.minutes;
@@ -85,8 +81,7 @@ export async function getAgentQuietHoursEnd(
       `SELECT
          COALESCE(json_extract(preferences, '$.quiet_hours_start'), json_extract(preferences, '$.quiet_hours.start')) AS quiet_start,
          COALESCE(json_extract(preferences, '$.quiet_hours_end'), json_extract(preferences, '$.quiet_hours.end')) AS quiet_end,
-         json_extract(preferences, '$.timezone') AS timezone,
-         json_extract(preferences, '$.quiet_hours.days') AS quiet_days
+         json_extract(preferences, '$.timezone') AS timezone
        FROM bosses
        WHERE preferences IS NOT NULL
          AND (
@@ -100,43 +95,10 @@ export async function getAgentQuietHoursEnd(
 
   let latestEnd: Date | null = null;
   for (const row of rows.results ?? []) {
-    const quietDays = parseQuietDays(row.quiet_days);
-    if (!isInQuietHours(row.quiet_start, row.quiet_end, row.timezone, now, quietDays) || !row.quiet_end) {
+    if (!isInQuietHours(row.quiet_start, row.quiet_end, row.timezone, now) || !row.quiet_end) {
       continue;
     }
     const quietEnd = getQuietHoursEnd(row.quiet_end, row.timezone ?? DEFAULT_TIME_ZONE, now);
-    if (!latestEnd || quietEnd.getTime() > latestEnd.getTime()) {
-      latestEnd = quietEnd;
-    }
-  }
-  return latestEnd;
-}
-
-export async function getBossQuietHoursEnd(
-  env: Env,
-  agentId: string,
-  priority: Priority,
-  now: Date = new Date(),
-): Promise<Date | null> {
-  const rows = await env.DB
-    .prepare(
-      `SELECT preferences FROM bosses
-       WHERE preferences IS NOT NULL
-         AND (
-           role = 'admin'
-           OR agent_id = ?
-           OR id IN (SELECT boss_id FROM boss_agent_access WHERE agent_id = ?)
-         )`
-    )
-    .bind(agentId, agentId)
-    .all<{ preferences: string | null }>();
-
-  let latestEnd: Date | null = null;
-  for (const row of rows.results ?? []) {
-    const quietHours = parseBossPreferences(row.preferences)?.quiet_hours;
-    if (!quietHours?.enabled || (priority === 'critical' && quietHours.critical_bypass)) continue;
-    if (!isInQuietHours(quietHours.start, quietHours.end, quietHours.timezone, now, quietHours.days)) continue;
-    const quietEnd = getQuietHoursEnd(quietHours.end, quietHours.timezone, now);
     if (!latestEnd || quietEnd.getTime() > latestEnd.getTime()) {
       latestEnd = quietEnd;
     }
@@ -152,16 +114,6 @@ function parseLocalTime(value: string | null): LocalTime | null {
     hours: Number(match[1]),
     minutes: Number(match[2]),
   };
-}
-
-function parseQuietDays(value: string | null): number[] | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed) && parsed.every(isValidDay) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 function resolveTimeZone(timezone: string | null): string {
@@ -231,12 +183,4 @@ function shiftLocalDate(parts: ZonedDateParts, days: number): Pick<ZonedDatePart
     month: shifted.getUTCMonth() + 1,
     day: shifted.getUTCDate(),
   };
-}
-
-function getLocalDayOfWeek(parts: Pick<ZonedDateParts, 'year' | 'month' | 'day'>): number {
-  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
-}
-
-function isValidDay(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6;
 }

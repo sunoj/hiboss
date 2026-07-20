@@ -12,6 +12,7 @@ struct ChannelsRoutingSettingsPane: View {
 
     var body: some View {
         SettingsPaneBody(pane: .routing) {
+            SettingsNotAppliedNotice()
             VStack(spacing: 0) {
                 headerRow
                 ForEach(SettingsPreferencesLogic.priorities, id: \.self) { priority in

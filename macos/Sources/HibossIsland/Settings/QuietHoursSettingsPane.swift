@@ -10,6 +10,7 @@ struct QuietHoursSettingsPane: View {
 
     var body: some View {
         SettingsPaneBody(pane: .quietHours) {
+            SettingsNotAppliedNotice()
             SettingsSection(title: "Schedule") {
                 SettingsRow(title: "Quiet Hours", caption: "Silence normal & low; critical still alerts.") {
                     Toggle("", isOn: enabledBinding)

@@ -15,7 +15,6 @@ import { streamBossOptions } from './boss-option-stream';
 import { streamBossFeed } from './boss-feed-stream';
 import { getBossOverview } from './boss-overview';
 import { withdrawResolvedOptions } from './message-options';
-import { validateBossPreferences } from './boss-preferences';
 
 const MAX_LIMIT = 100;
 interface JoinRequestRow {
@@ -80,22 +79,13 @@ routes.get('/me/preferences', async (c) => {
 /** PUT /api/boss/me/preferences — update boss preferences (merge) */
 routes.put('/me/preferences', async (c) => {
   const bossId = getBossId(c);
-  const payload = await c.req.json<unknown>();
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return c.text('preferences must be an object', 400);
-  }
-  const preferences = payload as Record<string, unknown>;
-  // Validate what the caller sent, not the merged result: bosses predating the typed
-  // quiet-hours shape still hold the legacy { start, end } form, and validating the merge
-  // would reject every write they make until that untouched key happens to be rewritten.
-  const validation = validateBossPreferences(preferences);
-  if (!validation.ok) return c.text(validation.error, 400);
+  const payload = await c.req.json<Record<string, unknown>>();
   const existing = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ?').bind(bossId).first<{ preferences: string | null }>();
   if (!existing) return c.text('not found', 404);
   const current = safeParse(existing.preferences) ?? {};
-  const merged = { ...current, ...preferences };
+  const merged = { ...current, ...payload };
   await c.env.DB.prepare('UPDATE bosses SET preferences = ? WHERE id = ?').bind(JSON.stringify(merged), bossId).run();
-  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'boss.preferences', 'boss', bossId, JSON.stringify(Object.keys(preferences))));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'boss.preferences', 'boss', bossId, JSON.stringify(Object.keys(payload))));
   return c.json(merged);
 });
 
