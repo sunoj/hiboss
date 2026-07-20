@@ -154,7 +154,8 @@ final class HistoryLogicTests: XCTestCase {
         XCTAssertEqual(bossMessage.historyStatusChip, "✓ replied")
         XCTAssertEqual(peerMessage.historyDirectionGlyph, "arrow.left.arrow.right")
         XCTAssertEqual(peerMessage.historyDirectionAccessibilityLabel, "Peer message")
-        XCTAssertEqual(peerMessage.historyPriorityGlyph, "circle")
+        // Normal priority draws no glyph at all — a symbol on every row is noise.
+        XCTAssertNil(peerMessage.historyPriorityGlyph)
     }
 
     private func historyMessage(
