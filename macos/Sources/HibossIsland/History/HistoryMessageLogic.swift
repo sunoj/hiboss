@@ -114,6 +114,29 @@ extension HistoryMessage {
         }
     }
 
+    var historyDirectionAccessibilityLabel: String {
+        switch normalizedDirection {
+        case "agent_to_boss": "To boss"
+        case "boss_to_agent": "From boss"
+        default: "Peer message"
+        }
+    }
+
+    var historyPriorityGlyph: String {
+        switch priority.lowercased() {
+        case "critical": "exclamationmark.octagon.fill"
+        case "high": "exclamationmark.triangle.fill"
+        case "low": "arrow.down.circle"
+        default: "circle"
+        }
+    }
+
+    var historyPriorityAccessibilityLabel: String {
+        let cleaned = clean(priority)?.capitalized ?? "Normal"
+        return "\(cleaned) priority"
+    }
+
+    /// Kept for tests and any text surfaces; History rows use SF Symbols instead.
     var historyPriorityModeLabel: String {
         [priority, mode]
             .compactMap(clean)
@@ -121,6 +144,7 @@ extension HistoryMessage {
             .joined(separator: " · ")
     }
 
+    /// Kept for tests and any text surfaces; History rows no longer show status chips.
     var historyStatusChip: String {
         switch normalizedStatus {
         case "replied": "✓ replied"

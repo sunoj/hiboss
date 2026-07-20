@@ -1,6 +1,6 @@
-// SwiftUI History window content with v2 toolbar, filtering, and search.
+// Native History window: searchable toolbar, segmented filter, and List.
 // Exports: HistoryView as the main macOS window surface.
-// Dependencies: SwiftUI, HibossKit OptionFlowStore, HistoryRow, and design tokens.
+// Dependencies: SwiftUI, HibossKit OptionFlowStore, HistoryRow, DesignTokens.
 
 import HibossKit
 import SwiftUI
@@ -9,6 +9,7 @@ struct HistoryView: View {
     @ObservedObject var flow: OptionFlowStore
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
+    @State private var selection: HistoryMessage.ID?
 
     private var unreadCount: Int {
         HistoryMessageLogic.unreadCount(in: flow.historyMessages)
@@ -23,105 +24,67 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbarRow
-            Divider().overlay(Color(nsColor: .separatorColor))
-            historyContent
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .task {
-            if flow.historyState == .idle { await flow.refreshHistory() }
-        }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                connectionAccessory
+        historyContent
+            .background(Color(nsColor: .windowBackgroundColor))
+            .searchable(text: $searchText, placement: .toolbar, prompt: "Search messages")
+            .toolbar { historyToolbar }
+            .task {
+                if flow.historyState == .idle { await flow.refreshHistory() }
             }
-        }
     }
 
-    private var toolbarRow: some View {
-        HStack(spacing: 12) {
-            segmentedFilter
-            Spacer(minLength: 12)
-            searchField
-            refreshButton
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-    }
-
-    private var segmentedFilter: some View {
-        HStack(spacing: 2) {
-            ForEach(HistorySegment.allCases) { item in
-                Button { segment = item } label: {
-                    Text(item.title(unreadCount: unreadCount))
-                        .font(.system(size: 12, weight: segment == item ? .medium : .regular))
-                        .foregroundStyle(segment == item ? Color.primary : Color.secondary)
-                        .padding(.horizontal, 13)
-                        .frame(height: 28)
-                        .background(segment == item ? Color(nsColor: .controlBackgroundColor) : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.tile))
+    @ToolbarContentBuilder
+    private var historyToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Picker("Filter", selection: $segment) {
+                ForEach(HistorySegment.allCases) { item in
+                    Text(item.title(unreadCount: unreadCount)).tag(item)
                 }
-                .buttonStyle(.plain)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 320)
+            .accessibilityLabel("Message filter")
         }
-        .padding(3)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
+
+        ToolbarItem(placement: .status) {
+            connectionStatus
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                Task { await flow.refreshHistory() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .help("Refresh messages")
+            .disabled(flow.historyState == .loading)
+            .accessibilityLabel("Refresh messages")
+        }
     }
 
-    private var searchField: some View {
-        TextField("Search messages…", text: $searchText)
-            .textFieldStyle(.plain)
-            .font(.system(size: 13))
-            .foregroundStyle(Color.primary)
-            .padding(.horizontal, 10)
-            .frame(width: 210, height: 30)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
-                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+    private var connectionStatus: some View {
+        Label(flow.connectionState.label, systemImage: connectionSymbol)
+            .font(.caption)
+            .foregroundStyle(
+                flow.connectionState == .connected ? DesignTokens.live : Color.secondary
             )
+            .accessibilityLabel("Connection: \(flow.connectionState.label)")
     }
 
-    private var connectionAccessory: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(flow.connectionState == .connected ? DesignTokens.live : Color.secondary)
-                .frame(width: 7, height: 7)
-            Text(connectionLabel)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .tracking(0.6)
-                .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : Color.secondary)
+    private var connectionSymbol: String {
+        switch flow.connectionState {
+        case .connected: "antenna.radiowaves.left.and.right"
+        case .connecting: "antenna.radiowaves.left.and.right"
+        case .failed: "exclamationmark.triangle"
+        case .disconnected: "antenna.radiowaves.left.and.right.slash"
         }
-    }
-
-    private var refreshButton: some View {
-        Button {
-            Task { await flow.refreshHistory() }
-        } label: {
-            Image(systemName: "arrow.clockwise")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.secondary)
-                .frame(width: 30, height: 30)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
-                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .help("Refresh messages")
-        .disabled(flow.historyState == .loading)
     }
 
     @ViewBuilder
     private var historyContent: some View {
         if flow.historyMessages.isEmpty, flow.historyState == .loading {
             ProgressView("Loading messages…")
-                .foregroundStyle(Color.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if flow.historyMessages.isEmpty || messages.isEmpty {
             ContentUnavailableView(
@@ -130,24 +93,18 @@ struct HistoryView: View {
                 description: Text(emptyDescription)
             )
         } else {
-            ScrollView {
-                LazyVStack(spacing: 9) {
-                    ForEach(messages) { message in
-                        HistoryRow(message: message)
-                    }
-                }
-                .padding(18)
+            List(messages, selection: $selection) { message in
+                HistoryRow(message: message)
+                    .tag(message.id)
             }
         }
     }
 
-    private var connectionLabel: String {
-        flow.connectionState == .connected ? "SSE CONNECTED" : flow.connectionState.label.uppercased()
-    }
-
     private var emptyTitle: String {
         if case .failed = flow.historyState { return "History Unavailable" }
-        return messages.isEmpty && !flow.historyMessages.isEmpty ? "No Matching Messages" : "No Messages"
+        return messages.isEmpty && !flow.historyMessages.isEmpty
+            ? "No Matching Messages"
+            : "No Messages"
     }
 
     private var emptySystemImage: String {

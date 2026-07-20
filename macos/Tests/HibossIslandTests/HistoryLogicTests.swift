@@ -147,9 +147,14 @@ final class HistoryLogicTests: XCTestCase {
         XCTAssertEqual(bossMessage.historyDisplayName, "Me")
         XCTAssertEqual(bossMessage.historyMonogram, "Me")
         XCTAssertEqual(bossMessage.historyDirectionGlyph, "arrow.left")
+        XCTAssertEqual(bossMessage.historyDirectionAccessibilityLabel, "From boss")
+        XCTAssertEqual(bossMessage.historyPriorityGlyph, "exclamationmark.triangle.fill")
+        XCTAssertEqual(bossMessage.historyPriorityAccessibilityLabel, "High priority")
         XCTAssertEqual(bossMessage.historyPriorityModeLabel, "HIGH · WINDOW")
         XCTAssertEqual(bossMessage.historyStatusChip, "✓ replied")
         XCTAssertEqual(peerMessage.historyDirectionGlyph, "arrow.left.arrow.right")
+        XCTAssertEqual(peerMessage.historyDirectionAccessibilityLabel, "Peer message")
+        XCTAssertEqual(peerMessage.historyPriorityGlyph, "circle")
     }
 
     private func historyMessage(
