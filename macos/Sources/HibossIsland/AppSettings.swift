@@ -21,12 +21,51 @@ enum OptionPresentationMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum OptionDisplayMode: String, CaseIterable, Identifiable, Sendable {
+    case island
+    case window
+    case banner
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .island: "Island"
+        case .window: "Window"
+        case .banner: "Banner"
+        }
+    }
+}
+
+extension OptionDisplayMode {
+    init(presentationMode: OptionPresentationMode) {
+        switch presentationMode {
+        case .island: self = .island
+        case .window: self = .window
+        }
+    }
+
+    var presentationMode: OptionPresentationMode {
+        switch self {
+        case .island: .island
+        case .window: .window
+        case .banner: .window
+        }
+    }
+}
+
 @MainActor
 final class AppSettings: ObservableObject {
     @Published var serverAddress: String
     @Published var bossToken: String
     @Published var presentationMode: OptionPresentationMode {
         didSet { defaults.set(presentationMode.rawValue, forKey: AppConstants.Storage.presentationMode) }
+    }
+    @Published var optionDisplayMode: OptionDisplayMode {
+        didSet {
+            defaults.set(optionDisplayMode.rawValue, forKey: Self.optionDisplayModeKey)
+            presentationMode = optionDisplayMode.presentationMode
+        }
     }
     @Published var showsStatusItem: Bool {
         didSet { defaults.set(showsStatusItem, forKey: AppConstants.Storage.showsStatusItem) }
@@ -37,9 +76,14 @@ final class AppSettings: ObservableObject {
     @Published var alertSound: OptionSound {
         didSet { defaults.set(alertSound.rawValue, forKey: AppConstants.Storage.alertSound) }
     }
+    @Published var prioritySounds: [MessagePriority: OptionSound] {
+        didSet { persistPrioritySounds() }
+    }
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
+    private static let optionDisplayModeKey = "hiboss.optionDisplayMode"
+    private static let prioritySoundsKey = "hiboss.prioritySounds"
 
     init(
         defaults: UserDefaults = .standard,
@@ -49,9 +93,13 @@ final class AppSettings: ObservableObject {
         self.keychain = keychain
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
-        presentationMode = OptionPresentationMode(
+        let storedPresentationMode = OptionPresentationMode(
             rawValue: defaults.string(forKey: AppConstants.Storage.presentationMode) ?? ""
         ) ?? .island
+        presentationMode = storedPresentationMode
+        optionDisplayMode = OptionDisplayMode(
+            rawValue: defaults.string(forKey: Self.optionDisplayModeKey) ?? ""
+        ) ?? OptionDisplayMode(presentationMode: storedPresentationMode)
         showsStatusItem = defaults.object(forKey: AppConstants.Storage.showsStatusItem) == nil
             ? true
             : defaults.bool(forKey: AppConstants.Storage.showsStatusItem)
@@ -61,6 +109,7 @@ final class AppSettings: ObservableObject {
         alertSound = OptionSound(
             rawValue: defaults.string(forKey: AppConstants.Storage.alertSound) ?? ""
         ) ?? .fallback
+        prioritySounds = Self.loadPrioritySounds(from: defaults)
     }
 
     func loadToken() async {
@@ -95,4 +144,43 @@ final class AppSettings: ObservableObject {
             return .failure(.keychain(errSecIO))
         }
     }
+
+    func sound(for priority: MessagePriority) -> OptionSound {
+        prioritySounds[priority] ?? Self.defaultPrioritySounds[priority] ?? .fallback
+    }
+
+    func setSound(_ sound: OptionSound, for priority: MessagePriority) {
+        var next = prioritySounds
+        next[priority] = sound
+        prioritySounds = next
+    }
+
+    private func persistPrioritySounds() {
+        let raw = prioritySounds.reduce(into: [String: String]()) { values, entry in
+            values[entry.key.rawValue] = entry.value.rawValue
+        }
+        defaults.set(raw, forKey: Self.prioritySoundsKey)
+    }
+
+    private static func loadPrioritySounds(
+        from defaults: UserDefaults
+    ) -> [MessagePriority: OptionSound] {
+        guard let raw = defaults.dictionary(forKey: prioritySoundsKey) as? [String: String] else {
+            return defaultPrioritySounds
+        }
+        var sounds = defaultPrioritySounds
+        for (priorityValue, soundValue) in raw {
+            guard let priority = MessagePriority(rawValue: priorityValue),
+                  let sound = OptionSound(rawValue: soundValue) else { continue }
+            sounds[priority] = sound
+        }
+        return sounds
+    }
+
+    private static let defaultPrioritySounds: [MessagePriority: OptionSound] = [
+        .critical: .sosumi,
+        .high: .glass,
+        .normal: .pop,
+        .low: .none,
+    ]
 }
