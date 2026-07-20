@@ -13,11 +13,11 @@ struct HistoryRow: View {
             unreadAccent
             rowBody
         }
-        .background(message.isUnreadHistoryMessage ? DesignTokens.Colors.surface2 : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.row, style: .continuous))
+        .background(message.isUnreadHistoryMessage ? Color(nsColor: .controlBackgroundColor) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.row, style: .continuous)
-                .strokeBorder(DesignTokens.Colors.line, lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.notice, style: .continuous)
+                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
         )
     }
 
@@ -34,7 +34,7 @@ struct HistoryRow: View {
                 header
                 Text(message.body)
                     .font(.system(size: 13))
-                    .foregroundStyle(message.isUnreadHistoryMessage ? DesignTokens.Colors.ink : DesignTokens.Colors.ink2)
+                    .foregroundStyle(message.isUnreadHistoryMessage ? Color.primary : Color.secondary)
                     .lineLimit(2)
                     .truncationMode(.tail)
                     .textSelection(.enabled)
@@ -48,13 +48,13 @@ struct HistoryRow: View {
     private var avatar: some View {
         Text(message.historyMonogram)
             .font(.system(size: 11, weight: .medium, design: .monospaced))
-            .foregroundStyle(DesignTokens.Colors.ink)
+            .foregroundStyle(Color.primary)
             .frame(width: 30, height: 30)
             .background(avatarBackground)
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.pill, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.pill, style: .continuous)
-                    .strokeBorder(DesignTokens.Colors.line2, lineWidth: 1)
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.notice, style: .continuous)
+                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
             )
     }
 
@@ -62,12 +62,12 @@ struct HistoryRow: View {
     private var avatarBackground: some View {
         if message.isBossHistoryMessage {
             LinearGradient(
-                colors: [DesignTokens.Colors.pos, DesignTokens.Colors.warn],
+                colors: [DesignTokens.live, Color.orange],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         } else {
-            DesignTokens.Colors.avatarTile
+            Color(nsColor: .controlBackgroundColor)
         }
     }
 
@@ -75,18 +75,18 @@ struct HistoryRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 7) {
             Text(message.historyDisplayName)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DesignTokens.Colors.ink)
+                .foregroundStyle(Color.primary)
             Image(systemName: message.historyDirectionGlyph)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(DesignTokens.Colors.ink3)
+                .foregroundStyle(Color.secondary)
             Text(message.historyPriorityModeLabel)
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .tracking(0.6)
-                .foregroundStyle(DesignTokens.Colors.ink3)
+                .foregroundStyle(Color.secondary)
             Spacer(minLength: 8)
             Text(message.historyTimestamp)
                 .font(.system(size: 10, weight: .regular, design: .monospaced))
-                .foregroundStyle(DesignTokens.Colors.ink4)
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         }
     }
 
@@ -98,8 +98,8 @@ struct HistoryRow: View {
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .overlay(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.control, style: .continuous)
-                        .strokeBorder(DesignTokens.Colors.line2, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.tile, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
             Spacer(minLength: 0)
         }
@@ -107,19 +107,19 @@ struct HistoryRow: View {
 
     private var priorityColor: Color {
         switch message.priority.lowercased() {
-        case "critical": DesignTokens.Colors.critical
-        case "high": DesignTokens.Colors.high
-        case "low": DesignTokens.Colors.low
-        default: DesignTokens.Colors.normal
+        case "critical": DesignTokens.Priority.critical
+        case "high": DesignTokens.Priority.high
+        case "low": DesignTokens.Priority.low
+        default: DesignTokens.Priority.normal
         }
     }
 
     private var statusColor: Color {
         switch message.status.lowercased() {
-        case "replied": DesignTokens.Colors.pos
-        case "delivered": DesignTokens.Colors.warn
-        case "expired": DesignTokens.Colors.ink4
-        default: DesignTokens.Colors.ink3
+        case "replied": DesignTokens.live
+        case "delivered": Color.orange
+        case "expired": Color(nsColor: .tertiaryLabelColor)
+        default: Color.secondary
         }
     }
 }

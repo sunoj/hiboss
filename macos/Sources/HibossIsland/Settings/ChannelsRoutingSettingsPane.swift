@@ -19,11 +19,11 @@ struct ChannelsRoutingSettingsPane: View {
                     routingRow(priority)
                 }
             }
-            .background(DesignTokens.Colors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.row))
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
             .overlay {
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.row)
-                    .stroke(DesignTokens.Colors.line, lineWidth: 1)
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
             }
         }
     }
@@ -38,7 +38,7 @@ struct ChannelsRoutingSettingsPane: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(DesignTokens.Colors.surface2)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     private func routingRow(_ priority: MessagePriority) -> some View {
@@ -62,7 +62,7 @@ struct ChannelsRoutingSettingsPane: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .overlay(alignment: .bottom) {
-            Rectangle().fill(DesignTokens.Colors.line).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
         }
     }
 
@@ -72,9 +72,9 @@ struct ChannelsRoutingSettingsPane: View {
         alignment: Alignment
     ) -> some View {
         Text(label)
-            .font(DesignTokens.Fonts.monoLabel)
+            .font(Font.caption.monospaced())
             .tracking(0.7)
-            .foregroundStyle(DesignTokens.Colors.ink3)
+            .foregroundStyle(Color.secondary)
             .frame(width: width, alignment: alignment)
     }
 
@@ -84,9 +84,9 @@ struct ChannelsRoutingSettingsPane: View {
                 .fill(priority.settingsColor)
                 .frame(width: 8, height: 8)
             Text(priority.settingsLabel)
-                .font(DesignTokens.Fonts.monoLabel)
+                .font(Font.caption.monospaced())
                 .tracking(0.7)
-                .foregroundStyle(DesignTokens.Colors.ink2)
+                .foregroundStyle(Color.secondary)
         }
     }
 

@@ -36,34 +36,34 @@ struct ConnectionSettingsPane: View {
             PulsingStatusDot(isActive: flow.connectionState == .connected)
             VStack(alignment: .leading, spacing: 4) {
                 Text(connectionTitle)
-                    .font(DesignTokens.Fonts.rowTitle)
-                    .foregroundStyle(DesignTokens.Colors.ink)
+                    .font(Font.headline)
+                    .foregroundStyle(Color.primary)
                 HStack(spacing: 8) {
                     Text(connectionDetail)
-                        .font(DesignTokens.Fonts.monoLabel)
+                        .font(Font.caption.monospaced())
                         .tracking(0.7)
                     Text("SSE")
-                        .font(DesignTokens.Fonts.monoLabel)
+                        .font(Font.caption.monospaced())
                         .tracking(0.7)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
                         .overlay {
-                            RoundedRectangle(cornerRadius: DesignTokens.Radius.control)
-                                .stroke(DesignTokens.Colors.line2, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: DesignTokens.Radius.tile)
+                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
                         }
                 }
-                .foregroundStyle(DesignTokens.Colors.ink3)
+                .foregroundStyle(Color.secondary)
             }
             Spacer()
             Button("Reconnect", action: reconnect)
                 .disabled(isConnecting)
         }
         .padding(14)
-        .background(DesignTokens.Colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.row))
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
         .overlay {
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.row)
-                .stroke(DesignTokens.Colors.line, lineWidth: 1)
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         }
     }
 

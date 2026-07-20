@@ -19,7 +19,7 @@ struct QuietHoursSettingsPane: View {
                 SettingsRow(title: "Time range", caption: "Use 24-hour HH:mm local times.") {
                     HStack(spacing: 8) {
                         timeField("Start", text: startBinding)
-                        Text("→").foregroundStyle(DesignTokens.Colors.ink3)
+                        Text("→").foregroundStyle(Color.secondary)
                         timeField("End", text: endBinding)
                     }
                 }
@@ -46,8 +46,8 @@ struct QuietHoursSettingsPane: View {
             }
             if let message = SettingsPreferencesLogic.validationMessage(for: preferencesStore.preferences) {
                 Text(message)
-                    .font(DesignTokens.Fonts.caption)
-                    .foregroundStyle(DesignTokens.Colors.neg)
+                    .font(Font.caption)
+                    .foregroundStyle(Color.red)
             }
         }
     }
@@ -72,14 +72,14 @@ struct QuietHoursSettingsPane: View {
             updateQuietHours(SettingsPreferencesLogic.toggledDay(day.index, in: quietHours))
         } label: {
             Text(day.label)
-                .font(DesignTokens.Fonts.body)
-                .foregroundStyle(isSelected ? DesignTokens.Colors.paper : DesignTokens.Colors.ink2)
+                .font(Font.body)
+                .foregroundStyle(isSelected ? Color(nsColor: .windowBackgroundColor) : Color.secondary)
                 .frame(width: 26, height: 26)
-                .background(isSelected ? DesignTokens.Colors.ink : DesignTokens.Colors.surface2)
+                .background(isSelected ? Color.primary : Color(nsColor: .controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .overlay {
                     RoundedRectangle(cornerRadius: 7)
-                        .stroke(isSelected ? .clear : DesignTokens.Colors.line2, lineWidth: 1)
+                        .stroke(isSelected ? .clear : Color(nsColor: .separatorColor), lineWidth: 1)
                 }
         }
         .buttonStyle(.plain)

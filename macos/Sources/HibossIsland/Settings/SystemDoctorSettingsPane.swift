@@ -34,8 +34,8 @@ struct SystemDoctorSettingsPane: View {
 
     private func diagnosticText(_ text: String) -> some View {
         Text(text)
-            .font(DesignTokens.Fonts.monoLabel)
+            .font(Font.caption.monospaced())
             .tracking(0.7)
-            .foregroundStyle(DesignTokens.Colors.ink3)
+            .foregroundStyle(Color.secondary)
     }
 }
