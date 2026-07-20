@@ -52,8 +52,9 @@ public struct QuietHours: Codable, Equatable, Sendable {
 }
 
 public struct BossPreferences: Codable, Equatable, Sendable {
-    public let routing: [MessagePriority: [NotificationChannel]]?
-    public let quietHours: QuietHours?
+    public var routing: [MessagePriority: [NotificationChannel]]?
+    public var quietHours: QuietHours?
+    private let preservedRouting: [String: [String]]?
 
     enum CodingKeys: String, CodingKey {
         case routing
@@ -66,12 +67,15 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     ) {
         self.routing = routing
         self.quietHours = quietHours
+        self.preservedRouting = nil
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         quietHours = try values.decodeIfPresent(QuietHours.self, forKey: .quietHours)
-        routing = try Self.decodeRouting(from: values)
+        let decodedRouting = try Self.decodeRouting(from: values)
+        routing = decodedRouting.typed
+        preservedRouting = decodedRouting.raw
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -80,28 +84,41 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         try encodeRouting(into: &values)
     }
 
+    public static func == (lhs: BossPreferences, rhs: BossPreferences) -> Bool {
+        lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours
+    }
+
     private static func decodeRouting(
         from values: KeyedDecodingContainer<CodingKeys>
-    ) throws -> [MessagePriority: [NotificationChannel]]? {
+    ) throws -> (typed: [MessagePriority: [NotificationChannel]]?, raw: [String: [String]]?) {
         guard let rawRouting = try values.decodeIfPresent([String: [String]].self, forKey: .routing) else {
-            return nil
+            return (nil, nil)
         }
         var routing: [MessagePriority: [NotificationChannel]] = [:]
         for (rawPriority, rawChannels) in rawRouting {
             guard let priority = MessagePriority(rawValue: rawPriority) else { continue }
             routing[priority] = rawChannels.compactMap(NotificationChannel.init(rawValue:))
         }
-        return routing
+        return (routing, rawRouting)
     }
 
     private func encodeRouting(
         into values: inout KeyedEncodingContainer<CodingKeys>
     ) throws {
         guard let routing else { return }
-        var rawRouting: [String: [String]] = [:]
+        var rawRouting = preservedRouting?.filter { MessagePriority(rawValue: $0.key) == nil } ?? [:]
         for (priority, channels) in routing {
-            rawRouting[priority.rawValue] = channels.map(\.rawValue)
+            rawRouting[priority.rawValue] = mergedChannels(for: priority, channels: channels)
         }
         try values.encode(rawRouting, forKey: .routing)
+    }
+
+    private func mergedChannels(
+        for priority: MessagePriority,
+        channels: [NotificationChannel]
+    ) -> [String] {
+        let rawChannels = preservedRouting?[priority.rawValue] ?? []
+        let unknownChannels = rawChannels.filter { NotificationChannel(rawValue: $0) == nil }
+        return channels.map(\.rawValue) + unknownChannels
     }
 }

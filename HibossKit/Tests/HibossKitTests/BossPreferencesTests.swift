@@ -69,6 +69,28 @@ final class BossPreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.routing?[.critical], [.discord, .api])
     }
 
+    func testPreservesUnknownRoutingPayloadWhenEncodingTypedEdits() throws {
+        var preferences = try decodePreferences(
+            """
+            {
+              "routing": {
+                "critical": ["discord", "slack"],
+                "normal": ["discord"],
+                "urgent": ["slack"]
+              }
+            }
+            """
+        )
+
+        preferences.routing?[.normal] = [.api]
+
+        let object = try encodedJSONObject(preferences)
+        let routing = try XCTUnwrap(object["routing"] as? [String: [String]])
+        XCTAssertTrue(routing["critical"]?.contains("slack") ?? false)
+        XCTAssertEqual(routing["normal"], ["api"])
+        XCTAssertEqual(routing["urgent"], ["slack"])
+    }
+
     func testDecodesAbsentRouting() throws {
         let preferences = try decodePreferences(
             """
@@ -115,5 +137,11 @@ final class BossPreferencesTests: XCTestCase {
 
     private func decodePreferences(_ json: String) throws -> BossPreferences {
         try JSONDecoder().decode(BossPreferences.self, from: Data(json.utf8))
+    }
+
+    private func encodedJSONObject(_ preferences: BossPreferences) throws -> [String: Any] {
+        let data = try JSONEncoder().encode(preferences)
+        let object = try JSONSerialization.jsonObject(with: data)
+        return try XCTUnwrap(object as? [String: Any])
     }
 }

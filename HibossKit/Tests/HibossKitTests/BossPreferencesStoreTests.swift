@@ -30,6 +30,19 @@ final class BossPreferencesStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testLoadCancellationResetsIdleState() async {
+        let api = StubPreferencesAPI(fetchResult: .cancelled, updateResult: .failure(.save))
+        let store = BossPreferencesStore(api: api)
+
+        let task = Task { await store.load() }
+        await Task.yield()
+        task.cancel()
+        await task.value
+
+        XCTAssertEqual(store.state, .idle)
+    }
+
+    @MainActor
     func testSaveSuccessPublishesMergedPreferences() async {
         let submitted = BossPreferences(routing: [.high: [.telegram]])
         let merged = BossPreferences(routing: [.critical: [.api], .high: [.telegram]])
@@ -55,11 +68,27 @@ final class BossPreferencesStoreTests: XCTestCase {
         XCTAssertEqual(store.preferences, initial)
         XCTAssertEqual(store.state, .failed("Save failed."))
     }
+
+    @MainActor
+    func testSaveCancellationResetsIdleState() async {
+        let initial = BossPreferences(routing: [.normal: [.discord]])
+        let api = StubPreferencesAPI(fetchResult: .failure(.load), updateResult: .cancelled)
+        let store = BossPreferencesStore(api: api, initialPreferences: initial)
+
+        let task = Task { await store.save() }
+        await Task.yield()
+        task.cancel()
+        await task.value
+
+        XCTAssertEqual(store.preferences, initial)
+        XCTAssertEqual(store.state, .idle)
+    }
 }
 
 private enum StubPreferenceResult: Sendable {
     case success(BossPreferences)
     case failure(StubPreferenceError)
+    case cancelled
 }
 
 private enum StubPreferenceError: LocalizedError, Sendable {
@@ -88,6 +117,9 @@ private actor StubPreferencesAPI: BossPreferencesServing {
         switch fetchResult {
         case let .success(preferences): return preferences
         case let .failure(error): throw error
+        case .cancelled:
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            return BossPreferences()
         }
     }
 
@@ -96,6 +128,9 @@ private actor StubPreferencesAPI: BossPreferencesServing {
         switch updateResult {
         case let .success(preferences): return preferences
         case let .failure(error): throw error
+        case .cancelled:
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+            return preferences
         }
     }
 }
