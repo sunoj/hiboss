@@ -11,31 +11,37 @@ struct SystemDoctorSettingsPane: View {
     @ObservedObject var preferencesStore: BossPreferencesStore
 
     var body: some View {
-        SettingsPaneBody(pane: .systemDoctor) {
-            SettingsSection(title: "Health") {
-                SettingsRow(title: "Daemon stream", caption: "SSE connection state.") {
-                    diagnosticText(flow.connectionState.label)
+        Form {
+            Section {
+                LabeledContent("Daemon stream") {
+                    Text(flow.connectionState.label)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
-                SettingsRow(title: "Server reachability", caption: "Local connection settings validation.") {
-                    diagnosticText(settings.isConfigured ? "Configured" : "Not configured")
+                LabeledContent("Server reachability") {
+                    Text(settings.isConfigured ? "Configured" : "Not configured")
+                        .foregroundStyle(.secondary)
                 }
-                LastSettingsRow(title: "Last error", caption: "Most recent stream or preference failure.") {
-                    diagnosticText(lastError)
+                LabeledContent("Last error") {
+                    Text(lastError)
+                        .font(.system(.body, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
+            } header: {
+                Text("Health")
+            } footer: {
+                Text("Read-only diagnostics for the local daemon stream and preference store.")
+                    .foregroundStyle(.secondary)
             }
         }
+        .formStyle(.grouped)
     }
 
     private var lastError: String {
         if case let .failed(message) = flow.connectionState { return message }
         if case let .failed(message) = preferencesStore.state { return message }
         return "None"
-    }
-
-    private func diagnosticText(_ text: String) -> some View {
-        Text(text)
-            .font(Font.caption.monospaced())
-            .tracking(0.7)
-            .foregroundStyle(Color.secondary)
     }
 }

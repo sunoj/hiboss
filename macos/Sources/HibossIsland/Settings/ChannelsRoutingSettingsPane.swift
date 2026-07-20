@@ -11,101 +11,102 @@ struct ChannelsRoutingSettingsPane: View {
     let soundPlayer: any SoundPlaying
 
     var body: some View {
-        SettingsPaneBody(pane: .routing) {
-            SettingsNotAppliedNotice()
-            VStack(spacing: 0) {
-                headerRow
-                ForEach(SettingsPreferencesLogic.priorities, id: \.self) { priority in
-                    routingRow(priority)
+        Form {
+            Section {
+                RoutingMatrix(
+                    preferencesStore: preferencesStore,
+                    settings: settings,
+                    soundPlayer: soundPlayer
+                )
+            } header: {
+                Text("Routing")
+            } footer: {
+                SettingsNotAppliedNotice()
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+/// Priority × channel checkbox grid with per-priority client-side alert sounds.
+private struct RoutingMatrix: View {
+    @ObservedObject var preferencesStore: BossPreferencesStore
+    @ObservedObject var settings: AppSettings
+    let soundPlayer: any SoundPlaying
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
+            GridRow {
+                Text("Priority")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(SettingsPreferencesLogic.channels, id: \.self) { channel in
+                    Text(channel.settingsLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .gridColumnAlignment(.center)
+                }
+                Text("Sound")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .gridColumnAlignment(.trailing)
+            }
+
+            ForEach(SettingsPreferencesLogic.priorities, id: \.self) { priority in
+                GridRow {
+                    priorityLabel(priority)
+                    ForEach(SettingsPreferencesLogic.channels, id: \.self) { channel in
+                        Toggle(channel.settingsLabel, isOn: channelBinding(priority: priority, channel: channel))
+                            .toggleStyle(.checkbox)
+                            .labelsHidden()
+                            .gridColumnAlignment(.center)
+                            .accessibilityLabel("\(priority.settingsLabel) via \(channel.settingsLabel)")
+                    }
+                    Picker("Sound", selection: soundBinding(for: priority)) {
+                        ForEach(OptionSound.allCases) { sound in
+                            Text(sound.label).tag(sound)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(minWidth: 120)
+                    .gridColumnAlignment(.trailing)
+                    .accessibilityLabel("\(priority.settingsLabel) sound")
                 }
             }
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.notice))
-            .overlay {
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.notice)
-                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-            }
         }
-    }
-
-    private var headerRow: some View {
-        HStack(spacing: 0) {
-            tableHeader("PRIORITY", width: 124, alignment: .leading)
-            ForEach(SettingsPreferencesLogic.channels, id: \.self) { channel in
-                tableHeader(channel.settingsLabel, width: 86, alignment: .center)
-            }
-            tableHeader("Sound", width: 150, alignment: .trailing)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    private func routingRow(_ priority: MessagePriority) -> some View {
-        HStack(spacing: 0) {
-            priorityLabel(priority)
-                .frame(width: 124, alignment: .leading)
-            ForEach(SettingsPreferencesLogic.channels, id: \.self) { channel in
-                RoutingToggle(isOn: channelIsOn(priority: priority, channel: channel)) {
-                    toggle(priority: priority, channel: channel)
-                }
-                .frame(width: 86)
-            }
-            Picker("", selection: soundBinding(for: priority)) {
-                ForEach(OptionSound.allCases) { sound in
-                    Text(sound.label).tag(sound)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 150)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
-        }
-    }
-
-    private func tableHeader(
-        _ label: String,
-        width: CGFloat,
-        alignment: Alignment
-    ) -> some View {
-        Text(label)
-            .font(Font.caption.monospaced())
-            .tracking(0.7)
-            .foregroundStyle(Color.secondary)
-            .frame(width: width, alignment: alignment)
+        .padding(.vertical, 4)
     }
 
     private func priorityLabel(_ priority: MessagePriority) -> some View {
         HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 2)
+            Circle()
                 .fill(priority.settingsColor)
                 .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
             Text(priority.settingsLabel)
-                .font(Font.caption.monospaced())
-                .tracking(0.7)
-                .foregroundStyle(Color.secondary)
+                .font(.body)
         }
     }
 
-    private func channelIsOn(priority: MessagePriority, channel: NotificationChannel) -> Bool {
-        let routing = SettingsPreferencesLogic.routing(from: preferencesStore.preferences)
-        return Set(routing[priority] ?? []).contains(channel)
-    }
-
-    private func toggle(priority: MessagePriority, channel: NotificationChannel) {
-        let routing = SettingsPreferencesLogic.routing(from: preferencesStore.preferences)
-        let next = SettingsPreferencesLogic.toggledRouting(
-            routing,
-            priority: priority,
-            channel: channel
-        )
-        preferencesStore.preferences = SettingsPreferencesLogic.preferences(
-            preferencesStore.preferences,
-            byUpdating: next
-        )
+    private func channelBinding(
+        priority: MessagePriority,
+        channel: NotificationChannel
+    ) -> Binding<Bool> {
+        Binding {
+            let routing = SettingsPreferencesLogic.routing(from: preferencesStore.preferences)
+            return Set(routing[priority] ?? []).contains(channel)
+        } set: { _ in
+            let routing = SettingsPreferencesLogic.routing(from: preferencesStore.preferences)
+            let next = SettingsPreferencesLogic.toggledRouting(
+                routing,
+                priority: priority,
+                channel: channel
+            )
+            preferencesStore.preferences = SettingsPreferencesLogic.preferences(
+                preferencesStore.preferences,
+                byUpdating: next
+            )
+        }
     }
 
     private func soundBinding(for priority: MessagePriority) -> Binding<OptionSound> {

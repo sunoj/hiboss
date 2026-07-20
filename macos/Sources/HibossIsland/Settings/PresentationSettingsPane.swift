@@ -1,6 +1,6 @@
 // Presentation pane for local option-surface preferences.
 // Exports: PresentationSettingsPane.
-// Dependencies: SwiftUI, AppSettings, SoundPlaying, and DesignTokens.
+// Dependencies: SwiftUI, AppSettings, and SoundPlaying.
 
 import SwiftUI
 
@@ -9,24 +9,23 @@ struct PresentationSettingsPane: View {
     let soundPlayer: any SoundPlaying
 
     var body: some View {
-        SettingsPaneBody(pane: .presentation) {
-            SettingsSection(title: "Alerts") {
-                SettingsRow(title: "Play sounds", caption: "Play an alert when a new question appears.") {
-                    Toggle("", isOn: $settings.playsSound)
-                        .labelsHidden()
-                }
-                LastSettingsRow(title: "Default sound", caption: "Fallback sound for alerts without a priority rule.") {
-                    Picker("", selection: $settings.alertSound) {
-                        ForEach(OptionSound.allCases) { sound in
-                            Text(sound.label).tag(sound)
-                        }
+        Form {
+            Section {
+                Toggle("Play sounds", isOn: $settings.playsSound)
+                Picker("Default sound", selection: $settings.alertSound) {
+                    ForEach(OptionSound.allCases) { sound in
+                        Text(sound.label).tag(sound)
                     }
-                    .labelsHidden()
-                    .frame(width: 180)
-                    .disabled(!settings.playsSound)
-                    .onChange(of: settings.alertSound) { soundPlayer.play($1) }
                 }
+                .disabled(!settings.playsSound)
+                .onChange(of: settings.alertSound) { soundPlayer.play($1) }
+            } header: {
+                Text("Alerts")
+            } footer: {
+                Text("Fallback sound for alerts without a priority rule.")
+                    .foregroundStyle(.secondary)
             }
         }
+        .formStyle(.grouped)
     }
 }
