@@ -10,8 +10,6 @@ struct HistoryView: View {
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
     @State private var selection: HistoryMessage.ID?
-    @State private var expandedSessionIDs: Set<String> = []
-    @State private var seededSessionIDs: Set<String> = []
 
     private var unreadCount: Int {
         HistoryMessageLogic.unreadCount(in: flow.historyMessages)
@@ -36,9 +34,6 @@ struct HistoryView: View {
             .toolbar { historyToolbar }
             .task {
                 if flow.historyState == .idle { await flow.refreshHistory() }
-            }
-            .onChange(of: sessionGroups.map(\.id)) { _, _ in
-                seedExpansion(for: sessionGroups)
             }
     }
 
@@ -112,40 +107,19 @@ struct HistoryView: View {
     private var groupedMessageList: some View {
         List(selection: $selection) {
             ForEach(sessionGroups) { group in
-                Section(isExpanded: expansionBinding(for: group.id)) {
+                Section {
                     ForEach(group.messages) { message in
-                        HistoryRow(message: message)
-                            .tag(message.id)
+                        HistoryRow(message: message) { choice in
+                            Task { await flow.answerHistory(choice, for: message.id) }
+                        }
+                        .tag(message.id)
                     }
                 } header: {
                     SessionGroupHeader(group: group)
                 }
             }
         }
-        .listStyle(.sidebar)
-        .onAppear { seedExpansion(for: sessionGroups) }
-    }
-
-    private func expansionBinding(for sessionID: String) -> Binding<Bool> {
-        Binding(
-            get: { expandedSessionIDs.contains(sessionID) },
-            set: { isExpanded in
-                if isExpanded {
-                    expandedSessionIDs.insert(sessionID)
-                } else {
-                    expandedSessionIDs.remove(sessionID)
-                }
-            }
-        )
-    }
-
-    private func seedExpansion(for groups: [SessionGroup]) {
-        let newIDs = Set(groups.map(\.id)).subtracting(seededSessionIDs)
-        guard !newIDs.isEmpty else { return }
-        for group in groups where newIDs.contains(group.id) && group.isExpandedByDefault {
-            expandedSessionIDs.insert(group.id)
-        }
-        seededSessionIDs.formUnion(newIDs)
+        .listStyle(.inset)
     }
 
     private var emptyTitle: String {

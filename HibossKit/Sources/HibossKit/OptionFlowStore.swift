@@ -104,6 +104,20 @@ public final class OptionFlowStore: ObservableObject {
         return await send(choice, for: message)
     }
 
+    /// Answers a past (history) option message by id, independent of the live `activeMessage`.
+    /// Used by the History window so the boss can act on decisions that are not the current popup.
+    @discardableResult
+    public func answerHistory(_ choice: String, for messageID: MessageID) async -> Bool {
+        guard let api else { return false }
+        do {
+            _ = try await api.reply(to: messageID, with: choice)
+            await refreshHistory()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// Answers with free-form text instead of one of the offered options.
     /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
     @discardableResult
