@@ -73,7 +73,11 @@ pub struct GroupBroadcastArgs {
     pub priority: String,
 }
 
-pub async fn run(args: &GroupArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &GroupArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match &args.command {
         GroupCommand::List => run_list(client).await,
         GroupCommand::Create(a) => run_create(a, client).await,
@@ -98,13 +102,21 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         let name = g["name"].as_str().unwrap_or("-");
         let count = g["member_count"].as_u64().unwrap_or(0);
         let created = g["created_at"].as_str().unwrap_or("-");
-        println!("{:<10} {:<20} {:<8} {}", id.green(), name, count, created.dimmed());
+        println!(
+            "{:<10} {:<20} {:<8} {}",
+            id.green(),
+            name,
+            count,
+            created.dimmed()
+        );
     }
     Ok(())
 }
 
 async fn run_create(args: &GroupCreateArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let group = client.create_group(&args.name, args.description.as_deref()).await?;
+    let group = client
+        .create_group(&args.name, args.description.as_deref())
+        .await?;
     let id = group["id"].as_str().unwrap_or("unknown");
     eprintln!("Group created: {} ({})", args.name, short_id(id));
     Ok(())
@@ -113,7 +125,10 @@ async fn run_create(args: &GroupCreateArgs, client: &HiBossClient) -> Result<(),
 async fn run_show(args: &GroupShowArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let group = client.get_group(&args.id).await?;
     println!("Name: {}", group["name"].as_str().unwrap_or("-"));
-    println!("Description: {}", group["description"].as_str().unwrap_or("-"));
+    println!(
+        "Description: {}",
+        group["description"].as_str().unwrap_or("-")
+    );
     let members = group["members"].as_array();
     println!("Members:");
     if let Some(members) = members {
@@ -132,20 +147,35 @@ async fn run_delete(args: &GroupDeleteArgs, client: &HiBossClient) -> Result<(),
     Ok(())
 }
 
-async fn run_add_member(args: &GroupMemberArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    client.add_group_member(&args.group_id, &args.agent_id).await?;
+async fn run_add_member(
+    args: &GroupMemberArgs,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    client
+        .add_group_member(&args.group_id, &args.agent_id)
+        .await?;
     eprintln!("Member added");
     Ok(())
 }
 
-async fn run_remove_member(args: &GroupMemberArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    client.remove_group_member(&args.group_id, &args.agent_id).await?;
+async fn run_remove_member(
+    args: &GroupMemberArgs,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    client
+        .remove_group_member(&args.group_id, &args.agent_id)
+        .await?;
     eprintln!("Member removed");
     Ok(())
 }
 
-async fn run_broadcast(args: &GroupBroadcastArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let result = client.broadcast_to_group(&args.group_id, &args.body, &args.priority).await?;
+async fn run_broadcast(
+    args: &GroupBroadcastArgs,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    let result = client
+        .broadcast_to_group(&args.group_id, &args.body, &args.priority)
+        .await?;
     let count = result["count"].as_u64().unwrap_or(0);
     eprintln!("Broadcast sent to {} agents", count);
     Ok(())

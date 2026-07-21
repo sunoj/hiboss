@@ -14,10 +14,16 @@ pub struct ReplyArgs {
     pub body: String,
 }
 
-pub async fn run(args: &ReplyArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &ReplyArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     // Auto-mark parent message as replied
     let _ = client.update_status(&args.id, "replied").await;
-    let response = client.reply_to(&args.id, &unescape_body(&args.body)).await?;
+    let response = client
+        .reply_to(&args.id, &unescape_body(&args.body))
+        .await?;
     eprintln!("Reply posted");
     session::mark_replied();
     println!("{}", response.id);

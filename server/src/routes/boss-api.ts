@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, hashApiKey } from '../middleware/auth';
-import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
+import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
@@ -27,6 +27,22 @@ interface JoinRequestRow {
 interface ApiKeyRow {
   id: string;
   name: string;
+}
+interface GroupRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+interface RoutingRuleRow {
+  id: string;
+  owner_id: string;
+  channel: string;
+  pattern: string;
+  target_agent_id: string;
+  priority: number;
+  enabled: number;
+  created_at: string;
 }
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
@@ -102,6 +118,75 @@ routes.get('/agents', async (c) => {
   return c.json({ agents: rows.results ?? [] });
 });
 
+/** GET /api/boss/groups — list groups for accessible agents */
+routes.get('/groups', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  if (agentIds.length === 0) return c.json({ groups: [] });
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const rows = await c.env.DB
+    .prepare(
+      `SELECT g.*, (SELECT COUNT(*) FROM agent_group_members m WHERE m.group_id = g.id) AS member_count FROM agent_groups g WHERE g.owner_id IN (${placeholders}) ORDER BY g.name`
+    )
+    .bind(...agentIds)
+    .all<GroupRow & { member_count: number }>();
+  return c.json({ groups: rows.results ?? [] });
+});
+
+/** GET /api/boss/routing-rules — list routing rules for accessible agents */
+routes.get('/routing-rules', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  if (agentIds.length === 0) return c.json({ rules: [] });
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const rows = await c.env.DB
+    .prepare(`SELECT * FROM routing_rules WHERE owner_id IN (${placeholders}) ORDER BY priority DESC`)
+    .bind(...agentIds)
+    .all<RoutingRuleRow>();
+  return c.json({ rules: rows.results ?? [] });
+});
+
+/** GET /api/boss/audit — list audit log entries scoped to accessible agents */
+routes.get('/audit', async (c) => {
+  const bossId = getBossId(c);
+  const role = getBossRole(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
+  const params = c.req.query();
+  const actorType = params.actor_type as string | undefined;
+  const action = params.action as string | undefined;
+  const limit = Math.min(parseInt(params.limit ?? '50', 10), 200);
+  const offset = parseInt(params.offset ?? '0', 10);
+  const clauses: string[] = [];
+  const binds: (string | number)[] = [];
+
+  if (role !== 'admin') {
+    const agentScope = agentIds.length > 0
+      ? `(actor_type = 'agent' AND actor_id IN (${agentIds.map(() => '?').join(', ')})) OR `
+      : '';
+    clauses.push(`(${agentScope}(actor_type = 'boss' AND actor_id = ?))`);
+    binds.push(...agentIds, bossId);
+  }
+  if (actorType) {
+    clauses.push('actor_type = ?');
+    binds.push(actorType);
+  }
+  if (action) {
+    clauses.push('action = ?');
+    binds.push(action);
+  }
+
+  let sql = 'SELECT * FROM audit_log';
+  if (clauses.length > 0) sql += ` WHERE ${clauses.join(' AND ')}`;
+  const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as count');
+  const countRow = await c.env.DB.prepare(countSql).bind(...binds).first<{ count: number }>();
+  const total = countRow?.count ?? 0;
+
+  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  binds.push(limit, offset);
+  const rows = await c.env.DB.prepare(sql).bind(...binds).all();
+  return c.json({ entries: rows.results ?? [], total });
+});
+
 /** GET /api/boss/messages — list messages from accessible agents */
 routes.get('/messages', async (c) => {
   const bossId = getBossId(c);
@@ -149,7 +234,7 @@ routes.get('/messages', async (c) => {
 
   const where = clauses.join(' AND ');
   const rows = await c.env.DB
-    .prepare(`SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`)
+    .prepare(`SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch, sessions.status AS session_status FROM (SELECT * FROM messages WHERE ${where}) messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id LEFT JOIN sessions ON sessions.id = messages.session_id ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`)
     .bind(...binds, limit, offset)
     .all<MessageRow>();
   const countRow = await c.env.DB
@@ -254,6 +339,39 @@ routes.get('/sessions', async (c) => {
     .bind(...agentIds)
     .all();
   return c.json({ sessions: rows.results ?? [] });
+});
+
+/** POST /api/boss/sessions/:id/message — send a fresh command to a session's agent */
+routes.post('/sessions/:id/message', async (c) => {
+  const bossId = getBossId(c);
+  const role = getBossRole(c);
+  if (role === 'viewer') return c.text('viewer cannot send messages', 403);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
+  const sessionId = c.req.param('id');
+  const session = await c.env.DB
+    .prepare("SELECT id, agent_id FROM sessions WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(sessionId, `${escapeLike(sessionId)}%`)
+    .first<{ id: string; agent_id: string }>();
+  if (!session || !agentIds.includes(session.agent_id)) return c.text('not found', 404);
+
+  const payload = await c.req.json<Record<string, unknown>>();
+  const body = typeof payload.body === 'string' ? payload.body.trim() : '';
+  if (!body) return c.text('body is required', 400);
+  const priority = validateOption(payload.priority, priorityOptions, 'normal') ?? 'normal';
+  const bossName = getBossName(c);
+  const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });
+
+  const inserted = await c.env.DB
+    .prepare(
+      "INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, target_session_id, metadata) VALUES (?, 'boss_to_agent', 'async', 'api', ?, 'sent', ?, ?, ?) RETURNING *"
+    )
+    .bind(session.agent_id, body, priority, session.id, metadata)
+    .first<MessageRow>();
+  if (!inserted) return c.text('failed to persist', 500);
+
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, session.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'session.message', 'session', session.id, bossName));
+  return c.json(mapMessageRow(inserted), 201);
 });
 
 routes.get('/join-requests', async (c) => {

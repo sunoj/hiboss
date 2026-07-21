@@ -10,6 +10,8 @@ struct HistoryView: View {
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
     @State private var selection: HistoryMessage.ID?
+    @State private var expandedSessionIDs: Set<String> = []
+    @State private var seededSessionIDs: Set<String> = []
 
     private var unreadCount: Int {
         HistoryMessageLogic.unreadCount(in: flow.historyMessages)
@@ -23,6 +25,10 @@ struct HistoryView: View {
         )
     }
 
+    private var sessionGroups: [SessionGroup] {
+        HistoryMessageLogic.groupBySession(messages)
+    }
+
     var body: some View {
         historyContent
             .background(Color(nsColor: .windowBackgroundColor))
@@ -30,6 +36,9 @@ struct HistoryView: View {
             .toolbar { historyToolbar }
             .task {
                 if flow.historyState == .idle { await flow.refreshHistory() }
+            }
+            .onChange(of: sessionGroups.map(\.id)) { _, _ in
+                seedExpansion(for: sessionGroups)
             }
     }
 
@@ -96,11 +105,47 @@ struct HistoryView: View {
                 description: Text(emptyDescription)
             )
         } else {
-            List(messages, selection: $selection) { message in
-                HistoryRow(message: message)
-                    .tag(message.id)
+            groupedMessageList
+        }
+    }
+
+    private var groupedMessageList: some View {
+        List(selection: $selection) {
+            ForEach(sessionGroups) { group in
+                Section(isExpanded: expansionBinding(for: group.id)) {
+                    ForEach(group.messages) { message in
+                        HistoryRow(message: message)
+                            .tag(message.id)
+                    }
+                } header: {
+                    SessionGroupHeader(group: group)
+                }
             }
         }
+        .listStyle(.sidebar)
+        .onAppear { seedExpansion(for: sessionGroups) }
+    }
+
+    private func expansionBinding(for sessionID: String) -> Binding<Bool> {
+        Binding(
+            get: { expandedSessionIDs.contains(sessionID) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedSessionIDs.insert(sessionID)
+                } else {
+                    expandedSessionIDs.remove(sessionID)
+                }
+            }
+        )
+    }
+
+    private func seedExpansion(for groups: [SessionGroup]) {
+        let newIDs = Set(groups.map(\.id)).subtracting(seededSessionIDs)
+        guard !newIDs.isEmpty else { return }
+        for group in groups where newIDs.contains(group.id) && group.isExpandedByDefault {
+            expandedSessionIDs.insert(group.id)
+        }
+        seededSessionIDs.formUnion(newIDs)
     }
 
     private var emptyTitle: String {
@@ -121,5 +166,50 @@ struct HistoryView: View {
             return "Try a different filter or search."
         }
         return "Agent messages will appear here."
+    }
+}
+
+private struct SessionGroupHeader: View {
+    let group: SessionGroup
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+                .accessibilityLabel(statusAccessibilityLabel)
+
+            Text(group.label)
+                .font(.headline)
+                .foregroundStyle(Color.primary)
+                .lineLimit(1)
+
+            if let agentName = group.agentName {
+                Text(agentName)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Text("\(group.messages.count)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+
+    private var statusColor: Color {
+        switch group.status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "working": DesignTokens.live
+        case "waiting", "blocked": Color.orange
+        default: Color.secondary
+        }
+    }
+
+    private var statusAccessibilityLabel: String {
+        let cleaned = group.status?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return cleaned.isEmpty ? "Session status unknown" : "Session \(cleaned)"
     }
 }

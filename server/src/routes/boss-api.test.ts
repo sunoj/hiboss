@@ -31,6 +31,15 @@ beforeAll(async () => {
   await env.DB.prepare(
     "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'high')"
   ).bind('boss-api-msg-2', getTestAgentId(), 'Deploy completed successfully').run();
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO agent_groups (id, name, description, owner_id) VALUES (?, ?, ?, ?)'
+  ).bind('boss-api-group-1', 'Boss API Group', 'Visible to boss token', getTestAgentId()).run();
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO routing_rules (id, owner_id, channel, pattern, target_agent_id, priority, enabled) VALUES (?, ?, 'telegram', ?, ?, 10, 1)"
+  ).bind('boss-api-rule-1', getTestAgentId(), 'deploy', getTestAgentId()).run();
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO audit_log (id, actor_type, actor_id, action, resource_type, resource_id, details) VALUES (?, 'agent', ?, ?, 'message', ?, ?)"
+  ).bind('boss-api-audit-1', getTestAgentId(), 'boss.contract.read', 'boss-api-msg-1', 'seeded audit row').run();
 });
 
 afterEach(() => {
@@ -110,6 +119,36 @@ describe('GET /api/boss/agents', () => {
     // Admin sees all agents, should include test-agent
     const names = data.agents.map((a: any) => a.name);
     expect(names).toContain('test-agent');
+  });
+});
+
+describe('GET /api/boss/groups', () => {
+  it('lists groups for accessible agents', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/groups', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { groups: { id: string }[] };
+    expect(data.groups).toBeInstanceOf(Array);
+    expect(data.groups.some((group) => group.id === 'boss-api-group-1')).toBe(true);
+  });
+});
+
+describe('GET /api/boss/routing-rules', () => {
+  it('lists routing rules for accessible agents', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/routing-rules', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { rules: { id: string }[] };
+    expect(data.rules).toBeInstanceOf(Array);
+    expect(data.rules.some((rule) => rule.id === 'boss-api-rule-1')).toBe(true);
+  });
+});
+
+describe('GET /api/boss/audit', () => {
+  it('lists audit entries for accessible agents', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/audit?limit=10', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { entries: { id: string }[] };
+    expect(data.entries).toBeInstanceOf(Array);
+    expect(data.entries.some((entry) => entry.id === 'boss-api-audit-1')).toBe(true);
   });
 });
 
@@ -299,5 +338,45 @@ describe('GET /api/boss/sessions', () => {
     expect(res.status).toBe(200);
     const data = await res.json() as any;
     expect(data.sessions).toBeInstanceOf(Array);
+  });
+});
+
+describe('POST /api/boss/sessions/:id/message', () => {
+  it('sends a fresh command to a session agent', async () => {
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
+    ).bind('boss-sess-cmd', getTestAgentId(), 'cmd-session').run();
+    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd/message', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'Run the deploy', priority: 'high' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as any;
+    expect(data.direction).toBe('boss_to_agent');
+    expect(data.target_session_id).toBe('boss-sess-cmd');
+    expect(data.priority).toBe('high');
+    expect(data.body).toBe('Run the deploy');
+  });
+
+  it('rejects empty body', async () => {
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
+    ).bind('boss-sess-cmd-2', getTestAgentId(), 'cmd-session-2').run();
+    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd-2/message', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: '  ' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for unknown session', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/sessions/nope-nope/message', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'hi' }),
+    });
+    expect(res.status).toBe(404);
   });
 });

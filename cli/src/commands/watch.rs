@@ -2,11 +2,20 @@
 // Exports: WatchArgs for CLI parsing and run() for the SSE watch loop.
 // Dependencies: clap, tokio, colored, crate::client, crate::config, crate::sse, std::process::Command.
 
-use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate, color_priority}, session, sse, types::Message};
+use crate::{
+    client::HiBossClient,
+    config::Config,
+    helpers::{color_priority, short_id, truncate},
+    session, sse,
+    types::Message,
+};
 use clap::Args;
 use colored::Colorize;
 use std::{error::Error, process::Command};
-use tokio::{signal, time::{Duration, sleep}};
+use tokio::{
+    signal,
+    time::{Duration, sleep},
+};
 
 #[derive(Debug, Args)]
 pub struct WatchArgs {
@@ -14,21 +23,34 @@ pub struct WatchArgs {
     pub interval: u64,
     #[arg(long)]
     pub no_notify: bool,
-    #[arg(long, help = "Session ID for session-scoped streaming (auto-detected if not set)")]
+    #[arg(
+        long,
+        help = "Session ID for session-scoped streaming (auto-detected if not set)"
+    )]
     pub session: Option<String>,
 }
 
-pub async fn run(args: &WatchArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &WatchArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let server = config.require_server()?;
     let key = config.require_key()?;
     let notify = !args.no_notify;
     let session_id = args.session.clone().or_else(session::read_session_id);
     if let Some(ref sid) = session_id {
-        eprintln!("Watching for messages (session: {})... (Ctrl+C to stop)", &sid[..8.min(sid.len())]);
+        eprintln!(
+            "Watching for messages (session: {})... (Ctrl+C to stop)",
+            &sid[..8.min(sid.len())]
+        );
     } else {
         eprintln!("Watching for new messages... (Ctrl+C to stop)");
     }
-    println!("{:<10} {:<16} {:<12} {:<50} {}", "ID", "Agent", "Priority", "Body", "Time");
+    println!(
+        "{:<10} {:<16} {:<12} {:<50} {}",
+        "ID", "Agent", "Priority", "Body", "Time"
+    );
 
     let (tx, mut rx) = tokio::sync::mpsc::channel::<sse::SseEvent>(32);
     let mut sse_url = format!("{}/api/messages/stream", server);
@@ -91,7 +113,14 @@ fn print_message(message: &Message) {
     let body = message.body.as_deref().unwrap_or("-");
     let truncated = truncate(body, 47);
     let time_label = message.created_at.as_deref().unwrap_or("-");
-    println!("{:<10} {:<16} {:<12} {:<50} {}", id, origin.cyan(), priority_display, truncated, time_label.dimmed());
+    println!(
+        "{:<10} {:<16} {:<12} {:<50} {}",
+        id,
+        origin.cyan(),
+        priority_display,
+        truncated,
+        time_label.dimmed()
+    );
 }
 
 fn trigger_notification(message: &Message) {

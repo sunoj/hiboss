@@ -2,7 +2,13 @@
 // Exports: BotArgs CLI parser and run() to stream messages via SSE and reply.
 // Dependencies: clap, tokio, crate::client, crate::config, crate::types, crate::sse.
 
-use crate::{client::HiBossClient, config::Config, helpers::{short_id, truncate}, session, sse, types::Message};
+use crate::{
+    client::HiBossClient,
+    config::Config,
+    helpers::{short_id, truncate},
+    session, sse,
+    types::Message,
+};
 use clap::Args;
 use std::{error::Error, process::Stdio};
 use tokio::{
@@ -20,7 +26,11 @@ pub struct BotArgs {
     pub interval: u64,
 }
 
-pub async fn run(args: &BotArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &BotArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let server = config.require_server()?;
     let key = config.require_key()?;
     eprintln!(

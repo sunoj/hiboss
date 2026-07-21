@@ -15,7 +15,11 @@ pub struct Forward {
     pub channel: String,
 }
 
-pub async fn run(args: &Forward, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &Forward,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let channel = args.channel.trim().to_lowercase();
     if channel != "discord" && channel != "telegram" {
         return Err("channel must be discord or telegram".into());

@@ -40,9 +40,15 @@ fn repeated_actions_split_only_on_first_equals_sign() {
     ]);
 
     let payload = command.args.choice_payload().expect("valid action");
-    assert_eq!(payload.options, Some(vec!["Approve, recommended".to_owned()]));
     assert_eq!(
-        payload.actions.get("Approve, recommended").and_then(|value| value.as_str()),
+        payload.options,
+        Some(vec!["Approve, recommended".to_owned()])
+    );
+    assert_eq!(
+        payload
+            .actions
+            .get("Approve, recommended")
+            .and_then(|value| value.as_str()),
         Some("tools/cleanup --filter=a,b")
     );
 }
@@ -64,7 +70,12 @@ fn legacy_plural_flags_explain_the_new_repeatable_syntax() {
 #[test]
 fn options_and_actions_conflict() {
     let result = AskCommand::try_parse_from([
-        "test", "--option", "Wait", "--action", "Approve=deploy", "Choose",
+        "test",
+        "--option",
+        "Wait",
+        "--action",
+        "Approve=deploy",
+        "Choose",
     ]);
     assert!(result.is_err());
 }
@@ -72,11 +83,14 @@ fn options_and_actions_conflict() {
 #[test]
 fn more_than_five_options_are_rejected() {
     let command = parse(&[
-        "--option", "1", "--option", "2", "--option", "3", "--option", "4",
-        "--option", "5", "--option", "6", "Choose",
+        "--option", "1", "--option", "2", "--option", "3", "--option", "4", "--option", "5",
+        "--option", "6", "Choose",
     ]);
 
-    let error = command.args.choice_payload().expect_err("six options must fail");
+    let error = command
+        .args
+        .choice_payload()
+        .expect_err("six options must fail");
     assert!(error.to_string().contains("at most 5"));
 }
 
