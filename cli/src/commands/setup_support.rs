@@ -4,10 +4,15 @@
 
 use crate::types::ChannelInfo;
 use reqwest::Client;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::error::Error;
 
-pub async fn tg_api(http: &Client, token: &str, method: &str, body: &Value) -> Result<Value, Box<dyn Error>> {
+pub async fn tg_api(
+    http: &Client,
+    token: &str,
+    method: &str,
+    body: &Value,
+) -> Result<Value, Box<dyn Error>> {
     let resp = http
         .post(format!("https://api.telegram.org/bot{}/{}", token, method))
         .json(body)
@@ -19,7 +24,10 @@ pub async fn tg_api(http: &Client, token: &str, method: &str, body: &Value) -> R
     Ok(resp.json().await?)
 }
 
-pub async fn register_telegram_commands(http: &Client, bot_token: &str) -> Result<Value, Box<dyn Error>> {
+pub async fn register_telegram_commands(
+    http: &Client,
+    bot_token: &str,
+) -> Result<Value, Box<dyn Error>> {
     tg_api(
         http,
         bot_token,
@@ -48,17 +56,30 @@ pub fn telegram_set_webhook_payload(webhook_url: &str, webhook_secret: Option<&s
 pub fn telegram_webhook_secret_reminder(webhook_secret: Option<&str>) -> Option<String> {
     webhook_secret
         .filter(|value| !value.trim().is_empty())
-        .map(|_| "Reminder: set TELEGRAM_WEBHOOK_SECRET to the same value in your server environment.".to_owned())
+        .map(|_| {
+            "Reminder: set TELEGRAM_WEBHOOK_SECRET to the same value in your server environment."
+                .to_owned()
+        })
 }
 
 pub fn extract_chats(updates: &Value) -> Vec<(String, String)> {
     let mut chats: Vec<(String, String)> = Vec::new();
-    let Some(arr) = updates["result"].as_array() else { return chats };
+    let Some(arr) = updates["result"].as_array() else {
+        return chats;
+    };
     for update in arr.iter().rev() {
         let chat = &update["message"]["chat"];
-        let Some(id) = chat["id"].as_i64().map(|value| value.to_string()) else { continue };
-        if chats.iter().any(|(chat_id, _)| chat_id == &id) { continue; }
-        let title = chat["title"].as_str().or(chat["first_name"].as_str()).unwrap_or("?").to_owned();
+        let Some(id) = chat["id"].as_i64().map(|value| value.to_string()) else {
+            continue;
+        };
+        if chats.iter().any(|(chat_id, _)| chat_id == &id) {
+            continue;
+        }
+        let title = chat["title"]
+            .as_str()
+            .or(chat["first_name"].as_str())
+            .unwrap_or("?")
+            .to_owned();
         chats.push((id, title));
     }
     chats
@@ -84,9 +105,19 @@ pub fn select_chat(chats: &[(String, String)]) -> Result<String, Box<dyn Error>>
     Ok(chats[idx - 1].0.clone())
 }
 
-pub async fn discord_api(http: &Client, token: &str, method: &str, path: &str, body: Option<&Value>) -> Result<Value, Box<dyn Error>> {
+pub async fn discord_api(
+    http: &Client,
+    token: &str,
+    method: &str,
+    path: &str,
+    body: Option<&Value>,
+) -> Result<Value, Box<dyn Error>> {
     let url = format!("https://discord.com/api/v10/{}", path);
-    let mut req = if method == "POST" { http.post(&url) } else { http.get(&url) };
+    let mut req = if method == "POST" {
+        http.post(&url)
+    } else {
+        http.get(&url)
+    };
     req = req.header("Authorization", format!("Bot {}", token));
     if let Some(payload) = body {
         req = req.json(payload);
@@ -98,14 +129,22 @@ pub async fn discord_api(http: &Client, token: &str, method: &str, path: &str, b
     Ok(resp.json().await?)
 }
 
-pub async fn list_text_channels(http: &Client, token: &str, guilds: &[Value]) -> Vec<(String, String, String)> {
+pub async fn list_text_channels(
+    http: &Client,
+    token: &str,
+    guilds: &[Value],
+) -> Vec<(String, String, String)> {
     let mut all = Vec::new();
     for guild in guilds {
         let guild_id = guild["id"].as_str().unwrap_or_default();
         let guild_name = guild["name"].as_str().unwrap_or("?").to_owned();
         let path = format!("guilds/{}/channels", guild_id);
-        let Ok(channels_val) = discord_api(http, token, "GET", &path, None).await else { continue };
-        let Ok(channels): Result<Vec<Value>, _> = serde_json::from_value(channels_val) else { continue };
+        let Ok(channels_val) = discord_api(http, token, "GET", &path, None).await else {
+            continue;
+        };
+        let Ok(channels): Result<Vec<Value>, _> = serde_json::from_value(channels_val) else {
+            continue;
+        };
         for channel in &channels {
             if channel["type"].as_u64() == Some(0) {
                 all.push((
@@ -131,9 +170,7 @@ pub fn extract_telegram_bot_token(channels: &[ChannelInfo]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        extract_telegram_bot_token,
-        telegram_set_webhook_payload,
-        telegram_webhook_secret_reminder,
+        extract_telegram_bot_token, telegram_set_webhook_payload, telegram_webhook_secret_reminder,
     };
     use crate::types::ChannelInfo;
     use serde_json::json;
@@ -157,22 +194,31 @@ mod tests {
             },
         ];
 
-        assert_eq!(extract_telegram_bot_token(&channels).as_deref(), Some("telegram-token"));
+        assert_eq!(
+            extract_telegram_bot_token(&channels).as_deref(),
+            Some("telegram-token")
+        );
     }
 
     #[test]
     fn includes_secret_token_in_webhook_payload_when_present() {
-        let payload = telegram_set_webhook_payload("https://hiboss.test/api/webhooks/telegram", Some("secret-123"));
+        let payload = telegram_set_webhook_payload(
+            "https://hiboss.test/api/webhooks/telegram",
+            Some("secret-123"),
+        );
         assert_eq!(payload["secret_token"], "secret-123");
         assert_eq!(
             telegram_webhook_secret_reminder(Some("secret-123")).as_deref(),
-            Some("Reminder: set TELEGRAM_WEBHOOK_SECRET to the same value in your server environment."),
+            Some(
+                "Reminder: set TELEGRAM_WEBHOOK_SECRET to the same value in your server environment."
+            ),
         );
     }
 
     #[test]
     fn omits_secret_token_and_reminder_when_secret_is_missing() {
-        let payload = telegram_set_webhook_payload("https://hiboss.test/api/webhooks/telegram", None);
+        let payload =
+            telegram_set_webhook_payload("https://hiboss.test/api/webhooks/telegram", None);
         assert!(payload.get("secret_token").is_none());
         assert!(telegram_webhook_secret_reminder(None).is_none());
     }

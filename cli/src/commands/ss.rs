@@ -29,7 +29,11 @@ pub struct SetStatusArgs {
     pub text: Option<String>,
 }
 
-pub async fn run(args: &SsArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &SsArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match &args.command {
         Some(SsCommand::Set(set_args)) => run_set(set_args, client).await,
         None => run_board(client).await,
@@ -39,11 +43,18 @@ pub async fn run(args: &SsArgs, _config: &Config, client: &HiBossClient) -> Resu
 async fn run_set(args: &SetStatusArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let status = args.status.to_lowercase();
     if !VALID_STATUSES.contains(&status.as_str()) {
-        return Err(format!("Invalid status '{}'. Must be one of: {}", status, VALID_STATUSES.join(", ")).into());
+        return Err(format!(
+            "Invalid status '{}'. Must be one of: {}",
+            status,
+            VALID_STATUSES.join(", ")
+        )
+        .into());
     }
     let sid = session::read_session_id()
         .ok_or("No active session. Run hiboss hook session-start first.")?;
-    client.heartbeat_session(&sid, Some(&status), args.text.as_deref()).await?;
+    client
+        .heartbeat_session(&sid, Some(&status), args.text.as_deref())
+        .await?;
     let icon = match status.as_str() {
         "working" => "🔨",
         "blocked" => "🚫",
@@ -78,10 +89,13 @@ async fn run_board(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         Box::new(|s: &str| s.blue()),
     ];
     for (i, status) in statuses.iter().enumerate() {
-        let group: Vec<_> = sessions.iter()
+        let group: Vec<_> = sessions
+            .iter()
             .filter(|s| s.status.as_deref().unwrap_or("working") == *status)
             .collect();
-        if group.is_empty() { continue; }
+        if group.is_empty() {
+            continue;
+        }
         println!("{} {} ({})", icons[i], colors[i](status), group.len());
         for s in &group {
             let id_short: String = s.id.chars().take(8).collect();
@@ -90,8 +104,16 @@ async fn run_board(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
             let text = s.status_text.as_deref().unwrap_or("");
             let text_display = if text.chars().count() > 60 {
                 format!("{}...", text.chars().take(57).collect::<String>())
-            } else { text.to_string() };
-            println!("  {} {} ({}) {}", id_short.dimmed(), label, agent.dimmed(), text_display.dimmed());
+            } else {
+                text.to_string()
+            };
+            println!(
+                "  {} {} ({}) {}",
+                id_short.dimmed(),
+                label,
+                agent.dimmed(),
+                text_display.dimmed()
+            );
         }
     }
     Ok(())

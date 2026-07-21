@@ -23,6 +23,14 @@ pub struct Message {
     pub metadata: Option<HashMap<String, Value>>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    #[serde(default)]
+    pub session_label: Option<String>,
+    #[serde(default)]
+    pub session_branch: Option<String>,
+    #[serde(default)]
+    pub session_status: Option<String>,
     pub replies: Option<Vec<Message>>,
 }
 

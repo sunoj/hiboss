@@ -9,24 +9,21 @@ use crate::client::HiBossClient;
 use crate::commands::setup_hooks::{self, SetupHooksArgs};
 use crate::config::Config;
 use clap::{Args, Subcommand};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::error::Error;
 use std::io::{self, Write};
 
 use self::setup_support::{
-    discord_api,
-    extract_chats,
-    extract_telegram_bot_token,
-    list_text_channels,
-    register_telegram_commands,
-    select_chat,
-    telegram_set_webhook_payload,
-    telegram_webhook_secret_reminder,
-    tg_api,
+    discord_api, extract_chats, extract_telegram_bot_token, list_text_channels,
+    register_telegram_commands, select_chat, telegram_set_webhook_payload,
+    telegram_webhook_secret_reminder, tg_api,
 };
 
 #[derive(Debug, Args)]
-pub struct SetupArgs { #[command(subcommand)] pub command: SetupCommand }
+pub struct SetupArgs {
+    #[command(subcommand)]
+    pub command: SetupCommand,
+}
 
 #[derive(Debug, Subcommand)]
 pub enum SetupCommand {
@@ -34,7 +31,10 @@ pub enum SetupCommand {
     Hooks(SetupHooksArgs),
     #[command(about = "Guided Telegram bot setup")]
     Telegram(SetupTelegramArgs),
-    #[command(name = "telegram-commands", about = "Register Telegram bot commands from saved channel config")]
+    #[command(
+        name = "telegram-commands",
+        about = "Register Telegram bot commands from saved channel config"
+    )]
     TelegramCommands,
     #[command(about = "Guided Discord bot setup")]
     Discord(SetupDiscordArgs),
@@ -46,7 +46,10 @@ pub struct SetupTelegramArgs {
     pub bot_token: Option<String>,
     #[arg(long, help = "Chat ID (skip auto-detection)")]
     pub chat_id: Option<String>,
-    #[arg(long, help = "Secret token sent by Telegram and verified by the server webhook")]
+    #[arg(
+        long,
+        help = "Secret token sent by Telegram and verified by the server webhook"
+    )]
     pub webhook_secret: Option<String>,
     #[arg(long, help = "Enable per-agent topic threads in a Telegram group")]
     pub use_topics: bool,
@@ -73,7 +76,11 @@ pub fn needs_client(args: &SetupArgs) -> bool {
     !matches!(&args.command, SetupCommand::Hooks(_))
 }
 
-pub async fn run_with_client(args: &SetupArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run_with_client(
+    args: &SetupArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match &args.command {
         SetupCommand::Telegram(tg) => run_telegram_setup(tg, config, client).await,
         SetupCommand::TelegramCommands => run_telegram_commands_setup(client).await,
@@ -90,7 +97,11 @@ fn prompt(msg: &str) -> Result<String, Box<dyn Error>> {
     Ok(buf.trim().to_owned())
 }
 
-async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+async fn run_telegram_setup(
+    args: &SetupTelegramArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let http = reqwest::Client::new();
     let server_url = config.require_server()?;
 
@@ -104,7 +115,9 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
         eprintln!("  2. Send /newbot and follow the prompts");
         eprintln!("  3. Copy the bot token (looks like 123456:ABC-DEF...)\n");
         let token = prompt("Paste your bot token: ")?;
-        if token.is_empty() { return Err("Bot token is required".into()); }
+        if token.is_empty() {
+            return Err("Bot token is required".into());
+        }
         token
     };
 
@@ -119,12 +132,21 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
         id.clone()
     } else {
         eprintln!("\nStep 2: Connect bot to a chat");
-        eprintln!("  1. Add @{} to a group, OR send it a direct message", bot_name);
+        eprintln!(
+            "  1. Add @{} to a group, OR send it a direct message",
+            bot_name
+        );
         eprintln!("  2. Send any message to the bot/group now\n");
         prompt("Press Enter when you've sent a message... ")?;
 
         eprint!("Detecting chat ID... ");
-        let updates: Value = tg_api(&http, &bot_token, "getUpdates", &json!({"limit": 10, "offset": -10})).await?;
+        let updates: Value = tg_api(
+            &http,
+            &bot_token,
+            "getUpdates",
+            &json!({"limit": 10, "offset": -10}),
+        )
+        .await?;
         let chats = extract_chats(&updates);
         if chats.is_empty() {
             eprintln!("FAILED");
@@ -138,7 +160,9 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
     // Step 3: Save config + webhook
     eprintln!("\nStep 3: Saving configuration...");
     let mut cfg = json!({ "chat_id": chat_id, "bot_token": bot_token });
-    if args.use_topics { cfg["use_topics"] = json!(true); }
+    if args.use_topics {
+        cfg["use_topics"] = json!(true);
+    }
     client.set_channel("telegram", &cfg).await?;
     eprintln!("  Channel config saved.");
 
@@ -150,17 +174,31 @@ async fn run_telegram_setup(args: &SetupTelegramArgs, config: &Config, client: &
         &bot_token,
         "setWebhook",
         &telegram_set_webhook_payload(&webhook_url, args.webhook_secret.as_deref()),
-    ).await?;
-    if wh["ok"].as_bool() == Some(true) { eprintln!("OK"); }
-    else { eprintln!("WARNING: {}", wh["description"].as_str().unwrap_or("?")); }
+    )
+    .await?;
+    if wh["ok"].as_bool() == Some(true) {
+        eprintln!("OK");
+    } else {
+        eprintln!("WARNING: {}", wh["description"].as_str().unwrap_or("?"));
+    }
 
     // Step 4: Test message
     eprint!("  Sending test message... ");
-    let test = tg_api(&http, &bot_token, "sendMessage", &json!({
-        "chat_id": chat_id,
-        "text": "hiboss connected! This bot will relay messages between you and your AI agents."
-    })).await;
-    if test.is_ok() { eprintln!("OK"); } else { eprintln!("FAILED (check permissions)"); }
+    let test = tg_api(
+        &http,
+        &bot_token,
+        "sendMessage",
+        &json!({
+            "chat_id": chat_id,
+            "text": "hiboss connected! This bot will relay messages between you and your AI agents."
+        }),
+    )
+    .await;
+    if test.is_ok() {
+        eprintln!("OK");
+    } else {
+        eprintln!("FAILED (check permissions)");
+    }
 
     eprintln!("\n=== Telegram setup complete! ===");
     eprintln!("Bot @{} connected to chat {}.", bot_name, chat_id);
@@ -186,7 +224,11 @@ async fn run_telegram_commands_setup(client: &HiBossClient) -> Result<(), Box<dy
     Ok(())
 }
 
-async fn run_discord_setup(args: &SetupDiscordArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+async fn run_discord_setup(
+    args: &SetupDiscordArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let http = reqwest::Client::new();
     let server_url = config.require_server()?;
 
@@ -201,7 +243,9 @@ async fn run_discord_setup(args: &SetupDiscordArgs, config: &Config, client: &Hi
         eprintln!("  3. Bot tab > 'Reset Token' > copy the token");
         eprintln!("  4. Enable MESSAGE CONTENT INTENT in Bot tab\n");
         let token = prompt("Paste your bot token: ")?;
-        if token.is_empty() { return Err("Bot token is required".into()); }
+        if token.is_empty() {
+            return Err("Bot token is required".into());
+        }
         token
     };
 
@@ -218,11 +262,14 @@ async fn run_discord_setup(args: &SetupDiscordArgs, config: &Config, client: &Hi
     } else {
         eprintln!("\nStep 2: Select a Discord channel");
         eprintln!("  Invite the bot first:");
-        eprintln!("  https://discord.com/oauth2/authorize?client_id={}&scope=bot&permissions=2048\n", app_id);
+        eprintln!(
+            "  https://discord.com/oauth2/authorize?client_id={}&scope=bot&permissions=2048\n",
+            app_id
+        );
 
         eprint!("Fetching channels... ");
         let guilds: Vec<Value> = serde_json::from_value(
-            discord_api(&http, &bot_token, "GET", "users/@me/guilds", None).await?
+            discord_api(&http, &bot_token, "GET", "users/@me/guilds", None).await?,
         )?;
         eprintln!("found {} server(s)", guilds.len());
 
@@ -237,29 +284,44 @@ async fn run_discord_setup(args: &SetupDiscordArgs, config: &Config, client: &Hi
         }
         let choice = prompt("\nSelect channel number [1]: ")?;
         let idx: usize = choice.parse().unwrap_or(1);
-        if idx < 1 || idx > channels.len() { return Err("Invalid selection".into()); }
+        if idx < 1 || idx > channels.len() {
+            return Err("Invalid selection".into());
+        }
         channels[idx - 1].0.clone()
     };
 
     // Step 3: Register slash commands
     let base = server_url.trim_end_matches('/');
     eprint!("\nStep 3: Registering /msg slash command... ");
-    let reg_resp = http.post(format!("{}/api/webhooks/discord-interactions/register-commands", base))
+    let reg_resp = http
+        .post(format!(
+            "{}/api/webhooks/discord-interactions/register-commands",
+            base
+        ))
         .json(&json!({ "app_id": app_id, "bot_token": bot_token }))
-        .send().await?;
-    if reg_resp.status().is_success() { eprintln!("OK"); }
-    else { eprintln!("FAILED ({})", reg_resp.text().await.unwrap_or_default()); }
+        .send()
+        .await?;
+    if reg_resp.status().is_success() {
+        eprintln!("OK");
+    } else {
+        eprintln!("FAILED ({})", reg_resp.text().await.unwrap_or_default());
+    }
 
     // Step 4: Save config
     eprint!("  Saving channel config... ");
     let mut cfg = json!({ "bot_token": bot_token, "channel_id": channel_id });
-    if let Some(ref wh_url) = args.webhook_url { cfg["webhook_url"] = json!(wh_url); }
+    if let Some(ref wh_url) = args.webhook_url {
+        cfg["webhook_url"] = json!(wh_url);
+    }
     client.set_channel("discord", &cfg).await?;
     eprintln!("OK");
 
     eprintln!("\n=== Discord setup almost complete! ===\n");
     eprintln!("One manual step for boss → agent messaging:\n");
-    eprintln!("  1. Discord Developer Portal > {} > General Information", app_name);
+    eprintln!(
+        "  1. Discord Developer Portal > {} > General Information",
+        app_name
+    );
     eprintln!("  2. Set Interactions Endpoint URL to:");
     eprintln!("     {}/api/webhooks/discord-interactions", base);
     eprintln!("  3. Copy PUBLIC KEY from same page, then run:");

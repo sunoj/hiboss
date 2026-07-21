@@ -47,7 +47,11 @@ pub struct RouteRemoveArgs {
     pub id: String,
 }
 
-pub async fn run(args: &RouteArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &RouteArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match &args.command {
         RouteCommand::List => run_list(client).await,
         RouteCommand::Add(add_args) => run_add(add_args, client).await,
@@ -62,14 +66,24 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         eprintln!("No routing rules configured.");
         return Ok(());
     }
-    println!("{:<10} {:<10} {:<20} {:<10} {:<8}", "ID", "Channel", "Pattern", "Target", "Priority");
+    println!(
+        "{:<10} {:<10} {:<20} {:<10} {:<8}",
+        "ID", "Channel", "Pattern", "Target", "Priority"
+    );
     for rule in items.unwrap() {
         let id = short_id(rule["id"].as_str().unwrap_or(""));
         let ch = rule["channel"].as_str().unwrap_or("-");
         let pat = rule["pattern"].as_str().unwrap_or("-");
         let target = short_id(rule["target_agent_id"].as_str().unwrap_or(""));
         let pri = rule["priority"].as_i64().unwrap_or(0);
-        println!("{:<10} {:<10} {:<20} {:<10} {:<8}", id.green(), ch, pat.dimmed(), target, pri);
+        println!(
+            "{:<10} {:<10} {:<20} {:<10} {:<8}",
+            id.green(),
+            ch,
+            pat.dimmed(),
+            target,
+            pri
+        );
     }
     Ok(())
 }

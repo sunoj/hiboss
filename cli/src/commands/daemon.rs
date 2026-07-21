@@ -63,9 +63,7 @@ fn stop_daemon() -> Result<(), Box<dyn Error>> {
     let pid_path = session::daemon_pid_path();
     match session::is_daemon_running() {
         Some(pid) => {
-            let _ = Command::new("kill")
-                .arg(pid.to_string())
-                .status();
+            let _ = Command::new("kill").arg(pid.to_string()).status();
             let _ = fs::remove_file(&pid_path);
             eprintln!("Daemon stopped (pid {})", pid);
         }
@@ -119,11 +117,7 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
         let path = pending_path.clone();
         while let Some(event) = rx.recv().await {
             if event.event_type == "message" {
-                if let Ok(mut f) = fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(&path)
-                {
+                if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&path) {
                     let _ = writeln!(f, "{}", event.data);
                 }
             }

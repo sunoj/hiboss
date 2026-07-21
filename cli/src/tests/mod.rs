@@ -4,5 +4,6 @@
 
 mod ask;
 mod helpers;
+mod inbox;
 mod setup;
 mod types_config;

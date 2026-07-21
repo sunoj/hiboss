@@ -1,5 +1,5 @@
 // Purpose: Utility functions for hiboss CLI hook events.
-// Exports: is_ttl_expired, start_daemon_if_needed, build_client, get_git_branch, 
+// Exports: is_ttl_expired, start_daemon_if_needed, build_client, get_git_branch,
 //          show_peer_sessions, generate_session_id, get_inbox_count, get_a2a_inbox_count.
 
 use crate::{client::HiBossClient, config, session};
@@ -35,8 +35,12 @@ pub(crate) fn start_daemon_if_needed() {
     let log_path = format!("/tmp/hiboss-daemon-{}.log", session::project_hash());
     let child = Command::new(&exe)
         .args(["daemon", "run"])
-        .stdout(fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()))
-        .stderr(fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()))
+        .stdout(
+            fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()),
+        )
+        .stderr(
+            fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()),
+        )
         .stdin(std::process::Stdio::null())
         .spawn();
     if let Ok(child) = child {
@@ -74,16 +78,26 @@ pub(crate) fn get_repo_name() -> Option<String> {
         .args(["remote", "get-url", "origin"])
         .output()
         .ok()
-        .and_then(|o| if o.status.success() { Some(String::from_utf8_lossy(&o.stdout).trim().to_owned()) } else { None })
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_owned())
+            } else {
+                None
+            }
+        })
         .and_then(|url| {
             let s = url.trim_end_matches(".git");
             s.rsplit('/').next().map(|n| n.to_owned())
         })
     {
-        if !name.is_empty() { return Some(name); }
+        if !name.is_empty() {
+            return Some(name);
+        }
     }
     // Fall back to cwd directory name
-    std::env::current_dir().ok().and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+    std::env::current_dir()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
 }
 
 /// Show active peer sessions for cross-session collaboration. Returns true if peers exist.
@@ -96,7 +110,9 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) -> bool {
         Ok(s) => s,
         Err(_) => return false,
     };
-    let peers: Vec<_> = sessions.sessions.iter()
+    let peers: Vec<_> = sessions
+        .sessions
+        .iter()
         .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
         .collect();
     if !peers.is_empty() {
@@ -118,7 +134,8 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) -> bool {
             let detail = if status_text.is_empty() {
                 format!("{} {}", icon, status)
             } else if status_text.len() > 60 {
-                let truncate_at = status_text.char_indices()
+                let truncate_at = status_text
+                    .char_indices()
                     .map(|(i, _)| i)
                     .take_while(|&i| i <= 57)
                     .last()
@@ -129,7 +146,9 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) -> bool {
             };
             println!("  {}  {}  {}", id_short, label, detail);
         }
-        println!("COORDINATE: Before starting work, broadcast your plan: hiboss send --broadcast \"Working on X\"");
+        println!(
+            "COORDINATE: Before starting work, broadcast your plan: hiboss send --broadcast \"Working on X\""
+        );
         return true;
     }
     false
@@ -153,7 +172,9 @@ pub(crate) async fn auto_broadcast_session_start() {
         Ok(s) => s,
         Err(_) => return,
     };
-    for peer in sessions.sessions.iter()
+    for peer in sessions
+        .sessions
+        .iter()
         .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
     {
         // Target by exact session ID — labels collide across sessions and the server
@@ -184,7 +205,10 @@ pub(crate) fn generate_session_id() -> String {
     if let Ok(mut f) = fs::File::open("/dev/urandom") {
         let _ = f.read_exact(&mut buf);
     } else {
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
         let pid = std::process::id() as u128;
         let val = ts ^ (pid << 64);
         buf = val.to_le_bytes();
@@ -202,7 +226,10 @@ pub(crate) fn generate_session_id() -> String {
 }
 
 pub(crate) fn get_inbox_count() -> u32 {
-    let output = Command::new("hiboss").args(["inbox", "--count"]).output().ok();
+    let output = Command::new("hiboss")
+        .args(["inbox", "--count"])
+        .output()
+        .ok();
     output
         .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse().ok())
         .unwrap_or(0)

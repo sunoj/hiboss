@@ -53,7 +53,11 @@ pub struct AgentConfigArgs {
     pub session_info: Option<String>,
 }
 
-pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    command: &AgentCommand,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match command {
         AgentCommand::Create(args) => {
             let resp = client.create_agent(&args.name).await?;
@@ -61,9 +65,18 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
             println!("{}", resp.key);
         }
         AgentCommand::Config(args) => {
-            if args.default_priority.is_none() && args.rate_limit.is_none() && args.channel_routing.is_none() && args.avatar.is_none() && args.role.is_none() && args.session_info.is_none() {
+            if args.default_priority.is_none()
+                && args.rate_limit.is_none()
+                && args.channel_routing.is_none()
+                && args.avatar.is_none()
+                && args.role.is_none()
+                && args.session_info.is_none()
+            {
                 let info = client.get_agent_config().await?;
-                println!("default_priority: {}", info["default_priority"].as_str().unwrap_or("normal"));
+                println!(
+                    "default_priority: {}",
+                    info["default_priority"].as_str().unwrap_or("normal")
+                );
                 let rl = match &info["rate_limit"] {
                     serde_json::Value::Number(n) => n.to_string(),
                     _ => "unlimited".to_string(),
@@ -80,7 +93,10 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
             } else {
                 let mut updates = serde_json::Map::new();
                 if let Some(dp) = &args.default_priority {
-                    updates.insert("default_priority".into(), serde_json::Value::String(dp.clone()));
+                    updates.insert(
+                        "default_priority".into(),
+                        serde_json::Value::String(dp.clone()),
+                    );
                 }
                 if let Some(rl) = args.rate_limit {
                     if rl == 0 {
@@ -102,7 +118,8 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                                 Some((key, serde_json::Value::String(val)))
                             })
                             .collect();
-                        updates.insert("channel_routing".into(), serde_json::Value::Object(routing));
+                        updates
+                            .insert("channel_routing".into(), serde_json::Value::Object(routing));
                     }
                 }
                 if let Some(role) = &args.role {
@@ -125,7 +142,10 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                     if avatar == "none" || avatar.is_empty() {
                         updates.insert("avatar_url".into(), serde_json::Value::Null);
                     } else if avatar.starts_with("http://") || avatar.starts_with("https://") {
-                        updates.insert("avatar_url".into(), serde_json::Value::String(avatar.clone()));
+                        updates.insert(
+                            "avatar_url".into(),
+                            serde_json::Value::String(avatar.clone()),
+                        );
                     } else {
                         // Local file: upload to R2 first
                         let upload = client.upload_file(avatar).await?;
@@ -133,16 +153,24 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                         updates.insert("avatar_url".into(), serde_json::Value::String(upload.url));
                     }
                 }
-                let result = client.update_agent_config(&serde_json::Value::Object(updates)).await?;
+                let result = client
+                    .update_agent_config(&serde_json::Value::Object(updates))
+                    .await?;
                 eprintln!("Config updated");
-                println!("default_priority: {}", result["default_priority"].as_str().unwrap_or("normal"));
+                println!(
+                    "default_priority: {}",
+                    result["default_priority"].as_str().unwrap_or("normal")
+                );
                 let rl = match &result["rate_limit"] {
                     serde_json::Value::Number(n) => n.to_string(),
                     _ => "unlimited".to_string(),
                 };
                 println!("rate_limit: {} msg/min", rl);
                 print_channel_routing(&result["channel_routing"]);
-                println!("avatar: {}", result["avatar_url"].as_str().unwrap_or("none"));
+                println!(
+                    "avatar: {}",
+                    result["avatar_url"].as_str().unwrap_or("none")
+                );
                 println!("role: {}", result["role"].as_str().unwrap_or("none"));
                 if let Some(si) = result.get("session_info") {
                     if !si.is_null() {
@@ -153,13 +181,17 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
         }
         AgentCommand::List => {
             let resp = client.list_agents().await?;
-            println!("{:<10} {:<20} {:<14} {:<10} {:<16} {}", "ID", "Name", "Role", "Status", "Branch", "Last Seen");
+            println!(
+                "{:<10} {:<20} {:<14} {:<10} {:<16} {}",
+                "ID", "Name", "Role", "Status", "Branch", "Last Seen"
+            );
             for agent in resp.agents {
                 let id: String = agent.id.chars().take(8).collect();
                 let last = agent.last_used_at.as_deref().unwrap_or("-");
                 let role = agent.role.as_deref().unwrap_or("-");
                 let status_str = agent.status.as_deref().unwrap_or("offline");
-                let branch = agent.session_info
+                let branch = agent
+                    .session_info
                     .as_ref()
                     .and_then(|si| si.get("branch"))
                     .and_then(|b| b.as_str())
@@ -175,7 +207,15 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
                     "reviewer" => role.yellow().normal(),
                     _ => role.dimmed(),
                 };
-                println!("{:<10} {:<20} {:<14} {:<10} {:<16} {}", id, agent.name.green(), colored_role, colored_status, branch.blue(), last.dimmed());
+                println!(
+                    "{:<10} {:<20} {:<14} {:<10} {:<16} {}",
+                    id,
+                    agent.name.green(),
+                    colored_role,
+                    colored_status,
+                    branch.blue(),
+                    last.dimmed()
+                );
             }
         }
     }
@@ -185,7 +225,8 @@ pub async fn run(command: &AgentCommand, _config: &Config, client: &HiBossClient
 fn print_channel_routing(value: &serde_json::Value) {
     match value {
         serde_json::Value::Object(map) if !map.is_empty() => {
-            let pairs: Vec<String> = map.iter()
+            let pairs: Vec<String> = map
+                .iter()
                 .map(|(k, v)| format!("{}={}", k, v.as_str().unwrap_or("?")))
                 .collect();
             println!("channel_routing: {}", pairs.join(", "));
@@ -193,4 +234,3 @@ fn print_channel_routing(value: &serde_json::Value) {
         _ => println!("channel_routing: none"),
     }
 }
-

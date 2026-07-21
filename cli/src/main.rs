@@ -4,7 +4,10 @@
 
 use clap::{Parser, Subcommand};
 use hiboss::client;
-use hiboss::commands::{agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group, hook, init, inbox, react, read, reply, route, send, setup, ss, status, watch};
+use hiboss::commands::{
+    agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
+    hook, inbox, init, react, read, reply, route, send, setup, ss, status, watch,
+};
 use hiboss::config;
 use std::error::Error;
 
@@ -70,9 +73,15 @@ async fn main() {
     if let Err(err) = run().await {
         let msg = err.to_string();
         eprintln!("Error: {}", msg);
-        let code = if msg.contains("not configured") || msg.contains("missing") || msg.contains("config") {
+        let code = if msg.contains("not configured")
+            || msg.contains("missing")
+            || msg.contains("config")
+        {
             3
-        } else if msg.contains("request failed") || msg.contains("connect") || msg.contains("timeout") {
+        } else if msg.contains("request failed")
+            || msg.contains("connect")
+            || msg.contains("timeout")
+        {
             2
         } else {
             1
