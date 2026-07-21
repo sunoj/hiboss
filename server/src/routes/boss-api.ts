@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, hashApiKey } from '../middleware/auth';
-import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
+import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
@@ -254,6 +254,39 @@ routes.get('/sessions', async (c) => {
     .bind(...agentIds)
     .all();
   return c.json({ sessions: rows.results ?? [] });
+});
+
+/** POST /api/boss/sessions/:id/message — send a fresh command to a session's agent */
+routes.post('/sessions/:id/message', async (c) => {
+  const bossId = getBossId(c);
+  const role = getBossRole(c);
+  if (role === 'viewer') return c.text('viewer cannot send messages', 403);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
+  const sessionId = c.req.param('id');
+  const session = await c.env.DB
+    .prepare("SELECT id, agent_id FROM sessions WHERE id = ? OR id LIKE ? ESCAPE '\\'")
+    .bind(sessionId, `${escapeLike(sessionId)}%`)
+    .first<{ id: string; agent_id: string }>();
+  if (!session || !agentIds.includes(session.agent_id)) return c.text('not found', 404);
+
+  const payload = await c.req.json<Record<string, unknown>>();
+  const body = typeof payload.body === 'string' ? payload.body.trim() : '';
+  if (!body) return c.text('body is required', 400);
+  const priority = validateOption(payload.priority, priorityOptions, 'normal') ?? 'normal';
+  const bossName = getBossName(c);
+  const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });
+
+  const inserted = await c.env.DB
+    .prepare(
+      "INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, target_session_id, metadata) VALUES (?, 'boss_to_agent', 'async', 'api', ?, 'sent', ?, ?, ?) RETURNING *"
+    )
+    .bind(session.agent_id, body, priority, session.id, metadata)
+    .first<MessageRow>();
+  if (!inserted) return c.text('failed to persist', 500);
+
+  c.executionCtx.waitUntil(notifyAgentCallback(c.env, session.agent_id, inserted));
+  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'session.message', 'session', session.id, bossName));
+  return c.json(mapMessageRow(inserted), 201);
 });
 
 routes.get('/join-requests', async (c) => {

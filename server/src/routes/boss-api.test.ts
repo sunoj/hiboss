@@ -301,3 +301,43 @@ describe('GET /api/boss/sessions', () => {
     expect(data.sessions).toBeInstanceOf(Array);
   });
 });
+
+describe('POST /api/boss/sessions/:id/message', () => {
+  it('sends a fresh command to a session agent', async () => {
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
+    ).bind('boss-sess-cmd', getTestAgentId(), 'cmd-session').run();
+    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd/message', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'Run the deploy', priority: 'high' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as any;
+    expect(data.direction).toBe('boss_to_agent');
+    expect(data.target_session_id).toBe('boss-sess-cmd');
+    expect(data.priority).toBe('high');
+    expect(data.body).toBe('Run the deploy');
+  });
+
+  it('rejects empty body', async () => {
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
+    ).bind('boss-sess-cmd-2', getTestAgentId(), 'cmd-session-2').run();
+    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd-2/message', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: '  ' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for unknown session', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/sessions/nope-nope/message', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'hi' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
