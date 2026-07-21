@@ -3,7 +3,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorState from '$lib/components/ErrorState.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import type { AgentResponse } from '$lib/api/types';
+	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { sortAgentsByLastUsed } from './agent-helpers';
@@ -14,8 +14,13 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let selected = $state<AgentResponse | null>(null);
+	let configById = $state<Record<string, AgentConfigResponse>>({});
 
 	const sorted = $derived(sortAgentsByLastUsed(agents));
+
+	function onConfigSaved(agentId: string, config: AgentConfigResponse) {
+		configById = { ...configById, [agentId]: config };
+	}
 
 	async function load() {
 		const client = auth.client;
@@ -52,7 +57,7 @@
 	<header class="head">
 		<div>
 			<h1>Agents</h1>
-			<p class="sub">智能体 — list, identity, and read-only config</p>
+			<p class="sub">智能体 — list, identity, and editable config</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
 			Refresh
@@ -81,7 +86,12 @@
 				/>
 			</div>
 			{#if selected}
-				<AgentDrawer agent={selected} onClose={() => (selected = null)} />
+				<AgentDrawer
+					agent={selected}
+					config={configById[selected.id] ?? null}
+					onClose={() => (selected = null)}
+					onConfigSaved={onConfigSaved}
+				/>
 			{/if}
 		</div>
 	{/if}

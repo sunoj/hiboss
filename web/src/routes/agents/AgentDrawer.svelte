@@ -1,15 +1,18 @@
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import { formatRelativeTime } from '$lib/api/mappers';
-	import type { AgentResponse } from '$lib/api/types';
+	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
 	import { lastUsedLabel, roleLabel, shortId } from './agent-helpers';
+	import AgentConfigForm from './AgentConfigForm.svelte';
 
 	interface Props {
 		agent: AgentResponse;
+		config?: AgentConfigResponse | null;
 		onClose: () => void;
+		onConfigSaved?: (agentId: string, config: AgentConfigResponse) => void;
 	}
 
-	let { agent, onClose }: Props = $props();
+	let { agent, config = null, onClose, onConfigSaved }: Props = $props();
 </script>
 
 <div class="drawer" role="dialog" aria-modal="true" aria-label="Agent detail">
@@ -41,38 +44,11 @@
 			</div>
 		</section>
 
-		<section class="config">
-			<h3>Config</h3>
-			<p class="note">
-				Boss-scoped agent config is read-only — writing default priority, rate limit, and
-				channel routing needs a boss-scoped write endpoint.
-			</p>
-
-			<div class="fields">
-				<label class="field">
-					<span class="label">Default priority</span>
-					<input type="text" value="—" disabled readonly />
-				</label>
-				<label class="field">
-					<span class="label">Rate limit</span>
-					<input type="text" value="—" disabled readonly />
-				</label>
-				<label class="field wide">
-					<span class="label">Channel routing</span>
-					<input type="text" value="—" disabled readonly />
-				</label>
-			</div>
-
-			<button
-				type="button"
-				class="edit"
-				disabled
-				title="needs a boss-scoped write endpoint"
-			>
-				Edit config…
-			</button>
-			<p class="hint">needs a boss-scoped write endpoint</p>
-		</section>
+		<AgentConfigForm
+			agentId={agent.id}
+			initial={config}
+			onSaved={(next) => onConfigSaved?.(agent.id, next)}
+		/>
 	</div>
 </div>
 
@@ -145,73 +121,5 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-	h3 {
-		margin: 0 0 0.45rem;
-		font-size: 11px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-muted);
-	}
-	.note {
-		margin: 0 0 0.75rem;
-		font-size: 11px;
-		color: var(--hb-text-dim);
-		line-height: 1.4;
-	}
-	.fields {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.65rem;
-		margin-bottom: 0.75rem;
-	}
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		min-width: 0;
-	}
-	.field.wide {
-		grid-column: 1 / -1;
-	}
-	.label {
-		font-size: 10px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: var(--hb-text-dim);
-	}
-	.field input {
-		border: 1px solid var(--hb-border);
-		background: var(--hb-bg-input);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.4rem 0.55rem;
-		color: var(--hb-text-dim);
-		font: inherit;
-		font-size: 12px;
-		cursor: not-allowed;
-		opacity: 0.75;
-	}
-	.edit {
-		width: 100%;
-		border: 1px dashed var(--hb-border);
-		background: var(--hb-bg-input);
-		border-radius: var(--hb-radius-sm);
-		padding: 0.45rem 0.7rem;
-		color: var(--hb-text-dim);
-		cursor: not-allowed;
-		opacity: 0.7;
-	}
-	.hint {
-		margin: 0.4rem 0 0;
-		font-size: 11px;
-		color: var(--hb-text-dim);
-		line-height: 1.35;
-	}
-	@media (max-width: 720px) {
-		.fields {
-			grid-template-columns: 1fr;
-		}
 	}
 </style>

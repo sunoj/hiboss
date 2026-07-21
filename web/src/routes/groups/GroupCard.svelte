@@ -1,23 +1,33 @@
 <script lang="ts">
 	import { formatRelativeTime } from '$lib/api/mappers';
-	import type { GroupResponse } from '$lib/api/types';
-	import {
-		WRITE_DISABLED_NOTE,
-		displayDescription,
-		hasDescription,
-		memberCountLabel
-	} from './groupHelpers';
+	import type { AgentResponse, GroupResponse } from '$lib/api/types';
+	import { displayDescription, hasDescription, memberCountLabel } from './groupHelpers';
+	import MemberEditor from './MemberEditor.svelte';
 
 	interface Props {
 		group: GroupResponse;
+		agents: AgentResponse[];
+		busy?: boolean;
+		onDelete: (groupId: string) => void;
+		onAddMember: (groupId: string, agentId: string) => void;
+		onRemoveMember: (groupId: string, agentId: string) => void;
 	}
 
-	let { group }: Props = $props();
+	let { group, agents, busy = false, onDelete, onAddMember, onRemoveMember }: Props =
+		$props();
+
+	let editing = $state(false);
 
 	const desc = $derived(displayDescription(group.description));
 	const descPresent = $derived(hasDescription(group.description));
 	const members = $derived(memberCountLabel(group.member_count));
 	const when = $derived(formatRelativeTime(group.created_at));
+
+	function confirmDelete() {
+		if (busy) return;
+		const ok = confirm(`Delete group “${group.name}”? This cannot be undone.`);
+		if (ok) onDelete(group.id);
+	}
 </script>
 
 <article class="card" aria-label={group.name}>
@@ -31,13 +41,27 @@
 		<span class="id" title={group.id}>{group.id.slice(0, 8)}</span>
 	</div>
 	<div class="actions">
-		<button type="button" class="btn" disabled title={WRITE_DISABLED_NOTE}>Edit members</button>
-		<button type="button" class="btn" disabled title={WRITE_DISABLED_NOTE}>Add member</button>
-		<button type="button" class="btn danger" disabled title={WRITE_DISABLED_NOTE}>
-			Remove member
+		<button
+			type="button"
+			class="btn"
+			disabled={busy}
+			onclick={() => (editing = !editing)}
+		>
+			{editing ? 'Hide members' : 'Edit members'}
+		</button>
+		<button type="button" class="btn danger" disabled={busy} onclick={confirmDelete}>
+			Delete
 		</button>
 	</div>
-	<p class="note" role="note">{WRITE_DISABLED_NOTE}</p>
+	{#if editing}
+		<MemberEditor
+			{agents}
+			{busy}
+			onAdd={(agentId) => onAddMember(group.id, agentId)}
+			onRemove={(agentId) => onRemoveMember(group.id, agentId)}
+			onClose={() => (editing = false)}
+		/>
+	{/if}
 </article>
 
 <style>
@@ -118,16 +142,17 @@
 		font: inherit;
 		font-size: 11px;
 		color: var(--hb-text);
-		cursor: not-allowed;
-		opacity: 0.55;
+		cursor: pointer;
+	}
+	.btn:hover:not(:disabled) {
+		background: var(--hb-bg-hover);
 	}
 	.btn.danger {
 		border-color: color-mix(in srgb, var(--hb-danger) 40%, var(--hb-border));
 		color: var(--hb-danger);
 	}
-	.note {
-		margin: 0;
-		font-size: 10px;
-		color: var(--hb-warning);
+	.btn:disabled {
+		opacity: 0.55;
+		cursor: wait;
 	}
 </style>

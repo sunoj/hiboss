@@ -2,7 +2,6 @@
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import type { RoutingRuleResponse } from '$lib/api/types';
 	import {
-		WRITE_NOTE,
 		isRuleEnabled,
 		resolveAgentName,
 		type RuleSortKey,
@@ -14,10 +13,20 @@
 		agentNames: Map<string, string>;
 		sortKey: RuleSortKey;
 		sortDir: SortDir;
+		busyId?: string | null;
 		onSort: (key: RuleSortKey) => void;
+		onDelete: (id: string) => void;
 	}
 
-	let { rules, agentNames, sortKey, sortDir, onSort }: Props = $props();
+	let {
+		rules,
+		agentNames,
+		sortKey,
+		sortDir,
+		busyId = null,
+		onSort,
+		onDelete
+	}: Props = $props();
 
 	const columns: { key: RuleSortKey; label: string }[] = [
 		{ key: 'channel', label: 'Channel' },
@@ -39,11 +48,6 @@
 </script>
 
 <div class="wrap">
-	<div class="toolbar">
-		<button type="button" class="add" disabled title={WRITE_NOTE}>Add rule</button>
-		<p class="note" role="note">{WRITE_NOTE}</p>
-	</div>
-
 	<div class="table-scroll">
 		<table>
 			<thead>
@@ -75,7 +79,7 @@
 						</td>
 						<td class="num">{row.priority}</td>
 						<td>
-							<label class="toggle" title={WRITE_NOTE}>
+							<label class="toggle" title="Enabled is read-only">
 								<input
 									type="checkbox"
 									checked={isRuleEnabled(row.enabled)}
@@ -88,8 +92,13 @@
 							</label>
 						</td>
 						<td class="actions">
-							<button type="button" class="danger" disabled title={WRITE_NOTE}>
-								Delete
+							<button
+								type="button"
+								class="danger"
+								disabled={busyId === row.id}
+								onclick={() => onDelete(row.id)}
+							>
+								{busyId === row.id ? 'Deleting…' : 'Delete'}
 							</button>
 						</td>
 					</tr>
@@ -107,20 +116,6 @@
 		box-shadow: var(--hb-shadow);
 		overflow: hidden;
 	}
-	.toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.65rem 1rem;
-		padding: 0.75rem 1rem;
-		border-bottom: 1px solid var(--hb-border-subtle);
-	}
-	.note {
-		margin: 0;
-		font-size: 11px;
-		color: var(--hb-warning);
-	}
-	.add,
 	.danger,
 	.sort {
 		border: 1px solid var(--hb-border);
@@ -131,10 +126,9 @@
 		color: var(--hb-text);
 		font: inherit;
 	}
-	.add:disabled,
 	.danger:disabled {
 		opacity: 0.45;
-		cursor: not-allowed;
+		cursor: wait;
 	}
 	.danger {
 		color: var(--hb-danger);
