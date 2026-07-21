@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { GroupResponse } from '$lib/api/types';
+import type { AgentResponse, GroupResponse } from '$lib/api/types';
 import {
-	WRITE_DISABLED_NOTE,
+	agentOptionLabel,
+	broadcastResultLabel,
+	canCreateGroup,
+	canSendBroadcast,
+	compareAgentsByName,
 	compareGroupsByName,
 	displayDescription,
 	hasDescription,
 	memberCountLabel,
+	sortAgentsByName,
 	sortGroupsByName
 } from './groupHelpers';
 
@@ -18,11 +23,16 @@ function group(partial: Partial<GroupResponse> & Pick<GroupResponse, 'id' | 'nam
 	};
 }
 
-describe('WRITE_DISABLED_NOTE', () => {
-	it('states the missing boss-scoped write endpoint', () => {
-		expect(WRITE_DISABLED_NOTE).toBe('needs a boss-scoped write endpoint');
-	});
-});
+function agent(
+	partial: Partial<AgentResponse> & Pick<AgentResponse, 'id' | 'name'>
+): AgentResponse {
+	return {
+		role: null,
+		last_used_at: null,
+		created_at: '2026-07-21T00:00:00Z',
+		...partial
+	};
+}
 
 describe('compareGroupsByName / sortGroupsByName', () => {
 	it('orders by name case-insensitively', () => {
@@ -41,6 +51,15 @@ describe('compareGroupsByName / sortGroupsByName', () => {
 	});
 });
 
+describe('sortAgentsByName', () => {
+	it('orders agents by name', () => {
+		const a = agent({ id: '1', name: 'zeta' });
+		const b = agent({ id: '2', name: 'Alpha' });
+		expect(compareAgentsByName(b, a)).toBeLessThan(0);
+		expect(sortAgentsByName([a, b]).map((x) => x.id)).toEqual(['2', '1']);
+	});
+});
+
 describe('memberCountLabel', () => {
 	it('singularizes one member', () => {
 		expect(memberCountLabel(1)).toBe('1 member');
@@ -56,5 +75,35 @@ describe('displayDescription / hasDescription', () => {
 		expect(displayDescription('Ops agents')).toBe('Ops agents');
 		expect(hasDescription(null)).toBe(false);
 		expect(hasDescription('x')).toBe(true);
+	});
+});
+
+describe('canCreateGroup', () => {
+	it('requires non-empty name and owner', () => {
+		expect(canCreateGroup('', 'a1')).toBe(false);
+		expect(canCreateGroup('  ', 'a1')).toBe(false);
+		expect(canCreateGroup('Ops', '')).toBe(false);
+		expect(canCreateGroup('Ops', 'a1')).toBe(true);
+	});
+});
+
+describe('agentOptionLabel', () => {
+	it('includes name and short id', () => {
+		expect(agentOptionLabel({ id: 'abcdefghij', name: 'Coder' })).toBe('Coder (abcdefgh)');
+		expect(agentOptionLabel({ id: 'short', name: 'Bot' })).toBe('Bot (short)');
+	});
+});
+
+describe('broadcastResultLabel / canSendBroadcast', () => {
+	it('reports delivery count', () => {
+		expect(broadcastResultLabel(0)).toBe('Broadcast delivered to 0 agents');
+		expect(broadcastResultLabel(1)).toBe('Broadcast delivered to 1 agent');
+		expect(broadcastResultLabel(4)).toBe('Broadcast delivered to 4 agents');
+	});
+
+	it('requires group and body', () => {
+		expect(canSendBroadcast('', 'hi')).toBe(false);
+		expect(canSendBroadcast('g1', '  ')).toBe(false);
+		expect(canSendBroadcast('g1', 'hello')).toBe(true);
 	});
 });
