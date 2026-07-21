@@ -13,6 +13,7 @@ import {
 } from './delivery';
 import { selectChannelConfig, fetchAgentName } from './message-queries';
 import { extractTelegramMessageId } from './message-helpers';
+import { notifyAgentCallback } from '../notify';
 
 const MAX_MESSAGE_OPTIONS = 5;
 const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
@@ -43,6 +44,11 @@ export function buildInlineKeyboard(messageId: string, options: string[]): { tex
 export async function expireMessageOptions(env: Env, agentId: string, message: MessageRow): Promise<void> {
   // 1. Update DB: set status to expired, mark options_expired in metadata
   const meta = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
+  const defaultOption = getDefaultOption(meta);
+  if (defaultOption) {
+    await autoResolveDefaultOption(env, agentId, message, meta, defaultOption);
+    return;
+  }
   meta['options_expired'] = true;
   delete meta['actions'];
   await env.DB
@@ -51,13 +57,67 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
     .run();
   
   // 2. Clean up channel inline keyboards
+  await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
+}
+
+function getDefaultOption(meta: Record<string, unknown>): string | null {
+  const defaultOption = meta['default_option'];
+  const options = meta['options'];
+  if (typeof defaultOption !== 'string' || defaultOption.trim() === '') return null;
+  if (!Array.isArray(options) || !options.every((option): option is string => typeof option === 'string')) {
+    return null;
+  }
+  return options.includes(defaultOption) ? defaultOption : null;
+}
+
+async function autoResolveDefaultOption(
+  env: Env,
+  agentId: string,
+  message: MessageRow,
+  meta: Record<string, unknown>,
+  defaultOption: string,
+): Promise<void> {
+  meta['options_expired'] = true;
+  delete meta['actions'];
+  const claimed = await env.DB
+    .prepare(
+      "UPDATE messages SET status = 'replied', metadata = ?, updated_at = datetime('now') WHERE id = ? AND status IN ('sent', 'delivered', 'read') RETURNING id"
+    )
+    .bind(JSON.stringify(meta), message.id)
+    .first<{ id: string }>();
+  if (!claimed) return;
+  const inserted = await env.DB
+    .prepare(
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+    )
+    .bind(agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true }))
+    .first<MessageRow>();
+  if (!inserted) return;
+  // Best-effort notifications: the default is already durably recorded above, so a failed
+  // agent callback / channel edit (e.g. unreachable URL) must not throw out of the cron path.
+  try {
+    await notifyAgentCallback(env, agentId, inserted);
+    await withdrawResolvedOptions(env, agentId, { ...message, metadata: JSON.stringify(meta) }, defaultOption);
+    await editExpiredChannelMessage(env, agentId, message, meta, `⏰ Timed out — default selected: ${defaultOption}`);
+  } catch {
+    // swallow: resolution persisted; downstream fan-out is best-effort
+  }
+}
+
+async function editExpiredChannelMessage(
+  env: Env,
+  agentId: string,
+  message: MessageRow,
+  meta: Record<string, unknown>,
+  notice: string,
+): Promise<void> {
   const agentName = await fetchAgentName(env, agentId) ?? 'agent';
   if (message.channel === 'telegram') {
     const tgMsgId = extractTelegramMessageId(message.metadata);
     if (tgMsgId) {
       const cc = await selectChannelConfig(env, agentId, 'telegram');
       const tgConfig = _requireTelegramConfig(cc.config);
-      const expiredText = _formatAgentMessage(agentName, message.body) + '\n\n⏰ Options expired';
+      const expiredText = _formatAgentMessage(agentName, message.body) + `\n\n${notice}`;
       await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
     }
   } else if (message.channel === 'discord') {
@@ -65,7 +125,7 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
     if (dcMsgId) {
       const cc = await selectChannelConfig(env, agentId, 'discord');
       const dcConfig = _requireDiscordConfig(cc.config);
-      const expiredText = _formatAgentMessage(agentName, message.body) + '\n\n⏰ Options expired';
+      const expiredText = _formatAgentMessage(agentName, message.body) + `\n\n${notice}`;
       await editDiscordMessage(dcConfig, dcMsgId, expiredText, []);
     }
   }
