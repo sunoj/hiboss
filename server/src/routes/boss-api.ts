@@ -149,7 +149,7 @@ routes.get('/messages', async (c) => {
 
   const where = clauses.join(' AND ');
   const rows = await c.env.DB
-    .prepare(`SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE ${where} ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`)
+    .prepare(`SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch, sessions.status AS session_status FROM (SELECT * FROM messages WHERE ${where}) messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id LEFT JOIN sessions ON sessions.id = messages.session_id ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`)
     .bind(...binds, limit, offset)
     .all<MessageRow>();
   const countRow = await c.env.DB
