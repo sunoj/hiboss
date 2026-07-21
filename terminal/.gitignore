@@ -1,0 +1,12 @@
+# ESP-IDF build output
+build/
+
+# Generated sdkconfig — holds Wi-Fi/API credentials. Use sdkconfig.defaults instead.
+sdkconfig
+sdkconfig.old
+
+# Downloaded managed components (re-fetch via `idf.py reconfigure` from dependencies.lock)
+managed_components/
+
+# macOS
+.DS_Store
