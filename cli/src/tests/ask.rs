@@ -94,6 +94,48 @@ fn more_than_five_options_are_rejected() {
     assert!(error.to_string().contains("at most 5"));
 }
 
+#[test]
+fn default_must_match_an_option_label() {
+    let command = parse(&["--option", "A", "--option", "B", "--default", "A", "Choose"]);
+    let payload = command.args.choice_payload().expect("valid default");
+    assert_eq!(payload.default_option, Some("A".to_owned()));
+}
+
+#[test]
+fn default_unknown_label_is_rejected() {
+    let command = parse(&["--option", "A", "--option", "B", "--default", "Z", "Choose"]);
+    let error = command
+        .args
+        .choice_payload()
+        .expect_err("unknown default must fail");
+    assert!(error.to_string().contains("--default 'Z'"));
+}
+
+#[test]
+fn default_without_options_is_rejected() {
+    let command = parse(&["--default", "A", "Choose"]);
+    let error = command
+        .args
+        .choice_payload()
+        .expect_err("default without options must fail");
+    assert!(error.to_string().contains("--default 'A'"));
+}
+
+#[test]
+fn default_matches_action_label() {
+    let command = parse(&[
+        "--action",
+        "Approve=deploy",
+        "--action",
+        "Reject=echo no",
+        "--default",
+        "Approve",
+        "Choose",
+    ]);
+    let payload = command.args.choice_payload().expect("valid action default");
+    assert_eq!(payload.default_option, Some("Approve".to_owned()));
+}
+
 fn parse(arguments: &[&str]) -> AskCommand {
     AskCommand::try_parse_from(std::iter::once("test").chain(arguments.iter().copied()))
         .expect("arguments should parse")
