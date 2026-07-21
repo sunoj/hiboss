@@ -98,6 +98,10 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public let metadata: MessageMetadata?
     public let expiresAt: String?
     public let createdAt: String
+    public let sessionId: String?
+    public let sessionLabel: String?
+    public let sessionBranch: String?
+    public let sessionStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -111,6 +115,10 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         case metadata
         case expiresAt = "expires_at"
         case createdAt = "created_at"
+        case sessionId = "session_id"
+        case sessionLabel = "session_label"
+        case sessionBranch = "session_branch"
+        case sessionStatus = "session_status"
     }
 
     public init(
@@ -124,7 +132,11 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         mode: String? = nil,
         metadata: MessageMetadata? = nil,
         expiresAt: String? = nil,
-        createdAt: String
+        createdAt: String,
+        sessionId: String? = nil,
+        sessionLabel: String? = nil,
+        sessionBranch: String? = nil,
+        sessionStatus: String? = nil
     ) {
         self.id = id
         self.body = body
@@ -137,6 +149,10 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         self.metadata = metadata
         self.expiresAt = expiresAt
         self.createdAt = createdAt
+        self.sessionId = sessionId
+        self.sessionLabel = sessionLabel
+        self.sessionBranch = sessionBranch
+        self.sessionStatus = sessionStatus
     }
 
     public var options: [String] {

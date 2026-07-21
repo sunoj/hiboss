@@ -5,6 +5,49 @@
 import XCTest
 @testable import HibossKit
 
+final class HistoryMessageDecodingTests: XCTestCase {
+    func testDecodesOptionalSessionFields() throws {
+        let json = """
+        {
+          "id": "m1",
+          "body": "Ship it?",
+          "agent_name": "Build Agent",
+          "direction": "agent_to_boss",
+          "status": "delivered",
+          "priority": "normal",
+          "created_at": "2026-07-15T10:00:00Z",
+          "session_id": "sess-1",
+          "session_label": "feat/session-group",
+          "session_branch": "feat/session-group-swift",
+          "session_status": "working"
+        }
+        """
+        let message = try JSONDecoder().decode(HistoryMessage.self, from: Data(json.utf8))
+        XCTAssertEqual(message.sessionId, "sess-1")
+        XCTAssertEqual(message.sessionLabel, "feat/session-group")
+        XCTAssertEqual(message.sessionBranch, "feat/session-group-swift")
+        XCTAssertEqual(message.sessionStatus, "working")
+    }
+
+    func testSessionFieldsDefaultToNilWhenAbsent() throws {
+        let json = """
+        {
+          "id": "m2",
+          "body": "Direct reply",
+          "direction": "boss_to_agent",
+          "status": "replied",
+          "priority": "normal",
+          "created_at": "2026-07-15T10:00:00Z"
+        }
+        """
+        let message = try JSONDecoder().decode(HistoryMessage.self, from: Data(json.utf8))
+        XCTAssertNil(message.sessionId)
+        XCTAssertNil(message.sessionLabel)
+        XCTAssertNil(message.sessionBranch)
+        XCTAssertNil(message.sessionStatus)
+    }
+}
+
 final class SSEDecodingTests: XCTestCase {
     func testDecodesOptionMessageEvent() {
         var decoder = SSEEventDecoder(decoder: JSONDecoder())
