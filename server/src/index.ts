@@ -3,6 +3,7 @@
 // Depends on the shared routers and Env definition.
 
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
@@ -42,6 +43,24 @@ const manifest = {
 };
 
 app.use('*', requestId);
+
+// CORS for the browser-based web console (Cloudflare Pages) and local dev.
+// Native clients (CLI, macOS, iOS) send no Origin and are unaffected.
+app.use(
+  '/api/*',
+  cors({
+    origin: (origin) => {
+      if (!origin) return undefined;
+      if (origin === 'https://hiboss-console.pages.dev') return origin;
+      if (origin.endsWith('.hiboss-console.pages.dev')) return origin;
+      if (/^http:\/\/localhost:\d+$/.test(origin)) return origin;
+      return undefined;
+    },
+    allowHeaders: ['Authorization', 'Content-Type'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    maxAge: 86400,
+  }),
+);
 
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
