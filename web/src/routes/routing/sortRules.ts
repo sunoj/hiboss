@@ -5,8 +5,6 @@ import type { RoutingRuleResponse } from '$lib/api/types';
 export type RuleSortKey = 'channel' | 'pattern' | 'target' | 'priority' | 'enabled';
 export type SortDir = 'asc' | 'desc';
 
-export const WRITE_NOTE = 'needs a boss-scoped write endpoint';
-
 export function isRuleEnabled(enabled: number): boolean {
 	return enabled !== 0;
 }

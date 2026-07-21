@@ -1,18 +1,32 @@
 <script lang="ts">
-	import type { GroupResponse } from '$lib/api/types';
-	import { WRITE_DISABLED_NOTE } from './groupHelpers';
+	import StatusBadges from '$lib/components/StatusBadges.svelte';
+	import type { BroadcastGroupRequest, GroupResponse } from '$lib/api/types';
+	import { PRIORITIES, type Priority } from '$lib/design/semantics';
+	import { canSendBroadcast } from './groupHelpers';
 
 	interface Props {
 		groups: GroupResponse[];
+		busy?: boolean;
+		onBroadcast: (groupId: string, body: BroadcastGroupRequest) => void;
 	}
 
-	let { groups }: Props = $props();
+	let { groups, busy = false, onBroadcast }: Props = $props();
 
 	let selectedId = $state('');
 	let body = $state('');
-	let priority = $state<'normal' | 'high' | 'critical' | 'low'>('normal');
+	let priority = $state<Priority>('normal');
 
 	const selected = $derived(groups.find((g) => g.id === selectedId) ?? null);
+	const ready = $derived(canSendBroadcast(selectedId, body));
+
+	function submit(e: Event) {
+		e.preventDefault();
+		if (!ready || busy) return;
+		const payload: BroadcastGroupRequest = { body: body.trim() };
+		if (priority !== 'normal') payload.priority = priority;
+		onBroadcast(selectedId, payload);
+		body = '';
+	}
 </script>
 
 <section class="composer" aria-label="Group broadcast composer">
@@ -21,40 +35,45 @@
 		<p class="sub">整组广播 — message every member of a group</p>
 	</header>
 
-	<label class="field">
-		<span>Group</span>
-		<select bind:value={selectedId} disabled>
-			<option value="">Select a group…</option>
-			{#each groups as group (group.id)}
-				<option value={group.id}>{group.name}</option>
-			{/each}
-		</select>
-	</label>
+	<form class="form" onsubmit={submit}>
+		<label class="field">
+			<span>Group</span>
+			<select bind:value={selectedId} disabled={busy || groups.length === 0}>
+				<option value="">Select a group…</option>
+				{#each groups as group (group.id)}
+					<option value={group.id}>{group.name}</option>
+				{/each}
+			</select>
+		</label>
 
-	<label class="field">
-		<span>Priority</span>
-		<select bind:value={priority} disabled>
-			<option value="low">low</option>
-			<option value="normal">normal</option>
-			<option value="high">high</option>
-			<option value="critical">critical</option>
-		</select>
-	</label>
+		<label class="field">
+			<span>Priority</span>
+			<div class="prio-row">
+				<select bind:value={priority} disabled={busy}>
+					{#each PRIORITIES as p (p)}
+						<option value={p}>{p}</option>
+					{/each}
+				</select>
+				<StatusBadges {priority} compact />
+			</div>
+		</label>
 
-	<label class="field">
-		<span>Message</span>
-		<textarea
-			rows="4"
-			placeholder={selected ? `Broadcast to ${selected.name}…` : 'Write a group broadcast…'}
-			bind:value={body}
-			disabled
-		></textarea>
-	</label>
+		<label class="field">
+			<span>Message</span>
+			<textarea
+				rows="4"
+				placeholder={selected ? `Broadcast to ${selected.name}…` : 'Write a group broadcast…'}
+				bind:value={body}
+				disabled={busy}
+			></textarea>
+		</label>
 
-	<div class="footer">
-		<button type="button" class="send" disabled title={WRITE_DISABLED_NOTE}>Send broadcast</button>
-		<p class="note" role="note">{WRITE_DISABLED_NOTE}</p>
-	</div>
+		<div class="footer">
+			<button type="submit" class="send" disabled={busy || !ready}>
+				{busy ? 'Sending…' : 'Send broadcast'}
+			</button>
+		</div>
+	</form>
 </section>
 
 <style>
@@ -81,6 +100,11 @@
 		font-size: 11px;
 		color: var(--hb-text-dim);
 	}
+	.form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.65rem;
+	}
 	.field {
 		display: flex;
 		flex-direction: column;
@@ -90,6 +114,15 @@
 		color: var(--hb-text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+	}
+	.prio-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.prio-row select {
+		flex: 1;
+		min-width: 0;
 	}
 	select,
 	textarea {
@@ -106,8 +139,11 @@
 		letter-spacing: normal;
 		font-weight: 400;
 		resize: vertical;
-		opacity: 0.55;
-		cursor: not-allowed;
+	}
+	select:disabled,
+	textarea:disabled {
+		opacity: 0.6;
+		cursor: wait;
 	}
 	.footer {
 		display: flex;
@@ -124,15 +160,13 @@
 		font-size: 12px;
 		font-weight: 600;
 		color: var(--hb-text);
+		cursor: pointer;
+	}
+	.send:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--hb-accent) 32%, var(--hb-bg-elevated));
+	}
+	.send:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
-	}
-	.note {
-		margin: 0;
-		font-size: 10px;
-		color: var(--hb-warning);
-		text-transform: none;
-		letter-spacing: normal;
-		font-weight: 400;
 	}
 </style>
