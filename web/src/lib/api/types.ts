@@ -157,9 +157,12 @@ export interface GroupResponse {
 	id: string;
 	name: string;
 	description: string | null;
+	owner_id?: string;
 	created_at: string;
 	member_count: number;
 }
+
+export type GroupWriteResponse = Omit<GroupResponse, 'member_count'>;
 
 export interface GroupsListResponse {
 	groups: GroupResponse[];
@@ -178,6 +181,65 @@ export interface RoutingRuleResponse {
 
 export interface RoutingRulesListResponse {
 	rules: RoutingRuleResponse[];
+}
+
+export interface CreateGroupRequest {
+	name: string;
+	description?: string;
+	owner_agent_id: string;
+}
+
+export interface GroupMemberRequest {
+	agent_id: string;
+}
+
+export interface BroadcastGroupRequest {
+	body: string;
+	priority?: Priority;
+}
+
+export interface BroadcastGroupResponse {
+	messages: { agent_id: string; message_id: string }[];
+	count: number;
+}
+
+export interface CreateRoutingRuleRequest {
+	owner_agent_id: string;
+	channel: Channel;
+	pattern: string;
+	target_agent_id: string;
+	priority?: number;
+}
+
+export interface AgentConfigUpdateRequest {
+	default_priority?: Priority;
+	rate_limit?: number | null;
+	channel_routing?: Record<string, Channel> | null;
+}
+
+export interface AgentConfigResponse {
+	default_priority: Priority;
+	rate_limit: number | null;
+	channel_routing: Record<string, Channel> | null;
+}
+
+export interface BossChannelConfig {
+	[key: string]: string | number | boolean | null;
+	id: string;
+	agent_id: string;
+	agent_name: string;
+	channel: Channel;
+	configured: boolean;
+	enabled: number;
+	created_at: string;
+}
+
+export interface BossSystemResponse {
+	server_time: string;
+	db_ok: boolean;
+	channels: ChannelHealth[];
+	active_sessions: number;
+	pending_decisions: number;
 }
 
 export interface AuditEntry {

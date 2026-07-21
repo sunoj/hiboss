@@ -48,7 +48,7 @@ const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
 
 /** Get all agent IDs this boss has access to. Admin = all agents. */
-async function getAccessibleAgentIds(env: Env, bossId: string, role: string): Promise<string[]> {
+export async function getAccessibleAgentIds(env: Env, bossId: string, role: string): Promise<string[]> {
   if (role === 'admin') {
     const rows = await env.DB.prepare('SELECT id FROM api_keys').all<{ id: string }>();
     return (rows.results ?? []).map((r) => r.id);

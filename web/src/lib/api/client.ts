@@ -8,17 +8,27 @@ import {
 import { normalizeMessage } from './mappers';
 import {
 	ApiError,
+	type AgentConfigResponse,
+	type AgentConfigUpdateRequest,
 	type AgentsListResponse,
 	type AuditListResponse,
 	type AuditQuery,
+	type BossChannelConfig,
 	type BossMe,
 	type BossOverview,
 	type BossCreateRequest,
 	type BossRecord,
+	type BossSystemResponse,
 	type BossesListResponse,
 	type BossTokenResponse,
 	type BossUpdateRequest,
+	type BroadcastGroupRequest,
+	type BroadcastGroupResponse,
+	type CreateGroupRequest,
+	type CreateRoutingRuleRequest,
 	type ForwardRequest,
+	type GroupMemberRequest,
+	type GroupWriteResponse,
 	type GroupsListResponse,
 	type MessageResponse,
 	type MessagesListResponse,
@@ -27,6 +37,7 @@ import {
 	type ReactRequest,
 	type ReplyRequest,
 	type RoutingRulesListResponse,
+	type RoutingRuleResponse,
 	type SessionsListResponse
 } from './types';
 
@@ -117,8 +128,59 @@ export class BossApiClient {
 		return this.request<GroupsListResponse>('GET', '/api/boss/groups');
 	}
 
+	async createGroup(body: CreateGroupRequest): Promise<GroupWriteResponse> {
+		return this.request<GroupWriteResponse>('POST', '/api/boss/groups', body);
+	}
+
+	async deleteGroup(id: string): Promise<OkResponse> {
+		return this.request<OkResponse>('DELETE', `/api/boss/groups/${encodeURIComponent(id)}`);
+	}
+
+	async addGroupMember(id: string, body: GroupMemberRequest): Promise<OkResponse> {
+		return this.request<OkResponse>('POST', `/api/boss/groups/${encodeURIComponent(id)}/members`, body);
+	}
+
+	async removeGroupMember(id: string, agentId: string): Promise<OkResponse> {
+		return this.request<OkResponse>(
+			'DELETE',
+			`/api/boss/groups/${encodeURIComponent(id)}/members/${encodeURIComponent(agentId)}`
+		);
+	}
+
+	async broadcastGroup(id: string, body: BroadcastGroupRequest): Promise<BroadcastGroupResponse> {
+		return this.request<BroadcastGroupResponse>(
+			'POST',
+			`/api/boss/groups/${encodeURIComponent(id)}/broadcast`,
+			body
+		);
+	}
+
 	async routingRules(): Promise<RoutingRulesListResponse> {
 		return this.request<RoutingRulesListResponse>('GET', '/api/boss/routing-rules');
+	}
+
+	async createRoutingRule(body: CreateRoutingRuleRequest): Promise<RoutingRuleResponse> {
+		return this.request<RoutingRuleResponse>('POST', '/api/boss/routing-rules', body);
+	}
+
+	async deleteRoutingRule(id: string): Promise<OkResponse> {
+		return this.request<OkResponse>('DELETE', `/api/boss/routing-rules/${encodeURIComponent(id)}`);
+	}
+
+	async updateAgentConfig(id: string, body: AgentConfigUpdateRequest): Promise<AgentConfigResponse> {
+		return this.request<AgentConfigResponse>(
+			'PATCH',
+			`/api/boss/agents/${encodeURIComponent(id)}/config`,
+			body
+		);
+	}
+
+	async channels(): Promise<BossChannelConfig[]> {
+		return this.request<BossChannelConfig[]>('GET', '/api/boss/channels');
+	}
+
+	async system(): Promise<BossSystemResponse> {
+		return this.request<BossSystemResponse>('GET', '/api/boss/system');
 	}
 
 	async audit(query: AuditQuery = {}): Promise<AuditListResponse> {
