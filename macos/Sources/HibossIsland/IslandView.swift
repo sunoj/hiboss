@@ -78,7 +78,7 @@ struct IslandView: View {
     private func optionList(_ message: OptionMessage) -> some View {
         VStack(spacing: 7) {
             ForEach(message.options, id: \.self) { option in
-                OptionButton(title: option) {
+                OptionButton(title: option, isDefault: option == message.defaultOption) {
                     Task { await flow.choose(option, for: message.id) }
                 }
                 .disabled(isSubmitting)
@@ -121,15 +121,29 @@ struct IslandView: View {
 
 private struct OptionButton: View {
     let title: String
+    var isDefault: Bool = false
     let action: () -> Void
     @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 7) {
+                if isDefault {
+                    Image(systemName: "return")
+                        .font(.system(size: 10, weight: .bold))
+                        .opacity(0.9)
+                }
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
                     .fixedSize(horizontal: false, vertical: true)
+                if isDefault {
+                    Text("default")
+                        .font(.system(size: 9, weight: .semibold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Color.white.opacity(0.18), in: Capsule())
+                        .opacity(0.85)
+                }
                 Spacer()
                 Image(systemName: "arrow.up.right")
                     .font(.system(size: 10, weight: .semibold))
@@ -139,7 +153,11 @@ private struct OptionButton: View {
             .padding(.horizontal, 13)
             .padding(.vertical, 9)
             .frame(minHeight: 35)
-            .background(Color.white.opacity(isHovering ? 0.16 : 0.09))
+            .background(Color.white.opacity(isHovering ? 0.16 : (isDefault ? 0.14 : 0.09)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .strokeBorder(Color.white.opacity(isDefault ? 0.35 : 0), lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .scaleEffect(isHovering ? 1.01 : 1)
         }
@@ -147,7 +165,7 @@ private struct OptionButton: View {
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
         }
-        .accessibilityLabel("Choose \(title)")
+        .accessibilityLabel(isDefault ? "Choose \(title), default" : "Choose \(title)")
     }
 }
 
