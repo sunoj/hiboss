@@ -22,21 +22,26 @@ public struct MessageID: RawRepresentable, Codable, Hashable, Sendable,
 public struct MessageMetadata: Codable, Equatable, Sendable {
     public let options: [String]
     public let isExpired: Bool
+    /// Label of the option auto-selected on timeout, if the asker marked one.
+    public let defaultOption: String?
 
     enum CodingKeys: String, CodingKey {
         case options
         case isExpired = "options_expired"
+        case defaultOption = "default_option"
     }
 
-    public init(options: [String], isExpired: Bool = false) {
+    public init(options: [String], isExpired: Bool = false, defaultOption: String? = nil) {
         self.options = options
         self.isExpired = isExpired
+        self.defaultOption = defaultOption
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         options = try values.decodeIfPresent([String].self, forKey: .options) ?? []
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
+        defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
     }
 }
 
@@ -75,6 +80,9 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty } ?? []
     }
+
+    /// Label of the option that fires automatically on timeout, if marked.
+    public var defaultOption: String? { metadata?.defaultOption }
 
     public var expirationDate: Date? {
         guard let expiresAt else { return nil }
@@ -158,6 +166,9 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public var options: [String] {
         metadata?.options ?? []
     }
+
+    /// Label of the option that fires automatically on timeout, if marked.
+    public var defaultOption: String? { metadata?.defaultOption }
 
     public var expirationDate: Date? {
         guard let expiresAt else { return nil }

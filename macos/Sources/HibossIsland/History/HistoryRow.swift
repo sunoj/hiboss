@@ -36,21 +36,45 @@ struct HistoryRow: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(message.options, id: \.self) { option in
-                    if message.isBlockingHistoryMessage {
-                        Button(option) { onChoose?(option) }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                    } else {
-                        Text(option)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(.quaternary, in: Capsule())
-                            .foregroundStyle(.secondary)
-                    }
+                    optionChip(option, isDefault: option == message.defaultOption)
                 }
             }
             .padding(.top, 2)
+        }
+    }
+
+    @ViewBuilder
+    private func optionChip(_ option: String, isDefault: Bool) -> some View {
+        if message.isBlockingHistoryMessage {
+            if isDefault {
+                Button { onChoose?(option) } label: { defaultButtonLabel(option) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .help("Default — runs automatically on timeout")
+            } else {
+                Button(option) { onChoose?(option) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        } else {
+            HStack(spacing: 3) {
+                if isDefault { Image(systemName: "return").font(.caption2) }
+                Text(option).font(.caption)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                isDefault ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(.quaternary),
+                in: Capsule()
+            )
+            .foregroundStyle(isDefault ? Color.accentColor : Color.secondary)
+        }
+    }
+
+    private func defaultButtonLabel(_ option: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: "return")
+            Text(option)
         }
     }
 
