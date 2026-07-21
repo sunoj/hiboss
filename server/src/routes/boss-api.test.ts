@@ -31,6 +31,15 @@ beforeAll(async () => {
   await env.DB.prepare(
     "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'high')"
   ).bind('boss-api-msg-2', getTestAgentId(), 'Deploy completed successfully').run();
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO agent_groups (id, name, description, owner_id) VALUES (?, ?, ?, ?)'
+  ).bind('boss-api-group-1', 'Boss API Group', 'Visible to boss token', getTestAgentId()).run();
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO routing_rules (id, owner_id, channel, pattern, target_agent_id, priority, enabled) VALUES (?, ?, 'telegram', ?, ?, 10, 1)"
+  ).bind('boss-api-rule-1', getTestAgentId(), 'deploy', getTestAgentId()).run();
+  await env.DB.prepare(
+    "INSERT OR REPLACE INTO audit_log (id, actor_type, actor_id, action, resource_type, resource_id, details) VALUES (?, 'agent', ?, ?, 'message', ?, ?)"
+  ).bind('boss-api-audit-1', getTestAgentId(), 'boss.contract.read', 'boss-api-msg-1', 'seeded audit row').run();
 });
 
 afterEach(() => {
@@ -110,6 +119,36 @@ describe('GET /api/boss/agents', () => {
     // Admin sees all agents, should include test-agent
     const names = data.agents.map((a: any) => a.name);
     expect(names).toContain('test-agent');
+  });
+});
+
+describe('GET /api/boss/groups', () => {
+  it('lists groups for accessible agents', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/groups', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { groups: { id: string }[] };
+    expect(data.groups).toBeInstanceOf(Array);
+    expect(data.groups.some((group) => group.id === 'boss-api-group-1')).toBe(true);
+  });
+});
+
+describe('GET /api/boss/routing-rules', () => {
+  it('lists routing rules for accessible agents', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/routing-rules', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { rules: { id: string }[] };
+    expect(data.rules).toBeInstanceOf(Array);
+    expect(data.rules.some((rule) => rule.id === 'boss-api-rule-1')).toBe(true);
+  });
+});
+
+describe('GET /api/boss/audit', () => {
+  it('lists audit entries for accessible agents', async () => {
+    const res = await SELF.fetch('http://localhost/api/boss/audit?limit=10', { headers: bossHeaders() });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { entries: { id: string }[] };
+    expect(data.entries).toBeInstanceOf(Array);
+    expect(data.entries.some((entry) => entry.id === 'boss-api-audit-1')).toBe(true);
   });
 });
 

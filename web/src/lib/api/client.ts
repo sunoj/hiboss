@@ -9,14 +9,24 @@ import { normalizeMessage } from './mappers';
 import {
 	ApiError,
 	type AgentsListResponse,
+	type AuditListResponse,
+	type AuditQuery,
 	type BossMe,
 	type BossOverview,
+	type BossCreateRequest,
+	type BossRecord,
+	type BossesListResponse,
+	type BossTokenResponse,
+	type BossUpdateRequest,
 	type ForwardRequest,
+	type GroupsListResponse,
 	type MessageResponse,
 	type MessagesListResponse,
 	type MessagesQuery,
+	type OkResponse,
 	type ReactRequest,
 	type ReplyRequest,
+	type RoutingRulesListResponse,
 	type SessionsListResponse
 } from './types';
 
@@ -68,6 +78,58 @@ export class BossApiClient {
 
 	async agents(): Promise<AgentsListResponse> {
 		return this.request<AgentsListResponse>('GET', '/api/boss/agents');
+	}
+
+	async bosses(): Promise<BossesListResponse> {
+		return this.request<BossesListResponse>('GET', '/api/bosses');
+	}
+
+	async createBoss(body: BossCreateRequest): Promise<BossRecord> {
+		return this.request<BossRecord>('POST', '/api/bosses', body);
+	}
+
+	async updateBoss(id: string, body: BossUpdateRequest): Promise<BossRecord> {
+		return this.request<BossRecord>('PATCH', `/api/bosses/${encodeURIComponent(id)}`, body);
+	}
+
+	async deleteBoss(id: string): Promise<OkResponse> {
+		return this.request<OkResponse>('DELETE', `/api/bosses/${encodeURIComponent(id)}`);
+	}
+
+	async grantAccess(id: string, agentId: string): Promise<OkResponse> {
+		return this.request<OkResponse>('POST', `/api/bosses/${encodeURIComponent(id)}/access`, {
+			agent_id: agentId
+		});
+	}
+
+	async revokeAccess(id: string, agentId: string): Promise<OkResponse> {
+		return this.request<OkResponse>(
+			'DELETE',
+			`/api/bosses/${encodeURIComponent(id)}/access/${encodeURIComponent(agentId)}`
+		);
+	}
+
+	async rotateToken(id: string): Promise<BossTokenResponse> {
+		return this.request<BossTokenResponse>('POST', `/api/bosses/${encodeURIComponent(id)}/token`);
+	}
+
+	async groups(): Promise<GroupsListResponse> {
+		return this.request<GroupsListResponse>('GET', '/api/boss/groups');
+	}
+
+	async routingRules(): Promise<RoutingRulesListResponse> {
+		return this.request<RoutingRulesListResponse>('GET', '/api/boss/routing-rules');
+	}
+
+	async audit(query: AuditQuery = {}): Promise<AuditListResponse> {
+		const params = new URLSearchParams();
+		if (query.actor_type) params.set('actor_type', query.actor_type);
+		if (query.action) params.set('action', query.action);
+		if (query.limit != null) params.set('limit', String(query.limit));
+		if (query.offset != null) params.set('offset', String(query.offset));
+		const qs = params.toString();
+		const path = qs ? `/api/boss/audit?${qs}` : '/api/boss/audit';
+		return this.request<AuditListResponse>('GET', path);
 	}
 
 	/** Typed for later wiring — not used by Dashboard foundation. */
