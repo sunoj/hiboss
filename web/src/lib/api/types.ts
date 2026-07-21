@@ -4,6 +4,8 @@ import type { Direction, MessageStatus, Priority, SessionStatus } from '$lib/des
 
 export type Mode = 'async' | 'blocking';
 export type Channel = 'discord' | 'telegram' | 'email' | 'api';
+export type BossRole = 'admin' | 'manager' | 'viewer';
+export type AuditActorType = 'boss' | 'agent' | 'system';
 
 export interface BossMe {
 	id: string;
@@ -106,6 +108,99 @@ export interface AgentResponse {
 
 export interface AgentsListResponse {
 	agents: AgentResponse[];
+}
+
+export interface BossRecord {
+	id: string;
+	name: string;
+	role: BossRole;
+	telegram_user_id: string | null;
+	discord_user_id: string | null;
+	agent_id: string | null;
+	preferences: Record<string, unknown> | string | null;
+	created_at: string;
+	agent_ids?: string[];
+}
+
+export interface BossesListResponse {
+	bosses: BossRecord[];
+}
+
+export interface BossCreateRequest {
+	name: string;
+	role?: BossRole;
+	telegram_user_id?: string | null;
+	discord_user_id?: string | null;
+	agent_id?: string | null;
+}
+
+export interface BossUpdateRequest {
+	name?: string;
+	role?: BossRole;
+	telegram_user_id?: string | null;
+	discord_user_id?: string | null;
+	agent_id?: string | null;
+	preferences?: Record<string, unknown> | null;
+}
+
+export interface BossTokenResponse {
+	id: string;
+	name: string;
+	token: string;
+}
+
+export interface OkResponse {
+	ok: true;
+}
+
+export interface GroupResponse {
+	id: string;
+	name: string;
+	description: string | null;
+	created_at: string;
+	member_count: number;
+}
+
+export interface GroupsListResponse {
+	groups: GroupResponse[];
+}
+
+export interface RoutingRuleResponse {
+	id: string;
+	owner_id: string;
+	channel: Channel;
+	pattern: string;
+	target_agent_id: string;
+	priority: number;
+	enabled: number;
+	created_at: string;
+}
+
+export interface RoutingRulesListResponse {
+	rules: RoutingRuleResponse[];
+}
+
+export interface AuditEntry {
+	id: string;
+	actor_type: AuditActorType;
+	actor_id: string;
+	action: string;
+	resource_type: string | null;
+	resource_id: string | null;
+	details: string | null;
+	created_at: string;
+}
+
+export interface AuditQuery {
+	actor_type?: AuditActorType;
+	action?: string;
+	limit?: number;
+	offset?: number;
+}
+
+export interface AuditListResponse {
+	entries: AuditEntry[];
+	total: number;
 }
 
 export interface ReplyRequest {

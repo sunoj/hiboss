@@ -28,6 +28,22 @@ interface ApiKeyRow {
   id: string;
   name: string;
 }
+interface GroupRow {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+interface RoutingRuleRow {
+  id: string;
+  owner_id: string;
+  channel: string;
+  pattern: string;
+  target_agent_id: string;
+  priority: number;
+  enabled: number;
+  created_at: string;
+}
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
 
@@ -100,6 +116,75 @@ routes.get('/agents', async (c) => {
     .bind(...agentIds)
     .all();
   return c.json({ agents: rows.results ?? [] });
+});
+
+/** GET /api/boss/groups — list groups for accessible agents */
+routes.get('/groups', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  if (agentIds.length === 0) return c.json({ groups: [] });
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const rows = await c.env.DB
+    .prepare(
+      `SELECT g.*, (SELECT COUNT(*) FROM agent_group_members m WHERE m.group_id = g.id) AS member_count FROM agent_groups g WHERE g.owner_id IN (${placeholders}) ORDER BY g.name`
+    )
+    .bind(...agentIds)
+    .all<GroupRow & { member_count: number }>();
+  return c.json({ groups: rows.results ?? [] });
+});
+
+/** GET /api/boss/routing-rules — list routing rules for accessible agents */
+routes.get('/routing-rules', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  if (agentIds.length === 0) return c.json({ rules: [] });
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const rows = await c.env.DB
+    .prepare(`SELECT * FROM routing_rules WHERE owner_id IN (${placeholders}) ORDER BY priority DESC`)
+    .bind(...agentIds)
+    .all<RoutingRuleRow>();
+  return c.json({ rules: rows.results ?? [] });
+});
+
+/** GET /api/boss/audit — list audit log entries scoped to accessible agents */
+routes.get('/audit', async (c) => {
+  const bossId = getBossId(c);
+  const role = getBossRole(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
+  const params = c.req.query();
+  const actorType = params.actor_type as string | undefined;
+  const action = params.action as string | undefined;
+  const limit = Math.min(parseInt(params.limit ?? '50', 10), 200);
+  const offset = parseInt(params.offset ?? '0', 10);
+  const clauses: string[] = [];
+  const binds: (string | number)[] = [];
+
+  if (role !== 'admin') {
+    const agentScope = agentIds.length > 0
+      ? `(actor_type = 'agent' AND actor_id IN (${agentIds.map(() => '?').join(', ')})) OR `
+      : '';
+    clauses.push(`(${agentScope}(actor_type = 'boss' AND actor_id = ?))`);
+    binds.push(...agentIds, bossId);
+  }
+  if (actorType) {
+    clauses.push('actor_type = ?');
+    binds.push(actorType);
+  }
+  if (action) {
+    clauses.push('action = ?');
+    binds.push(action);
+  }
+
+  let sql = 'SELECT * FROM audit_log';
+  if (clauses.length > 0) sql += ` WHERE ${clauses.join(' AND ')}`;
+  const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as count');
+  const countRow = await c.env.DB.prepare(countSql).bind(...binds).first<{ count: number }>();
+  const total = countRow?.count ?? 0;
+
+  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+  binds.push(limit, offset);
+  const rows = await c.env.DB.prepare(sql).bind(...binds).all();
+  return c.json({ entries: rows.results ?? [], total });
 });
 
 /** GET /api/boss/messages — list messages from accessible agents */
