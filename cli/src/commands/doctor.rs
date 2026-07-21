@@ -2,13 +2,15 @@
 // Exports: DoctorArgs and run().
 // Dependencies: clap, colored, time, crate::client, crate::config, crate::types, std::process.
 
+use crate::client::HiBossClient;
+use crate::config::{Config, config_path};
+use crate::types::{
+    ChannelStats, ChannelStatsResponse, DeliveryErrorInfo, DeliveryQueueStatus, DirectionCount,
+};
 use clap::Args;
 use colored::Colorize;
-use crate::client::HiBossClient;
-use crate::config::{config_path, Config};
-use crate::types::{ChannelStats, ChannelStatsResponse, DeliveryErrorInfo, DeliveryQueueStatus, DirectionCount};
 use std::{error::Error, process};
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[derive(Debug, Args)]
 pub struct DoctorArgs {
@@ -34,20 +36,49 @@ pub async fn run(args: &DoctorArgs, config: &Config) -> Result<(), Box<dyn Error
     finish(report)
 }
 
-fn print_local_checks<'a>(config: &'a Config, report: &mut DoctorReport) -> (Option<&'a str>, Option<&'a str>) {
+fn print_local_checks<'a>(
+    config: &'a Config,
+    report: &mut DoctorReport,
+) -> (Option<&'a str>, Option<&'a str>) {
     let path = config_path();
     let exists = path.is_file();
-    println!("Config file: {} {}", path.display(), if exists { "OK".green() } else { "MISSING".red() });
+    println!(
+        "Config file: {} {}",
+        path.display(),
+        if exists {
+            "OK".green()
+        } else {
+            "MISSING".red()
+        }
+    );
     if !exists {
         report.issues += 1;
     }
 
-    let server = config.server.as_deref().filter(|value| !value.trim().is_empty());
+    let server = config
+        .server
+        .as_deref()
+        .filter(|value| !value.trim().is_empty());
     print_required("Server", server, "not set", report);
-    let key = config.key.as_deref().filter(|value| !value.trim().is_empty());
-    println!("Key: {} {}", key.map(mask_key).unwrap_or_else(|| "not set".to_string()), if key.is_some() { "OK".green() } else { report.issues += 1; "MISSING".red() });
+    let key = config
+        .key
+        .as_deref()
+        .filter(|value| !value.trim().is_empty());
+    println!(
+        "Key: {} {}",
+        key.map(mask_key).unwrap_or_else(|| "not set".to_string()),
+        if key.is_some() {
+            "OK".green()
+        } else {
+            report.issues += 1;
+            "MISSING".red()
+        }
+    );
 
-    let channel = config.channel.as_deref().filter(|value| !value.trim().is_empty());
+    let channel = config
+        .channel
+        .as_deref()
+        .filter(|value| !value.trim().is_empty());
     if let Some(name) = channel {
         println!("Channel: {} {}", name, "OK".green());
     } else {
@@ -66,7 +97,13 @@ async fn run_remote_checks(args: &DoctorArgs, client: &HiBossClient, report: &mu
     }
 
     match client.list_channels().await {
-        Ok(channels) => print_channels(&channels.channels.iter().map(|info| info.channel.as_str()).collect::<Vec<_>>()),
+        Ok(channels) => print_channels(
+            &channels
+                .channels
+                .iter()
+                .map(|info| info.channel.as_str())
+                .collect::<Vec<_>>(),
+        ),
         Err(err) => {
             println!("Channels: {} ({})", "FAIL".red(), err);
             report.issues += 1;
@@ -97,16 +134,23 @@ fn print_agent_info(agent: &serde_json::Value) {
     println!("Agent: {} {}", name, "OK".green());
     if let Some(routing) = agent["channel_routing"].as_object() {
         if routing.is_empty() {
-            println!("Routing: {} (messages need --channel or config.channel fallback)", "none".yellow());
+            println!(
+                "Routing: {} (messages need --channel or config.channel fallback)",
+                "none".yellow()
+            );
             return;
         }
-        let pairs: Vec<String> = routing.iter()
+        let pairs: Vec<String> = routing
+            .iter()
             .map(|(key, value)| format!("{key}→{}", value.as_str().unwrap_or("?")))
             .collect();
         println!("Routing: {} {}", pairs.join(", "), "OK".green());
         return;
     }
-    println!("Routing: {} (messages need --channel or config.channel fallback)", "none".yellow());
+    println!(
+        "Routing: {} (messages need --channel or config.channel fallback)",
+        "none".yellow()
+    );
 }
 
 fn print_channels(channels: &[&str]) {
@@ -131,7 +175,11 @@ fn print_channel_health(stats: &ChannelStatsResponse, verbose: bool) -> u32 {
         print_delivery_queue(stats.delivery_queue.as_ref());
         print_direction_counts(&stats.direction_counts);
     }
-    stats.channels.iter().filter(|channel| channel.total_failed > 0).count() as u32
+    stats
+        .channels
+        .iter()
+        .filter(|channel| channel.total_failed > 0)
+        .count() as u32
 }
 
 fn print_recent_errors(errors: &[DeliveryErrorInfo]) {
@@ -160,7 +208,9 @@ fn print_delivery_queue(queue: Option<&DeliveryQueueStatus>) {
     if queue.by_status.is_empty() {
         return;
     }
-    let summary = queue.by_status.iter()
+    let summary = queue
+        .by_status
+        .iter()
         .map(|entry| format!("{}={}", entry.status, entry.total))
         .collect::<Vec<_>>()
         .join(", ");
@@ -174,23 +224,40 @@ fn print_direction_counts(counts: &[DirectionCount]) {
         return;
     }
     for count in counts {
-        println!("    {:<10} {:<14} {}", count.channel, count.direction, count.total);
+        println!(
+            "    {:<10} {:<14} {}",
+            count.channel, count.direction, count.total
+        );
     }
 }
 
 fn format_channel_line(channel: &ChannelStats) -> String {
-    let icon = if channel.total_failed > 0 { "⚠".yellow() } else { "✅".green() };
-    let summary = format!("{}/{} delivered", channel.total_delivered, channel.total_sent);
+    let icon = if channel.total_failed > 0 {
+        "⚠".yellow()
+    } else {
+        "✅".green()
+    };
+    let summary = format!(
+        "{}/{} delivered",
+        channel.total_delivered, channel.total_sent
+    );
     let detail = if channel.total_failed > 0 {
         let error = channel.last_error.as_deref().unwrap_or("unknown error");
-        let when = channel.last_error_at.as_deref().map(relative_time).unwrap_or_else(|| "unknown".to_string());
+        let when = channel
+            .last_error_at
+            .as_deref()
+            .map(relative_time)
+            .unwrap_or_else(|| "unknown".to_string());
         format!("last error: \"{}\" ({})", error, when)
     } else if let Some(last_delivery_at) = channel.last_delivery_at.as_deref() {
         format!("last: {}", relative_time(last_delivery_at))
     } else {
         "last: never".to_string()
     };
-    format!("  {:<10} {} {:<17} {}", channel.channel, icon, summary, detail)
+    format!(
+        "  {:<10} {} {:<17} {}",
+        channel.channel, icon, summary, detail
+    )
 }
 
 fn relative_time(value: &str) -> String {
@@ -230,7 +297,11 @@ fn finish(report: DoctorReport) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
     if report.issues == 0 {
-        println!("All required checks passed ({} warning{})", report.warnings, if report.warnings == 1 { "" } else { "s" });
+        println!(
+            "All required checks passed ({} warning{})",
+            report.warnings,
+            if report.warnings == 1 { "" } else { "s" }
+        );
         return Ok(());
     }
     println!("{} issues found", report.issues);

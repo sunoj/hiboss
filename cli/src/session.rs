@@ -167,7 +167,9 @@ pub fn read_queue_path() -> PathBuf {
 
 /// Append message IDs to the read queue (one per line).
 pub fn queue_mark_read(ids: &[&str]) {
-    if ids.is_empty() { return; }
+    if ids.is_empty() {
+        return;
+    }
     let content = ids.join("\n") + "\n";
     // Append to file
     let path = read_queue_path();
@@ -184,7 +186,11 @@ pub fn drain_read_queue() -> Vec<String> {
     }
     let content = fs::read_to_string(&tmp).unwrap_or_default();
     let _ = fs::remove_file(&tmp);
-    content.lines().filter(|l| !l.is_empty()).map(|l| l.to_owned()).collect()
+    content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_owned())
+        .collect()
 }
 
 /// Marker file: tracks whether the ack hint has been shown this session.
@@ -226,7 +232,11 @@ pub fn drain_pending_messages() -> Vec<String> {
     }
     let content = fs::read_to_string(&tmp).unwrap_or_default();
     let _ = fs::remove_file(&tmp);
-    content.lines().filter(|l| !l.is_empty()).map(|l| l.to_owned()).collect()
+    content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_owned())
+        .collect()
 }
 
 /// Read session_id from the session file, if it exists.

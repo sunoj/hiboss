@@ -16,7 +16,11 @@ pub struct ReactArgs {
     pub emoji: String,
 }
 
-pub async fn run(args: &ReactArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &ReactArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     client.react(&args.id, &args.emoji).await?;
     eprintln!("Reaction set");
     session::mark_replied();

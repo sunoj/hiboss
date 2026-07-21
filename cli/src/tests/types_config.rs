@@ -8,8 +8,8 @@ mod tests {
     use crate::types::{
         Message, MessagesResponse, ReplyRequest, SendRequest, SendResponse, StatusUpdate,
     };
-    use serde::de::DeserializeOwned;
     use serde::Serialize;
+    use serde::de::DeserializeOwned;
     use serde_json;
     use std::collections::HashMap;
 
@@ -19,7 +19,10 @@ mod tests {
     {
         let payload = serde_json::to_string(value).expect("serialize");
         let restored = serde_json::from_str::<T>(&payload).expect("deserialize");
-        assert_eq!(serde_json::to_value(value).unwrap(), serde_json::to_value(&restored).unwrap());
+        assert_eq!(
+            serde_json::to_value(value).unwrap(),
+            serde_json::to_value(&restored).unwrap()
+        );
     }
 
     fn minimal_message(id: &str) -> Message {
@@ -38,6 +41,10 @@ mod tests {
             metadata: None,
             created_at: None,
             updated_at: None,
+            session_id: None,
+            session_label: None,
+            session_branch: None,
+            session_status: None,
             replies: None,
         }
     }
@@ -61,6 +68,10 @@ mod tests {
             metadata: Some(metadata),
             created_at: Some("2026-03-16T00:00:00Z".to_string()),
             updated_at: Some("2026-03-16T00:01:00Z".to_string()),
+            session_id: None,
+            session_label: None,
+            session_branch: None,
+            session_status: None,
             replies: None,
         };
         assert_roundtrip(&message);

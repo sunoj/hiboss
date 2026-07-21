@@ -2,7 +2,9 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use crate::{client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest};
+use crate::{
+    client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest,
+};
 use clap::{ArgAction, Args};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -88,9 +90,15 @@ impl Display for AskInputError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EmptyChoice => write!(formatter, "options and action labels cannot be empty"),
-            Self::InvalidAction => write!(formatter, "actions must use LABEL=COMMAND with non-empty values"),
+            Self::InvalidAction => write!(
+                formatter,
+                "actions must use LABEL=COMMAND with non-empty values"
+            ),
             Self::MixedChoiceTypes => write!(formatter, "--option and --action cannot be combined"),
-            Self::TooManyChoices => write!(formatter, "a message can contain at most {MAX_CHOICES} choices"),
+            Self::TooManyChoices => write!(
+                formatter,
+                "a message can contain at most {MAX_CHOICES} choices"
+            ),
             Self::DuplicateChoice(choice) => write!(formatter, "duplicate choice: {choice}"),
         }
     }
@@ -107,7 +115,10 @@ impl AskArgs {
             return parse_actions(&self.actions);
         }
         let options = normalize_choices(&self.options)?;
-        Ok(ChoicePayload { options, actions: HashMap::new() })
+        Ok(ChoicePayload {
+            options,
+            actions: HashMap::new(),
+        })
     }
 }
 
@@ -150,7 +161,11 @@ fn normalize_choices(values: &[String]) -> Result<Option<Vec<String>>, AskInputE
     Ok(Some(choices))
 }
 
-pub async fn run(args: &AskArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &AskArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     if args.to.is_none() {
         warn_unread_messages(client).await;
     }
@@ -188,7 +203,9 @@ async fn upload_attachment(
     Ok(Some(upload.url))
 }
 
-fn action_metadata(actions: &HashMap<String, Value>) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
+fn action_metadata(
+    actions: &HashMap<String, Value>,
+) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
     if actions.is_empty() {
         return Ok(None);
     }
@@ -250,6 +267,8 @@ async fn warn_unread_messages(client: &HiBossClient) {
                 a2a_count
             );
         }
-        println!("Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages.");
+        println!(
+            "Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages."
+        );
     }
 }

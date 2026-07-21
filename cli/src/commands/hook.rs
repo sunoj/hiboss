@@ -84,14 +84,16 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
 
         // Register session with the server (best-effort)
         if let Ok(client) = build_client() {
-            let _ = client.register_session(
-                &id,
-                branch.as_deref(),
-                cwd.as_deref(),
-                label.as_deref(),
-                Some("working"),
-                None,
-            ).await;
+            let _ = client
+                .register_session(
+                    &id,
+                    branch.as_deref(),
+                    cwd.as_deref(),
+                    label.as_deref(),
+                    Some("working"),
+                    None,
+                )
+                .await;
             // Mark all existing messages as read so unread count starts at 0
             let _ = client.mark_all_read().await;
         }
@@ -102,17 +104,31 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
     start_daemon_if_needed();
 
     println!("MANDATORY: hiboss is installed for boss communication. You MUST follow these rules:");
-    println!("1. After completing any task or subtask, run: hiboss send \"<what you did and what's next>\"");
+    println!(
+        "1. After completing any task or subtask, run: hiboss send \"<what you did and what's next>\""
+    );
     println!("2. When blocked or need input, run: hiboss ask \"<your question>\"");
     println!("3. Reply to boss messages with: hiboss reply <id> \"<response>\"");
     println!("4. Check inbox with: hiboss inbox");
     println!("5. Send to peer sessions with: hiboss send --to <session-label-or-id> \"<message>\"");
-    println!("6. Broadcast to ALL peer sessions: hiboss send --broadcast \"<what you're working on>\"");
-    println!("CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\", using your tool call's OWN run_in_background:true parameter (NOT shell '&'/nohup/disown — those detach the process from tracking and you will never see the reply), then WAIT for boss reply.");
-    println!("CLI SYNTAX: Repeat singular --option or --action for each choice. Never use removed --options/--actions or comma-separated choice lists.");
-    println!("IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord.");
-    println!("COORDINATE: When peer sessions are active, broadcast your work plan BEFORE starting: hiboss send --broadcast \"Working on X in files Y\"");
-    println!("RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation.");
+    println!(
+        "6. Broadcast to ALL peer sessions: hiboss send --broadcast \"<what you're working on>\""
+    );
+    println!(
+        "CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\", using your tool call's OWN run_in_background:true parameter (NOT shell '&'/nohup/disown — those detach the process from tracking and you will never see the reply), then WAIT for boss reply."
+    );
+    println!(
+        "CLI SYNTAX: Repeat singular --option or --action for each choice. Never use removed --options/--actions or comma-separated choice lists."
+    );
+    println!(
+        "IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord."
+    );
+    println!(
+        "COORDINATE: When peer sessions are active, broadcast your work plan BEFORE starting: hiboss send --broadcast \"Working on X in files Y\""
+    );
+    println!(
+        "RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation."
+    );
 
     // Show peer sessions and auto-broadcast if peers exist
     let has_peers = show_peer_sessions(&session_id).await;
@@ -138,7 +154,10 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
     // 1. Drain pending messages from daemon's local file (fast, no I/O beyond file read)
     let pending = session::drain_pending_messages();
     if !pending.is_empty() {
-        println!("REAL-TIME: {} new messages arrived via SSE daemon:", pending.len());
+        println!(
+            "REAL-TIME: {} new messages arrived via SSE daemon:",
+            pending.len()
+        );
         let mut ids_to_mark: Vec<String> = Vec::new();
         for line in &pending {
             if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
@@ -180,7 +199,9 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         .as_secs();
     if session::had_peers_active() {
         let remind_expired = is_ttl_expired(
-            &session::broadcast_remind_ttl_path(), now, BROADCAST_REMIND_TTL_SECONDS,
+            &session::broadcast_remind_ttl_path(),
+            now,
+            BROADCAST_REMIND_TTL_SECONDS,
         );
         if remind_expired {
             let _ = fs::write(session::broadcast_remind_ttl_path(), now.to_string());
@@ -232,7 +253,10 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
     }
 
     // Urgent boss message check
-    let count = match client.inbox_count(Some("critical,high"), session::read_session_id().as_deref()).await {
+    let count = match client
+        .inbox_count(Some("critical,high"), session::read_session_id().as_deref())
+        .await
+    {
         Ok(c) => c,
         Err(_) => 0,
     };
@@ -247,7 +271,10 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 
     // A2A message check (only when daemon not running)
     if session::is_daemon_running().is_none() {
-        let a2a_count = match client.inbox_count_a2a(session::read_session_id().as_deref()).await {
+        let a2a_count = match client
+            .inbox_count_a2a(session::read_session_id().as_deref())
+            .await
+        {
             Ok(c) => c,
             Err(_) => 0,
         };
@@ -287,7 +314,9 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
 
     // Best-effort: mark session completed on server
     if let (Ok(client), Some(sid)) = (build_client(), &session::read_session_id()) {
-        let _ = client.heartbeat_session(sid, Some("completed"), Some("Session ended")).await;
+        let _ = client
+            .heartbeat_session(sid, Some("completed"), Some("Session ended"))
+            .await;
     }
     // Kill SSE daemon if running
     if let Some(pid) = session::is_daemon_running() {

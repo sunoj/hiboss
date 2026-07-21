@@ -14,7 +14,11 @@ pub struct ReadArgs {
     pub reactions: bool,
 }
 
-pub async fn run(args: &ReadArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &ReadArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let message = client.get_message(&args.id).await?;
     print_message(&message, 0);
     if args.reactions {
@@ -22,7 +26,9 @@ pub async fn run(args: &ReadArgs, _config: &Config, client: &HiBossClient) -> Re
             Ok(resp) if !resp.reactions.is_empty() => {
                 println!("Reactions:");
                 for r in &resp.reactions {
-                    let label = r.user.as_deref()
+                    let label = r
+                        .user
+                        .as_deref()
                         .map(|u| format!("{} ({})", r.emoji, u))
                         .or_else(|| r.count.map(|c| format!("{} x{}", r.emoji, c)))
                         .unwrap_or_else(|| r.emoji.clone());
@@ -39,9 +45,21 @@ pub async fn run(args: &ReadArgs, _config: &Config, client: &HiBossClient) -> Re
 fn print_message(message: &Message, depth: usize) {
     let indent = "  ".repeat(depth);
     println!("{}ID: {}", indent, message.id);
-    println!("{}Direction: {}", indent, message.direction.as_deref().unwrap_or("-"));
-    println!("{}Channel: {}", indent, message.channel.as_deref().unwrap_or("-"));
-    println!("{}Status: {}", indent, message.status.as_deref().unwrap_or("-"));
+    println!(
+        "{}Direction: {}",
+        indent,
+        message.direction.as_deref().unwrap_or("-")
+    );
+    println!(
+        "{}Channel: {}",
+        indent,
+        message.channel.as_deref().unwrap_or("-")
+    );
+    println!(
+        "{}Status: {}",
+        indent,
+        message.status.as_deref().unwrap_or("-")
+    );
     let msg_type = message.message_type.as_deref().unwrap_or("text");
     if msg_type != "text" {
         println!("{}Type: {}", indent, msg_type);

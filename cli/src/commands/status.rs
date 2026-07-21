@@ -12,7 +12,11 @@ pub struct StatusArgs {
     pub id: String,
 }
 
-pub async fn run(args: &StatusArgs, _config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &StatusArgs,
+    _config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     if let Err(err) = client.update_status(&args.id, "read").await {
         eprintln!("Could not update status: {}", err);
     }
@@ -21,7 +25,11 @@ pub async fn run(args: &StatusArgs, _config: &Config, client: &HiBossClient) -> 
     println!("Status: {}", message.status.as_deref().unwrap_or("unknown"));
     if let Some(replies) = &message.replies {
         for reply in replies {
-            println!("Reply {}: {}", reply.id, reply.body.as_deref().unwrap_or("-"));
+            println!(
+                "Reply {}: {}",
+                reply.id,
+                reply.body.as_deref().unwrap_or("-")
+            );
         }
     }
     Ok(())

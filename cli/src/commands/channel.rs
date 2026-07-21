@@ -23,7 +23,10 @@ pub enum ChannelCommand {
 
 #[derive(Debug, Args)]
 pub struct DiscordSetupArgs {
-    #[arg(long, help = "Discord Application ID (auto-detected from bot token if omitted)")]
+    #[arg(
+        long,
+        help = "Discord Application ID (auto-detected from bot token if omitted)"
+    )]
     pub app_id: Option<String>,
     #[arg(long, help = "Discord Bot Token")]
     pub bot_token: String,
@@ -62,13 +65,23 @@ pub struct ChannelSetArgs {
     pub webhook_url: Option<String>,
     #[arg(long)]
     pub avatar_url: Option<String>,
-    #[arg(long, help = "Auto-create Telegram topic per agent (requires topics-enabled group)")]
+    #[arg(
+        long,
+        help = "Auto-create Telegram topic per agent (requires topics-enabled group)"
+    )]
     pub use_topics: bool,
-    #[arg(long, help = "Telegram forum topic thread ID (set manually or auto-created)")]
+    #[arg(
+        long,
+        help = "Telegram forum topic thread ID (set manually or auto-created)"
+    )]
     pub topic_id: Option<i64>,
 }
 
-pub async fn run(args: &ChannelArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub async fn run(
+    args: &ChannelArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     match &args.command {
         ChannelCommand::Set(payload) => run_set(payload, config, client).await?,
         ChannelCommand::List => run_list(client).await?,
@@ -77,7 +90,11 @@ pub async fn run(args: &ChannelArgs, config: &Config, client: &HiBossClient) -> 
     Ok(())
 }
 
-async fn run_set(args: &ChannelSetArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+async fn run_set(
+    args: &ChannelSetArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let config_payload = match args.channel {
         ChannelKind::Discord => {
             if let Some(ref url) = args.webhook_url {
@@ -94,17 +111,23 @@ async fn run_set(args: &ChannelSetArgs, config: &Config, client: &HiBossClient) 
                 }
                 cfg
             } else {
-                let channel_id = args.channel_id.as_deref()
-                    .ok_or_else(|| required_arg("discord needs --webhook-url or --bot-token + --channel-id"))?;
-                let bot_token = args.bot_token.as_deref()
-                    .ok_or_else(|| required_arg("discord needs --webhook-url or --bot-token + --channel-id"))?;
+                let channel_id = args.channel_id.as_deref().ok_or_else(|| {
+                    required_arg("discord needs --webhook-url or --bot-token + --channel-id")
+                })?;
+                let bot_token = args.bot_token.as_deref().ok_or_else(|| {
+                    required_arg("discord needs --webhook-url or --bot-token + --channel-id")
+                })?;
                 json!({ "channel_id": channel_id, "bot_token": bot_token })
             }
         }
         ChannelKind::Telegram => {
-            let chat_id = args.chat_id.as_deref()
+            let chat_id = args
+                .chat_id
+                .as_deref()
                 .ok_or_else(|| required_arg("chat-id is required for telegram"))?;
-            let bot_token = args.bot_token.as_deref()
+            let bot_token = args
+                .bot_token
+                .as_deref()
                 .ok_or_else(|| required_arg("bot-token is required for telegram"))?;
             let mut cfg = json!({ "chat_id": chat_id, "bot_token": bot_token });
             if args.use_topics {
@@ -116,7 +139,9 @@ async fn run_set(args: &ChannelSetArgs, config: &Config, client: &HiBossClient) 
             cfg
         }
     };
-    client.set_channel(args.channel.as_str(), &config_payload).await?;
+    client
+        .set_channel(args.channel.as_str(), &config_payload)
+        .await?;
     if let (ChannelKind::Telegram, Some(token)) = (&args.channel, &args.bot_token) {
         let server_url = config.require_server()?;
         let base = server_url.trim_end_matches('/');
@@ -139,26 +164,37 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     println!("{:<10} {:<8} {}", "Channel", "Enabled", "Created");
     for channel in response.channels {
         let enabled = if channel.enabled { "true" } else { "false" };
-        println!("{:<10} {:<8} {}", channel.channel, enabled, channel.created_at);
+        println!(
+            "{:<10} {:<8} {}",
+            channel.channel, enabled, channel.created_at
+        );
     }
     Ok(())
 }
 
-async fn run_discord_setup(args: &DiscordSetupArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+async fn run_discord_setup(
+    args: &DiscordSetupArgs,
+    config: &Config,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
     let http = reqwest::Client::new();
     // 1. Auto-detect app_id from bot token if not provided
     let app_id = if let Some(ref id) = args.app_id {
         id.clone()
     } else {
         eprintln!("Auto-detecting Application ID from bot token...");
-        let resp = http.get("https://discord.com/api/v10/oauth2/applications/@me")
+        let resp = http
+            .get("https://discord.com/api/v10/oauth2/applications/@me")
             .header("Authorization", format!("Bot {}", args.bot_token))
-            .send().await?;
+            .send()
+            .await?;
         if !resp.status().is_success() {
             return Err("Failed to auto-detect app_id. Provide --app-id manually.".into());
         }
         let app: serde_json::Value = resp.json().await?;
-        let id = app["id"].as_str().ok_or("Could not read app id from Discord API")?;
+        let id = app["id"]
+            .as_str()
+            .ok_or("Could not read app id from Discord API")?;
         eprintln!("Detected Application ID: {}", id);
         id.to_owned()
     };
@@ -167,9 +203,11 @@ async fn run_discord_setup(args: &DiscordSetupArgs, config: &Config, client: &Hi
         ch_id.clone()
     } else {
         eprintln!("No --channel-id provided. Listing available channels...");
-        let guilds_resp = http.get("https://discord.com/api/v10/users/@me/guilds")
+        let guilds_resp = http
+            .get("https://discord.com/api/v10/users/@me/guilds")
             .header("Authorization", format!("Bot {}", args.bot_token))
-            .send().await?;
+            .send()
+            .await?;
         if !guilds_resp.status().is_success() {
             return Err("Failed to list guilds. Provide --channel-id manually.".into());
         }
@@ -178,21 +216,35 @@ async fn run_discord_setup(args: &DiscordSetupArgs, config: &Config, client: &Hi
         for guild in &guilds {
             let guild_id = guild["id"].as_str().unwrap_or_default();
             let guild_name = guild["name"].as_str().unwrap_or("?");
-            let ch_resp = http.get(format!("https://discord.com/api/v10/guilds/{}/channels", guild_id))
+            let ch_resp = http
+                .get(format!(
+                    "https://discord.com/api/v10/guilds/{}/channels",
+                    guild_id
+                ))
                 .header("Authorization", format!("Bot {}", args.bot_token))
-                .send().await?;
-            if !ch_resp.status().is_success() { continue; }
+                .send()
+                .await?;
+            if !ch_resp.status().is_success() {
+                continue;
+            }
             let channels: Vec<serde_json::Value> = ch_resp.json().await?;
-            let text_channels: Vec<_> = channels.iter()
+            let text_channels: Vec<_> = channels
+                .iter()
                 .filter(|c| c["type"].as_u64() == Some(0))
                 .collect();
             if !text_channels.is_empty() {
                 eprintln!("\nGuild: {}", guild_name);
                 for ch in &text_channels {
-                    eprintln!("  #{:<30} {}", ch["name"].as_str().unwrap_or("?"), ch["id"].as_str().unwrap_or("?"));
+                    eprintln!(
+                        "  #{:<30} {}",
+                        ch["name"].as_str().unwrap_or("?"),
+                        ch["id"].as_str().unwrap_or("?")
+                    );
                 }
                 if found_channel.is_none() {
-                    found_channel = text_channels.first().and_then(|c| c["id"].as_str().map(String::from));
+                    found_channel = text_channels
+                        .first()
+                        .and_then(|c| c["id"].as_str().map(String::from));
                 }
             }
         }
@@ -201,7 +253,10 @@ async fn run_discord_setup(args: &DiscordSetupArgs, config: &Config, client: &Hi
     // 3. Register slash commands
     let server_url = config.require_server()?;
     let base = server_url.trim_end_matches('/');
-    let url = format!("{}/api/webhooks/discord-interactions/register-commands", base);
+    let url = format!(
+        "{}/api/webhooks/discord-interactions/register-commands",
+        base
+    );
     let response = http
         .post(&url)
         .json(&json!({ "app_id": app_id, "bot_token": args.bot_token }))
@@ -218,12 +273,20 @@ async fn run_discord_setup(args: &DiscordSetupArgs, config: &Config, client: &Hi
         cfg["webhook_url"] = json!(wh_url);
     }
     client.set_channel("discord", &cfg).await?;
-    eprintln!("Discord channel config saved (bot_token + channel_id{}).",
-        if args.webhook_url.is_some() { " + webhook_url" } else { "" },
+    eprintln!(
+        "Discord channel config saved (bot_token + channel_id{}).",
+        if args.webhook_url.is_some() {
+            " + webhook_url"
+        } else {
+            ""
+        },
     );
     eprintln!("\nNext steps:");
     eprintln!("1. Go to Discord Developer Portal > Your App > General Information");
-    eprintln!("2. Set Interactions Endpoint URL to: {}/api/webhooks/discord-interactions", base);
+    eprintln!(
+        "2. Set Interactions Endpoint URL to: {}/api/webhooks/discord-interactions",
+        base
+    );
     eprintln!("3. Run: wrangler secret put DISCORD_PUBLIC_KEY");
     eprintln!("   Paste your app's PUBLIC KEY from the Developer Portal");
     Ok(())

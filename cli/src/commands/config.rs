@@ -2,7 +2,7 @@
 // Exports: ConfigCommand, SetArgs, GetArgs, ConfigKey, and run().
 // Dependencies: clap, crate::config, std::error::Error.
 
-use crate::config::{save_config, Config};
+use crate::config::{Config, save_config};
 use clap::{Args, Subcommand, ValueEnum};
 use std::error::Error;
 

@@ -99,10 +99,7 @@ mod tests {
 
     #[test]
     fn escape_all_combined() {
-        assert_eq!(
-            escape_applescript("a\\b \"c\"\nd"),
-            "a\\\\b \\\"c\\\"\\nd"
-        );
+        assert_eq!(escape_applescript("a\\b \"c\"\nd"), "a\\\\b \\\"c\\\"\\nd");
     }
 
     #[test]

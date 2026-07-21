@@ -8,8 +8,21 @@ use std::error::Error;
 use std::time::Duration;
 
 impl HiBossClient {
-    pub async fn list_messages(&self, unread: bool, all: bool, limit: u32, priority: Option<&str>, msg_type: Option<&str>, session: Option<&str>, from: Option<&str>, direction: Option<&str>, target_session: Option<&str>, search: Option<&str>) -> Result<MessagesResponse, Box<dyn Error>> {
-        let mut request = self.http
+    pub async fn list_messages(
+        &self,
+        unread: bool,
+        all: bool,
+        limit: u32,
+        priority: Option<&str>,
+        msg_type: Option<&str>,
+        session: Option<&str>,
+        from: Option<&str>,
+        direction: Option<&str>,
+        target_session: Option<&str>,
+        search: Option<&str>,
+    ) -> Result<MessagesResponse, Box<dyn Error>> {
+        let mut request = self
+            .http
             .get(format!("{}/api/messages", self.base_url))
             .bearer_auth(&self.api_key)
             .query(&[("limit", limit.to_string())]);
@@ -45,7 +58,8 @@ impl HiBossClient {
     }
 
     pub async fn get_message(&self, id: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self.http
+        let resp = self
+            .http
             .get(format!("{}/api/messages/{}", self.base_url, id))
             .bearer_auth(&self.api_key)
             .send()
@@ -54,8 +68,11 @@ impl HiBossClient {
     }
 
     pub async fn reply_to(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
-        let req = ReplyRequest { body: body.to_owned() };
-        let resp = self.http
+        let req = ReplyRequest {
+            body: body.to_owned(),
+        };
+        let resp = self
+            .http
             .post(format!("{}/api/messages/{}/reply", self.base_url, id))
             .bearer_auth(&self.api_key)
             .json(&req)
@@ -65,8 +82,11 @@ impl HiBossClient {
     }
 
     pub async fn update_status(&self, id: &str, status: &str) -> Result<Message, Box<dyn Error>> {
-        let req = StatusUpdate { status: status.to_owned() };
-        let resp = self.http
+        let req = StatusUpdate {
+            status: status.to_owned(),
+        };
+        let resp = self
+            .http
             .patch(format!("{}/api/messages/{}", self.base_url, id))
             .bearer_auth(&self.api_key)
             .json(&req)
@@ -76,7 +96,8 @@ impl HiBossClient {
     }
 
     pub async fn edit_message_body(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self.http
+        let resp = self
+            .http
             .patch(format!("{}/api/messages/{}", self.base_url, id))
             .bearer_auth(&self.api_key)
             .json(&serde_json::json!({ "body": body }))
@@ -85,8 +106,13 @@ impl HiBossClient {
         Self::parse_response(resp).await
     }
 
-    pub async fn forward_message(&self, id: &str, channel: &str) -> Result<Message, Box<dyn Error>> {
-        let resp = self.http
+    pub async fn forward_message(
+        &self,
+        id: &str,
+        channel: &str,
+    ) -> Result<Message, Box<dyn Error>> {
+        let resp = self
+            .http
             .post(format!("{}/api/messages/{}/forward", self.base_url, id))
             .bearer_auth(&self.api_key)
             .json(&serde_json::json!({ "channel": channel }))
@@ -97,7 +123,8 @@ impl HiBossClient {
 
     pub async fn poll_reply(&self, id: &str, timeout: u32) -> Result<PollResponse, Box<dyn Error>> {
         let poll_timeout = u64::from(timeout).saturating_add(30).max(120);
-        let resp = self.poll_http
+        let resp = self
+            .poll_http
             .post(format!("{}/api/messages/{}/poll", self.base_url, id))
             .bearer_auth(&self.api_key)
             .query(&[("timeout", timeout.to_string())])
