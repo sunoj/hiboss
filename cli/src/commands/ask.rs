@@ -2,6 +2,9 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
+use super::ask_support::{
+    action_metadata, resolve_default_reply, validate_default_option, warn_unread_messages,
+};
 use crate::{
     client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest,
 };
@@ -49,6 +52,12 @@ pub struct AskArgs {
         value_parser = reject_legacy_actions
     )]
     legacy_actions: Option<String>,
+    #[arg(
+        long = "default",
+        value_name = "LABEL",
+        help = "Mark one option/action LABEL as the default; executed on timeout"
+    )]
+    pub default_option: Option<String>,
     #[arg(long, help = "Local file to upload and attach")]
     pub file: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
@@ -75,6 +84,7 @@ fn reject_legacy_actions(_: &str) -> Result<String, String> {
 pub(crate) struct ChoicePayload {
     pub(crate) options: Option<Vec<String>>,
     pub(crate) actions: HashMap<String, Value>,
+    pub(crate) default_option: Option<String>,
 }
 
 #[derive(Debug)]
@@ -84,6 +94,7 @@ pub(crate) enum AskInputError {
     MixedChoiceTypes,
     TooManyChoices,
     DuplicateChoice(String),
+    DefaultNotInChoices(String),
 }
 
 impl Display for AskInputError {
@@ -100,6 +111,10 @@ impl Display for AskInputError {
                 "a message can contain at most {MAX_CHOICES} choices"
             ),
             Self::DuplicateChoice(choice) => write!(formatter, "duplicate choice: {choice}"),
+            Self::DefaultNotInChoices(label) => write!(
+                formatter,
+                "--default '{label}' must match one of the --option/--action labels"
+            ),
         }
     }
 }
@@ -111,14 +126,23 @@ impl AskArgs {
         if !self.options.is_empty() && !self.actions.is_empty() {
             return Err(AskInputError::MixedChoiceTypes);
         }
-        if !self.actions.is_empty() {
-            return parse_actions(&self.actions);
-        }
-        let options = normalize_choices(&self.options)?;
-        Ok(ChoicePayload {
-            options,
-            actions: HashMap::new(),
-        })
+        let mut payload = if !self.actions.is_empty() {
+            let partial = parse_actions(&self.actions)?;
+            ChoicePayload {
+                options: partial.options,
+                actions: partial.actions,
+                default_option: None,
+            }
+        } else {
+            ChoicePayload {
+                options: normalize_choices(&self.options)?,
+                actions: HashMap::new(),
+                default_option: None,
+            }
+        };
+        payload.default_option =
+            validate_default_option(&self.default_option, payload.options.as_deref())?;
+        Ok(payload)
     }
 }
 
@@ -136,7 +160,11 @@ fn parse_actions(values: &[String]) -> Result<ChoicePayload, AskInputError> {
         actions.insert(label.to_owned(), Value::String(command.to_owned()));
     }
     let options = normalize_choices(&labels)?;
-    Ok(ChoicePayload { options, actions })
+    Ok(ChoicePayload {
+        options,
+        actions,
+        default_option: None,
+    })
 }
 
 fn normalize_choices(values: &[String]) -> Result<Option<Vec<String>>, AskInputError> {
@@ -176,8 +204,8 @@ pub async fn run(
         mode: "blocking".to_owned(),
         priority: "normal".to_owned(),
         channel: args.channel.clone(),
-        metadata: action_metadata(&choices.actions)?,
-        options: choices.options,
+        metadata: action_metadata(&choices.actions, choices.default_option.as_deref())?,
+        options: choices.options.clone(),
         file_url,
         message_type: None,
         session_id: session::read_session_id(),
@@ -190,7 +218,14 @@ pub async fn run(
         submission.id, args.timeout, submission.id
     );
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
-    print_poll_result(&submission.id, poll.replies.as_deref(), client).await
+    print_poll_result(
+        &submission.id,
+        poll.replies.as_deref(),
+        args.timeout,
+        &choices,
+        client,
+    )
+    .await
 }
 
 async fn upload_attachment(
@@ -203,20 +238,11 @@ async fn upload_attachment(
     Ok(Some(upload.url))
 }
 
-fn action_metadata(
-    actions: &HashMap<String, Value>,
-) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
-    if actions.is_empty() {
-        return Ok(None);
-    }
-    let mut metadata = HashMap::new();
-    metadata.insert("actions".to_owned(), serde_json::to_value(actions)?);
-    Ok(Some(metadata))
-}
-
 async fn print_poll_result(
     submission_id: &str,
     replies: Option<&[crate::types::Message]>,
+    timeout: u32,
+    choices: &ChoicePayload,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     if let Some(replies) = replies {
@@ -244,31 +270,18 @@ async fn print_poll_result(
             }
         }
     }
+    if let Some(default) = resolve_default_reply(choices, replies) {
+        println!("{}", default.label);
+        if let Some(Value::String(action_cmd)) = default.action {
+            eprintln!("Action: {}", action_cmd);
+        }
+        eprintln!(
+            "[ask {}] no reply in {}s — using default: {}",
+            submission_id, timeout, default.label
+        );
+        return Ok(());
+    }
     eprintln!("No reply yet");
     println!("{submission_id}");
     Ok(())
-}
-
-/// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
-async fn warn_unread_messages(client: &HiBossClient) {
-    let sid = crate::session::read_session_id();
-    let boss_count = client.inbox_count(None, sid.as_deref()).await.unwrap_or(0);
-    let a2a_count = client.inbox_count_a2a(sid.as_deref()).await.unwrap_or(0);
-    if boss_count > 0 || a2a_count > 0 {
-        if boss_count > 0 {
-            println!(
-                "UNREAD WARNING: You have {} unread boss message(s). Read them FIRST: hiboss inbox",
-                boss_count
-            );
-        }
-        if a2a_count > 0 {
-            println!(
-                "UNREAD WARNING: You have {} unread peer message(s). Read them FIRST: hiboss inbox --direction agent_to_agent",
-                a2a_count
-            );
-        }
-        println!(
-            "Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages."
-        );
-    }
 }
