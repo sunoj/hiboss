@@ -87,27 +87,33 @@ struct InboxView: View {
 
     @ViewBuilder
     private var content: some View {
+        if tab == .pending {
+            pendingContent
+        } else {
+            allHistoryContent
+        }
+    }
+
+    private var sessionGroups: [SessionGroup] {
+        SessionGrouping.groupBySession(store.history)
+    }
+
+    private var pendingContent: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                if tab == .pending {
-                    if store.pending.isEmpty {
-                        EmptyState(
-                            icon: "checkmark.circle",
-                            title: "All clear",
-                            detail: "No decisions are waiting on you."
-                        ).padding(.top, 80)
-                    } else {
-                        ForEach(store.pending) { message in
-                            MessageCard(
-                                message: message,
-                                onChoose: { choice in Task { await store.reply(choice, to: message.id) } },
-                                onMore: { replyTarget = message }
-                            )
-                        }
-                    }
+                if store.pending.isEmpty {
+                    EmptyState(
+                        icon: "checkmark.circle",
+                        title: "All clear",
+                        detail: "No decisions are waiting on you."
+                    ).padding(.top, 80)
                 } else {
-                    ForEach(store.history) { message in
-                        HistoryRow(message: message)
+                    ForEach(store.pending) { message in
+                        MessageCard(
+                            message: message,
+                            onChoose: { choice in Task { await store.reply(choice, to: message.id) } },
+                            onMore: { replyTarget = message }
+                        )
                     }
                 }
             }
@@ -116,6 +122,39 @@ struct InboxView: View {
             .padding(.bottom, 96)
         }
         .scrollIndicators(.hidden)
+    }
+
+    @ViewBuilder
+    private var allHistoryContent: some View {
+        if store.history.isEmpty {
+            ScrollView {
+                EmptyState(
+                    icon: "tray",
+                    title: "No messages yet",
+                    detail: "Agent messages will appear here."
+                ).padding(.top, 80)
+            }
+            .scrollIndicators(.hidden)
+        } else {
+            List {
+                ForEach(sessionGroups) { group in
+                    Section {
+                        ForEach(group.messages) { message in
+                            HistoryRow(message: message)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
+                    } header: {
+                        SessionSectionHeader(group: group)
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Theme.paper)
+            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 96) }
+        }
     }
 }
 

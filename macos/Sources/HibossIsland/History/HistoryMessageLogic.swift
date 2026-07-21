@@ -29,23 +29,8 @@ enum HistorySegment: String, CaseIterable, Identifiable {
     }
 }
 
-struct SessionGroup: Identifiable, Equatable {
-    let id: String
-    let label: String
-    let agentName: String?
-    let status: String?
-    let messages: [HistoryMessage]
-
-    var isExpandedByDefault: Bool {
-        switch status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "working", "waiting", "blocked": true
-        default: false
-        }
-    }
-}
-
 enum HistoryMessageLogic {
-    static let directSessionID = "direct"
+    static let directSessionID = SessionGrouping.directSessionID
 
     static func filtered(
         _ messages: [HistoryMessage],
@@ -61,55 +46,9 @@ enum HistoryMessageLogic {
         messages.filter(\.isUnreadHistoryMessage).count
     }
 
-    /// Groups already-filtered messages by `sessionId`. Nil IDs share a trailing "Direct" bucket.
-    /// Groups are ordered by newest `createdAt` descending; order within a group is preserved.
+    /// Groups already-filtered messages by session. Delegates to HibossKit.SessionGrouping.
     static func groupBySession(_ messages: [HistoryMessage]) -> [SessionGroup] {
-        var order: [String] = []
-        var buckets: [String: [HistoryMessage]] = [:]
-        for message in messages {
-            let key = sessionKey(for: message)
-            if buckets[key] == nil {
-                order.append(key)
-                buckets[key] = []
-            }
-            buckets[key, default: []].append(message)
-        }
-        return order.compactMap { key in
-            guard let groupMessages = buckets[key], !groupMessages.isEmpty else { return nil }
-            return makeGroup(id: key, messages: groupMessages)
-        }
-        .sorted { newestDate(in: $0.messages) > newestDate(in: $1.messages) }
-    }
-
-    private static func sessionKey(for message: HistoryMessage) -> String {
-        let trimmed = message.sessionId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? directSessionID : trimmed
-    }
-
-    private static func makeGroup(id: String, messages: [HistoryMessage]) -> SessionGroup {
-        SessionGroup(
-            id: id,
-            label: groupLabel(id: id, messages: messages),
-            agentName: messages.lazy.compactMap { clean($0.agentName) }.first,
-            status: messages.reversed().lazy.compactMap { clean($0.sessionStatus) }.first,
-            messages: messages
-        )
-    }
-
-    private static func groupLabel(id: String, messages: [HistoryMessage]) -> String {
-        if id == directSessionID { return "Direct" }
-        return messages.lazy.compactMap { clean($0.sessionLabel) }.first
-            ?? messages.lazy.compactMap { clean($0.sessionBranch) }.first
-            ?? shortSessionID(id)
-    }
-
-    private static func shortSessionID(_ id: String) -> String {
-        let compact = id.replacingOccurrences(of: "-", with: "")
-        return String(compact.prefix(8))
-    }
-
-    private static func newestDate(in messages: [HistoryMessage]) -> Date {
-        messages.compactMap { HistoryTimestamp.date(from: $0.createdAt) }.max() ?? .distantPast
+        SessionGrouping.groupBySession(messages)
     }
 }
 
