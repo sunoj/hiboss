@@ -30,12 +30,17 @@ hiboss send --to worker-1 --task "Implement OAuth2" --files src/auth/ # with con
 hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
 hiboss ask --option "A" --option "B" --option "C" "Pick one:\n1. A\n2. B\n3. C"
+hiboss ask --option "Ship" --option "Wait" --default "Ship" "Deploy now?"  # Ship auto-runs on timeout
 hiboss ask --action "Approve=aid merge t-123" --action "Reject=echo rejected" "Deploy?"
 hiboss ask --to reviewer "Review feat/oauth branch"
 ```
 
 `--option` and `--action` are singular repeatable flags. The removed plural flags
 must not be used, and choices must not be joined with commas.
+
+`--default <LABEL>` marks one option/action label as the default. It is flagged in
+the boss UI, and if the ask times out with no reply the server auto-selects it and
+returns it to the asker, so the agent can proceed instead of stalling.
 
 ## Inbox
 ```bash

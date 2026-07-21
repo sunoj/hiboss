@@ -121,6 +121,9 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
         "CLI SYNTAX: Repeat singular --option or --action for each choice. Never use removed --options/--actions or comma-separated choice lists."
     );
     println!(
+        "DEFAULT OPTION: add --default <LABEL> (must equal one of your --option/--action labels) to mark a fallback. The boss sees it flagged, and if you time out with no reply it is auto-selected and returned — so you can proceed safely on timeout."
+    );
+    println!(
         "IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord."
     );
     println!(
