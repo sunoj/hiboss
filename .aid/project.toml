@@ -2,7 +2,7 @@
 id = "hiboss"
 profile = "production"
 language = "rust,typescript"
-budget = "$50/day"
+budget = "$200/day"
 verify = "cd cli && cargo check && cd ../server && npm test"
 team = "dev"
 
