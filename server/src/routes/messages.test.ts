@@ -227,6 +227,40 @@ describe('GET /api/messages', () => {
     const data = await res.json() as { messages: unknown[] };
     expect(data.messages.length).toBeLessThanOrEqual(1);
   });
+
+  it('includes session context on list rows', async () => {
+    await env.DB.prepare(
+      "INSERT INTO sessions (id, agent_id, label, branch, status) VALUES (?, ?, ?, ?, 'working')"
+    ).bind('list-session-context', getTestAgentId(), 'List Session', 'feat/session-list').run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'With session context', 'sent', 'normal', ?)"
+    ).bind('list-session-context-message', getTestAgentId(), 'list-session-context').run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'Without session context', 'sent', 'normal', NULL)"
+    ).bind('list-null-session-message', getTestAgentId()).run();
+
+    const res = await SELF.fetch('https://test.local/api/messages?limit=100', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as {
+      messages: {
+        id: string;
+        session_label?: string | null;
+        session_branch?: string | null;
+        session_status?: string | null;
+      }[];
+    };
+    const sessionMessage = data.messages.find((message) => message.id === 'list-session-context-message');
+    expect(sessionMessage?.session_label).toBe('List Session');
+    expect(sessionMessage?.session_branch).toBe('feat/session-list');
+    expect(sessionMessage?.session_status).toBe('working');
+
+    const nullSessionMessage = data.messages.find((message) => message.id === 'list-null-session-message');
+    expect(nullSessionMessage?.session_label).toBeNull();
+    expect(nullSessionMessage?.session_branch).toBeNull();
+    expect(nullSessionMessage?.session_status).toBeNull();
+  });
 });
 
 describe('GET /api/messages/:id', () => {

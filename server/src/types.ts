@@ -45,6 +45,9 @@ export interface MessageRow {
   created_at: string;
   updated_at: string;
   agent_name?: string | null;
+  session_label?: string | null;
+  session_branch?: string | null;
+  session_status?: string | null;
 }
 
 export interface MessageResponse {
@@ -68,6 +71,9 @@ export interface MessageResponse {
   updated_at: string;
   replies?: MessageResponse[];
   agent_name?: string | null;
+  session_label?: string | null;
+  session_branch?: string | null;
+  session_status?: string | null;
 }
 
 export interface ChannelConfigRow {
