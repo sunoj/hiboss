@@ -26,3 +26,8 @@ new_classes = ["DiscordGateway"]
 
 [triggers]
 crons = ["*/5 * * * *"]
+
+[vars]
+# Web console origin allowed by CORS (exact host + its preview subdomains).
+# Leave unset to allow only localhost dev origins.
+CONSOLE_ORIGIN = "https://your-console.pages.dev"

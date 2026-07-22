@@ -8,6 +8,7 @@ export type Env = {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
   BOOTSTRAP_SECRET?: string;
+  CONSOLE_ORIGIN?: string;
   DISCORD_PUBLIC_KEY?: string;
   DISCORD_WEBHOOK_SECRET?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;

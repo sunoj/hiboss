@@ -45,15 +45,24 @@ const manifest = {
 
 app.use('*', requestId);
 
-// CORS for the browser-based web console (Cloudflare Pages) and local dev.
+// CORS for the browser-based web console and local dev. The console origin is
+// deployment-specific and supplied via the CONSOLE_ORIGIN binding (exact host,
+// plus its preview subdomains) so no deployment URL is hard-coded in source.
 // Native clients (CLI, macOS, iOS) send no Origin and are unaffected.
 app.use(
   '/api/*',
   cors({
-    origin: (origin) => {
+    origin: (origin, c) => {
       if (!origin) return undefined;
-      if (origin === 'https://hiboss-console.pages.dev') return origin;
-      if (origin.endsWith('.hiboss-console.pages.dev')) return origin;
+      const configured = (c.env as Env).CONSOLE_ORIGIN;
+      if (configured) {
+        if (origin === configured) return origin;
+        try {
+          if (origin.endsWith('.' + new URL(configured).host)) return origin;
+        } catch {
+          // malformed CONSOLE_ORIGIN — fall through to localhost check
+        }
+      }
       if (/^http:\/\/localhost:\d+$/.test(origin)) return origin;
       return undefined;
     },
