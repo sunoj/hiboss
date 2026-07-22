@@ -13,11 +13,17 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../HibossKit"),
+        // Sparkle auto-update (EdDSA-signed appcast). Only the executable links it;
+        // HibossKit + tests stay dependency-free (they bind UpdaterState instead).
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
     ],
     targets: [
         .executableTarget(
             name: "HibossIsland",
-            dependencies: [.product(name: "HibossKit", package: "HibossKit")]
+            dependencies: [
+                .product(name: "HibossKit", package: "HibossKit"),
+                .product(name: "Sparkle", package: "Sparkle"),
+            ]
         ),
         .testTarget(
             name: "HibossIslandTests",

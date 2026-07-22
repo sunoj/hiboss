@@ -1,25 +1,57 @@
 #!/bin/sh
-# Builds the release executable and wraps it in a runnable macOS app bundle.
+# Builds the release executable and wraps it in a runnable macOS app bundle
+# with Sparkle embedded for auto-updates.
 # Outputs: dist/HiBoss Island.app, signed with a stable local identity.
-# Dependencies: SwiftPM, codesign, Info.plist, and AppIcon.icns.
+# Dependencies: SwiftPM, codesign, PlistBuddy, Info.plist, and AppIcon.icns.
+#
+# Optional env:
+#   HIBOSS_SIGNING_IDENTITY  codesign identity (default: local Apple Development).
+#   HIBOSS_APPCAST_URL       overrides SUFeedURL in the bundled Info.plist.
+#   HIBOSS_SPARKLE_PUBKEY    overrides SUPublicEDKey (EdDSA public key, base64).
 
 set -eu
 
 PACKAGE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 APP_DIR="$PACKAGE_DIR/dist/HiBoss Island.app"
 CONTENTS_DIR="$APP_DIR/Contents"
+FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 DEFAULT_SIGNING_IDENTITY="Apple Development: Ming Sun (234582ZA6V)"
 SIGNING_IDENTITY="${HIBOSS_SIGNING_IDENTITY:-$DEFAULT_SIGNING_IDENTITY}"
+PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 cd "$PACKAGE_DIR"
 swift build -c release
 BIN_DIR="$(swift build -c release --show-bin-path)"
 
 rm -rf "$APP_DIR"
-mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
+mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources" "$FRAMEWORKS_DIR"
 cp "$BIN_DIR/HibossIsland" "$CONTENTS_DIR/MacOS/HibossIsland"
 cp "$PACKAGE_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$PACKAGE_DIR/Resources/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
-codesign --force --deep --timestamp=none --sign "$SIGNING_IDENTITY" "$APP_DIR"
+
+# Embed Sparkle (SwiftPM drops the framework next to the binary) and let the
+# loader find it from the bundle.
+cp -R "$BIN_DIR/Sparkle.framework" "$FRAMEWORKS_DIR/"
+install_name_tool -add_rpath "@executable_path/../Frameworks" \
+    "$CONTENTS_DIR/MacOS/HibossIsland" 2>/dev/null || true
+
+# Inject deployment-specific Sparkle settings without baking them into the repo.
+if [ -n "${HIBOSS_APPCAST_URL:-}" ]; then
+    "$PLIST_BUDDY" -c "Set :SUFeedURL $HIBOSS_APPCAST_URL" "$CONTENTS_DIR/Info.plist"
+fi
+if [ -n "${HIBOSS_SPARKLE_PUBKEY:-}" ]; then
+    "$PLIST_BUDDY" -c "Set :SUPublicEDKey $HIBOSS_SPARKLE_PUBKEY" "$CONTENTS_DIR/Info.plist"
+fi
+
+# Sign nested Sparkle helpers first, then the framework, then the app
+# (deep→shallow — --deep does not re-sign the XPC/Autoupdate helpers correctly).
+SP="$FRAMEWORKS_DIR/Sparkle.framework"
+find "$SP" \( -name "*.xpc" -o -name "*.app" -o -name "Autoupdate" \) -print0 2>/dev/null |
+    while IFS= read -r -d '' nested; do
+        codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$nested"
+    done
+codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$SP"
+codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$CONTENTS_DIR/MacOS/HibossIsland"
+codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$APP_DIR"
 
 echo "$APP_DIR"

@@ -9,6 +9,7 @@ struct SettingsScene: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
     @ObservedObject var preferencesStore: BossPreferencesStore
+    @ObservedObject var updater: UpdaterState
     let soundPlayer: any SoundPlaying
 
     @State private var selection: SettingsPane = .connection
@@ -19,11 +20,13 @@ struct SettingsScene: View {
         settings: AppSettings,
         flow: OptionFlowStore,
         preferencesStore: BossPreferencesStore,
+        updater: UpdaterState = UpdaterState(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer()
     ) {
         self.settings = settings
         self.flow = flow
         self.preferencesStore = preferencesStore
+        self.updater = updater
         self.soundPlayer = soundPlayer
     }
 
@@ -79,7 +82,7 @@ struct SettingsScene: View {
                 preferencesStore: preferencesStore
             )
         case .about:
-            AboutSettingsPane()
+            AboutSettingsPane(updater: updater)
         }
     }
 
