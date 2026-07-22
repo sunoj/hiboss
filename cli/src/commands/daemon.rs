@@ -124,7 +124,9 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::OpenOptionsExt;
-                    opts.mode(0o600);
+                    // Owner-only, and never append through a symlink a co-resident
+                    // user planted at this predictable path (O_NOFOLLOW).
+                    opts.mode(0o600).custom_flags(libc::O_NOFOLLOW);
                 }
                 if let Ok(mut f) = opts.open(&path) {
                     let _ = writeln!(f, "{}", event.data);

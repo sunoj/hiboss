@@ -55,15 +55,16 @@ describe('GET /api/audit', () => {
     expect(data.total).toBeGreaterThan(0);
   });
 
-  it('filters by actor_type', async () => {
+  it('returns empty when an agent filters by a non-agent actor_type (scoped, not global)', async () => {
+    // An agent's own entries are always actor_type='agent'; asking for boss
+    // entries must yield nothing rather than leaking the global boss trail.
     const res = await SELF.fetch('https://test.local/api/audit?actor_type=boss', {
       headers: authHeaders(),
     });
     expect(res.status).toBe(200);
-    const data = await res.json() as { entries: { actor_type: string }[] };
-    for (const entry of data.entries) {
-      expect(entry.actor_type).toBe('boss');
-    }
+    const data = (await res.json()) as { entries: unknown[]; total: number };
+    expect(data.entries.length).toBe(0);
+    expect(data.total).toBe(0);
   });
 
   it('filters by action', async () => {

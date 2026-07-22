@@ -25,3 +25,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "signa
 dirs = "6"
 colored = "3"
 time = { version = "0.3", features = ["formatting", "parsing"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
