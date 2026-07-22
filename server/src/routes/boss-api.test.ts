@@ -4,7 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { seedDatabase, getTestAgentId } from '../test-helpers';
+import { seedDatabase, getTestAgentId, authHeaders } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 const BOSS_TOKEN = 'hb_boss_aabbccddeeff00112233445566778899';
@@ -238,6 +238,41 @@ describe('POST /api/boss/messages/:id/reply', () => {
     expect(data.direction).toBe('boss_to_agent');
     expect(data.reply_to).toBe('boss-api-msg-1');
     expect(data.body).toBe('Good work!');
+  });
+
+  it('scopes the reply to the parent message\'s session (conversation affinity)', async () => {
+    // Two live sessions under the same agent; the boss replies to a message
+    // authored by session A. The reply must be targeted at session A only, so
+    // session B never drains it (the mis-routing regression).
+    for (const sid of ['affinity-sess-a', 'affinity-sess-b']) {
+      await env.DB.prepare(
+        "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
+      ).bind(sid, getTestAgentId(), sid).run();
+    }
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal', ?)"
+    ).bind('affinity-parent', getTestAgentId(), 'Question from session A', 'affinity-sess-a').run();
+
+    const res = await SELF.fetch('http://localhost/api/boss/messages/affinity-parent/reply', {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'Do the two immediate fixes' }),
+    });
+    expect(res.status).toBe(201);
+    const reply = await res.json() as { id: string; target_session_id: string | null };
+    expect(reply.target_session_id).toBe('affinity-sess-a');
+
+    // Session A sees it as unread; session B does not.
+    const unreadFor = async (sid: string) => {
+      const r = await SELF.fetch(
+        `https://test.local/api/messages?unread=true&direction=boss_to_agent&target_session=${sid}`,
+        { headers: authHeaders() },
+      );
+      const body = await r.json() as { messages: { id: string }[] };
+      return body.messages.some((m) => m.id === reply.id);
+    };
+    expect(await unreadFor('affinity-sess-a')).toBe(true);
+    expect(await unreadFor('affinity-sess-b')).toBe(false);
   });
 
   it('rejects empty reply body', async () => {

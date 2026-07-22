@@ -204,9 +204,15 @@ export async function insertBossDiscordMessage(
       .first<{ id: string }>();
     if (pending) replyTo = pending.id;
   }
+  // Scope thread-bound messages to their session. The unread/SSE filters route
+  // boss_to_agent purely on target_session_id (session_id only affects the
+  // browse view), so a thread message with target_session_id NULL would fan out
+  // to every sibling session under this agent — the same mis-route this change
+  // closes elsewhere. A non-thread channel message keeps sessionId NULL and
+  // stays agent-wide. Mirrors the Telegram fresh-message path (webhooks.ts).
   const inserted = await env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId)
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId, sessionId)
     .first<MessageRow>();
   return inserted ?? null;
 }
