@@ -39,10 +39,26 @@ pub fn save_config(config: &Config) -> Result<(), Box<dyn Error>> {
     let path = config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
+        restrict_permissions(parent, 0o700);
     }
     let payload = serde_json::to_string_pretty(config)?;
     fs::write(&path, payload)?;
+    // The config holds the API key in plaintext; keep it owner-only.
+    restrict_permissions(&path, 0o600);
     Ok(())
+}
+
+/// Best-effort tighten of file/dir permissions on unix; a no-op elsewhere.
+fn restrict_permissions(path: &std::path::Path, mode: u32) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(path, fs::Permissions::from_mode(mode));
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (path, mode);
+    }
 }
 
 impl Config {

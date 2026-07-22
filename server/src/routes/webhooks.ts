@@ -4,7 +4,7 @@
 
 import { Context, Hono } from 'hono';
 import { escapeHtml, sendTelegramMessage } from '../channels/telegram';
-import { apiAuth } from '../middleware/auth';
+import { apiAuth, timingSafeEqual } from '../middleware/auth';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { findTelegramSessionRoute } from './session-channels';
@@ -30,7 +30,7 @@ router.post('/discord', async (c) => {
   if (!discordWebhookSecret) {
     return c.text('webhook secret not configured', 500);
   }
-  if (discordWebhookHeader !== discordWebhookSecret) {
+  if (!discordWebhookHeader || !timingSafeEqual(discordWebhookHeader, discordWebhookSecret)) {
     return c.text('forbidden', 403);
   }
   const payload = await c.req.json<Record<string, unknown>>();
@@ -80,7 +80,7 @@ router.post('/telegram', async (c) => {
   if (!telegramWebhookSecret) {
     return c.text('webhook secret not configured', 500);
   }
-  if (telegramWebhookHeader !== telegramWebhookSecret) {
+  if (!telegramWebhookHeader || !timingSafeEqual(telegramWebhookHeader, telegramWebhookSecret)) {
     return c.text('forbidden', 403);
   }
   const payload = await c.req.json<Record<string, unknown>>();

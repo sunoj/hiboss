@@ -269,7 +269,7 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
             "URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high\n",
             count
         );
-        let _ = fs::write(session::urgent_file_path(), msg);
+        let _ = session::write_private(&session::urgent_file_path(), &msg);
     }
 
     // A2A message check (only when daemon not running)
@@ -288,7 +288,7 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
             );
             let urgent_file = session::urgent_file_path();
             let existing = fs::read_to_string(&urgent_file).unwrap_or_default();
-            let _ = fs::write(&urgent_file, format!("{}{}", existing, msg));
+            let _ = session::write_private(&urgent_file, &format!("{}{}", existing, msg));
         }
     }
     Ok(())

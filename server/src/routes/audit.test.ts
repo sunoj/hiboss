@@ -87,6 +87,36 @@ describe('GET /api/audit', () => {
   });
 });
 
+describe('GET /api/audit scoping', () => {
+  it("returns only the calling agent's own entries, never other agents' or boss entries", async () => {
+    await logAudit(env as never, 'agent', 'other-agent-xyz', 'secret.action', 'thing', 'x-1');
+    await logAudit(env as never, 'boss', 'boss-scoped', 'boss.only', 'thing', 'b-1');
+    const res = await SELF.fetch('https://test.local/api/audit?limit=200', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { entries: { actor_type: string; actor_id: string }[] };
+    for (const entry of data.entries) {
+      expect(entry.actor_type).toBe('agent');
+      expect(entry.actor_id).toBe(getTestAgentId());
+    }
+    const leaked = data.entries.some(
+      (e) => e.actor_id === 'other-agent-xyz' || e.actor_type === 'boss',
+    );
+    expect(leaked).toBe(false);
+  });
+
+  it('returns no entries when filtering by a non-agent actor_type', async () => {
+    const res = await SELF.fetch('https://test.local/api/audit?actor_type=system', {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { entries: unknown[]; total: number };
+    expect(data.entries.length).toBe(0);
+    expect(data.total).toBe(0);
+  });
+});
+
 describe('Audit from message send', () => {
   it('creates audit entry when sending a message', async () => {
     // Clear existing audit entries for message.send to isolate this test
