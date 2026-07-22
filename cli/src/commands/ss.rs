@@ -55,6 +55,9 @@ async fn run_set(args: &SetStatusArgs, client: &HiBossClient) -> Result<(), Box<
     client
         .heartbeat_session(&sid, Some(&status), args.text.as_deref())
         .await?;
+    // Manual status wins: cancel any pending resume→working reset so bg-check
+    // won't override the status the operator just set.
+    session::clear_resume_pending();
     let icon = match status.as_str() {
         "working" => "🔨",
         "blocked" => "🚫",
