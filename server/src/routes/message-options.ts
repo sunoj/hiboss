@@ -12,7 +12,7 @@ import {
   formatAgentMessage as _formatAgentMessage 
 } from './delivery';
 import { selectChannelConfig, fetchAgentName } from './message-queries';
-import { extractTelegramMessageId } from './message-helpers';
+import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
 
 const MAX_MESSAGE_OPTIONS = 5;
@@ -88,9 +88,9 @@ async function autoResolveDefaultOption(
   if (!claimed) return;
   const inserted = await env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true }))
+    .bind(agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true }), replyTargetSession(message))
     .first<MessageRow>();
   if (!inserted) return;
   // Best-effort notifications: the default is already durably recorded above, so a failed

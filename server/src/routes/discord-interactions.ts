@@ -10,6 +10,7 @@ import { apiAuth } from '../middleware/auth';
 import { handleDiscordOptionCallback } from './discord-option-callback';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { asString, checkBossPermission, findDiscordAgent, resolveBossForChannel } from './webhook-helpers';
+import { replyTargetSession } from './message-helpers';
 
 interface DiscordInteractionPayload { type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
 interface DiscordInteractionData { name?: string; options?: DiscordInteractionOption[]; custom_id?: string }
@@ -86,16 +87,17 @@ async function handleApplicationCommand(
   let replyTo: string | null = null;
   const pendingMsg = await c.env.DB
     .prepare(
-      "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
+      "SELECT id, session_id, target_session_id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1"
     )
     .bind(agentRow.agent_id)
-    .first<{ id: string }>();
+    .first<Pick<MessageRow, 'id' | 'session_id' | 'target_session_id'>>();
   if (pendingMsg) replyTo = pendingMsg.id;
+  const targetSessionId = pendingMsg ? replyTargetSession(pendingMsg) : null;
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta))
+    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta), targetSessionId)
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));

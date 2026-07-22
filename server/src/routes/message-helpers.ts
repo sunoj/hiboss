@@ -44,6 +44,21 @@ export function safeParse(value: string | null): Metadata {
   }
 }
 
+/**
+ * Session a boss→agent reply must be scoped to, for conversation affinity.
+ * A reply inherits the parent's session so it lands only in the session that
+ * authored the parent (parent.session_id for agent_to_boss, or
+ * parent.target_session_id when replying within a boss_to_agent chain).
+ * Returns null only for parentless/agent-wide messages, which keep broadcast
+ * semantics. Without this, a NULL target_session_id fans out to every session
+ * under the same agent and the first to poll wins the race (mis-routing).
+ */
+export function replyTargetSession(
+  parent: Pick<MessageRow, 'session_id' | 'target_session_id'>,
+): string | null {
+  return parent.session_id ?? parent.target_session_id ?? null;
+}
+
 export function normalizeMetadata(value: unknown): Metadata {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;

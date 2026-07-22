@@ -443,6 +443,27 @@ describe('POST /api/webhooks/discord', () => {
     expect(data.body).toBe('Hello from discord');
   });
 
+  it('targets the matching session when a discord thread maps to discord_thread_id', async () => {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, discord_thread_id) VALUES (?, ?, ?, 'working', ?)"
+    ).bind('discord-thread-session-1', getTestAgentId(), 'thread-session', 'test-discord-thread').run();
+
+    const res = await postDiscordWebhook({
+      channel_id: 'test-discord-thread',
+      message: {
+        content: 'Work on the router gap-closer',
+        channel_id: 'test-discord-thread',
+        author: { id: 'author', bot: false },
+      },
+    });
+
+    expect(res.status).toBe(201);
+    const data = (await res.json()) as { target_session_id: string | null; direction: string };
+    expect(data.direction).toBe('boss_to_agent');
+    // Scoped to the thread's session so sibling sessions don't drain it.
+    expect(data.target_session_id).toBe('discord-thread-session-1');
+  });
+
   it('returns 400 when channel is missing', async () => {
     const res = await postDiscordWebhook({ message: { content: 'no channel' } });
     expect(res.status).toBe(400);

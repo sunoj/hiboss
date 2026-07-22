@@ -12,6 +12,7 @@ import { withdrawResolvedOptions } from './message-options';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
+import { replyTargetSession } from './message-helpers';
 
 type TelegramConfigRow = { agent_id: string; config: string };
 type TelegramContext = Context<{ Bindings: Env }>;
@@ -100,8 +101,8 @@ async function handleMessageCallback(
   if (rejection) return rejection;
   const metadata = buildCallbackReplyMetadata(parentMsg.metadata, parsed.selectedOption, bossInfo);
   const inserted = await c.env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', parsed.selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, metadata ? JSON.stringify(metadata) : null)
+    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
+    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', parsed.selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, metadata ? JSON.stringify(metadata) : null, replyTargetSession(parentMsg))
     .first<MessageRow>();
   if (!inserted) return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
   answerTelegramCallback(c, botToken, queryId, `Selected: ${parsed.selectedOption}`);
