@@ -157,6 +157,39 @@ pub fn has_stop_warned() -> bool {
     stop_warned_marker_path().exists()
 }
 
+/// Marker: the Stop hook parked this session as "waiting" (idle, awaiting the
+/// boss). Set on Stop, consumed by the next background heartbeat so a session
+/// that resumed work is flipped back to "working" instead of lingering as
+/// waiting. Existence flag only — never printed into agent context.
+pub fn resume_pending_marker_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-resume-pending-{}", project_hash()))
+}
+
+/// Record that the Stop hook parked this session as waiting.
+pub fn mark_resume_pending() {
+    let _ = fs::write(resume_pending_marker_path(), "1");
+}
+
+/// Consume the resume-pending marker: returns true (and deletes it) when the
+/// session was parked as waiting and should now be reset to working. The next
+/// bg-check only runs because active work resumed, so consuming it there is the
+/// resume signal.
+pub fn take_resume_pending() -> bool {
+    let path = resume_pending_marker_path();
+    if path.exists() {
+        let _ = fs::remove_file(&path);
+        true
+    } else {
+        false
+    }
+}
+
+/// Clear the resume-pending marker without acting on it — a manually set status
+/// (`hiboss ss`) wins, so bg-check must not later override it with "working".
+pub fn clear_resume_pending() {
+    let _ = fs::remove_file(resume_pending_marker_path());
+}
+
 /// Marker file: written by send/reply/react after an ask, checked by Stop hook.
 pub fn replied_marker_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-replied-{}", project_hash()))
