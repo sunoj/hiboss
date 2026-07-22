@@ -58,6 +58,7 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
         session::daemon_pending_path(),
         session::ttl_file_path(),
         session::a2a_ttl_file_path(),
+        session::resume_pending_marker_path(),
     ] {
         let _ = fs::remove_file(path);
     }
@@ -254,9 +255,17 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
         let _ = client.update_status(id, "read").await;
     }
 
-    // Heartbeat
+    // Heartbeat. If a Stop parked this session as "waiting" and work has since
+    // resumed (this bg-check only runs off PostToolUse activity), flip it back to
+    // "working". Otherwise leave status untouched so a manually set status
+    // (e.g. blocked) is preserved.
     if let Some(sid) = session::read_session_id() {
-        let _ = client.heartbeat_session(&sid, None, None).await;
+        let status = if session::take_resume_pending() {
+            Some("working")
+        } else {
+            None
+        };
+        let _ = client.heartbeat_session(&sid, status, None).await;
     }
 
     // Urgent boss message check
@@ -319,11 +328,19 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         std::process::exit(2);
     }
 
-    // Best-effort: mark session completed on server
+    // Best-effort: mark session waiting on server. Claude Code fires Stop on
+    // every turn boundary, not process exit — so this is "idle, awaiting the
+    // boss's next input", NOT "session ended". Marking it completed here made a
+    // live session read as ended and misled operators about which session was
+    // active. A truly gone session falls out of the active window via the
+    // server's 15-minute last_seen_at staleness cutoff instead.
     if let (Ok(client), Some(sid)) = (build_client(), &session::read_session_id()) {
         let _ = client
-            .heartbeat_session(sid, Some("completed"), Some("Session ended"))
+            .heartbeat_session(sid, Some("waiting"), Some("Awaiting boss reply"))
             .await;
+        // Arm the resume signal: the next bg-check (which only runs when work has
+        // resumed) will flip this back to "working".
+        session::mark_resume_pending();
     }
     // Kill SSE daemon if running
     if let Some(pid) = session::is_daemon_running() {
