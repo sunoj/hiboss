@@ -185,13 +185,17 @@ fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
         println!("Reply with: hiboss reply <id> \"response\"");
     }
 
-    // 2. Check if any urgent messages were flagged by bg-check (local file)
+    // 2. Check if any urgent messages were flagged by bg-check (local file).
+    // Its content is printed into the agent context, so only trust a file we
+    // exclusively own — never one a co-resident user planted at this /tmp path.
     let urgent_file = session::urgent_file_path();
-    if let Ok(content) = fs::read_to_string(&urgent_file) {
-        let content = content.trim();
-        if !content.is_empty() {
-            print!("{}", content);
-            let _ = fs::write(&urgent_file, "");
+    if session::is_own_regular_file(&urgent_file) {
+        if let Ok(content) = fs::read_to_string(&urgent_file) {
+            let content = content.trim();
+            if !content.is_empty() {
+                print!("{}", content);
+                let _ = session::write_private(&urgent_file, "");
+            }
         }
     }
 

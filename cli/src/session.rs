@@ -6,17 +6,53 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-/// Write a file with owner-only (0600) permissions on unix. Sensitive /tmp state
-/// (spooled boss/peer messages, session id, urgent flags) must not be world-readable
-/// on multi-user hosts. Falls back to a plain write on non-unix platforms.
+/// Write a file owner-only (0600), refusing to follow a symlink planted at the
+/// (predictable) /tmp path. On multi-user hosts a co-resident user could otherwise
+/// pre-create these paths as symlinks to redirect the write, or leave them
+/// world-readable. `O_NOFOLLOW` makes open() fail if the final component is a
+/// symlink; the 0600 mode + owner check on read close the confidentiality and
+/// injection surface. Falls back to a plain write on non-unix platforms.
 pub fn write_private(path: &Path, content: &str) -> std::io::Result<()> {
-    fs::write(path, content)?;
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(path)?;
+        file.write_all(content.as_bytes())?;
+        Ok(())
     }
-    Ok(())
+    #[cfg(not(unix))]
+    {
+        fs::write(path, content)
+    }
+}
+
+/// True only if `path` is a regular file we exclusively own (not a symlink, owned
+/// by the current euid, no group/other permission bits). Used to refuse injecting
+/// content from a /tmp file a co-resident user may have planted or tampered with.
+/// Non-unix: best-effort true (no shared-/tmp threat model there).
+pub fn is_own_regular_file(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        match fs::symlink_metadata(path) {
+            Ok(meta) => {
+                let euid = unsafe { libc::geteuid() };
+                meta.file_type().is_file() && meta.uid() == euid && (meta.mode() & 0o077) == 0
+            }
+            Err(_) => false,
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        path.is_file()
+    }
 }
 
 /// Cached project directory — resolved once per process via env var, git root, or cwd.
@@ -238,9 +274,17 @@ pub fn is_daemon_running() -> Option<u32> {
 /// Read and clear pending messages from the daemon file. Returns JSON lines.
 pub fn drain_pending_messages() -> Vec<String> {
     let path = daemon_pending_path();
-    // Atomic read-and-truncate: rename then read
+    // Atomic read-and-truncate: rename then read. The rename moves the inode, so
+    // the post-rename ownership check applies to the exact bytes we will read
+    // (closing the TOCTOU window). These lines are injected into the agent context
+    // as trusted [boss]/[peer] messages, so a spool a co-resident user planted or
+    // tampered with must never be drained.
     let tmp = path.with_extension("draining");
     if fs::rename(&path, &tmp).is_err() {
+        return vec![];
+    }
+    if !is_own_regular_file(&tmp) {
+        let _ = fs::remove_file(&tmp);
         return vec![];
     }
     let content = fs::read_to_string(&tmp).unwrap_or_default();

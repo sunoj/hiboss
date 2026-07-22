@@ -326,6 +326,7 @@ dependencies = [
  "colored",
  "dirs",
  "futures-util",
+ "libc",
  "reqwest",
  "serde",
  "serde_json",
