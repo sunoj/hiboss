@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, hashApiKey } from '../middleware/auth';
-import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions } from './message-helpers';
+import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions, replyTargetSession } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
@@ -282,9 +282,9 @@ routes.post('/messages/:id/reply', async (c) => {
   const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });
   const inserted = await c.env.DB
     .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata)
+    .bind(parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent))
     .first<MessageRow>();
   if (!inserted) return c.text('failed to persist', 500);
   if (optionClaim.kind === 'not_option') {

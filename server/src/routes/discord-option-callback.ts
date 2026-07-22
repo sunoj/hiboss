@@ -9,6 +9,7 @@ import type { Env, MessageRow } from '../types';
 import { claimOptionReply } from './boss-option-reply';
 import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
+import { replyTargetSession } from './message-helpers';
 
 interface DiscordOptionPayload {
   member?: { user?: { id?: string } };
@@ -77,14 +78,14 @@ async function findParent(
 
 async function insertReply(
   env: Env,
-  parent: Pick<MessageRow, 'id' | 'metadata'>,
+  parent: Pick<MessageRow, 'id' | 'metadata' | 'session_id' | 'target_session_id'>,
   option: string,
   agentId: string,
 ): Promise<MessageRow | null> {
   const metadata = getActionMetadata(parent.metadata, option);
   return env.DB.prepare(
-    'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-  ).bind(agentId, 'boss_to_agent', 'async', 'discord', option, 'sent', 'normal', parent.id, metadata)
+    'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+  ).bind(agentId, 'boss_to_agent', 'async', 'discord', option, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent))
     .first<MessageRow>();
 }
 
