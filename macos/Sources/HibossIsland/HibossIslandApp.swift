@@ -21,7 +21,8 @@ struct HibossIslandApp: App {
             SettingsScene(
                 settings: appDelegate.settings,
                 flow: appDelegate.flow,
-                preferencesStore: appDelegate.preferencesStore
+                preferencesStore: appDelegate.preferencesStore,
+                updater: appDelegate.updater.state
             )
         }
     }
@@ -32,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let settings: AppSettings
     let preferencesStore: BossPreferencesStore
     let flow = OptionFlowStore()
+    let updater = SparkleUpdater()
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
     private var cancellables: Set<AnyCancellable> = []

@@ -1,10 +1,13 @@
-// About pane for app version, build, and project links.
+// About pane for app version, build, software updates, and project links.
 // Exports: AboutSettingsPane.
-// Dependencies: SwiftUI and Bundle metadata.
+// Dependencies: SwiftUI, HibossKit (UpdaterState), Bundle metadata.
 
+import HibossKit
 import SwiftUI
 
 struct AboutSettingsPane: View {
+    @ObservedObject var updater: UpdaterState
+
     var body: some View {
         Form {
             Section {
@@ -26,6 +29,25 @@ struct AboutSettingsPane: View {
                 }
             } header: {
                 Text("HiBoss Island")
+            }
+
+            Section {
+                Toggle(
+                    "Automatically check for updates",
+                    isOn: Binding(
+                        get: { updater.automaticChecks },
+                        set: { updater.setAutomatic($0) }
+                    )
+                )
+                LabeledContent("Software update") {
+                    Button("Check for Updates…") { updater.check() }
+                        .disabled(!updater.canCheck)
+                }
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("Updates are delivered via Sparkle and verified with an EdDSA signature before installing.")
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
