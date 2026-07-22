@@ -2,7 +2,7 @@
 
 import type { BossMe, ConnectionConfig } from './types';
 
-export const DEFAULT_BASE_URL = 'https://hiboss-server.sunoj-mings.workers.dev';
+export const DEFAULT_BASE_URL = '';
 
 const STORAGE_KEY = 'hiboss.web.connection';
 
