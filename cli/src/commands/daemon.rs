@@ -117,7 +117,16 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
         let path = pending_path.clone();
         while let Some(event) = rx.recv().await {
             if event.event_type == "message" {
-                if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&path) {
+                // Spool holds boss/peer message bodies the hook injects into the agent
+                // context; create it owner-only so other users can't read or seed it.
+                let mut opts = fs::OpenOptions::new();
+                opts.create(true).append(true);
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::OpenOptionsExt;
+                    opts.mode(0o600);
+                }
+                if let Ok(mut f) = opts.open(&path) {
                     let _ = writeln!(f, "{}", event.data);
                 }
             }

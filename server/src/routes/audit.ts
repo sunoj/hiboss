@@ -17,13 +17,14 @@ routes.get('/', async (c) => {
   const limit = Math.min(parseInt(params.limit ?? '50', 10), 200);
   const offset = parseInt(params.offset ?? '0', 10);
 
-  void agentId; // auth required, but audit is global read
-  const clauses: string[] = [];
-  const binds: (string | number)[] = [];
+  // Agents may only read their own audit trail; the global log is boss-scoped
+  // (GET /api/boss/audit). Prevents cross-agent disclosure of the whole log.
+  const clauses: string[] = ["actor_type = 'agent'", 'actor_id = ?'];
+  const binds: (string | number)[] = [agentId];
 
-  if (actorType) {
-    clauses.push('actor_type = ?');
-    binds.push(actorType);
+  if (actorType && actorType !== 'agent') {
+    // An agent's own entries are always actor_type='agent'; any other filter is empty.
+    return c.json({ entries: [], total: 0 });
   }
   if (action) {
     clauses.push('action = ?');

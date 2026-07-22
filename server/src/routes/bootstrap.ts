@@ -4,7 +4,7 @@
 
 import { Context, Hono } from 'hono';
 import type { Env } from '../types';
-import { hashApiKey } from '../middleware/auth';
+import { hashApiKey, timingSafeEqual } from '../middleware/auth';
 import { logAudit } from '../audit';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -43,10 +43,12 @@ function hasValidBootstrapSecret(c: Context<{ Bindings: Env }>): boolean {
     return true;
   }
   const headerSecret = c.req.header('X-Bootstrap-Secret');
-  if (headerSecret === expectedSecret) {
+  if (headerSecret && timingSafeEqual(headerSecret, expectedSecret)) {
     return true;
   }
   const authorization = c.req.header('Authorization');
   const bearerPrefix = 'Bearer ';
-  return authorization?.startsWith(bearerPrefix) ? authorization.slice(bearerPrefix.length) === expectedSecret : false;
+  return authorization?.startsWith(bearerPrefix)
+    ? timingSafeEqual(authorization.slice(bearerPrefix.length), expectedSecret)
+    : false;
 }

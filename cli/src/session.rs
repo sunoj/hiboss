@@ -3,8 +3,21 @@
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+
+/// Write a file with owner-only (0600) permissions on unix. Sensitive /tmp state
+/// (spooled boss/peer messages, session id, urgent flags) must not be world-readable
+/// on multi-user hosts. Falls back to a plain write on non-unix platforms.
+pub fn write_private(path: &Path, content: &str) -> std::io::Result<()> {
+    fs::write(path, content)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
 
 /// Cached project directory — resolved once per process via env var, git root, or cwd.
 static PROJECT_DIR: OnceLock<String> = OnceLock::new();
@@ -174,7 +187,7 @@ pub fn queue_mark_read(ids: &[&str]) {
     // Append to file
     let path = read_queue_path();
     let existing = fs::read_to_string(&path).unwrap_or_default();
-    let _ = fs::write(&path, format!("{}{}", existing, content));
+    let _ = write_private(&path, &format!("{}{}", existing, content));
 }
 
 /// Drain message IDs from the read queue. Returns IDs to mark.
@@ -250,5 +263,5 @@ pub fn read_session_id() -> Option<String> {
 
 /// Write a new session_id to the session file.
 pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
-    fs::write(session_file_path(), id)
+    write_private(&session_file_path(), id)
 }
