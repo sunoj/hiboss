@@ -9,6 +9,7 @@ export type Env = {
   ATTACHMENTS: R2Bucket;
   BOOTSTRAP_SECRET?: string;
   CONSOLE_ORIGIN?: string;
+  RELEASE_UPLOAD_SECRET?: string;
   DISCORD_PUBLIC_KEY?: string;
   DISCORD_WEBHOOK_SECRET?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;

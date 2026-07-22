@@ -23,6 +23,7 @@ import { bossInboxRouter } from './routes/boss-inbox';
 import { bossDevicesRouter } from './routes/boss-devices';
 import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
+import { updatesRouter } from './routes/updates';
 import dashboardHtml from './dashboard.html';
 // @ts-ignore JS string module exports the service worker source.
 import swJs from './sw.js';
@@ -91,6 +92,8 @@ app.route('/api/join', joinRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
+// Public Sparkle update feed + signed builds (outside /api: no CORS/auth on GET).
+app.route('/updates', updatesRouter);
 
 app.get('/sw.js', (c) => c.body(swJs, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } }));
 app.get('/manifest.json', (c) => c.json(manifest));

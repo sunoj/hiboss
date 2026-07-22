@@ -31,3 +31,9 @@ crons = ["*/5 * * * *"]
 # Web console origin allowed by CORS (exact host + its preview subdomains).
 # Leave unset to allow only localhost dev origins.
 CONSOLE_ORIGIN = "https://your-console.pages.dev"
+
+# Secrets (set with `wrangler secret put <NAME>`, never in this file):
+#   BOOTSTRAP_SECRET        gates POST /api/bootstrap
+#   DISCORD_WEBHOOK_SECRET  X-Webhook-Secret for POST /api/webhooks/discord
+#   TELEGRAM_WEBHOOK_SECRET X-Telegram-Bot-Api-Secret-Token for the TG webhook
+#   RELEASE_UPLOAD_SECRET   Bearer token for PUT /updates/macos/* (macOS Sparkle release upload)

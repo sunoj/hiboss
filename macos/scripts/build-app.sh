@@ -42,6 +42,13 @@ fi
 if [ -n "${HIBOSS_SPARKLE_PUBKEY:-}" ]; then
     "$PLIST_BUDDY" -c "Set :SUPublicEDKey $HIBOSS_SPARKLE_PUBKEY" "$CONTENTS_DIR/Info.plist"
 fi
+# release.sh overrides the version/build so Sparkle can compare against a release.
+if [ -n "${HIBOSS_VERSION:-}" ]; then
+    "$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $HIBOSS_VERSION" "$CONTENTS_DIR/Info.plist"
+fi
+if [ -n "${HIBOSS_BUILD:-}" ]; then
+    "$PLIST_BUDDY" -c "Set :CFBundleVersion $HIBOSS_BUILD" "$CONTENTS_DIR/Info.plist"
+fi
 
 # Sign nested Sparkle helpers first, then the framework, then the app
 # (deep→shallow — --deep does not re-sign the XPC/Autoupdate helpers correctly).
