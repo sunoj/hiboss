@@ -34,6 +34,6 @@ enum HiBossStore {
         guard case let .success(config) = makeConnectionConfig(serverAddress: server, bossToken: token ?? "") else {
             return nil
         }
-        return HibossAPI(config: config)
+        return HibossAPI(config: config, clientSource: "ios")
     }
 }
