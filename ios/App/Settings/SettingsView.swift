@@ -1,4 +1,4 @@
-// Settings tab: connection, notifications, boss routing prefs, and sign-out.
+// Settings tab: connection, notifications, boss preferences, and sign-out.
 // Exports: SettingsView bound to the ConnectionStore.
 // Dependencies: SwiftUI, HibossKit, Push/Preferences stores, theme tokens.
 
@@ -26,6 +26,7 @@ struct SettingsView: View {
                     if prefs.state != .unavailable {
                         RoutingSection(store: prefs)
                         QuietHoursSection(store: prefs)
+                        PushTieringSection(store: prefs)
                         preferencesStatus
                     }
                     if prefs.isDirty { saveButton }
