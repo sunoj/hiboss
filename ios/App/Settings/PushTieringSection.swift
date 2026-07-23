@@ -1,6 +1,6 @@
-// Push-tiering editor for per-priority delivery, sound, and interruption level.
-// Exports: PushTieringSection bound to PreferencesStore push helpers.
-// Dependencies: SwiftUI, HibossKit PushRule/PushLevel, theme and priority tokens.
+// Push-tiering editor: per-priority delivery, sound, and interruption level.
+// Exports: PushTieringSection as a native Form section bound to PreferencesStore.
+// Dependencies: SwiftUI, HibossKit PushRule/PushLevel, priority tokens.
 
 import HibossKit
 import SwiftUI
@@ -11,19 +11,40 @@ struct PushTieringSection: View {
     private let priorities: [HibossKit.MessagePriority] = [.critical, .high, .normal, .low]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            SettingsSection(title: "PUSH TIERING") {
-                ForEach(Array(priorities.enumerated()), id: \.element) { index, priority in
-                    if index > 0 { SettingsDivider() }
-                    PushTieringRow(
-                        priority: priority,
-                        rule: store.pushRule(for: priority),
-                        setRule: { store.setPushRule($0, for: priority) }
-                    )
-                }
+        Section {
+            ForEach(priorities, id: \.self) { priority in
+                PushTieringRow(
+                    priority: priority,
+                    rule: store.pushRule(for: priority),
+                    setRule: { store.setPushRule($0, for: priority) }
+                )
             }
-            Text("Decision requests always alert, regardless of these push tiering rules.")
-                .font(.hbFootnote).foregroundStyle(Theme.ink4).padding(.leading, 6)
+        } header: {
+            Text("Push Tiering")
+        } footer: {
+            Text("How intrusive each priority's status push is. Decision requests always alert.")
+        }
+    }
+}
+
+private enum Tier: Hashable {
+    case off, passive, active, timeSensitive
+
+    init(_ rule: PushRule) {
+        guard rule.deliver else { self = .off; return }
+        switch rule.level {
+        case .passive: self = .passive
+        case .active: self = .active
+        case .timeSensitive: self = .timeSensitive
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .off: "Off"
+        case .passive: "Passive"
+        case .active: "Active"
+        case .timeSensitive: "Time-sensitive"
         }
     }
 }
@@ -34,55 +55,54 @@ private struct PushTieringRow: View {
     let setRule: (PushRule) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                priorityLabel
-                Spacer(minLength: 8)
-                Toggle("Push", isOn: deliverBinding)
-                    .tint(Theme.positive)
-                Toggle("Sound", isOn: soundBinding)
-                    .tint(Theme.positive)
-                    .disabled(!rule.deliver)
+        Menu {
+            Picker("Delivery", selection: tierBinding) {
+                Label("Off", systemImage: "bell.slash").tag(Tier.off)
+                Label("Passive", systemImage: "bell").tag(Tier.passive)
+                Label("Active", systemImage: "bell.badge").tag(Tier.active)
+                Label("Time-sensitive", systemImage: "bell.badge.waveform").tag(Tier.timeSensitive)
             }
-            Picker("Level", selection: levelBinding) {
-                ForEach(PushLevel.allCases, id: \.rawValue) { level in
-                    Text(level.title).tag(level)
-                }
+            Toggle("Sound", isOn: soundBinding)
+                .disabled(!rule.deliver)
+        } label: {
+            HStack {
+                Circle().fill(dotColor).frame(width: 8, height: 8)
+                Text(priority.rawValue.capitalized)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(summary)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .disabled(!rule.deliver)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-    }
-
-    private var priorityLabel: some View {
-        HStack(spacing: 7) {
-            Circle().fill(dotColor).frame(width: 7, height: 7)
-            Text(priority.rawValue.capitalized).font(.hbBody).foregroundStyle(Theme.ink)
         }
     }
 
-    private var deliverBinding: Binding<Bool> {
+    private var summary: String {
+        let tier = Tier(rule)
+        guard tier != .off else { return "Off" }
+        return rule.sound ? "\(tier.label) · Sound" : tier.label
+    }
+
+    private var tierBinding: Binding<Tier> {
         Binding(
-            get: { rule.deliver },
-            set: { setRule(rule.with(deliver: $0)) }
+            get: { Tier(rule) },
+            set: { setRule(apply($0)) }
         )
     }
 
     private var soundBinding: Binding<Bool> {
-        Binding(
-            get: { rule.sound },
-            set: { setRule(rule.with(sound: $0)) }
-        )
+        Binding(get: { rule.sound }, set: { setRule(rule.with(sound: $0)) })
     }
 
-    private var levelBinding: Binding<PushLevel> {
-        Binding(
-            get: { rule.level },
-            set: { setRule(rule.with(level: $0)) }
-        )
+    private func apply(_ tier: Tier) -> PushRule {
+        switch tier {
+        case .off: rule.with(deliver: false)
+        case .passive: rule.with(deliver: true, level: .passive)
+        case .active: rule.with(deliver: true, level: .active)
+        case .timeSensitive: rule.with(deliver: true, level: .timeSensitive)
+        }
     }
 
     private var dotColor: Color {
@@ -102,15 +122,5 @@ private extension PushRule {
             sound: sound ?? self.sound,
             level: level ?? self.level
         )
-    }
-}
-
-private extension PushLevel {
-    var title: String {
-        switch self {
-        case .passive: "Passive"
-        case .active: "Active"
-        case .timeSensitive: "Time-sensitive"
-        }
     }
 }
