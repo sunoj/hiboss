@@ -1,30 +1,30 @@
-// Type ramp ported from the design foundations (plain hierarchy via size/weight).
-// Exports: Font helpers and a monospaced tracked "label" modifier.
-// Dependencies: SwiftUI. Uses the system faces (SF / SF Mono) as IBM Plex fallback.
+// Type ramp mapped to native Dynamic Type text styles (scales with the user's
+// preferred size). Names kept for source compatibility.
+// Dependencies: SwiftUI.
 
 import SwiftUI
 
 extension Font {
-    static let hbLargeTitle = Font.system(size: 32, weight: .semibold)
-    static let hbH2 = Font.system(size: 22, weight: .semibold)
-    static let hbH3 = Font.system(size: 17, weight: .medium)
-    static let hbBody = Font.system(size: 16, weight: .regular)
-    static let hbBodyStrong = Font.system(size: 16, weight: .semibold)
-    static let hbCallout = Font.system(size: 15, weight: .regular)
-    static let hbSmall = Font.system(size: 14, weight: .regular)
-    static let hbCaption = Font.system(size: 13, weight: .regular)
-    static let hbFootnote = Font.system(size: 13, weight: .regular)
+    static let hbLargeTitle = Font.largeTitle.weight(.bold)
+    static let hbH2 = Font.title2.weight(.semibold)
+    static let hbH3 = Font.headline
+    static let hbBody = Font.body
+    static let hbBodyStrong = Font.body.weight(.semibold)
+    static let hbCallout = Font.callout
+    static let hbSmall = Font.subheadline
+    static let hbCaption = Font.caption
+    static let hbFootnote = Font.footnote
 
-    static let hbMono = Font.system(size: 13, weight: .regular, design: .monospaced)
-    static let hbMonoSmall = Font.system(size: 11, weight: .regular, design: .monospaced)
+    static let hbMono = Font.system(.footnote, design: .monospaced)
+    static let hbMonoSmall = Font.system(.caption2, design: .monospaced)
 }
 
-/// The mono "label" role: quiet, tracked, uppercase — the one bit of texture.
+/// The quiet uppercase "label" role, as a footnote-scale tracked caption.
 struct HBLabel: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 11.5, weight: .medium, design: .monospaced))
-            .tracking(0.6)
+            .font(.footnote.weight(.medium))
+            .tracking(0.4)
             .textCase(.uppercase)
     }
 }

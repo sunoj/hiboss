@@ -21,7 +21,9 @@ struct IslandView: View {
     }
 
     var body: some View {
-        if let message = flow.activeMessage {
+        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
+            resolvedCard(message, answer: answer, source: source)
+        } else if let message = flow.activeMessage {
             VStack(alignment: .leading, spacing: 12) {
                 agentHeader(message)
                 ScrollView(.vertical, showsIndicators: true) {
@@ -46,6 +48,37 @@ struct IslandView: View {
             .overlay(ExpiryBand(expiresAt: message.expirationDate, surfaceStyle: surfaceStyle))
             .onChange(of: message.id) { replyText = "" }
         }
+    }
+
+    /// Shown briefly when the decision was answered on another device.
+    private func resolvedCard(_ message: OptionMessage, answer: String?, source: String?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                Circle().fill(Color.green).frame(width: 6, height: 6)
+                Text(message.agentName ?? "HiBoss")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.58))
+                    .lineLimit(1)
+                Spacer()
+            }
+            Text(message.body)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 7) {
+                ForEach(message.options, id: \.self) { option in
+                    ResolvedOptionRow(title: option, chosen: option == answer, source: source)
+                }
+                if let answer, !message.options.contains(answer) {
+                    ResolvedOptionRow(title: answer, chosen: true, source: source)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(surfaceShape)
     }
 
     private func agentHeader(_ message: OptionMessage) -> some View {
@@ -116,6 +149,57 @@ struct IslandView: View {
     private var isSubmitting: Bool {
         if case .submitting = flow.presentationState { return true }
         return false
+    }
+}
+
+/// One option in the resolved state: the chosen one animates a checkmark and,
+/// a beat later, the "Answered on <device>" attribution fades in.
+private struct ResolvedOptionRow: View {
+    let title: String
+    let chosen: Bool
+    let source: String?
+    @State private var showCheck = false
+    @State private var showSource = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 7) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                if chosen {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.green)
+                        .scaleEffect(showCheck ? 1 : 0.2)
+                        .opacity(showCheck ? 1 : 0)
+                }
+            }
+            if chosen, showSource, let source, !source.isEmpty {
+                Text("Answered on \(source)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .transition(.opacity)
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .background(
+            chosen ? Color.green.opacity(0.18) : Color.white.opacity(0.05),
+            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(chosen ? Color.green.opacity(0.5) : Color.clear, lineWidth: 1)
+        )
+        .opacity(chosen ? 1 : 0.38)
+        .onAppear {
+            guard chosen else { return }
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.08)) { showCheck = true }
+            withAnimation(.easeIn(duration: 0.25).delay(0.45)) { showSource = true }
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 // Read-only SSE feed of all messages the boss can see, across every direction.
-// Exports: streamBossFeed for the console's live "实时消息流" view.
+// Exports: streamBossFeed for the console's live message-feed view.
 // Depends on D1, MessageRow mapping. Unlike the option/agent streams it never
 // mutates message status — it is a passive monitor, not a delivery channel.
 

@@ -71,6 +71,6 @@ final class ConnectionStore: ObservableObject {
 
     func makeAPI() -> HibossAPI? {
         guard let config else { return nil }
-        return HibossAPI(config: config)
+        return HibossAPI(config: config, clientSource: "ios")
     }
 }

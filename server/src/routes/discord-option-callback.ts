@@ -95,13 +95,14 @@ async function markParentReplied(env: Env, messageId: string): Promise<void> {
 }
 
 function getActionMetadata(metadata: string | null, option: string): string | null {
-  if (!metadata) return null;
+  const sourceMetadata = { source: 'discord' };
+  if (!metadata) return JSON.stringify(sourceMetadata);
   try {
     const parsed = JSON.parse(metadata) as Record<string, unknown>;
     const actions = parsed['actions'] as Record<string, string> | undefined;
-    return actions?.[option] ? JSON.stringify({ action: actions[option] }) : null;
+    return actions?.[option] ? JSON.stringify({ action: actions[option], ...sourceMetadata }) : JSON.stringify(sourceMetadata);
   } catch {
-    return null;
+    return JSON.stringify(sourceMetadata);
   }
 }
 

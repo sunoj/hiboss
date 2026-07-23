@@ -1,87 +1,54 @@
-// App shell: content area plus the floating rounded tab bar from the design.
+// App shell: native tabs, a navigation stack per section, and notification deep-links.
 // Exports: RootTabView switching Inbox / Messages / Sessions / Settings.
-// Dependencies: SwiftUI, the feature views, theme tokens.
+// Dependencies: SwiftUI, HibossKit, the feature views, AppRouter.
 
+import HibossKit
 import SwiftUI
 
 struct RootTabView: View {
     @ObservedObject var inbox: InboxStore
     @ObservedObject var connection: ConnectionStore
-    @State private var selection: Tab = .inbox
+    @ObservedObject private var router = AppRouter.shared
 
-    enum Tab: Hashable { case inbox, messages, sessions, settings }
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            Theme.paper.ignoresSafeArea()
-            content
-            TabBar(selection: $selection, badge: inbox.pendingCount)
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch selection {
-        case .inbox:
-            InboxView(store: inbox) { selection = .settings }
-        case .messages:
-            MessagesView(store: inbox)
-        case .sessions:
-            SessionsView(store: inbox)
-        case .settings:
-            SettingsView(connection: connection)
-        }
-    }
-}
-
-private struct TabBar: View {
-    @Binding var selection: RootTabView.Tab
-    let badge: Int
+    @State private var tab = 0
+    @State private var inboxPath = NavigationPath()
 
     var body: some View {
-        HStack(spacing: 0) {
-            item(.inbox, "line.3.horizontal", "Inbox", badge: badge)
-            item(.messages, "bubble.left", "Messages")
-            item(.sessions, "chart.bar", "Sessions")
-            item(.settings, "gearshape", "Settings")
-        }
-        .frame(height: 60)
-        .background(.ultraThinMaterial)
-        .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Theme.line2, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
-    }
-
-    private func item(_ tab: RootTabView.Tab, _ icon: String, _ title: String, badge: Int = 0) -> some View {
-        Button {
-            selection = tab
-        } label: {
-            VStack(spacing: 3) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: icon)
-                        .font(.system(size: 20, weight: .regular))
-                    if badge > 0 {
-                        Text("\(badge)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(minWidth: 15, minHeight: 15)
-                            .padding(.horizontal, 2)
-                            .background(PriorityColor.critical)
-                            .clipShape(Capsule())
-                            .offset(x: 12, y: -6)
-                    }
-                }
-                Text(title)
-                    .font(.system(size: 10, weight: selection == tab ? .semibold : .regular))
+        TabView(selection: $tab) {
+            NavigationStack(path: $inboxPath) {
+                InboxView(store: inbox)
+                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
             }
-            .foregroundStyle(selection == tab ? Theme.ink : Theme.ink3)
-            .frame(maxWidth: .infinity)
+            .tabItem { Label("Inbox", systemImage: "tray.full") }
+            .badge(inbox.pendingCount)
+            .tag(0)
+
+            NavigationStack {
+                MessagesView(store: inbox)
+                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+            }
+            .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
+            .tag(1)
+
+            NavigationStack {
+                SessionsView(store: inbox)
+            }
+            .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
+            .tag(2)
+
+            NavigationStack {
+                SettingsView(connection: connection)
+            }
+            .tabItem { Label("Settings", systemImage: "gearshape") }
+            .tag(3)
         }
-        .buttonStyle(.plain)
+        .onReceive(router.$pendingMessageID.compactMap { $0 }) { messageID in
+            tab = 0
+            inboxPath = NavigationPath()
+            inboxPath.append(messageID)
+            router.pendingMessageID = nil
+        }
     }
 }

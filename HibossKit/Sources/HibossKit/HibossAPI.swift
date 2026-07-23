@@ -25,10 +25,13 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     private let config: ConnectionConfig
     private let session: URLSession
     private let decoder = JSONDecoder()
+    /// Tags replies with the surface that produced them ("ios", "macos", "api").
+    private let clientSource: String
 
-    public init(config: ConnectionConfig, session: URLSession = .shared) {
+    public init(config: ConnectionConfig, session: URLSession = .shared, clientSource: String = "api") {
         self.config = config
         self.session = session
+        self.clientSource = clientSource
     }
 
     public func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
@@ -48,7 +51,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     public func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         let endpoint = messageEndpoint(messageID).appendingPathComponent("reply")
         var request = authorizedRequest(url: endpoint, method: "POST")
-        request.httpBody = try JSONEncoder().encode(ReplyPayload(body: choice))
+        request.httpBody = try JSONEncoder().encode(ReplyPayload(body: choice, source: clientSource))
         let (_, response) = try await session.data(for: request)
         if (response as? HTTPURLResponse)?.statusCode == 409 {
             return .alreadyResolved
@@ -176,6 +179,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
 
 private struct ReplyPayload: Encodable {
     let body: String
+    let source: String
 }
 
 private struct DeviceRegistration: Encodable {

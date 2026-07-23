@@ -142,7 +142,7 @@ async function createTelegramBossMessage(
   const routedAgentId = target.targetSessionId ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
   const agentId = routedAgentId ?? target.configRow.agent_id;
   const replyTo = await resolveTelegramReplyTo(c.env, agentId, message);
-  const metadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name } : payload;
+  const metadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name, source: 'telegram' } : { ...payload, source: 'telegram' };
   const inserted = await c.env.DB
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
