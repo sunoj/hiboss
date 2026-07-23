@@ -124,6 +124,12 @@ final class PreferencesStore: ObservableObject {
     func updateQuietHours(_ transform: (QuietHours) -> QuietHours) {
         prefs.quietHours = transform(quietHours)
     }
+
+    // MARK: Private notifications
+
+    var privatePush: Bool { prefs.privatePush ?? false }
+
+    func setPrivatePush(_ on: Bool) { prefs.privatePush = on }
 }
 
 extension QuietHours {

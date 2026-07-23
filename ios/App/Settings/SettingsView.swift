@@ -27,6 +27,14 @@ struct SettingsView: View {
                 RoutingSection(store: prefs)
                 QuietHoursSection(store: prefs)
                 PushTieringSection(store: prefs)
+                Section {
+                    Toggle("Private Notifications", isOn: Binding(
+                        get: { prefs.privatePush },
+                        set: { prefs.setPrivatePush($0) }
+                    ))
+                } footer: {
+                    Text("Keep message content off Apple's servers: pushes show only a generic alert, and the app fetches the body from your server when opened.")
+                }
                 preferencesStatus
             }
 
