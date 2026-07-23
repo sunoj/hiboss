@@ -92,10 +92,11 @@ async function notifyBossDevices(
   const isDecision = options !== undefined && options.length > 0;
   const preferencesByBoss = new Map(bosses.map((boss) => [boss.id, boss.preferences]));
   for (const device of devices.results) {
-    const tier = pushTier(message.priority, isDecision, preferencesByBoss.get(device.boss_id));
+    const prefs = preferencesByBoss.get(device.boss_id);
+    const tier = pushTier(message.priority, isDecision, prefs);
     if (!tier.deliver) continue;
     try {
-      const payload = buildBossPushPayload(message, agentName, device.boss_id, tier);
+      const payload = buildBossPushPayload(message, agentName, device.boss_id, tier, isPrivatePush(prefs));
       const result = await sendPush(
         env, device.device_token, device.environment, device.bundle_id, payload, tier.apnsPriority,
       );
@@ -113,11 +114,17 @@ function buildBossPushPayload(
   agentName: string,
   bossId: string,
   tier: PushTier,
+  privatePush: boolean,
 ): ApnsPayload {
   const options = extractOptions(message.metadata);
-  const category = options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE';
+  // Private mode keeps message content off Apple's servers: the payload carries
+  // only a generic alert + the message id, and the app fetches the body itself.
+  const category = privatePush ? 'HIBOSS_MESSAGE' : (options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE');
+  const body = privatePush
+    ? (options ? `New decision from ${agentName}` : `New message from ${agentName}`)
+    : truncateBody(message.body);
   const aps: ApnsPayload['aps'] = {
-    alert: { title: agentName || 'HiBoss', body: truncateBody(message.body) },
+    alert: { title: privatePush ? 'HiBoss' : (agentName || 'HiBoss'), body },
     'interruption-level': tier.level,
     'thread-id': bossId,
     // iOS renders the notification's action buttons from aps.category.
@@ -135,10 +142,21 @@ function buildBossPushPayload(
     direction: message.direction,
     category,
   };
-  if (options) {
+  // Omit option text from the payload in private mode so no content reaches APNs.
+  if (options && !privatePush) {
     payload.options = options;
   }
   return payload;
+}
+
+function isPrivatePush(preferences: string | null | undefined): boolean {
+  if (!preferences) return false;
+  try {
+    const parsed = JSON.parse(preferences) as Record<string, unknown>;
+    return parsed.private_push === true;
+  } catch {
+    return false;
+  }
 }
 
 function extractOptions(metadata: string | null): string[] | undefined {

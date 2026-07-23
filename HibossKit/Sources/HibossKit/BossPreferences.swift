@@ -88,22 +88,28 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     public var quietHours: QuietHours?
     /// Per-priority push tiering overrides for status messages (nil = server defaults).
     public var push: [MessagePriority: PushRule]?
+    /// When true, pushes carry only a generic alert + message id; the app fetches
+    /// the body over TLS so content never reaches Apple's servers.
+    public var privatePush: Bool?
     private let preservedRouting: [String: [String]]?
 
     enum CodingKeys: String, CodingKey {
         case routing
         case quietHours = "quiet_hours"
         case push
+        case privatePush = "private_push"
     }
 
     public init(
         routing: [MessagePriority: [NotificationChannel]]? = nil,
         quietHours: QuietHours? = nil,
-        push: [MessagePriority: PushRule]? = nil
+        push: [MessagePriority: PushRule]? = nil,
+        privatePush: Bool? = nil
     ) {
         self.routing = routing
         self.quietHours = quietHours
         self.push = push
+        self.privatePush = privatePush
         self.preservedRouting = nil
     }
 
@@ -114,6 +120,7 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         routing = decodedRouting.typed
         preservedRouting = decodedRouting.raw
         push = try Self.decodePush(from: values)
+        privatePush = try values.decodeIfPresent(Bool.self, forKey: .privatePush)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -121,10 +128,12 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         try values.encodeIfPresent(quietHours, forKey: .quietHours)
         try encodeRouting(into: &values)
         try encodePush(into: &values)
+        try values.encodeIfPresent(privatePush, forKey: .privatePush)
     }
 
     public static func == (lhs: BossPreferences, rhs: BossPreferences) -> Bool {
-        lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours && lhs.push == rhs.push
+        lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours
+            && lhs.push == rhs.push && lhs.privatePush == rhs.privatePush
     }
 
     private static func decodePush(
