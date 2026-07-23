@@ -22,84 +22,65 @@ struct SessionCard: View {
     let group: SessionGroup
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            topRow
-            metaRow
-        }
-        .padding(14)
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Theme.line, lineWidth: 1)
-        )
-    }
-
-    private var topRow: some View {
-        HStack(spacing: 9) {
+        HStack(spacing: 11) {
             Circle().fill(statusColor).frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(group.label)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(1)
-                if let agent = group.agentName {
-                    Text(agent)
-                        .font(.hbMonoSmall)
-                        .foregroundStyle(Theme.ink3)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(group.label)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
+                    if group.pendingCount > 0 { pendingBadge }
                 }
+                metaRow
             }
             Spacer(minLength: 6)
-            if group.pendingCount > 0 { pendingPill }
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.ink4)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 
-    private var pendingPill: some View {
+    private var pendingBadge: some View {
         Text("\(group.pendingCount) pending")
-            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-            .foregroundStyle(PriorityColor.criticalText)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(PriorityColor.critical.opacity(0.14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(PriorityColor.critical.opacity(0.4), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.red)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.red.opacity(0.15), in: Capsule())
     }
 
     private var metaRow: some View {
-        HStack(spacing: 10) {
-            if !statusLabel.isEmpty { chip(icon: "circle.fill", text: statusLabel, tint: statusColor) }
-            chip(icon: "bubble.left", text: "\(group.messages.count)", tint: Theme.ink3)
+        HStack(spacing: 12) {
+            if !statusLabel.isEmpty { chip("circle.fill", statusLabel, statusColor) }
+            chip("bubble.left", "\(group.messages.count)", .secondary)
             if let last = group.lastActivity {
-                chip(icon: "clock", text: RelativeTime.short(from: last), tint: Theme.ink3)
+                chip("clock", RelativeTime.short(from: last), .secondary)
             }
             Spacer(minLength: 0)
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
-    private func chip(icon: String, text: String, tint: Color) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon).font(.system(size: 9)).foregroundStyle(tint)
-            Text(text).font(.hbMonoSmall).foregroundStyle(Theme.ink3)
+    private func chip(_ icon: String, _ text: String, _ tint: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon).font(.caption2).foregroundStyle(tint)
+            Text(text)
         }
     }
 
     private var statusLabel: String {
-        guard !group.statusWord.isEmpty else { return "" }
-        return group.statusWord.capitalized
+        group.statusWord.isEmpty ? "" : group.statusWord.capitalized
     }
 
     private var statusColor: Color {
         switch group.statusWord {
-        case "working": Theme.positive
-        case "waiting", "blocked": Theme.warn
-        default: Theme.ink4
+        case "working": .green
+        case "waiting", "blocked": .orange
+        default: .secondary
         }
     }
 }

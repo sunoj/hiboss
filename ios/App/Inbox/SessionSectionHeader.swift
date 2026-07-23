@@ -16,26 +16,26 @@ struct SessionSectionHeader: View {
                 .accessibilityLabel(statusAccessibilityLabel)
 
             Text(group.label)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Theme.ink)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
                 .lineLimit(1)
 
             Spacer(minLength: 8)
 
             Text("\(group.messages.count)")
-                .font(.hbMonoSmall)
-                .foregroundStyle(Theme.ink3)
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
         .textCase(nil)
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private var statusColor: Color {
         switch group.status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "working": Theme.positive
-        case "waiting", "blocked": Theme.warn
-        default: Theme.ink4
+        case "working": .green
+        case "waiting", "blocked": .orange
+        default: .secondary
         }
     }
 
