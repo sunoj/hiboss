@@ -61,20 +61,18 @@ struct IslandView: View {
                     .lineLimit(1)
                 Spacer()
             }
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.green)
-                    .font(.system(size: 14))
-                Text(answer ?? "Answered")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let source, !source.isEmpty {
-                Text("Answered on \(source)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+            Text(message.body)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 7) {
+                ForEach(message.options, id: \.self) { option in
+                    ResolvedOptionRow(title: option, chosen: option == answer, source: source)
+                }
+                if let answer, !message.options.contains(answer) {
+                    ResolvedOptionRow(title: answer, chosen: true, source: source)
+                }
             }
         }
         .padding(.horizontal, 18)
@@ -151,6 +149,57 @@ struct IslandView: View {
     private var isSubmitting: Bool {
         if case .submitting = flow.presentationState { return true }
         return false
+    }
+}
+
+/// One option in the resolved state: the chosen one animates a checkmark and,
+/// a beat later, the "Answered on <device>" attribution fades in.
+private struct ResolvedOptionRow: View {
+    let title: String
+    let chosen: Bool
+    let source: String?
+    @State private var showCheck = false
+    @State private var showSource = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 7) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                if chosen {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.green)
+                        .scaleEffect(showCheck ? 1 : 0.2)
+                        .opacity(showCheck ? 1 : 0)
+                }
+            }
+            if chosen, showSource, let source, !source.isEmpty {
+                Text("Answered on \(source)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .transition(.opacity)
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .background(
+            chosen ? Color.green.opacity(0.18) : Color.white.opacity(0.05),
+            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .stroke(chosen ? Color.green.opacity(0.5) : Color.clear, lineWidth: 1)
+        )
+        .opacity(chosen ? 1 : 0.38)
+        .onAppear {
+            guard chosen else { return }
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.08)) { showCheck = true }
+            withAnimation(.easeIn(duration: 0.25).delay(0.45)) { showSource = true }
+        }
     }
 }
 
