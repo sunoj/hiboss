@@ -106,6 +106,7 @@ describe('notifyBossAgents', () => {
     const sentPayload = JSON.parse(String(init?.body)) as {
       aps: {
         alert: { title: string; body: string };
+        sound?: string;
         'interruption-level': string;
         'thread-id': string;
         category: string;
@@ -118,7 +119,10 @@ describe('notifyBossAgents', () => {
     };
     expect(sentPayload.aps.alert.title).toBe('Push Agent');
     expect(sentPayload.aps.alert.body).toHaveLength(150);
-    expect(sentPayload.aps['interruption-level']).toBe('time-sensitive');
+    // A high-priority decision (has options) alerts as 'active' with sound at prio 10.
+    expect(sentPayload.aps['interruption-level']).toBe('active');
+    expect(sentPayload.aps.sound).toBe('default');
+    expect((init?.headers as Record<string, string>)['apns-priority']).toBe('10');
     expect(sentPayload.aps['thread-id']).toBe(bossId);
     // iOS reads the action category from aps.category, not the top-level key.
     expect(sentPayload.aps.category).toBe('HIBOSS_OPTIONS');
