@@ -73,6 +73,20 @@ final class InboxStore: ObservableObject {
         }
     }
 
+    /// Awaitable history reload for pull-to-refresh; keeps the spinner up until done.
+    func refresh() async {
+        guard let api else { return }
+        do {
+            let messages = try await api.fetchHistory()
+            history = messages
+            loadError = nil
+            pruneWithdrawn()
+            await DecisionActivityManager.sync(pending: pending)
+        } catch {
+            loadError = error.localizedDescription
+        }
+    }
+
     @discardableResult
     func reply(_ choice: String, to id: MessageID) async -> Bool {
         guard let api else { return false }

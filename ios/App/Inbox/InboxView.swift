@@ -121,6 +121,7 @@ struct InboxView: View {
             .padding(.top, 2)
             .padding(.bottom, 96)
         }
+        .refreshable { await store.refresh() }
         .scrollIndicators(.hidden)
     }
 
@@ -134,13 +135,15 @@ struct InboxView: View {
                     detail: "Agent messages will appear here."
                 ).padding(.top, 80)
             }
+            .refreshable { await store.refresh() }
             .scrollIndicators(.hidden)
         } else {
             List {
                 ForEach(sessionGroups) { group in
                     Section {
                         ForEach(group.messages) { message in
-                            HistoryRow(message: message)
+                            Button { replyTarget = message } label: { HistoryRow(message: message) }
+                                .buttonStyle(.plain)
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -153,6 +156,7 @@ struct InboxView: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Theme.paper)
+            .refreshable { await store.refresh() }
             .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 96) }
         }
     }
