@@ -63,22 +63,53 @@ public struct QuietHours: Codable, Equatable, Sendable {
     }
 }
 
+/// How intrusive a push should be for a given message priority.
+public enum PushLevel: String, Codable, Equatable, Sendable, CaseIterable {
+    case passive
+    case active
+    case timeSensitive = "time-sensitive"
+}
+
+/// Per-priority push override: whether to deliver, whether to sound, how loud.
+public struct PushRule: Codable, Equatable, Sendable {
+    public var deliver: Bool
+    public var sound: Bool
+    public var level: PushLevel
+
+    public init(deliver: Bool, sound: Bool, level: PushLevel) {
+        self.deliver = deliver
+        self.sound = sound
+        self.level = level
+    }
+}
+
 public struct BossPreferences: Codable, Equatable, Sendable {
     public var routing: [MessagePriority: [NotificationChannel]]?
     public var quietHours: QuietHours?
+    /// Per-priority push tiering overrides for status messages (nil = server defaults).
+    public var push: [MessagePriority: PushRule]?
+    /// When true, pushes carry only a generic alert + message id; the app fetches
+    /// the body over TLS so content never reaches Apple's servers.
+    public var privatePush: Bool?
     private let preservedRouting: [String: [String]]?
 
     enum CodingKeys: String, CodingKey {
         case routing
         case quietHours = "quiet_hours"
+        case push
+        case privatePush = "private_push"
     }
 
     public init(
         routing: [MessagePriority: [NotificationChannel]]? = nil,
-        quietHours: QuietHours? = nil
+        quietHours: QuietHours? = nil,
+        push: [MessagePriority: PushRule]? = nil,
+        privatePush: Bool? = nil
     ) {
         self.routing = routing
         self.quietHours = quietHours
+        self.push = push
+        self.privatePush = privatePush
         self.preservedRouting = nil
     }
 
@@ -88,16 +119,41 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         let decodedRouting = try Self.decodeRouting(from: values)
         routing = decodedRouting.typed
         preservedRouting = decodedRouting.raw
+        push = try Self.decodePush(from: values)
+        privatePush = try values.decodeIfPresent(Bool.self, forKey: .privatePush)
     }
 
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encodeIfPresent(quietHours, forKey: .quietHours)
         try encodeRouting(into: &values)
+        try encodePush(into: &values)
+        try values.encodeIfPresent(privatePush, forKey: .privatePush)
     }
 
     public static func == (lhs: BossPreferences, rhs: BossPreferences) -> Bool {
         lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours
+            && lhs.push == rhs.push && lhs.privatePush == rhs.privatePush
+    }
+
+    private static func decodePush(
+        from values: KeyedDecodingContainer<CodingKeys>
+    ) throws -> [MessagePriority: PushRule]? {
+        guard let raw = try values.decodeIfPresent([String: PushRule].self, forKey: .push) else {
+            return nil
+        }
+        var push: [MessagePriority: PushRule] = [:]
+        for (rawPriority, rule) in raw {
+            guard let priority = MessagePriority(rawValue: rawPriority) else { continue }
+            push[priority] = rule
+        }
+        return push
+    }
+
+    private func encodePush(into values: inout KeyedEncodingContainer<CodingKeys>) throws {
+        guard let push else { return }
+        let raw = Dictionary(uniqueKeysWithValues: push.map { ($0.key.rawValue, $0.value) })
+        try values.encode(raw, forKey: .push)
     }
 
     private static func decodeRouting(

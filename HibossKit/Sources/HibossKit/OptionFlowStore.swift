@@ -26,6 +26,8 @@ public enum PresentationState: Equatable {
     case ready
     case submitting(String)
     case failed(String)
+    /// The decision was answered elsewhere; briefly show the choice + source.
+    case resolved(answer: String?, source: String?)
 }
 
 public enum HistoryState: Equatable {
@@ -50,6 +52,9 @@ public final class OptionFlowStore: ObservableObject {
     private var streamTask: Task<Void, Never>?
     private var historyTask: Task<Void, Never>?
     private var expirationTasks: [MessageID: Task<Void, Never>] = [:]
+    private var resolvedDismissTask: Task<Void, Never>?
+    /// How long the "answered on <device>" card lingers before advancing.
+    private let resolvedLinger: Duration = .seconds(3)
 
     public init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
         self.reconnectDelay = reconnectDelay
@@ -69,8 +74,10 @@ public final class OptionFlowStore: ObservableObject {
         streamTask?.cancel()
         historyTask?.cancel()
         expirationTasks.values.forEach { $0.cancel() }
+        resolvedDismissTask?.cancel()
         streamTask = nil
         historyTask = nil
+        resolvedDismissTask = nil
         expirationTasks.removeAll()
         api = nil
         activeMessage = nil
@@ -132,7 +139,7 @@ public final class OptionFlowStore: ObservableObject {
     /// Dismisses the message locally only — the agent keeps waiting and other channels can still answer.
     public func skip() {
         guard let message = activeMessage else { return }
-        resolve(message.id)
+        dismiss(message.id)
     }
 
     @discardableResult
@@ -141,7 +148,7 @@ public final class OptionFlowStore: ObservableObject {
         presentationState = .submitting(body)
         do {
             _ = try await api.reply(to: message.id, with: body)
-            resolve(message.id)
+            dismiss(message.id)
             refreshHistoryInBackground()
             return true
         } catch {
@@ -174,7 +181,7 @@ public final class OptionFlowStore: ObservableObject {
         case let .message(message):
             receive(message)
             refreshHistoryInBackground()
-        case let .resolved(resolution): resolve(resolution.id)
+        case let .resolved(resolution): resolve(resolution)
         }
     }
 
@@ -201,7 +208,28 @@ public final class OptionFlowStore: ObservableObject {
         }
     }
 
-    private func resolve(_ messageID: MessageID) {
+    private func resolve(_ resolution: OptionResolution) {
+        let messageID = resolution.id
+        expirationTasks.removeValue(forKey: messageID)?.cancel()
+        queuedMessages.removeAll { $0.id == messageID }
+        guard activeMessage?.id == messageID else { return }
+        // Surface the choice + where it came from before advancing to the next.
+        if resolution.status == .replied, resolution.answer != nil {
+            presentationState = .resolved(answer: resolution.answer, source: resolution.sourceLabel)
+            resolvedDismissTask?.cancel()
+            let linger = resolvedLinger
+            resolvedDismissTask = Task { [weak self] in
+                try? await Task<Never, Never>.sleep(for: linger)
+                guard !Task.isCancelled else { return }
+                self?.showNextMessage()
+            }
+        } else {
+            showNextMessage()
+        }
+    }
+
+    /// Local dismissal without a resolved card (this device answered, or skip).
+    private func dismiss(_ messageID: MessageID) {
         expirationTasks.removeValue(forKey: messageID)?.cancel()
         queuedMessages.removeAll { $0.id == messageID }
         guard activeMessage?.id == messageID else { return }
@@ -214,7 +242,7 @@ public final class OptionFlowStore: ObservableObject {
         expirationTasks[message.id] = Task { [weak self] in
             try? await Task<Never, Never>.sleep(for: .seconds(delay))
             guard !Task.isCancelled else { return }
-            self?.resolve(message.id)
+            self?.resolve(OptionResolution(id: message.id, status: .expired))
         }
     }
 

@@ -6,18 +6,14 @@ import SwiftUI
 
 struct CountdownText: View {
     let deadline: Date
-    var tint: Color = Theme.ink2
+    var tint: Color = .secondary
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = max(0, deadline.timeIntervalSince(context.date))
-            HStack(spacing: 5) {
-                Image(systemName: "clock")
-                    .font(.system(size: 11, weight: .medium))
-                Text("\(format(remaining)) left")
-            }
-            .font(.hbMonoSmall)
-            .foregroundStyle(tint)
+            Text("\(format(remaining)) left")
+                .monospacedDigit()
+                .foregroundStyle(tint)
         }
     }
 

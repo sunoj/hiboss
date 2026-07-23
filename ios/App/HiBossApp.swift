@@ -43,7 +43,6 @@ struct RootView: View {
         .onAppear {
             if isDemoMode {
                 inbox.start(api: DemoBossAPI())
-                PushManager.shared.requestAuthorization()
             } else if connection.isConfigured, let api = connection.makeAPI() {
                 inbox.start(api: api)
                 PushManager.shared.requestAuthorization()

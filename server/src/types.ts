@@ -24,6 +24,7 @@ export type Mode = 'async' | 'blocking';
 export type Channel = 'discord' | 'telegram' | 'email' | 'api';
 export type Priority = 'critical' | 'high' | 'normal' | 'low';
 export type Status = 'sent' | 'delivered' | 'read' | 'replied' | 'expired';
+export type ResolutionSource = 'ios' | 'macos' | 'telegram' | 'discord' | 'api';
 
 export type Metadata = Record<string, unknown> | null;
 

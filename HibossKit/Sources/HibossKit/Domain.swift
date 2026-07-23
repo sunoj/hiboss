@@ -198,10 +198,42 @@ public enum ResolutionStatus: String, Codable, Equatable, Sendable {
 public struct OptionResolution: Codable, Equatable, Sendable {
     public let id: MessageID
     public let status: ResolutionStatus
+    /// The option text that was chosen, when the decision was answered.
+    public let answer: String?
+    /// Where the answer came from: "ios", "macos", "telegram", "discord", "api".
+    public let source: String?
 
-    public init(id: MessageID, status: ResolutionStatus) {
+    enum CodingKeys: String, CodingKey {
+        case id, status, answer, source
+    }
+
+    public init(id: MessageID, status: ResolutionStatus, answer: String? = nil, source: String? = nil) {
         self.id = id
         self.status = status
+        self.answer = answer
+        self.source = source
+    }
+
+    /// Tolerant decode: older servers omit answer/source.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(MessageID.self, forKey: .id)
+        status = try values.decode(ResolutionStatus.self, forKey: .status)
+        answer = try values.decodeIfPresent(String.self, forKey: .answer)
+        source = try values.decodeIfPresent(String.self, forKey: .source)
+    }
+
+    /// Human label for the resolving surface, e.g. "iOS", "Mac", "Telegram".
+    public var sourceLabel: String? {
+        switch source?.lowercased() {
+        case "ios": "iOS"
+        case "macos", "mac": "Mac"
+        case "telegram": "Telegram"
+        case "discord": "Discord"
+        case "api": "API"
+        case let other?: other.capitalized
+        case nil: nil
+        }
     }
 }
 
