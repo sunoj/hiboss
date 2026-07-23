@@ -49,6 +49,18 @@ public struct QuietHours: Codable, Equatable, Sendable {
         self.days = days
         self.criticalBypass = criticalBypass
     }
+
+    /// Tolerant decode: the server only guarantees start/end, so fill the rest
+    /// with sane defaults rather than failing the whole preferences payload.
+    public init(from decoder: Decoder) throws {
+        let v = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try v.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        start = try v.decodeIfPresent(String.self, forKey: .start) ?? "22:00"
+        end = try v.decodeIfPresent(String.self, forKey: .end) ?? "08:00"
+        timezone = try v.decodeIfPresent(String.self, forKey: .timezone) ?? TimeZone.current.identifier
+        days = try v.decodeIfPresent([Int].self, forKey: .days) ?? [0, 1, 2, 3, 4, 5, 6]
+        criticalBypass = try v.decodeIfPresent(Bool.self, forKey: .criticalBypass) ?? true
+    }
 }
 
 public struct BossPreferences: Codable, Equatable, Sendable {
