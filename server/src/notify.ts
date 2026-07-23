@@ -120,8 +120,9 @@ function buildBossPushPayload(
   // Private mode keeps message content off Apple's servers: the payload carries
   // only a generic alert + the message id, and the app fetches the body itself.
   const category = privatePush ? 'HIBOSS_MESSAGE' : (options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE');
+  const summary = extractSummary(message.metadata);
   const body = privatePush
-    ? (options ? `New decision from ${agentName}` : `New message from ${agentName}`)
+    ? (summary ?? (options ? `New decision from ${agentName}` : `New message from ${agentName}`))
     : truncateBody(message.body);
   const aps: ApnsPayload['aps'] = {
     alert: { title: privatePush ? 'HiBoss' : (agentName || 'HiBoss'), body },
@@ -147,6 +148,18 @@ function buildBossPushPayload(
     payload.options = options;
   }
   return payload;
+}
+
+/** Agent-supplied non-sensitive summary shown in private-mode pushes. */
+function extractSummary(metadata: string | null): string | undefined {
+  if (!metadata) return undefined;
+  try {
+    const parsed = JSON.parse(metadata) as { summary?: unknown };
+    const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+    return summary.length > 0 ? summary : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function isPrivatePush(preferences: string | null | undefined): boolean {
