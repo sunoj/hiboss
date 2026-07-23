@@ -64,6 +64,8 @@ pub struct AskArgs {
     pub to: Option<String>,
     #[arg(long, default_value = "normal", help = "Message priority: critical, high, normal, or low")]
     pub priority: String,
+    #[arg(long, help = "Short non-sensitive summary shown in private-mode push notifications")]
+    pub summary: Option<String>,
     #[arg(value_name = "body")]
     pub body: String,
 }
@@ -206,7 +208,7 @@ pub async fn run(
         mode: "blocking".to_owned(),
         priority: args.priority.clone(),
         channel: args.channel.clone(),
-        metadata: action_metadata(&choices.actions, choices.default_option.as_deref())?,
+        metadata: action_metadata(&choices.actions, choices.default_option.as_deref(), args.summary.as_deref())?,
         options: choices.options.clone(),
         file_url,
         message_type: None,

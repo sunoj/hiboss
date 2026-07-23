@@ -58,6 +58,7 @@ pub(crate) fn validate_default_option(
 pub(crate) fn action_metadata(
     actions: &HashMap<String, Value>,
     default_option: Option<&str>,
+    summary: Option<&str>,
 ) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
     let mut metadata: HashMap<String, Value> = HashMap::new();
     if !actions.is_empty() {
@@ -65,6 +66,9 @@ pub(crate) fn action_metadata(
     }
     if let Some(label) = default_option {
         metadata.insert("default_option".to_owned(), Value::String(label.to_owned()));
+    }
+    if let Some(s) = summary {
+        metadata.insert("summary".to_owned(), Value::String(s.to_owned()));
     }
     if metadata.is_empty() {
         return Ok(None);
@@ -180,7 +184,7 @@ mod tests {
     #[test]
     fn metadata_includes_default_option_in_plain_option_mode() {
         let actions = HashMap::new();
-        let result = action_metadata(&actions, Some("A"))
+        let result = action_metadata(&actions, Some("A"), None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -193,7 +197,7 @@ mod tests {
     fn metadata_includes_actions_and_default_together() {
         let mut actions = HashMap::new();
         actions.insert("A".to_owned(), Value::String("deploy".to_owned()));
-        let result = action_metadata(&actions, Some("A"))
+        let result = action_metadata(&actions, Some("A"), None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(

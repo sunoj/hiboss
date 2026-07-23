@@ -32,6 +32,8 @@ pub struct SendArgs {
     pub broadcast: bool,
     #[arg(long, help = "Task summary for structured context")]
     pub task: Option<String>,
+    #[arg(long, help = "Short non-sensitive summary shown in private-mode push notifications")]
+    pub summary: Option<String>,
     #[arg(long, help = "Relevant file paths (comma-separated)")]
     pub files: Option<String>,
     #[arg(long, help = "Git branch context")]
@@ -167,7 +169,15 @@ async fn warn_unread_messages(client: &HiBossClient) {
 }
 
 fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
-    if args.task.is_some() || args.files.is_some() || args.branch.is_some() {
+    let has_context = args.task.is_some() || args.files.is_some() || args.branch.is_some();
+    if !has_context && args.summary.is_none() {
+        return Ok(None);
+    }
+    let mut meta = HashMap::new();
+    if let Some(ref s) = args.summary {
+        meta.insert("summary".to_owned(), Value::String(s.clone()));
+    }
+    if has_context {
         let mut ctx = HashMap::new();
         if let Some(ref t) = args.task {
             ctx.insert("summary".to_owned(), Value::String(t.clone()));
@@ -182,10 +192,7 @@ fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box
         if let Some(ref b) = args.branch {
             ctx.insert("branch".to_owned(), Value::String(b.clone()));
         }
-        let mut meta = HashMap::new();
         meta.insert("task_context".to_owned(), serde_json::to_value(ctx)?);
-        Ok(Some(meta))
-    } else {
-        Ok(None)
     }
+    Ok(Some(meta))
 }
