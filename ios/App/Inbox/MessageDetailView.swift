@@ -4,6 +4,7 @@
 
 import HibossKit
 import SwiftUI
+import UIKit
 
 /// Navigation value for drilling into a session's messages.
 struct SessionRoute: Hashable {
@@ -15,6 +16,9 @@ struct MessageDetailView: View {
     @ObservedObject var store: InboxStore
     let messageID: MessageID
     @State private var replyDraft = ""
+    @State private var submitting: String?
+    @State private var didRefresh = false
+    @Environment(\.dismiss) private var dismiss
 
     private var message: HistoryMessage? { store.history.first { $0.id == messageID } }
 
@@ -30,17 +34,22 @@ struct MessageDetailView: View {
                 if message.isPendingDecision {
                     Section("Respond") {
                         ForEach(message.options, id: \.self) { option in
-                            Button(option) { Task { await store.reply(option, to: message.id) } }
+                            Button {
+                                submit(option, for: message.id)
+                            } label: {
+                                HStack {
+                                    Text(option)
+                                    Spacer()
+                                    if submitting == option { ProgressView() }
+                                }
+                            }
+                            .disabled(submitting != nil)
                         }
                         HStack {
                             TextField("Reply…", text: $replyDraft, axis: .vertical)
-                            Button("Send") {
-                                let text = replyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !text.isEmpty else { return }
-                                Task { await store.reply(text, to: message.id) }
-                                replyDraft = ""
-                            }
-                            .disabled(replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .disabled(submitting != nil)
+                            Button("Send") { submit(replyDraft, for: message.id) }
+                                .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                     }
                 }
@@ -65,12 +74,33 @@ struct MessageDetailView: View {
             }
             .navigationTitle(message.displayName)
             .navigationBarTitleDisplayMode(.inline)
+        } else if !didRefresh {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle("Loading…")
+                .navigationBarTitleDisplayMode(.inline)
+                .task { await store.refresh(); didRefresh = true }
         } else {
             ContentUnavailableView(
                 "Message not found",
                 systemImage: "questionmark.circle",
-                description: Text("It may have been cleared. Pull to refresh the Inbox.")
+                description: Text("It may have been cleared or expired.")
             )
+        }
+    }
+
+    private func submit(_ choice: String, for id: MessageID) {
+        let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, submitting == nil else { return }
+        submitting = text
+        Task {
+            let ok = await store.reply(text, to: id)
+            submitting = nil
+            if ok {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                dismiss()
+            }
         }
     }
 
