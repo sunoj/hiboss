@@ -1,6 +1,6 @@
-// Pending decision card: priority band, agent header, body, options, countdown.
+// Pending decision card: priority accent, agent header, body, options, countdown.
 // Exports: MessageCard rendering one pending HistoryMessage with reply actions.
-// Dependencies: SwiftUI, HibossKit HistoryMessage, and the theme tokens.
+// Dependencies: SwiftUI, HibossKit HistoryMessage, priority tokens.
 
 import HibossKit
 import SwiftUI
@@ -14,115 +14,83 @@ struct MessageCard: View {
     private var options: [String] { message.options }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            Text(message.body)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            metaRow
+            actions
+        }
+        .padding(14)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(alignment: .leading) {
+            UnevenRoundedRectangle(topLeadingRadius: 16, bottomLeadingRadius: 16)
                 .fill(priority.color)
                 .frame(width: 4)
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                Text(message.body)
-                    .font(.hbCallout)
-                    .foregroundStyle(Theme.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 11)
-                metaRow
-                    .padding(.top, 10)
-                    .padding(.bottom, 12)
-                actions
-            }
-            .padding(.vertical, 13)
-            .padding(.trailing, 14)
-            .padding(.leading, 13)
         }
-        .background(Theme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Theme.line, lineWidth: 1)
-        )
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Text(message.avatarInitials)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color(uiColor: UIColor(rgb: 0xECEBE7)))
-                .frame(width: 26, height: 26)
-                .background(Color(uiColor: UIColor(rgb: 0x26221F)))
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .strokeBorder(Theme.line2, lineWidth: 1)
-                )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 30, height: 30)
+                .background(Color(.tertiarySystemFill), in: Circle())
             VStack(alignment: .leading, spacing: 1) {
                 Text(message.displayName)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.ink)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
                 Text(message.metaLine)
-                    .font(.hbMonoSmall)
-                    .foregroundStyle(Theme.ink3)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Spacer(minLength: 6)
-            Text(priority.badge)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .tracking(0.4)
-                .foregroundStyle(priority.textColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(priority.color.opacity(0.14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(priority.color.opacity(0.4), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            PriorityBadge(priority: priority)
         }
     }
 
     @ViewBuilder
     private var metaRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             if let deadline = message.expirationDate {
-                CountdownText(
-                    deadline: deadline,
-                    tint: priority == .critical ? PriorityColor.critical : Theme.ink2
-                )
+                Label {
+                    CountdownText(deadline: deadline, tint: priority == .critical ? .red : .secondary)
+                } icon: {
+                    Image(systemName: "clock")
+                }
+                .font(.caption)
+                .foregroundStyle(priority == .critical ? Color.red : .secondary)
             }
             Text(optionsHint)
-                .font(.hbMonoSmall)
-                .foregroundStyle(Theme.ink3)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Spacer(minLength: 0)
         }
     }
 
     private var optionsHint: String {
-        if options.count > 2 { return "\(options.count) options · fanned out" }
-        let mode = message.mode == "blocking" ? "◐ blocking" : "○ async"
-        return mode
+        if options.count > 2 { return "\(options.count) options" }
+        return message.mode == "blocking" ? "Blocking" : "Async"
     }
 
     @ViewBuilder
     private var actions: some View {
         if options.count == 2 {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 OptionButton(title: options[0], style: priority.isUrgent ? .primary : .secondary) {
                     onChoose(options[0])
                 }
                 OptionButton(title: options[1], style: .secondary) { onChoose(options[1]) }
                 if priority.isUrgent {
                     Button(action: onMore) {
-                        Text("…")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Theme.ink2)
-                            .frame(height: 42)
-                            .padding(.horizontal, 12)
-                            .background(Theme.surface2)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .strokeBorder(Theme.line2, lineWidth: 1)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        Image(systemName: "ellipsis")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
                 }
             }
         } else {
@@ -137,6 +105,19 @@ struct MessageCard: View {
     }
 }
 
+private struct PriorityBadge: View {
+    let priority: MessagePriority
+
+    var body: some View {
+        Text(priority.badge)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(priority.textColor)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(priority.color.opacity(0.16), in: Capsule())
+    }
+}
+
 struct OptionButton: View {
     enum Style { case primary, secondary }
     let title: String
@@ -145,20 +126,21 @@ struct OptionButton: View {
     var action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 14, weight: style == .primary ? .semibold : .medium))
-                .foregroundStyle(style == .primary ? Color.white : Theme.ink)
-                .frame(maxWidth: .infinity, alignment: alignment)
-                .frame(height: 42)
-                .padding(.horizontal, alignment == .leading ? 13 : 0)
-                .background(style == .primary ? Theme.positive : Theme.surface2)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .strokeBorder(style == .primary ? .clear : Theme.line2, lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        Group {
+            if style == .primary {
+                Button(action: action) { label }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+            } else {
+                Button(action: action) { label }
+                    .buttonStyle(.bordered)
+            }
         }
-        .buttonStyle(.plain)
+        .controlSize(.large)
+    }
+
+    private var label: some View {
+        Text(title)
+            .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)
     }
 }
