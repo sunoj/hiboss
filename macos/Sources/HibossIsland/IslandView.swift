@@ -21,7 +21,9 @@ struct IslandView: View {
     }
 
     var body: some View {
-        if let message = flow.activeMessage {
+        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
+            resolvedCard(message, answer: answer, source: source)
+        } else if let message = flow.activeMessage {
             VStack(alignment: .leading, spacing: 12) {
                 agentHeader(message)
                 ScrollView(.vertical, showsIndicators: true) {
@@ -46,6 +48,39 @@ struct IslandView: View {
             .overlay(ExpiryBand(expiresAt: message.expirationDate, surfaceStyle: surfaceStyle))
             .onChange(of: message.id) { replyText = "" }
         }
+    }
+
+    /// Shown briefly when the decision was answered on another device.
+    private func resolvedCard(_ message: OptionMessage, answer: String?, source: String?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                Circle().fill(Color.green).frame(width: 6, height: 6)
+                Text(message.agentName ?? "HiBoss")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.58))
+                    .lineLimit(1)
+                Spacer()
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.green)
+                    .font(.system(size: 14))
+                Text(answer ?? "Answered")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let source, !source.isEmpty {
+                Text("Answered on \(source)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(surfaceShape)
     }
 
     private func agentHeader(_ message: OptionMessage) -> some View {
