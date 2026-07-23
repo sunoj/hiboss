@@ -2,7 +2,7 @@
 // Exports: streamBossOptions for message fan-out and global resolution events.
 // Depends on D1, MessageRow mapping, and Cloudflare writable streams.
 
-import type { Env, MessageRow, Status } from '../types';
+import type { Channel, Env, MessageRow, ResolutionSource, Status } from '../types';
 import { mapMessageRow } from './message-helpers';
 
 const POLL_INTERVAL_MS = 3_000;
@@ -16,6 +16,14 @@ interface TrackedOption {
 interface OptionResolution {
   id: string;
   status: 'replied' | 'expired';
+  answer: string | null;
+  source: ResolutionSource | null;
+}
+
+interface ReplyResolutionRow {
+  body: string;
+  channel: Channel | null;
+  metadata: string | null;
 }
 
 export async function streamBossOptions(
@@ -108,12 +116,44 @@ async function resolveStatus(
   now: string,
 ): Promise<OptionResolution> {
   if (tracked.expiresAt && tracked.expiresAt <= now) {
-    return { id: messageId, status: 'expired' };
+    return { id: messageId, status: 'expired', answer: null, source: null };
   }
   const row = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
     .bind(messageId)
     .first<{ status: Status }>();
-  return { id: messageId, status: row?.status === 'expired' ? 'expired' : 'replied' };
+  if (row?.status === 'expired') {
+    return { id: messageId, status: 'expired', answer: null, source: null };
+  }
+  const reply = await env.DB.prepare(
+    'SELECT body, channel, metadata FROM messages WHERE reply_to = ? AND direction = ? ORDER BY created_at ASC LIMIT 1',
+  ).bind(messageId, 'boss_to_agent').first<ReplyResolutionRow>();
+  return {
+    id: messageId,
+    status: 'replied',
+    answer: reply?.body ?? null,
+    source: reply ? resolutionSource(reply) : null,
+  };
+}
+
+function resolutionSource(reply: ReplyResolutionRow): ResolutionSource | null {
+  const metadataSource = metadataResolutionSource(reply.metadata);
+  if (metadataSource) return metadataSource;
+  return reply.channel === 'api' || reply.channel === 'telegram' || reply.channel === 'discord'
+    ? reply.channel
+    : null;
+}
+
+function metadataResolutionSource(metadata: string | null): ResolutionSource | null {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    const source = parsed['source'];
+    return source === 'ios' || source === 'macos' || source === 'telegram' || source === 'discord' || source === 'api'
+      ? source
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function writeEvent(

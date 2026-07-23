@@ -137,6 +137,78 @@ describe('notifyBossAgents', () => {
       .first<{ id: string }>();
     expect(row).toBeNull();
   });
+
+  it('suppresses normal status pushes when a boss preference disables delivery', async () => {
+    const agentId = 'notify-pref-agent';
+    const bossId = 'notify-pref-boss';
+    const deviceToken = 'prefdeadbeef1234';
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(agentId, 'Preference Agent', 'notify-pref-key-hash')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO bosses (id, name, role, preferences) VALUES (?, ?, ?, ?)')
+      .bind(bossId, 'Preference Boss', 'manager', JSON.stringify({ push: { normal: { deliver: false } } }))
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(bossId, agentId)
+      .run();
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+    )
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .run();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await notifyBossAgents(apnsEnv(await createPrivateKeyPem()), agentId, {
+      ...fakeMessage,
+      id: 'notify-pref-status',
+      agent_id: agentId,
+      direction: 'agent_to_boss',
+      priority: 'normal',
+      metadata: null,
+    });
+
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes(deviceToken))).toBe(false);
+  });
+
+  it('delivers decision pushes even when a boss preference disables the priority', async () => {
+    const agentId = 'notify-decision-pref-agent';
+    const bossId = 'notify-decision-pref-boss';
+    const deviceToken = 'decisionprefdeadbeef';
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(agentId, 'Decision Preference Agent', 'notify-decision-pref-key-hash')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO bosses (id, name, role, preferences) VALUES (?, ?, ?, ?)')
+      .bind(bossId, 'Decision Preference Boss', 'manager', JSON.stringify({ push: { normal: { deliver: false } } }))
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(bossId, agentId)
+      .run();
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+    )
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .run();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await notifyBossAgents(apnsEnv(await createPrivateKeyPem()), agentId, {
+      ...fakeMessage,
+      id: 'notify-pref-decision',
+      agent_id: agentId,
+      direction: 'agent_to_boss',
+      priority: 'normal',
+      metadata: JSON.stringify({ options: ['Approve', 'Wait'] }),
+    });
+
+    const call = fetchMock.mock.calls.find(([url]) => String(url).includes(deviceToken));
+    expect(call).toBeDefined();
+    if (!call) throw new Error('missing decision APNs fetch call');
+    const init = call[1];
+    const sentPayload = JSON.parse(String(init?.body)) as { aps: { sound?: string; 'interruption-level': string } };
+    expect(sentPayload.aps.sound).toBe('default');
+    expect(sentPayload.aps['interruption-level']).toBe('active');
+  });
 });
 
 function apnsEnv(authKey: string): Env {

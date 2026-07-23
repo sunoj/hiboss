@@ -28,9 +28,13 @@ describe('Boss option stream lifecycle', () => {
     expect(await readEvent(first)).toContain(messageId);
     expect(await readEvent(second)).toContain(messageId);
 
-    const reply = await replyTo(messageId, 'Approve');
+    const reply = await replyTo(messageId, 'Approve', 'ios');
     expect(reply.status).toBe(201);
-    expect(await readEvent(second, 5_000)).toContain(`"id":"${messageId}"`);
+    const resolved = await readEvent(second, 5_000);
+    expect(resolved).toContain(`"id":"${messageId}"`);
+    expect(resolved).toContain('"status":"replied"');
+    expect(resolved).toContain('"answer":"Approve"');
+    expect(resolved).toContain('"source":"ios"');
 
     await first.cancel();
     await second.cancel();
@@ -61,6 +65,8 @@ describe('Boss option stream lifecycle', () => {
     const resolved = await readEvent(stream, 5_000);
     expect(resolved).toContain('event: resolved');
     expect(resolved).toContain('"status":"expired"');
+    expect(resolved).toContain('"answer":null');
+    expect(resolved).toContain('"source":null');
 
     await stream.cancel();
   });
@@ -138,11 +144,11 @@ async function readEvent(
   return new TextDecoder().decode(result.value);
 }
 
-function replyTo(messageId: string, body: string): Promise<Response> {
+function replyTo(messageId: string, body: string, source?: string): Promise<Response> {
   return SELF.fetch(`http://localhost/api/boss/messages/${messageId}/reply`, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ body }),
+    body: JSON.stringify(source ? { body, source } : { body }),
   });
 }
 
