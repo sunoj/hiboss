@@ -38,9 +38,9 @@ private struct PushTieringRow: View {
             HStack(spacing: 12) {
                 priorityLabel
                 Spacer(minLength: 8)
-                Toggle("推送", isOn: deliverBinding)
+                Toggle("Push", isOn: deliverBinding)
                     .tint(Theme.positive)
-                Toggle("声音", isOn: soundBinding)
+                Toggle("Sound", isOn: soundBinding)
                     .tint(Theme.positive)
                     .disabled(!rule.deliver)
             }
