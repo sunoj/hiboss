@@ -90,8 +90,7 @@ struct InboxView: View {
                 ForEach(SessionGrouping.groupBySession(store.history)) { group in
                     Section {
                         ForEach(group.messages) { message in
-                            Button { replyTarget = message } label: { HistoryRow(message: message) }
-                                .buttonStyle(.plain)
+                            NavigationLink(value: message.id) { HistoryRow(message: message) }
                         }
                     } header: {
                         SessionSectionHeader(group: group)

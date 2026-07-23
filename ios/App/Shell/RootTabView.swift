@@ -1,35 +1,54 @@
-// App shell: the native tab bar with a navigation stack per section.
+// App shell: native tabs, a navigation stack per section, and notification deep-links.
 // Exports: RootTabView switching Inbox / Messages / Sessions / Settings.
-// Dependencies: SwiftUI, the feature views.
+// Dependencies: SwiftUI, HibossKit, the feature views, AppRouter.
 
+import HibossKit
 import SwiftUI
 
 struct RootTabView: View {
     @ObservedObject var inbox: InboxStore
     @ObservedObject var connection: ConnectionStore
+    @ObservedObject private var router = AppRouter.shared
+
+    @State private var tab = 0
+    @State private var inboxPath = NavigationPath()
 
     var body: some View {
-        TabView {
-            NavigationStack {
+        TabView(selection: $tab) {
+            NavigationStack(path: $inboxPath) {
                 InboxView(store: inbox)
+                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
             }
             .tabItem { Label("Inbox", systemImage: "tray.full") }
             .badge(inbox.pendingCount)
+            .tag(0)
 
             NavigationStack {
                 MessagesView(store: inbox)
+                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
             }
             .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
+            .tag(1)
 
             NavigationStack {
                 SessionsView(store: inbox)
             }
             .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
+            .tag(2)
 
             NavigationStack {
                 SettingsView(connection: connection)
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
+            .tag(3)
+        }
+        .onReceive(router.$pendingMessageID.compactMap { $0 }) { messageID in
+            tab = 0
+            inboxPath = NavigationPath()
+            inboxPath.append(messageID)
+            router.pendingMessageID = nil
         }
     }
 }

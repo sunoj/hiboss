@@ -7,7 +7,6 @@ import SwiftUI
 
 struct MessagesView: View {
     @ObservedObject var store: InboxStore
-    @State private var replyTarget: HistoryMessage?
 
     var body: some View {
         Group {
@@ -20,8 +19,7 @@ struct MessagesView: View {
             } else {
                 List {
                     ForEach(store.history) { message in
-                        Button { replyTarget = message } label: { HistoryRow(message: message) }
-                            .buttonStyle(.plain)
+                        NavigationLink(value: message.id) { HistoryRow(message: message) }
                     }
                 }
                 .listStyle(.plain)
@@ -33,12 +31,6 @@ struct MessagesView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 ConnectionDot(state: store.connectionState)
             }
-        }
-        .sheet(item: $replyTarget) { message in
-            ReplySheet(message: message) { choice in
-                Task { await store.reply(choice, to: message.id) }
-            }
-            .presentationDetents([.height(300)])
         }
     }
 }
