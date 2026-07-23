@@ -90,7 +90,7 @@ async function autoResolveDefaultOption(
     .prepare(
       'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     )
-    .bind(agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true }), replyTargetSession(message))
+    .bind(agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true, source: 'api' }), replyTargetSession(message))
     .first<MessageRow>();
   if (!inserted) return;
   // Best-effort notifications: the default is already durably recorded above, so a failed
