@@ -1,5 +1,5 @@
-// Loads and edits the boss notification preferences (routing + quiet hours).
-// Exports: PreferencesStore driving the Settings routing and quiet-hours UI.
+// Loads and edits the boss notification preferences (routing, quiet hours, push tiering).
+// Exports: PreferencesStore driving the Settings preference editor UI.
 // Dependencies: HibossKit HibossAPI/BossPreferences.
 
 import Combine
@@ -32,7 +32,13 @@ final class PreferencesStore: ObservableObject {
                 enabled: true, start: "22:00", end: "08:00",
                 timezone: TimeZone.current.identifier,
                 days: [0, 1, 2, 3, 4, 5, 6], criticalBypass: true
-            )
+            ),
+            push: [
+                .critical: PushRule(deliver: true, sound: true, level: .timeSensitive),
+                .high: PushRule(deliver: true, sound: true, level: .active),
+                .normal: PushRule(deliver: true, sound: false, level: .passive),
+                .low: PushRule(deliver: false, sound: false, level: .passive),
+            ]
         )
         prefs = sample
         saved = sample
@@ -84,6 +90,31 @@ final class PreferencesStore: ObservableObject {
         }
         routing[priority] = selected
         prefs.routing = routing
+    }
+
+    // MARK: Push tiering
+
+    func pushRule(for priority: HibossKit.MessagePriority) -> PushRule {
+        prefs.push?[priority] ?? Self.defaultPushRule(for: priority)
+    }
+
+    func setPushRule(_ rule: PushRule, for priority: HibossKit.MessagePriority) {
+        var push = prefs.push ?? [:]
+        push[priority] = rule
+        prefs.push = push
+    }
+
+    private static func defaultPushRule(for priority: HibossKit.MessagePriority) -> PushRule {
+        switch priority {
+        case .critical:
+            PushRule(deliver: true, sound: true, level: .timeSensitive)
+        case .high:
+            PushRule(deliver: true, sound: true, level: .active)
+        case .normal:
+            PushRule(deliver: true, sound: false, level: .passive)
+        case .low:
+            PushRule(deliver: false, sound: false, level: .passive)
+        }
     }
 
     // MARK: Quiet hours
