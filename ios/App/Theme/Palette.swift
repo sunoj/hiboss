@@ -1,51 +1,43 @@
-// Design-system color tokens ported from the "plain" HiBoss foundations.
-// Exports: Theme color tokens (ink/surface/line) plus fixed accent/status colors.
-// Dependencies: SwiftUI, UIKit dynamic colors for light/dark resolution.
+// Native color tokens mapped to system semantic colors (light + dark automatic).
+// Exports: Theme tokens (ink/surface/line) plus priority accents.
+// Dependencies: SwiftUI, UIKit semantic colors.
 
 import SwiftUI
 import UIKit
 
-/// Resolves to different values in light and dark, matching colors_and_type.css.
-private func dyn(light: UInt32, dark: UInt32) -> Color {
-    Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark ? UIColor(rgb: dark) : UIColor(rgb: light)
-    })
-}
-
-private func fixed(_ rgb: UInt32) -> Color { Color(uiColor: UIColor(rgb: rgb)) }
-
+/// Semantic tokens. Names kept for source compatibility; values are now the
+/// system's dynamic colors so the app reads as native iOS, not a web palette.
 enum Theme {
-    // Ink (text)
-    static let ink = dyn(light: 0x1B1B1A, dark: 0xECEBE7)
-    static let ink2 = dyn(light: 0x5C5B57, dark: 0xA7A6A0)
-    static let ink3 = dyn(light: 0x8A8984, dark: 0x7A7974)
-    static let ink4 = dyn(light: 0xB3B2AC, dark: 0x54534F)
+    // Text
+    static let ink = Color(.label)
+    static let ink2 = Color(.secondaryLabel)
+    static let ink3 = Color(.tertiaryLabel)
+    static let ink4 = Color(.quaternaryLabel)
 
-    // Surfaces
-    static let paper = dyn(light: 0xF6F5F3, dark: 0x161614)
-    static let surface = dyn(light: 0xFFFFFF, dark: 0x1E1E1C)
-    static let surface2 = dyn(light: 0xEFEEEB, dark: 0x262624)
-    static let surface3 = dyn(light: 0xE7E5E1, dark: 0x2F2F2C)
+    // Surfaces (grouped, so List/Form insets read correctly)
+    static let paper = Color(.systemGroupedBackground)
+    static let surface = Color(.secondarySystemGroupedBackground)
+    static let surface2 = Color(.tertiarySystemFill)
+    static let surface3 = Color(.systemFill)
 
-    // Lines
-    static let line = dyn(light: 0xE4E2DD, dark: 0x2C2C29)
-    static let line2 = dyn(light: 0xD5D3CD, dark: 0x3A3A36)
+    // Separators
+    static let line = Color(.separator)
+    static let line2 = Color(.opaqueSeparator)
 
-    // Status / accents (fixed across themes — used as small accents)
-    static let positive = fixed(0x5E7257)
-    static let negative = fixed(0x97574B)
-    static let warn = fixed(0x9A7B43)
+    // Status accents
+    static let positive = Color.green
+    static let negative = Color.red
+    static let warn = Color.orange
 }
 
-/// Message priority accent colors from the design canvas legend.
+/// Message priority accents using system semantic colors.
 enum PriorityColor {
-    static let critical = fixed(0xC46A5A)
-    static let high = fixed(0xC79A57)
-    static let normal = fixed(0x7A7974)
-    static let low = fixed(0x54534F)
-    /// Lifted tint used for badge/label text so it reads on both themes.
-    static let criticalText = fixed(0xD08475)
-    static let highText = fixed(0xCBA766)
+    static let critical = Color.red
+    static let high = Color.orange
+    static let normal = Color(.systemGray)
+    static let low = Color(.systemGray2)
+    static let criticalText = Color.red
+    static let highText = Color.orange
 }
 
 extension UIColor {

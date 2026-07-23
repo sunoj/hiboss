@@ -1,6 +1,6 @@
 // The Inbox screen: pending decisions and full history, live over SSE.
-// Exports: InboxView bound to an InboxStore.
-// Dependencies: SwiftUI, HibossKit, MessageCard, and the theme tokens.
+// Exports: InboxView bound to an InboxStore, plus the shared EmptyState.
+// Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow.
 
 import HibossKit
 import SwiftUI
@@ -9,80 +9,37 @@ struct InboxView: View {
     @ObservedObject var store: InboxStore
     @State private var tab: Tab = .pending
     @State private var replyTarget: HistoryMessage?
-    var onOpenSettings: () -> Void
 
-    enum Tab { case pending, all }
+    enum Tab: String, CaseIterable, Identifiable {
+        case pending = "Pending"
+        case all = "All"
+        var id: String { rawValue }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            head
+            Picker("View", selection: $tab) {
+                Text("Pending (\(store.pendingCount))").tag(Tab.pending)
+                Text("All").tag(Tab.all)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.bottom, 6)
+
             content
         }
-        .background(Theme.paper.ignoresSafeArea())
+        .navigationTitle("Inbox")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ConnectionDot(state: store.connectionState)
+            }
+        }
         .sheet(item: $replyTarget) { message in
             ReplySheet(message: message) { choice in
                 Task { await store.reply(choice, to: message.id) }
             }
-            .presentationDetents([.height(280)])
+            .presentationDetents([.height(300)])
         }
-    }
-
-    private var head: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Inbox").font(.hbLargeTitle).foregroundStyle(Theme.ink)
-                Spacer()
-                Button(action: onOpenSettings) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Theme.ink2)
-                        .frame(width: 36, height: 36)
-                        .background(Theme.surface2)
-                        .clipShape(Circle())
-                        .overlay(Circle().strokeBorder(Theme.line, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-            Text(subtitle)
-                .font(.hbFootnote)
-                .foregroundStyle(Theme.ink3)
-                .padding(.top, 2)
-            segmented.padding(.top, 16)
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 6)
-        .padding(.bottom, 12)
-    }
-
-    private var subtitle: String {
-        let count = store.pendingCount
-        let waiting = count == 0 ? "No messages waiting" :
-            "\(count) message\(count == 1 ? "" : "s") waiting for you"
-        return "\(waiting) · \(store.connectionState.label)"
-    }
-
-    private var segmented: some View {
-        HStack(spacing: 2) {
-            segment(title: "Pending · \(store.pendingCount)", selected: tab == .pending) { tab = .pending }
-            segment(title: "All", selected: tab == .all) { tab = .all }
-        }
-        .padding(3)
-        .background(Theme.surface2)
-        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-    }
-
-    private func segment(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: selected ? .medium : .regular))
-                .foregroundStyle(selected ? Theme.ink : Theme.ink3)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-                .background(selected ? Theme.surface : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                .shadow(color: selected ? Color.black.opacity(0.06) : .clear, radius: 2, y: 1)
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -94,87 +51,87 @@ struct InboxView: View {
         }
     }
 
-    private var sessionGroups: [SessionGroup] {
-        SessionGrouping.groupBySession(store.history)
-    }
-
     private var pendingContent: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
-                if store.pending.isEmpty {
-                    EmptyState(
-                        icon: "checkmark.circle",
-                        title: "All clear",
-                        detail: "No decisions are waiting on you."
-                    ).padding(.top, 80)
-                } else {
+        Group {
+            if store.pending.isEmpty {
+                ContentUnavailableView(
+                    "All clear",
+                    systemImage: "checkmark.circle",
+                    description: Text("No decisions are waiting on you.")
+                )
+            } else {
+                List {
                     ForEach(store.pending) { message in
                         MessageCard(
                             message: message,
                             onChoose: { choice in Task { await store.reply(choice, to: message.id) } },
                             onMore: { replyTarget = message }
                         )
+                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                        .listRowSeparator(.hidden)
                     }
                 }
+                .listStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 2)
-            .padding(.bottom, 96)
         }
         .refreshable { await store.refresh() }
-        .scrollIndicators(.hidden)
     }
 
     @ViewBuilder
     private var allHistoryContent: some View {
         if store.history.isEmpty {
-            ScrollView {
-                EmptyState(
-                    icon: "tray",
-                    title: "No messages yet",
-                    detail: "Agent messages will appear here."
-                ).padding(.top, 80)
-            }
-            .refreshable { await store.refresh() }
-            .scrollIndicators(.hidden)
+            ContentUnavailableView(
+                "No messages yet",
+                systemImage: "tray",
+                description: Text("Agent messages will appear here.")
+            )
         } else {
             List {
-                ForEach(sessionGroups) { group in
+                ForEach(SessionGrouping.groupBySession(store.history)) { group in
                     Section {
                         ForEach(group.messages) { message in
                             Button { replyTarget = message } label: { HistoryRow(message: message) }
                                 .buttonStyle(.plain)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
                         }
                     } header: {
                         SessionSectionHeader(group: group)
                     }
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Theme.paper)
+            .listStyle(.insetGrouped)
             .refreshable { await store.refresh() }
-            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 96) }
         }
     }
 }
 
+/// A small colored dot summarising the live connection state.
+struct ConnectionDot: View {
+    let state: ConnectionState
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(state.label).font(.caption).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var color: Color {
+        switch state {
+        case .connected: .green
+        case .connecting: .orange
+        case .disconnected, .failed: .secondary
+        }
+    }
+}
+
+/// Native empty-state wrapper used across the message surfaces.
 struct EmptyState: View {
     let icon: String
     let title: String
     let detail: String
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 30, weight: .light))
-                .foregroundStyle(Theme.ink4)
-            Text(title).font(.hbH3).foregroundStyle(Theme.ink2)
-            Text(detail).font(.hbCaption).foregroundStyle(Theme.ink3)
-        }
-        .frame(maxWidth: .infinity)
+        ContentUnavailableView(title, systemImage: icon, description: Text(detail))
     }
 }

@@ -1,6 +1,6 @@
-// Messages tab: the full message history as a scrollable list.
+// Messages tab: the full message history as a native list.
 // Exports: MessagesView bound to the shared InboxStore.
-// Dependencies: SwiftUI, HibossKit, HistoryRow, ReplySheet, theme tokens.
+// Dependencies: SwiftUI, HibossKit, HistoryRow, ReplySheet.
 
 import HibossKit
 import SwiftUI
@@ -10,42 +10,30 @@ struct MessagesView: View {
     @State private var replyTarget: HistoryMessage?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Messages")
-                .font(.hbLargeTitle)
-                .foregroundStyle(Theme.ink)
-                .padding(.horizontal, 20)
-                .padding(.top, 6)
-            Text("\(store.history.count) total · \(store.connectionState.label)")
-                .font(.hbFootnote)
-                .foregroundStyle(Theme.ink3)
-                .padding(.horizontal, 20)
-                .padding(.top, 2)
-
-            ScrollView {
-                LazyVStack(spacing: 10) {
-                    if store.history.isEmpty {
-                        EmptyState(
-                            icon: "tray",
-                            title: "No messages yet",
-                            detail: "Agent messages will appear here."
-                        ).padding(.top, 80)
-                    } else {
-                        ForEach(store.history) { message in
-                            Button { replyTarget = message } label: { HistoryRow(message: message) }
-                                .buttonStyle(.plain)
-                        }
+        Group {
+            if store.history.isEmpty {
+                ContentUnavailableView(
+                    "No messages yet",
+                    systemImage: "tray",
+                    description: Text("Agent messages will appear here.")
+                )
+            } else {
+                List {
+                    ForEach(store.history) { message in
+                        Button { replyTarget = message } label: { HistoryRow(message: message) }
+                            .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 96)
+                .listStyle(.plain)
+                .refreshable { await store.refresh() }
             }
-            .refreshable { await store.refresh() }
-            .scrollIndicators(.hidden)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.paper.ignoresSafeArea())
+        .navigationTitle("Messages")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ConnectionDot(state: store.connectionState)
+            }
+        }
         .sheet(item: $replyTarget) { message in
             ReplySheet(message: message) { choice in
                 Task { await store.reply(choice, to: message.id) }
