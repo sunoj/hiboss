@@ -13,13 +13,18 @@ struct ReplySheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(message.displayName).hbLabel().foregroundStyle(Theme.ink3)
+            HStack(spacing: 6) {
+                Text(message.displayName).hbLabel().foregroundStyle(Theme.ink3)
+                if message.isResolved {
+                    Text(message.status).font(.hbMonoSmall).foregroundStyle(Theme.ink4)
+                }
+            }
             Text(message.body)
                 .font(.hbSmall)
                 .foregroundStyle(Theme.ink2)
                 .lineLimit(3)
 
-            if !message.options.isEmpty {
+            if message.isPendingDecision, !message.options.isEmpty {
                 VStack(spacing: 8) {
                     ForEach(message.options, id: \.self) { option in
                         OptionButton(title: option, style: .secondary, alignment: .leading) {

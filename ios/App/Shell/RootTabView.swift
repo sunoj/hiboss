@@ -29,7 +29,7 @@ struct RootTabView: View {
         case .messages:
             MessagesView(store: inbox)
         case .sessions:
-            SessionsView()
+            SessionsView(store: inbox)
         case .settings:
             SettingsView(connection: connection)
         }
