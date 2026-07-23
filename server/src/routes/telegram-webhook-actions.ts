@@ -194,7 +194,9 @@ function buildCallbackReplyMetadata(
       if (actions?.[selectedOption]) replyMetadata = { action: actions[selectedOption] };
     } catch {}
   }
-  return bossInfo ? { ...(replyMetadata ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name } : replyMetadata;
+  return bossInfo
+    ? { ...(replyMetadata ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name, source: 'telegram' }
+    : { ...(replyMetadata ?? {}), source: 'telegram' };
 }
 
 async function findTelegramConfigRow(env: Env, chatId: string, threadId: number | undefined): Promise<TelegramConfigRow | null> {

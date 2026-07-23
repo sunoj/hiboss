@@ -186,7 +186,9 @@ export async function insertBossDiscordMessage(
   const discordMsgPayload = rawMetadata['discord_msg'] as Record<string, unknown> | undefined;
   const discordMessageId = typeof discordMsgPayload?.['id'] === 'string' ? discordMsgPayload['id'] as string : undefined;
   const baseMetadata = discordMessageId ? { ...rawMetadata, discord_message_id: discordMessageId } : rawMetadata;
-  const metadata = bossInfo ? { ...baseMetadata, boss_id: bossInfo.id, boss_name: bossInfo.name } : baseMetadata;
+  const metadata = bossInfo
+    ? { ...baseMetadata, boss_id: bossInfo.id, boss_name: bossInfo.name, source: 'discord' }
+    : { ...baseMetadata, source: 'discord' };
   // Precise reply linking: look up parent by discord_message_id in metadata
   let replyTo: string | null = null;
   if (replyToDiscordMsgId) {
