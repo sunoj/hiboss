@@ -9,6 +9,7 @@ import type {
   MessageRow,
   Metadata,
   Priority,
+  ResolutionSource,
   Status,
 } from '../types';
 
@@ -24,6 +25,7 @@ export type { DeliveryResult } from './delivery';
 
 const channelOptions: Channel[] = ['discord', 'telegram', 'email', 'api'];
 export const priorityOptions: Priority[] = ['critical', 'high', 'normal', 'low'];
+export const resolutionSourceOptions: ResolutionSource[] = ['ios', 'macos', 'telegram', 'discord', 'api'];
 const LIKE_ESCAPE_PATTERN = /[%_\\]/g;
 
 export function mapMessageRow(row: MessageRow): MessageResponse {
@@ -81,6 +83,11 @@ export function validateChannel(value: unknown): Channel | undefined {
     return value as Channel;
   }
   return undefined;
+}
+
+export function validateResolutionSource(value: unknown, fallback: ResolutionSource): ResolutionSource | null {
+  if (value === undefined) return fallback;
+  return validateOption(value, resolutionSourceOptions);
 }
 
 export function buildFilters(
