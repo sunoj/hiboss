@@ -5,12 +5,13 @@
 import type { Env } from './types';
 
 export type ApnsEnvironment = 'sandbox' | 'production';
-export type ApnsInterruptionLevel = 'active' | 'time-sensitive' | 'critical';
+export type ApnsInterruptionLevel = 'passive' | 'active' | 'time-sensitive' | 'critical';
+export type ApnsPriority = '5' | '10';
 
 export interface ApnsPayload {
   aps: {
     alert: { title: string; body: string };
-    sound: 'default';
+    sound?: 'default';
     'interruption-level': ApnsInterruptionLevel;
     'thread-id': string;
     category?: string;
@@ -43,6 +44,7 @@ export async function sendPush(
   environment: ApnsEnvironment,
   bundleId: string,
   payload: ApnsPayload,
+  apnsPriority: ApnsPriority = '10',
 ): Promise<ApnsSendResult> {
   const keyId = env.APNS_KEY_ID;
   const teamId = env.APNS_TEAM_ID;
@@ -59,7 +61,7 @@ export async function sendPush(
       'content-type': 'application/json',
       'apns-topic': bundleId,
       'apns-push-type': 'alert',
-      'apns-priority': '10',
+      'apns-priority': apnsPriority,
     },
     body: JSON.stringify(payload),
   });

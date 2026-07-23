@@ -62,6 +62,8 @@ pub struct AskArgs {
     pub file: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
     pub to: Option<String>,
+    #[arg(long, default_value = "normal", help = "Message priority: critical, high, normal, or low")]
+    pub priority: String,
     #[arg(value_name = "body")]
     pub body: String,
 }
@@ -202,7 +204,7 @@ pub async fn run(
     let request = SendRequest {
         body: unescape_body(&args.body),
         mode: "blocking".to_owned(),
-        priority: "normal".to_owned(),
+        priority: args.priority.clone(),
         channel: args.channel.clone(),
         metadata: action_metadata(&choices.actions, choices.default_option.as_deref())?,
         options: choices.options.clone(),
