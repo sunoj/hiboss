@@ -114,6 +114,10 @@ extension PushManager: @preconcurrency UNUserNotificationCenterDelegate {
         case PushAction.approve: choice = options.first
         case PushAction.reject: choice = options.count > 1 ? options[1] : nil
         case PushAction.reply: choice = (response as? UNTextInputNotificationResponse)?.userText
+        case UNNotificationDefaultActionIdentifier:
+            // A plain tap opens the message's full-text detail.
+            AppRouter.shared.open(messageID: messageID)
+            return
         default: choice = nil
         }
         guard let choice, !choice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
