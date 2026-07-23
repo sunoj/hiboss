@@ -44,7 +44,14 @@ struct SettingsView: View {
             if isDemoMode { prefs.loadDemo() } else { await prefs.load(api: connection.makeAPI()) }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await push.refresh() } }
+            guard phase == .active else { return }
+            Task {
+                await push.refresh()
+                // Retry a failed preferences load; don't clobber unsaved edits.
+                if case .failed = prefs.state, !prefs.isDirty, !isDemoMode {
+                    await prefs.load(api: connection.makeAPI())
+                }
+            }
         }
     }
 

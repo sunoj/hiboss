@@ -11,27 +11,33 @@ struct QuietHoursSection: View {
     private var hours: QuietHours { store.quietHours }
 
     var body: some View {
-        SettingsSection(title: "QUIET HOURS") {
-            toggleRow(
-                "Mute notifications",
-                isOn: hours.enabled,
-                set: { on in store.updateQuietHours { $0.with(enabled: on) } }
-            )
-            if hours.enabled {
-                SettingsDivider()
-                timeRow("From", value: hours.start) { new in
-                    store.updateQuietHours { $0.with(start: new) }
-                }
-                SettingsDivider()
-                timeRow("To", value: hours.end) { new in
-                    store.updateQuietHours { $0.with(end: new) }
-                }
-                SettingsDivider()
+        VStack(alignment: .leading, spacing: 6) {
+            SettingsSection(title: "QUIET HOURS") {
                 toggleRow(
-                    "Let critical through",
-                    isOn: hours.criticalBypass,
-                    set: { on in store.updateQuietHours { $0.with(criticalBypass: on) } }
+                    "Mute notifications",
+                    isOn: hours.enabled,
+                    set: { on in store.updateQuietHours { $0.with(enabled: on) } }
                 )
+                if hours.enabled {
+                    SettingsDivider()
+                    timeRow("From", value: hours.start) { new in
+                        store.updateQuietHours { $0.with(start: new) }
+                    }
+                    SettingsDivider()
+                    timeRow("To", value: hours.end) { new in
+                        store.updateQuietHours { $0.with(end: new) }
+                    }
+                    SettingsDivider()
+                    toggleRow(
+                        "Let critical through",
+                        isOn: hours.criticalBypass,
+                        set: { on in store.updateQuietHours { $0.with(criticalBypass: on) } }
+                    )
+                }
+            }
+            if hours.enabled {
+                Text("Times are in \(hours.timezone).")
+                    .font(.hbFootnote).foregroundStyle(Theme.ink4).padding(.leading, 6)
             }
         }
     }
@@ -59,23 +65,35 @@ struct QuietHoursSection: View {
                 displayedComponents: .hourAndMinute
             )
             .labelsHidden()
+            .environment(\.calendar, QuietTime.calendar)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
     }
 }
 
+/// Converts wall-clock "HH:mm" strings to/from a `Date` using a fixed UTC
+/// calendar, so the picker edits pure clock digits independent of device
+/// timezone. The stored `QuietHours.timezone` decides how the server reads them.
 enum QuietTime {
+    static let calendar: Calendar = {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        return cal
+    }()
+
     static func date(from hhmm: String) -> Date {
         let parts = hhmm.split(separator: ":").compactMap { Int($0) }
+        let hour = min(max(parts.first ?? 0, 0), 23)
+        let minute = min(max(parts.count > 1 ? parts[1] : 0, 0), 59)
         var components = DateComponents()
-        components.hour = parts.first ?? 0
-        components.minute = parts.count > 1 ? parts[1] : 0
-        return Calendar.current.date(from: components) ?? Date()
+        components.hour = hour
+        components.minute = minute
+        return calendar.date(from: components) ?? Date(timeIntervalSince1970: 0)
     }
 
     static func string(from date: Date) -> String {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let c = calendar.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 }
