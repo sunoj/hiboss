@@ -1,4 +1,4 @@
-// Dashboard overview aggregate for the web console 总览.
+// Dashboard overview aggregate for the web console.
 // Exports: getBossOverview computing KPIs, priority distribution, session
 // status counts, and channel health in a single round of queries.
 // Depends on D1 and the boss's accessible agent set.
