@@ -92,16 +92,16 @@ final class PushManager: NSObject {
     }
 }
 
-extension PushManager: UNUserNotificationCenterDelegate {
+extension PushManager: @preconcurrency UNUserNotificationCenterDelegate {
     // Show banners even while the app is foregrounded.
-    nonisolated func userNotificationCenter(
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
     }
 
-    nonisolated func userNotificationCenter(
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
