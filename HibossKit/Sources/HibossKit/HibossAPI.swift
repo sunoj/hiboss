@@ -7,6 +7,7 @@ import Foundation
 public enum HibossAPIError: Error, LocalizedError {
     case invalidResponse
     case requestFailed(status: Int, message: String)
+    case decodingFailed(context: String, body: String)
 
     public var errorDescription: String? {
         switch self {
@@ -14,6 +15,8 @@ public enum HibossAPIError: Error, LocalizedError {
             "The server returned an invalid response."
         case let .requestFailed(status, message):
             message.isEmpty ? "Server request failed (HTTP \(status))." : message
+        case let .decodingFailed(context, body):
+            "Couldn't read \(context). Server sent: \(body.prefix(200))"
         }
     }
 }
@@ -72,7 +75,13 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         let request = authorizedRequest(url: endpoint, method: "GET")
         let (data, response) = try await session.data(for: request)
         try validate(response)
-        return try decoder.decode(BossPreferences.self, from: data)
+        do {
+            return try decoder.decode(BossPreferences.self, from: data)
+        } catch {
+            throw HibossAPIError.decodingFailed(
+                context: "preferences", body: String(data: data, encoding: .utf8) ?? "<non-text>"
+            )
+        }
     }
 
     public func updatePreferences(_ preferences: BossPreferences) async throws -> BossPreferences {
