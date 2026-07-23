@@ -2,7 +2,14 @@
 // Exports notifyAgentCallback and notifyBossAgents for push delivery.
 // Depends on D1 for callback lookup and global fetch for delivery.
 
-import { hasApnsConfig, sendPush, type ApnsEnvironment, type ApnsPayload } from './apns';
+import {
+  hasApnsConfig,
+  sendPush,
+  type ApnsEnvironment,
+  type ApnsInterruptionLevel,
+  type ApnsPayload,
+  type ApnsPriority,
+} from './apns';
 import type { Env, MessageRow, Priority } from './types';
 
 interface BossRecipientRow {
@@ -80,10 +87,16 @@ async function notifyBossDevices(
     .all<BossDeviceRow>();
   if (!devices.results?.length) return;
   const agentName = message.agent_name ?? await fetchAgentName(env, subAgentId) ?? 'HiBoss';
+  const options = extractOptions(message.metadata);
+  const tier = pushTier(message.priority, options !== undefined && options.length > 0);
+  // Low-priority status updates stay in-app only — no push at all.
+  if (!tier.deliver) return;
   for (const device of devices.results) {
     try {
-      const payload = buildBossPushPayload(message, agentName, device.boss_id);
-      const result = await sendPush(env, device.device_token, device.environment, device.bundle_id, payload);
+      const payload = buildBossPushPayload(message, agentName, device.boss_id, tier);
+      const result = await sendPush(
+        env, device.device_token, device.environment, device.bundle_id, payload, tier.apnsPriority,
+      );
       if (result.prune) {
         await env.DB.prepare('DELETE FROM boss_devices WHERE device_token = ?').bind(device.device_token).run();
       }
@@ -93,18 +106,27 @@ async function notifyBossDevices(
   }
 }
 
-function buildBossPushPayload(message: MessageRow, agentName: string, bossId: string): ApnsPayload {
+function buildBossPushPayload(
+  message: MessageRow,
+  agentName: string,
+  bossId: string,
+  tier: PushTier,
+): ApnsPayload {
   const options = extractOptions(message.metadata);
   const category = options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE';
+  const aps: ApnsPayload['aps'] = {
+    alert: { title: agentName || 'HiBoss', body: truncateBody(message.body) },
+    'interruption-level': tier.level,
+    'thread-id': bossId,
+    // iOS renders the notification's action buttons from aps.category.
+    category,
+  };
+  // Only interruptive tiers make a sound; quiet tiers land silently.
+  if (tier.sound) {
+    aps.sound = 'default';
+  }
   const payload: ApnsPayload = {
-    aps: {
-      alert: { title: agentName || 'HiBoss', body: truncateBody(message.body) },
-      sound: 'default',
-      'interruption-level': interruptionLevel(message.priority),
-      'thread-id': bossId,
-      // iOS renders the notification's action buttons from aps.category.
-      category,
-    },
+    aps,
     messageId: message.id,
     agentName,
     priority: message.priority,
@@ -131,10 +153,35 @@ function extractOptions(metadata: string | null): string[] | undefined {
   }
 }
 
-function interruptionLevel(priority: Priority): 'active' | 'time-sensitive' | 'critical' {
-  if (priority === 'critical') return 'critical';
-  if (priority === 'high') return 'time-sensitive';
-  return 'active';
+interface PushTier {
+  deliver: boolean;
+  sound: boolean;
+  level: ApnsInterruptionLevel;
+  apnsPriority: ApnsPriority;
+}
+
+// Maps a message's priority to how intrusive its push is. A pending decision
+// (carries options) always alerts. Plain status messages tier down by priority:
+// normal is silent/passive; low is not pushed at all (visible in-app only).
+// critical uses 'time-sensitive' (safe without the critical-alerts entitlement).
+function pushTier(priority: Priority, isDecision: boolean): PushTier {
+  if (isDecision) {
+    return priority === 'critical'
+      ? { deliver: true, sound: true, level: 'time-sensitive', apnsPriority: '10' }
+      : { deliver: true, sound: true, level: 'active', apnsPriority: '10' };
+  }
+  switch (priority) {
+    case 'critical':
+      return { deliver: true, sound: true, level: 'time-sensitive', apnsPriority: '10' };
+    case 'high':
+      return { deliver: true, sound: true, level: 'active', apnsPriority: '10' };
+    case 'normal':
+      return { deliver: true, sound: false, level: 'passive', apnsPriority: '5' };
+    case 'low':
+      return { deliver: false, sound: false, level: 'passive', apnsPriority: '5' };
+    default:
+      return { deliver: true, sound: false, level: 'passive', apnsPriority: '5' };
+  }
 }
 
 function truncateBody(body: string): string {
