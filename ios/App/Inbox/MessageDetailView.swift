@@ -81,10 +81,26 @@ struct MessageDetailView: View {
 
                 Section("Details") {
                     LabeledContent("Agent", value: message.displayName)
+                    if let session = message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !session.isEmpty {
+                        LabeledContent("Session", value: session)
+                    }
                     LabeledContent("Direction", value: directionLabel(message.direction))
                     LabeledContent("Priority", value: message.priority.capitalized)
+                    if let mode = message.mode, !mode.isEmpty {
+                        LabeledContent("Mode", value: mode.capitalized)
+                    }
                     if let channel = message.channel, !channel.isEmpty {
                         LabeledContent("Channel", value: channel.capitalized)
+                    }
+                    if message.isPendingDecision, let deadline = message.expirationDate {
+                        LabeledContent("Time left") {
+                            CountdownText(deadline: deadline,
+                                          tint: message.priorityValue == .critical ? .red : .secondary)
+                        }
+                    }
+                    if !message.relativeCreatedAt.isEmpty {
+                        LabeledContent("Created", value: message.relativeCreatedAt)
                     }
                     LabeledContent("Status", value: message.status.capitalized)
                 }

@@ -19,28 +19,42 @@ struct HistoryRow: View {
                     Text(message.displayName)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
                     Text(message.metaLine)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                     Spacer(minLength: 4)
-                    Text(message.status)
-                        .font(.caption)
-                        .foregroundStyle(statusColor)
+                    if !message.relativeCreatedAt.isEmpty {
+                        Text(message.relativeCreatedAt)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Text(message.body)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                if !statusLabel.isEmpty {
+                    Text(statusLabel)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(statusColor)
+                }
             }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 
+    private var statusLabel: String {
+        message.status.isEmpty ? "" : message.status.capitalized
+    }
+
     private var statusColor: Color {
         switch message.status {
         case "replied": .green
+        case "expired": .orange
         default: .secondary
         }
     }
