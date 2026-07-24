@@ -9,23 +9,23 @@ struct MessagesView: View {
     @ObservedObject var store: InboxStore
 
     var body: some View {
-        Group {
-            if store.history.isEmpty {
-                ContentUnavailableView(
-                    "No messages yet",
-                    systemImage: "tray",
-                    description: Text("Agent messages will appear here.")
-                )
-            } else {
-                List {
-                    ForEach(store.history) { message in
-                        NavigationLink(value: message.id) { HistoryRow(message: message) }
-                    }
+        ListStateView(
+            isLoading: !store.didLoad && store.history.isEmpty,
+            error: store.loadError,
+            isEmpty: store.history.isEmpty,
+            emptyIcon: "tray",
+            emptyTitle: "No messages yet",
+            emptyDetail: "Agent messages will appear here.",
+            onRetry: { await store.refresh() }
+        ) {
+            List {
+                ForEach(store.history) { message in
+                    NavigationLink(value: message.id) { HistoryRow(message: message) }
                 }
-                .listStyle(.plain)
-                .refreshable { await store.refresh() }
             }
+            .listStyle(.plain)
         }
+        .refreshable { await store.refresh() }
         .navigationTitle("Messages")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

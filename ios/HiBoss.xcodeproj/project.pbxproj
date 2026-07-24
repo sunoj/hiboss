@@ -14,6 +14,7 @@
 		1AF4333A617AE66DA09E64C5 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8732DC9D272987A1B036C854 /* ConnectionStore.swift */; };
 		335B4FE46BDAA8A5C0A2BBF0 /* ReplySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */; };
 		38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */; };
+		439087A86D4FA8E054A15F1E /* ListStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */; };
 		45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C85DD59D113BDF201E19A /* SettingsView.swift */; };
 		4806ED4EF03F14CEBB6030CB /* DecisionActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */; };
 		4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F038DB693219FA633FDAACC /* InboxStore.swift */; };
@@ -109,6 +110,7 @@
 		92707467B3C96A837DD1FC5E /* SessionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCard.swift; sourceTree = "<group>"; };
 		9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		976383649266ED887CEAA454 /* PushTieringSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTieringSection.swift; sourceTree = "<group>"; };
+		A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListStateView.swift; sourceTree = "<group>"; };
 		AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplySheet.swift; sourceTree = "<group>"; };
 		BF8FDF2319CA7E57192C7679 /* MessageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCard.swift; sourceTree = "<group>"; };
 		C168405A30C4BEEF41971C62 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
@@ -286,6 +288,7 @@
 				7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */,
 				4F038DB693219FA633FDAACC /* InboxStore.swift */,
 				C168405A30C4BEEF41971C62 /* InboxView.swift */,
+				A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */,
 				BF8FDF2319CA7E57192C7679 /* MessageCard.swift */,
 				28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */,
 				AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */,
@@ -449,6 +452,7 @@
 				761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */,
 				4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */,
 				1553776326486621FD350726 /* InboxView.swift in Sources */,
+				439087A86D4FA8E054A15F1E /* ListStateView.swift in Sources */,
 				7600F8475AE8F778AA97A714 /* MessageCard.swift in Sources */,
 				11615439C9BCA9AC0736421B /* MessageDetailView.swift in Sources */,
 				B5B66607B04766A23954B1F2 /* MessageDisplay.swift in Sources */,
