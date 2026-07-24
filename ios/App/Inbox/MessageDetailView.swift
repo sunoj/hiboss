@@ -26,6 +26,31 @@ struct MessageDetailView: View {
 
     private var message: HistoryMessage? { store.history.first { $0.id == messageID } }
 
+    /// The boss reply that resolved this decision, if it's in the loaded history.
+    private var reply: HistoryMessage? {
+        store.history.first { $0.replyTo == messageID.rawValue }
+    }
+
+    /// The chosen option text, trimmed and non-empty, or nil if unresolved.
+    private var chosenAnswer: String? {
+        guard let body = reply?.body.trimmingCharacters(in: .whitespacesAndNewlines),
+              !body.isEmpty else { return nil }
+        return body
+    }
+
+    /// Human label for where the decision was resolved, e.g. "iOS", "Telegram".
+    private var resolutionSourceLabel: String? {
+        switch reply?.metadata?.source?.lowercased() {
+        case "ios": "iOS"
+        case "macos", "mac": "Mac"
+        case "telegram": "Telegram"
+        case "discord": "Discord"
+        case "api": "API"
+        case let other?: other.capitalized
+        case nil: nil
+        }
+    }
+
     var body: some View {
         if let message {
             Form {
@@ -35,28 +60,7 @@ struct MessageDetailView: View {
                         .textSelection(.enabled)
                 }
 
-                if message.isPendingDecision {
-                    Section("Respond") {
-                        ForEach(message.options, id: \.self) { option in
-                            Button {
-                                submit(option, for: message.id)
-                            } label: {
-                                HStack {
-                                    Text(option)
-                                    Spacer()
-                                    if submitting == option { ProgressView() }
-                                }
-                            }
-                            .disabled(submitting != nil)
-                        }
-                        HStack {
-                            TextField("Reply…", text: $replyDraft, axis: .vertical)
-                                .disabled(submitting != nil)
-                            Button("Send") { submit(replyDraft, for: message.id) }
-                                .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        }
-                    }
-                }
+                decisionSection(for: message)
 
                 Section("Details") {
                     LabeledContent("Agent", value: message.displayName)
@@ -128,6 +132,76 @@ struct MessageDetailView: View {
             try? await Task.sleep(for: .milliseconds(400))
         }
         if !Task.isCancelled, message == nil { fallback = .missing }
+    }
+
+    /// Options UI: interactive buttons while pending, a read-only picked/others
+    /// list once resolved (with the chosen option checked and its source noted).
+    @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
+        if message.isPendingDecision {
+            Section("Respond") {
+                ForEach(message.options, id: \.self) { option in
+                    Button {
+                        submit(option, for: message.id)
+                    } label: {
+                        HStack {
+                            Text(option)
+                            if option == message.defaultOption {
+                                Text("Default").font(.caption2).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if submitting == option { ProgressView() }
+                        }
+                    }
+                    .disabled(submitting != nil)
+                }
+                HStack {
+                    TextField("Reply…", text: $replyDraft, axis: .vertical)
+                        .disabled(submitting != nil)
+                    Button("Send") { submit(replyDraft, for: message.id) }
+                        .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        } else if message.isDecision {
+            Section {
+                ForEach(message.options, id: \.self) { option in
+                    optionRow(option, chosen: option == chosenAnswer)
+                }
+                if let answer = chosenAnswer, !message.options.contains(answer) {
+                    optionRow(answer, chosen: true, custom: true)
+                }
+            } header: {
+                Text("Options")
+            } footer: {
+                decisionFooter(for: message)
+            }
+        }
+    }
+
+    @ViewBuilder private func optionRow(_ text: String, chosen: Bool, custom: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: chosen ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(chosen ? Color.accentColor : Color.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(text).foregroundStyle(chosen ? .primary : .secondary)
+                if custom { Text("Custom reply").font(.caption2).foregroundStyle(.secondary) }
+            }
+            Spacer()
+            if chosen { Text("Selected").font(.caption).foregroundStyle(.secondary) }
+        }
+    }
+
+    private func decisionFooter(for message: HistoryMessage) -> Text? {
+        if chosenAnswer != nil {
+            if let source = resolutionSourceLabel { return Text("Answered on \(source)") }
+            return Text("Answered")
+        }
+        let expired = message.status == "expired"
+            || (message.expirationDate.map { $0 <= Date() } ?? false)
+        if expired {
+            if let def = message.defaultOption { return Text("Timed out — default: \(def)") }
+            return Text("Expired — no response")
+        }
+        return nil
     }
 
     private func submit(_ choice: String, for id: MessageID) {

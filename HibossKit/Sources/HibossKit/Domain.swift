@@ -24,17 +24,26 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let isExpired: Bool
     /// Label of the option auto-selected on timeout, if the asker marked one.
     public let defaultOption: String?
+    /// On a reply's metadata, where the answer came from: "ios", "telegram", etc.
+    public let source: String?
 
     enum CodingKeys: String, CodingKey {
         case options
         case isExpired = "options_expired"
         case defaultOption = "default_option"
+        case source
     }
 
-    public init(options: [String], isExpired: Bool = false, defaultOption: String? = nil) {
+    public init(
+        options: [String],
+        isExpired: Bool = false,
+        defaultOption: String? = nil,
+        source: String? = nil
+    ) {
         self.options = options
         self.isExpired = isExpired
         self.defaultOption = defaultOption
+        self.source = source
     }
 
     public init(from decoder: Decoder) throws {
@@ -42,6 +51,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         options = try values.decodeIfPresent([String].self, forKey: .options) ?? []
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
+        source = try values.decodeIfPresent(String.self, forKey: .source)
     }
 }
 
@@ -103,6 +113,9 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public let priority: String
     public let channel: String?
     public let mode: String?
+    /// Parent id when this message is a reply; a decision's answer is the reply
+    /// whose `replyTo` equals the decision's id.
+    public let replyTo: String?
     public let metadata: MessageMetadata?
     public let expiresAt: String?
     public let createdAt: String
@@ -120,6 +133,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         case priority
         case channel
         case mode
+        case replyTo = "reply_to"
         case metadata
         case expiresAt = "expires_at"
         case createdAt = "created_at"
@@ -138,6 +152,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         priority: String,
         channel: String? = nil,
         mode: String? = nil,
+        replyTo: String? = nil,
         metadata: MessageMetadata? = nil,
         expiresAt: String? = nil,
         createdAt: String,
@@ -154,6 +169,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         self.priority = priority
         self.channel = channel
         self.mode = mode
+        self.replyTo = replyTo
         self.metadata = metadata
         self.expiresAt = expiresAt
         self.createdAt = createdAt
