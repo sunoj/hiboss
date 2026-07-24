@@ -22,6 +22,8 @@ interface QuietHoursRow {
   quiet_start: string | null;
   quiet_end: string | null;
   timezone: string | null;
+  // json_extract returns 1/0 for a JSON boolean, or null when the key is absent.
+  enabled: number | null;
 }
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -81,7 +83,8 @@ export async function getAgentQuietHoursEnd(
       `SELECT
          COALESCE(json_extract(preferences, '$.quiet_hours_start'), json_extract(preferences, '$.quiet_hours.start')) AS quiet_start,
          COALESCE(json_extract(preferences, '$.quiet_hours_end'), json_extract(preferences, '$.quiet_hours.end')) AS quiet_end,
-         json_extract(preferences, '$.timezone') AS timezone
+         COALESCE(json_extract(preferences, '$.quiet_hours.timezone'), json_extract(preferences, '$.timezone')) AS timezone,
+         json_extract(preferences, '$.quiet_hours.enabled') AS enabled
        FROM bosses
        WHERE preferences IS NOT NULL
          AND (
@@ -95,6 +98,9 @@ export async function getAgentQuietHoursEnd(
 
   let latestEnd: Date | null = null;
   for (const row of rows.results ?? []) {
+    // Honor an explicit `enabled: false`; a missing flag (legacy/flat format)
+    // stays enabled so existing quiet-hours windows keep working.
+    if (row.enabled === 0) continue;
     if (!isInQuietHours(row.quiet_start, row.quiet_end, row.timezone, now) || !row.quiet_end) {
       continue;
     }

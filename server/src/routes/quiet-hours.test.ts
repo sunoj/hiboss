@@ -63,6 +63,25 @@ describe('getAgentQuietHoursEnd', () => {
     const end = await getAgentQuietHoursEnd(env, 'quiet-hours-overnight', new Date('2026-04-05T03:30:00.000Z'));
     expect(end?.toISOString()).toBe('2026-04-05T12:00:00.000Z');
   });
+
+  it('reads the timezone nested under quiet_hours (the shape the apps write)', async () => {
+    // Real clients write { quiet_hours: { start, end, timezone, enabled } }.
+    // A top-level $.timezone (the old query) is absent here → would fall back to
+    // UTC and fire the window at the wrong wall-clock. This proves the nested read.
+    await seedNestedQuietHoursBoss('quiet-hours-nested', 'Asia/Bangkok', '22:00', '08:00', true);
+
+    const now = new Date('2026-04-04T23:30:00.000Z');
+    expect((await getAgentQuietHoursEnd(env, 'quiet-hours-nested', now))?.toISOString())
+      .toBe('2026-04-05T01:00:00.000Z');
+  });
+
+  it('does not defer when quiet hours are disabled', async () => {
+    // In-window, but enabled:false → the boss turned Mute off, so no deferral.
+    await seedNestedQuietHoursBoss('quiet-hours-disabled', 'UTC', '00:00', '23:59', false);
+
+    const now = new Date('2026-04-04T12:00:00.000Z');
+    expect(await getAgentQuietHoursEnd(env, 'quiet-hours-disabled', now)).toBeNull();
+  });
 });
 
 describe('quiet-hours delivery integration', () => {
@@ -151,6 +170,30 @@ async function seedQuietHoursBoss(agentId: string, timezone: string, start: stri
     `Boss ${agentId}`,
     'manager',
     JSON.stringify({ quiet_hours: { start, end }, timezone }),
+  ).run();
+  await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+    .bind(`boss-${agentId}`, agentId)
+    .run();
+}
+
+async function seedNestedQuietHoursBoss(
+  agentId: string,
+  timezone: string,
+  start: string,
+  end: string,
+  enabled: boolean,
+): Promise<void> {
+  const keyHash = await hashApiKey(`${agentId}-key`);
+  await env.DB.prepare('INSERT OR REPLACE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+    .bind(agentId, agentId, keyHash)
+    .run();
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO bosses (id, name, role, preferences) VALUES (?, ?, ?, ?)'
+  ).bind(
+    `boss-${agentId}`,
+    `Boss ${agentId}`,
+    'manager',
+    JSON.stringify({ quiet_hours: { enabled, start, end, timezone, critical_bypass: true } }),
   ).run();
   await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind(`boss-${agentId}`, agentId)
