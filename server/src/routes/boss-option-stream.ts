@@ -8,6 +8,9 @@ import { mapMessageRow } from './message-helpers';
 const POLL_INTERVAL_MS = 3_000;
 const KEEPALIVE_INTERVAL_MS = 15_000;
 const MAX_DURATION_MS = 5 * 60 * 1_000;
+// On connect, replay resolutions from this window so a client that reconnected
+// after a decision was answered elsewhere can still dismiss a stale card.
+const RECENT_RESOLUTION_WINDOW_MS = 10 * 60 * 1_000;
 
 interface TrackedOption {
   expiresAt: string | null;
@@ -37,6 +40,7 @@ export async function streamBossOptions(
   const trackedOptions = new Map<string, TrackedOption>();
 
   try {
+    await replayRecentResolutions(writer, encoder, env, agentIds, new Date().toISOString());
     while (Date.now() - startedAt < MAX_DURATION_MS) {
       const now = new Date().toISOString();
       const activeOptions = await fetchActiveOptions(env, agentIds, now);
@@ -106,6 +110,34 @@ async function deliverResolutions(
     const resolution = await resolveStatus(env, messageId, tracked, now);
     await writeEvent(writer, encoder, 'resolved', resolution);
     trackedOptions.delete(messageId);
+  }
+}
+
+/// Emits `resolved` for option messages resolved within the recent window, so a
+/// client reconnecting after the resolution (its prior stream cycle ended, or it
+/// was offline) can dismiss a stale card. The client ignores ids it isn't showing.
+async function replayRecentResolutions(
+  writer: WritableStreamDefaultWriter,
+  encoder: TextEncoder,
+  env: Env,
+  agentIds: string[],
+  now: string,
+): Promise<void> {
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const windowStart = new Date(Date.now() - RECENT_RESOLUTION_WINDOW_MS).toISOString();
+  const rows = await env.DB.prepare(
+    `SELECT id, expires_at
+     FROM messages
+     WHERE agent_id IN (${placeholders})
+       AND direction = 'agent_to_boss'
+       AND json_extract(metadata, '$.options') IS NOT NULL
+       AND status IN ('replied', 'expired')
+       AND updated_at > ?
+     ORDER BY updated_at ASC`,
+  ).bind(...agentIds, windowStart).all<{ id: string; expires_at: string | null }>();
+  for (const row of rows.results ?? []) {
+    const resolution = await resolveStatus(env, row.id, { expiresAt: row.expires_at ?? null }, now);
+    await writeEvent(writer, encoder, 'resolved', resolution);
   }
 }
 

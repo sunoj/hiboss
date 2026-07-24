@@ -37,7 +37,7 @@ struct RootView: View {
             guard !isDemoMode else { return }
             if config != nil, let api = connection.makeAPI() {
                 inbox.start(api: api)
-                PushManager.shared.requestAuthorization()
+                PushManager.shared.promptIfNeeded()
             } else {
                 inbox.stop()
             }
@@ -47,7 +47,7 @@ struct RootView: View {
                 inbox.start(api: DemoBossAPI())
             } else if connection.isConfigured, let api = connection.makeAPI() {
                 inbox.start(api: api)
-                PushManager.shared.requestAuthorization()
+                PushManager.shared.promptIfNeeded()
             }
         }
     }
