@@ -111,17 +111,23 @@ struct MessageDetailView: View {
 
     /// Polls for the store to become ready, refreshes, and only declares the
     /// message missing after a clean successful load that still lacks the id.
+    /// Waiting for readiness is network-free; once ready we refresh at most a
+    /// couple of times so a down server isn't hammered before showing the error.
     private func load() async {
+        var errorAttempts = 0
         for _ in 0..<10 {
             if Task.isCancelled { return }
             if store.isReady {
                 await store.refresh()
+                if Task.isCancelled { return }          // cancelled once the message branch renders
                 if message != nil { return }            // body re-renders into the message branch
                 if store.loadError == nil { break }     // connected + clean load, genuinely absent
+                errorAttempts += 1
+                if errorAttempts >= 2 { break }         // don't hammer a failing server
             }
             try? await Task.sleep(for: .milliseconds(400))
         }
-        if message == nil { fallback = .missing }
+        if !Task.isCancelled, message == nil { fallback = .missing }
     }
 
     private func submit(_ choice: String, for id: MessageID) {
