@@ -101,11 +101,34 @@ public final class OptionFlowStore: ObservableObject {
         do {
             historyMessages = try await api.fetchHistory()
             historyState = .loaded
+            reconcileActiveAgainstHistory()
         } catch where Task.isCancelled {
             return
         } catch {
             historyState = .failed(error.localizedDescription)
         }
+    }
+
+    /// Dismiss any shown/queued option the freshly-loaded history now marks
+    /// resolved. Unlike the derived iOS inbox, this store holds `activeMessage`
+    /// imperatively, so without this a card answered elsewhere while our stream
+    /// was reconnecting would linger until its local expiry.
+    private func reconcileActiveAgainstHistory() {
+        func resolvedInHistory(_ id: MessageID) -> HistoryMessage? {
+            historyMessages.first { $0.id == id && ($0.status == "replied" || $0.status == "expired") }
+        }
+        queuedMessages.removeAll { resolvedInHistory($0.id) != nil }
+        guard let active = activeMessage, let resolved = resolvedInHistory(active.id) else { return }
+        // Already showing the resolved card for this id — don't restart its linger
+        // on a subsequent history refresh.
+        if case .resolved = presentationState { return }
+        let reply = historyMessages.first { $0.replyTo == active.id.rawValue }
+        resolve(OptionResolution(
+            id: active.id,
+            status: resolved.status == "expired" ? .expired : .replied,
+            answer: reply?.body,
+            source: reply?.metadata?.source
+        ))
     }
 
     /// `messageID` is the message the caller was looking at: a skip or a stream resolution can
@@ -168,6 +191,9 @@ public final class OptionFlowStore: ObservableObject {
             connectionState = .connecting
             let stream = await api.messageStream()
             connectionState = .connected
+            // Reconcile on every (re)connect: a resolution that happened while we
+            // were between 5-minute stream cycles is otherwise never delivered.
+            refreshHistoryInBackground()
             do {
                 for try await event in stream {
                     receive(event)

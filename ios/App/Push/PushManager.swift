@@ -62,6 +62,17 @@ final class PushManager: NSObject, ObservableObject {
         UIApplication.shared.registerForRemoteNotifications()
     }
 
+    /// Prompts for permission only when undetermined. An already-authorized user
+    /// is re-registered by `configure()`'s `registerIfAuthorized`, so the connect
+    /// path must not re-`requestAuthorization` — that double-registered every
+    /// launch and flickered the Settings status Registered→Registering→Registered.
+    func promptIfNeeded() {
+        Task {
+            let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            if status == .notDetermined { requestAuthorization() }
+        }
+    }
+
     /// Asks for alert/sound/badge permission and, if granted, registers for APNs.
     func requestAuthorization() {
         let center = UNUserNotificationCenter.current()
