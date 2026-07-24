@@ -27,6 +27,8 @@ struct RootView: View {
         Group {
             if isDemoMode || connection.isConfigured {
                 RootTabView(inbox: inbox, connection: connection)
+            } else if connection.isRestoring {
+                ProgressView().controlSize(.large)
             } else {
                 ConnectView(connection: connection)
             }

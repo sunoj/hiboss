@@ -71,8 +71,10 @@ public func makeConnectionConfig(
     serverAddress: String,
     bossToken: String
 ) -> Result<ConnectionConfig, SettingsError> {
-    let address = serverAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+    let trimmed = serverAddress.trimmingCharacters(in: .whitespacesAndNewlines)
     let token = bossToken.trimmingCharacters(in: .whitespacesAndNewlines)
+    // Accept a bare host ("hiboss.you.workers.dev") by defaulting to https.
+    let address = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
     guard let url = URL(string: address),
           let scheme = url.scheme?.lowercased(),
           ["http", "https"].contains(scheme),

@@ -11,6 +11,9 @@ final class ConnectionStore: ObservableObject {
     @Published var serverAddress: String
     @Published var bossToken: String
     @Published private(set) var config: ConnectionConfig?
+    /// True until the first `restore()` completes, so the shell can show a neutral
+    /// splash instead of flashing onboarding for an already-configured user.
+    @Published private(set) var isRestoring = true
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
@@ -39,6 +42,7 @@ final class ConnectionStore: ObservableObject {
         if case let .success(config) = makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken) {
             self.config = config
         }
+        isRestoring = false
     }
 
     /// Validates + persists the entered credentials and verifies them against the server.

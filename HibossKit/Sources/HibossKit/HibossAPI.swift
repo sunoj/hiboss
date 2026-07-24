@@ -12,12 +12,22 @@ public enum HibossAPIError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            "The server returned an invalid response."
+            return "The server returned an invalid response."
         case let .requestFailed(status, message):
-            message.isEmpty ? "Server request failed (HTTP \(status))." : message
+            if status == 401 || status == 403 {
+                return "That Boss Token was rejected. Check the token and try again."
+            }
+            return message.isEmpty ? "Server request failed (HTTP \(status))." : message
         case let .decodingFailed(context, body):
-            "Couldn't read \(context). Server sent: \(body.prefix(200))"
+            return "Couldn't read \(context). Server sent: \(body.prefix(200))"
         }
+    }
+
+    /// A rejected credential (vs a transient/network failure) — callers stop
+    /// retrying and prompt to reconnect instead of hammering with a dead token.
+    public var isAuthFailure: Bool {
+        if case let .requestFailed(status, _) = self { return status == 401 || status == 403 }
+        return false
     }
 }
 

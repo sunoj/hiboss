@@ -9,6 +9,7 @@ struct RootTabView: View {
     @ObservedObject var inbox: InboxStore
     @ObservedObject var connection: ConnectionStore
     @ObservedObject private var router = AppRouter.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var tab = 0
     @State private var inboxPath = NavigationPath()
@@ -39,7 +40,7 @@ struct RootTabView: View {
             .tag(2)
 
             NavigationStack {
-                SettingsView(connection: connection)
+                SettingsView(connection: connection, connectionState: inbox.connectionState)
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
             .tag(3)
@@ -52,6 +53,11 @@ struct RootTabView: View {
             router.pendingMessageID = nil
             tab = 0
             inboxPath = NavigationPath([messageID])
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // iOS drops the SSE while backgrounded; on return, reload history so
+            // decisions that arrived (or resolved elsewhere) meanwhile show up.
+            if phase == .active { inbox.refreshHistory() }
         }
     }
 }
