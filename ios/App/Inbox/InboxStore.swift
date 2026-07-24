@@ -35,6 +35,11 @@ final class InboxStore: ObservableObject {
 
     var pendingCount: Int { pending.count }
 
+    /// True once a backing API is attached (i.e. `start` has run). Deep-linked
+    /// detail views poll this to avoid declaring a message missing during the
+    /// cold-launch window before the store is connected.
+    var isReady: Bool { api != nil }
+
     func start(api: any BossServing) {
         stop()
         self.api = api
