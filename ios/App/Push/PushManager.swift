@@ -38,6 +38,16 @@ final class PushManager: NSObject {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         center.setNotificationCategories([optionsCategory(), messageCategory()])
+        Task { await registerIfAuthorized() }
+    }
+
+    /// Re-registers for APNs on every launch when already authorized, so a
+    /// reinstall / restore / OS token rotation refreshes the server's token.
+    /// The grant-time path in `requestAuthorization` only covers first consent.
+    func registerIfAuthorized() async {
+        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional || status == .ephemeral else { return }
+        UIApplication.shared.registerForRemoteNotifications()
     }
 
     /// Asks for alert/sound/badge permission and, if granted, registers for APNs.
