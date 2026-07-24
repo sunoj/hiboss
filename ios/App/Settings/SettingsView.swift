@@ -107,17 +107,38 @@ struct SettingsView: View {
 
 private struct NotificationsSection: View {
     @ObservedObject var push: PushStatusStore
+    @ObservedObject private var manager = PushManager.shared
 
     var body: some View {
         Section("Notifications") {
             LabeledContent("Push") {
                 Text(push.label).foregroundStyle(push.isEnabled ? .green : .secondary)
             }
+            // OS authorization ≠ the server actually has a live device token; show
+            // the registration result so "Enabled" can't hide a device that
+            // receives nothing.
+            if push.isEnabled {
+                LabeledContent("Device") { deviceStatus }
+            }
             if !push.isEnabled {
                 Button(actionTitle) {
                     if push.mustOpenSystemSettings { push.openSystemSettings() } else { push.request() }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var deviceStatus: some View {
+        switch manager.registration {
+        case .idle:
+            Text("Not registered").foregroundStyle(.secondary)
+        case .registering:
+            HStack(spacing: 6) { ProgressView(); Text("Registering…").foregroundStyle(.secondary) }
+        case .registered:
+            Label("Registered", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+        case let .failed(message):
+            Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
         }
     }
 
