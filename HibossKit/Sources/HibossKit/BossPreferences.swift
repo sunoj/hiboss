@@ -91,6 +91,8 @@ public struct BossPreferences: Codable, Equatable, Sendable {
     /// When true, pushes carry only a generic alert + message id; the app fetches
     /// the body over TLS so content never reaches Apple's servers.
     public var privatePush: Bool?
+    /// When false, decision requests follow normal push tiering and skip Live Activities.
+    public var decisionAlerts: Bool?
     private let preservedRouting: [String: [String]]?
 
     enum CodingKeys: String, CodingKey {
@@ -98,18 +100,21 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         case quietHours = "quiet_hours"
         case push
         case privatePush = "private_push"
+        case decisionAlerts = "decision_alerts"
     }
 
     public init(
         routing: [MessagePriority: [NotificationChannel]]? = nil,
         quietHours: QuietHours? = nil,
         push: [MessagePriority: PushRule]? = nil,
-        privatePush: Bool? = nil
+        privatePush: Bool? = nil,
+        decisionAlerts: Bool? = nil
     ) {
         self.routing = routing
         self.quietHours = quietHours
         self.push = push
         self.privatePush = privatePush
+        self.decisionAlerts = decisionAlerts
         self.preservedRouting = nil
     }
 
@@ -121,6 +126,7 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         preservedRouting = decodedRouting.raw
         push = try Self.decodePush(from: values)
         privatePush = try values.decodeIfPresent(Bool.self, forKey: .privatePush)
+        decisionAlerts = try values.decodeIfPresent(Bool.self, forKey: .decisionAlerts)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -129,11 +135,13 @@ public struct BossPreferences: Codable, Equatable, Sendable {
         try encodeRouting(into: &values)
         try encodePush(into: &values)
         try values.encodeIfPresent(privatePush, forKey: .privatePush)
+        try values.encodeIfPresent(decisionAlerts, forKey: .decisionAlerts)
     }
 
     public static func == (lhs: BossPreferences, rhs: BossPreferences) -> Bool {
         lhs.routing == rhs.routing && lhs.quietHours == rhs.quietHours
             && lhs.push == rhs.push && lhs.privatePush == rhs.privatePush
+            && lhs.decisionAlerts == rhs.decisionAlerts
     }
 
     private static func decodePush(

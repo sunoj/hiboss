@@ -93,7 +93,8 @@ async function notifyBossDevices(
   const preferencesByBoss = new Map(bosses.map((boss) => [boss.id, boss.preferences]));
   for (const device of devices.results) {
     const prefs = preferencesByBoss.get(device.boss_id);
-    const tier = pushTier(message.priority, isDecision, prefs);
+    const effectiveDecision = isDecision && decisionAlertsEnabled(prefs);
+    const tier = pushTier(message.priority, effectiveDecision, prefs);
     if (!tier.deliver) continue;
     try {
       const payload = buildBossPushPayload(message, agentName, device.boss_id, tier, isPrivatePush(prefs));
@@ -169,6 +170,16 @@ function isPrivatePush(preferences: string | null | undefined): boolean {
     return parsed.private_push === true;
   } catch {
     return false;
+  }
+}
+
+function decisionAlertsEnabled(preferences: string | null | undefined): boolean {
+  if (!preferences) return true;
+  try {
+    const parsed = JSON.parse(preferences) as Record<string, unknown>;
+    return parsed.decision_alerts !== false;
+  } catch {
+    return true;
   }
 }
 

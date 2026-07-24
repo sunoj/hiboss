@@ -8,6 +8,7 @@ import SwiftUI
 struct RootTabView: View {
     @ObservedObject var inbox: InboxStore
     @ObservedObject var connection: ConnectionStore
+    @ObservedObject var preferences: PreferencesStore
     @ObservedObject private var router = AppRouter.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -45,7 +46,17 @@ struct RootTabView: View {
                 SettingsView(
                     connection: connection,
                     connectionState: inbox.connectionState,
-                    onReconnect: { if let api = connection.makeAPI() { inbox.start(api: api) } }
+                    prefs: preferences,
+                    onReconnect: {
+                        if let api = connection.makeAPI() {
+                            Task {
+                                await preferences.load(api: api)
+                                inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+                                inbox.start(api: api)
+                            }
+                        }
+                    },
+                    onDecisionAlertsChanged: { inbox.setDecisionAlertsEnabled($0) }
                 )
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }

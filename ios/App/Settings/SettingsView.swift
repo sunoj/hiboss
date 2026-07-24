@@ -10,11 +10,12 @@ struct SettingsView: View {
     /// Live stream state, so Status reflects the real connection — not just that
     /// credentials exist (a revoked token used to still read "Connected").
     let connectionState: ConnectionState
+    @ObservedObject var prefs: PreferencesStore
     /// Re-attaches the stream with the existing token (transient failures / a
     /// recovered server), without wiping credentials like Sign Out does.
     var onReconnect: () -> Void = {}
+    var onDecisionAlertsChanged: (Bool) -> Void = { _ in }
     @StateObject private var push = PushStatusStore()
-    @StateObject private var prefs = PreferencesStore()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -50,8 +51,18 @@ struct SettingsView: View {
                         get: { prefs.privatePush },
                         set: { prefs.setPrivatePush($0) }
                     ))
+                    Toggle("Alert on decisions", isOn: Binding(
+                        get: { prefs.decisionAlerts },
+                        set: {
+                            prefs.setDecisionAlerts($0)
+                            onDecisionAlertsChanged($0)
+                        }
+                    ))
                 } footer: {
-                    Text("Keep message content off Apple's servers: pushes show only a generic alert, and the app fetches the body from your server when opened.")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Keep message content off Apple's servers: pushes show only a generic alert, and the app fetches the body from your server when opened.")
+                        Text("Requests that need a decision light up the Dynamic Island and lock screen even at normal priority. Turn off to let them follow normal priority tiering.")
+                    }
                 }
                 preferencesStatus
             }
@@ -79,7 +90,10 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .task {
             await push.refresh()
-            if isDemoMode { prefs.loadDemo() } else { await prefs.load(api: connection.makeAPI()) }
+            if case .idle = prefs.state {
+                if isDemoMode { prefs.loadDemo() } else { await prefs.load(api: connection.makeAPI()) }
+                onDecisionAlertsChanged(prefs.decisionAlerts)
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -87,6 +101,7 @@ struct SettingsView: View {
                 await push.refresh()
                 if case .failed = prefs.state, !prefs.isDirty, !isDemoMode {
                     await prefs.load(api: connection.makeAPI())
+                    onDecisionAlertsChanged(prefs.decisionAlerts)
                 }
             }
         }
