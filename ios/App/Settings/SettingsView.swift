@@ -10,13 +10,16 @@ struct SettingsView: View {
     /// Live stream state, so Status reflects the real connection — not just that
     /// credentials exist (a revoked token used to still read "Connected").
     let connectionState: ConnectionState
+    /// Re-attaches the stream with the existing token (transient failures / a
+    /// recovered server), without wiping credentials like Sign Out does.
+    var onReconnect: () -> Void = {}
     @StateObject private var push = PushStatusStore()
     @StateObject private var prefs = PreferencesStore()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Form {
-            Section("Connection") {
+            Section {
                 LabeledContent("Server", value: connection.config?.serverURL.host() ?? "—")
                 LabeledContent("Status") {
                     if connection.isConfigured {
@@ -24,6 +27,15 @@ struct SettingsView: View {
                     } else {
                         Text("Not connected").foregroundStyle(.secondary)
                     }
+                }
+                if connection.isConfigured, case .failed = connectionState {
+                    Button("Reconnect", action: onReconnect)
+                }
+            } header: {
+                Text("Connection")
+            } footer: {
+                if let detail = connectionState.detail {
+                    Text(detail).foregroundStyle(.red)
                 }
             }
 

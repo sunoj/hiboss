@@ -40,7 +40,11 @@ struct RootTabView: View {
             .tag(2)
 
             NavigationStack {
-                SettingsView(connection: connection, connectionState: inbox.connectionState)
+                SettingsView(
+                    connection: connection,
+                    connectionState: inbox.connectionState,
+                    onReconnect: { if let api = connection.makeAPI() { inbox.start(api: api) } }
+                )
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
             .tag(3)

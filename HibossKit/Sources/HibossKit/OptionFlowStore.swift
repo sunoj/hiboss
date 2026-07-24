@@ -19,6 +19,12 @@ public enum ConnectionState: Equatable {
         case .failed: "Connection failed"
         }
     }
+
+    /// The failure reason for `.failed`, if any — surfaced where space allows.
+    public var detail: String? {
+        if case let .failed(message) = self, !message.isEmpty { return message }
+        return nil
+    }
 }
 
 public enum PresentationState: Equatable {
