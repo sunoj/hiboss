@@ -25,7 +25,10 @@ describe('Boss option stream lifecycle', () => {
 
     const first = await openOptionStream();
     const second = await openOptionStream();
-    expect(await readEvent(first)).toContain(messageId);
+    const firstMessage = await readEvent(first);
+    expect(firstMessage).toContain(messageId);
+    expect(firstMessage).toContain(`"session_label":"project-${messageId}"`);
+    expect(firstMessage).toContain(`"session_branch":"branch-${messageId}"`);
     expect(await readEvent(second)).toContain(messageId);
 
     const reply = await replyTo(messageId, 'Approve', 'ios');
@@ -116,11 +119,15 @@ describe('Boss option stream lifecycle', () => {
 
 async function insertOptionMessage(messageId: string, expiresInSeconds: number): Promise<void> {
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1_000).toISOString();
+  const sessionId = `session-${messageId}`;
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO sessions (id, agent_id, label, branch) VALUES (?, ?, ?, ?)',
+  ).bind(sessionId, getTestAgentId(), `project-${messageId}`, `branch-${messageId}`).run();
   await env.DB.prepare(
     `INSERT INTO messages
-      (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at)
-     VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Choose', 'sent', 'normal', ?, ?)`,
-  ).bind(messageId, getTestAgentId(), JSON.stringify({ options: ['Approve', 'Wait'] }), expiresAt).run();
+      (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at, session_id)
+     VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Choose', 'sent', 'normal', ?, ?, ?)`,
+  ).bind(messageId, getTestAgentId(), JSON.stringify({ options: ['Approve', 'Wait'] }), expiresAt, sessionId).run();
 }
 
 async function openOptionStream(): Promise<ReadableStreamDefaultReader<Uint8Array>> {
