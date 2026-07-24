@@ -21,8 +21,8 @@ extension HistoryMessage {
 
     var displayName: String { agentName ?? "agent" }
 
-    var content: String? { nonEmpty(metadata?.content) }
-
+    // `content` comes from HibossKit's HistoryMessage.content (metadata.content);
+    // the Live Activity widget trims/empties it at render via LA.nonEmpty.
     var project: String? { nonEmpty(sessionLabel) ?? nonEmpty(sessionBranch) }
 
     /// e.g. "agent→boss · discord"
