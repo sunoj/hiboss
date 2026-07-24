@@ -48,17 +48,7 @@ struct MessageDetailView: View {
     }
 
     /// Human label for where the decision was resolved, e.g. "iOS", "Telegram".
-    private var resolutionSourceLabel: String? {
-        switch reply?.metadata?.source?.lowercased() {
-        case "ios": "iOS"
-        case "macos", "mac": "Mac"
-        case "telegram": "Telegram"
-        case "discord": "Discord"
-        case "api": "API"
-        case let other?: other.capitalized
-        case nil: nil
-        }
-    }
+    private var resolutionSourceLabel: String? { HibossKit.resolutionSourceLabel(reply?.metadata?.source) }
 
     var body: some View {
         if let message {
@@ -280,21 +270,36 @@ struct MessageDetailView: View {
 }
 
 /// The messages belonging to one session, each drilling into its detail.
+/// Recomputes live from `store.history` (so resolutions/arrivals update in place)
+/// and reads oldest→newest like a conversation.
 struct SessionMessagesView: View {
     @ObservedObject var store: InboxStore
     let route: SessionRoute
 
     private var messages: [HistoryMessage] {
-        store.history.filter { $0.sessionId?.trimmingCharacters(in: .whitespaces) == route.id }
+        store.history
+            .filter { SessionGrouping.sessionKey(for: $0) == route.id }
+            .sorted { ($0.createdDate ?? .distantPast) < ($1.createdDate ?? .distantPast) }
     }
 
     var body: some View {
-        List {
-            ForEach(messages) { message in
-                NavigationLink(value: message.id) { HistoryRow(message: message) }
+        Group {
+            if messages.isEmpty {
+                ContentUnavailableView(
+                    "No messages",
+                    systemImage: "tray",
+                    description: Text("This session has no messages yet.")
+                )
+            } else {
+                List {
+                    ForEach(messages) { message in
+                        NavigationLink(value: message.id) { HistoryRow(message: message) }
+                    }
+                }
+                .listStyle(.plain)
             }
         }
-        .listStyle(.plain)
+        .refreshable { await store.refresh() }
         .navigationTitle(route.label)
         .navigationBarTitleDisplayMode(.inline)
     }

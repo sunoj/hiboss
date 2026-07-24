@@ -43,7 +43,10 @@ public enum SessionGrouping {
         .sorted { newestDate(in: $0.messages) > newestDate(in: $1.messages) }
     }
 
-    private static func sessionKey(for message: HistoryMessage) -> String {
+    /// The grouping key for a message — its trimmed `sessionId`, or the shared
+    /// "direct" bucket for nil/blank ids. Public so a session detail view can
+    /// select exactly the messages a `SessionGroup` was built from.
+    public static func sessionKey(for message: HistoryMessage) -> String {
         let trimmed = message.sessionId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? directSessionID : trimmed
     }

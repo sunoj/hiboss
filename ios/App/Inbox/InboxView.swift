@@ -37,9 +37,9 @@ struct InboxView: View {
         }
         .sheet(item: $replyTarget) { message in
             ReplySheet(message: message) { choice in
-                handleReply(choice, to: message.id)
+                await store.reply(choice, to: message.id)
             }
-            .presentationDetents([.height(300)])
+            .presentationDetents([.medium, .large])
         }
         .alert(
             "Heads up",

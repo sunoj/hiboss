@@ -1,61 +1,85 @@
 // Sheet for answering a decision with a listed option or a free-text reply.
 // Exports: ReplySheet presented from a pending card's overflow action.
-// Dependencies: SwiftUI, HibossKit, theme tokens.
+// Dependencies: SwiftUI, HibossKit, UIKit (haptics).
 
 import HibossKit
 import SwiftUI
+import UIKit
 
 struct ReplySheet: View {
     let message: HistoryMessage
-    var onSend: (String) -> Void
+    /// Performs the reply and reports the real outcome, so the sheet stays up on
+    /// failure / already-resolved instead of dismissing before the call resolves.
+    var onSend: (String) async -> ReplyResult
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ""
+    @State private var submitting: String?
+    @State private var note: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 6) {
-                Text(message.displayName).hbLabel().foregroundStyle(Theme.ink3)
-                if message.isResolved {
-                    Text(message.status).font(.hbMonoSmall).foregroundStyle(Theme.ink4)
+        NavigationStack {
+            Form {
+                Section {
+                    Text(message.body)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
                 }
-            }
-            Text(message.body)
-                .font(.hbSmall)
-                .foregroundStyle(Theme.ink2)
-                .lineLimit(3)
 
-            if message.isPendingDecision, !message.options.isEmpty {
-                VStack(spacing: 8) {
-                    ForEach(message.options, id: \.self) { option in
-                        OptionButton(title: option, style: .secondary, alignment: .leading) {
-                            onSend(option); dismiss()
+                if message.isPendingDecision, !message.options.isEmpty {
+                    Section("Options") {
+                        ForEach(message.options, id: \.self) { option in
+                            Button { send(option) } label: {
+                                HStack {
+                                    Text(option)
+                                    Spacer()
+                                    if submitting == option { ProgressView() }
+                                }
+                            }
+                            .disabled(submitting != nil)
                         }
                     }
                 }
-            }
 
-            HStack(spacing: 8) {
-                TextField("Type a reply…", text: $draft, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.hbBody)
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 42)
-                    .background(Theme.surface2)
-                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .strokeBorder(Theme.line2, lineWidth: 1)
-                    )
-                OptionButton(title: "Send", style: .primary) {
-                    let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    onSend(trimmed); dismiss()
+                Section("Reply") {
+                    TextField("Type a reply…", text: $draft, axis: .vertical)
+                        .disabled(submitting != nil)
+                    Button("Send") { send(draft) }
+                        .disabled(submitting != nil || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .frame(width: 84)
+
+                if let note {
+                    Section {
+                        Label(note, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                    }
+                }
+            }
+            .navigationTitle(message.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
         }
-        .padding(20)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Theme.paper)
+    }
+
+    private func send(_ choice: String) {
+        let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, submitting == nil else { return }
+        submitting = text
+        note = nil
+        Task {
+            let result = await onSend(text)
+            submitting = nil
+            switch result {
+            case .sent:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                dismiss()
+            case .alreadyResolved:
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                note = "Already answered elsewhere."
+            case .failed:
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                note = "Couldn't send your reply. Try again."
+            }
+        }
     }
 }

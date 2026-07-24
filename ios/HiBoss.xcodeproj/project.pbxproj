@@ -48,7 +48,6 @@
 		E840803EA89DCF2369E683E7 /* DecisionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6984921D9196A67C9F627A26 /* DecisionActivity.swift */; };
 		F2A955D7979A57ED705CFB78 /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E7782E6F85B6837B7AA3E88 /* MessagesView.swift */; };
 		F3DA72E26461EDBB50251B9A /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C50796B18EE77AC58212D46 /* Typography.swift */; };
-		F482C26EB43D8672D70E2432 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74FCA0CBA7EEB8A077914557 /* SessionDetailView.swift */; };
 		F9206BC91FCBEF650BFD18E5 /* SessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92707467B3C96A837DD1FC5E /* SessionCard.swift */; };
 /* End PBXBuildFile section */
 
@@ -98,7 +97,6 @@
 		7141C8FE7EA391AD4C3B160C /* HibossKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = HibossKit; path = ../HibossKit; sourceTree = SOURCE_ROOT; };
 		714548036141EBBCA3849272 /* HiBoss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HiBoss.entitlements; sourceTree = "<group>"; };
 		71907C16801CD73E13B8C90D /* RoutingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutingSection.swift; sourceTree = "<group>"; };
-		74FCA0CBA7EEB8A077914557 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		7CA31A0E63F84D54574E1FAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRow.swift; sourceTree = "<group>"; };
 		80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RespondIntent.swift; sourceTree = "<group>"; };
@@ -198,7 +196,6 @@
 			isa = PBXGroup;
 			children = (
 				92707467B3C96A837DD1FC5E /* SessionCard.swift */,
-				74FCA0CBA7EEB8A077914557 /* SessionDetailView.swift */,
 				D4472CB219A227288F168212 /* SessionsView.swift */,
 			);
 			path = Sessions;
@@ -470,7 +467,6 @@
 				A6D52D02F7F9A096BEC123B0 /* RootTabView.swift in Sources */,
 				8A173100FC93F5D88A35F31F /* RoutingSection.swift in Sources */,
 				F9206BC91FCBEF650BFD18E5 /* SessionCard.swift in Sources */,
-				F482C26EB43D8672D70E2432 /* SessionDetailView.swift in Sources */,
 				A5EC5D86F37311FE30E74AD3 /* SessionSectionHeader.swift in Sources */,
 				634D1F39A52B99D7231102F5 /* SessionsView.swift in Sources */,
 				45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */,

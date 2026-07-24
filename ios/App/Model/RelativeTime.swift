@@ -40,6 +40,12 @@ enum RelativeTime {
         if seconds < 3600 { return "\(Int(seconds / 60))m ago" }
         if seconds < 86_400 { return "\(Int(seconds / 3600))h ago" }
         if seconds < 604_800 { return "\(Int(seconds / 86_400))d ago" }
-        return date.formatted(.dateTime.month(.abbreviated).day())
+        let calendar = Calendar.current
+        // Include the year once it isn't the current one, so "Jul 24" can't be
+        // mistaken for a different year's date.
+        if calendar.component(.year, from: date) == calendar.component(.year, from: now) {
+            return date.formatted(.dateTime.month(.abbreviated).day())
+        }
+        return date.formatted(.dateTime.year().month(.abbreviated).day())
     }
 }
