@@ -28,5 +28,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         pushLog.error("APNs registration failed: \(error.localizedDescription)")
+        Task { @MainActor in PushManager.shared.registrationFailed(error) }
     }
 }

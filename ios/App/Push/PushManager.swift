@@ -21,9 +21,17 @@ enum PushAction {
     static let reply = "HIBOSS_REPLY"
 }
 
+/// Server-side device-registration state, surfaced in Settings so "Push:
+/// Enabled" (OS auth) can't imply the device is actually reachable.
+enum DeviceRegistration: Equatable {
+    case idle, registering, registered, failed(String)
+}
+
 @MainActor
-final class PushManager: NSObject {
+final class PushManager: NSObject, ObservableObject {
     static let shared = PushManager()
+
+    @Published private(set) var registration: DeviceRegistration = .idle
 
     private var environment: String {
         #if DEBUG
@@ -46,7 +54,11 @@ final class PushManager: NSObject {
     /// The grant-time path in `requestAuthorization` only covers first consent.
     func registerIfAuthorized() async {
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        guard status == .authorized || status == .provisional || status == .ephemeral else { return }
+        guard status == .authorized || status == .provisional || status == .ephemeral else {
+            registration = .idle
+            return
+        }
+        registration = .registering
         UIApplication.shared.registerForRemoteNotifications()
     }
 
@@ -56,8 +68,16 @@ final class PushManager: NSObject {
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error { pushLog.error("auth error: \(error.localizedDescription)") }
             guard granted else { pushLog.info("notifications not granted"); return }
-            Task { @MainActor in UIApplication.shared.registerForRemoteNotifications() }
+            Task { @MainActor in
+                self.registration = .registering
+                UIApplication.shared.registerForRemoteNotifications()
+            }
         }
+    }
+
+    /// APNs failed to hand us a token (no network, provisioning, etc.).
+    func registrationFailed(_ error: Error) {
+        registration = .failed(error.localizedDescription)
     }
 
     /// Called from the app delegate with the raw APNs token; forwards it to the server.
@@ -65,14 +85,18 @@ final class PushManager: NSObject {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
         guard let bundleId = Bundle.main.bundleIdentifier, let api = HiBossStore.bossAPI() else {
             pushLog.info("skipping token registration — not configured")
+            registration = .failed("Not connected to a server")
             return
         }
+        registration = .registering
         Task {
             do {
                 try await api.registerDevice(token: hex, bundleId: bundleId, environment: environment)
                 pushLog.info("registered device token with server")
+                registration = .registered
             } catch {
                 pushLog.error("device registration failed: \(error.localizedDescription)")
+                registration = .failed(error.localizedDescription)
             }
         }
     }
