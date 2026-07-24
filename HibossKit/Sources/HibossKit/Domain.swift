@@ -240,16 +240,20 @@ public struct OptionResolution: Codable, Equatable, Sendable {
     }
 
     /// Human label for the resolving surface, e.g. "iOS", "Mac", "Telegram".
-    public var sourceLabel: String? {
-        switch source?.lowercased() {
-        case "ios": "iOS"
-        case "macos", "mac": "Mac"
-        case "telegram": "Telegram"
-        case "discord": "Discord"
-        case "api": "API"
-        case let other?: other.capitalized
-        case nil: nil
-        }
+    public var sourceLabel: String? { resolutionSourceLabel(source) }
+}
+
+/// Maps a raw resolution-source tag to a display label. Shared so the option
+/// stream and the message-detail view can't drift apart.
+public func resolutionSourceLabel(_ source: String?) -> String? {
+    switch source?.lowercased() {
+    case "ios": return "iOS"
+    case "macos", "mac": return "Mac"
+    case "telegram": return "Telegram"
+    case "discord": return "Discord"
+    case "api": return "API"
+    case let other?: return other.capitalized
+    case nil: return nil
     }
 }
 

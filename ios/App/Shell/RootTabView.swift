@@ -35,6 +35,8 @@ struct RootTabView: View {
 
             NavigationStack {
                 SessionsView(store: inbox)
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             }
             .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
             .tag(2)

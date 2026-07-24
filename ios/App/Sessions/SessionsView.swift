@@ -7,7 +7,6 @@ import SwiftUI
 
 struct SessionsView: View {
     @ObservedObject var store: InboxStore
-    @State private var selected: SessionGroup?
 
     private var groups: [SessionGroup] { SessionGrouping.groupBySession(store.history) }
 
@@ -23,8 +22,9 @@ struct SessionsView: View {
         ) {
             List {
                 ForEach(groups) { group in
-                    Button { selected = group } label: { SessionCard(group: group) }
-                        .buttonStyle(.plain)
+                    NavigationLink(value: SessionRoute(id: group.id, label: group.label)) {
+                        SessionCard(group: group)
+                    }
                 }
             }
             .listStyle(.plain)
@@ -35,9 +35,6 @@ struct SessionsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 ConnectionDot(state: store.connectionState)
             }
-        }
-        .sheet(item: $selected) { group in
-            SessionDetailView(group: group, store: store)
         }
     }
 }
