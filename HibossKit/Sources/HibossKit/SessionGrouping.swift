@@ -9,6 +9,7 @@ public struct SessionGroup: Identifiable, Equatable, Sendable {
     public let label: String
     public let agentName: String?
     public let status: String?
+    public let branch: String?
     public let messages: [HistoryMessage]
 
     public var isExpandedByDefault: Bool {
@@ -53,6 +54,7 @@ public enum SessionGrouping {
             label: groupLabel(id: id, messages: messages),
             agentName: messages.lazy.compactMap { clean($0.agentName) }.first,
             status: messages.reversed().lazy.compactMap { clean($0.sessionStatus) }.first,
+            branch: messages.lazy.compactMap { clean($0.sessionBranch) }.first,
             messages: messages
         )
     }

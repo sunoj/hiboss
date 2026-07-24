@@ -55,6 +55,10 @@ struct SessionCard: View {
     private var metaRow: some View {
         HStack(spacing: 12) {
             if !statusLabel.isEmpty { chip("circle.fill", statusLabel, statusColor) }
+            if let agent = group.agentName, !agent.isEmpty { chip("person", agent, .secondary) }
+            if let branch = group.branch, !branch.isEmpty {
+                chip("arrow.triangle.branch", branch, .secondary)
+            }
             chip("bubble.left", "\(group.messages.count)", .secondary)
             if let last = group.lastActivity {
                 chip("clock", RelativeTime.short(from: last), .secondary)
@@ -63,6 +67,7 @@ struct SessionCard: View {
         }
         .font(.caption)
         .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 
     private func chip(_ icon: String, _ text: String, _ tint: Color) -> some View {

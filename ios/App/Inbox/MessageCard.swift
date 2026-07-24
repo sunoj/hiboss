@@ -22,6 +22,11 @@ struct MessageCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             metaRow
             actions
+            if let defaultOption {
+                Label("Auto-selects “\(defaultOption)” on timeout", systemImage: "clock.arrow.circlepath")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(14)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -47,10 +52,33 @@ struct MessageCard: View {
                 Text(message.metaLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let session = sessionText {
+                    Label(session, systemImage: "square.stack.3d.up")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 6)
             PriorityBadge(priority: priority)
         }
+    }
+
+    /// Which session/worktree is asking — critical when several run under one agent.
+    private var sessionText: String? {
+        for candidate in [message.sessionLabel, message.sessionBranch] {
+            if let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    /// The option the server auto-selects on timeout, if the asker marked one.
+    private var defaultOption: String? {
+        guard let value = message.defaultOption?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        return value
     }
 
     @ViewBuilder
@@ -65,16 +93,18 @@ struct MessageCard: View {
                 .font(.caption)
                 .foregroundStyle(priority == .critical ? Color.red : .secondary)
             }
-            Text(optionsHint)
+            // Blocking/async is the strongest urgency cue — show it independent of
+            // the option count (previously hidden once there were >2 options).
+            Text(message.mode == "blocking" ? "Blocking" : "Async")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if options.count > 2 {
+                Text("\(options.count) options")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer(minLength: 0)
         }
-    }
-
-    private var optionsHint: String {
-        if options.count > 2 { return "\(options.count) options" }
-        return message.mode == "blocking" ? "Blocking" : "Async"
     }
 
     @ViewBuilder
