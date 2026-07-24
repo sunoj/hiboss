@@ -144,7 +144,7 @@ function buildBossPushPayload(
     ? (summary ?? (options ? `New decision from ${agentName}` : `New message from ${agentName}`))
     : normalPushBody(message.body, agentName, projectLabel);
   const alert: ApnsPayload['aps']['alert'] = {
-    title: privatePush ? 'HiBoss' : (projectLabel ?? (agentName || 'HiBoss')),
+    title: privatePush ? 'HiBoss' : (projectLabel || agentName || 'HiBoss'),
     body,
   };
   if (!privatePush && content) {
