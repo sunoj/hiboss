@@ -46,6 +46,25 @@ final class HistoryMessageDecodingTests: XCTestCase {
         XCTAssertNil(message.sessionBranch)
         XCTAssertNil(message.sessionStatus)
     }
+
+    func testReadsContentFromMetadata() throws {
+        let json = """
+        {
+          "id": "m3",
+          "body": "Approve retry?",
+          "direction": "agent_to_boss",
+          "status": "delivered",
+          "priority": "normal",
+          "created_at": "2026-07-15T10:00:00Z",
+          "metadata": {
+            "options": ["Approve", "Reject"],
+            "content": "payments · retry policy"
+          }
+        }
+        """
+        let message = try JSONDecoder().decode(HistoryMessage.self, from: Data(json.utf8))
+        XCTAssertEqual(message.content, "payments · retry policy")
+    }
 }
 
 final class SSEDecodingTests: XCTestCase {
@@ -60,6 +79,33 @@ final class SSEDecodingTests: XCTestCase {
         }
         XCTAssertEqual(message.id, "m1")
         XCTAssertEqual(message.options, ["Yes", "No"])
+    }
+
+    func testDecodesOptionMessageSessionFieldsAndContent() throws {
+        let json = """
+        {
+          "id": "m2",
+          "body": "Approve retry?",
+          "agent_name": "codex",
+          "metadata": {
+            "options": ["Approve", "Reject"],
+            "content": "payments · retry policy"
+          },
+          "session_label": "hiboss · feat/notif-project-forward",
+          "session_branch": "feat/notif-project-forward"
+        }
+        """
+        let decoded = try JSONDecoder().decode(OptionMessage.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.sessionLabel, "hiboss · feat/notif-project-forward")
+        XCTAssertEqual(decoded.sessionBranch, "feat/notif-project-forward")
+        XCTAssertEqual(decoded.content, "payments · retry policy")
+
+        let encoded = try JSONEncoder().encode(decoded)
+        let roundTripped = try JSONDecoder().decode(OptionMessage.self, from: encoded)
+        XCTAssertEqual(roundTripped.sessionLabel, decoded.sessionLabel)
+        XCTAssertEqual(roundTripped.sessionBranch, decoded.sessionBranch)
+        XCTAssertEqual(roundTripped.content, decoded.content)
     }
 
     func testDecodesResolvedEvent() {

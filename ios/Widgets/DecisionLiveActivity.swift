@@ -20,6 +20,13 @@ private enum LA {
         default: Color(red: 0x7A / 255, green: 0x79 / 255, blue: 0x74 / 255)
         }
     }
+
+    static func nonEmpty(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
+    }
 }
 
 struct DecisionLiveActivity: Widget {
@@ -34,10 +41,15 @@ struct DecisionLiveActivity: Widget {
                     HStack(spacing: 8) {
                         Logo()
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(context.attributes.agentName)
+                            Text(context.attributes.project)
                                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(LA.ink)
-                            Text(context.attributes.meta)
-                                .font(.system(size: 9, design: .monospaced)).foregroundStyle(LA.ink2)
+                            if let content = LA.nonEmpty(context.state.content) {
+                                Text(content)
+                                    .font(.system(size: 9)).foregroundStyle(LA.ink2)
+                            } else {
+                                Text(context.attributes.meta)
+                                    .font(.system(size: 9, design: .monospaced)).foregroundStyle(LA.ink2)
+                            }
                         }
                     }
                 }
@@ -51,10 +63,16 @@ struct DecisionLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(context.state.body)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(LA.ink)
-                            .lineLimit(2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(context.attributes.agentName)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(LA.ink2)
+                                .lineLimit(1)
+                            Text(context.state.body)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(LA.ink)
+                                .lineLimit(2)
+                        }
                         ActionButtons(context: context)
                     }
                 }
@@ -121,13 +139,21 @@ private struct LockScreenCard: View {
                 Logo(size: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 7) {
-                        Text("HiBoss").font(.system(size: 14, weight: .semibold)).foregroundStyle(LA.ink)
+                        Text(context.attributes.project)
+                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(LA.ink)
+                            .lineLimit(1)
                         Text(context.state.priority.uppercased())
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundStyle(LA.priorityColor(context.state.priority))
                     }
-                    Text("\(context.attributes.agentName) · \(context.attributes.meta)")
-                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(LA.ink2)
+                    if let content = LA.nonEmpty(context.state.content) {
+                        Text(content)
+                            .font(.system(size: 11)).foregroundStyle(LA.ink2)
+                            .lineLimit(1)
+                    }
+                    Text(context.attributes.meta)
+                        .font(.system(size: 10, design: .monospaced)).foregroundStyle(LA.ink2)
+                        .lineLimit(1)
                 }
                 Spacer()
                 if let deadline = context.state.deadline {
@@ -136,9 +162,15 @@ private struct LockScreenCard: View {
                         .foregroundStyle(LA.rust).frame(width: 48)
                 }
             }
-            Text(context.state.body)
-                .font(.system(size: 14.5)).foregroundStyle(LA.ink.opacity(0.92))
-                .lineLimit(3)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(context.attributes.agentName)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(LA.ink2)
+                    .lineLimit(1)
+                Text(context.state.body)
+                    .font(.system(size: 14.5)).foregroundStyle(LA.ink.opacity(0.92))
+                    .lineLimit(3)
+            }
             if !context.state.resolved {
                 ActionButtons(context: context)
             } else {

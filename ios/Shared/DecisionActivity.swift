@@ -15,9 +15,11 @@ struct DecisionActivityAttributes: ActivityAttributes {
         var priority: String
         var deadline: Date?
         var resolved: Bool
+        var content: String?
     }
 
     var messageID: String
+    var project: String
     var agentName: String
     var meta: String
 }

@@ -21,6 +21,10 @@ extension HistoryMessage {
 
     var displayName: String { agentName ?? "agent" }
 
+    // `content` comes from HibossKit's HistoryMessage.content (metadata.content);
+    // the Live Activity widget trims/empties it at render via LA.nonEmpty.
+    var project: String? { nonEmpty(sessionLabel) ?? nonEmpty(sessionBranch) }
+
     /// e.g. "agent→boss · discord"
     var metaLine: String {
         let dir: String
@@ -44,5 +48,12 @@ extension HistoryMessage {
         guard isDecision, !isResolved else { return false }
         if let expiration = expirationDate, expiration <= Date() { return false }
         return true
+    }
+
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
     }
 }

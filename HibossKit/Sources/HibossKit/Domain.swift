@@ -26,24 +26,28 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let defaultOption: String?
     /// On a reply's metadata, where the answer came from: "ios", "telegram", etc.
     public let source: String?
+    public let content: String?
 
     enum CodingKeys: String, CodingKey {
         case options
         case isExpired = "options_expired"
         case defaultOption = "default_option"
         case source
+        case content
     }
 
     public init(
         options: [String],
         isExpired: Bool = false,
         defaultOption: String? = nil,
-        source: String? = nil
+        source: String? = nil,
+        content: String? = nil
     ) {
         self.options = options
         self.isExpired = isExpired
         self.defaultOption = defaultOption
         self.source = source
+        self.content = content
     }
 
     public init(from decoder: Decoder) throws {
@@ -52,6 +56,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
         source = try values.decodeIfPresent(String.self, forKey: .source)
+        content = try values.decodeIfPresent(String.self, forKey: .content)
     }
 }
 
@@ -61,6 +66,8 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
     public let agentName: String?
     public let metadata: MessageMetadata?
     public let expiresAt: String?
+    public let sessionLabel: String?
+    public let sessionBranch: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -68,6 +75,8 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
         case agentName = "agent_name"
         case metadata
         case expiresAt = "expires_at"
+        case sessionLabel = "session_label"
+        case sessionBranch = "session_branch"
     }
 
     public init(
@@ -75,13 +84,17 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
         body: String,
         agentName: String? = nil,
         metadata: MessageMetadata? = nil,
-        expiresAt: String? = nil
+        expiresAt: String? = nil,
+        sessionLabel: String? = nil,
+        sessionBranch: String? = nil
     ) {
         self.id = id
         self.body = body
         self.agentName = agentName
         self.metadata = metadata
         self.expiresAt = expiresAt
+        self.sessionLabel = sessionLabel
+        self.sessionBranch = sessionBranch
     }
 
     public var options: [String] {
@@ -94,6 +107,7 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
     /// Label of the option that fires automatically on timeout, if marked.
     public var defaultOption: String? { metadata?.defaultOption }
 
+    public var content: String? { metadata?.content }
     public var expirationDate: Date? {
         guard let expiresAt else { return nil }
         return (try? Date(expiresAt, strategy: .iso8601))
@@ -185,6 +199,8 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
 
     /// Label of the option that fires automatically on timeout, if marked.
     public var defaultOption: String? { metadata?.defaultOption }
+
+    public var content: String? { metadata?.content }
 
     public var expirationDate: Date? {
         guard let expiresAt else { return nil }
