@@ -38,6 +38,14 @@ struct MessageDetailView: View {
         return body
     }
 
+    /// Whether an option is the chosen one. The server trims the stored answer
+    /// while options keep the agent's raw text, so compare trim-normalized to
+    /// avoid a whitespace mismatch that would both un-mark it and duplicate it
+    /// as a "Custom reply" row.
+    private func isChosen(_ option: String) -> Bool {
+        option.trimmingCharacters(in: .whitespacesAndNewlines) == chosenAnswer
+    }
+
     /// Human label for where the decision was resolved, e.g. "iOS", "Telegram".
     private var resolutionSourceLabel: String? {
         switch reply?.metadata?.source?.lowercased() {
@@ -164,9 +172,9 @@ struct MessageDetailView: View {
         } else if message.isDecision {
             Section {
                 ForEach(message.options, id: \.self) { option in
-                    optionRow(option, chosen: option == chosenAnswer)
+                    optionRow(option, chosen: isChosen(option))
                 }
-                if let answer = chosenAnswer, !message.options.contains(answer) {
+                if let answer = chosenAnswer, !message.options.contains(where: isChosen) {
                     optionRow(answer, chosen: true, custom: true)
                 }
             } header: {
