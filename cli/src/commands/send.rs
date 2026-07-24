@@ -34,6 +34,8 @@ pub struct SendArgs {
     pub task: Option<String>,
     #[arg(long, help = "Short non-sensitive summary shown in private-mode push notifications")]
     pub summary: Option<String>,
+    #[arg(long, help = "Extra context shown in the notification (subtitle)")]
+    pub content: Option<String>,
     #[arg(long, help = "Relevant file paths (comma-separated)")]
     pub files: Option<String>,
     #[arg(long, help = "Git branch context")]
@@ -170,12 +172,18 @@ async fn warn_unread_messages(client: &HiBossClient) {
 
 fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
     let has_context = args.task.is_some() || args.files.is_some() || args.branch.is_some();
-    if !has_context && args.summary.is_none() {
+    let has_content = args.content.as_ref().is_some_and(|s| !s.is_empty());
+    if !has_context && args.summary.is_none() && !has_content {
         return Ok(None);
     }
     let mut meta = HashMap::new();
     if let Some(ref s) = args.summary {
         meta.insert("summary".to_owned(), Value::String(s.clone()));
+    }
+    if let Some(ref s) = args.content {
+        if !s.is_empty() {
+            meta.insert("content".to_owned(), Value::String(s.clone()));
+        }
     }
     if has_context {
         let mut ctx = HashMap::new();
@@ -195,4 +203,45 @@ fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box
         meta.insert("task_context".to_owned(), serde_json::to_value(ctx)?);
     }
     Ok(Some(meta))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args_with_content(content: Option<&str>) -> SendArgs {
+        SendArgs {
+            priority: "normal".to_owned(),
+            channel: None,
+            file_url: None,
+            file: None,
+            message_type: None,
+            to: None,
+            broadcast: false,
+            task: None,
+            summary: None,
+            content: content.map(str::to_owned),
+            files: None,
+            branch: None,
+            body: "body".to_owned(),
+        }
+    }
+
+    #[test]
+    fn metadata_includes_content() {
+        let metadata = build_metadata(&args_with_content(Some("deploy context")))
+            .expect("metadata builds")
+            .expect("metadata present");
+        assert_eq!(
+            metadata.get("content"),
+            Some(&Value::String("deploy context".to_owned()))
+        );
+    }
+
+    #[test]
+    fn metadata_omits_empty_content() {
+        let metadata = build_metadata(&args_with_content(Some("")))
+            .expect("metadata builds");
+        assert!(metadata.is_none());
+    }
 }

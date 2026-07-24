@@ -66,9 +66,10 @@ async function fetchActiveOptions(
 ): Promise<MessageRow[]> {
   const placeholders = agentIds.map(() => '?').join(', ');
   const result = await env.DB.prepare(
-    `SELECT messages.*, api_keys.name AS agent_name
+    `SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch
      FROM messages
      LEFT JOIN api_keys ON api_keys.id = messages.agent_id
+     LEFT JOIN sessions ON sessions.id = messages.session_id
      WHERE messages.agent_id IN (${placeholders})
        AND messages.direction = 'agent_to_boss'
        AND messages.status IN ('sent', 'delivered', 'read')

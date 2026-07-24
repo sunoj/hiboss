@@ -70,8 +70,12 @@ describe('notifyBossAgents', () => {
     const agentId = 'notify-apns-agent';
     const bossId = 'notify-apns-boss';
     const deviceToken = 'deadbeef1234';
+    const sessionId = 'notify-apns-session';
     await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
       .bind(agentId, 'Push Agent', 'notify-apns-key-hash')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO sessions (id, agent_id, label, branch) VALUES (?, ?, ?, ?)')
+      .bind(sessionId, agentId, 'hiboss/feat-notif', 'feat/notif')
       .run();
     await env.DB.prepare('INSERT OR REPLACE INTO bosses (id, name, role) VALUES (?, ?, ?)')
       .bind(bossId, 'Push Boss', 'manager')
@@ -96,7 +100,8 @@ describe('notifyBossAgents', () => {
       direction: 'agent_to_boss',
       body: 'x'.repeat(180),
       priority: 'high',
-      metadata: JSON.stringify({ options: ['Approve', 'Reject'] }),
+      session_id: sessionId,
+      metadata: JSON.stringify({ content: 'Deploy approval', options: ['Approve', 'Reject'] }),
     });
 
     const call = fetchMock.mock.calls.find(([url]) => String(url).includes(deviceToken));
@@ -105,7 +110,7 @@ describe('notifyBossAgents', () => {
     const init = call[1];
     const sentPayload = JSON.parse(String(init?.body)) as {
       aps: {
-        alert: { title: string; body: string };
+        alert: { title: string; subtitle?: string; body: string };
         sound?: string;
         'interruption-level': string;
         'thread-id': string;
@@ -117,8 +122,9 @@ describe('notifyBossAgents', () => {
       priority: string;
       direction: string;
     };
-    expect(sentPayload.aps.alert.title).toBe('Push Agent');
-    expect(sentPayload.aps.alert.body).toHaveLength(150);
+    expect(sentPayload.aps.alert.title).toBe('hiboss/feat-notif');
+    expect(sentPayload.aps.alert.subtitle).toBe('Deploy approval');
+    expect(sentPayload.aps.alert.body).toMatch(/^Push Agent · /);
     // A high-priority decision (has options) alerts as 'active' with sound at prio 10.
     expect(sentPayload.aps['interruption-level']).toBe('active');
     expect(sentPayload.aps.sound).toBe('default');
@@ -136,6 +142,86 @@ describe('notifyBossAgents', () => {
       .bind(deviceToken)
       .first<{ id: string }>();
     expect(row).toBeNull();
+  });
+
+  it('uses the agent title and unprefixed body when no session is present', async () => {
+    const agentId = 'notify-no-session-agent';
+    const bossId = 'notify-no-session-boss';
+    const deviceToken = 'nosessiondeadbeef';
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(agentId, 'No Session Agent', 'notify-no-session-key-hash')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO bosses (id, name, role) VALUES (?, ?, ?)')
+      .bind(bossId, 'No Session Boss', 'manager')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(bossId, agentId)
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .run();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await notifyBossAgents(apnsEnv(await createPrivateKeyPem()), agentId, {
+      ...fakeMessage,
+      id: 'notify-no-session-message',
+      agent_id: agentId,
+      direction: 'agent_to_boss',
+      body: 'Ready to deploy',
+      priority: 'high',
+    });
+
+    const call = fetchMock.mock.calls.find(([url]) => String(url).includes(deviceToken));
+    expect(call).toBeDefined();
+    if (!call) throw new Error('missing no-session APNs fetch call');
+    const sentPayload = JSON.parse(String(call[1]?.body)) as { aps: { alert: { title: string; body: string } } };
+    expect(sentPayload.aps.alert.title).toBe('No Session Agent');
+    expect(sentPayload.aps.alert.body).toBe('Ready to deploy');
+  });
+
+  it('keeps private push payloads generic even with session content', async () => {
+    const agentId = 'notify-private-agent';
+    const bossId = 'notify-private-boss';
+    const deviceToken = 'privatedeadbeef';
+    const sessionId = 'notify-private-session';
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(agentId, 'Private Agent', 'notify-private-key-hash')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO sessions (id, agent_id, label, branch) VALUES (?, ?, ?, ?)')
+      .bind(sessionId, agentId, 'private/project', 'main')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO bosses (id, name, role, preferences) VALUES (?, ?, ?, ?)')
+      .bind(bossId, 'Private Boss', 'manager', JSON.stringify({ private_push: true }))
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(bossId, agentId)
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)')
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .run();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await notifyBossAgents(apnsEnv(await createPrivateKeyPem()), agentId, {
+      ...fakeMessage,
+      id: 'notify-private-message',
+      agent_id: agentId,
+      direction: 'agent_to_boss',
+      body: 'Sensitive body',
+      priority: 'high',
+      session_id: sessionId,
+      metadata: JSON.stringify({ content: 'Sensitive context', options: ['Approve'] }),
+    });
+
+    const call = fetchMock.mock.calls.find(([url]) => String(url).includes(deviceToken));
+    expect(call).toBeDefined();
+    if (!call) throw new Error('missing private APNs fetch call');
+    const sentPayload = JSON.parse(String(call[1]?.body)) as { aps: { alert: { title: string; subtitle?: string; body: string } }; options?: string[] };
+    expect(sentPayload.aps.alert.title).toBe('HiBoss');
+    expect(sentPayload.aps.alert.subtitle).toBeUndefined();
+    expect(sentPayload.aps.alert.body).toBe('New decision from Private Agent');
+    expect(sentPayload.options).toBeUndefined();
   });
 
   it('suppresses normal status pushes when a boss preference disables delivery', async () => {

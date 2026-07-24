@@ -59,6 +59,7 @@ pub(crate) fn action_metadata(
     actions: &HashMap<String, Value>,
     default_option: Option<&str>,
     summary: Option<&str>,
+    content: Option<&str>,
 ) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
     let mut metadata: HashMap<String, Value> = HashMap::new();
     if !actions.is_empty() {
@@ -69,6 +70,11 @@ pub(crate) fn action_metadata(
     }
     if let Some(s) = summary {
         metadata.insert("summary".to_owned(), Value::String(s.to_owned()));
+    }
+    if let Some(s) = content {
+        if !s.is_empty() {
+            metadata.insert("content".to_owned(), Value::String(s.to_owned()));
+        }
     }
     if metadata.is_empty() {
         return Ok(None);
@@ -184,7 +190,7 @@ mod tests {
     #[test]
     fn metadata_includes_default_option_in_plain_option_mode() {
         let actions = HashMap::new();
-        let result = action_metadata(&actions, Some("A"), None)
+        let result = action_metadata(&actions, Some("A"), None, None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -197,7 +203,7 @@ mod tests {
     fn metadata_includes_actions_and_default_together() {
         let mut actions = HashMap::new();
         actions.insert("A".to_owned(), Value::String("deploy".to_owned()));
-        let result = action_metadata(&actions, Some("A"), None)
+        let result = action_metadata(&actions, Some("A"), None, None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -205,5 +211,25 @@ mod tests {
             Some(&Value::String("A".to_owned()))
         );
         assert!(result.get("actions").is_some());
+    }
+
+    #[test]
+    fn metadata_includes_content() {
+        let actions = HashMap::new();
+        let result = action_metadata(&actions, None, None, Some("retry window"))
+            .expect("metadata builds")
+            .expect("metadata present");
+        assert_eq!(
+            result.get("content"),
+            Some(&Value::String("retry window".to_owned()))
+        );
+    }
+
+    #[test]
+    fn metadata_omits_empty_content() {
+        let actions = HashMap::new();
+        let result = action_metadata(&actions, None, None, Some(""))
+            .expect("metadata builds");
+        assert!(result.is_none());
     }
 }
