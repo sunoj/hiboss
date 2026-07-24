@@ -10,7 +10,7 @@ export type ApnsPriority = '5' | '10';
 
 export interface ApnsPayload {
   aps: {
-    alert: { title: string; body: string };
+    alert: { title: string; subtitle?: string; body: string };
     sound?: 'default';
     'interruption-level': ApnsInterruptionLevel;
     'thread-id': string;

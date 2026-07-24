@@ -25,6 +25,11 @@ interface BossDeviceRow {
   environment: ApnsEnvironment;
 }
 
+interface SessionLabelRow {
+  label: string | null;
+  branch: string | null;
+}
+
 export async function notifyAgentCallback(env: Env, agentId: string, message: MessageRow): Promise<void> {
   try {
     const row = await env.DB
@@ -88,6 +93,9 @@ async function notifyBossDevices(
     .all<BossDeviceRow>();
   if (!devices.results?.length) return;
   const agentName = message.agent_name ?? await fetchAgentName(env, subAgentId) ?? 'HiBoss';
+  const session = await fetchSessionLabel(env, message.session_id);
+  const projectLabel = session?.label ?? (session?.branch ?? null);
+  const content = extractContent(message.metadata);
   const options = extractOptions(message.metadata);
   const isDecision = options !== undefined && options.length > 0;
   const preferencesByBoss = new Map(bosses.map((boss) => [boss.id, boss.preferences]));
@@ -97,7 +105,15 @@ async function notifyBossDevices(
     const tier = pushTier(message.priority, effectiveDecision, prefs);
     if (!tier.deliver) continue;
     try {
-      const payload = buildBossPushPayload(message, agentName, device.boss_id, tier, isPrivatePush(prefs));
+      const payload = buildBossPushPayload(
+        message,
+        agentName,
+        projectLabel,
+        content,
+        device.boss_id,
+        tier,
+        isPrivatePush(prefs),
+      );
       const result = await sendPush(
         env, device.device_token, device.environment, device.bundle_id, payload, tier.apnsPriority,
       );
@@ -113,6 +129,8 @@ async function notifyBossDevices(
 function buildBossPushPayload(
   message: MessageRow,
   agentName: string,
+  projectLabel: string | null,
+  content: string | undefined,
   bossId: string,
   tier: PushTier,
   privatePush: boolean,
@@ -124,9 +142,16 @@ function buildBossPushPayload(
   const summary = extractSummary(message.metadata);
   const body = privatePush
     ? (summary ?? (options ? `New decision from ${agentName}` : `New message from ${agentName}`))
-    : truncateBody(message.body);
+    : normalPushBody(message.body, agentName, projectLabel);
+  const alert: ApnsPayload['aps']['alert'] = {
+    title: privatePush ? 'HiBoss' : (projectLabel || agentName || 'HiBoss'),
+    body,
+  };
+  if (!privatePush && content) {
+    alert.subtitle = truncateSubtitle(content);
+  }
   const aps: ApnsPayload['aps'] = {
-    alert: { title: privatePush ? 'HiBoss' : (agentName || 'HiBoss'), body },
+    alert,
     'interruption-level': tier.level,
     'thread-id': bossId,
     // iOS renders the notification's action buttons from aps.category.
@@ -158,6 +183,18 @@ function extractSummary(metadata: string | null): string | undefined {
     const parsed = JSON.parse(metadata) as { summary?: unknown };
     const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
     return summary.length > 0 ? summary : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Agent-supplied non-sensitive context shown as normal push subtitle. */
+function extractContent(metadata: string | null): string | undefined {
+  if (!metadata) return undefined;
+  try {
+    const parsed = JSON.parse(metadata) as { content?: unknown };
+    const content = typeof parsed.content === 'string' ? parsed.content.trim() : '';
+    return content.length > 0 ? content : undefined;
   } catch {
     return undefined;
   }
@@ -281,8 +318,20 @@ function apnsPriorityFor(sound: boolean, level: ApnsInterruptionLevel): ApnsPrio
   return sound || level === 'active' || level === 'time-sensitive' ? '10' : '5';
 }
 
+function normalPushBody(body: string, agentName: string, projectLabel: string | null): string {
+  const truncatedBody = truncateBody(body);
+  if (projectLabel && agentName && agentName !== projectLabel) {
+    return `${agentName} · ${truncatedBody}`;
+  }
+  return truncatedBody;
+}
+
 function truncateBody(body: string): string {
   return body.length > 150 ? `${body.slice(0, 147)}...` : body;
+}
+
+function truncateSubtitle(content: string): string {
+  return content.length > 120 ? `${content.slice(0, 117)}...` : content;
 }
 
 async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
@@ -291,4 +340,16 @@ async function fetchAgentName(env: Env, agentId: string): Promise<string | null>
     .bind(agentId)
     .first<{ name: string }>();
   return row?.name ?? null;
+}
+
+async function fetchSessionLabel(
+  env: Env,
+  sessionId: string | null | undefined,
+): Promise<SessionLabelRow | null> {
+  if (!sessionId) return null;
+  const row = await env.DB
+    .prepare('SELECT label, branch FROM sessions WHERE id = ?')
+    .bind(sessionId)
+    .first<SessionLabelRow>();
+  return row ?? null;
 }
