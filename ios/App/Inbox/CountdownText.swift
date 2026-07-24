@@ -1,4 +1,4 @@
-// A live m:ss countdown to a deadline, ticking once per second.
+// A live countdown to a deadline, ticking once per second until it expires.
 // Exports: CountdownText view used on pending decision cards.
 // Dependencies: SwiftUI TimelineView for tick scheduling.
 
@@ -10,15 +10,19 @@ struct CountdownText: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let remaining = max(0, deadline.timeIntervalSince(context.date))
-            Text("\(format(remaining)) left")
+            let remaining = deadline.timeIntervalSince(context.date)
+            Text(remaining <= 0 ? "Expired" : "\(format(remaining)) left")
                 .monospacedDigit()
-                .foregroundStyle(tint)
+                .foregroundStyle(remaining <= 0 ? .secondary : tint)
         }
     }
 
+    /// h:mm:ss for long windows, m:ss otherwise — never a bare minute overflow.
     private func format(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
-        return String(format: "%d:%02d", total / 60, total % 60)
+        let hours = total / 3600, minutes = (total % 3600) / 60, secs = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%d:%02d", minutes, secs)
     }
 }

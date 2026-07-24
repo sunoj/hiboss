@@ -1,5 +1,5 @@
 // The Inbox screen: pending decisions and full history, live over SSE.
-// Exports: InboxView bound to an InboxStore, plus the shared EmptyState.
+// Exports: InboxView bound to an InboxStore, plus the shared ConnectionDot.
 // Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow.
 
 import HibossKit
@@ -9,6 +9,7 @@ struct InboxView: View {
     @ObservedObject var store: InboxStore
     @State private var tab: Tab = .pending
     @State private var replyTarget: HistoryMessage?
+    @State private var actionNote: String?
 
     enum Tab: String, CaseIterable, Identifiable {
         case pending = "Pending"
@@ -36,9 +37,30 @@ struct InboxView: View {
         }
         .sheet(item: $replyTarget) { message in
             ReplySheet(message: message) { choice in
-                Task { await store.reply(choice, to: message.id) }
+                handleReply(choice, to: message.id)
             }
             .presentationDetents([.height(300)])
+        }
+        .alert(
+            "Heads up",
+            isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
+            presenting: actionNote
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { note in
+            Text(note)
+        }
+    }
+
+    /// Submit a reply and surface a non-success outcome (already-resolved / failed)
+    /// so an optimistically-removed card can't silently imply the boss's choice won.
+    private func handleReply(_ choice: String, to id: MessageID) {
+        Task {
+            switch await store.reply(choice, to: id) {
+            case .sent: break
+            case .alreadyResolved: actionNote = "That decision was already answered elsewhere."
+            case .failed: actionNote = "Couldn't send your reply — check your connection."
+            }
         }
     }
 
@@ -52,40 +74,41 @@ struct InboxView: View {
     }
 
     private var pendingContent: some View {
-        Group {
-            if store.pending.isEmpty {
-                ContentUnavailableView(
-                    "All clear",
-                    systemImage: "checkmark.circle",
-                    description: Text("No decisions are waiting on you.")
-                )
-            } else {
-                List {
-                    ForEach(store.pending) { message in
-                        MessageCard(
-                            message: message,
-                            onChoose: { choice in Task { await store.reply(choice, to: message.id) } },
-                            onMore: { replyTarget = message }
-                        )
-                        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                        .listRowSeparator(.hidden)
-                    }
+        ListStateView(
+            isLoading: !store.didLoad && store.history.isEmpty,
+            error: store.history.isEmpty ? store.loadError : nil,
+            isEmpty: store.pending.isEmpty,
+            emptyIcon: "checkmark.circle",
+            emptyTitle: "All clear",
+            emptyDetail: "No decisions are waiting on you.",
+            onRetry: { await store.refresh() }
+        ) {
+            List {
+                ForEach(store.pending) { message in
+                    MessageCard(
+                        message: message,
+                        onChoose: { choice in handleReply(choice, to: message.id) },
+                        onMore: { replyTarget = message }
+                    )
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowSeparator(.hidden)
                 }
-                .listStyle(.plain)
             }
+            .listStyle(.plain)
         }
         .refreshable { await store.refresh() }
     }
 
-    @ViewBuilder
     private var allHistoryContent: some View {
-        if store.history.isEmpty {
-            ContentUnavailableView(
-                "No messages yet",
-                systemImage: "tray",
-                description: Text("Agent messages will appear here.")
-            )
-        } else {
+        ListStateView(
+            isLoading: !store.didLoad && store.history.isEmpty,
+            error: store.loadError,
+            isEmpty: store.history.isEmpty,
+            emptyIcon: "tray",
+            emptyTitle: "No messages yet",
+            emptyDetail: "Agent messages will appear here.",
+            onRetry: { await store.refresh() }
+        ) {
             List {
                 ForEach(SessionGrouping.groupBySession(store.history)) { group in
                     Section {
@@ -98,8 +121,8 @@ struct InboxView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .refreshable { await store.refresh() }
         }
+        .refreshable { await store.refresh() }
     }
 }
 
@@ -119,18 +142,8 @@ struct ConnectionDot: View {
         switch state {
         case .connected: .green
         case .connecting: .orange
-        case .disconnected, .failed: .secondary
+        case .failed: .red
+        case .disconnected: .secondary
         }
-    }
-}
-
-/// Native empty-state wrapper used across the message surfaces.
-struct EmptyState: View {
-    let icon: String
-    let title: String
-    let detail: String
-
-    var body: some View {
-        ContentUnavailableView(title, systemImage: icon, description: Text(detail))
     }
 }

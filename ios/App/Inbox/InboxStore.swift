@@ -6,11 +6,18 @@ import Combine
 import Foundation
 import HibossKit
 
+/// Outcome of submitting a boss reply, so callers can tell a real send apart
+/// from a decision that was already resolved elsewhere or a transport failure.
+enum ReplyResult: Equatable { case sent, alreadyResolved, failed }
+
 @MainActor
 final class InboxStore: ObservableObject {
     @Published private(set) var history: [HistoryMessage] = []
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var loadError: String?
+    /// False until the first history fetch completes, so views can show a spinner
+    /// instead of flashing an empty state on cold launch.
+    @Published private(set) var didLoad = false
     /// Ids removed optimistically (answered/expired locally) until history catches up.
     @Published private(set) var withdrawn: Set<MessageID> = []
 
@@ -18,6 +25,9 @@ final class InboxStore: ObservableObject {
     private let reconnectDelay: Duration
     private var streamTask: Task<Void, Never>?
     private var historyTask: Task<Void, Never>?
+    /// One timer per pending decision deadline, so an expiring card drops out of
+    /// `pending` on time instead of waiting for the next unrelated stream event.
+    private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
 
     init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
         self.reconnectDelay = reconnectDelay
@@ -53,9 +63,12 @@ final class InboxStore: ObservableObject {
         historyTask?.cancel()
         streamTask = nil
         historyTask = nil
+        cancelExpiries()
         api = nil
         history = []
         withdrawn = []
+        didLoad = false
+        loadError = nil
         connectionState = .disconnected
     }
 
@@ -66,14 +79,13 @@ final class InboxStore: ObservableObject {
             do {
                 let messages = try await api.fetchHistory()
                 guard !Task.isCancelled, let self else { return }
-                self.history = messages
-                self.loadError = nil
-                self.pruneWithdrawn()
+                self.applyHistory(messages)
                 await DecisionActivityManager.sync(pending: self.pending)
             } catch where Task.isCancelled {
                 return
             } catch {
                 self?.loadError = error.localizedDescription
+                self?.didLoad = true
             }
         }
     }
@@ -83,27 +95,35 @@ final class InboxStore: ObservableObject {
         guard let api else { return }
         do {
             let messages = try await api.fetchHistory()
-            history = messages
-            loadError = nil
-            pruneWithdrawn()
+            applyHistory(messages)
             await DecisionActivityManager.sync(pending: pending)
         } catch {
             loadError = error.localizedDescription
+            didLoad = true
         }
     }
 
+    /// Commit a fresh history snapshot and re-arm all derived state.
+    private func applyHistory(_ messages: [HistoryMessage]) {
+        history = messages
+        loadError = nil
+        didLoad = true
+        pruneWithdrawn()
+        rescheduleExpiries()
+    }
+
     @discardableResult
-    func reply(_ choice: String, to id: MessageID) async -> Bool {
-        guard let api else { return false }
+    func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
+        guard let api else { return .failed }
         withdrawn.insert(id)
         do {
-            _ = try await api.reply(to: id, with: choice)
+            let outcome = try await api.reply(to: id, with: choice)
             refreshHistory()
-            return true
+            return outcome == .alreadyResolved ? .alreadyResolved : .sent
         } catch {
             withdrawn.remove(id)
             loadError = error.localizedDescription
-            return false
+            return .failed
         }
     }
 
@@ -140,5 +160,29 @@ final class InboxStore: ObservableObject {
     private func pruneWithdrawn() {
         let stillPending = Set(history.filter(\.isPendingDecision).map(\.id))
         withdrawn.formIntersection(stillPending)
+    }
+
+    /// Arm one timer per pending deadline; when it fires, republish so `pending`
+    /// recomputes and the now-expired decision drops to a read-only state.
+    private func rescheduleExpiries() {
+        cancelExpiries()
+        for message in history where message.isPendingDecision {
+            guard let deadline = message.expirationDate else { continue }
+            let delay = deadline.timeIntervalSinceNow
+            guard delay > 0 else { continue }
+            let id = message.id
+            expiryTasks[id] = Task { [weak self] in
+                try? await Task<Never, Never>.sleep(for: .seconds(delay))
+                guard !Task.isCancelled, let self else { return }
+                self.expiryTasks[id] = nil
+                self.objectWillChange.send()
+                await DecisionActivityManager.sync(pending: self.pending)
+            }
+        }
+    }
+
+    private func cancelExpiries() {
+        for task in expiryTasks.values { task.cancel() }
+        expiryTasks.removeAll()
     }
 }

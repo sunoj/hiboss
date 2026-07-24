@@ -17,6 +17,7 @@ struct MessageDetailView: View {
     let messageID: MessageID
     @State private var replyDraft = ""
     @State private var submitting: String?
+    @State private var actionNote: String?
     @State private var fallback: Fallback = .loading
     @State private var loadAttempt = 0
     @Environment(\.dismiss) private var dismiss
@@ -66,6 +67,14 @@ struct MessageDetailView: View {
                     Text(message.body)
                         .font(.body)
                         .textSelection(.enabled)
+                }
+
+                if let actionNote {
+                    Section {
+                        Label(actionNote, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.callout)
+                    }
                 }
 
                 decisionSection(for: message)
@@ -216,12 +225,22 @@ struct MessageDetailView: View {
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, submitting == nil else { return }
         submitting = text
+        actionNote = nil
         Task {
-            let ok = await store.reply(text, to: id)
+            let result = await store.reply(text, to: id)
             submitting = nil
-            if ok {
+            switch result {
+            case .sent:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 dismiss()
+            case .alreadyResolved:
+                // Don't claim success: refresh re-renders into the resolved branch
+                // showing the answer that actually won.
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                actionNote = "Already answered elsewhere — showing the recorded outcome."
+            case .failed:
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                actionNote = store.loadError ?? "Couldn't send your reply. Try again."
             }
         }
     }
