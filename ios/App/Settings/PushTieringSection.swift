@@ -22,7 +22,7 @@ struct PushTieringSection: View {
         } header: {
             Text("Push Tiering")
         } footer: {
-            Text("How intrusive each priority's status push is. Decision requests always alert.")
+            Text("How intrusive each priority's status push is. Decision requests always alert unless you turn off Alert on decisions above.")
         }
     }
 }

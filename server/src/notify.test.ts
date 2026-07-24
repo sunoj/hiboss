@@ -209,6 +209,53 @@ describe('notifyBossAgents', () => {
     expect(sentPayload.aps.sound).toBe('default');
     expect(sentPayload.aps['interruption-level']).toBe('active');
   });
+
+  it('lets normal decisions follow status tiering when decision alerts are disabled', async () => {
+    const agentId = 'notify-decision-alerts-off-agent';
+    const bossId = 'notify-decision-alerts-off-boss';
+    const deviceToken = 'decisionalertsoffdeadbeef';
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(agentId, 'Decision Alerts Off Agent', 'notify-decision-alerts-off-key-hash')
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO bosses (id, name, role, preferences) VALUES (?, ?, ?, ?)')
+      .bind(bossId, 'Decision Alerts Off Boss', 'manager', JSON.stringify({ decision_alerts: false }))
+      .run();
+    await env.DB.prepare('INSERT OR REPLACE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(bossId, agentId)
+      .run();
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO boss_devices (boss_id, device_token, bundle_id, environment, platform) VALUES (?, ?, ?, ?, ?)'
+    )
+      .bind(bossId, deviceToken, 'com.hiboss.ios', 'sandbox', 'ios')
+      .run();
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({}, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await notifyBossAgents(apnsEnv(await createPrivateKeyPem()), agentId, {
+      ...fakeMessage,
+      id: 'notify-decision-alerts-off',
+      agent_id: agentId,
+      direction: 'agent_to_boss',
+      priority: 'normal',
+      metadata: JSON.stringify({ options: ['Approve', 'Wait'] }),
+    });
+
+    const call = fetchMock.mock.calls.find(([url]) => String(url).includes(deviceToken));
+    expect(call).toBeDefined();
+    if (!call) throw new Error('missing decision APNs fetch call');
+    const init = call[1];
+    const sentPayload = JSON.parse(String(init?.body)) as {
+      aps: { sound?: string; 'interruption-level': string; category: string };
+      category: string;
+      options: string[];
+    };
+    expect(sentPayload.aps.sound).toBeUndefined();
+    expect(sentPayload.aps['interruption-level']).toBe('passive');
+    expect((init?.headers as Record<string, string>)['apns-priority']).toBe('5');
+    expect(sentPayload.aps.category).toBe('HIBOSS_OPTIONS');
+    expect(sentPayload.category).toBe('HIBOSS_OPTIONS');
+    expect(sentPayload.options).toEqual(['Approve', 'Wait']);
+  });
 });
 
 function apnsEnv(authKey: string): Env {

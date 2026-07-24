@@ -28,9 +28,14 @@ final class InboxStore: ObservableObject {
     /// One timer per pending decision deadline, so an expiring card drops out of
     /// `pending` on time instead of waiting for the next unrelated stream event.
     private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
+    private var decisionAlertsEnabled: Bool
 
-    init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
+    init(
+        reconnectDelay: Duration = AppConstants.API.reconnectDelay,
+        decisionAlertsEnabled: Bool = true
+    ) {
         self.reconnectDelay = reconnectDelay
+        self.decisionAlertsEnabled = decisionAlertsEnabled
     }
 
     /// Pending decisions, most urgent first, then newest.
@@ -49,6 +54,16 @@ final class InboxStore: ObservableObject {
     /// detail views poll this to avoid declaring a message missing during the
     /// cold-launch window before the store is connected.
     var isReady: Bool { api != nil }
+
+    func setDecisionAlertsEnabled(_ enabled: Bool) {
+        guard decisionAlertsEnabled != enabled else { return }
+        decisionAlertsEnabled = enabled
+        Task { await syncDecisionActivity() }
+    }
+
+    func syncDecisionActivity() async {
+        await DecisionActivityManager.sync(pending: pending, alertsEnabled: decisionAlertsEnabled)
+    }
 
     func start(api: any BossServing) {
         stop()
@@ -80,7 +95,7 @@ final class InboxStore: ObservableObject {
                 let messages = try await api.fetchHistory()
                 guard !Task.isCancelled, let self else { return }
                 self.applyHistory(messages)
-                await DecisionActivityManager.sync(pending: self.pending)
+                await self.syncDecisionActivity()
             } catch where Task.isCancelled {
                 return
             } catch {
@@ -96,7 +111,7 @@ final class InboxStore: ObservableObject {
         do {
             let messages = try await api.fetchHistory()
             applyHistory(messages)
-            await DecisionActivityManager.sync(pending: pending)
+            await syncDecisionActivity()
         } catch {
             loadError = error.localizedDescription
             didLoad = true
@@ -188,7 +203,7 @@ final class InboxStore: ObservableObject {
                 guard !Task.isCancelled, let self else { return }
                 self.expiryTasks[id] = nil
                 self.objectWillChange.send()
-                await DecisionActivityManager.sync(pending: self.pending)
+                await self.syncDecisionActivity()
             }
         }
     }

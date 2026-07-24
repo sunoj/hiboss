@@ -9,10 +9,11 @@ struct HiBossApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var connection = ConnectionStore()
     @StateObject private var inbox = InboxStore()
+    @StateObject private var preferences = PreferencesStore()
 
     var body: some Scene {
         WindowGroup {
-            RootView(connection: connection, inbox: inbox)
+            RootView(connection: connection, inbox: inbox, preferences: preferences)
                 .task { await connection.restore() }
                 .preferredColorScheme(nil)
         }
@@ -22,11 +23,12 @@ struct HiBossApp: App {
 struct RootView: View {
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var inbox: InboxStore
+    @ObservedObject var preferences: PreferencesStore
 
     var body: some View {
         Group {
             if isDemoMode || connection.isConfigured {
-                RootTabView(inbox: inbox, connection: connection)
+                RootTabView(inbox: inbox, connection: connection, preferences: preferences)
             } else if connection.isRestoring {
                 ProgressView().controlSize(.large)
             } else {
@@ -36,18 +38,28 @@ struct RootView: View {
         .onChange(of: connection.config) { _, config in
             guard !isDemoMode else { return }
             if config != nil, let api = connection.makeAPI() {
-                inbox.start(api: api)
-                PushManager.shared.promptIfNeeded()
+                Task {
+                    await preferences.load(api: api)
+                    inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+                    inbox.start(api: api)
+                    PushManager.shared.promptIfNeeded()
+                }
             } else {
                 inbox.stop()
             }
         }
         .onAppear {
             if isDemoMode {
+                preferences.loadDemo()
+                inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
                 inbox.start(api: DemoBossAPI())
             } else if connection.isConfigured, let api = connection.makeAPI() {
-                inbox.start(api: api)
-                PushManager.shared.promptIfNeeded()
+                Task {
+                    await preferences.load(api: api)
+                    inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+                    inbox.start(api: api)
+                    PushManager.shared.promptIfNeeded()
+                }
             }
         }
     }

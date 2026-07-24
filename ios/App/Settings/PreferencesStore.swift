@@ -130,6 +130,12 @@ final class PreferencesStore: ObservableObject {
     var privatePush: Bool { prefs.privatePush ?? false }
 
     func setPrivatePush(_ on: Bool) { prefs.privatePush = on }
+
+    // MARK: Decision alerts
+
+    var decisionAlerts: Bool { prefs.decisionAlerts ?? true }
+
+    func setDecisionAlerts(_ on: Bool) { prefs.decisionAlerts = on }
 }
 
 extension QuietHours {

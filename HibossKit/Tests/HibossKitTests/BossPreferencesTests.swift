@@ -23,7 +23,8 @@ final class BossPreferencesTests: XCTestCase {
                 "timezone": "Asia/Shanghai",
                 "days": [1, 2, 3, 4, 5],
                 "critical_bypass": true
-              }
+              },
+              "decision_alerts": false
             }
             """
         )
@@ -43,6 +44,7 @@ final class BossPreferencesTests: XCTestCase {
                 criticalBypass: true
             )
         )
+        XCTAssertEqual(preferences.decisionAlerts, false)
     }
 
     func testDecodesEmptyPayload() throws {
@@ -126,7 +128,8 @@ final class BossPreferencesTests: XCTestCase {
                 timezone: "Asia/Shanghai",
                 days: [1, 2, 3, 4, 5],
                 criticalBypass: true
-            )
+            ),
+            decisionAlerts: true
         )
 
         let data = try JSONEncoder().encode(preferences)
