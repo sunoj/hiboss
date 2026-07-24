@@ -7,6 +7,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var connection: ConnectionStore
+    /// Live stream state, so Status reflects the real connection — not just that
+    /// credentials exist (a revoked token used to still read "Connected").
+    let connectionState: ConnectionState
     @StateObject private var push = PushStatusStore()
     @StateObject private var prefs = PreferencesStore()
     @Environment(\.scenePhase) private var scenePhase
@@ -16,8 +19,11 @@ struct SettingsView: View {
             Section("Connection") {
                 LabeledContent("Server", value: connection.config?.serverURL.host() ?? "—")
                 LabeledContent("Status") {
-                    Text(connection.isConfigured ? "Connected" : "Not connected")
-                        .foregroundStyle(connection.isConfigured ? .green : .secondary)
+                    if connection.isConfigured {
+                        ConnectionDot(state: connectionState)
+                    } else {
+                        Text("Not connected").foregroundStyle(.secondary)
+                    }
                 }
             }
 

@@ -128,21 +128,33 @@ final class InboxStore: ObservableObject {
     }
 
     private func consume(_ api: any BossServing) async {
+        var failures = 0
         while !Task.isCancelled {
             connectionState = .connecting
             let stream = await api.messageStream()
             connectionState = .connected
             do {
                 for try await event in stream {
+                    failures = 0            // a live stream delivering data
                     handle(event)
                 }
             } catch where !Task.isCancelled {
+                if (error as? HibossAPIError)?.isAuthFailure == true {
+                    // A rejected token won't fix itself — stop reconnecting and
+                    // surface it instead of retrying forever every few seconds.
+                    connectionState = .failed("Session expired — reconnect in Settings.")
+                    return
+                }
                 connectionState = .failed(error.localizedDescription)
             } catch {
                 return
             }
             guard !Task.isCancelled else { return }
-            try? await Task<Never, Never>.sleep(for: reconnectDelay)
+            failures += 1
+            // Capped exponential backoff so a persistent outage doesn't hammer
+            // the server / drain the battery at a fixed cadence.
+            let backoff = min(reconnectDelay * (1 << min(failures, 5)), .seconds(60))
+            try? await Task<Never, Never>.sleep(for: backoff)
         }
     }
 
