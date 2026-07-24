@@ -34,10 +34,11 @@ enum DecisionActivityManager {
 
         let state = DecisionActivityAttributes.ContentState(
             body: top.body, options: top.options, priority: top.priority,
-            deadline: top.expirationDate, resolved: false
+            deadline: top.expirationDate, resolved: false, content: top.content
         )
         let attributes = DecisionActivityAttributes(
-            messageID: top.id.rawValue, agentName: top.displayName, meta: top.metaLine
+            messageID: top.id.rawValue, project: top.project ?? top.displayName,
+            agentName: top.displayName, meta: top.metaLine
         )
         do {
             let activity = try Activity.request(

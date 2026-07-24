@@ -55,10 +55,13 @@ struct IslandView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 7) {
                 Circle().fill(Color.green).frame(width: 6, height: 6)
-                Text(message.agentName ?? "HiBoss")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.58))
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(projectTitle(for: message))
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    messageContext(message)
+                }
                 Spacer()
             }
             Text(message.body)
@@ -86,10 +89,13 @@ struct IslandView: View {
             Circle()
                 .fill(Color.green)
                 .frame(width: 6, height: 6)
-            Text(message.agentName ?? "HiBoss")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.58))
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(projectTitle(for: message))
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                messageContext(message)
+            }
             Spacer()
             if case .submitting = flow.presentationState {
                 ProgressView()
@@ -99,6 +105,33 @@ struct IslandView: View {
             SkipButton { flow.skip() }
                 .disabled(isSubmitting)
         }
+    }
+
+    @ViewBuilder
+    private func messageContext(_ message: OptionMessage) -> some View {
+        if let content = nonEmpty(message.content) {
+            Text(content)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.58))
+                .lineLimit(1)
+        }
+        if let agent = nonEmpty(message.agentName), agent != projectTitle(for: message) {
+            Text(agent)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.58))
+                .lineLimit(1)
+        }
+    }
+
+    private func projectTitle(for message: OptionMessage) -> String {
+        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch) ?? nonEmpty(message.agentName) ?? "HiBoss"
+    }
+
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
     }
 
     private func submitReply(for messageID: MessageID) {
