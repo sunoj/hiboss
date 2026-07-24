@@ -45,10 +45,13 @@ struct RootTabView: View {
             .tag(3)
         }
         .onReceive(router.$pendingMessageID.compactMap { $0 }) { messageID in
-            tab = 0
-            inboxPath = NavigationPath()
-            inboxPath.append(messageID)
+            // Clear first to avoid re-entrancy, then build the stack in a single
+            // atomic assignment: a reset-then-append pair in one update races
+            // SwiftUI's pop-to-root and can leave the previously-open detail on
+            // screen. NavigationPath([messageID]) lands exactly [messageID].
             router.pendingMessageID = nil
+            tab = 0
+            inboxPath = NavigationPath([messageID])
         }
     }
 }

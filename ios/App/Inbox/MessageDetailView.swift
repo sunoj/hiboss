@@ -17,8 +17,12 @@ struct MessageDetailView: View {
     let messageID: MessageID
     @State private var replyDraft = ""
     @State private var submitting: String?
-    @State private var didRefresh = false
+    @State private var fallback: Fallback = .loading
+    @State private var loadAttempt = 0
     @Environment(\.dismiss) private var dismiss
+
+    /// What to show when the message isn't (yet) in history.
+    private enum Fallback { case loading, missing }
 
     private var message: HistoryMessage? { store.history.first { $0.id == messageID } }
 
@@ -74,20 +78,50 @@ struct MessageDetailView: View {
             }
             .navigationTitle(message.displayName)
             .navigationBarTitleDisplayMode(.inline)
-        } else if !didRefresh {
+        } else {
+            fallbackView
+        }
+    }
+
+    /// Shown while the message hasn't landed in history. Holds a spinner until the
+    /// store is connected and a clean refresh has run — a live-stream arrival or a
+    /// successful fetch re-renders into the message branch above. Only a genuinely
+    /// absent message (after a clean load) or exhausted retries shows "not found".
+    @ViewBuilder private var fallbackView: some View {
+        switch fallback {
+        case .loading:
             ProgressView()
                 .controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle("Loading…")
                 .navigationBarTitleDisplayMode(.inline)
-                .task { await store.refresh(); didRefresh = true }
-        } else {
-            ContentUnavailableView(
-                "Message not found",
-                systemImage: "questionmark.circle",
-                description: Text("It may have been cleared or expired.")
-            )
+                .task(id: loadAttempt) { await load() }
+        case .missing:
+            ContentUnavailableView {
+                Label("Message not found", systemImage: "questionmark.circle")
+            } description: {
+                Text(store.loadError == nil
+                    ? "It may have been cleared or expired."
+                    : "Couldn't reach the server.")
+            } actions: {
+                Button("Retry") { fallback = .loading; loadAttempt += 1 }
+            }
         }
+    }
+
+    /// Polls for the store to become ready, refreshes, and only declares the
+    /// message missing after a clean successful load that still lacks the id.
+    private func load() async {
+        for _ in 0..<10 {
+            if Task.isCancelled { return }
+            if store.isReady {
+                await store.refresh()
+                if message != nil { return }            // body re-renders into the message branch
+                if store.loadError == nil { break }     // connected + clean load, genuinely absent
+            }
+            try? await Task.sleep(for: .milliseconds(400))
+        }
+        if message == nil { fallback = .missing }
     }
 
     private func submit(_ choice: String, for id: MessageID) {
