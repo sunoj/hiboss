@@ -116,6 +116,9 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
         "6. Broadcast to ALL peer sessions: hiboss send --broadcast \"<what you're working on>\""
     );
     println!(
+        "NOTIFY CONTEXT: hiboss send/ask accept --content \"<extra context>\" (rendered as the boss notification subtitle, under the project title) and --summary \"<non-sensitive summary>\" (shown in private-mode pushes). Add --content on decisions/asks to give the boss at-a-glance context."
+    );
+    println!(
         "CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\", using your tool call's OWN run_in_background:true parameter (NOT shell '&'/nohup/disown — those detach the process from tracking and you will never see the reply), then WAIT for boss reply."
     );
     println!(

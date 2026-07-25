@@ -23,6 +23,8 @@ hiboss send --type task_update "Build v2.1 deployed"
 hiboss send --file ./screenshot.png "See attached"
 hiboss send --to worker-1 "Implement OAuth2 login"                    # agent-to-agent
 hiboss send --to worker-1 --task "Implement OAuth2" --files src/auth/ # with context
+hiboss send --content "sim reverted @block 21M" "Retry at 2x gas?"    # --content = notification subtitle
+hiboss send --summary "build status" "Full private-safe body here"    # --summary shown in private-mode pushes
 ```
 
 ## Ask (blocking, waits for reply)
@@ -33,7 +35,12 @@ hiboss ask --option "A" --option "B" --option "C" "Pick one:\n1. A\n2. B\n3. C"
 hiboss ask --option "Ship" --option "Wait" --default "Ship" "Deploy now?"  # Ship auto-runs on timeout
 hiboss ask --action "Approve=aid merge t-123" --action "Reject=echo rejected" "Deploy?"
 hiboss ask --to reviewer "Review feat/oauth branch"
+hiboss ask --content "payments · retry policy" --option "Approve" --option "Reject" "Retry?"  # subtitle context
 ```
+
+`--content <TEXT>` adds a context line rendered as the boss notification subtitle
+(under the project/title). `--summary <TEXT>` is a short non-sensitive summary shown
+in private-mode pushes (where the body is withheld from Apple's servers).
 
 `--option` and `--action` are singular repeatable flags. The removed plural flags
 must not be used, and choices must not be joined with commas.
