@@ -325,5 +325,27 @@ New local MCP server that runs as a Claude Code plugin/channel, replacing hook-b
 - Dashboard: forward button on messages with channel dropdown
 - Forwarded messages linked via `reply_to` with `type: 'forwarded'`
 
+### Decision Alerts Opt-Out (iOS)
+- New boss preference `decision_alerts` (default ON). A message carrying options (a
+  blocking `ask`) force-alerts the iOS lock screen + Dynamic Island even at normal
+  priority; setting it false demotes decisions to normal per-priority tiering and
+  suppresses the Live Activity.
+- Server gate in `notify.ts` (`decisionAlertsEnabled`); client gate in
+  `DecisionActivityManager.sync(alertsEnabled:)`; toggle in iOS Settings.
+
+### Project-Forward Notifications + `--content`
+- Boss push/Live-Activity headers now lead with the PROJECT (session label
+  `repo/branch`), demote the agent name to a faint body prefix, and show a new
+  agent-supplied context line.
+- New `--content "<text>"` flag on `hiboss send`/`ask` → `metadata.content` →
+  rendered as the APNs `aps.alert.subtitle` (private-mode pushes unchanged).
+- APNs title = project, subtitle = content, body = `agent · message`. Server joins
+  `sessions` in `boss-option-stream` so macOS also shows the project.
+- iOS Live Activity + macOS Island headers re-ordered project-forward.
+
+### Message Detail Attribute Icons (iOS)
+- iOS message-detail "Details" rows lead with SF Symbols (`MessageAttributeStyle`).
+  Priority + Status glyphs carry semantic color; structural rows are monochrome.
+
 ### Not Merged (pending re-implementation)
 - **Delivery Retry Queue**: WS5 had merge conflicts with quiet-hours infrastructure. The delivery_queue table exists (from quiet hours). Retry logic with exponential backoff needs re-implementation on the merged codebase.
