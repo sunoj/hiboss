@@ -120,8 +120,9 @@ struct MessageDetailsSection: View {
             }
         }
         if message.isPendingDecision, let deadline = message.expirationDate {
-            AttributeRow(icon: "timer", label: "Time left") {
-                CountdownText(deadline: deadline)
+            let tint: Color = message.priorityValue == .critical ? .red : .secondary
+            AttributeRow(icon: "timer", tint: tint, label: "Time left") {
+                CountdownText(deadline: deadline, tint: tint)
             }
         }
         if !message.relativeCreatedAt.isEmpty {
