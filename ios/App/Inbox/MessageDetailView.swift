@@ -69,31 +69,7 @@ struct MessageDetailView: View {
 
                 decisionSection(for: message)
 
-                Section("Details") {
-                    LabeledContent("Agent", value: message.displayName)
-                    if let session = message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !session.isEmpty {
-                        LabeledContent("Session", value: session)
-                    }
-                    LabeledContent("Direction", value: directionLabel(message.direction))
-                    LabeledContent("Priority", value: message.priority.capitalized)
-                    if let mode = message.mode, !mode.isEmpty {
-                        LabeledContent("Mode", value: mode.capitalized)
-                    }
-                    if let channel = message.channel, !channel.isEmpty {
-                        LabeledContent("Channel", value: channel.capitalized)
-                    }
-                    if message.isPendingDecision, let deadline = message.expirationDate {
-                        LabeledContent("Time left") {
-                            CountdownText(deadline: deadline,
-                                          tint: message.priorityValue == .critical ? .red : .secondary)
-                        }
-                    }
-                    if !message.relativeCreatedAt.isEmpty {
-                        LabeledContent("Created", value: message.relativeCreatedAt)
-                    }
-                    LabeledContent("Status", value: message.status.capitalized)
-                }
+                MessageDetailsSection(message: message)
 
                 if let session = sessionRoute(for: message) {
                     Section {
@@ -259,14 +235,6 @@ struct MessageDetailView: View {
         return SessionRoute(id: id, label: label?.isEmpty == false ? label! : String(id.prefix(8)))
     }
 
-    private func directionLabel(_ raw: String) -> String {
-        switch raw {
-        case "agent_to_boss": "Agent → Boss"
-        case "boss_to_agent": "Boss → Agent"
-        case "agent_to_agent": "Agent → Agent"
-        default: raw
-        }
-    }
 }
 
 /// The messages belonging to one session, each drilling into its detail.
