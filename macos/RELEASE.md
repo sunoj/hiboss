@@ -27,6 +27,16 @@ verifies each build's signature before installing, so the artifacts are public.
    cd server && npx wrangler deploy
    ```
 
+4. **Store notary credentials** (only needed to notarize; the profile name is
+   what `NOTARY_PROFILE` refers to):
+   ```sh
+   xcrun notarytool store-credentials hiboss-notary \
+     --apple-id <your-apple-id> --team-id YX8SMYQJ6U \
+     --password <app-specific-password>
+   ```
+   Generate the app-specific password at appleid.apple.com → Sign-In and
+   Security → App-Specific Passwords. It is stored in your login Keychain.
+
 ## Cut a release
 
 From `macos/`:
@@ -51,8 +61,12 @@ go public. `UPLOAD_SECRET` is not required in that mode.
 - Without `HIBOSS_SIGNING_IDENTITY`: ad-hoc signed — fine for personal installs,
   but Gatekeeper warns on first launch for other machines.
 - With `HIBOSS_SIGNING_IDENTITY` + `NOTARY_PROFILE`: Developer-ID signed,
-  notarized, and stapled (clears Gatekeeper offline). Notarization also needs a
-  hardened-runtime build, which `build-app.sh` does not yet produce.
+  notarized, and stapled (clears Gatekeeper offline).
+
+`build-app.sh` signs with the hardened runtime and a secure timestamp — both
+required by notarization — whenever the identity starts with `Developer ID`.
+The local development identity keeps the fast, offline `--timestamp=none` path,
+so ordinary builds do not need the network.
 
 ## Builds without an update feed
 
