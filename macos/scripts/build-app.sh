@@ -19,6 +19,14 @@ DEFAULT_SIGNING_IDENTITY="Apple Development: Ming Sun (234582ZA6V)"
 SIGNING_IDENTITY="${HIBOSS_SIGNING_IDENTITY:-$DEFAULT_SIGNING_IDENTITY}"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
+# Notarization requires the hardened runtime and a secure (online) timestamp;
+# both are pointless overhead for the local development identity, so they turn
+# on exactly when a Developer ID identity is used.
+case "$SIGNING_IDENTITY" in
+    "Developer ID"*) SIGN_FLAGS="--options runtime --timestamp" ;;
+    *)               SIGN_FLAGS="--timestamp=none" ;;
+esac
+
 cd "$PACKAGE_DIR"
 swift build -c release
 BIN_DIR="$(swift build -c release --show-bin-path)"
@@ -58,10 +66,10 @@ fi
 SP="$FRAMEWORKS_DIR/Sparkle.framework"
 find "$SP" \( -name "*.xpc" -o -name "*.app" -o -name "Autoupdate" \) -print0 2>/dev/null |
     while IFS= read -r -d '' nested; do
-        codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$nested"
+        codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$nested"
     done
-codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$SP"
-codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$CONTENTS_DIR/MacOS/HibossIsland"
-codesign --force --timestamp=none --sign "$SIGNING_IDENTITY" "$APP_DIR"
+codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$SP"
+codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$CONTENTS_DIR/MacOS/HibossIsland"
+codesign --force $SIGN_FLAGS --sign "$SIGNING_IDENTITY" "$APP_DIR"
 
 echo "$APP_DIR"
