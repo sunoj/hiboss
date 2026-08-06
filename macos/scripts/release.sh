@@ -7,20 +7,24 @@
 #   UPLOAD_SECRET=... HIBOSS_UPDATES_BASE=https://<server>/updates/macos \
 #   HIBOSS_SPARKLE_PUBKEY=<edDSA pubkey> \
 #   [HIBOSS_SIGNING_IDENTITY="Developer ID Application: … (TEAMID)"] \
-#   [NOTARY_PROFILE=hiboss-notary] \
+#   [NOTARY_PROFILE=hiboss-notary] [SKIP_PUBLISH=1] \
 #   ./scripts/release.sh <version> "Release notes."
 #
 # The private EdDSA key lives in your login Keychain (from Sparkle's
 # `generate_keys`); sign_update reads it. UPLOAD_SECRET must equal the Worker's
 # RELEASE_UPLOAD_SECRET. HIBOSS_SIGNING_IDENTITY → real Developer-ID signing;
 # NOTARY_PROFILE (needs the identity) → notarize + staple for offline Gatekeeper.
+# SKIP_PUBLISH=1 builds and signs everything but does not upload, so a release
+# can be verified before it is public (UPLOAD_SECRET is then not required).
 # Deps: SwiftPM, ditto, curl, Sparkle bin/sign_update, xcrun notarytool/stapler.
 
 set -euo pipefail
 
 VERSION="${1:?usage: release.sh <version> [notes]}"
 NOTES="${2:-Bug fixes and improvements.}"
-: "${UPLOAD_SECRET:?set UPLOAD_SECRET (== Worker RELEASE_UPLOAD_SECRET)}"
+if [ -z "${SKIP_PUBLISH:-}" ]; then
+  : "${UPLOAD_SECRET:?set UPLOAD_SECRET (== Worker RELEASE_UPLOAD_SECRET), or SKIP_PUBLISH=1}"
+fi
 : "${HIBOSS_UPDATES_BASE:?set HIBOSS_UPDATES_BASE (e.g. https://<server>/updates/macos)}"
 : "${HIBOSS_SPARKLE_PUBKEY:?set HIBOSS_SPARKLE_PUBKEY (EdDSA public key from generate_keys)}"
 
@@ -84,6 +88,13 @@ cat > "$OUT_DIR/appcast.xml" <<XML
 XML
 
 # 5. publish zip + appcast to the Worker (stored in R2 behind the upload secret).
+if [ -n "${SKIP_PUBLISH:-}" ]; then
+  printf 'Built HiBoss Island %s (build %s, %s bytes) — NOT published (SKIP_PUBLISH).\n' \
+    "$VERSION" "$BUILD" "$LENGTH"
+  printf '  zip:     %s\n  appcast: %s\n' "$OUT_DIR/$ZIP" "$OUT_DIR/appcast.xml"
+  exit 0
+fi
+
 curl -fsS -X PUT "$BASE/$ZIP" -H "authorization: Bearer $UPLOAD_SECRET" \
   -H "content-type: application/zip" --data-binary "@$OUT_DIR/$ZIP" >/dev/null
 curl -fsS -X PUT "$BASE/appcast.xml" -H "authorization: Bearer $UPLOAD_SECRET" \
