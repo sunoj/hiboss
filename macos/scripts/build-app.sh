@@ -36,11 +36,14 @@ install_name_tool -add_rpath "@executable_path/../Frameworks" \
     "$CONTENTS_DIR/MacOS/HibossIsland" 2>/dev/null || true
 
 # Inject deployment-specific Sparkle settings without baking them into the repo.
+# Both keys are absent from the tracked Info.plist (an empty SUPublicEDKey is
+# invalid to Sparkle and makes the updater refuse to start), so add them here.
+# A build missing either one simply ships without an updater.
 if [ -n "${HIBOSS_APPCAST_URL:-}" ]; then
-    "$PLIST_BUDDY" -c "Set :SUFeedURL $HIBOSS_APPCAST_URL" "$CONTENTS_DIR/Info.plist"
+    "$PLIST_BUDDY" -c "Add :SUFeedURL string $HIBOSS_APPCAST_URL" "$CONTENTS_DIR/Info.plist"
 fi
 if [ -n "${HIBOSS_SPARKLE_PUBKEY:-}" ]; then
-    "$PLIST_BUDDY" -c "Set :SUPublicEDKey $HIBOSS_SPARKLE_PUBKEY" "$CONTENTS_DIR/Info.plist"
+    "$PLIST_BUDDY" -c "Add :SUPublicEDKey string $HIBOSS_SPARKLE_PUBKEY" "$CONTENTS_DIR/Info.plist"
 fi
 # release.sh overrides the version/build so Sparkle can compare against a release.
 if [ -n "${HIBOSS_VERSION:-}" ]; then
