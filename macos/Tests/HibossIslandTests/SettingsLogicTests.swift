@@ -11,6 +11,7 @@ import XCTest
 final class SettingsLogicTests: XCTestCase {
     func testSettingsPanesAppearInDesignOrder() {
         XCTAssertEqual(SettingsPane.allCases.map(\.title), [
+            "General",
             "Connection",
             "Notifications",
             "Channels & Routing",
