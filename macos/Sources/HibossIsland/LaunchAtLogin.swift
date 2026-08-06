@@ -22,10 +22,8 @@ final class LaunchAtLoginController: ObservableObject {
     init(service: SMAppService = .mainApp) {
         self.service = service
         refresh()
+        Self.log.notice("Login item initial status: \(String(describing: self.status), privacy: .public)")
     }
-
-    /// Login items need a real app bundle; an unbundled `swift run` has none.
-    var isAvailable: Bool { status != .notFound }
 
     var explanation: String { Self.explanation(for: status, failure: failure) }
 
@@ -37,7 +35,9 @@ final class LaunchAtLoginController: ObservableObject {
         case .requiresApproval:
             return "Approve HiBoss Island under System Settings › General › Login Items to finish enabling this."
         case .notFound:
-            return "Login items are unavailable for this build. Run the app from /Applications."
+            // Seen on a freshly replaced bundle before Launch Services catches
+            // up. Registering usually still works, so this only explains.
+            return "macOS does not recognise this copy of the app yet. Turning this on should still work — if it does not, relaunch from /Applications and try again."
         default:
             return "HiBoss Island stays closed until you open it."
         }
