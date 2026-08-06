@@ -11,6 +11,9 @@ public final class UpdaterState: ObservableObject {
     /// Sparkle can start a check right now (false while one is in flight, or on
     /// an unbundled dev run where no updater is attached).
     @Published public var canCheck = false
+    /// The bundle carries a usable appcast feed and EdDSA public key, so an
+    /// updater is attached. False for builds packaged without release settings.
+    @Published public var isConfigured = false
     /// Mirrors the updater's "check automatically" preference.
     @Published public var automaticChecks = true
 
