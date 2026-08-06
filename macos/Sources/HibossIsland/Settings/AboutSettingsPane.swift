@@ -39,6 +39,7 @@ struct AboutSettingsPane: View {
                         set: { updater.setAutomatic($0) }
                     )
                 )
+                .disabled(!updater.isConfigured)
                 LabeledContent("Software update") {
                     Button("Check for Updates…") { updater.check() }
                         .disabled(!updater.canCheck)
@@ -46,8 +47,12 @@ struct AboutSettingsPane: View {
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Updates are delivered via Sparkle and verified with an EdDSA signature before installing.")
-                    .foregroundStyle(.secondary)
+                Text(
+                    updater.isConfigured
+                        ? "Updates are delivered via Sparkle and verified with an EdDSA signature before installing."
+                        : "This build has no update feed configured, so it will not check for updates."
+                )
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

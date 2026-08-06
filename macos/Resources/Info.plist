@@ -34,13 +34,11 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <!-- Sparkle auto-update. SUFeedURL and SUPublicEDKey are deployment-specific
-         and injected at package time by scripts/build-app.sh from
-         HIBOSS_APPCAST_URL / HIBOSS_SPARKLE_PUBKEY; the placeholders below keep
-         the tracked tree free of a real appcast host and public key. -->
-    <key>SUFeedURL</key>
-    <string>https://your-hiboss-server.example/updates/macos/appcast.xml</string>
-    <key>SUPublicEDKey</key>
-    <string></string>
+         and added at package time by scripts/build-app.sh from
+         HIBOSS_APPCAST_URL / HIBOSS_SPARKLE_PUBKEY. They are deliberately absent
+         here: an empty SUPublicEDKey is *invalid* to Sparkle (not "unset"), which
+         makes startUpdater fail and alert on every launch. SparkleUpdater skips
+         starting the updater when either key is missing. -->
     <key>SUEnableAutomaticChecks</key>
     <true/>
     <key>SUScheduledCheckInterval</key>

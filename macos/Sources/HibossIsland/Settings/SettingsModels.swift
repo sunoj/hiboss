@@ -7,6 +7,7 @@ import HibossKit
 import SwiftUI
 
 enum SettingsPane: String, CaseIterable, Identifiable {
+    case general
     case connection
     case notifications
     case routing
@@ -19,6 +20,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .general: "General"
         case .connection: "Connection"
         case .notifications: "Notifications"
         case .routing: "Channels & Routing"
@@ -31,6 +33,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
+        case .general: "Startup behaviour for this Mac."
         case .connection: "Connect this Mac to the boss daemon."
         case .notifications: "Choose how questions surface on this Mac."
         case .routing: "Route each priority to server-backed channels."
@@ -43,6 +46,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .general: "gearshape"
         case .connection: "link"
         case .notifications: "bell"
         case .routing: "point.3.connected.trianglepath.dotted"

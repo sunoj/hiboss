@@ -10,6 +10,7 @@ struct SettingsScene: View {
     @ObservedObject var flow: OptionFlowStore
     @ObservedObject var preferencesStore: BossPreferencesStore
     @ObservedObject var updater: UpdaterState
+    @ObservedObject var launchAtLogin: LaunchAtLoginController
     let soundPlayer: any SoundPlaying
 
     @State private var selection: SettingsPane = .connection
@@ -21,12 +22,14 @@ struct SettingsScene: View {
         flow: OptionFlowStore,
         preferencesStore: BossPreferencesStore,
         updater: UpdaterState = UpdaterState(),
+        launchAtLogin: LaunchAtLoginController = LaunchAtLoginController(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer()
     ) {
         self.settings = settings
         self.flow = flow
         self.preferencesStore = preferencesStore
         self.updater = updater
+        self.launchAtLogin = launchAtLogin
         self.soundPlayer = soundPlayer
     }
 
@@ -55,6 +58,8 @@ struct SettingsScene: View {
     @ViewBuilder
     private var detailPane: some View {
         switch SettingsPreferencesLogic.selectedPane(selection) {
+        case .general:
+            GeneralSettingsPane(launchAtLogin: launchAtLogin)
         case .connection:
             ConnectionSettingsPane(
                 settings: settings,
