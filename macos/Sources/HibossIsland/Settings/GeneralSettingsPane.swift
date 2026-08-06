@@ -11,6 +11,9 @@ struct GeneralSettingsPane: View {
     var body: some View {
         Form {
             Section {
+                // Never gated on status: SMAppService reports .notFound for a
+                // bundle Launch Services has not caught up with, and greying the
+                // toggle out then hides a switch that would have worked.
                 Toggle(
                     "Open at login",
                     isOn: Binding(
@@ -18,7 +21,6 @@ struct GeneralSettingsPane: View {
                         set: { launchAtLogin.setEnabled($0) }
                     )
                 )
-                .disabled(!launchAtLogin.isAvailable)
             } header: {
                 Text("Startup")
             } footer: {
