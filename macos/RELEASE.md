@@ -44,7 +44,26 @@ the zip, writes a one-item `appcast.xml`, and PUTs both to the Worker. Running
 clients pick the update up within `SUScheduledCheckInterval` (24 h) or via
 **Settings → About → Check for Updates…**.
 
+Add `SKIP_PUBLISH=1` to build and sign everything without uploading — the zip
+and `appcast.xml` land in `.build/release-artifacts/` for inspection before they
+go public. `UPLOAD_SECRET` is not required in that mode.
+
 - Without `HIBOSS_SIGNING_IDENTITY`: ad-hoc signed — fine for personal installs,
   but Gatekeeper warns on first launch for other machines.
 - With `HIBOSS_SIGNING_IDENTITY` + `NOTARY_PROFILE`: Developer-ID signed,
-  notarized, and stapled (clears Gatekeeper offline).
+  notarized, and stapled (clears Gatekeeper offline). Notarization also needs a
+  hardened-runtime build, which `build-app.sh` does not yet produce.
+
+## Builds without an update feed
+
+Anything not built through `release.sh` has no `SUFeedURL`/`SUPublicEDKey`, so
+the app runs with **no updater at all** — it never checks and never alerts.
+Do not put placeholder values in `Resources/Info.plist`: Sparkle treats an empty
+`SUPublicEDKey` as *invalid* rather than absent and refuses to start, which
+surfaces as a modal "Unable to Check For Updates" on every launch.
+
+## Changing the signing identity
+
+Sparkle only installs an update whose code signature matches the running app's.
+Switching identity (e.g. Apple Development → Developer ID) breaks that match, so
+that one build has to be installed by hand; updates resume from there.
