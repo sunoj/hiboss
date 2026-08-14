@@ -36,6 +36,8 @@ export interface ProgressPost {
   project: string;
   agent_id: string;
   agent_name: string;
+  agent_label: string | null;
+  model: string | null;
   session_id: string | null;
   body: string;
   media: MediaItem[];
@@ -50,6 +52,8 @@ export interface ProgressRow {
   id: string;
   agent_id: string;
   agent_name: string;
+  agent_label: string | null;
+  model: string | null;
   session_id: string | null;
   project: string;
   body: string;
@@ -77,6 +81,8 @@ export interface CreatePayload {
   session_id: string | null;
   media: MediaItem[] | null;
   tags: string[] | null;
+  agent_label: string | null;
+  model: string | null;
 }
 
 export interface ProgressCursor {
@@ -134,6 +140,12 @@ export async function parseCreatePayload(c: Context<{ Bindings: Env }>): Promise
   if (input.body.length > 2000) return 'body is too long (max 2000 characters)';
   const project = input.project === undefined ? null : input.project;
   if (project !== null && (typeof project !== 'string' || !project.trim())) return 'project must be a non-empty string';
+  const agentLabel = input.agent_label === undefined ? null : input.agent_label;
+  if (agentLabel !== null && typeof agentLabel !== 'string') return 'agent_label must be a string';
+  if (typeof agentLabel === 'string' && agentLabel.length > 64) return 'agent_label is too long (max 64 characters)';
+  const model = input.model === undefined ? null : input.model;
+  if (model !== null && typeof model !== 'string') return 'model must be a string';
+  if (typeof model === 'string' && model.length > 64) return 'model is too long (max 64 characters)';
   const sessionId = input.session_id === undefined || input.session_id === null ? null : input.session_id;
   if (sessionId !== null && typeof sessionId !== 'string') return 'session_id must be a string';
   const requestUrl = new URL(c.req.url);
@@ -149,7 +161,7 @@ export async function parseCreatePayload(c: Context<{ Bindings: Env }>): Promise
   if (!Array.isArray(tagsInput) || tagsInput.length > 8 || tagsInput.some((tag) => typeof tag !== 'string')) {
     return 'tags must contain at most 8 strings';
   }
-  return { body: input.body, project: project as string | null, session_id: sessionId, media: media.length ? media : null, tags: tagsInput.length ? tagsInput as string[] : null };
+  return { body: input.body, project: project as string | null, session_id: sessionId, media: media.length ? media : null, tags: tagsInput.length ? tagsInput as string[] : null, agent_label: agentLabel as string | null, model: model as string | null };
 }
 
 export async function verifyMediaOwnership(
@@ -222,6 +234,8 @@ export function mapProgressRow(row: ProgressRow, requestUrl: URL, bossAuthentica
     project: row.project,
     agent_id: row.agent_id,
     agent_name: row.agent_name,
+    agent_label: row.agent_label,
+    model: row.model,
     session_id: row.session_id,
     body: row.body,
     media: parseArray<MediaItem>(row.media),
