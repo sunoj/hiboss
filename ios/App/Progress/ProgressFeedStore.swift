@@ -16,7 +16,8 @@ final class ProgressFeedStore: ObservableObject {
     @Published private(set) var isLoadingMore = false
 
     private var api: (any ProgressServing)?
-    private var nextBefore: String?
+    private var nextCursor: ProgressCursor?
+    private var operation: Task<Void, Never>?
     private static let pageSize = 20
 
     func start(api: any ProgressServing) {
@@ -28,7 +29,9 @@ final class ProgressFeedStore: ObservableObject {
         posts = []
         projects = []
         selectedProject = nil
-        nextBefore = nil
+        operation?.cancel()
+        operation = nil
+        nextCursor = nil
         didLoad = false
         loadError = nil
         isLoadingMore = false
@@ -40,6 +43,18 @@ final class ProgressFeedStore: ObservableObject {
     }
 
     func refresh() async {
+        guard api != nil else { return }
+        let previous = operation
+        let current = Task { @MainActor [weak self] in
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            await self?.performRefresh()
+        }
+        operation = current
+        await current.value
+    }
+
+    private func performRefresh() async {
         guard let api else { return }
         do {
             let feed = try await api.progressFeed(
@@ -47,7 +62,7 @@ final class ProgressFeedStore: ObservableObject {
             )
             guard !Task.isCancelled else { return }
             posts = feed.posts
-            nextBefore = feed.nextBefore
+            nextCursor = feed.nextCursor
             loadError = nil
             didLoad = true
         } catch is CancellationError {
@@ -64,7 +79,19 @@ final class ProgressFeedStore: ObservableObject {
     }
 
     func loadMore() async {
-        guard let api, let cursor = nextBefore, !isLoadingMore else { return }
+        guard api != nil else { return }
+        let previous = operation
+        let current = Task { @MainActor [weak self] in
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            await self?.performLoadMore()
+        }
+        operation = current
+        await current.value
+    }
+
+    private func performLoadMore() async {
+        guard let api, let cursor = nextCursor, !isLoadingMore else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
@@ -74,7 +101,7 @@ final class ProgressFeedStore: ObservableObject {
             guard !Task.isCancelled else { return }
             let existing = Set(posts.map(\.id))
             posts.append(contentsOf: feed.posts.filter { !existing.contains($0.id) })
-            nextBefore = feed.nextBefore
+            nextCursor = feed.nextCursor
         } catch is CancellationError {
             return
         } catch {

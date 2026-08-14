@@ -35,9 +35,9 @@ CREATE TABLE IF NOT EXISTS progress_posts (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_posts(project, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_progress_agent ON progress_posts(agent_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_posts(project, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_progress_agent ON progress_posts(agent_id, created_at DESC, id DESC);
 ```
 
 Mirror the table into `server/schema.sql` (that file tracks the consolidated final state).
@@ -80,7 +80,9 @@ Request:
 Validation: reject empty/whitespace-only `body` (400), `body` > 2000 chars (400),
 > 4 media items (400), a MediaItem whose `kind` is not `image`/`video` (400), and a
 MediaItem `url` whose origin is not this worker's own `/api/attachments/` path (400 —
-this keeps the feed from rendering arbitrary remote URLs). Returns `201` + the full post.
+this keeps the feed from rendering arbitrary remote URLs). Every media URL, including
+`poster_url`, must resolve to an existing R2 object whose `customMetadata.agent_id`
+matches the posting agent (400 otherwise). Returns `201` + the full post.
 
 ### `GET /api/progress` — `dualAuth`
 
@@ -89,9 +91,10 @@ this keeps the feed from rendering arbitrary remote URLs). Returns `201` + the f
 - Agent key: `WHERE agent_id = <caller>` only. Never widen this.
 
 Query params: `project` (exact match), `limit` (default 20, max 100), `before`
-(ISO timestamp cursor, returns strictly older posts), `agent_id` (boss only).
+(a JSON cursor object with `created_at` and `id`, returning strictly older keyset
+positions), `agent_id` (boss only). Sort order is `created_at DESC, id DESC`.
 
-Response: `{ "posts": [Post], "next_before": "2026-08-14T09:00:00Z" | null }`
+Response: `{ "posts": [Post], "next_cursor": { "created_at": "2026-08-14T09:00:00Z", "id": "…" } | null }`
 
 ### `GET /api/progress/projects` — `dualAuth`
 
@@ -135,7 +138,7 @@ Repeatable singular flags only; never comma-joined lists, never a plural `--imag
 ```
 hiboss progress post "<body>" [--image <path>]… [--video <path>]… [--url <url>]…
                               [--project <name>] [--session <id>] [--tag <t>]… [--alt <text>]…
-hiboss progress list [--project <name>] [--limit <n>] [--before <iso>] [--json]
+hiboss progress list [--project <name>] [--limit <n>] [--before <cursor-json>] [--json]
 hiboss progress rm <id>
 ```
 
@@ -163,6 +166,7 @@ Every new function needs at least one test; no `unwrap()` in production paths.
 - `ProgressPost` + `ProgressMedia` `Codable`/`Sendable`/`Identifiable` models in a new
   `ProgressFeed.swift`, matching the JSON above and tolerant of missing optionals.
 - `HibossAPI`: `progressFeed(project:limit:before:) async throws -> ProgressFeedPage`,
+  where `before` and `next_cursor` use the `{ "created_at", "id" }` composite cursor,
   `progressProjects() async throws -> [ProgressProject]`, `deleteProgressPost(id:)`.
   Follow the existing method style, error mapping, and `clientSource` conventions.
 - Decoder tests covering: a post with no media, one with an image, one with a video that

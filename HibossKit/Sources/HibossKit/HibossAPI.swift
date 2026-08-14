@@ -132,11 +132,15 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     public func progressFeed(
         project: String? = nil,
         limit: Int = 20,
-        before: String? = nil
+        before: ProgressCursor? = nil
     ) async throws -> ProgressFeedPage {
         var items = [URLQueryItem(name: "limit", value: String(limit))]
         if let project, !project.isEmpty { items.append(URLQueryItem(name: "project", value: project)) }
-        if let before, !before.isEmpty { items.append(URLQueryItem(name: "before", value: before)) }
+        if let before {
+            let data = try JSONEncoder().encode(before)
+            let cursor = String(decoding: data, as: UTF8.self)
+            items.append(URLQueryItem(name: "before", value: cursor))
+        }
         return try await decode(ProgressFeedPage.self, from: progressURL.appending(queryItems: items), context: "progress feed")
     }
 

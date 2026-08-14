@@ -22,11 +22,6 @@ function parseContentLength(value: string | undefined): number | null {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function isUnknownLengthStreamError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /stream|length/i.test(message);
-}
-
 async function putAttachment(
   env: Env,
   key: string,
@@ -53,16 +48,8 @@ async function putRawAttachment(
     if (fileData.byteLength > 0) await putAttachment(c.env, key, fileData, metadata);
     return fileData.byteLength;
   }
-  try {
-    await putAttachment(c.env, key, stream, metadata);
-    return declaredLength;
-  } catch (error) {
-    if (!isUnknownLengthStreamError(error)) throw error;
-    const fileData = await c.req.arrayBuffer();
-    if (fileData.byteLength > maxBytes) return -1;
-    if (fileData.byteLength > 0) await putAttachment(c.env, key, fileData, metadata);
-    return fileData.byteLength;
-  }
+  await putAttachment(c.env, key, stream, metadata);
+  return declaredLength;
 }
 
 routes.post('/upload', apiAuth, async (c) => {

@@ -20,19 +20,49 @@ final class ProgressAPITests: XCTestCase {
             let items = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?.queryItems
             XCTAssertEqual(items?.first { $0.name == "limit" }?.value, "20")
             XCTAssertEqual(items?.first { $0.name == "project" }?.value, "hiboss")
-            XCTAssertEqual(items?.first { $0.name == "before" }?.value, "2026-08-14T09:00:00Z")
+            let cursor = #"{"id":"p2","created_at":"2026-08-14T09:00:00Z"}"#
+            XCTAssertEqual(items?.first { $0.name == "before" }?.value, cursor)
             return try Self.response(
                 for: request,
-                json: #"{"posts":[{"id":"p1","project":"hiboss","agent_id":"ak1","agent_name":"cli","body":"Hi","media":[],"tags":[],"created_at":"2026-08-14T08:00:00Z"}],"next_before":null}"#
+                json: #"{"posts":[{"id":"p1","project":"hiboss","agent_id":"ak1","agent_name":"cli","body":"Hi","media":[],"tags":[],"created_at":"2026-08-14T08:00:00Z"}],"next_cursor":null}"#
             )
         }
         let api = HibossAPI(config: try config(), session: session())
 
-        let page = try await api.progressFeed(project: "hiboss", limit: 20, before: "2026-08-14T09:00:00Z")
+        let page = try await api.progressFeed(
+            project: "hiboss", limit: 20,
+            before: ProgressCursor(createdAt: "2026-08-14T09:00:00Z", id: "p2")
+        )
 
         XCTAssertEqual(page.posts.count, 1)
         XCTAssertEqual(page.posts.first?.id, "p1")
-        XCTAssertNil(page.nextBefore)
+        XCTAssertNil(page.nextCursor)
+    }
+
+    func testProgressFeedDecodesMediaVariantsAndCompositeCursor() async throws {
+        ProgressURLProtocol.handler = { request in
+            try Self.response(
+                for: request,
+                json: #"""
+                {"posts":[
+                    {"id":"none","project":"p","agent_id":"a","agent_name":"cli","body":"none","created_at":"2026-08-14T08:00:00Z"},
+                    {"id":"image","project":"p","agent_id":"a","agent_name":"cli","body":"image","media":[{"url":"https://h/i.png","kind":"image","content_type":"image/png","size":3,"width":12,"height":8}],"tags":[],"created_at":"2026-08-14T07:00:00Z"},
+                    {"id":"video","project":"p","agent_id":"a","agent_name":"cli","body":"video","media":[{"url":"https://h/v.mp4","kind":"video","content_type":"video/mp4","size":4,"duration_ms":3200,"poster_url":"https://h/p.jpg"}],"created_at":"2026-08-14T06:00:00Z"},
+                    {"id":"missing-dimensions","project":"p","agent_id":"a","agent_name":"cli","body":"missing","media":[{"url":"https://h/m.png","kind":"image","content_type":"image/png","size":5}],"created_at":"2026-08-14T05:00:00Z"}
+                ],"next_cursor":{"created_at":"2026-08-14T05:00:00Z","id":"missing-dimensions"}}
+                """#
+            )
+        }
+        let api = HibossAPI(config: try config(), session: session())
+        let page = try await api.progressFeed()
+
+        XCTAssertEqual(page.posts.count, 4)
+        XCTAssertTrue(page.posts[0].media.isEmpty)
+        XCTAssertEqual(page.posts[1].media.first?.kind, .image)
+        XCTAssertEqual(page.posts[2].media.first?.durationMs, 3200)
+        XCTAssertEqual(page.posts[2].media.first?.posterUrl, "https://h/p.jpg")
+        XCTAssertNil(page.posts[3].media.first?.width)
+        XCTAssertEqual(page.nextCursor, ProgressCursor(createdAt: "2026-08-14T05:00:00Z", id: "missing-dimensions"))
     }
 
     func testProgressProjectsUsesAuthorizedEndpoint() async throws {

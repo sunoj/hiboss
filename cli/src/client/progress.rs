@@ -3,7 +3,7 @@
 // Dependencies: super::HiBossClient, crate::types, reqwest, std::error::Error.
 
 use super::HiBossClient;
-use crate::types::{ProgressFeedResponse, ProgressPost, ProgressPostRequest, UploadResponse};
+use crate::types::{ProgressCursor, ProgressFeedResponse, ProgressPost, ProgressPostRequest, UploadResponse};
 use std::error::Error;
 
 impl HiBossClient {
@@ -27,7 +27,7 @@ impl HiBossClient {
         &self,
         project: Option<&str>,
         limit: Option<u32>,
-        before: Option<&str>,
+        before: Option<&ProgressCursor>,
     ) -> Result<ProgressFeedResponse, Box<dyn Error>> {
         let mut req = self
             .http
@@ -40,7 +40,8 @@ impl HiBossClient {
             req = req.query(&[("limit", l.to_string())]);
         }
         if let Some(b) = before {
-            req = req.query(&[("before", b)]);
+            let cursor = serde_json::to_string(b)?;
+            req = req.query(&[("before", cursor)]);
         }
         let resp = req.send().await?;
         Self::parse_response(resp).await

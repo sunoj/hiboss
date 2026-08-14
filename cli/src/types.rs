@@ -3,6 +3,7 @@
 // Dependencies: serde, serde_json, std::collections::HashMap.
 
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -268,5 +269,20 @@ pub struct ProgressPost {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProgressFeedResponse {
     pub posts: Vec<ProgressPost>,
-    pub next_before: Option<String>,
+    pub next_cursor: Option<ProgressCursor>,
+}
+
+/// Composite keyset cursor for GET /api/progress.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProgressCursor {
+    pub created_at: String,
+    pub id: String,
+}
+
+impl FromStr for ProgressCursor {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(value).map_err(|_| "before must be JSON with created_at and id".to_owned())
+    }
 }
