@@ -51,25 +51,29 @@ struct ProgressVideoCell: View {
 
     var body: some View {
         Color(.secondarySystemFill)
-            .aspectRatio(media.aspectRatio, contentMode: .fit)
             .overlay { poster }
+            .overlay { activePlayer }
             .overlay {
-                if isActive, let url = URL(string: media.url) {
-                    LoopingPlayerView(url: url, isMuted: !unmuted, isPlaying: true, fill: true)
-                }
+                Color.clear.contentShape(Rectangle()).onTapGesture(perform: onExpand)
             }
-            .overlay(alignment: .bottomLeading) { muteBadge }
-            .overlay(alignment: .topTrailing) { expandButton }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .contentShape(Rectangle())
-            .onTapGesture { if isActive { unmuted.toggle() } }
+            .overlay(alignment: .bottomLeading) { muteButton }
+            .overlay(alignment: .bottomTrailing) { durationPill }
+            .clipped()
             .background { visibilityProbe }
             .onDisappear {
                 playback.clear(videoID)
                 unmuted = false
             }
             .accessibilityLabel(media.alt ?? String(localized: "Video"))
-            .accessibilityHint("Tap to unmute")
+            .accessibilityHint(String(localized: "Open full screen"))
+    }
+
+    @ViewBuilder
+    private var activePlayer: some View {
+        if isActive, let url = URL(string: media.url) {
+            LoopingPlayerView(url: url, isMuted: !unmuted, isPlaying: true, fill: true)
+                .allowsHitTesting(false)
+        }
     }
 
     @ViewBuilder
@@ -91,24 +95,31 @@ struct ProgressVideoCell: View {
         Image(systemName: "film").font(.title).foregroundStyle(.secondary)
     }
 
-    private var muteBadge: some View {
-        Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
-            .font(.caption)
-            .padding(6)
-            .background(.regularMaterial, in: Circle())
-            .padding(8)
-            .allowsHitTesting(false)
-    }
-
-    private var expandButton: some View {
-        Button(action: onExpand) {
-            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                .font(.caption)
-                .padding(6)
+    private var muteButton: some View {
+        Button { unmuted.toggle() } label: {
+            Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                .font(.body)
+                .padding(8)
                 .background(.regularMaterial, in: Circle())
         }
+        .buttonStyle(.plain)
         .padding(8)
-        .accessibilityLabel("Open full screen")
+        .accessibilityLabel(unmuted ? String(localized: "Mute") : String(localized: "Unmute"))
+    }
+
+    @ViewBuilder
+    private var durationPill: some View {
+        if let ms = media.durationMs {
+            Text(ProgressMediaLayout.durationLabel(milliseconds: ms))
+                .font(.caption)
+                .monospacedDigit()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.regularMaterial, in: Capsule())
+                .padding(8)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 
     private var visibilityProbe: some View {
