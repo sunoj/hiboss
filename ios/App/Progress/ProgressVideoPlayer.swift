@@ -54,7 +54,11 @@ struct ProgressVideoCell: View {
             .overlay { poster }
             .overlay { activePlayer }
             .overlay {
-                Color.clear.contentShape(Rectangle()).onTapGesture(perform: onExpand)
+                Button(action: onExpand) {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHidden(true)
             }
             .overlay(alignment: .bottomLeading) { muteButton }
             .overlay(alignment: .bottomTrailing) { durationPill }
@@ -86,6 +90,7 @@ struct ProgressVideoCell: View {
                     filmPlaceholder
                 }
             }
+            .allowsHitTesting(false)
         } else {
             filmPlaceholder
         }

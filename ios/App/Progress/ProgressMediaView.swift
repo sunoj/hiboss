@@ -22,6 +22,7 @@ struct ProgressMediaView: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: ProgressMediaLayout.cornerRadius, style: .continuous))
+        .contentShape(Rectangle())
         .transaction { $0.animation = nil }
     }
 
@@ -98,6 +99,7 @@ struct ProgressMediaView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
         .clipped()
     }
 }
@@ -115,7 +117,11 @@ struct ProgressImageCell: View {
         Color(.secondarySystemFill)
             .overlay { imageFill }
             .overlay {
-                Color.clear.contentShape(Rectangle()).onTapGesture(perform: onOpen)
+                Button(action: onOpen) {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHidden(true)
             }
             .overlay(alignment: .bottomLeading) { altButton }
             .clipped()
@@ -133,9 +139,10 @@ struct ProgressImageCell: View {
     @ViewBuilder
     private var imageFill: some View {
         if let image {
-            Image(uiImage: image).resizable().scaledToFill()
+            Image(uiImage: image).resizable().scaledToFill().allowsHitTesting(false)
         } else if failed {
             Image(systemName: "photo").font(.title).foregroundStyle(.secondary)
+                .allowsHitTesting(false)
         } else {
             ProgressView()
         }
