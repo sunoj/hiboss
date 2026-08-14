@@ -1,62 +1,39 @@
-// The Inbox screen: pending decisions and full history, live over SSE.
+// The Inbox screen: the pending decision queue, live over SSE.
 // Exports: InboxView bound to an InboxStore, plus the shared ConnectionDot.
-// Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow.
+// Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow, ReplySheet.
 
 import HibossKit
 import SwiftUI
+import UIKit
 
 struct InboxView: View {
     @ObservedObject var store: InboxStore
-    @State private var tab: Tab = .pending
     @State private var replyTarget: HistoryMessage?
     @State private var actionNote: String?
 
-    enum Tab: String, CaseIterable, Identifiable {
-        case pending = "Pending"
-        case all = "All"
-        var id: String { rawValue }
-    }
-
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("View", selection: $tab) {
-                Text("Pending (\(store.pendingCount))").tag(Tab.pending)
-                Text("All").tag(Tab.all)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.bottom, 6)
-
-            content
-        }
-        .navigationTitle("Inbox")
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                NavigationLink {
-                    MessagesView(store: store)
-                } label: {
-                    Label("All messages", systemImage: "bubble.left.and.bubble.right")
+        content
+            .navigationTitle("Inbox")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ConnectionDot(state: store.connectionState)
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                ConnectionDot(state: store.connectionState)
+            .sheet(item: $replyTarget) { message in
+                ReplySheet(message: message) { choice in
+                    await store.reply(choice, to: message.id)
+                }
+                .presentationDetents([.medium, .large])
             }
-        }
-        .sheet(item: $replyTarget) { message in
-            ReplySheet(message: message) { choice in
-                await store.reply(choice, to: message.id)
+            .alert(
+                "Heads up",
+                isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
+                presenting: actionNote
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { note in
+                Text(note)
             }
-            .presentationDetents([.medium, .large])
-        }
-        .alert(
-            "Heads up",
-            isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
-            presenting: actionNote
-        ) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { note in
-            Text(note)
-        }
     }
 
     /// Submit a reply and surface a non-success outcome (already-resolved / failed)
@@ -64,72 +41,106 @@ struct InboxView: View {
     private func handleReply(_ choice: String, to id: MessageID) {
         Task {
             switch await store.reply(choice, to: id) {
-            case .sent: break
-            case .alreadyResolved: actionNote = "That decision was already answered elsewhere."
-            case .failed: actionNote = "Couldn't send your reply — check your connection."
+            case .sent:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            case .alreadyResolved:
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                actionNote = "That decision was already answered elsewhere."
+            case .failed:
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                actionNote = "Couldn't send your reply — check your connection."
             }
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        if tab == .pending {
-            pendingContent
+        if !store.didLoad && store.history.isEmpty {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if store.pending.isEmpty, store.history.isEmpty, let error = store.loadError {
+            ContentUnavailableView {
+                Label("Can't reach the server", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text(error)
+            } actions: {
+                Button("Retry") { Task { await store.refresh() } }
+            }
         } else {
-            allHistoryContent
+            inboxList
         }
     }
 
-    private var pendingContent: some View {
-        ListStateView(
-            isLoading: !store.didLoad && store.history.isEmpty,
-            error: store.history.isEmpty ? store.loadError : nil,
-            isEmpty: store.pending.isEmpty,
-            emptyIcon: "checkmark.circle",
-            emptyTitle: "All clear",
-            emptyDetail: "No decisions are waiting on you.",
-            onRetry: { await store.refresh() }
-        ) {
-            List {
-                ForEach(store.pending) { message in
-                    MessageCard(
-                        message: message,
-                        onChoose: { choice in handleReply(choice, to: message.id) },
-                        onMore: { replyTarget = message }
-                    )
-                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+    private var inboxList: some View {
+        List {
+            if store.pending.isEmpty {
+                allClear
+                    .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+            }
+            ForEach(store.pending) { message in
+                pendingRow(message)
+            }
+            ForEach(store.settledHistory) { message in
+                NavigationLink(value: SessionRoute(message: message)) {
+                    HistoryRow(message: message)
                 }
             }
-            .listStyle(.plain)
         }
+        .listStyle(.plain)
         .refreshable { await store.refresh() }
     }
 
-    private var allHistoryContent: some View {
-        ListStateView(
-            isLoading: !store.didLoad && store.history.isEmpty,
-            error: store.loadError,
-            isEmpty: store.history.isEmpty,
-            emptyIcon: "tray",
-            emptyTitle: "No messages yet",
-            emptyDetail: "Agent messages will appear here.",
-            onRetry: { await store.refresh() }
-        ) {
-            List {
-                ForEach(SessionGrouping.groupBySession(store.history)) { group in
-                    Section {
-                        ForEach(group.messages) { message in
-                            NavigationLink(value: message.id) { HistoryRow(message: message) }
-                        }
-                    } header: {
-                        SessionSectionHeader(group: group)
-                    }
-                }
-            }
-            .listStyle(.insetGrouped)
+    private func pendingRow(_ message: HistoryMessage) -> some View {
+        MessageCard(
+            message: message,
+            onChoose: { choice in handleReply(choice, to: message.id) },
+            onOpen: { AppRouter.shared.open(messageID: message.id.rawValue) }
+        )
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button("Reply") { replyTarget = message }
         }
-        .refreshable { await store.refresh() }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            trailingSwipes(for: message)
+        }
+    }
+
+    @ViewBuilder
+    private func trailingSwipes(for message: HistoryMessage) -> some View {
+        let options = message.options
+        if let first = options.first {
+            Button(first) { handleReply(first, to: message.id) }
+        }
+        if options.count >= 2 {
+            Button(options[1]) { handleReply(options[1], to: message.id) }
+        }
+        if options.count > 2 {
+            Button("More") { replyTarget = message }
+        }
+    }
+
+    private var allClear: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "checkmark.circle")
+                .font(.largeTitle)
+                .foregroundStyle(.tertiary)
+                .symbolRenderingMode(.hierarchical)
+                .accessibilityHidden(true)
+            Text("All clear")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.primary)
+            Text("No decisions are waiting on you.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .accessibilityElement(children: .combine)
     }
 }
 

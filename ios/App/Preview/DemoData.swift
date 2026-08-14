@@ -11,7 +11,7 @@ var isDemoMode: Bool {
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
 final class DemoBossAPI: BossServing, @unchecked Sendable {
-    private let messages: [HistoryMessage] = DemoFixtures.messages
+    private let messages: [HistoryMessage] = DemoFixtures.queue
 
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
         AsyncThrowingStream { _ in }
@@ -28,6 +28,13 @@ private enum DemoFixtures {
         Date().addingTimeInterval(offset).ISO8601Format()
     }
 
+    /// `HIBOSS_DEMO_EMPTY=1` drops live decisions so the all-clear strip can be screenshotted.
+    static var queue: [HistoryMessage] {
+        ProcessInfo.processInfo.environment["HIBOSS_DEMO_EMPTY"] == "1"
+            ? messages.filter { !$0.isPendingDecision }
+            : messages
+    }
+
     static let messages: [HistoryMessage] = deploy + payments + data + direct
 
     private static let deploy: [HistoryMessage] = [
@@ -36,7 +43,7 @@ private enum DemoFixtures {
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "delivered",
             priority: "critical", channel: "discord", mode: "blocking",
             metadata: MessageMetadata(options: ["Approve", "Reject"]),
-            expiresAt: iso(252), createdAt: iso(-40),
+            expiresAt: iso(95), createdAt: iso(-40),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "waiting"
         ),

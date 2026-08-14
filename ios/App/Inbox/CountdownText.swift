@@ -8,13 +8,26 @@ struct CountdownText: View {
     let deadline: Date
     var tint: Color = .secondary
 
+    /// Under two minutes the clock reads as a live emergency, not metadata.
+    private let urgentWindow: TimeInterval = 120
+    /// Under five minutes it should still pull the eye.
+    private let warnWindow: TimeInterval = 300
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = deadline.timeIntervalSince(context.date)
             Text(remaining <= 0 ? "Expired" : "\(format(remaining)) left")
                 .monospacedDigit()
-                .foregroundStyle(remaining <= 0 ? .secondary : tint)
+                .fontWeight(remaining > 0 && remaining <= warnWindow ? .semibold : .regular)
+                .foregroundStyle(color(for: remaining))
         }
+    }
+
+    private func color(for remaining: TimeInterval) -> Color {
+        if remaining <= 0 { return .secondary }
+        if remaining <= urgentWindow { return .red }
+        if remaining <= warnWindow { return .orange }
+        return tint
     }
 
     /// h:mm:ss for long windows, m:ss otherwise — never a bare minute overflow.
