@@ -69,7 +69,7 @@ impl HiBossClient {
         Ok(())
     }
 
-    /// POST /api/attachments — raw binary upload for videos and converted GIFs.
+    /// POST /api/attachments/upload — raw binary upload for videos and converted GIFs.
     /// Sets `Content-Type` from the filename extension and `x-filename` header.
     pub async fn upload_raw_binary(
         &self,
@@ -84,7 +84,7 @@ impl HiBossClient {
         let ct = super::mime_from_ext(filename);
         let resp = self
             .http
-            .post(format!("{}/api/attachments", self.base_url))
+            .post(format!("{}/api/attachments/upload", self.base_url))
             .bearer_auth(&self.api_key)
             .header("content-type", ct)
             .header("x-filename", filename)
