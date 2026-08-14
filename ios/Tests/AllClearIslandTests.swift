@@ -62,9 +62,31 @@ final class AllClearIslandTests: XCTestCase {
         XCTAssertEqual(image?.size, CGSize(width: 168, height: 148))
     }
 
-    func testResolvedSpacerPinsFooterOnEmptyQueue() {
-        XCTAssertEqual(InboxResolvedPlacement.spacerHeight(pendingIsEmpty: true, listHeight: 600), 276)
+    func testAllClearClaimsEverythingAboveTheFooter() {
+        // The block fills the free space, so the island centres in it and the footer
+        // lands on the bottom edge — without estimating how tall the copy renders.
+        XCTAssertEqual(
+            InboxResolvedPlacement.allClearHeight(listHeight: 600, bottomInset: 0, hasResolved: true),
+            600 - InboxResolvedPlacement.label
+        )
+        XCTAssertEqual(
+            InboxResolvedPlacement.allClearHeight(listHeight: 600, bottomInset: 0, hasResolved: false),
+            600
+        )
+        // The list runs under the floating tab bar; ignoring that inset buries the footer.
+        XCTAssertEqual(
+            InboxResolvedPlacement.allClearHeight(listHeight: 600, bottomInset: 90, hasResolved: true),
+            600 - 90 - InboxResolvedPlacement.label
+        )
+        // A short list must not collapse the illustration to nothing.
+        XCTAssertEqual(
+            InboxResolvedPlacement.allClearHeight(listHeight: 80, bottomInset: 0, hasResolved: true),
+            160
+        )
+    }
+
+    func testSpacerOnlySeparatesAPopulatedQueueFromTheFooter() {
+        XCTAssertEqual(InboxResolvedPlacement.spacerHeight(pendingIsEmpty: true, listHeight: 600), 0)
         XCTAssertEqual(InboxResolvedPlacement.spacerHeight(pendingIsEmpty: false, listHeight: 600), 40)
-        XCTAssertEqual(InboxResolvedPlacement.spacerHeight(pendingIsEmpty: true, listHeight: 200), 48)
     }
 }
