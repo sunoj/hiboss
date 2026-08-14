@@ -1,5 +1,5 @@
 {
   "name": "hiboss-monorepo",
   "private": true,
-  "workspaces": ["server", "mcp-server"]
+  "workspaces": ["server"]
 }

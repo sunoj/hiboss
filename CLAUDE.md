@@ -15,6 +15,20 @@ Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionSt
 - `hiboss send "message"` for progress updates on major milestones.
 - `hiboss send --priority high "message"` for blockers or decisions needed urgently.
 
+### Progress Feed
+`hiboss progress` posts to the project's timeline, which the boss browses in the iOS 进展
+tab. It is a **low-noise** surface: a post sends no notification and never enters the inbox.
+
+- `hiboss progress post "<what shipped>" [--image <path>]… [--video <path>]… [--tag <t>]…`
+- `hiboss progress list [--project <name>] [--limit <n>] [--json]`, `hiboss progress rm <id>`
+
+Use it for something worth *showing* — a shipped feature, a screenshot, a short clip — not
+for routine status, which belongs in `hiboss send`. Repeat the singular flags; there is no
+plural form. Up to 4 media items, images ≤ 10 MB and video ≤ 50 MB. A `.gif` is converted to
+a muted looping MP4 when `ffmpeg` is present (iOS shows a still frame otherwise), and
+`ffprobe`/`sips` fill in dimensions when available — all of them degrade with a warning
+rather than failing the post.
+
 ### Cross-Session Coordination
 When peer sessions are active on the same project:
 - **Broadcast before starting**: `hiboss send --broadcast "Working on X"` — prevents conflicts
