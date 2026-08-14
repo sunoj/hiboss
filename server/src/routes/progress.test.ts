@@ -90,7 +90,7 @@ describe('POST /api/progress', () => {
     expect(post.tags).toEqual(['release']);
     expect(post.created_at).toMatch(/T.*Z$/);
     expect(post.team).toMatchObject({ handle: 'test-agent', display_name: 'test-agent', registered: false });
-    expect(post.team.avatar_url).toContain('/api/progress/teams/test-agent/avatar.svg');
+    expect(post.team.avatar_url).toContain('/api/progress/teams/test-agent/avatar.png');
     expect(post.like_count).toBe(0);
     expect(post.liked).toBe(false);
   });
@@ -203,13 +203,23 @@ describe('progress visibility and lifecycle', () => {
 });
 
 describe('progress teams and likes', () => {
-  it('serves the same generated identicon bytes for the same handle', async () => {
-    const first = await SELF.fetch('https://test.local/api/progress/teams/hiboss/avatar.svg');
-    const second = await SELF.fetch('https://test.local/api/progress/teams/hiboss/avatar.svg');
+  it('serves deterministic valid PNG identicons that vary by handle', async () => {
+    const first = await SELF.fetch('https://test.local/api/progress/teams/hiboss/avatar.png');
+    const second = await SELF.fetch('https://test.local/api/progress/teams/hiboss/avatar.png');
+    const different = await SELF.fetch('https://test.local/api/progress/teams/other/avatar.png');
     expect(first.status).toBe(200);
-    expect(first.headers.get('content-type')).toBe('image/svg+xml');
+    expect(different.status).toBe(200);
+    expect(first.headers.get('content-type')).toBe('image/png');
     expect(first.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
-    expect(await first.text()).toBe(await second.text());
+    const firstBytes = new Uint8Array(await first.arrayBuffer());
+    const secondBytes = new Uint8Array(await second.arrayBuffer());
+    const differentBytes = new Uint8Array(await different.arrayBuffer());
+    expect(Array.from(firstBytes.slice(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(Array.from(firstBytes.slice(12, 16))).toEqual([73, 72, 68, 82]);
+    expect(new DataView(firstBytes.buffer).getUint32(16)).toBe(64);
+    expect(new DataView(firstBytes.buffer).getUint32(20)).toBe(64);
+    expect(firstBytes).toEqual(secondBytes);
+    expect(firstBytes).not.toEqual(differentBytes);
   });
 
   it('registers a team and includes fallback and registered identities in posts', async () => {
@@ -218,7 +228,7 @@ describe('progress teams and likes', () => {
     const fallback = await SELF.fetch('https://test.local/api/progress/team-fallback', { headers: authHeaders() });
     const fallbackData = await fallback.json() as { team: { handle: string; display_name: string; avatar_url: string; registered: boolean } };
     expect(fallbackData.team).toMatchObject({ handle: 'unregistered-project', display_name: 'unregistered project', registered: false });
-    expect(fallbackData.team.avatar_url).toContain('/api/progress/teams/unregistered-project/avatar.svg');
+    expect(fallbackData.team.avatar_url).toContain('/api/progress/teams/unregistered-project/avatar.png');
 
     const registered = await SELF.fetch('https://test.local/api/progress/teams/hiboss', {
       method: 'PUT', headers: authHeaders(), body: JSON.stringify({ handle: 'hiboss', display_name: 'Hiboss Team', bio: 'shipping' }),
@@ -226,7 +236,7 @@ describe('progress teams and likes', () => {
     expect(registered.status).toBe(200);
     const team = await registered.json() as { handle: string; display_name: string; avatar_url: string; registered: boolean; bio: string };
     expect(team).toMatchObject({ handle: 'hiboss', display_name: 'Hiboss Team', registered: true, bio: 'shipping' });
-    expect(team.avatar_url).toContain('/api/progress/teams/hiboss/avatar.svg');
+    expect(team.avatar_url).toContain('/api/progress/teams/hiboss/avatar.png');
 
     const visibleTeams = await SELF.fetch('https://test.local/api/progress/teams', { headers: authHeaders() });
     const visibleTeamData = await visibleTeams.json() as { teams: { project: string; registered: boolean }[] };
