@@ -58,10 +58,10 @@ enum DemoProgressFixtures {
             id: "pp-four", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
             body: "Four stills in a 2×2, 16:9 group.",
             media: [
-                image(15, width: 800, height: 600),
-                image(16, width: 800, height: 600),
-                image(17, width: 800, height: 600),
-                image(18, width: 800, height: 600),
+                image(15, width: 800, height: 600, alt: "quad top leading"),
+                image(16, width: 800, height: 600, alt: "quad top trailing"),
+                image(17, width: 800, height: 600, alt: "quad bottom leading"),
+                image(18, width: 800, height: 600, alt: "quad bottom trailing"),
             ],
             createdAt: iso(-300),
             team: .hiboss, likeCount: 8, liked: true
