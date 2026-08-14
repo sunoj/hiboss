@@ -1,5 +1,5 @@
 // App shell: native tabs, a navigation stack per section, and notification deep-links.
-// Exports: RootTabView switching Inbox / Messages / Sessions / Settings.
+// Exports: RootTabView switching Inbox / 进展 / Sessions / Settings.
 // Dependencies: SwiftUI, HibossKit, the feature views, AppRouter.
 
 import HibossKit
@@ -9,10 +9,11 @@ struct RootTabView: View {
     @ObservedObject var inbox: InboxStore
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var preferences: PreferencesStore
+    @ObservedObject var progress: ProgressFeedStore
     @ObservedObject private var router = AppRouter.shared
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var tab = 0
+    @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress" ? 1 : 0
     @State private var inboxPath = NavigationPath()
 
     var body: some View {
@@ -27,11 +28,9 @@ struct RootTabView: View {
             .tag(0)
 
             NavigationStack {
-                MessagesView(store: inbox)
-                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+                ProgressFeedView(store: progress)
             }
-            .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
+            .tabItem { Label("进展", systemImage: "calendar.day.timeline.leading") }
             .tag(1)
 
             NavigationStack {
@@ -53,6 +52,7 @@ struct RootTabView: View {
                                 await preferences.load(api: api)
                                 inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
                                 inbox.start(api: api)
+                                progress.start(api: api)
                             }
                         }
                     },
@@ -75,6 +75,11 @@ struct RootTabView: View {
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
             if phase == .active { inbox.refreshHistory() }
+            ProgressVideoPlayback.shared.sceneActive = phase == .active
+        }
+        .onChange(of: tab) { _, new in
+            ProgressVideoPlayback.shared.feedVisible = new == 1
+            if new == 1 { Task { await progress.refresh() } }
         }
     }
 }
