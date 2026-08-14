@@ -66,6 +66,7 @@
 		D707E905303289002E122935 /* DecisionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */; };
 		DBCC47DE56A53759D0FA4159 /* CountdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978AF84900C9EC8584C7AAA /* CountdownText.swift */; };
 		DCBE6F0DDAC502A6C6A9C410 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C397AF3D692ACAAF94388C64 /* Localizable.xcstrings */; };
+		DDC345411AD51AF290865A6F /* ProgressMediaTapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */; };
 		DE402514590A2A23719EE2D3 /* InboxStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3F4F2F453328EDEFEA8B9F /* InboxStoreTests.swift */; };
 		E08B2758EE7D46B2F408F5EF /* ProgressMediaViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F0055CA35F82569DEFFEE33 /* ProgressMediaViewer.swift */; };
 		E6A9A6EB7B5A63F93A38137D /* PreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0888F1DE33B534799B2E9C52 /* PreferencesStore.swift */; };
@@ -78,6 +79,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		A2FE8598396F7D40668211ED /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 406E7AE4875C0584318C5D68 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CEF1407928B021227FDFACC5;
+			remoteInfo = HiBoss;
+		};
 		E2E2836F7D119404AD2CCC16 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 406E7AE4875C0584318C5D68 /* Project object */;
@@ -118,6 +126,7 @@
 		10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HiBossWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		162633564E41F92AADE21046 /* HiBossTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HiBossTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AB277BBD9EEE996D38F2992 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
+		26AFB9BD03FD1060191A602B /* HiBossUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HiBossUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDetailView.swift; sourceTree = "<group>"; };
 		2C50796B18EE77AC58212D46 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSectionHeader.swift; sourceTree = "<group>"; };
@@ -138,6 +147,7 @@
 		714548036141EBBCA3849272 /* HiBoss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HiBoss.entitlements; sourceTree = "<group>"; };
 		71907C16801CD73E13B8C90D /* RoutingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutingSection.swift; sourceTree = "<group>"; };
 		7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageMetaTests.swift; sourceTree = "<group>"; };
+		7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMediaTapUITests.swift; sourceTree = "<group>"; };
 		7BD94B07A02B8B7941191B7A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		7CA31A0E63F84D54574E1FAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7CA94EE3AD9E1CE019C26899 /* ProgressTeamAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTeamAvatar.swift; sourceTree = "<group>"; };
@@ -279,11 +289,20 @@
 			path = Sessions;
 			sourceTree = "<group>";
 		};
+		7CFBA1E853019DE9B2F68808 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
 		85CC4B4C7B9CC76E3B758F10 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				8CFB25F024143937E73B4640 /* HiBoss.app */,
 				162633564E41F92AADE21046 /* HiBossTests.xctest */,
+				26AFB9BD03FD1060191A602B /* HiBossUITests.xctest */,
 				10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */,
 			);
 			name = Products;
@@ -340,6 +359,7 @@
 				6D8BAEC89A27FA527B4D6C36 /* Packages */,
 				75E8EF9FA44EFDD9F86CD9FF /* Shared */,
 				EEE890EA1FB67961740263AF /* Tests */,
+				7CFBA1E853019DE9B2F68808 /* UITests */,
 				A5DE21E4345468BB7FED7EF3 /* Widgets */,
 				85CC4B4C7B9CC76E3B758F10 /* Products */,
 			);
@@ -432,6 +452,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3F32F007EAB0067782F9138A /* HiBossUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4559ADA3F4A2DA4D43D6081F /* Build configuration list for PBXNativeTarget "HiBossUITests" */;
+			buildPhases = (
+				C884FCB5C58908C98A27C958 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E7C8EE9A9C91670D63F482CA /* PBXTargetDependency */,
+			);
+			name = HiBossUITests;
+			packageProductDependencies = (
+			);
+			productName = HiBossUITests;
+			productReference = 26AFB9BD03FD1060191A602B /* HiBossUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		7683B54DC7015DF8043B74AE /* HiBossTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 603D3A76439DCBFCA96DC277 /* Build configuration list for PBXNativeTarget "HiBossTests" */;
@@ -501,6 +539,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					3F32F007EAB0067782F9138A = {
+						TestTargetID = CEF1407928B021227FDFACC5;
+					};
 					CEF1407928B021227FDFACC5 = {
 						ProvisioningStyle = Automatic;
 					};
@@ -531,6 +572,7 @@
 			targets = (
 				CEF1407928B021227FDFACC5 /* HiBoss */,
 				7683B54DC7015DF8043B74AE /* HiBossTests */,
+				3F32F007EAB0067782F9138A /* HiBossUITests */,
 				FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */,
 			);
 		};
@@ -579,6 +621,14 @@
 				D707E905303289002E122935 /* DecisionLiveActivity.swift in Sources */,
 				BF0F1C80922111AE10208255 /* HiBossWidgetsBundle.swift in Sources */,
 				9975477625707226F0569D49 /* RespondIntent.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C884FCB5C58908C98A27C958 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DDC345411AD51AF290865A6F /* ProgressMediaTapUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -648,6 +698,11 @@
 			target = CEF1407928B021227FDFACC5 /* HiBoss */;
 			targetProxy = E2E2836F7D119404AD2CCC16 /* PBXContainerItemProxy */;
 		};
+		E7C8EE9A9C91670D63F482CA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CEF1407928B021227FDFACC5 /* HiBoss */;
+			targetProxy = A2FE8598396F7D40668211ED /* PBXContainerItemProxy */;
+		};
 		F62F3A0B553FC6F6D8317E83 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */;
@@ -656,6 +711,24 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		23689FB60E5E83D7B18072BB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HiBoss;
+			};
+			name = Debug;
+		};
 		2ABD8194C346D8CDB491AACA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -821,6 +894,24 @@
 			};
 			name = Release;
 		};
+		7D3E07229C31C6FDF3CAE40A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = HiBoss;
+			};
+			name = Release;
+		};
 		A93FDB30F5C74CDE723AB1D6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -900,6 +991,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		4559ADA3F4A2DA4D43D6081F /* Build configuration list for PBXNativeTarget "HiBossUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				23689FB60E5E83D7B18072BB /* Debug */,
+				7D3E07229C31C6FDF3CAE40A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		4FC174B983D15C03A7C34BB1 /* Build configuration list for PBXNativeTarget "HiBossWidgets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
