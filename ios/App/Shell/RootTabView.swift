@@ -29,6 +29,7 @@ struct RootTabView: View {
                     .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                     .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+                    .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
             }
             .tabItem { Label("Inbox", systemImage: "tray.full") }
             .badge(inbox.pendingCount)
@@ -112,6 +113,11 @@ struct RootTabView: View {
         }
         if env["HIBOSS_DEMO_SESSION"] == "1" {
             inboxPath = NavigationPath([SessionRoute(id: "sess-deploy", label: "prod-release")])
+            return
+        }
+        if env["HIBOSS_DEMO_RESOLVED"] == "1" {
+            tab = 0
+            inboxPath = NavigationPath([ResolvedRoute()])
         }
     }
 }

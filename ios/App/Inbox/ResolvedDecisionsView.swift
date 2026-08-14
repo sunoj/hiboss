@@ -29,6 +29,10 @@ enum ResolvedDayGrouping {
     }
 }
 
+/// Pushed by value like every other route. An `isPresented`-based destination in the same
+/// stack swallowed subsequent value pushes, so tapping any row re-opened this screen.
+struct ResolvedRoute: Hashable {}
+
 struct ResolvedDecisionsView: View {
     @ObservedObject var store: InboxStore
 
