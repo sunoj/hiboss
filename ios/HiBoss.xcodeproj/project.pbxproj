@@ -7,18 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0C35236BC3E29A83BF9334CD /* ProgressPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */; };
 		0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698713D5102923E7503E7814 /* DemoData.swift */; };
 		11468F8BEBF2F4322FE3984E /* PushStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EA31B759446323F119D8E0 /* PushStatusStore.swift */; };
 		11615439C9BCA9AC0736421B /* MessageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */; };
 		1553776326486621FD350726 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C168405A30C4BEEF41971C62 /* InboxView.swift */; };
 		16C915691385AF2141445969 /* MessageAttributeStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFD23CFEB57E9C49C9FBB463 /* MessageAttributeStyle.swift */; };
+		1AE44BECED62093912724A21 /* ProgressVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDF1755B148C5042639522C /* ProgressVideoPlayer.swift */; };
 		1AF4333A617AE66DA09E64C5 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8732DC9D272987A1B036C854 /* ConnectionStore.swift */; };
+		1B3C732EF15C1BA795BD70EC /* ProgressFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */; };
 		335B4FE46BDAA8A5C0A2BBF0 /* ReplySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */; };
 		38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */; };
 		439087A86D4FA8E054A15F1E /* ListStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */; };
 		45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C85DD59D113BDF201E19A /* SettingsView.swift */; };
 		4806ED4EF03F14CEBB6030CB /* DecisionActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */; };
 		4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F038DB693219FA633FDAACC /* InboxStore.swift */; };
+		59EC4486EB14BA43AC79AFB7 /* ProgressFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */; };
 		62015DFCC83862ABE5CF7571 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */; };
 		634D1F39A52B99D7231102F5 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4472CB219A227288F168212 /* SessionsView.swift */; };
 		68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B18F7757D87683A1F768E5 /* HiBossApp.swift */; };
@@ -29,6 +33,7 @@
 		8285A0578EE66FFEE5F46114 /* HibossKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0812026A36C6DC3A7D604423 /* HibossKit */; };
 		86203834974A33A8C0E3584B /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA3966B5965FDF38682FE72 /* ConnectView.swift */; };
 		8A173100FC93F5D88A35F31F /* RoutingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71907C16801CD73E13B8C90D /* RoutingSection.swift */; };
+		9276EB382DA08B0A2A5B5BCD /* SessionMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */; };
 		9975477625707226F0569D49 /* RespondIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */; };
 		9A601988E4CF388CDA003659 /* DecisionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6984921D9196A67C9F627A26 /* DecisionActivity.swift */; };
 		9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */; };
@@ -37,11 +42,13 @@
 		A8BD159F4B6E41CFBE919BEA /* HibossKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6130F24DC3B95160884D0B5A /* HibossKit */; };
 		B390797FAB6B075E3C8D234C /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB277BBD9EEE996D38F2992 /* Palette.swift */; };
 		B5B66607B04766A23954B1F2 /* MessageDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8777BA30B4CFEDD31CCB85E /* MessageDisplay.swift */; };
+		B802594AE8424CAB6717EA17 /* ProgressMediaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA04D7AC4A24619AC58956DA /* ProgressMediaView.swift */; };
 		B82836BF6AC8B4E9325F8EA7 /* HiBossWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B97C7284B01AC80CE892A264 /* Priority.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E38393C7F0BB67A364CC15 /* Priority.swift */; };
 		BB1796284ADD9D2CBDC2B49B /* QuietHoursSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804541078FDFD94370B1845 /* QuietHoursSection.swift */; };
 		BF0F1C80922111AE10208255 /* HiBossWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */; };
 		C3DBB1D3ECCD0E7142271BA6 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A59FEA0ECFFD31DD1F93981 /* RelativeTime.swift */; };
+		CD2827C535593B6E9AFA6CFB /* ProgressFeedStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */; };
 		D65E72F56B3D3C17098619BF /* PushTieringSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976383649266ED887CEAA454 /* PushTieringSection.swift */; };
 		D707E905303289002E122935 /* DecisionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */; };
 		DBCC47DE56A53759D0FA4159 /* CountdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978AF84900C9EC8584C7AAA /* CountdownText.swift */; };
@@ -53,6 +60,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		E2E2836F7D119404AD2CCC16 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 406E7AE4875C0584318C5D68 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CEF1407928B021227FDFACC5;
+			remoteInfo = HiBoss;
+		};
 		EAE2BBC2D617708415CE448B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 406E7AE4875C0584318C5D68 /* Project object */;
@@ -80,11 +94,14 @@
 		04E38393C7F0BB67A364CC15 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
 		0888F1DE33B534799B2E9C52 /* PreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesStore.swift; sourceTree = "<group>"; };
 		0A59FEA0ECFFD31DD1F93981 /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
+		0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMessagesView.swift; sourceTree = "<group>"; };
 		10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HiBossWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		162633564E41F92AADE21046 /* HiBossTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HiBossTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AB277BBD9EEE996D38F2992 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDetailView.swift; sourceTree = "<group>"; };
 		2C50796B18EE77AC58212D46 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSectionHeader.swift; sourceTree = "<group>"; };
+		31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressFeedStoreTests.swift; sourceTree = "<group>"; };
 		35B18F7757D87683A1F768E5 /* HiBossApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiBossApp.swift; sourceTree = "<group>"; };
 		3978AF84900C9EC8584C7AAA /* CountdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountdownText.swift; sourceTree = "<group>"; };
 		3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
@@ -111,15 +128,20 @@
 		976383649266ED887CEAA454 /* PushTieringSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTieringSection.swift; sourceTree = "<group>"; };
 		A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListStateView.swift; sourceTree = "<group>"; };
 		AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplySheet.swift; sourceTree = "<group>"; };
+		BA04D7AC4A24619AC58956DA /* ProgressMediaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMediaView.swift; sourceTree = "<group>"; };
 		BF8FDF2319CA7E57192C7679 /* MessageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCard.swift; sourceTree = "<group>"; };
 		C168405A30C4BEEF41971C62 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
+		CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressFeedView.swift; sourceTree = "<group>"; };
 		CE512B87AB4778E24208134F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CFD23CFEB57E9C49C9FBB463 /* MessageAttributeStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageAttributeStyle.swift; sourceTree = "<group>"; };
 		D4472CB219A227288F168212 /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsView.swift; sourceTree = "<group>"; };
 		D8777BA30B4CFEDD31CCB85E /* MessageDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDisplay.swift; sourceTree = "<group>"; };
 		E0B54DB8245ABD2D293FC27D /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
 		E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionActivityManager.swift; sourceTree = "<group>"; };
+		ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressFeedStore.swift; sourceTree = "<group>"; };
+		EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressPostCard.swift; sourceTree = "<group>"; };
 		FC8C85DD59D113BDF201E19A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FCDF1755B148C5042639522C /* ProgressVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressVideoPlayer.swift; sourceTree = "<group>"; };
 		FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -143,6 +165,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		139253F1204A42B03D79E4EA /* Progress */ = {
+			isa = PBXGroup;
+			children = (
+				ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */,
+				CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */,
+				BA04D7AC4A24619AC58956DA /* ProgressMediaView.swift */,
+				EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */,
+				FCDF1755B148C5042639522C /* ProgressVideoPlayer.swift */,
+			);
+			path = Progress;
+			sourceTree = "<group>";
+		};
 		271CCF4B4ED3115ADE46D0A2 /* Push */ = {
 			isa = PBXGroup;
 			children = (
@@ -207,6 +241,7 @@
 			isa = PBXGroup;
 			children = (
 				8CFB25F024143937E73B4640 /* HiBoss.app */,
+				162633564E41F92AADE21046 /* HiBossTests.xctest */,
 				10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */,
 			);
 			name = Products;
@@ -230,6 +265,7 @@
 				E8DACD9D6268737952779CF5 /* Model */,
 				E8688147A14C727D9C8FD36B /* Onboarding */,
 				37D6B819C97B91C25A737074 /* Preview */,
+				139253F1204A42B03D79E4EA /* Progress */,
 				271CCF4B4ED3115ADE46D0A2 /* Push */,
 				7765F38B2EDBDC216DE54643 /* Sessions */,
 				FB03F7CEAD066A6CD1FCFBC8 /* Settings */,
@@ -259,6 +295,7 @@
 				98D47BDA8CAB95724B6F411C /* App */,
 				6D8BAEC89A27FA527B4D6C36 /* Packages */,
 				75E8EF9FA44EFDD9F86CD9FF /* Shared */,
+				EEE890EA1FB67961740263AF /* Tests */,
 				A5DE21E4345468BB7FED7EF3 /* Widgets */,
 				85CC4B4C7B9CC76E3B758F10 /* Products */,
 			);
@@ -292,6 +329,7 @@
 				BF8FDF2319CA7E57192C7679 /* MessageCard.swift */,
 				28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */,
 				AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */,
+				0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */,
 				30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */,
 			);
 			path = Inbox;
@@ -305,6 +343,14 @@
 				0A59FEA0ECFFD31DD1F93981 /* RelativeTime.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		EEE890EA1FB67961740263AF /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		F14C6E022235C0E8BDBA4B61 /* Shell */ = {
@@ -332,6 +378,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		7683B54DC7015DF8043B74AE /* HiBossTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 603D3A76439DCBFCA96DC277 /* Build configuration list for PBXNativeTarget "HiBossTests" */;
+			buildPhases = (
+				53043DED41AC44683190964E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				93B0075D70BC47BC497D19AF /* PBXTargetDependency */,
+			);
+			name = HiBossTests;
+			packageProductDependencies = (
+			);
+			productName = HiBossTests;
+			productReference = 162633564E41F92AADE21046 /* HiBossTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		CEF1407928B021227FDFACC5 /* HiBoss */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8C92A964448B8E569BEE6992 /* Build configuration list for PBXNativeTarget "HiBoss" */;
@@ -408,6 +472,7 @@
 			projectRoot = "";
 			targets = (
 				CEF1407928B021227FDFACC5 /* HiBoss */,
+				7683B54DC7015DF8043B74AE /* HiBossTests */,
 				FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */,
 			);
 		};
@@ -425,6 +490,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		53043DED41AC44683190964E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CD2827C535593B6E9AFA6CFB /* ProgressFeedStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		667EEB8F2D1DAEB61664192B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -461,6 +534,11 @@
 				B390797FAB6B075E3C8D234C /* Palette.swift in Sources */,
 				E6A9A6EB7B5A63F93A38137D /* PreferencesStore.swift in Sources */,
 				B97C7284B01AC80CE892A264 /* Priority.swift in Sources */,
+				59EC4486EB14BA43AC79AFB7 /* ProgressFeedStore.swift in Sources */,
+				1B3C732EF15C1BA795BD70EC /* ProgressFeedView.swift in Sources */,
+				B802594AE8424CAB6717EA17 /* ProgressMediaView.swift in Sources */,
+				0C35236BC3E29A83BF9334CD /* ProgressPostCard.swift in Sources */,
+				1AE44BECED62093912724A21 /* ProgressVideoPlayer.swift in Sources */,
 				7C9EC0BB0D4A317081113175 /* PushManager.swift in Sources */,
 				11468F8BEBF2F4322FE3984E /* PushStatusStore.swift in Sources */,
 				D65E72F56B3D3C17098619BF /* PushTieringSection.swift in Sources */,
@@ -471,6 +549,7 @@
 				A6D52D02F7F9A096BEC123B0 /* RootTabView.swift in Sources */,
 				8A173100FC93F5D88A35F31F /* RoutingSection.swift in Sources */,
 				F9206BC91FCBEF650BFD18E5 /* SessionCard.swift in Sources */,
+				9276EB382DA08B0A2A5B5BCD /* SessionMessagesView.swift in Sources */,
 				A5EC5D86F37311FE30E74AD3 /* SessionSectionHeader.swift in Sources */,
 				634D1F39A52B99D7231102F5 /* SessionsView.swift in Sources */,
 				45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */,
@@ -481,6 +560,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		93B0075D70BC47BC497D19AF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CEF1407928B021227FDFACC5 /* HiBoss */;
+			targetProxy = E2E2836F7D119404AD2CCC16 /* PBXContainerItemProxy */;
+		};
 		F62F3A0B553FC6F6D8317E83 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FA6A7E5C1D5DF1FA06939EE7 /* HiBossWidgets */;
@@ -654,6 +738,24 @@
 			};
 			name = Release;
 		};
+		A93FDB30F5C74CDE723AB1D6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HiBoss.app/HiBoss";
+			};
+			name = Debug;
+		};
 		C03775187A5ED7B1D6EC773C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -675,6 +777,24 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		D679FD7CF94B07DD4B604A1B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = ai.hiboss.ios.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HiBoss.app/HiBoss";
+			};
+			name = Release;
 		};
 		FF44CC5BEE6D65BE5BE1B510 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -702,6 +822,15 @@
 			buildConfigurations = (
 				FF44CC5BEE6D65BE5BE1B510 /* Debug */,
 				2ABD8194C346D8CDB491AACA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		603D3A76439DCBFCA96DC277 /* Build configuration list for PBXNativeTarget "HiBossTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A93FDB30F5C74CDE723AB1D6 /* Debug */,
+				D679FD7CF94B07DD4B604A1B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

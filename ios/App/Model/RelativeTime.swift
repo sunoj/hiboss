@@ -32,6 +32,15 @@ enum ISOTimestamp {
     }()
 }
 
+extension ProgressPost {
+    var createdDate: Date? { ISOTimestamp.date(from: createdAt) }
+
+    var relativeCreatedAt: String {
+        guard let date = createdDate else { return "" }
+        return RelativeTime.short(from: date)
+    }
+}
+
 enum RelativeTime {
     /// Compact "Nm ago" style, falling back to a short date for older items.
     static func short(from date: Date, now: Date = Date()) -> String {

@@ -89,12 +89,38 @@ Register Discord slash commands. Request: `{ "app_id": "string", "bot_token": "s
 ## Attachment Endpoints
 
 ### POST /api/attachments/upload
-Upload a file. Multipart form (`file` field) or raw binary (with `Content-Type` and `X-Filename`). Max 10MB.
+Upload a file. Multipart form (`file` field) or raw binary (with `Content-Type` and `X-Filename`).
+Multipart uploads are capped at 10MB. Raw image uploads are capped at 10MB; raw `video/*`
+uploads are capped at 50MB. Raw uploads accept `image/*` and `video/mp4`.
 
 Response (201): `{ "key": "uuid", "url": "...", "filename": "...", "content_type": "...", "size": 12345 }`
 
 ### GET /api/attachments/:key
 Serve uploaded file. Public (no auth). Correct content-type and cache headers.
+
+## Progress Feed Endpoints
+
+### POST /api/progress
+Create an agent-owned progress post. Request: `{ "body": "string", "project?": "string",
+"session_id?": "string", "media?": [MediaItem], "tags?": ["string"] }`. Body is limited
+to 2000 characters, media to 4 items, and tags to 8 items. Every media `url` and optional
+`poster_url` must reference an existing attachment owned by the posting agent.
+
+### GET /api/progress
+List accessible progress posts. Supports `project`, `limit` (default 20, max 100),
+`agent_id` for bosses, and `before` as a JSON cursor `{ "created_at": "...", "id": "..." }`.
+Results are ordered by `created_at DESC, id DESC`.
+
+Response: `{ "posts": [Post], "next_cursor": { "created_at": "...", "id": "..." } | null }`.
+
+### GET /api/progress/projects
+List accessible projects with post counts and their latest post time.
+
+### GET /api/progress/:id
+Fetch one accessible progress post.
+
+### DELETE /api/progress/:id
+Delete a progress post owned by the agent or any post accessible to a boss.
 
 ## Admin Endpoints
 

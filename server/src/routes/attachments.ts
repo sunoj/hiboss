@@ -2,21 +2,66 @@
 // Exports POST /upload (multipart) and GET /:key (serve file).
 // Depends on Hono, auth middleware, R2 bucket binding.
 
-import { Hono } from 'hono';
+import { Context, Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 
+const TEN_MB = 10 * 1024 * 1024;
+const FIFTY_MB = 50 * 1024 * 1024;
 const routes = new Hono<{ Bindings: Env }>({});
+type AttachmentBody = Parameters<Env['ATTACHMENTS']['put']>[1];
+
+interface AttachmentMetadata {
+  httpMetadata: { contentType: string };
+  customMetadata: Record<string, string>;
+}
+
+function parseContentLength(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+async function putAttachment(
+  env: Env,
+  key: string,
+  body: ArrayBuffer | ReadableStream<Uint8Array>,
+  metadata: AttachmentMetadata,
+): Promise<void> {
+  const uploadBody = body as unknown as AttachmentBody;
+  await env.ATTACHMENTS.put(key, uploadBody, metadata);
+}
+
+async function putRawAttachment(
+  c: Context<{ Bindings: Env }>,
+  key: string,
+  metadata: AttachmentMetadata,
+  maxBytes: number,
+): Promise<number> {
+  const declaredLength = parseContentLength(c.req.header('content-length'));
+  if (declaredLength !== null && declaredLength > maxBytes) return -1;
+  if (declaredLength === 0) return 0;
+  const stream = c.req.raw.body;
+  if (!stream || declaredLength === null) {
+    const fileData = await c.req.arrayBuffer();
+    if (fileData.byteLength > maxBytes) return -1;
+    if (fileData.byteLength > 0) await putAttachment(c.env, key, fileData, metadata);
+    return fileData.byteLength;
+  }
+  await putAttachment(c.env, key, stream, metadata);
+  return declaredLength;
+}
 
 routes.post('/upload', apiAuth, async (c) => {
   const agentId = getAgentId(c);
   const contentType = c.req.header('content-type') ?? '';
 
-  let fileData: ArrayBuffer;
   let filename: string;
   let mimeType: string;
+  let fileData: ArrayBuffer | null = null;
+  const isMultipart = contentType.includes('multipart/form-data');
 
-  if (contentType.includes('multipart/form-data')) {
+  if (isMultipart) {
     const formData = await c.req.formData();
     const file = formData.get('file');
     if (!file || !(file instanceof File)) {
@@ -26,29 +71,35 @@ routes.post('/upload', apiAuth, async (c) => {
     filename = file.name || 'upload';
     mimeType = file.type || 'application/octet-stream';
   } else {
-    // Raw binary upload with headers
-    fileData = await c.req.arrayBuffer();
     filename = c.req.header('x-filename') ?? 'upload';
     mimeType = contentType || 'application/octet-stream';
-  }
-
-  if (fileData.byteLength === 0) {
-    return c.text('empty file', 400);
-  }
-  if (fileData.byteLength > 10 * 1024 * 1024) {
-    return c.text('file too large (max 10MB)', 413);
+    if (!mimeType.startsWith('image/') && mimeType !== 'video/mp4') {
+      return c.text('raw uploads must be image/* or video/mp4', 400);
+    }
   }
 
   const key = crypto.randomUUID();
-  await c.env.ATTACHMENTS.put(key, fileData, {
+  const maxBytes = isMultipart ? TEN_MB : mimeType.startsWith('video/') ? FIFTY_MB : TEN_MB;
+  const metadata: AttachmentMetadata = {
     httpMetadata: { contentType: mimeType },
     customMetadata: { agent_id: agentId, filename, uploaded_at: new Date().toISOString() },
-  });
+  };
+  let size: number;
+  if (isMultipart) {
+    if (!fileData || fileData.byteLength > maxBytes) return c.text('file too large (max 10MB)', 413);
+    if (fileData.byteLength === 0) return c.text('empty file', 400);
+    await putAttachment(c.env, key, fileData, metadata);
+    size = fileData.byteLength;
+  } else {
+    size = await putRawAttachment(c, key, metadata, maxBytes);
+    if (size < 0) return c.text(`file too large (max ${maxBytes / (1024 * 1024)}MB)`, 413);
+    if (size === 0) return c.text('empty file', 400);
+  }
 
   const url = new URL(c.req.url);
   const attachmentUrl = `${url.protocol}//${url.host}/api/attachments/${key}`;
 
-  return c.json({ key, url: attachmentUrl, filename, content_type: mimeType, size: fileData.byteLength }, 201);
+  return c.json({ key, url: attachmentUrl, filename, content_type: mimeType, size }, 201);
 });
 
 routes.get('/:key', async (c) => {
