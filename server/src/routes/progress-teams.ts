@@ -17,6 +17,12 @@ import {
 
 const HANDLE_PATTERN = /^[a-z0-9_-]{1,32}$/;
 const IDENTICON_PALETTE = ['#0f172a', '#0f766e', '#7c3aed', '#b45309', '#be123c', '#0369a1'];
+const IDENTICON_SIZE = 64;
+const SOURCE_SIZE = 100;
+const PNG_SIGNATURE = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+type Rgb = readonly [number, number, number];
+type PngBytes = Uint8Array<ArrayBuffer>;
 
 interface TeamInput {
   handle?: string;
@@ -85,32 +91,118 @@ async function saveTeam(env: Env, project: string, input: TeamInput, agentId: st
   return readTeam(env, project);
 }
 
-async function renderIdenticon(handle: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(handle));
-  const hash = new Uint8Array(digest);
-  const background = IDENTICON_PALETTE[hash[0] % IDENTICON_PALETTE.length];
-  let foregroundIndex = hash[1] % IDENTICON_PALETTE.length;
-  if (IDENTICON_PALETTE[foregroundIndex] === background) foregroundIndex = (foregroundIndex + 1) % IDENTICON_PALETTE.length;
-  const foreground = IDENTICON_PALETTE[foregroundIndex];
-  const cells: string[] = [];
-  for (let row = 0; row < 5; row++) {
-    for (let column = 0; column < 3; column++) {
-      const enabled = (hash[2 + row * 3 + column] & 1) === 1;
-      if (!enabled) continue;
-      cells.push(`<rect x="${20 + column * 12}" y="${20 + row * 12}" width="12" height="12"/>`);
-      if (column < 2) cells.push(`<rect x="${20 + (4 - column) * 12}" y="${20 + row * 12}" width="12" height="12"/>`);
-    }
-  }
-  const accentX = 26 + (hash[20] % 4) * 12;
-  const accentY = 26 + (hash[21] % 4) * 12;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="${background}"/><g fill="${foreground}">${cells.join('')}</g><circle cx="${accentX}" cy="${accentY}" r="4" fill="#fff" fill-opacity=".72"/></svg>`;
+function parseColor(value: string): Rgb {
+  return [Number.parseInt(value.slice(1, 3), 16), Number.parseInt(value.slice(3, 5), 16), Number.parseInt(value.slice(5, 7), 16)];
 }
 
-routes.get('/:handle/avatar.svg', async (c) => {
+function isInsideRoundedBackground(x: number, y: number): boolean {
+  const nearestX = Math.max(24, Math.min(76, x));
+  const nearestY = Math.max(24, Math.min(76, y));
+  return (x - nearestX) ** 2 + (y - nearestY) ** 2 <= 24 ** 2;
+}
+
+function isInsideMark(x: number, y: number, hash: Uint8Array): boolean {
+  for (let row = 0; row < 5; row++) {
+    for (let column = 0; column < 3; column++) {
+      if ((hash[2 + row * 3 + column] & 1) === 0) continue;
+      const cellY = 20 + row * 12;
+      const cellX = 20 + column * 12;
+      if (x >= cellX && x < cellX + 12 && y >= cellY && y < cellY + 12) return true;
+      if (column < 2) {
+        const mirrorX = 20 + (4 - column) * 12;
+        if (x >= mirrorX && x < mirrorX + 12 && y >= cellY && y < cellY + 12) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function setPixel(pixels: Uint8Array, x: number, y: number, color: Rgb, alpha = 255): void {
+  const offset = y * (IDENTICON_SIZE * 4 + 1) + 1 + x * 4;
+  pixels[offset] = color[0];
+  pixels[offset + 1] = color[1];
+  pixels[offset + 2] = color[2];
+  pixels[offset + 3] = alpha;
+}
+
+function rasterizeIdenticon(hash: Uint8Array, background: Rgb, foreground: Rgb): PngBytes {
+  const scanlines = new Uint8Array(new ArrayBuffer(IDENTICON_SIZE * (IDENTICON_SIZE * 4 + 1)));
+  for (let y = 0; y < IDENTICON_SIZE; y++) {
+    const sourceY = (y + 0.5) * SOURCE_SIZE / IDENTICON_SIZE;
+    const rowOffset = y * (IDENTICON_SIZE * 4 + 1);
+    scanlines[rowOffset] = 0;
+    for (let x = 0; x < IDENTICON_SIZE; x++) {
+      const sourceX = (x + 0.5) * SOURCE_SIZE / IDENTICON_SIZE;
+      if (!isInsideRoundedBackground(sourceX, sourceY)) continue;
+      const color = isInsideMark(sourceX, sourceY, hash) ? foreground : background;
+      setPixel(scanlines, x, y, color);
+      if ((sourceX - (26 + (hash[20] % 4) * 12)) ** 2 + (sourceY - (26 + (hash[21] % 4) * 12)) ** 2 <= 4 ** 2) {
+        setPixel(scanlines, x, y, [
+          Math.round(color[0] * 0.28 + 255 * 0.72),
+          Math.round(color[1] * 0.28 + 255 * 0.72),
+          Math.round(color[2] * 0.28 + 255 * 0.72),
+        ]);
+      }
+    }
+  }
+  return scanlines;
+}
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc & 1) === 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createPngChunk(type: string, data: Uint8Array): PngBytes {
+  const chunk = new Uint8Array(new ArrayBuffer(data.length + 12));
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length);
+  chunk.set(new TextEncoder().encode(type), 4);
+  chunk.set(data, 8);
+  view.setUint32(chunk.length - 4, crc32(chunk.subarray(4, chunk.length - 4)));
+  return chunk;
+}
+
+function joinPngChunks(chunks: readonly Uint8Array[]): PngBytes {
+  const image: PngBytes = new Uint8Array(new ArrayBuffer(chunks.reduce((total, chunk) => total + chunk.length, 0)));
+  let offset = 0;
+  for (const chunk of chunks) {
+    image.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return image;
+}
+
+async function renderIdenticon(handle: string): Promise<PngBytes> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(handle));
+  const hash = new Uint8Array(digest);
+  const backgroundName = IDENTICON_PALETTE[hash[0] % IDENTICON_PALETTE.length];
+  let foregroundIndex = hash[1] % IDENTICON_PALETTE.length;
+  if (IDENTICON_PALETTE[foregroundIndex] === backgroundName) foregroundIndex = (foregroundIndex + 1) % IDENTICON_PALETTE.length;
+  const scanlines = rasterizeIdenticon(hash, parseColor(backgroundName), parseColor(IDENTICON_PALETTE[foregroundIndex]));
+  const stream = new CompressionStream('deflate');
+  const writer = stream.writable.getWriter();
+  await writer.write(scanlines);
+  await writer.close();
+  const idat = new Uint8Array(await new Response(stream.readable).arrayBuffer());
+  const ihdr = new Uint8Array(new ArrayBuffer(13));
+  const view = new DataView(ihdr.buffer);
+  view.setUint32(0, IDENTICON_SIZE);
+  view.setUint32(4, IDENTICON_SIZE);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  return joinPngChunks([PNG_SIGNATURE, createPngChunk('IHDR', ihdr), createPngChunk('IDAT', idat), createPngChunk('IEND', new Uint8Array())]);
+}
+
+routes.get('/:handle/avatar.png', async (c) => {
   const handle = c.req.param('handle');
   if (!handle) return c.text('not found', 404);
-  const svg = await renderIdenticon(handle);
-  return new Response(svg, { headers: { 'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=31536000, immutable' } });
+  const png = await renderIdenticon(handle);
+  return new Response(png, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
 });
 
 routes.put('/:project', apiAuth, async (c) => {
