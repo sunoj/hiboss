@@ -2,6 +2,7 @@
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import type { AgentChannelGroup } from './groupChannels';
 	import ChannelRow from './ChannelRow.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		group: AgentChannelGroup;
@@ -10,11 +11,11 @@
 	let { group }: Props = $props();
 </script>
 
-<article class="group" aria-label={`Channels for ${group.agent_name}`}>
+<article class="group" aria-label={`${t('page.channels')} — ${group.agent_name}`}>
 	<header class="head">
 		<AgentIdentity name={group.agent_name} size="md" />
 		<span class="count">
-			{group.channels.length} channel{group.channels.length === 1 ? '' : 's'}
+			{t('common.channels', { count: group.channels.length })}
 		</span>
 	</header>
 	<ul class="list">

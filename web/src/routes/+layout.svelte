@@ -7,10 +7,12 @@
 	import AppShell from '$lib/components/AppShell.svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { DEFAULT_BASE_URL } from '$lib/api/auth';
+	import { initLocale, t } from '$lib/i18n';
 
 	let { children } = $props();
 
 	onMount(() => {
+		initLocale();
 		auth.hydrate();
 		document.documentElement.setAttribute('data-theme', 'dark');
 		const path = $page.url.pathname;
@@ -31,7 +33,7 @@
 </script>
 
 <svelte:head>
-	<title>hiboss 指挥台</title>
+	<title>{t('app.title')}</title>
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
@@ -39,11 +41,11 @@
 		href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
 		rel="stylesheet"
 	/>
-	<meta name="description" content="hiboss self-hosted boss console" />
+	<meta name="description" content={t('app.title')} />
 </svelte:head>
 
 {#if !auth.ready}
-	<div class="boot">Loading console…</div>
+	<div class="boot">{t('app.loading')}</div>
 {:else if !auth.isAuthenticated}
 	{@render children()}
 {:else}

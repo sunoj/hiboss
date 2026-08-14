@@ -6,6 +6,7 @@
 	import type { MessageResponse, SessionResponse } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import { groupSessionsByStatus } from './groupSessions';
 	import SessionColumn from './SessionColumn.svelte';
 	import SessionDrawer from './SessionDrawer.svelte';
@@ -24,7 +25,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -43,7 +44,7 @@
 	async function loadMessages(sessionId: string) {
 		const client = auth.client;
 		if (!client) {
-			msgError = 'Not connected';
+			msgError = t('top.offline');
 			msgLoading = false;
 			return;
 		}
@@ -84,11 +85,11 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>Sessions</h1>
-			<p class="sub">会话看板 — Kanban of agent sessions by status</p>
+			<h1>{t('page.sessions')}</h1>
+			<p class="sub">{t('page.sessionsSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
-			Refresh
+			{t('common.refresh')}
 		</button>
 	</header>
 
@@ -102,8 +103,8 @@
 		</div>
 	{:else if sessions.length === 0}
 		<EmptyState
-			title="No sessions"
-			detail="Active agent sessions will appear here when they report in."
+			title={t('page.noSessions')}
+			detail={t('page.noSessionsDetail')}
 		/>
 	{:else}
 		<div class="layout" class:open={selected !== null}>

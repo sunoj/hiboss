@@ -1,24 +1,30 @@
-/** Module nav definitions for the web console shell. */
+/**
+ * Navigation definitions for the web console shell.
+ * Exports: NavModule, NAV_MODULES, isActivePath.
+ * Deps: typed i18n message keys.
+ */
+
+import type { MessageKey } from '$lib/i18n/en';
 
 export interface NavModule {
 	id: string;
 	href: string;
-	label: string;
-	short: string;
+	labelKey: MessageKey;
+	shortKey: MessageKey;
 	primary: boolean;
 }
 
 export const NAV_MODULES: readonly NavModule[] = [
-	{ id: 'dashboard', href: '/', label: 'Dashboard', short: '总览', primary: true },
-	{ id: 'messages', href: '/messages', label: 'Messages', short: '消息', primary: true },
-	{ id: 'sessions', href: '/sessions', label: 'Sessions', short: '会话', primary: true },
-	{ id: 'agents', href: '/agents', label: 'Agents', short: '智能体', primary: false },
-	{ id: 'groups', href: '/groups', label: 'Groups', short: '分组', primary: false },
-	{ id: 'bosses', href: '/bosses', label: 'Bosses & Access', short: '权限', primary: false },
-	{ id: 'routing', href: '/routing', label: 'Routing', short: '路由', primary: false },
-	{ id: 'channels', href: '/channels', label: 'Channels', short: '渠道', primary: false },
-	{ id: 'audit', href: '/audit', label: 'Audit', short: '审计', primary: false },
-	{ id: 'system', href: '/system', label: 'System / Doctor', short: '系统', primary: false }
+	{ id: 'dashboard', href: '/', labelKey: 'nav.dashboard', shortKey: 'nav.short.dashboard', primary: true },
+	{ id: 'messages', href: '/messages', labelKey: 'nav.messages', shortKey: 'nav.short.messages', primary: true },
+	{ id: 'sessions', href: '/sessions', labelKey: 'nav.sessions', shortKey: 'nav.short.sessions', primary: true },
+	{ id: 'agents', href: '/agents', labelKey: 'nav.agents', shortKey: 'nav.short.agents', primary: false },
+	{ id: 'groups', href: '/groups', labelKey: 'nav.groups', shortKey: 'nav.short.groups', primary: false },
+	{ id: 'bosses', href: '/bosses', labelKey: 'nav.bosses', shortKey: 'nav.short.bosses', primary: false },
+	{ id: 'routing', href: '/routing', labelKey: 'nav.routing', shortKey: 'nav.short.routing', primary: false },
+	{ id: 'channels', href: '/channels', labelKey: 'nav.channels', shortKey: 'nav.short.channels', primary: false },
+	{ id: 'audit', href: '/audit', labelKey: 'nav.audit', shortKey: 'nav.short.audit', primary: false },
+	{ id: 'system', href: '/system', labelKey: 'nav.system', shortKey: 'nav.short.system', primary: false }
 ] as const;
 
 export function isActivePath(pathname: string, href: string): boolean {

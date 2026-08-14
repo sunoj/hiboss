@@ -8,6 +8,7 @@ import {
 	type SessionStatus
 } from '$lib/design/semantics';
 import type { MessageResponse, MessagesQuery } from '$lib/api/types';
+import { formatDateTime, t } from '$lib/i18n';
 
 export type DirectionFilter = 'all' | Direction;
 export type StatusFilter = 'all' | MessageStatus;
@@ -95,7 +96,7 @@ export function sessionTitle(message: MessageResponse): string {
 	if (branch) return branch;
 	const id = message.session_id?.trim();
 	if (id) return shortId(id);
-	return 'No session';
+	return t('status.noSession');
 }
 
 export function shortId(id: string, len = 8): string {
@@ -139,14 +140,5 @@ export function togglePriority(current: Priority[], priority: Priority): Priorit
 }
 
 export function formatAbsoluteTime(iso: string): string {
-	const ms = Date.parse(iso);
-	if (Number.isNaN(ms)) return '—';
-	return new Date(ms).toLocaleString(undefined, {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit'
-	});
+	return formatDateTime(iso);
 }

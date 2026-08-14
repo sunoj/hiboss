@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { t, i18n } from '$lib/i18n';
 	import { NAV_MODULES, isActivePath } from '$lib/nav';
 </script>
 
-<aside class="nav" aria-label="Console modules">
+<aside class="nav" aria-label={t('nav.aria')}>
 	<div class="brand">
 		<span class="mark">hb</span>
 		<div>
 			<div class="name">hiboss</div>
-			<div class="sub">指挥台</div>
+			<div class="sub">{t('brand.console')}</div>
 		</div>
 	</div>
 	<nav>
@@ -18,8 +19,8 @@
 				class:active={isActivePath($page.url.pathname, mod.href)}
 				class:primary={mod.primary}
 			>
-				<span class="label">{mod.label}</span>
-				<span class="short">{mod.short}</span>
+				<span class="label">{t(mod.labelKey)}</span>
+				<span class="short">{t(mod.shortKey)}</span>
 			</a>
 		{/each}
 	</nav>

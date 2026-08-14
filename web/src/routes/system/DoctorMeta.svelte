@@ -2,6 +2,7 @@
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import type { ConnectivityResult } from './doctor-helpers';
 	import { formatLatency, formatServerTime } from './doctor-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		serverTime: string;
@@ -13,11 +14,11 @@
 
 <div class="meta panel">
 	<div class="cell">
-		<div class="label">Server time</div>
+		<div class="label">{t('form.serverTime')}</div>
 		<div class="value mono">{formatServerTime(serverTime)}</div>
 	</div>
 	<div class="cell">
-		<div class="label">API latency</div>
+		<div class="label">{t('form.apiLatency')}</div>
 		<div class="value mono" class:fail={!connectivity.ok}>
 			{formatLatency(connectivity.latencyMs)}
 		</div>
@@ -26,7 +27,7 @@
 		{/if}
 	</div>
 	<div class="cell">
-		<div class="label">Authenticated boss</div>
+		<div class="label">{t('form.authenticatedBoss')}</div>
 		{#if connectivity.ok && connectivity.bossName}
 			<div class="boss">
 				<AgentIdentity name={connectivity.bossName} size="md" />
@@ -35,7 +36,7 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="value muted">Not verified</div>
+			<div class="value muted">{t('form.notVerified')}</div>
 		{/if}
 	</div>
 </div>

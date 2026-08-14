@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { AgentResponse, CreateGroupRequest } from '$lib/api/types';
 	import { agentOptionLabel, canCreateGroup, sortAgentsByName } from './groupHelpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		agents: AgentResponse[];
@@ -38,49 +39,49 @@
 <div class="create">
 	{#if !open}
 		<button type="button" class="toggle" onclick={() => (open = true)} disabled={busy}>
-			Create group
+			{t('form.createGroup')}
 		</button>
 	{:else}
 		<form class="form" onsubmit={submit}>
 			<label>
-				<span>Name</span>
+				<span>{t('form.name')}</span>
 				<input
 					bind:value={name}
 					required
 					maxlength={80}
-					placeholder="Group name"
+					placeholder={t('form.groupName')}
 					disabled={busy}
 				/>
 			</label>
 			<label>
-				<span>Owner agent</span>
+				<span>{t('form.ownerAgent')}</span>
 				<select bind:value={ownerAgentId} required disabled={busy || sortedAgents.length === 0}>
-					<option value="">Select owner…</option>
+				<option value="">{t('common.selectOwner')}</option>
 					{#each sortedAgents as agent (agent.id)}
 						<option value={agent.id}>{agentOptionLabel(agent)}</option>
 					{/each}
 				</select>
 			</label>
 			<label class="desc">
-				<span>Description</span>
+				<span>{t('form.description')}</span>
 				<input
 					bind:value={description}
 					maxlength={200}
-					placeholder="optional"
+					placeholder={t('common.optional')}
 					disabled={busy}
 				/>
 			</label>
 			<div class="actions">
 				<button type="submit" class="primary" disabled={busy || !ready}>
-					{busy ? 'Creating…' : 'Create'}
+					{busy ? t('common.creating') : t('common.create')}
 				</button>
 				<button type="button" class="ghost" disabled={busy} onclick={() => (open = false)}>
-					Cancel
+					{t('common.cancel')}
 				</button>
 			</div>
 		</form>
 		{#if sortedAgents.length === 0}
-			<p class="hint" role="note">No agents available — connect agents before creating a group.</p>
+			<p class="hint" role="note">{t('form.noAgentsGroup')}</p>
 		{/if}
 	{/if}
 </div>

@@ -2,6 +2,7 @@
 	import { ApiError, type MessageResponse } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		messageId: string;
@@ -21,7 +22,7 @@
 	async function withBusy(action: () => Promise<void>): Promise<void> {
 		if (busy) return;
 		if (!auth.client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		busy = true;
@@ -38,12 +39,12 @@
 	async function sendReply(body: string) {
 		const text = body.trim();
 		if (!text) {
-			toasts.push('Reply body is empty', 'warning');
+			toasts.push(t('form.replyEmpty'), 'warning');
 			return;
 		}
 		await withBusy(async () => {
 			const updated = await auth.client!.reply(messageId, { body: text });
-			toasts.push('Reply sent', 'success');
+			toasts.push(t('form.sendReply'), 'success');
 			replyText = '';
 			onUpdated?.(updated);
 		});
@@ -52,24 +53,24 @@
 	async function sendReact(emoji: string) {
 		await withBusy(async () => {
 			await auth.client!.react(messageId, { emoji });
-			toasts.push(`Reacted ${emoji}`, 'success');
+			toasts.push(t('form.reacted', { emoji }), 'success');
 		});
 	}
 
 	async function sendForward() {
 		await withBusy(async () => {
 			const updated = await auth.client!.forward(messageId, { channel: forwardChannel });
-			toasts.push(`Forwarded to ${forwardChannel}`, 'success');
+			toasts.push(t('form.forwarded', { channel: forwardChannel }), 'success');
 			onUpdated?.(updated);
 		});
 	}
 </script>
 
 {#if options.length > 0}
-	<section class="block" aria-label="Message options">
-		<h3>Options</h3>
+	<section class="block" aria-label={t('form.messageOptions')}>
+		<h3>{t('form.options')}</h3>
 		{#if optionsExpired}
-			<p class="hint">Options expired</p>
+			<p class="hint">{t('form.optionsExpired')}</p>
 		{/if}
 		<div class="row">
 			{#each options as option (option)}
@@ -87,15 +88,15 @@
 {/if}
 
 <section class="block">
-	<h3>Reply</h3>
-	<textarea rows="3" placeholder="Write a reply…" bind:value={replyText} disabled={busy}></textarea>
+	<h3>{t('form.sendReply')}</h3>
+	<textarea rows="3" placeholder={t('form.writeReply')} bind:value={replyText} disabled={busy}></textarea>
 	<button type="button" class="btn primary" disabled={busy} onclick={() => sendReply(replyText)}>
-		Send reply
+		{t('form.sendReply')}
 	</button>
 </section>
 
 <section class="block">
-	<h3>React</h3>
+	<h3>{t('form.react')}</h3>
 	<div class="row">
 		{#each REACTIONS as emoji (emoji)}
 			<button type="button" class="btn" disabled={busy} onclick={() => sendReact(emoji)}>
@@ -106,13 +107,13 @@
 </section>
 
 <section class="block">
-	<h3>Forward</h3>
+	<h3>{t('form.forward')}</h3>
 	<div class="forward">
 		<select bind:value={forwardChannel} disabled={busy}>
 			<option value="discord">Discord</option>
 			<option value="telegram">Telegram</option>
 		</select>
-		<button type="button" class="btn primary" disabled={busy} onclick={sendForward}>Forward</button>
+		<button type="button" class="btn primary" disabled={busy} onclick={sendForward}>{t('form.forward')}</button>
 	</div>
 </section>
 

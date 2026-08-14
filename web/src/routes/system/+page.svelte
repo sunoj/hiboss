@@ -7,6 +7,7 @@
 	import type { BossSystemResponse } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import DoctorMeta from './DoctorMeta.svelte';
 	import StatusBeacon from './StatusBeacon.svelte';
@@ -54,9 +55,9 @@
 	async function runChecks(notify = false) {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
-			if (notify) toasts.push('Not connected', 'error');
+			if (notify) toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		loading = true;
@@ -69,7 +70,7 @@
 				const tone = overallHealth(sys.db_ok, meResult.ok);
 				const label = healthLabel(tone);
 				toasts.push(
-					`Doctor: ${label}`,
+					t('form.doctor', { label }),
 					tone === 'ok' ? 'success' : tone === 'degraded' ? 'warning' : 'error'
 				);
 			}
@@ -90,8 +91,8 @@
 <section class="doctor">
 	<header class="head">
 		<div>
-			<h1>System / Doctor</h1>
-			<p class="sub">系统 — connectivity self-check, channel health, live stats</p>
+			<h1>{t('page.system')}</h1>
+			<p class="sub">{t('page.systemSub')}</p>
 		</div>
 		<button
 			type="button"
@@ -99,7 +100,7 @@
 			onclick={() => runChecks(true)}
 			disabled={loading}
 		>
-			{loading ? 'Checking…' : 'Re-run checks'}
+			{loading ? t('page.checking') : t('page.rerunChecks')}
 		</button>
 	</header>
 
@@ -124,19 +125,19 @@
 
 		<div class="grid kpis">
 			<KpiCard
-				label="Active sessions"
+				label={t('page.activeSessions')}
 				value={system.active_sessions}
-				hint="seen recently"
+				hint={t('page.seenRecently')}
 				tone="accent"
 			/>
 			<KpiCard
-				label="Pending decisions"
+				label={t('page.pendingDecisions')}
 				value={system.pending_decisions}
-				hint="option messages awaiting pick"
+				hint={t('page.pendingDecisionsHint')}
 				tone={system.pending_decisions > 0 ? 'warn' : 'default'}
 			/>
 			<KpiCard
-				label="Channels"
+				label={t('page.channels')}
 				value={`${system.channels.filter((c) => c.configured).length}/${system.channels.length}`}
 				hint={channelHealthHint(system.channels)}
 				tone={system.channels.some((c) => c.configured) ? 'default' : 'warn'}
@@ -144,10 +145,10 @@
 		</div>
 
 		<div class="panel">
-			<h2>Channel health</h2>
-			<p class="hint">Configured delivery paths from server doctor snapshot</p>
+			<h2>{t('page.channelHealth')}</h2>
+			<p class="hint">{t('page.configuredPaths')}</p>
 			{#if system.channels.length === 0}
-				<p class="empty">No channel rows returned.</p>
+				<p class="empty">{t('page.noChannelRows')}</p>
 			{:else}
 				<ChannelLights channels={system.channels} />
 			{/if}

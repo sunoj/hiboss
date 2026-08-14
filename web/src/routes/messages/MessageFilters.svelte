@@ -15,6 +15,7 @@
 		type StatusFilter,
 		type ViewMode
 	} from './message-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		filters: MessageFilterState;
@@ -59,12 +60,12 @@
 <form class="filters" onsubmit={handleSubmit}>
 	<div class="row">
 		<label class="field">
-			<span class="label">Direction</span>
+			<span class="label">{t('form.direction')}</span>
 			<select
 				value={filters.direction}
 				onchange={(e) => setDirection(e.currentTarget.value as DirectionFilter)}
 			>
-				<option value="all">All</option>
+				<option value="all">{t('common.all')}</option>
 				{#each DIRECTIONS as dir (dir)}
 					<option value={dir}>{directionLabel(dir as Direction)}</option>
 				{/each}
@@ -72,12 +73,12 @@
 		</label>
 
 		<label class="field">
-			<span class="label">Status</span>
+			<span class="label">{t('form.status')}</span>
 			<select
 				value={filters.status}
 				onchange={(e) => setStatus(e.currentTarget.value as StatusFilter)}
 			>
-				<option value="all">All</option>
+				<option value="all">{t('common.all')}</option>
 				{#each MESSAGE_STATUSES as st (st)}
 					<option value={st}>{st as MessageStatus}</option>
 				{/each}
@@ -85,30 +86,30 @@
 		</label>
 
 		<label class="field grow">
-			<span class="label">Agent</span>
+			<span class="label">{t('nav.agents')}</span>
 			<input
 				type="text"
-				placeholder="Agent id or prefix"
+				placeholder={t('form.agentIdPrefix')}
 				value={filters.agent}
 				oninput={(e) => setAgent(e.currentTarget.value)}
 			/>
 		</label>
 
 		<label class="field grow">
-			<span class="label">Session</span>
+			<span class="label">{t('nav.sessions')}</span>
 			<input
 				type="text"
-				placeholder="Session id"
+				placeholder={t('form.sessionId')}
 				value={filters.session}
 				oninput={(e) => setSession(e.currentTarget.value)}
 			/>
 		</label>
 
 		<label class="field grow wide">
-			<span class="label">Search</span>
+			<span class="label">{t('form.searchPage')}</span>
 			<input
 				type="search"
-				placeholder="Full-text in body"
+				placeholder={t('form.searchBody')}
 				value={filters.search}
 				oninput={(e) => setSearch(e.currentTarget.value)}
 			/>
@@ -116,8 +117,8 @@
 	</div>
 
 	<div class="row priorities">
-		<span class="label">Priority</span>
-		<div class="chips" role="group" aria-label="Priority filters">
+		<span class="label">{t('form.priority')}</span>
+		<div class="chips" role="group" aria-label={t('form.priorityFilters')}>
 			{#each PRIORITIES as p (p)}
 				<button
 					type="button"
@@ -130,14 +131,14 @@
 			{/each}
 		</div>
 		<div class="spacer"></div>
-		<div class="view" role="group" aria-label="List view">
+		<div class="view" role="group" aria-label={t('form.listView')}>
 			<button
 				type="button"
 				class="chip"
 				class:active={viewMode === 'flat'}
 				onclick={() => onViewMode('flat')}
 			>
-				Flat
+				{t('page.flat')}
 			</button>
 			<button
 				type="button"
@@ -145,10 +146,10 @@
 				class:active={viewMode === 'grouped'}
 				onclick={() => onViewMode('grouped')}
 			>
-				By session
+				{t('page.bySession')}
 			</button>
 		</div>
-		<button type="submit" class="apply">Apply</button>
+		<button type="submit" class="apply">{t('common.apply')}</button>
 	</div>
 </form>
 

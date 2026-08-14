@@ -3,6 +3,7 @@
 	import StatusBadges from './StatusBadges.svelte';
 	import { extractOptions, formatRelativeTime, truncateBody } from '$lib/api/mappers';
 	import type { MessageResponse } from '$lib/api/types';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		message: MessageResponse;
@@ -31,11 +32,11 @@
 			compact
 		/>
 		{#if message.mode === 'blocking'}
-			<span class="blocking-tag">blocking</span>
+			<span class="blocking-tag">{t('status.blocking')}</span>
 		{/if}
 	</div>
 	{#if options.length > 0}
-		<div class="options" role="group" aria-label="Message options">
+		<div class="options" role="group" aria-label={t('form.messageOptions')}>
 			{#each options as option (option)}
 				<button type="button" class="option" disabled>{option}</button>
 			{/each}

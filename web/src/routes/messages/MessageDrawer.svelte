@@ -5,6 +5,7 @@
 	import type { MessageResponse } from '$lib/api/types';
 	import { formatAbsoluteTime, sessionTitle } from './message-helpers';
 	import MessageDrawerActions from './MessageDrawerActions.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		message: MessageResponse;
@@ -24,15 +25,15 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<button type="button" class="backdrop" aria-label="Close drawer" onclick={onClose}></button>
+<button type="button" class="backdrop" aria-label={t('form.closeDrawer')} onclick={onClose}></button>
 
-<div class="drawer" role="dialog" aria-modal="true" aria-label="Message detail">
+<div class="drawer" role="dialog" aria-modal="true" aria-label={t('form.messageDetail')}>
 	<header class="head">
 		<div>
-			<h2>Message detail</h2>
+			<h2>{t('form.messageDetail')}</h2>
 			<p class="id" title={message.id}>{message.id}</p>
 		</div>
-		<button type="button" class="close" onclick={onClose} aria-label="Close">×</button>
+		<button type="button" class="close" onclick={onClose} aria-label={t('common.close')}>×</button>
 	</header>
 
 	<div class="body">
@@ -48,17 +49,17 @@
 		/>
 
 		{#if message.mode === 'blocking'}
-			<span class="blocking">blocking</span>
+			<span class="blocking">{t('status.blocking')}</span>
 		{/if}
 
 		<div class="times">
-			<div><span class="k">Created</span> {formatAbsoluteTime(message.created_at)}</div>
-			<div><span class="k">Updated</span> {formatAbsoluteTime(message.updated_at)}</div>
+			<div><span class="k">{t('form.created')}</span> {formatAbsoluteTime(message.created_at)}</div>
+			<div><span class="k">{t('form.updated')}</span> {formatAbsoluteTime(message.updated_at)}</div>
 			{#if message.expires_at}
-				<div><span class="k">Expires</span> {formatAbsoluteTime(message.expires_at)}</div>
+				<div><span class="k">{t('form.expires')}</span> {formatAbsoluteTime(message.expires_at)}</div>
 			{/if}
 			{#if message.channel}
-				<div><span class="k">Channel</span> {message.channel}</div>
+				<div><span class="k">{t('form.channel')}</span> {message.channel}</div>
 			{/if}
 		</div>
 

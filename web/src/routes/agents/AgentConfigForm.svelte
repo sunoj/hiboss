@@ -4,6 +4,7 @@
 	import { PRIORITIES, type Priority } from '$lib/design/semantics';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
+	import { t } from '$lib/i18n';
 	import {
 		AGENT_CHANNELS,
 		buildConfigUpdate,
@@ -63,7 +64,7 @@
 	async function save() {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const built = buildConfigUpdate({
@@ -81,7 +82,7 @@
 			const updated = await client.updateAgentConfig(agentId, built.body);
 			applyConfig(updated);
 			onSaved?.(updated);
-			toasts.push('Agent config saved', 'success');
+			toasts.push(t('form.agentConfigSaved'), 'success');
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
 		} finally {
@@ -90,13 +91,13 @@
 	}
 </script>
 
-<section class="config" aria-label="Agent config">
-	<h3>Config</h3>
-	<p class="note">Default priority, rate limit, and channel routing for this agent.</p>
+<section class="config" aria-label={t('form.agentConfig')}>
+	<h3>{t('form.config')}</h3>
+	<p class="note">{t('form.configDetail')}</p>
 
 	<div class="fields">
 		<label class="field">
-			<span class="label">Default priority</span>
+			<span class="label">{t('form.defaultPriority')}</span>
 			<select bind:value={priority} disabled={saving}>
 				{#each PRIORITIES as p (p)}
 					<option value={p}>{p}</option>
@@ -104,19 +105,19 @@
 			</select>
 		</label>
 		<label class="field">
-			<span class="label">Rate limit</span>
+			<span class="label">{t('form.rateLimit')}</span>
 			<input
 				type="text"
 				inputmode="numeric"
-				placeholder="No limit"
+				placeholder={t('common.noLimit')}
 				bind:value={rateLimitRaw}
 				disabled={saving}
 			/>
 		</label>
 		<div class="field wide">
-			<span class="label">Channel routing</span>
+			<span class="label">{t('form.channelRouting')}</span>
 			{#if routing.length === 0}
-				<p class="empty-routes">No routes — keys map to a channel (e.g. critical → discord).</p>
+				<p class="empty-routes">{t('form.noRoutes')}</p>
 			{:else}
 				<ul class="routes">
 					{#each routing as row, i (i)}
@@ -142,7 +143,7 @@
 								class="ghost"
 								disabled={saving}
 								onclick={() => removeRoute(i)}
-								aria-label="Remove route"
+								aria-label={t('form.removeRoute')}
 							>
 								✕
 							</button>
@@ -151,13 +152,13 @@
 				</ul>
 			{/if}
 			<button type="button" class="ghost add" disabled={saving} onclick={addRoute}>
-				Add route
+				{t('form.addRoute')}
 			</button>
 		</div>
 	</div>
 
 	<button type="button" class="save" disabled={saving} onclick={() => void save()}>
-		{saving ? 'Saving…' : 'Save config'}
+		{saving ? t('common.saving') : t('form.saveConfig')}
 	</button>
 </section>
 
