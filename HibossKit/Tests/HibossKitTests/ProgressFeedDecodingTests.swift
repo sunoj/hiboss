@@ -30,6 +30,9 @@ final class ProgressFeedDecodingTests: XCTestCase {
         XCTAssertEqual(post.media, [])
         XCTAssertEqual(post.tags, [])
         XCTAssertEqual(post.createdAt, "2026-08-14T09:00:00Z")
+        XCTAssertEqual(post.team, ProgressTeam.fallback(project: "hiboss"))
+        XCTAssertEqual(post.likeCount, 0)
+        XCTAssertFalse(post.liked)
     }
 
     func testDecodesPostWithImage() throws {
@@ -142,5 +145,82 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
         XCTAssertEqual(post.media, [])
         XCTAssertEqual(post.tags, [])
+    }
+
+    func testDecodesRegisteredTeam() throws {
+        let json = """
+        {
+          "id": "p6",
+          "project": "hiboss",
+          "agent_id": "ak1",
+          "agent_name": "hiboss-cli",
+          "body": "Registered team.",
+          "media": [],
+          "tags": [],
+          "created_at": "2026-08-14T09:05:00Z",
+          "team": {
+            "handle": "hiboss",
+            "display_name": "HiBoss",
+            "avatar_url": "https://hiboss.example/api/progress/teams/hiboss/avatar.svg",
+            "registered": true
+          },
+          "like_count": 3,
+          "liked": true
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertEqual(post.team.handle, "hiboss")
+        XCTAssertEqual(post.team.displayName, "HiBoss")
+        XCTAssertEqual(post.team.avatarUrl, "https://hiboss.example/api/progress/teams/hiboss/avatar.svg")
+        XCTAssertTrue(post.team.registered)
+        XCTAssertEqual(post.likeCount, 3)
+        XCTAssertTrue(post.liked)
+    }
+
+    func testDecodesUnregisteredTeam() throws {
+        let json = """
+        {
+          "id": "p7",
+          "project": "payments",
+          "agent_id": "ak2",
+          "agent_name": "worker-payments",
+          "body": "Fallback identity.",
+          "created_at": "2026-08-14T09:06:00Z",
+          "team": {
+            "handle": "payments",
+            "display_name": "payments",
+            "avatar_url": "https://hiboss.example/api/progress/teams/payments/avatar.svg",
+            "registered": false
+          }
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertEqual(post.team.handle, "payments")
+        XCTAssertEqual(post.team.displayName, "payments")
+        XCTAssertFalse(post.team.registered)
+        XCTAssertFalse(post.team.avatarUrl.isEmpty)
+    }
+
+    func testDecodesPostWithNoLikes() throws {
+        let json = """
+        {
+          "id": "p8",
+          "project": "hiboss",
+          "agent_id": "ak1",
+          "agent_name": "hiboss-cli",
+          "body": "No likes yet.",
+          "created_at": "2026-08-14T09:07:00Z",
+          "team": {
+            "handle": "hiboss",
+            "display_name": "hiboss",
+            "avatar_url": "https://hiboss.example/api/progress/teams/hiboss/avatar.svg",
+            "registered": false
+          }
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertEqual(post.likeCount, 0)
+        XCTAssertFalse(post.liked)
+        XCTAssertEqual(post.team.displayName, "hiboss")
     }
 }

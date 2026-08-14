@@ -129,35 +129,6 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         try validate(response)
     }
 
-    public func progressFeed(
-        project: String? = nil,
-        limit: Int = 20,
-        before: ProgressCursor? = nil
-    ) async throws -> ProgressFeedPage {
-        var items = [URLQueryItem(name: "limit", value: String(limit))]
-        if let project, !project.isEmpty { items.append(URLQueryItem(name: "project", value: project)) }
-        if let before {
-            let data = try JSONEncoder().encode(before)
-            let cursor = String(decoding: data, as: UTF8.self)
-            items.append(URLQueryItem(name: "before", value: cursor))
-        }
-        return try await decode(ProgressFeedPage.self, from: progressURL.appending(queryItems: items), context: "progress feed")
-    }
-
-    public func progressProjects() async throws -> [ProgressProject] {
-        try await decode(
-            ProgressProjectsResponse.self,
-            from: progressURL.appendingPathComponent("projects"),
-            context: "progress projects"
-        ).projects
-    }
-
-    public func deleteProgressPost(id: String) async throws {
-        let request = authorizedRequest(url: progressURL.appendingPathComponent(id), method: "DELETE")
-        let (_, response) = try await session.data(for: request)
-        try validate(response)
-    }
-
     private var apiURL: URL {
         config.serverURL
             .appendingPathComponent("api")
@@ -190,7 +161,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         }
     }
 
-    private func authorizedRequest(
+    func authorizedRequest(
         url: URL,
         method: String,
         acceptsSSE: Bool = false
@@ -206,7 +177,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         return request
     }
 
-    private func validate(_ response: URLResponse) throws {
+    func validate(_ response: URLResponse) throws {
         guard let http = response as? HTTPURLResponse else {
             throw HibossAPIError.invalidResponse
         }
@@ -215,18 +186,19 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         }
     }
 
-    private var progressURL: URL {
+    var progressURL: URL {
         config.serverURL
             .appendingPathComponent("api")
             .appendingPathComponent("progress")
     }
 
-    private func decode<T: Decodable>(
+    func decode<T: Decodable>(
         _ type: T.Type,
         from url: URL,
+        method: String = "GET",
         context: String
     ) async throws -> T {
-        let request = authorizedRequest(url: url, method: "GET")
+        let request = authorizedRequest(url: url, method: method)
         let (data, response) = try await session.data(for: request)
         try validate(response)
         do {
@@ -237,6 +209,12 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
                 body: String(data: data, encoding: .utf8) ?? "<non-text>"
             )
         }
+    }
+
+    func send(_ method: String, url: URL) async throws {
+        let request = authorizedRequest(url: url, method: method)
+        let (_, response) = try await session.data(for: request)
+        try validate(response)
     }
 }
 
