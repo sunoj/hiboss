@@ -70,13 +70,20 @@ later; it must not change how the post renders now.
 
 ## Server endpoints
 
-### `GET /api/progress/teams/:handle/avatar.svg` — no auth
+### `GET /api/progress/teams/:handle/avatar.png` — no auth
 
-Deterministic identicon derived from a hash of the handle. Same handle ⇒ byte-identical SVG,
-forever. Generate it (no storage, no image library); return `image/svg+xml` with
+Deterministic identicon derived from a hash of the handle. Same handle ⇒ byte-identical
+image, forever. Generate it (no storage, no image library); return `image/png` with
 `cache-control: public, max-age=31536000, immutable`. Keep it tasteful and flat — a seeded
 geometric mark on a seeded background from a small fixed palette, legible at 40 pt. It sits
 next to a real photo avatar in the same list, so it must not look like debug output.
+
+**It must be PNG, not SVG.** iOS renders avatars with `AsyncImage`, whose `UIImage` decoder
+returns nil for SVG data — measured on the simulator, not assumed. Serving SVG makes every
+generated avatar a blank circle on iOS while looking fine in a browser. Workers can emit a
+valid PNG with no dependency: build the raw scanlines, deflate them with
+`new CompressionStream('deflate')` (which produces exactly the zlib stream `IDAT` wants),
+and write `IHDR`/`IDAT`/`IEND` with a small CRC32. Keep the image small (64×64 is plenty).
 
 ### `PUT /api/progress/teams/:project` — `apiAuth`
 
