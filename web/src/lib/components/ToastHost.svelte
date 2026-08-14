@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { toasts } from '$lib/stores/toast.svelte';
+	import { t } from '$lib/i18n';
 </script>
 
 {#if toasts.items.length > 0}
 	<div class="stack" aria-live="polite">
-		{#each toasts.items as t (t.id)}
-			<div class="toast" class:success={t.tone === 'success'} class:error={t.tone === 'error'} class:warning={t.tone === 'warning'}>
-				<span>{t.message}</span>
-				<button type="button" aria-label="Dismiss" onclick={() => toasts.dismiss(t.id)}>×</button>
+		{#each toasts.items as toast (toast.id)}
+			<div class="toast" class:success={toast.tone === 'success'} class:error={toast.tone === 'error'} class:warning={toast.tone === 'warning'}>
+				<span>{toast.message}</span>
+				<button type="button" aria-label={t('common.dismiss')} onclick={() => toasts.dismiss(toast.id)}>×</button>
 			</div>
 		{/each}
 	</div>

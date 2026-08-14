@@ -11,6 +11,7 @@
 	} from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import AccessMatrix from './AccessMatrix.svelte';
 	import CreateBossForm from './CreateBossForm.svelte';
@@ -32,7 +33,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -52,7 +53,7 @@
 	async function onToggle(bossId: string, agentId: string, next: boolean) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const key = `${bossId}:${agentId}`;
@@ -63,7 +64,7 @@
 		try {
 			if (next) await client.grantAccess(bossId, agentId);
 			else await client.revokeAccess(bossId, agentId);
-			toasts.push(next ? 'Access granted' : 'Access revoked', 'success');
+			toasts.push(next ? t('form.accessGranted') : t('form.accessRevoked'), 'success');
 		} catch (e) {
 			bosses = prev;
 			toasts.push(errMsg(e), 'error');
@@ -75,7 +76,7 @@
 	async function onRotate(bossId: string) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const key = `rotate:${bossId}`;
@@ -84,7 +85,7 @@
 		try {
 			const res = await client.rotateToken(bossId);
 			revealed = res;
-			toasts.push(`Token rotated for ${res.name}`, 'success');
+			toasts.push(t('form.tokenRotated', { name: res.name }), 'success');
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
 		} finally {
@@ -95,14 +96,14 @@
 	async function onCreate(body: BossCreateRequest) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		creating = true;
 		try {
 			const created = await client.createBoss(body);
 			bosses = [created, ...bosses];
-			toasts.push(`Created boss ${created.name}`, 'success');
+			toasts.push(t('form.createdBoss', { name: created.name }), 'success');
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
 		} finally {
@@ -118,10 +119,10 @@
 <section class="bosses">
 	<header class="head">
 		<div>
-			<h1>Bosses & Access</h1>
-			<p class="sub">权限 — boss roles, channel bindings, and agent access matrix</p>
+			<h1>{t('page.bosses')}</h1>
+			<p class="sub">{t('page.bossesSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>Refresh</button>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>{t('common.refresh')}</button>
 	</header>
 
 	{#if revealed}
@@ -141,12 +142,12 @@
 
 		{#if bosses.length === 0}
 			<EmptyState
-				title="No bosses yet"
-				detail="Create a boss to manage roles, bindings, and agent access."
+			title={t('page.noBosses')}
+			detail={t('page.noBossesDetail')}
 			/>
 		{:else}
 			{#if agents.length === 0}
-				<p class="hint">No agents in scope yet — grant columns appear when agents are accessible.</p>
+				<p class="hint">{t('page.noAgentsInScope')}</p>
 			{/if}
 			<AccessMatrix {bosses} {agents} {busyKey} {onToggle} {onRotate} />
 		{/if}

@@ -1,6 +1,7 @@
 /** Pure helpers for the System / Doctor connectivity dashboard. */
 
 import type { ChannelHealth } from '$lib/api/types';
+import { t } from '$lib/i18n';
 
 export type HealthTone = 'ok' | 'degraded' | 'fail';
 
@@ -22,17 +23,17 @@ export function overallHealth(dbOk: boolean, meOk: boolean): HealthTone {
 export function healthLabel(tone: HealthTone): string {
 	switch (tone) {
 		case 'ok':
-			return 'Healthy';
+			return t('status.healthy');
 		case 'degraded':
-			return 'Degraded';
+			return t('status.degraded');
 		case 'fail':
-			return 'Unhealthy';
+			return t('status.unhealthy');
 	}
 }
 
 export function healthDetail(dbOk: boolean, meOk: boolean): string {
-	const db = dbOk ? 'DB ok' : 'DB fail';
-	const api = meOk ? 'API ok' : 'API fail';
+	const db = dbOk ? t('status.dbOk') : t('status.dbFail');
+	const api = meOk ? t('status.apiOk') : t('status.apiFail');
 	return `${db} · ${api}`;
 }
 
@@ -61,7 +62,7 @@ export function channelStats(channels: ChannelHealth[]): {
 
 export function channelHealthHint(channels: ChannelHealth[]): string {
 	const { configured, total } = channelStats(channels);
-	if (total === 0) return 'No channels reported';
+	if (total === 0) return t('page.noChannelRows');
 	return `${configured}/${total} configured`;
 }
 

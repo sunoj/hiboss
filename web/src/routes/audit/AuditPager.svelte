@@ -6,6 +6,7 @@
 		nextOffset,
 		prevOffset
 	} from './audit-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		offset: number;
@@ -30,7 +31,7 @@
 	const nextEnabled = $derived(!disabled && canGoNext(offset, limit, total));
 </script>
 
-<nav class="pager" aria-label="Audit log pagination">
+<nav class="pager" aria-label={t('form.auditPagination')}>
 	<span class="range">{label}</span>
 	<div class="btns">
 		<button
@@ -38,14 +39,14 @@
 			disabled={!prevEnabled}
 			onclick={() => onPage(prevOffset(offset, limit))}
 		>
-			Previous
+			{t('common.previous')}
 		</button>
 		<button
 			type="button"
 			disabled={!nextEnabled}
 			onclick={() => onPage(nextOffset(offset, limit))}
 		>
-			Next
+			{t('common.next')}
 		</button>
 	</div>
 </nav>

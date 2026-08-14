@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { priorityBarWidths } from '$lib/api/mappers';
-	import { priorityColor, type Priority } from '$lib/design/semantics';
+	import { priorityColor, priorityLabel, type Priority } from '$lib/design/semantics';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		distribution: Record<Priority, number>;
@@ -10,10 +11,10 @@
 	const bars = $derived(priorityBarWidths(distribution));
 </script>
 
-<div class="bars" role="list" aria-label="Priority distribution">
+	<div class="bars" role="list" aria-label={t('page.priorityDistribution')}>
 	{#each bars as bar (bar.priority)}
 		<div class="row" role="listitem">
-			<span class="label" style:color={priorityColor(bar.priority)}>{bar.priority}</span>
+			<span class="label" style:color={priorityColor(bar.priority)}>{priorityLabel(bar.priority)}</span>
 			<div class="track">
 				<div
 					class="fill"

@@ -2,8 +2,10 @@
 	import {
 		directionColor,
 		directionLabel,
+		priorityLabel,
 		priorityBg,
 		priorityColor,
+		statusLabel,
 		statusColor,
 		type Direction,
 		type MessageStatus,
@@ -27,7 +29,7 @@
 			style:color={priorityColor(priority)}
 			style:background={priorityBg(priority)}
 		>
-			{priority}
+			{priorityLabel(priority)}
 		</span>
 	{/if}
 	{#if direction}
@@ -38,7 +40,7 @@
 	{#if status}
 		<span class="badge status" style:color={statusColor(status)}>
 			<span class="dot" style:background={statusColor(status)}></span>
-			{status}
+			{statusLabel(status)}
 		</span>
 	{/if}
 </span>

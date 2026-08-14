@@ -7,6 +7,7 @@
 		isCreateRuleValid,
 		type RuleFormValues
 	} from './ruleForm';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		agents: AgentResponse[];
@@ -56,21 +57,21 @@
 <div class="create">
 	{#if !open}
 		<button type="button" class="toggle" onclick={() => (open = true)} disabled={busy}>
-			Add rule
+			{t('form.addRule')}
 		</button>
 	{:else}
 		<form class="form" onsubmit={submit}>
 			<label>
-				<span>Owner agent</span>
+				<span>{t('form.ownerAgent')}</span>
 				<select bind:value={ownerId} required disabled={busy || agents.length === 0}>
-					<option value="" disabled>Select owner</option>
+				<option value="" disabled>{t('common.selectOwner')}</option>
 					{#each agents as agent (agent.id)}
 						<option value={agent.id}>{agent.name}</option>
 					{/each}
 				</select>
 			</label>
 			<label>
-				<span>Channel</span>
+				<span>{t('form.channel')}</span>
 				<select bind:value={channel} disabled={busy}>
 					{#each ROUTING_CHANNELS as ch (ch)}
 						<option value={ch}>{ch}</option>
@@ -78,26 +79,26 @@
 				</select>
 			</label>
 			<label>
-				<span>Pattern</span>
+				<span>{t('form.pattern')}</span>
 				<input
 					bind:value={pattern}
 					required
-					placeholder="regex pattern"
+					placeholder={t('form.regexPattern')}
 					disabled={busy}
 					spellcheck="false"
 				/>
 			</label>
 			<label>
-				<span>Target agent</span>
+				<span>{t('form.targetAgent')}</span>
 				<select bind:value={targetId} required disabled={busy || agents.length === 0}>
-					<option value="" disabled>Select target</option>
+				<option value="" disabled>{t('common.selectTarget')}</option>
 					{#each agents as agent (agent.id)}
 						<option value={agent.id}>{agent.name}</option>
 					{/each}
 				</select>
 			</label>
 			<label>
-				<span>Priority</span>
+				<span>{t('form.priority')}</span>
 				<input
 					type="number"
 					bind:value={priority}
@@ -107,7 +108,7 @@
 			</label>
 			<div class="actions">
 				<button type="submit" class="primary" disabled={!canSubmit}>
-					{busy ? 'Creating…' : 'Create'}
+					{busy ? t('common.creating') : t('form.createRule')}
 				</button>
 				<button
 					type="button"
@@ -118,12 +119,12 @@
 						reset();
 					}}
 				>
-					Cancel
+					{t('common.cancel')}
 				</button>
 			</div>
 		</form>
 		{#if agents.length === 0}
-			<p class="hint">No agents available — grant access before adding rules.</p>
+			<p class="hint">{t('form.noAgentsRule')}</p>
 		{/if}
 	{/if}
 </div>

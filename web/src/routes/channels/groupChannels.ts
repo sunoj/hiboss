@@ -1,6 +1,7 @@
 /** Pure helpers for Channels connectivity board grouping. */
 
 import type { BossChannelConfig, Channel } from '$lib/api/types';
+import { t } from '$lib/i18n';
 
 const CHANNEL_ORDER: readonly Channel[] = ['discord', 'telegram', 'email', 'api'] as const;
 
@@ -15,7 +16,7 @@ const BASE_KEYS = new Set([
 ]);
 
 export const CLI_NOTE =
-	'Channel secrets are managed via the hiboss CLI — this view is read-only.';
+	t('channel.cliNote');
 
 export interface PublicField {
 	key: string;
@@ -57,7 +58,7 @@ export function publicFields(row: BossChannelConfig): PublicField[] {
 }
 
 export function configuredLabel(configured: boolean): string {
-	return configured ? 'on' : 'off';
+	return configured ? t('channel.on') : t('channel.off');
 }
 
 /** Group channel rows by agent; agents by name, channels by type order. */

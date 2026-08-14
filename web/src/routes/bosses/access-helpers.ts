@@ -1,6 +1,7 @@
 /** Pure helpers for Bosses & Access matrix and bindings. */
 
 import type { BossRecord, BossRole } from '$lib/api/types';
+import { t } from '$lib/i18n';
 
 export function hasAccess(boss: BossRecord, agentId: string): boolean {
 	const ids = boss.agent_ids ?? [];
@@ -29,11 +30,11 @@ export function withAccess(
 export function roleLabel(role: BossRole | string): string {
 	switch (role) {
 		case 'admin':
-			return 'Admin';
+			return t('role.admin');
 		case 'manager':
-			return 'Manager';
+			return t('role.manager');
 		case 'viewer':
-			return 'Viewer';
+			return t('role.viewer');
 		default:
 			return String(role);
 	}

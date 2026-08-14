@@ -7,6 +7,7 @@
 	import type { MessageResponse } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import MessageDrawer from './MessageDrawer.svelte';
 	import MessageFilters from './MessageFilters.svelte';
 	import MessageSessionGroup from './MessageSessionGroup.svelte';
@@ -37,7 +38,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -101,10 +102,10 @@
 <section class="messages">
 	<header class="head">
 		<div>
-			<h1>Messages</h1>
-			<p class="sub">消息中心 — full stream, filters, session grouping, detail drawer</p>
+			<h1>{t('page.messages')}</h1>
+			<p class="sub">{t('page.messagesSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>Refresh</button>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>{t('common.refresh')}</button>
 	</header>
 
 	<MessageFilters
@@ -121,17 +122,14 @@
 		<div class="panel"><Skeleton rows={8} /></div>
 	{:else if visible.length === 0}
 		<EmptyState
-			title="No messages match"
-			detail="Try widening direction, clearing priority chips, or searching a different term."
+			title={t('page.noMessageMatch')}
+			detail={t('page.noMessageMatchDetail')}
 		/>
 	{:else}
 		<div class="panel stream">
 			<div class="stream-head">
 				<span class="hint">
-					Loaded {messages.length} of {total} · filtered {visible.length} · {viewMode ===
-					'grouped'
-						? 'by session'
-						: 'flat'}
+					{t('common.messageSummary', { loaded: messages.length, total, filtered: visible.length, mode: viewMode === 'grouped' ? t('page.bySession') : t('page.flat') })}
 				</span>
 			</div>
 
@@ -152,7 +150,7 @@
 			{#if canLoadMore}
 				<div class="more">
 					<button type="button" class="load-more" disabled={loadingMore} onclick={loadMore}>
-						{loadingMore ? 'Loading…' : `Load more (${PAGE_SIZE})`}
+						{loadingMore ? t('app.loading') : t('page.loadMore', { count: PAGE_SIZE })}
 					</button>
 				</div>
 			{/if}

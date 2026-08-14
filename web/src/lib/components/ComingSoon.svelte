@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	interface Props {
 		title: string;
 		detail?: string;
@@ -6,12 +7,12 @@
 
 	let {
 		title,
-		detail = 'This module will be built on top of the shared design system and API client.'
+		detail = t('common.dataWillAppear')
 	}: Props = $props();
 </script>
 
 <section class="soon">
-	<div class="eyebrow">Coming soon</div>
+	<div class="eyebrow">{t('form.endpointUnavailable')}</div>
 	<h1>{title}</h1>
 	<p>{detail}</p>
 </section>

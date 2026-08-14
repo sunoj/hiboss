@@ -1,12 +1,13 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	interface Props {
 		title?: string;
 		detail?: string;
 	}
 
 	let {
-		title = 'Nothing here yet',
-		detail = 'Data will appear when agents start reporting.'
+		title = t('common.nothing'),
+		detail = t('common.dataWillAppear')
 	}: Props = $props();
 </script>
 

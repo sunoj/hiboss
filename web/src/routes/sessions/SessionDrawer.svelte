@@ -8,6 +8,7 @@
 	import type { MessageResponse, SessionResponse } from '$lib/api/types';
 	import { coerceSessionStatus, sessionColor } from '$lib/design/semantics';
 	import { sessionDisplayLabel, shortId } from './groupSessions';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		session: SessionResponse;
@@ -25,44 +26,44 @@
 	const title = $derived(sessionDisplayLabel(session));
 </script>
 
-<div class="drawer" role="dialog" aria-modal="true" aria-label="Session detail">
+<div class="drawer" role="dialog" aria-modal="true" aria-label={t('form.sessionDetail')}>
 	<header class="head">
 		<div class="titles">
 			<span class="pill" style:color={color}>{status}</span>
 			<h2 title={title}>{title}</h2>
 		</div>
-		<button type="button" class="close" onclick={onClose} aria-label="Close">✕</button>
+		<button type="button" class="close" onclick={onClose} aria-label={t('common.close')}>✕</button>
 	</header>
 
 	<div class="body">
 		<section class="meta">
 			<div class="row">
-				<span class="k">Agent</span>
+				<span class="k">{t('nav.agents')}</span>
 				<AgentIdentity name={session.agent_name} size="md" />
 			</div>
 			<div class="row">
-				<span class="k">Id</span>
+				<span class="k">{t('form.id')}</span>
 				<span class="mono" title={session.id}>{shortId(session.id)}</span>
 			</div>
 			{#if session.branch}
 				<div class="row">
-					<span class="k">Branch</span>
+					<span class="k">{t('form.branch')}</span>
 					<span class="mono">{session.branch}</span>
 				</div>
 			{/if}
 			{#if session.cwd}
 				<div class="row">
-					<span class="k">Cwd</span>
+					<span class="k">{t('form.cwd')}</span>
 					<span class="mono path">{session.cwd}</span>
 				</div>
 			{/if}
 			<div class="row">
-				<span class="k">Last seen</span>
+				<span class="k">{t('form.lastSeen')}</span>
 				<span>{formatRelativeTime(session.last_seen_at)}</span>
 			</div>
 			{#if session.started_at}
 				<div class="row">
-					<span class="k">Started</span>
+					<span class="k">{t('form.started')}</span>
 					<span>{formatRelativeTime(session.started_at)}</span>
 				</div>
 			{/if}
@@ -72,24 +73,21 @@
 		</section>
 
 		<section class="command">
-			<h3>Send a command</h3>
-			<p class="note">
-				Coming soon — boss API has no send-to-session endpoint yet (needs e.g.
-				<code>POST /api/boss/sessions/:id/message</code>).
-			</p>
-			<button type="button" class="send" disabled title="Endpoint not available">
-				Send command…
+			<h3>{t('form.sendCommand')}</h3>
+			<p class="note">{t('form.sendCommandNote', { endpoint: '/api/boss/sessions/:id/message' })}</p>
+			<button type="button" class="send" disabled title={t('form.endpointUnavailable')}>
+				{t('form.sendCommand')}…
 			</button>
 		</section>
 
 		<section class="msgs">
-			<h3>Recent messages</h3>
+			<h3>{t('form.recentMessages')}</h3>
 			{#if error}
 				<ErrorState message={error} onRetry={onRetry} />
 			{:else if loading}
 				<Skeleton rows={4} />
 			{:else if messages.length === 0}
-				<EmptyState title="No messages" detail="This session has no recent traffic." />
+				<EmptyState title={t('page.noRecentMessages')} detail={t('form.sessionNoTraffic')} />
 			{:else}
 				<ul class="list">
 					{#each messages as message (message.id)}
@@ -212,11 +210,6 @@
 		font-size: 11px;
 		color: var(--hb-text-dim);
 		line-height: 1.4;
-	}
-	.command code {
-		font-family: var(--hb-font-mono);
-		font-size: 10px;
-		color: var(--hb-text-muted);
 	}
 	.send {
 		width: 100%;

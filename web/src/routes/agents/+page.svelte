@@ -6,6 +6,7 @@
 	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import { sortAgentsByLastUsed } from './agent-helpers';
 	import AgentDrawer from './AgentDrawer.svelte';
 	import AgentTable from './AgentTable.svelte';
@@ -25,7 +26,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -56,11 +57,11 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>Agents</h1>
-			<p class="sub">智能体 — list, identity, and editable config</p>
+			<h1>{t('page.agents')}</h1>
+			<p class="sub">{t('page.agentsSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
-			Refresh
+			{t('common.refresh')}
 		</button>
 	</header>
 
@@ -70,14 +71,14 @@
 		<div class="panel"><Skeleton rows={8} height="1.4rem" /></div>
 	{:else if agents.length === 0}
 		<EmptyState
-			title="No agents"
-			detail="Agents this boss can access will appear here once they are granted."
+			title={t('page.noAgents')}
+			detail={t('page.noAgentsDetail')}
 		/>
 	{:else}
 		<div class="layout" class:open={selected !== null}>
 			<div class="panel table-panel">
 				<div class="stream-head">
-					<span class="hint">{agents.length} agent{agents.length === 1 ? '' : 's'}</span>
+					<span class="hint">{t('common.agents', { count: agents.length })}</span>
 				</div>
 				<AgentTable
 					agents={sorted}

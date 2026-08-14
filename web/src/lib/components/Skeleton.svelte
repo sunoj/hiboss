@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	interface Props {
 		rows?: number;
 		height?: string;
@@ -7,7 +8,7 @@
 	let { rows = 3, height = '1.1rem' }: Props = $props();
 </script>
 
-<div class="skel" aria-busy="true" aria-label="Loading">
+<div class="skel" aria-busy="true" aria-label={t('app.loading')}>
 	{#each Array(rows) as _, i (i)}
 		<div class="line" style:height style:width="{70 + ((i * 17) % 30)}%"></div>
 	{/each}

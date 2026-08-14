@@ -1,5 +1,7 @@
 /** Named token helpers for priority / status / direction / session. */
 
+import { t } from '$lib/i18n';
+
 export type Priority = 'critical' | 'high' | 'normal' | 'low';
 export type MessageStatus = 'sent' | 'delivered' | 'read' | 'replied' | 'expired';
 export type Direction = 'agent_to_boss' | 'boss_to_agent' | 'agent_to_agent';
@@ -65,12 +67,6 @@ const SESSION_VARS: Record<SessionStatus, string> = {
 	idle: 'var(--hb-session-idle)'
 };
 
-const DIRECTION_LABELS: Record<Direction, string> = {
-	agent_to_boss: 'Agent → Boss',
-	boss_to_agent: 'Boss → Agent',
-	agent_to_agent: 'Agent → Agent'
-};
-
 export function isPriority(value: string): value is Priority {
 	return (PRIORITIES as readonly string[]).includes(value);
 }
@@ -108,7 +104,20 @@ export function sessionColor(status: SessionStatus): string {
 }
 
 export function directionLabel(direction: Direction): string {
-	return DIRECTION_LABELS[direction];
+	const key = direction === 'agent_to_boss' ? 'agentToBoss' : direction === 'boss_to_agent' ? 'bossToAgent' : 'agentToAgent';
+	return t(`direction.${key}`);
+}
+
+export function priorityLabel(priority: Priority): string {
+	return t(`priority.${priority}`);
+}
+
+export function statusLabel(status: MessageStatus): string {
+	return t(`status.${status}`);
+}
+
+export function sessionLabel(status: SessionStatus): string {
+	return t(`session.${status}`);
 }
 
 export function coercePriority(value: string | null | undefined): Priority {

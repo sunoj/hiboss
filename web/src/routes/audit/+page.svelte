@@ -6,6 +6,7 @@
 	import type { AuditEntry } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import AuditFilters from './AuditFilters.svelte';
 	import AuditPager from './AuditPager.svelte';
 	import AuditTable from './AuditTable.svelte';
@@ -27,7 +28,7 @@
 	async function load(nextFilters: AuditFilterState = filters) {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -65,11 +66,11 @@
 <section class="audit">
 	<header class="head">
 		<div>
-			<h1>Audit</h1>
-			<p class="sub">审计 — searchable operation and delivery log</p>
+			<h1>{t('page.audit')}</h1>
+			<p class="sub">{t('page.auditSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
-			Refresh
+			{t('common.refresh')}
 		</button>
 	</header>
 
@@ -81,23 +82,19 @@
 		<div class="panel"><Skeleton rows={8} /></div>
 	{:else if entries.length === 0}
 		<EmptyState
-			title="No audit entries"
-			detail="Operations will appear here as agents and bosses act on the system."
+			title={t('page.noAudit')}
+			detail={t('page.noAuditDetail')}
 		/>
 	{:else if visible.length === 0}
 		<EmptyState
-			title="No rows match search"
-			detail="Clear the page search or widen actor/action filters, then Apply."
+			title={t('page.noAuditSearch')}
+			detail={t('page.noAuditSearchDetail')}
 		/>
 	{:else}
 		<div class="panel stream">
 			<div class="stream-head">
 				<span class="hint">
-					Server page {Math.floor(filters.offset / filters.limit) + 1} · limit
-					{filters.limit} · total {total}
-					{#if filters.search.trim()}
-						· showing {visible.length} after search
-					{/if}
+					{t('pager.summary', { page: Math.floor(filters.offset / filters.limit) + 1, limit: filters.limit, total, ...(filters.search.trim() ? { showing: visible.length } : {}) })}
 				</span>
 			</div>
 			<AuditTable entries={visible} />

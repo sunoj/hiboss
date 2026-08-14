@@ -8,6 +8,7 @@
 		type ActorTypeFilter,
 		type AuditFilterState
 	} from './audit-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		filters: AuditFilterState;
@@ -42,12 +43,12 @@
 <form class="filters" onsubmit={handleSubmit}>
 	<div class="row">
 		<label class="field">
-			<span class="label">Actor type</span>
+			<span class="label">{t('form.actorType')}</span>
 			<select
 				value={filters.actor_type}
 				onchange={(e) => setActorType(e.currentTarget.value as ActorTypeFilter)}
 			>
-				<option value="all">All</option>
+				<option value="all">{t('common.nothing')}</option>
 				{#each ACTOR_TYPES as t (t)}
 					<option value={t}>{actorTypeLabel(t as AuditActorType)}</option>
 				{/each}
@@ -55,11 +56,11 @@
 		</label>
 
 		<label class="field grow">
-			<span class="label">Action</span>
+			<span class="label">{t('form.action')}</span>
 			<input
 				type="text"
 				list="audit-actions"
-				placeholder="e.g. message.send"
+				placeholder={t('form.actionExample')}
 				value={filters.action}
 				oninput={(e) => setAction(e.currentTarget.value)}
 			/>
@@ -71,7 +72,7 @@
 		</label>
 
 		<label class="field">
-			<span class="label">Page size</span>
+			<span class="label">{t('form.pageSize')}</span>
 			<select
 				value={String(filters.limit)}
 				onchange={(e) => setLimit(Number(e.currentTarget.value))}
@@ -83,16 +84,16 @@
 		</label>
 
 		<label class="field grow wide">
-			<span class="label">Search page</span>
+			<span class="label">{t('form.searchPage')}</span>
 			<input
 				type="search"
-				placeholder="Filter loaded rows (actor, action, resource, details)"
+				placeholder={t('form.searchAudit')}
 				value={filters.search}
 				oninput={(e) => setSearch(e.currentTarget.value)}
 			/>
 		</label>
 
-		<button type="submit" class="apply">Apply</button>
+		<button type="submit" class="apply">{t('common.apply')}</button>
 	</div>
 </form>
 

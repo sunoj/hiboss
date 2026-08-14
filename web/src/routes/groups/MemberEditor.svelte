@@ -2,6 +2,7 @@
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import type { AgentResponse } from '$lib/api/types';
 	import { agentOptionLabel, sortAgentsByName } from './groupHelpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		agents: AgentResponse[];
@@ -28,19 +29,19 @@
 	}
 </script>
 
-<div class="editor" role="region" aria-label="Group member editor">
+<div class="editor" role="region" aria-label={t('form.memberEditor')}>
 	<div class="head">
-		<span class="title">Members</span>
-		<button type="button" class="ghost" onclick={onClose} disabled={busy}>Close</button>
+		<span class="title">{t('form.members')}</span>
+		<button type="button" class="ghost" onclick={onClose} disabled={busy}>{t('common.close')}</button>
 	</div>
 
 	{#if sorted.length === 0}
-		<p class="empty">No agents in scope to add or remove.</p>
+		<p class="empty">{t('page.noAgentsInScope')}</p>
 	{:else}
 		<label class="field">
-			<span>Agent</span>
+			<span>{t('nav.agents')}</span>
 			<select bind:value={selectedId} disabled={busy}>
-				<option value="">Select agent…</option>
+				<option value="">{t('common.selectAgent')}</option>
 				{#each sorted as agent (agent.id)}
 					<option value={agent.id}>{agentOptionLabel(agent)}</option>
 				{/each}
@@ -55,10 +56,10 @@
 
 		<div class="actions">
 			<button type="button" class="btn" disabled={busy || !selectedId} onclick={add}>
-				Add member
+				{t('form.addMember')}
 			</button>
 			<button type="button" class="btn danger" disabled={busy || !selectedId} onclick={remove}>
-				Remove member
+				{t('form.removeMember')}
 			</button>
 		</div>
 	{/if}

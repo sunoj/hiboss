@@ -3,6 +3,7 @@
 	import { formatRelativeTime } from '$lib/api/mappers';
 	import type { AgentResponse } from '$lib/api/types';
 	import { lastUsedLabel, roleLabel } from './agent-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		agents: AgentResponse[];
@@ -17,10 +18,10 @@
 	<table class="table">
 		<thead>
 			<tr>
-				<th scope="col">Agent</th>
-				<th scope="col">Role</th>
-				<th scope="col">Last used</th>
-				<th scope="col" class="right">Created</th>
+				<th scope="col">{t('nav.agents')}</th>
+				<th scope="col">{t('form.role')}</th>
+				<th scope="col">{t('form.lastSeen')}</th>
+				<th scope="col" class="right">{t('form.created')}</th>
 			</tr>
 		</thead>
 		<tbody>
