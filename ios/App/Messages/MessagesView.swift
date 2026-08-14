@@ -26,11 +26,5 @@ struct MessagesView: View {
             .listStyle(.plain)
         }
         .refreshable { await store.refresh() }
-        .navigationTitle("Messages")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                ConnectionDot(state: store.connectionState)
-            }
-        }
     }
 }
