@@ -24,6 +24,7 @@ import { bossDevicesRouter } from './routes/boss-devices';
 import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
 import { updatesRouter } from './routes/updates';
+import { progressRouter } from './routes/progress';
 import dashboardHtml from './dashboard.html';
 // @ts-ignore JS string module exports the service worker source.
 import swJs from './sw.js';
@@ -88,6 +89,7 @@ app.route('/api/boss', bossWritesRouter);
 app.route('/api/boss', bossApiRouter);
 app.route('/api/audit', auditRouter);
 app.route('/api/sessions', sessionsRouter);
+app.route('/api/progress', progressRouter);
 app.route('/api/join', joinRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
