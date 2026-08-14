@@ -41,13 +41,16 @@ struct ProgressFeedView: View {
     private var feedList: some View {
         List {
             ForEach(store.posts) { post in
-                ProgressPostCard(post: post) { opened = $0 }
-                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                    .onAppear {
-                        if post.id == store.posts.last?.id {
-                            Task { await store.loadMore() }
-                        }
+                ProgressPostCard(post: post, onOpenMedia: { opened = $0 }) {
+                    Task { await store.toggleLike(id: post.id) }
+                }
+                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                .alignmentGuide(.listRowSeparatorLeading) { d in d[.leading] - 16 }
+                .onAppear {
+                    if post.id == store.posts.last?.id {
+                        Task { await store.loadMore() }
                     }
+                }
             }
             if store.isLoadingMore {
                 HStack {

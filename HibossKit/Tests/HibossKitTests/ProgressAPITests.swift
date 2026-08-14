@@ -96,6 +96,35 @@ final class ProgressAPITests: XCTestCase {
         try await api.deleteProgressPost(id: "p1")
     }
 
+    func testLikeProgressPostPostsAndDecodesState() async throws {
+        ProgressURLProtocol.handler = { request in
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.url?.path, "/api/progress/p1/like")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+            return try Self.response(for: request, json: #"{"like_count":3,"liked":true}"#)
+        }
+        let api = HibossAPI(config: try config(), session: session())
+
+        let state = try await api.likeProgressPost(id: "p1")
+
+        XCTAssertEqual(state.likeCount, 3)
+        XCTAssertTrue(state.liked)
+    }
+
+    func testUnlikeProgressPostDeletesAndDecodesState() async throws {
+        ProgressURLProtocol.handler = { request in
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            XCTAssertEqual(request.url?.path, "/api/progress/p1/like")
+            return try Self.response(for: request, json: #"{"like_count":2,"liked":false}"#)
+        }
+        let api = HibossAPI(config: try config(), session: session())
+
+        let state = try await api.unlikeProgressPost(id: "p1")
+
+        XCTAssertEqual(state.likeCount, 2)
+        XCTAssertFalse(state.liked)
+    }
+
     private func config() throws -> ConnectionConfig {
         let serverURL = try XCTUnwrap(URL(string: "https://hiboss.example"))
         return ConnectionConfig(serverURL: serverURL, bossToken: "test-token")
