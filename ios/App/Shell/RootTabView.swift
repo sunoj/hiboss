@@ -13,16 +13,20 @@ struct RootTabView: View {
     @ObservedObject private var router = AppRouter.shared
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress" ? 1 : 0
+    /// Tab indices are referenced from playback gating and demo routing, so they are
+    /// named rather than written as literals — renumbering silently broke video
+    /// autoplay once, by leaving it pointed at whichever tab had inherited the index.
+    private static let progressTab = 2
+
+    @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress" ? Self.progressTab : 0
     @State private var inboxPath = NavigationPath()
-    /// Survives leaving the home tab and coming back within the session.
-    @State private var homeSection: HomeSection =
-        ProcessInfo.processInfo.environment["HIBOSS_HOME"] == "messages" ? .messages : .inbox
 
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack(path: $inboxPath) {
-                HomeView(store: inbox, section: $homeSection)
+                InboxView(store: inbox)
+                    .navigationTitle("Inbox")
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                     .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
             }
@@ -31,10 +35,20 @@ struct RootTabView: View {
             .tag(0)
 
             NavigationStack {
+                MessagesView(store: inbox)
+                    .navigationTitle("Messages")
+                    .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
+                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+            }
+            .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
+            .tag(1)
+
+            NavigationStack {
                 ProgressFeedView(store: progress)
             }
             .tabItem { Label("Progress", systemImage: "calendar.day.timeline.leading") }
-            .tag(1)
+            .tag(2)
 
             NavigationStack {
                 SessionsView(store: inbox)
@@ -42,7 +56,7 @@ struct RootTabView: View {
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             }
             .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
-            .tag(2)
+            .tag(3)
 
             NavigationStack {
                 SettingsView(
@@ -63,7 +77,7 @@ struct RootTabView: View {
                 )
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
-            .tag(3)
+            .tag(4)
         }
         .onReceive(router.$pendingMessageID.compactMap { $0 }) { messageID in
             // Clear first to avoid re-entrancy, then build the stack in a single
@@ -73,7 +87,6 @@ struct RootTabView: View {
             // Decision notifications belong on Inbox, not the Messages firehose.
             router.pendingMessageID = nil
             tab = 0
-            homeSection = .inbox
             inboxPath = NavigationPath([messageID])
         }
         .onChange(of: scenePhase) { _, phase in
@@ -83,8 +96,8 @@ struct RootTabView: View {
             ProgressVideoPlayback.shared.sceneActive = phase == .active
         }
         .onChange(of: tab) { _, new in
-            ProgressVideoPlayback.shared.feedVisible = new == 1
-            if new == 1 { Task { await progress.refresh() } }
+            ProgressVideoPlayback.shared.feedVisible = new == Self.progressTab
+            if new == Self.progressTab { Task { await progress.refresh() } }
         }
         .onAppear { applyDemoRoute() }
     }
@@ -93,7 +106,7 @@ struct RootTabView: View {
     private func applyDemoRoute() {
         let env = ProcessInfo.processInfo.environment
         if let id = env["HIBOSS_DEMO_OPEN"], !id.isEmpty {
-            homeSection = .inbox
+            tab = 0
             inboxPath = NavigationPath([MessageID(rawValue: id)])
             return
         }

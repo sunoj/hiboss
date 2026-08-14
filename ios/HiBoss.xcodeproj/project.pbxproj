@@ -19,7 +19,6 @@
 		1AF4333A617AE66DA09E64C5 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8732DC9D272987A1B036C854 /* ConnectionStore.swift */; };
 		1B3C732EF15C1BA795BD70EC /* ProgressFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */; };
 		1DE86178D9794D1353514B9E /* ProgressMediaLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14706EB7C3D0C23F4FE4937 /* ProgressMediaLayout.swift */; };
-		2CD562188427FC30B93E263F /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BD94B07A02B8B7941191B7A /* HomeView.swift */; };
 		2F8E9AAFBC7E168D48F0B03E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B448CB7C1CB5C5B31FEBB796 /* Localizable.xcstrings */; };
 		335B4FE46BDAA8A5C0A2BBF0 /* ReplySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */; };
 		38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */; };
@@ -29,7 +28,6 @@
 		4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F038DB693219FA633FDAACC /* InboxStore.swift */; };
 		59EC4486EB14BA43AC79AFB7 /* ProgressFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */; };
 		5EDC0AEB743173107F498F2F /* InboxSettlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A90DD2D68361065EC14E /* InboxSettlement.swift */; };
-		6143823255B58585B89FEB29 /* HomeSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 449CD45907385C503709820C /* HomeSectionTests.swift */; };
 		62015DFCC83862ABE5CF7571 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */; };
 		634D1F39A52B99D7231102F5 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4472CB219A227288F168212 /* SessionsView.swift */; };
 		68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B18F7757D87683A1F768E5 /* HiBossApp.swift */; };
@@ -129,7 +127,6 @@
 		3C3F4F2F453328EDEFEA8B9F /* InboxStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStoreTests.swift; sourceTree = "<group>"; };
 		3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		3E7782E6F85B6837B7AA3E88 /* MessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesView.swift; sourceTree = "<group>"; };
-		449CD45907385C503709820C /* HomeSectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSectionTests.swift; sourceTree = "<group>"; };
 		4AF11BA88743C4696BE600E0 /* ResolvedDecisionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedDecisionsView.swift; sourceTree = "<group>"; };
 		4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionLiveActivity.swift; sourceTree = "<group>"; };
 		4F038DB693219FA633FDAACC /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
@@ -142,7 +139,6 @@
 		714548036141EBBCA3849272 /* HiBoss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HiBoss.entitlements; sourceTree = "<group>"; };
 		71907C16801CD73E13B8C90D /* RoutingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutingSection.swift; sourceTree = "<group>"; };
 		7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageMetaTests.swift; sourceTree = "<group>"; };
-		7BD94B07A02B8B7941191B7A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		7CA31A0E63F84D54574E1FAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7CA94EE3AD9E1CE019C26899 /* ProgressTeamAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTeamAvatar.swift; sourceTree = "<group>"; };
 		7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRow.swift; sourceTree = "<group>"; };
@@ -401,7 +397,6 @@
 			isa = PBXGroup;
 			children = (
 				8D3E62FC93D8B4ADDA9829BA /* AllClearIslandTests.swift */,
-				449CD45907385C503709820C /* HomeSectionTests.swift */,
 				3C3F4F2F453328EDEFEA8B9F /* InboxStoreTests.swift */,
 				7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */,
 				31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */,
@@ -416,7 +411,6 @@
 			isa = PBXGroup;
 			children = (
 				6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */,
-				7BD94B07A02B8B7941191B7A /* HomeView.swift */,
 				3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */,
 			);
 			path = Shell;
@@ -568,7 +562,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9E5A10D3CCD98170A42802E /* AllClearIslandTests.swift in Sources */,
-				6143823255B58585B89FEB29 /* HomeSectionTests.swift in Sources */,
 				DE402514590A2A23719EE2D3 /* InboxStoreTests.swift in Sources */,
 				1A90CA63E5F60222225B57A9 /* MessageMetaTests.swift in Sources */,
 				CD2827C535593B6E9AFA6CFB /* ProgressFeedStoreTests.swift in Sources */,
@@ -606,7 +599,6 @@
 				0F8B1176060F05A644AAF8FB /* DemoProgressData.swift in Sources */,
 				68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */,
 				761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */,
-				2CD562188427FC30B93E263F /* HomeView.swift in Sources */,
 				5EDC0AEB743173107F498F2F /* InboxSettlement.swift in Sources */,
 				4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */,
 				1553776326486621FD350726 /* InboxView.swift in Sources */,
