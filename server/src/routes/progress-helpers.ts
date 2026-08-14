@@ -193,7 +193,7 @@ export function slugifyProject(project: string): string {
 }
 
 export function generatedAvatarUrl(requestUrl: URL, handle: string): string {
-  return `${requestUrl.origin}/api/progress/teams/${encodeURIComponent(handle)}/avatar.svg`;
+  return `${requestUrl.origin}/api/progress/teams/${encodeURIComponent(handle)}/avatar.png`;
 }
 
 export function mapTeamRow(row: TeamRow, requestUrl: URL): TeamProfile {
