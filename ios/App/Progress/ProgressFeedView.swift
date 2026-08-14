@@ -1,4 +1,4 @@
-// 进展 tab: a native list of progress posts with project filter and pull-to-refresh.
+// Progress tab: a native list of progress posts with project filter and pull-to-refresh.
 // Exports: ProgressFeedView bound to a ProgressFeedStore.
 // Dependencies: SwiftUI, HibossKit, ProgressPostCard, ListStateView.
 
@@ -16,14 +16,14 @@ struct ProgressFeedView: View {
             error: store.posts.isEmpty ? store.loadError : nil,
             isEmpty: store.posts.isEmpty,
             emptyIcon: "calendar.day.timeline.leading",
-            emptyTitle: "No progress yet",
-            emptyDetail: "Agents post here with hiboss progress post \"…\" — no push, no inbox.",
+            emptyTitle: String(localized: "No progress yet"),
+            emptyDetail: String(localized: "Agents post here with hiboss progress post \"…\" — no push, no inbox."),
             onRetry: { await store.refresh() }
         ) {
             feedList
         }
         .refreshable { await store.refresh() }
-        .navigationTitle("进展")
+        .navigationTitle("Progress")
         .toolbar { filterMenu }
         .task { await store.refresh() }
         .onChange(of: scenePhase) { _, phase in
@@ -73,7 +73,7 @@ struct ProgressFeedView: View {
                 }
             } label: {
                 Label(
-                    store.selectedProject ?? "All projects",
+                    store.selectedProject ?? String(localized: "All projects"),
                     systemImage: "line.3.horizontal.decrease.circle"
                 )
             }

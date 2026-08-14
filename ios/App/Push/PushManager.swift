@@ -96,7 +96,7 @@ final class PushManager: NSObject, ObservableObject {
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
         guard let bundleId = Bundle.main.bundleIdentifier, let api = HiBossStore.bossAPI() else {
             pushLog.info("skipping token registration — not configured")
-            registration = .failed("Not connected to a server")
+            registration = .failed(String(localized: "Not connected to a server"))
             return
         }
         registration = .registering
@@ -113,11 +113,11 @@ final class PushManager: NSObject, ObservableObject {
     }
 
     private func optionsCategory() -> UNNotificationCategory {
-        let approve = UNNotificationAction(identifier: PushAction.approve, title: "Approve", options: [.foreground])
-        let reject = UNNotificationAction(identifier: PushAction.reject, title: "Reject", options: [.destructive])
+        let approve = UNNotificationAction(identifier: PushAction.approve, title: String(localized: "Approve"), options: [.foreground])
+        let reject = UNNotificationAction(identifier: PushAction.reject, title: String(localized: "Reject"), options: [.destructive])
         let reply = UNTextInputNotificationAction(
-            identifier: PushAction.reply, title: "Reply…", options: [],
-            textInputButtonTitle: "Send", textInputPlaceholder: "Type a reply"
+            identifier: PushAction.reply, title: String(localized: "Reply…"), options: [],
+            textInputButtonTitle: String(localized: "Send"), textInputPlaceholder: String(localized: "Type a reply")
         )
         return UNNotificationCategory(
             identifier: PushCategory.options, actions: [approve, reject, reply],
@@ -127,8 +127,8 @@ final class PushManager: NSObject, ObservableObject {
 
     private func messageCategory() -> UNNotificationCategory {
         let reply = UNTextInputNotificationAction(
-            identifier: PushAction.reply, title: "Reply…", options: [],
-            textInputButtonTitle: "Send", textInputPlaceholder: "Type a reply"
+            identifier: PushAction.reply, title: String(localized: "Reply…"), options: [],
+            textInputButtonTitle: String(localized: "Send"), textInputPlaceholder: String(localized: "Type a reply")
         )
         return UNNotificationCategory(
             identifier: PushCategory.message, actions: [reply],

@@ -40,7 +40,7 @@ private struct RoutingRow: View {
         } label: {
             HStack {
                 Circle().fill(dotColor).frame(width: 8, height: 8)
-                Text(priority.rawValue.capitalized).foregroundStyle(.primary)
+                Text(priority.localizedTitle).foregroundStyle(.primary)
                 Spacer()
                 Text(summary).foregroundStyle(.secondary).lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
@@ -51,7 +51,7 @@ private struct RoutingRow: View {
 
     private var summary: String {
         let names = NotificationChannel.allCases.filter(selected.contains).map(\.title)
-        return names.isEmpty ? "None" : names.joined(separator: ", ")
+        return names.isEmpty ? String(localized: "None") : names.joined(separator: ", ")
     }
 
     private func binding(_ channel: NotificationChannel) -> Binding<Bool> {

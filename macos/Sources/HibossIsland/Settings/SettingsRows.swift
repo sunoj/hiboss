@@ -12,8 +12,9 @@ struct SettingsNotAppliedNotice: View {
     var body: some View {
         Label {
             Text(
-                "Saved, but not applied yet. Delivery still follows each agent's channel "
-                    + "configuration; these preferences take effect in a later release."
+                L(
+                    "Saved, but not applied yet. Delivery still follows each agent's channel configuration; these preferences take effect in a later release."
+                )
             )
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -79,20 +80,20 @@ enum QuietHoursClockFormatting {
 
     static func weekdayTitle(dayIndex: Int) -> String {
         switch dayIndex {
-        case 1: "Monday"
-        case 2: "Tuesday"
-        case 3: "Wednesday"
-        case 4: "Thursday"
-        case 5: "Friday"
-        case 6: "Saturday"
-        case 7: "Sunday"
-        default: "Day \(dayIndex)"
+        case 1: L("Monday")
+        case 2: L("Tuesday")
+        case 3: L("Wednesday")
+        case 4: L("Thursday")
+        case 5: L("Friday")
+        case 6: L("Saturday")
+        case 7: L("Sunday")
+        default: L("Day \(dayIndex)")
         }
     }
 }
 
 extension MessagePriority {
-    var settingsLabel: String { rawValue }
+    var settingsLabel: String { localizedTitle }
 
     var settingsColor: Color {
         switch self {

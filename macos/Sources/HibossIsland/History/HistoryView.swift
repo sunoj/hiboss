@@ -30,7 +30,7 @@ struct HistoryView: View {
     var body: some View {
         historyContent
             .background(Color(nsColor: .windowBackgroundColor))
-            .searchable(text: $searchText, placement: .toolbar, prompt: "Search messages")
+            .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
             .toolbar { historyToolbar }
             .task {
                 if flow.historyState == .idle { await flow.refreshHistory() }
@@ -43,7 +43,7 @@ struct HistoryView: View {
     @ToolbarContentBuilder
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Picker("Filter", selection: $segment) {
+            Picker(L("Filter"), selection: $segment) {
                 ForEach(HistorySegment.allCases) { item in
                     Text(item.title(unreadCount: unreadCount)).tag(item)
                 }
@@ -51,7 +51,7 @@ struct HistoryView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(minWidth: 240)
-            .accessibilityLabel("Message filter")
+            .accessibilityLabel(L("Message filter"))
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
@@ -62,9 +62,9 @@ struct HistoryView: View {
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
-            .help("Refresh messages")
+            .help(L("Refresh messages"))
             .disabled(flow.historyState == .loading)
-            .accessibilityLabel("Refresh messages")
+            .accessibilityLabel(L("Refresh messages"))
         }
     }
 
@@ -76,7 +76,7 @@ struct HistoryView: View {
                 flow.connectionState == .connected ? DesignTokens.live : Color.secondary
             )
             .help(flow.connectionState.label)
-            .accessibilityLabel("Connection: \(flow.connectionState.label)")
+            .accessibilityLabel(L("Connection: \(flow.connectionState.label)"))
     }
 
     private var connectionSymbol: String {
@@ -91,7 +91,7 @@ struct HistoryView: View {
     @ViewBuilder
     private var historyContent: some View {
         if flow.historyMessages.isEmpty, flow.historyState == .loading {
-            ProgressView("Loading messages…")
+            ProgressView(L("Loading messages…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if flow.historyMessages.isEmpty || messages.isEmpty {
             ContentUnavailableView(
@@ -123,10 +123,10 @@ struct HistoryView: View {
     }
 
     private var emptyTitle: String {
-        if case .failed = flow.historyState { return "History Unavailable" }
+        if case .failed = flow.historyState { return L("History Unavailable") }
         return messages.isEmpty && !flow.historyMessages.isEmpty
-            ? "No Matching Messages"
-            : "No Messages"
+            ? L("No Matching Messages")
+            : L("No Messages")
     }
 
     private var emptySystemImage: String {
@@ -137,9 +137,9 @@ struct HistoryView: View {
     private var emptyDescription: String {
         if case let .failed(message) = flow.historyState { return message }
         if messages.isEmpty && !flow.historyMessages.isEmpty {
-            return "Try a different filter or search."
+            return L("Try a different filter or search.")
         }
-        return "Agent messages will appear here."
+        return L("Agent messages will appear here.")
     }
 }
 
@@ -153,7 +153,7 @@ private struct SessionGroupHeader: View {
                 .frame(width: 8, height: 8)
                 .accessibilityLabel(statusAccessibilityLabel)
 
-            Text(group.label)
+            Text(group.id == HistoryMessageLogic.directSessionID ? L("Direct") : group.label)
                 .font(.headline)
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
@@ -184,6 +184,6 @@ private struct SessionGroupHeader: View {
 
     private var statusAccessibilityLabel: String {
         let cleaned = group.status?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return cleaned.isEmpty ? "Session status unknown" : "Session \(cleaned)"
+        return cleaned.isEmpty ? L("Session status unknown") : L("Session \(cleaned)")
     }
 }

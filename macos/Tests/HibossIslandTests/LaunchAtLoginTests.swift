@@ -17,7 +17,10 @@ final class LaunchAtLoginTests: XCTestCase {
 
     func testExplanationPointsAtSystemSettingsWhenApprovalIsPending() {
         let text = LaunchAtLoginController.explanation(for: .requiresApproval, failure: nil)
-        XCTAssertTrue(text.contains("Login Items"), text)
+        XCTAssertEqual(
+            text,
+            L("Approve HiBoss Island under System Settings › General › Login Items to finish enabling this.")
+        )
     }
 
     func testExplanationDistinguishesEnabledFromNotRegistered() {

@@ -12,14 +12,14 @@ public enum HibossAPIError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidResponse:
-            return "The server returned an invalid response."
+            return kitL("The server returned an invalid response.")
         case let .requestFailed(status, message):
             if status == 401 || status == 403 {
-                return "That Boss Token was rejected. Check the token and try again."
+                return kitL("That Boss Token was rejected. Check the token and try again.")
             }
-            return message.isEmpty ? "Server request failed (HTTP \(status))." : message
+            return message.isEmpty ? kitL("Server request failed (HTTP \(status)).") : message
         case let .decodingFailed(context, body):
-            return "Couldn't read \(context). Server sent: \(body.prefix(200))"
+            return kitL("Couldn't read \(context). Server sent: \(body.prefix(200))")
         }
     }
 

@@ -16,7 +16,7 @@ struct CountdownText: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = deadline.timeIntervalSince(context.date)
-            Text(remaining <= 0 ? "Expired" : "\(format(remaining)) left")
+            Text(remaining <= 0 ? String(localized: "Expired") : String(localized: "\(format(remaining)) left"))
                 .monospacedDigit()
                 .fontWeight(remaining > 0 && remaining <= warnWindow ? .semibold : .regular)
                 .foregroundStyle(color(for: remaining))

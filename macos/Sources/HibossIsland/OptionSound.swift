@@ -21,7 +21,7 @@ enum OptionSound: String, CaseIterable, Identifiable, Sendable {
     static let fallback = OptionSound.glass
 
     var id: String { rawValue }
-    var label: String { rawValue }
+    var label: String { self == .none ? L("None") : rawValue }
 }
 
 protocol SoundPlaying: Sendable {

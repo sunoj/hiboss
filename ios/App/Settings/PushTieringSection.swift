@@ -41,10 +41,10 @@ private enum Tier: Hashable {
 
     var label: String {
         switch self {
-        case .off: "Off"
-        case .passive: "Passive"
-        case .active: "Active"
-        case .timeSensitive: "Time-sensitive"
+        case .off: String(localized: "Off")
+        case .passive: String(localized: "Passive")
+        case .active: String(localized: "Active")
+        case .timeSensitive: String(localized: "Time-sensitive")
         }
     }
 }
@@ -67,7 +67,7 @@ private struct PushTieringRow: View {
         } label: {
             HStack {
                 Circle().fill(dotColor).frame(width: 8, height: 8)
-                Text(priority.rawValue.capitalized)
+                Text(priority.localizedTitle)
                     .foregroundStyle(.primary)
                 Spacer()
                 Text(summary)
@@ -81,8 +81,8 @@ private struct PushTieringRow: View {
 
     private var summary: String {
         let tier = Tier(rule)
-        guard tier != .off else { return "Off" }
-        return rule.sound ? "\(tier.label) · Sound" : tier.label
+        guard tier != .off else { return String(localized: "Off") }
+        return rule.sound ? String(localized: "\(tier.label) · Sound") : tier.label
     }
 
     private var tierBinding: Binding<Tier> {

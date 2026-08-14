@@ -26,10 +26,10 @@ final class PushStatusStore: ObservableObject {
 
     var label: String {
         switch status {
-        case .authorized, .provisional, .ephemeral: "Enabled"
-        case .denied: "Denied"
-        case .notDetermined: "Not set up"
-        @unknown default: "Unknown"
+        case .authorized, .provisional, .ephemeral: String(localized: "Enabled")
+        case .denied: String(localized: "Denied")
+        case .notDetermined: String(localized: "Not set up")
+        @unknown default: String(localized: "Unknown")
         }
     }
 

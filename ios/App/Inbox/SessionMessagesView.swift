@@ -105,9 +105,9 @@ struct ThreadBubble: View {
     private var parentHint: String? {
         guard message.replyTo != nil else { return nil }
         if let source = resolutionSourceLabel(message.metadata?.source) {
-            return "Choice · \(source)"
+            return String(localized: "Choice · \(source)")
         }
-        return "Choice"
+        return String(localized: "Choice")
     }
 
     private var fill: Color {
