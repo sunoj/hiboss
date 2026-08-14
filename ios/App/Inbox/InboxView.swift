@@ -10,14 +10,9 @@ struct InboxView: View {
     @ObservedObject var store: InboxStore
     @State private var replyTarget: HistoryMessage?
     @State private var actionNote: String?
-    @State private var showResolved =
-        ProcessInfo.processInfo.environment["HIBOSS_DEMO_RESOLVED"] == "1"
 
     var body: some View {
         content
-            .navigationDestination(isPresented: $showResolved) {
-                ResolvedDecisionsView(store: store)
-            }
             .sheet(item: $replyTarget) { message in
                 ReplySheet(message: message) { choice in
                     await store.reply(choice, to: message.id)
@@ -154,9 +149,7 @@ struct InboxView: View {
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets())
             .accessibilityHidden(true)
-        NavigationLink {
-            ResolvedDecisionsView(store: store)
-        } label: {
+        NavigationLink(value: ResolvedRoute()) {
             HStack {
                 Label("Resolved", systemImage: "checkmark.circle")
                 Spacer()
