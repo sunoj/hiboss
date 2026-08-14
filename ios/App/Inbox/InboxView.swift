@@ -82,6 +82,11 @@ struct InboxView: View {
             List {
                 if store.pending.isEmpty {
                     allClear
+                        .frame(minHeight: InboxResolvedPlacement.allClearHeight(
+                            listHeight: geo.size.height,
+                            bottomInset: geo.safeAreaInsets.bottom,
+                            hasResolved: !store.settledCards.isEmpty
+                        ))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                 }
@@ -203,14 +208,21 @@ struct InboxView: View {
 }
 
 enum InboxResolvedPlacement {
-    /// Room taken by the all-clear glyph + copy, so the footer can sit on the bottom edge.
-    private static let allClearBlock: CGFloat = 280
-    private static let label: CGFloat = 44
+    /// The collapsed Resolved row.
+    static let label: CGFloat = 44
+
+    /// On an empty queue the all-clear block claims everything above the footer and
+    /// centres itself in it, so the island sits in the middle of the free space and the
+    /// footer still lands on the bottom edge. Measuring the block instead of estimating
+    /// its height is what keeps this correct at larger Dynamic Type sizes.
+    ///
+    /// `bottomInset` is not optional: the list runs under the floating tab bar, so a
+    /// block sized to the raw height pushes the footer beneath it and out of reach.
+    static func allClearHeight(listHeight: CGFloat, bottomInset: CGFloat, hasResolved: Bool) -> CGFloat {
+        max(160, listHeight - bottomInset - (hasResolved ? label : 0))
+    }
 
     static func spacerHeight(pendingIsEmpty: Bool, listHeight: CGFloat) -> CGFloat {
-        if pendingIsEmpty {
-            return max(48, listHeight - allClearBlock - label)
-        }
-        return 40
+        pendingIsEmpty ? 0 : 40
     }
 }
