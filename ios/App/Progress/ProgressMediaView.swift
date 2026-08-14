@@ -1,137 +1,181 @@
-// Media strip for a progress post: AsyncImage plus a full-screen viewer.
-// Exports: ProgressMediaView, ProgressMediaViewer, ProgressImageCell.
-// Dependencies: SwiftUI, HibossKit ProgressMedia, ProgressVideoCell.
+// Twitter-style media mosaic for a progress post: one clipped shape, 2 pt gaps.
+// Exports: ProgressMediaView, ProgressImageCell.
+// Dependencies: SwiftUI, UIKit, HibossKit ProgressMedia, ProgressVideoCell.
 
 import HibossKit
 import SwiftUI
+import UIKit
 
 struct ProgressMediaView: View {
     let items: [ProgressMedia]
     var onOpen: (ProgressMedia) -> Void
+    @State private var measuredAspect: CGFloat?
 
     var body: some View {
-        if items.count == 1, let item = items.first {
-            cell(item)
-        } else {
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)],
-                spacing: 4
-            ) {
-                ForEach(items) { cell($0) }
+        Group {
+            switch items.count {
+            case 0: EmptyView()
+            case 1: single(items[0])
+            case 2: pair
+            case 3: triple
+            default: quad
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: ProgressMediaLayout.cornerRadius, style: .continuous))
+        .transaction { $0.animation = nil }
+    }
+
+    private func single(_ item: ProgressMedia) -> some View {
+        framed(
+            aspect: ProgressMediaLayout.clampedAspect(
+                width: item.width, height: item.height, measured: measuredAspect
+            )
+        ) {
+            tile(item, reportRatio: item.width == nil || item.height == nil)
+        }
+    }
+
+    private var pair: some View {
+        framed(aspect: ProgressMediaLayout.groupAspect) {
+            HStack(spacing: ProgressMediaLayout.gap) {
+                tile(items[0])
+                tile(items[1])
             }
         }
     }
 
-    @ViewBuilder
-    private func cell(_ item: ProgressMedia) -> some View {
-        switch item.kind {
-        case .image:
-            ProgressImageCell(media: item)
-                .onTapGesture { onOpen(item) }
-        case .video:
-            ProgressVideoCell(media: item, onExpand: { onOpen(item) })
+    private var triple: some View {
+        framed(aspect: ProgressMediaLayout.groupAspect) {
+            HStack(spacing: ProgressMediaLayout.gap) {
+                tile(items[0])
+                VStack(spacing: ProgressMediaLayout.gap) {
+                    tile(items[1])
+                    tile(items[2])
+                }
+            }
         }
+    }
+
+    private var quad: some View {
+        framed(aspect: ProgressMediaLayout.groupAspect) {
+            VStack(spacing: ProgressMediaLayout.gap) {
+                HStack(spacing: ProgressMediaLayout.gap) {
+                    tile(items[0])
+                    tile(items[1])
+                }
+                HStack(spacing: ProgressMediaLayout.gap) {
+                    tile(items[2])
+                    tile(items[3])
+                }
+            }
+        }
+    }
+
+    private func framed<Content: View>(
+        aspect: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Color(.secondarySystemFill)
+            .aspectRatio(aspect, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
+            .overlay { content() }
+            .clipped()
+    }
+
+    @ViewBuilder
+    private func tile(_ item: ProgressMedia, reportRatio: Bool = false) -> some View {
+        Group {
+            switch item.kind {
+            case .image:
+                ProgressImageCell(
+                    media: item,
+                    onOpen: { onOpen(item) },
+                    onRatio: reportRatio ? { measuredAspect = $0 } : nil
+                )
+            case .video:
+                ProgressVideoCell(media: item, onExpand: { onOpen(item) })
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
 }
 
 struct ProgressImageCell: View {
     let media: ProgressMedia
+    var onOpen: () -> Void
+    var onRatio: ((CGFloat) -> Void)?
+
+    @State private var image: UIImage?
+    @State private var failed = false
+    @State private var showAlt = false
 
     var body: some View {
         Color(.secondarySystemFill)
-            .aspectRatio(media.aspectRatio, contentMode: .fit)
-            .overlay { imageOverlay }
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay { imageFill }
+            .overlay {
+                Color.clear.contentShape(Rectangle()).onTapGesture(perform: onOpen)
+            }
+            .overlay(alignment: .bottomLeading) { altButton }
+            .clipped()
+            .task(id: media.url) { await load() }
             .accessibilityLabel(media.alt ?? String(localized: "Image"))
+            .accessibilityAddTraits(.isImage)
+            .accessibilityHint(String(localized: "Open full screen"))
+            .alert(String(localized: "Alternative text"), isPresented: $showAlt) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(media.alt ?? "")
+            }
     }
 
     @ViewBuilder
-    private var imageOverlay: some View {
-        AsyncImage(url: URL(string: media.url)) { phase in
-            switch phase {
-            case let .success(image):
-                image.resizable().scaledToFill()
-            case .failure:
-                Image(systemName: "photo").font(.title).foregroundStyle(.secondary)
-            default:
-                ProgressView()
-            }
+    private var imageFill: some View {
+        if let image {
+            Image(uiImage: image).resizable().scaledToFill()
+        } else if failed {
+            Image(systemName: "photo").font(.title).foregroundStyle(.secondary)
+        } else {
+            ProgressView()
         }
-    }
-}
-
-struct ProgressMediaViewer: View {
-    let media: ProgressMedia
-    @Environment(\.dismiss) private var dismiss
-    @State private var offset: CGFloat = 0
-    @State private var unmuted = false
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            content
-                .offset(y: offset)
-        }
-        .gesture(drag)
-        .overlay(alignment: .topLeading) { closeButton }
-        .accessibilityAddTraits(.isModal)
     }
 
     @ViewBuilder
-    private var content: some View {
-        switch media.kind {
-        case .image:
-            AsyncImage(url: URL(string: media.url)) { phase in
-                switch phase {
-                case let .success(image):
-                    image.resizable().scaledToFit()
-                case .failure:
-                    Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary)
-                default:
-                    ProgressView()
-                }
+    private var altButton: some View {
+        if let alt = media.alt, !alt.isEmpty {
+            Button { showAlt = true } label: {
+                Text("ALT")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
-        case .video:
-            if let url = URL(string: media.url) {
-                LoopingPlayerView(url: url, isMuted: !unmuted, isPlaying: true, fill: false)
-                    .aspectRatio(media.aspectRatio, contentMode: .fit)
-                    .onTapGesture { unmuted.toggle() }
-                    .overlay(alignment: .bottomLeading) {
-                        Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                            .font(.body)
-                            .padding(10)
-                            .background(.regularMaterial, in: Circle())
-                            .padding()
-                            .allowsHitTesting(false)
-                    }
-            }
+            .buttonStyle(.plain)
+            .padding(8)
+            .accessibilityLabel(String(localized: "Show alternative text"))
+            .accessibilityValue(alt)
         }
     }
 
-    private var drag: some Gesture {
-        DragGesture()
-            .onChanged { offset = $0.translation.height }
-            .onEnded { value in
-                if abs(value.translation.height) > 120 { dismiss() } else { offset = 0 }
-            }
-    }
-
-    private var closeButton: some View {
-        Button { dismiss() } label: {
-            Image(systemName: "xmark.circle.fill")
-                .font(.title)
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.white)
+    private func load() async {
+        guard let url = URL(string: media.url) else {
+            failed = true
+            return
         }
-        .padding()
-        .accessibilityLabel("Close")
-    }
-}
-
-extension ProgressMedia {
-    /// Reserve layout using probed dimensions; 16:9 when the CLI omitted them.
-    var aspectRatio: CGFloat {
-        guard let width, let height, width > 0, height > 0 else { return 16 / 9 }
-        return CGFloat(width) / CGFloat(height)
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard let loaded = UIImage(data: data), loaded.size.height > 0 else {
+                failed = true
+                return
+            }
+            if media.width == nil || media.height == nil {
+                onRatio?(loaded.size.width / loaded.size.height)
+            }
+            image = loaded
+        } catch {
+            failed = true
+        }
     }
 }
