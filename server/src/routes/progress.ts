@@ -143,7 +143,7 @@ async function verifyMediaOwnership(
     for (const url of urls) {
       const key = getAttachmentKey(url, requestUrl);
       if (!key) return 'media URLs must point to this worker attachments path';
-      const object = await c.env.ATTACHMENTS.get(key);
+      const object = await c.env.ATTACHMENTS.head(key);
       if (!object || object.customMetadata?.agent_id !== agentId) {
         return 'media attachment does not exist or belongs to another agent';
       }
