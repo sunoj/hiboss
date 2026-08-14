@@ -175,8 +175,10 @@ private enum DemoFixtures {
 
 /// Sample progress posts so the 进展 tab can be exercised without a live server.
 final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
+    private var posts = DemoProgressFixtures.posts
+
     func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage {
-        var posts = DemoProgressFixtures.posts
+        var posts = self.posts
         if let project { posts = posts.filter { $0.project == project } }
         if let before {
             posts = posts.filter {
@@ -193,6 +195,26 @@ final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
     }
 
     func deleteProgressPost(id _: String) async throws {}
+
+    func likeProgressPost(id: String) async throws -> ProgressLikeState {
+        applyLike(id: id, liked: true)
+    }
+
+    func unlikeProgressPost(id: String) async throws -> ProgressLikeState {
+        applyLike(id: id, liked: false)
+    }
+
+    private func applyLike(id: String, liked: Bool) -> ProgressLikeState {
+        guard let index = posts.firstIndex(where: { $0.id == id }) else {
+            return ProgressLikeState(likeCount: 0, liked: liked)
+        }
+        let current = posts[index]
+        let count = current.liked == liked
+            ? current.likeCount
+            : max(0, current.likeCount + (liked ? 1 : -1))
+        posts[index] = current.withLike(count: count, liked: liked)
+        return ProgressLikeState(likeCount: count, liked: liked)
+    }
 }
 
 private enum DemoProgressFixtures {
@@ -205,7 +227,8 @@ private enum DemoProgressFixtures {
             id: "pp1", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
             sessionId: "sess-progress",
             body: "Shipped the progress feed. Migration + 4 endpoints. Pull-to-refresh, no push.",
-            tags: ["release"], createdAt: iso(-90)
+            tags: ["release"], createdAt: iso(-90),
+            team: .hiboss, likeCount: 3, liked: false
         ),
         ProgressPost(
             id: "pp2", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
@@ -217,7 +240,8 @@ private enum DemoProgressFixtures {
                     width: 1200, height: 800, alt: "screenshot of the new tab"
                 ),
             ],
-            tags: ["ios"], createdAt: iso(-400)
+            tags: ["ios"], createdAt: iso(-400),
+            team: .hiboss, likeCount: 12, liked: true
         ),
         ProgressPost(
             id: "pp3", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
@@ -231,7 +255,8 @@ private enum DemoProgressFixtures {
                     alt: "looping demo clip"
                 ),
             ],
-            createdAt: iso(-900)
+            createdAt: iso(-900),
+            team: .hiboss, likeCount: 1, liked: false
         ),
         ProgressPost(
             id: "pp4", project: "payments", agentId: "ak2", agentName: "worker-payments",
@@ -243,12 +268,14 @@ private enum DemoProgressFixtures {
                     alt: "retry latency chart"
                 ),
             ],
-            tags: ["hotfix"], createdAt: iso(-1800)
+            tags: ["hotfix"], createdAt: iso(-1800),
+            team: .payments, likeCount: 0, liked: false
         ),
         ProgressPost(
             id: "pp5", project: "payments", agentId: "ak2", agentName: "worker-payments",
             body: "Sandbox timeout reproduced. Waiting on the retry strategy decision.",
-            createdAt: iso(-2400)
+            createdAt: iso(-2400),
+            team: .payments, likeCount: 2, liked: false
         ),
     ]
 
@@ -256,4 +283,15 @@ private enum DemoProgressFixtures {
         ProgressProject(project: "hiboss", count: 3, lastPostAt: iso(-90), agentId: "ak1"),
         ProgressProject(project: "payments", count: 2, lastPostAt: iso(-1800), agentId: "ak2"),
     ]
+}
+
+private extension ProgressTeam {
+    static let hiboss = ProgressTeam(
+        handle: "hiboss", displayName: "HiBoss",
+        avatarUrl: "https://picsum.photos/id/64/80/80", registered: true
+    )
+    static let payments = ProgressTeam(
+        handle: "payments", displayName: "payments",
+        avatarUrl: "https://picsum.photos/id/91/80/80", registered: false
+    )
 }

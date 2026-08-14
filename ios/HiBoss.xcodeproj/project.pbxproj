@@ -54,6 +54,7 @@
 		B82836BF6AC8B4E9325F8EA7 /* HiBossWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B97C7284B01AC80CE892A264 /* Priority.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E38393C7F0BB67A364CC15 /* Priority.swift */; };
 		BB1796284ADD9D2CBDC2B49B /* QuietHoursSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8804541078FDFD94370B1845 /* QuietHoursSection.swift */; };
+		BD7DFDA29E8C456593B81718 /* ProgressTeamAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA94EE3AD9E1CE019C26899 /* ProgressTeamAvatar.swift */; };
 		BF0F1C80922111AE10208255 /* HiBossWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */; };
 		C3DBB1D3ECCD0E7142271BA6 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A59FEA0ECFFD31DD1F93981 /* RelativeTime.swift */; };
 		CD2827C535593B6E9AFA6CFB /* ProgressFeedStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */; };
@@ -133,6 +134,7 @@
 		7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageMetaTests.swift; sourceTree = "<group>"; };
 		7BD94B07A02B8B7941191B7A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		7CA31A0E63F84D54574E1FAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7CA94EE3AD9E1CE019C26899 /* ProgressTeamAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTeamAvatar.swift; sourceTree = "<group>"; };
 		7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRow.swift; sourceTree = "<group>"; };
 		80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RespondIntent.swift; sourceTree = "<group>"; };
 		86EA31B759446323F119D8E0 /* PushStatusStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushStatusStore.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 				CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */,
 				BA04D7AC4A24619AC58956DA /* ProgressMediaView.swift */,
 				EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */,
+				7CA94EE3AD9E1CE019C26899 /* ProgressTeamAvatar.swift */,
 				FCDF1755B148C5042639522C /* ProgressVideoPlayer.swift */,
 			);
 			path = Progress;
@@ -597,6 +600,7 @@
 				1B3C732EF15C1BA795BD70EC /* ProgressFeedView.swift in Sources */,
 				B802594AE8424CAB6717EA17 /* ProgressMediaView.swift in Sources */,
 				0C35236BC3E29A83BF9334CD /* ProgressPostCard.swift in Sources */,
+				BD7DFDA29E8C456593B81718 /* ProgressTeamAvatar.swift in Sources */,
 				1AE44BECED62093912724A21 /* ProgressVideoPlayer.swift in Sources */,
 				7C9EC0BB0D4A317081113175 /* PushManager.swift in Sources */,
 				11468F8BEBF2F4322FE3984E /* PushStatusStore.swift in Sources */,

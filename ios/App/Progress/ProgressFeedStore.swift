@@ -108,4 +108,39 @@ final class ProgressFeedStore: ObservableObject {
             loadError = error.localizedDescription
         }
     }
+
+    func toggleLike(id: String) async {
+        guard api != nil else { return }
+        let previous = operation
+        let current = Task { @MainActor [weak self] in
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            await self?.performToggleLike(id: id)
+        }
+        operation = current
+        await current.value
+    }
+
+    private func performToggleLike(id: String) async {
+        guard let api, let index = posts.firstIndex(where: { $0.id == id }) else { return }
+        let original = posts[index]
+        let nextLiked = !original.liked
+        let nextCount = max(0, original.likeCount + (nextLiked ? 1 : -1))
+        posts[index] = original.withLike(count: nextCount, liked: nextLiked)
+        do {
+            let result = nextLiked
+                ? try await api.likeProgressPost(id: id)
+                : try await api.unlikeProgressPost(id: id)
+            guard !Task.isCancelled else { return }
+            if let index = posts.firstIndex(where: { $0.id == id }) {
+                posts[index] = posts[index].withLike(count: result.likeCount, liked: result.liked)
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            if let index = posts.firstIndex(where: { $0.id == id }) {
+                posts[index] = original
+            }
+        }
+    }
 }
