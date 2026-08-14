@@ -1,8 +1,10 @@
-// Purpose: hiboss progress subcommand — post, list, and delete project timeline entries.
+// Purpose: hiboss progress subcommand — post, list, delete, and team management.
 // Exports: ProgressArgs, run.
 // Dependencies: clap, colored, crate::client, crate::config, crate::session, crate::types.
 #[path = "progress_media.rs"]
 mod progress_media;
+#[path = "progress_team.rs"]
+pub mod progress_team;
 #[cfg(test)]
 #[path = "progress_test.rs"]
 mod tests;
@@ -31,6 +33,8 @@ pub enum ProgressCommand {
     List(ListArgs),
     #[command(about = "Delete a progress post")]
     Rm(RmArgs),
+    #[command(about = "Manage team identity for the project timeline")]
+    Team(progress_team::TeamArgs),
 }
 
 #[derive(Debug, Args)]
@@ -80,6 +84,7 @@ pub async fn run(
         ProgressCommand::Post(a) => run_post(a, config, client).await,
         ProgressCommand::List(a) => run_list(a, config, client).await,
         ProgressCommand::Rm(a) => run_rm(a, config, client).await,
+        ProgressCommand::Team(a) => progress_team::run(a, config, client).await,
     }
 }
 
@@ -113,7 +118,7 @@ async fn run_post(
     }
     let req = ProgressPostRequest {
         body: args.body.clone(),
-        project: Some(project),
+        project: Some(project.clone()),
         session_id,
         media: if media.is_empty() { None } else { Some(media) },
         tags: if args.tag.is_empty() { None } else { Some(args.tag.clone()) },
@@ -121,7 +126,21 @@ async fn run_post(
     let post = client.post_progress(&req).await?;
     eprintln!("Posted");
     println!("{}", post.id);
+    maybe_hint_team_register(&project, &post);
     Ok(())
+}
+
+/// Print a one-line team-registration hint to stderr, at most once per project per
+/// session. Never returns an error — a failed hint must not break a successful post.
+fn maybe_hint_team_register(project: &str, post: &ProgressPost) {
+    let unregistered = post.team.as_ref().map_or(false, |t| !t.registered);
+    if !unregistered || !session::should_show_team_hint() {
+        return;
+    }
+    eprintln!(
+        "Run: hiboss progress team register --display-name \"{}\"",
+        project.replace('"', "")
+    );
 }
 
 async fn process_image(
@@ -222,7 +241,10 @@ async fn run_rm(
 fn print_post(post: &ProgressPost) {
     let rel = relative_time(&post.created_at);
     let agent = post.agent_name.as_deref().unwrap_or(&post.agent_id);
-    println!("{} · {} · {}", post.project.cyan(), rel.dimmed(), agent.dimmed());
+    let identity = post.team.as_ref().map(|t| {
+        format!("{} @{}", t.display_name, t.handle)
+    }).unwrap_or_else(|| post.project.clone());
+    println!("{} · {} · {}", identity.cyan(), rel.dimmed(), agent.dimmed());
     println!("  {}", post.body);
     for item in &post.media {
         let marker = match item.kind.as_str() {
