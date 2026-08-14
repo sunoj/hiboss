@@ -50,7 +50,7 @@ struct HistoryRow: View {
                 Button { onChoose?(option) } label: { defaultButtonLabel(option) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                    .help("Default — runs automatically on timeout")
+                    .help(L("Default — runs automatically on timeout"))
             } else {
                 Button(option) { onChoose?(option) }
                     .buttonStyle(.bordered)
@@ -83,7 +83,7 @@ struct HistoryRow: View {
             .fill(message.isUnreadHistoryMessage ? Color.accentColor : Color.clear)
             .frame(width: 8, height: 8)
             .padding(.top, 7)
-            .accessibilityLabel(message.isUnreadHistoryMessage ? "Unread" : "Read")
+            .accessibilityLabel(message.isUnreadHistoryMessage ? L("Unread") : L("Read"))
     }
 
     /// Filled with `.quaternary` rather than `controlBackgroundColor`: the latter resolves to

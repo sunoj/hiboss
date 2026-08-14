@@ -11,14 +11,14 @@ import XCTest
 final class SettingsLogicTests: XCTestCase {
     func testSettingsPanesAppearInDesignOrder() {
         XCTAssertEqual(SettingsPane.allCases.map(\.title), [
-            "General",
-            "Connection",
-            "Notifications",
-            "Channels & Routing",
-            "Quiet Hours",
-            "Presentation",
-            "System & Doctor",
-            "About",
+            L("General"),
+            L("Connection"),
+            L("Notifications"),
+            L("Channels & Routing"),
+            L("Quiet Hours"),
+            L("Presentation"),
+            L("System & Doctor"),
+            L("About"),
         ])
     }
 
@@ -168,7 +168,7 @@ final class SettingsLogicTests: XCTestCase {
 
         XCTAssertEqual(components.hour, 0)
         XCTAssertEqual(components.minute, 0)
-        XCTAssertEqual(QuietHoursClockFormatting.weekdayTitle(dayIndex: 1), "Monday")
+        XCTAssertEqual(QuietHoursClockFormatting.weekdayTitle(dayIndex: 1), L("Monday"))
     }
 
     func testClockTimeValidationAcceptsStrictTwentyFourHourTimes() {
@@ -230,7 +230,7 @@ final class SettingsLogicTests: XCTestCase {
 
         XCTAssertEqual(
             SettingsPreferencesLogic.validationMessage(for: BossPreferences(quietHours: quietHours)),
-            "Enter a valid end time as HH:mm."
+            L("Enter a valid \(L("end")) time as HH:mm.")
         )
     }
 

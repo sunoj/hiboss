@@ -68,7 +68,7 @@ struct ProgressVideoCell: View {
                 playback.clear(videoID)
                 unmuted = false
             }
-            .accessibilityLabel(media.alt ?? "Video")
+            .accessibilityLabel(media.alt ?? String(localized: "Video"))
             .accessibilityHint("Tap to unmute")
     }
 

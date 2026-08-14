@@ -37,6 +37,14 @@ cp "$BIN_DIR/HibossIsland" "$CONTENTS_DIR/MacOS/HibossIsland"
 cp "$PACKAGE_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$PACKAGE_DIR/Resources/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
 
+# SwiftPM resource bundles hold String Catalogs. Copy them next to Resources so
+# Bundle.module (and Bundle.main lookup of .lproj) can find translations.
+for bundle in "$BIN_DIR"/*_*.bundle; do
+    [ -d "$bundle" ] || continue
+    cp -R "$bundle" "$CONTENTS_DIR/Resources/"
+    find "$bundle" -name "*.lproj" -maxdepth 1 -exec cp -R {} "$CONTENTS_DIR/Resources/" \;
+done
+
 # Embed Sparkle (SwiftPM drops the framework next to the binary) and let the
 # loader find it from the bundle.
 cp -R "$BIN_DIR/Sparkle.framework" "$FRAMEWORKS_DIR/"

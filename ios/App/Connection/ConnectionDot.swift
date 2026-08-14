@@ -51,8 +51,8 @@ struct ConnectionDot: View {
     private var caption: String? {
         switch state {
         case .connected: nil
-        case .connecting: "Connecting"
-        case .failed: "Failed"
+        case .connecting: String(localized: "Connecting")
+        case .failed: String(localized: "Failed")
         case .disconnected: nil
         }
     }

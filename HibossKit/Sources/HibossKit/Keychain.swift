@@ -12,9 +12,9 @@ public enum SettingsError: Error, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidServerURL: "Enter a valid HTTP or HTTPS server URL."
-        case .missingToken: "Enter a Boss Token."
-        case let .keychain(status): "Keychain operation failed (\(status))."
+        case .invalidServerURL: kitL("Enter a valid HTTP or HTTPS server URL.")
+        case .missingToken: kitL("Enter a Boss Token.")
+        case let .keychain(status): kitL("Keychain operation failed (\(status)).")
         }
     }
 }

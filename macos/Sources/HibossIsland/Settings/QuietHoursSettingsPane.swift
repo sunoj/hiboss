@@ -11,28 +11,28 @@ struct QuietHoursSettingsPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Quiet Hours", isOn: enabledBinding)
+                Toggle(L("Quiet Hours"), isOn: enabledBinding)
                 DatePicker(
-                    "Starts",
+                    L("Starts"),
                     selection: startBinding,
                     displayedComponents: .hourAndMinute
                 )
                 DatePicker(
-                    "Ends",
+                    L("Ends"),
                     selection: endBinding,
                     displayedComponents: .hourAndMinute
                 )
-                Picker("Timezone", selection: timezoneBinding) {
+                Picker(L("Timezone"), selection: timezoneBinding) {
                     ForEach(timezoneChoices, id: \.self) { timezone in
                         Text(timezone).tag(timezone)
                     }
                 }
-                Toggle("Critical bypass", isOn: criticalBypassBinding)
+                Toggle(L("Critical bypass"), isOn: criticalBypassBinding)
             } header: {
-                Text("Schedule")
+                Text(L("Schedule"))
             } footer: {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Silence normal & low priority alerts; critical can still alert when bypass is on.")
+                    Text(L("Silence normal & low priority alerts; critical can still alert when bypass is on."))
                         .foregroundStyle(.secondary)
                     SettingsNotAppliedNotice()
                     if let message = SettingsPreferencesLogic.validationMessage(
@@ -52,9 +52,9 @@ struct QuietHoursSettingsPane: View {
                     )
                 }
             } header: {
-                Text("Days")
+                Text(L("Days"))
             } footer: {
-                Text("Choose the weekdays quiet hours apply.")
+                Text(L("Choose the weekdays quiet hours apply."))
                     .foregroundStyle(.secondary)
             }
         }

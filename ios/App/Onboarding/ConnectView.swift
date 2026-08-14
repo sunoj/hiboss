@@ -25,10 +25,10 @@ struct ConnectView: View {
                 .foregroundStyle(Theme.ink2)
                 .padding(.top, 4)
 
-            field(title: "SERVER URL", text: $connection.serverAddress,
+            field(title: String(localized: "SERVER URL"), text: $connection.serverAddress,
                   placeholder: "https://hiboss.you.workers.dev", field: .server, secure: false)
                 .padding(.top, 26)
-            field(title: "BOSS TOKEN", text: $connection.bossToken,
+            field(title: String(localized: "BOSS TOKEN"), text: $connection.bossToken,
                   placeholder: "hb_…", field: .token, secure: true)
                 .padding(.top, 14)
 
@@ -94,7 +94,7 @@ struct ConnectView: View {
         Button(action: connect) {
             HStack(spacing: 8) {
                 if connecting { ProgressView().tint(.white) }
-                Text(connecting ? "Connecting…" : "Connect")
+                Text(connecting ? String(localized: "Connecting…") : String(localized: "Connect"))
                     .font(.hbBodyStrong)
             }
             .foregroundStyle(.white)

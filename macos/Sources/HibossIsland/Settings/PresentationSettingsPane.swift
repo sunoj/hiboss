@@ -11,8 +11,8 @@ struct PresentationSettingsPane: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Play sounds", isOn: $settings.playsSound)
-                Picker("Default sound", selection: $settings.alertSound) {
+                Toggle(L("Play sounds"), isOn: $settings.playsSound)
+                Picker(L("Default sound"), selection: $settings.alertSound) {
                     ForEach(OptionSound.allCases) { sound in
                         Text(sound.label).tag(sound)
                     }
@@ -20,9 +20,9 @@ struct PresentationSettingsPane: View {
                 .disabled(!settings.playsSound)
                 .onChange(of: settings.alertSound) { soundPlayer.play($1) }
             } header: {
-                Text("Alerts")
+                Text(L("Alerts"))
             } footer: {
-                Text("Fallback sound for alerts without a priority rule.")
+                Text(L("Fallback sound for alerts without a priority rule."))
                     .foregroundStyle(.secondary)
             }
         }

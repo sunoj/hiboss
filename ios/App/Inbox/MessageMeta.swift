@@ -20,14 +20,47 @@ enum MessageMeta {
 
     static func typeGlyph(_ raw: String?) -> (icon: String, label: String) {
         switch (raw ?? "").lowercased() {
-        case "task_update": return ("checkmark.seal", "Update")
-        case "approval_request": return ("checkmark.shield", "Approval")
-        case "steer_command": return ("arrow.turn.up.right", "Steer")
-        case "forwarded": return ("arrowshape.turn.up.forward", "Forwarded")
-        case "text", "": return ("text.bubble", "Message")
+        case "task_update": return ("checkmark.seal", String(localized: "Update"))
+        case "approval_request": return ("checkmark.shield", String(localized: "Approval"))
+        case "steer_command": return ("arrow.turn.up.right", String(localized: "Steer"))
+        case "forwarded": return ("arrowshape.turn.up.forward", String(localized: "Forwarded"))
+        case "text", "": return ("text.bubble", String(localized: "Message"))
         default:
-            let label = (raw ?? "Message").replacingOccurrences(of: "_", with: " ").capitalized
+            let label = (raw ?? String(localized: "Message")).replacingOccurrences(of: "_", with: " ").capitalized
             return ("tag", label)
+        }
+    }
+
+    static func localizedPriorityName(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "critical": String(localized: "Critical")
+        case "high": String(localized: "High")
+        case "normal": String(localized: "Normal")
+        case "low": String(localized: "Low")
+        default: raw.capitalized
+        }
+    }
+
+    static func localizedModeName(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "blocking": String(localized: "Blocking")
+        case "async": String(localized: "Async")
+        default: raw.capitalized
+        }
+    }
+
+    static func localizedStatusName(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "delivered": String(localized: "Delivered")
+        case "read": String(localized: "Read")
+        case "sent": String(localized: "Sent")
+        case "queued": String(localized: "Queued")
+        case "pending": String(localized: "Pending")
+        case "replied": String(localized: "Replied")
+        case "expired": String(localized: "Expired")
+        case "failed": String(localized: "Failed")
+        case "resolved": String(localized: "Resolved")
+        default: raw.capitalized
         }
     }
 
@@ -49,10 +82,10 @@ enum MessageMeta {
         let priority = message.priorityValue
         if priority == .critical || priority == .high {
             let p = MessageAttributeStyle.priority(message.priority)
-            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: priority.rawValue.capitalized, value: priority.rawValue.capitalized, tint: p.tint))
+            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: priority.localizedTitle, value: priority.localizedTitle, tint: p.tint))
         }
         if message.mode == "blocking" {
-            items.append(MessageMetaItem(id: "mode", icon: MessageAttributeStyle.mode("blocking"), label: "Blocking", value: "Blocking"))
+            items.append(MessageMetaItem(id: "mode", icon: MessageAttributeStyle.mode("blocking"), label: String(localized: "Blocking"), value: String(localized: "Blocking")))
         }
         return items
     }
@@ -65,19 +98,19 @@ enum MessageMeta {
         }
         if items.contains(where: { $0.id == "priority" }) == false {
             let p = MessageAttributeStyle.priority(message.priority)
-            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: "Priority", value: message.priority.capitalized, tint: p.tint))
+            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: String(localized: "Priority"), value: localizedPriorityName(message.priority), tint: p.tint))
         }
         if let mode = message.mode, !mode.isEmpty, items.contains(where: { $0.id == "mode" }) == false {
-            items.append(MessageMetaItem(id: "mode", icon: MessageAttributeStyle.mode(mode), label: "Mode", value: mode.capitalized))
+            items.append(MessageMetaItem(id: "mode", icon: MessageAttributeStyle.mode(mode), label: String(localized: "Mode"), value: localizedModeName(mode)))
         }
         if let channel = message.channel, !channel.isEmpty {
-            items.append(MessageMetaItem(id: "channel", icon: MessageAttributeStyle.channel(channel), label: "Channel", value: channel.capitalized))
+            items.append(MessageMetaItem(id: "channel", icon: MessageAttributeStyle.channel(channel), label: String(localized: "Channel"), value: channel.capitalized))
         }
         let files = message.metadata?.files ?? []
         if !files.isEmpty {
             let name = files[0].split(separator: "/").last.map(String.init) ?? files[0]
-            let value = files.count == 1 ? name : "\(files.count) files"
-            items.append(MessageMetaItem(id: "files", icon: "doc.text", label: "Files", value: value))
+            let value = files.count == 1 ? name : String(localized: "\(files.count) files")
+            items.append(MessageMetaItem(id: "files", icon: "doc.text", label: String(localized: "Files"), value: value))
         }
         return items
     }

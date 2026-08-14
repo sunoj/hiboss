@@ -15,7 +15,7 @@ struct SessionSectionHeader: View {
                 .frame(width: 8, height: 8)
                 .accessibilityLabel(statusAccessibilityLabel)
 
-            Text(group.label)
+            Text(group.localizedLabel)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
@@ -41,6 +41,6 @@ struct SessionSectionHeader: View {
 
     private var statusAccessibilityLabel: String {
         let cleaned = group.status?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return cleaned.isEmpty ? "Session status unknown" : "Session \(cleaned)"
+        return cleaned.isEmpty ? String(localized: "Session status unknown") : String(localized: "Session \(cleaned)")
     }
 }

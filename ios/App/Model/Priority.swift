@@ -43,6 +43,15 @@ enum MessagePriority: String, CaseIterable, Sendable {
         }
     }
 
+    var localizedTitle: String {
+        switch self {
+        case .critical: String(localized: "Critical")
+        case .high: String(localized: "High")
+        case .normal: String(localized: "Normal")
+        case .low: String(localized: "Low")
+        }
+    }
+
     var badge: String { rawValue.uppercased() }
 
     var isUrgent: Bool { self == .critical || self == .high }

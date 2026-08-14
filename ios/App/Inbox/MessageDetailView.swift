@@ -118,8 +118,8 @@ struct MessageDetailView: View {
                 Label("Message not found", systemImage: "questionmark.circle")
             } description: {
                 Text(store.loadError == nil
-                    ? "It may have been cleared or expired."
-                    : "Couldn't reach the server.")
+                    ? String(localized: "It may have been cleared or expired.")
+                    : String(localized: "Couldn't reach the server."))
             } actions: {
                 Button("Retry") { fallback = .loading; loadAttempt += 1 }
             }
@@ -233,10 +233,10 @@ struct MessageDetailView: View {
                 // Don't claim success: refresh re-renders into the resolved branch
                 // showing the answer that actually won.
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                actionNote = "Already answered elsewhere — showing the recorded outcome."
+                actionNote = String(localized: "Already answered elsewhere — showing the recorded outcome.")
             case .failed:
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
-                actionNote = store.loadError ?? "Couldn't send your reply. Try again."
+                actionNote = store.loadError ?? String(localized: "Couldn't send your reply. Try again.")
             }
         }
     }

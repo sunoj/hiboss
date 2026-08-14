@@ -62,7 +62,7 @@ final class HistoryLogicTests: XCTestCase {
         let count = HistoryMessageLogic.unreadCount(in: messages)
 
         XCTAssertEqual(count, 2)
-        XCTAssertEqual(HistorySegment.unread.title(unreadCount: count), "Unread 2")
+        XCTAssertEqual(HistorySegment.unread.title(unreadCount: count), L("Unread \(count)"))
     }
 
     func testSearchMatchesAcrossBodyAgentChannelModeAndOptions() {
@@ -113,8 +113,8 @@ final class HistoryLogicTests: XCTestCase {
     func testMonogramDerivesFromAgentNameAndBossMessages() {
         XCTAssertEqual(HistoryMessage.monogram(agentName: "Build Agent", isBossMessage: false), "BA")
         XCTAssertEqual(HistoryMessage.monogram(agentName: "qa-bot", isBossMessage: false), "QB")
-        XCTAssertEqual(HistoryMessage.monogram(agentName: nil, isBossMessage: false), "AG")
-        XCTAssertEqual(HistoryMessage.monogram(agentName: "Build Agent", isBossMessage: true), "Me")
+        XCTAssertEqual(HistoryMessage.monogram(agentName: nil, isBossMessage: false), String(L("Agent").prefix(2)).uppercased())
+        XCTAssertEqual(HistoryMessage.monogram(agentName: "Build Agent", isBossMessage: true), L("Me"))
     }
 
     func testTimestampParsesServerStringsAndFormatsShortLocalTime() throws {
@@ -131,7 +131,7 @@ final class HistoryLogicTests: XCTestCase {
             formatted.replacingOccurrences(of: "\u{202F}", with: " "),
             "5:00 PM"
         )
-        XCTAssertEqual(HistoryTimestamp.shortLocalTime(from: "not-a-date"), "Unknown")
+        XCTAssertEqual(HistoryTimestamp.shortLocalTime(from: "not-a-date"), L("Unknown"))
     }
 
     func testPresentationFieldsComeFromHistoryModel() {
@@ -144,16 +144,16 @@ final class HistoryLogicTests: XCTestCase {
         )
         let peerMessage = historyMessage(id: "peer", direction: "agent_to_agent")
 
-        XCTAssertEqual(bossMessage.historyDisplayName, "Me")
-        XCTAssertEqual(bossMessage.historyMonogram, "Me")
+        XCTAssertEqual(bossMessage.historyDisplayName, L("Me"))
+        XCTAssertEqual(bossMessage.historyMonogram, L("Me"))
         XCTAssertEqual(bossMessage.historyDirectionGlyph, "arrow.left")
-        XCTAssertEqual(bossMessage.historyDirectionAccessibilityLabel, "From boss")
+        XCTAssertEqual(bossMessage.historyDirectionAccessibilityLabel, L("From boss"))
         XCTAssertEqual(bossMessage.historyPriorityGlyph, "exclamationmark.triangle.fill")
-        XCTAssertEqual(bossMessage.historyPriorityAccessibilityLabel, "High priority")
+        XCTAssertEqual(bossMessage.historyPriorityAccessibilityLabel, L("\(L("High")) priority"))
         XCTAssertEqual(bossMessage.historyPriorityModeLabel, "HIGH · WINDOW")
-        XCTAssertEqual(bossMessage.historyStatusChip, "✓ replied")
+        XCTAssertEqual(bossMessage.historyStatusChip, L("✓ replied"))
         XCTAssertEqual(peerMessage.historyDirectionGlyph, "arrow.left.arrow.right")
-        XCTAssertEqual(peerMessage.historyDirectionAccessibilityLabel, "Peer message")
+        XCTAssertEqual(peerMessage.historyDirectionAccessibilityLabel, L("Peer message"))
         // Normal priority draws no glyph at all — a symbol on every row is noise.
         XCTAssertNil(peerMessage.historyPriorityGlyph)
     }

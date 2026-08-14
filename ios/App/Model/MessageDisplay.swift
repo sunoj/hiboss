@@ -29,9 +29,9 @@ extension HistoryMessage {
     var metaLine: String {
         let dir: String
         switch direction {
-        case "agent_to_boss": dir = "agent→boss"
-        case "boss_to_agent": dir = "boss→agent"
-        case "agent_to_agent": dir = "agent→agent"
+        case "agent_to_boss": dir = String(localized: "agent→boss")
+        case "boss_to_agent": dir = String(localized: "boss→agent")
+        case "agent_to_agent": dir = String(localized: "agent→agent")
         default: dir = direction
         }
         if let channel, !channel.isEmpty { return "\(dir) · \(channel)" }

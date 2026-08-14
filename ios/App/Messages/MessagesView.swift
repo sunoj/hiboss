@@ -14,8 +14,8 @@ struct MessagesView: View {
             error: store.loadError,
             isEmpty: store.history.isEmpty,
             emptyIcon: "tray",
-            emptyTitle: "No messages yet",
-            emptyDetail: "Agent messages will appear here.",
+            emptyTitle: String(localized: "No messages yet"),
+            emptyDetail: String(localized: "Agent messages will appear here."),
             onRetry: { await store.refresh() }
         ) {
             List {
