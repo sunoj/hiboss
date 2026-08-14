@@ -39,6 +39,7 @@ struct InboxView: View {
             switch await store.reply(choice, to: id) {
             case .sent:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                withAnimation { resolvedExpanded = true }
             case .alreadyResolved:
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 actionNote = String(localized: "That decision was already answered elsewhere.")
@@ -92,9 +93,10 @@ struct InboxView: View {
                         settledRow(message)
                     }
                 } label: {
-                    Text("Resolved")
+                    Label("Resolved", systemImage: "checkmark.circle")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
+                        .badge(store.settledCards.count)
                 }
             }
         }
