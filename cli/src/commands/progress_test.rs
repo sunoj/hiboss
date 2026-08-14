@@ -45,3 +45,41 @@ fn make_item_optional_fields() {
     let img = make_item("u".into(), "image", "image/png", 0, None, None, None, None);
     assert!(img.width.is_none() && img.height.is_none());
 }
+
+#[test]
+fn post_args_agent_and_model_flags_present() {
+    // Verify that PostArgs carries --agent and --model when both are supplied.
+    let pa = PostArgs {
+        body: "shipped".to_owned(),
+        image: vec![],
+        video: vec![],
+        url: vec![],
+        project: None,
+        session: None,
+        tag: vec![],
+        alt: vec![],
+        agent: Some("my-agent".to_owned()),
+        model: Some("my-model".to_owned()),
+    };
+    assert_eq!(pa.agent.as_deref(), Some("my-agent"));
+    assert_eq!(pa.model.as_deref(), Some("my-model"));
+}
+
+#[test]
+fn post_args_no_flags_defaults_to_none() {
+    // When neither --agent nor --model is given, both are None (detection path).
+    let pa = PostArgs {
+        body: "shipped".to_owned(),
+        image: vec![],
+        video: vec![],
+        url: vec![],
+        project: None,
+        session: None,
+        tag: vec![],
+        alt: vec![],
+        agent: None,
+        model: None,
+    };
+    assert!(pa.agent.is_none());
+    assert!(pa.model.is_none());
+}
