@@ -56,6 +56,10 @@ pub struct PostArgs {
     pub tag: Vec<String>,
     #[arg(long, help = "Alt text for media items in declaration order (repeatable)")]
     pub alt: Vec<String>,
+    #[arg(long = "agent", help = "Override detected agent label (max 64 chars)")]
+    pub agent: Option<String>,
+    #[arg(long = "model", help = "Override detected model name (max 64 chars)")]
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -100,6 +104,11 @@ async fn run_post(
     }
     let project = args.project.clone().unwrap_or_else(session::project_name);
     let session_id = args.session.clone().or_else(session::read_session_id);
+    let attr = crate::attribution::detect();
+    let agent_label = args.agent.clone().or(attr.agent_label);
+    let model = args.model.clone().or(attr.model);
+    if agent_label.as_deref().map_or(false, |v| v.len() > 64) { return Err("--agent exceeds 64 chars".into()); }
+    if model.as_deref().map_or(false, |v| v.len() > 64) { return Err("--model exceeds 64 chars".into()); }
     let mut media: Vec<ProgressMediaItem> = Vec::with_capacity(total);
     let mut alt_idx = 0usize;
     for path in &args.image {
@@ -123,6 +132,8 @@ async fn run_post(
         session_id,
         media: if media.is_empty() { None } else { Some(media) },
         tags: if args.tag.is_empty() { None } else { Some(args.tag.clone()) },
+        agent_label,
+        model,
     };
     let post = client.post_progress(&req).await?;
     eprintln!("Posted");
@@ -247,7 +258,9 @@ fn print_post(post: &ProgressPost) {
     let identity = post.team.as_ref().map(|t| {
         format!("{} @{}", t.display_name, t.handle)
     }).unwrap_or_else(|| post.project.clone());
-    println!("{} · {} · {}", identity.cyan(), rel.dimmed(), agent.dimmed());
+    let chip = [post.agent_label.as_deref(), post.model.as_deref()].into_iter().flatten().collect::<Vec<_>>().join(" ");
+    let chip_part = if chip.is_empty() { String::new() } else { format!(" · {}", chip.dimmed()) };
+    println!("{} · {} · {}{}", identity.cyan(), rel.dimmed(), agent.dimmed(), chip_part);
     println!("  {}", post.body);
     for item in &post.media {
         let marker = match item.kind.as_str() {
