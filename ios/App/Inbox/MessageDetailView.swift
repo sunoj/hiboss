@@ -1,6 +1,6 @@
 // Full-text detail for a single message, with reply and a jump to its session.
-// Exports: MessageDetailView, SessionMessagesView, SessionRoute nav value.
-// Dependencies: SwiftUI, HibossKit, HistoryRow.
+// Exports: MessageDetailView and SessionRoute nav value.
+// Dependencies: SwiftUI, HibossKit.
 
 import HibossKit
 import SwiftUI
@@ -10,6 +10,20 @@ import UIKit
 struct SessionRoute: Hashable {
     let id: String
     let label: String
+
+    init(id: String, label: String) {
+        self.id = id
+        self.label = label
+    }
+
+    init(message: HistoryMessage) {
+        let id = SessionGrouping.sessionKey(for: message)
+        let session = message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let label = session.isEmpty
+            ? (id == SessionGrouping.directSessionID ? message.displayName : String(id.prefix(8)))
+            : session
+        self.init(id: id, label: label)
+    }
 }
 
 struct MessageDetailView: View {
@@ -235,40 +249,4 @@ struct MessageDetailView: View {
         return SessionRoute(id: id, label: label?.isEmpty == false ? label! : String(id.prefix(8)))
     }
 
-}
-
-/// The messages belonging to one session, each drilling into its detail.
-/// Recomputes live from `store.history` (so resolutions/arrivals update in place)
-/// and reads oldest→newest like a conversation.
-struct SessionMessagesView: View {
-    @ObservedObject var store: InboxStore
-    let route: SessionRoute
-
-    private var messages: [HistoryMessage] {
-        store.history
-            .filter { SessionGrouping.sessionKey(for: $0) == route.id }
-            .sorted { ($0.createdDate ?? .distantPast) < ($1.createdDate ?? .distantPast) }
-    }
-
-    var body: some View {
-        Group {
-            if messages.isEmpty {
-                ContentUnavailableView(
-                    "No messages",
-                    systemImage: "tray",
-                    description: Text("This session has no messages yet.")
-                )
-            } else {
-                List {
-                    ForEach(messages) { message in
-                        NavigationLink(value: message.id) { HistoryRow(message: message) }
-                    }
-                }
-                .listStyle(.plain)
-            }
-        }
-        .refreshable { await store.refresh() }
-        .navigationTitle(route.label)
-        .navigationBarTitleDisplayMode(.inline)
-    }
 }
