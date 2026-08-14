@@ -28,6 +28,24 @@ async function createProgressSchema(): Promise<void> {
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC)').run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_posts(project, created_at DESC)').run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_agent ON progress_posts(agent_id, created_at DESC)').run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS progress_teams (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    project TEXT NOT NULL UNIQUE,
+    handle TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    bio TEXT,
+    avatar_url TEXT,
+    created_by_agent_id TEXT REFERENCES api_keys(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS progress_likes (
+    post_id TEXT NOT NULL REFERENCES progress_posts(id) ON DELETE CASCADE,
+    boss_id TEXT NOT NULL REFERENCES bosses(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (post_id, boss_id)
+  )`).run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_likes_post ON progress_likes(post_id)').run();
 }
 
 beforeAll(async () => {
@@ -40,6 +58,8 @@ beforeAll(async () => {
   await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind('progress-boss', getTestAgentId()).run();
   await env.DB.prepare('DELETE FROM progress_posts').run();
+  await env.DB.prepare('DELETE FROM progress_teams').run();
+  await env.DB.prepare('DELETE FROM progress_likes').run();
   await env.DB.prepare(
     "INSERT INTO progress_posts (id, agent_id, project, body, created_at) VALUES (?, ?, ?, ?, '2026-08-14 09:00:00'), (?, ?, ?, ?, '2026-08-14 08:00:00')"
   ).bind('progress-own', getTestAgentId(), 'hiboss', 'own post', 'progress-other', OTHER_AGENT_ID, 'other', 'other post').run();
@@ -63,12 +83,16 @@ describe('POST /api/progress', () => {
       }),
     });
     expect(res.status).toBe(201);
-    const post = await res.json() as { project: string; agent_name: string; media: unknown[]; tags: string[]; created_at: string };
+    const post = await res.json() as { project: string; agent_name: string; media: unknown[]; tags: string[]; created_at: string; team: { handle: string; display_name: string; avatar_url: string; registered: boolean }; like_count: number; liked: boolean };
     expect(post.project).toBe('test-agent');
     expect(post.agent_name).toBe('test-agent');
     expect(post.media).toHaveLength(1);
     expect(post.tags).toEqual(['release']);
     expect(post.created_at).toMatch(/T.*Z$/);
+    expect(post.team).toMatchObject({ handle: 'test-agent', display_name: 'test-agent', registered: false });
+    expect(post.team.avatar_url).toContain('/api/progress/teams/test-agent/avatar.svg');
+    expect(post.like_count).toBe(0);
+    expect(post.liked).toBe(false);
   });
 
   it('rejects remote media URLs and oversized media lists', async () => {
@@ -167,7 +191,7 @@ describe('progress visibility and lifecycle', () => {
       if (cursor) url.searchParams.set('before', JSON.stringify(cursor));
       const response = await SELF.fetch(url, { headers: authHeaders() });
       expect(response.status).toBe(200);
-      const page = await response.json() as { posts: { id: string }[]; next_cursor: typeof cursor };
+      const page = await response.json() as { posts: { id: string }[]; next_cursor: { created_at: string; id: string } | null };
       seen.push(...page.posts.map((post) => post.id));
       cursor = page.next_cursor;
       if (!cursor) break;
@@ -175,5 +199,67 @@ describe('progress visibility and lifecycle', () => {
 
     expect(seen).toHaveLength(ids.length);
     expect(new Set(seen).size).toBe(ids.length);
+  });
+});
+
+describe('progress teams and likes', () => {
+  it('serves the same generated identicon bytes for the same handle', async () => {
+    const first = await SELF.fetch('https://test.local/api/progress/teams/hiboss/avatar.svg');
+    const second = await SELF.fetch('https://test.local/api/progress/teams/hiboss/avatar.svg');
+    expect(first.status).toBe(200);
+    expect(first.headers.get('content-type')).toBe('image/svg+xml');
+    expect(first.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(await first.text()).toBe(await second.text());
+  });
+
+  it('registers a team and includes fallback and registered identities in posts', async () => {
+    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project, body) VALUES ('team-fallback', ?, 'unregistered project', 'fallback')")
+      .bind(getTestAgentId()).run();
+    const fallback = await SELF.fetch('https://test.local/api/progress/team-fallback', { headers: authHeaders() });
+    const fallbackData = await fallback.json() as { team: { handle: string; display_name: string; avatar_url: string; registered: boolean } };
+    expect(fallbackData.team).toMatchObject({ handle: 'unregistered-project', display_name: 'unregistered project', registered: false });
+    expect(fallbackData.team.avatar_url).toContain('/api/progress/teams/unregistered-project/avatar.svg');
+
+    const registered = await SELF.fetch('https://test.local/api/progress/teams/hiboss', {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify({ handle: 'hiboss', display_name: 'Hiboss Team', bio: 'shipping' }),
+    });
+    expect(registered.status).toBe(200);
+    const team = await registered.json() as { handle: string; display_name: string; avatar_url: string; registered: boolean; bio: string };
+    expect(team).toMatchObject({ handle: 'hiboss', display_name: 'Hiboss Team', registered: true, bio: 'shipping' });
+    expect(team.avatar_url).toContain('/api/progress/teams/hiboss/avatar.svg');
+
+    const visibleTeams = await SELF.fetch('https://test.local/api/progress/teams', { headers: authHeaders() });
+    const visibleTeamData = await visibleTeams.json() as { teams: { project: string; registered: boolean }[] };
+    expect(visibleTeamData.teams).toEqual(expect.arrayContaining([
+      expect.objectContaining({ project: 'hiboss', registered: true }),
+      expect.objectContaining({ project: 'unregistered project', registered: false }),
+    ]));
+
+    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project, body) VALUES ('team-registered', ?, 'hiboss', 'registered')")
+      .bind(getTestAgentId()).run();
+    const post = await SELF.fetch('https://test.local/api/progress/team-registered', { headers: authHeaders() });
+    const postData = await post.json() as { team: { handle: string; display_name: string; avatar_url: string; registered: boolean }; like_count: number; liked: boolean };
+    expect(postData.team).toMatchObject({ handle: 'hiboss', display_name: 'Hiboss Team', registered: true });
+    expect(postData.like_count).toBe(0);
+    expect(postData.liked).toBe(false);
+  });
+
+  it('keeps like and unlike operations idempotent in both directions', async () => {
+    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project, body) VALUES ('like-post', ?, 'hiboss', 'like me')")
+      .bind(getTestAgentId()).run();
+    const like = async (): Promise<Response> => SELF.fetch('https://test.local/api/progress/like-post/like', { method: 'POST', headers: bossHeaders() });
+    const unlike = async (): Promise<Response> => SELF.fetch('https://test.local/api/progress/like-post/like', { method: 'DELETE', headers: bossHeaders() });
+
+    const hiddenLike = await SELF.fetch('https://test.local/api/progress/progress-other/like', { method: 'POST', headers: bossHeaders() });
+    expect(hiddenLike.status).toBe(404);
+    const firstLike = await like();
+    expect(firstLike.status).toBe(200);
+    expect(await firstLike.json()).toEqual({ like_count: 1, liked: true });
+    const secondLike = await like();
+    expect(await secondLike.json()).toEqual({ like_count: 1, liked: true });
+    const firstUnlike = await unlike();
+    expect(await firstUnlike.json()).toEqual({ like_count: 0, liked: false });
+    const secondUnlike = await unlike();
+    expect(await secondUnlike.json()).toEqual({ like_count: 0, liked: false });
   });
 });
