@@ -3,11 +3,14 @@
 // Dependencies: clap, colored, crate::client, crate::config, crate::session, crate::types.
 #[path = "progress_media.rs"]
 mod progress_media;
+#[cfg(test)]
+#[path = "progress_test.rs"]
+mod tests;
 use crate::{
     client::HiBossClient,
     config::Config,
     session,
-    types::{ProgressMediaItem, ProgressPost, ProgressPostRequest},
+    types::{ProgressCursor, ProgressMediaItem, ProgressPost, ProgressPostRequest},
 };
 use clap::{Args, Subcommand};
 use colored::Colorize;
@@ -56,8 +59,8 @@ pub struct ListArgs {
     pub project: Option<String>,
     #[arg(long, help = "Maximum posts to return")]
     pub limit: Option<u32>,
-    #[arg(long, help = "Return posts older than this ISO timestamp (cursor)")]
-    pub before: Option<String>,
+    #[arg(long, value_name = "CURSOR_JSON", help = "Return posts older than this JSON cursor from a previous page")]
+    pub before: Option<ProgressCursor>,
     #[arg(long, help = "Print raw JSON instead of human-readable feed")]
     pub json: bool,
 }
@@ -133,7 +136,7 @@ async fn process_image(
             let up = client.upload_raw_binary(&mp4, "clip.mp4").await?;
             return Ok(make_item(up.url, "video", "video/mp4", up.size, dims, dur, None, alt));
         }
-        eprintln!("Warning: ffmpeg not found; uploading GIF as-is (iOS shows a still frame)");
+        eprintln!("Warning: GIF conversion unavailable; uploading GIF as-is (iOS shows a still frame)");
     }
     let dims = progress_media::probe_image_dims(path);
     let up = client.upload_file(path).await?;
@@ -190,7 +193,7 @@ async fn run_list(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let resp = client
-        .list_progress(args.project.as_deref(), args.limit, args.before.as_deref())
+        .list_progress(args.project.as_deref(), args.limit, args.before.as_ref())
         .await?;
     if args.json {
         println!("{}", serde_json::to_string_pretty(&resp)?);
@@ -256,45 +259,4 @@ fn relative_time(iso: &str) -> String {
         return format!("{hrs}h ago");
     }
     format!("{}d ago", hrs / 24)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn ago(secs: i64) -> String {
-        (OffsetDateTime::now_utc() - time::Duration::seconds(secs))
-            .format(&Rfc3339)
-            .unwrap_or_default()
-    }
-
-    #[test] fn rt_just_now() { assert_eq!(relative_time(&ago(30)), "just now"); }
-    #[test] fn rt_minutes()  { assert_eq!(relative_time(&ago(300)), "5m ago"); }
-    #[test] fn rt_hours()    { assert_eq!(relative_time(&ago(10800)), "3h ago"); }
-    #[test] fn rt_days()     { assert_eq!(relative_time(&ago(172800)), "2d ago"); }
-    #[test] fn rt_invalid()  { assert_eq!(relative_time("bad"), "bad"); }
-
-    #[test]
-    fn url_item_video() {
-        let i = url_media_item("https://h/clip.mp4", None);
-        assert_eq!((i.kind.as_str(), i.size), ("video", 0));
-    }
-
-    /// Covers kind, content_type inference, and alt propagation together.
-    #[test]
-    fn url_item_image_and_alt() {
-        let i = url_media_item("https://h/shot.png", Some("desc".into()));
-        assert_eq!((i.kind.as_str(), i.content_type.as_str()), ("image", "image/png"));
-        assert_eq!(i.alt, Some("desc".into()));
-    }
-
-    /// Covers make_item with and without optional fields in one test.
-    #[test]
-    fn make_item_optional_fields() {
-        let v = make_item("u".into(), "video", "video/mp4", 0,
-            Some((1280, 720)), Some(3200), None, None);
-        assert_eq!((v.width, v.height, v.duration_ms), (Some(1280), Some(720), Some(3200)));
-        let img = make_item("u".into(), "image", "image/png", 0, None, None, None, None);
-        assert!(img.width.is_none() && img.height.is_none());
-    }
 }

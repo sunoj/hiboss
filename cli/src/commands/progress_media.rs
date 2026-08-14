@@ -3,7 +3,17 @@
 //          extract_video_poster, mime_for_path.
 // Dependencies: std::process::Command, std::path::PathBuf, serde_json.
 
+use std::io::Read;
 use std::path::PathBuf;
+use std::process::{Command, ExitStatus, Stdio};
+use std::time::{Duration, Instant};
+
+const MEDIA_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
+
+struct CommandOutput {
+    status: ExitStatus,
+    stdout: Vec<u8>,
+}
 
 /// RAII guard that deletes a temporary file on drop.
 pub(super) struct TempFile(pub PathBuf);
@@ -21,10 +31,12 @@ pub(super) fn probe_image_dims(path: &str) -> Option<(u32, u32)> {
 }
 
 fn probe_dims_ffprobe(path: &str) -> Option<(u32, u32)> {
-    let out = std::process::Command::new("ffprobe")
-        .args(["-v", "quiet", "-print_format", "json", "-show_streams", path])
-        .output()
-        .ok()?;
+    let out = run_media_command(
+        Command::new("ffprobe")
+            .args(["-v", "quiet", "-print_format", "json", "-show_streams", path]),
+        "ffprobe",
+        MEDIA_COMMAND_TIMEOUT,
+    )?;
     if !out.status.success() {
         return None;
     }
@@ -37,10 +49,11 @@ fn probe_dims_ffprobe(path: &str) -> Option<(u32, u32)> {
 }
 
 fn probe_dims_sips(path: &str) -> Option<(u32, u32)> {
-    let out = std::process::Command::new("sips")
-        .args(["-g", "pixelWidth", "-g", "pixelHeight", path])
-        .output()
-        .ok()?;
+    let out = run_media_command(
+        Command::new("sips").args(["-g", "pixelWidth", "-g", "pixelHeight", path]),
+        "sips",
+        MEDIA_COMMAND_TIMEOUT,
+    )?;
     if !out.status.success() {
         return None;
     }
@@ -61,14 +74,15 @@ fn probe_dims_sips(path: &str) -> Option<(u32, u32)> {
 /// Probe video dimensions and duration_ms using ffprobe.
 /// Returns (dims, duration_ms); either may be None when ffprobe is unavailable.
 pub(super) fn probe_video_meta(path: &str) -> (Option<(u32, u32)>, Option<u64>) {
-    let out = match std::process::Command::new("ffprobe")
-        .args([
+    let out = match run_media_command(
+        Command::new("ffprobe").args([
             "-v", "quiet", "-print_format", "json",
             "-show_streams", "-show_format", path,
-        ])
-        .output()
-    {
-        Ok(o) if o.status.success() => o,
+        ]),
+        "ffprobe",
+        MEDIA_COMMAND_TIMEOUT,
+    ) {
+        Some(o) if o.status.success() => o,
         _ => return (None, None),
     };
     let json: serde_json::Value = match serde_json::from_slice(&out.stdout) {
@@ -93,19 +107,18 @@ pub(super) fn probe_video_meta(path: &str) -> (Option<(u32, u32)>, Option<u64>) 
 /// Returns None — without panicking — when ffmpeg is absent or conversion fails.
 pub(super) fn convert_gif_to_mp4(path: &str) -> Option<TempFile> {
     let out = temp_path("hiboss-gif", "mp4");
-    let status = std::process::Command::new("ffmpeg")
-        .args([
+    let result = run_media_command(
+        Command::new("ffmpeg").args([
             "-y", "-i", path,
             "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264", "-pix_fmt", "yuv420p",
             "-an", "-movflags", "+faststart",
             out.to_str()?,
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .ok()?;
-    if status.success() {
+        ]),
+        "ffmpeg GIF conversion",
+        MEDIA_COMMAND_TIMEOUT,
+    );
+    if result.is_some_and(|output| output.status.success()) {
         Some(TempFile(out))
     } else {
         let _ = std::fs::remove_file(&out);
@@ -117,17 +130,48 @@ pub(super) fn convert_gif_to_mp4(path: &str) -> Option<TempFile> {
 /// Returns None — without panicking — when ffmpeg is absent or extraction fails.
 pub(super) fn extract_video_poster(path: &str) -> Option<TempFile> {
     let out = temp_path("hiboss-poster", "jpg");
-    let status = std::process::Command::new("ffmpeg")
-        .args(["-y", "-i", path, "-vframes", "1", "-q:v", "2", out.to_str()?])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .ok()?;
-    if status.success() {
+    let result = run_media_command(
+        Command::new("ffmpeg").args(["-y", "-i", path, "-vframes", "1", "-q:v", "2", out.to_str()?]),
+        "ffmpeg poster extraction",
+        MEDIA_COMMAND_TIMEOUT,
+    );
+    if result.is_some_and(|output| output.status.success()) {
         Some(TempFile(out))
     } else {
         let _ = std::fs::remove_file(&out);
         None
+    }
+}
+
+fn run_media_command(command: &mut Command, label: &str, timeout: Duration) -> Option<CommandOutput> {
+    command.stdout(Stdio::piped()).stderr(Stdio::null());
+    let mut child = command.spawn().ok()?;
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let mut stdout = Vec::new();
+                if let Some(mut pipe) = child.stdout.take() {
+                    let _ = pipe.read_to_end(&mut stdout);
+                }
+                return Some(CommandOutput { status, stdout });
+            }
+            Ok(None) if started.elapsed() >= timeout => {
+                let _ = child.kill();
+                let _ = child.wait();
+                eprintln!(
+                    "Warning: {label} timed out after {} seconds; skipping media enhancement",
+                    timeout.as_secs()
+                );
+                return None;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(50)),
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
     }
 }
 
@@ -205,5 +249,16 @@ mod tests {
     fn temp_path_is_in_temp_dir() {
         let p = temp_path("test", "mp4");
         assert_eq!(p.parent(), Some(std::env::temp_dir().as_path()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn media_command_kills_a_timed_out_child() {
+        let result = run_media_command(
+            Command::new("sh").args(["-c", "while :; do :; done"]),
+            "test media command",
+            Duration::from_millis(20),
+        );
+        assert!(result.is_none());
     }
 }

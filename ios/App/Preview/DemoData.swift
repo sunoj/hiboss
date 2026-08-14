@@ -96,13 +96,17 @@ private enum DemoFixtures {
 
 /// Sample progress posts so the 进展 tab can be exercised without a live server.
 final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
-    func progressFeed(project: String?, limit: Int, before: String?) async throws -> ProgressFeedPage {
+    func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage {
         var posts = DemoProgressFixtures.posts
         if let project { posts = posts.filter { $0.project == project } }
-        if let before { posts = posts.filter { $0.createdAt < before } }
+        if let before {
+            posts = posts.filter {
+                $0.createdAt < before.createdAt || ($0.createdAt == before.createdAt && $0.id < before.id)
+            }
+        }
         let page = Array(posts.prefix(limit))
-        let next = posts.count > limit ? page.last?.createdAt : nil
-        return ProgressFeedPage(posts: page, nextBefore: next)
+        let next = posts.count > limit ? page.last.map { ProgressCursor(createdAt: $0.createdAt, id: $0.id) } : nil
+        return ProgressFeedPage(posts: page, nextCursor: next)
     }
 
     func progressProjects() async throws -> [ProgressProject] {

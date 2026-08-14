@@ -45,6 +45,10 @@ interface ProgressRow {
   tags: string | null;
   created_at: string;
 }
+interface ProgressCursor {
+  created_at: string;
+  id: string;
+}
 interface CreatePayload {
   body: string;
   project: string | null;
@@ -65,11 +69,18 @@ function isNonNegativeInteger(value: unknown): value is number {
 }
 
 function isAttachmentUrl(value: string, requestUrl: URL): boolean {
+  return getAttachmentKey(value, requestUrl) !== null;
+}
+
+function getAttachmentKey(value: string, requestUrl: URL): string | null {
   try {
     const url = new URL(value);
-    return url.origin === requestUrl.origin && /^\/api\/attachments\/[^/]+$/.test(url.pathname);
+    const prefix = '/api/attachments/';
+    if (url.origin !== requestUrl.origin || !url.pathname.startsWith(prefix)) return null;
+    const key = url.pathname.slice(prefix.length);
+    return key && !key.includes('/') ? key : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -121,6 +132,26 @@ async function parseCreatePayload(c: Context<{ Bindings: Env }>): Promise<Create
   return { body: input.body, project: project as string | null, session_id: sessionId, media: media.length ? media : null, tags: tagsInput.length ? tagsInput as string[] : null };
 }
 
+async function verifyMediaOwnership(
+  c: Context<{ Bindings: Env }>,
+  media: MediaItem[],
+  agentId: string,
+): Promise<string | null> {
+  const requestUrl = new URL(c.req.url);
+  for (const item of media) {
+    const urls = item.poster_url ? [item.url, item.poster_url] : [item.url];
+    for (const url of urls) {
+      const key = getAttachmentKey(url, requestUrl);
+      if (!key) return 'media URLs must point to this worker attachments path';
+      const object = await c.env.ATTACHMENTS.get(key);
+      if (!object || object.customMetadata?.agent_id !== agentId) {
+        return 'media attachment does not exist or belongs to another agent';
+      }
+    }
+  }
+  return null;
+}
+
 function normalizeTimestamp(value: string): string {
   const iso = value.includes('T') ? value : value.replace(' ', 'T');
   return iso.endsWith('Z') ? iso : `${iso}Z`;
@@ -166,6 +197,20 @@ function parseLimit(value: string | undefined): number {
   return Math.min(parsed, MAX_LIMIT);
 }
 
+function parseCursor(value: string | undefined): ProgressCursor | string | null {
+  if (!value) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return 'before must be a JSON cursor with created_at and id';
+  }
+  if (!isRecord(parsed) || typeof parsed.created_at !== 'string' || typeof parsed.id !== 'string' || !parsed.created_at || !parsed.id) {
+    return 'before must be a JSON cursor with created_at and id';
+  }
+  return { created_at: parsed.created_at, id: parsed.id };
+}
+
 async function findProgressPost(env: Env, id: string, agentIds: string[]): Promise<ProgressRow | null> {
   const scope = scopedWhere(agentIds);
   return env.DB.prepare(
@@ -181,6 +226,8 @@ routes.post('/', async (c) => {
   const agent = await c.env.DB.prepare('SELECT name FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string }>();
   if (!agent) return c.text('agent not found', 404);
   const project = payload.project ?? agent.name;
+  const mediaError = await verifyMediaOwnership(c, payload.media ?? [], agentId);
+  if (mediaError) return c.text(mediaError, 400);
   const row = await c.env.DB.prepare(
     `INSERT INTO progress_posts (agent_id, session_id, project, body, media, tags) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`
   ).bind(agentId, payload.session_id, project, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null).first<{ id: string }>();
@@ -192,22 +239,30 @@ routes.post('/', async (c) => {
 
 routes.get('/', async (c) => {
   const agentIds = await getScopeAgentIds(c);
-  if (!agentIds.length) return c.json({ posts: [], next_before: null });
+  if (!agentIds.length) return c.json({ posts: [], next_cursor: null });
   const scope = scopedWhere(agentIds);
   const params = c.req.query();
+  const cursor = parseCursor(params.before);
+  if (typeof cursor === 'string') return c.text(cursor, 400);
   const clauses = [`p.${scope.sql}`];
   const binds: (string | number)[] = [...scope.binds];
   if (params.project) { clauses.push('p.project = ?'); binds.push(params.project); }
   if (isBossAuth(c) && params.agent_id) { clauses.push('p.agent_id = ?'); binds.push(params.agent_id); }
-  if (params.before) { clauses.push('p.created_at < datetime(?)'); binds.push(params.before); }
+  if (cursor) {
+    clauses.push('(p.created_at < datetime(?) OR (p.created_at = datetime(?) AND p.id < ?))');
+    binds.push(cursor.created_at, cursor.created_at, cursor.id);
+  }
   const limit = parseLimit(params.limit);
   binds.push(limit);
   const rows = await c.env.DB.prepare(
-    `SELECT p.*, a.name AS agent_name FROM progress_posts p JOIN api_keys a ON a.id = p.agent_id WHERE ${clauses.join(' AND ')} ORDER BY p.created_at DESC LIMIT ?`
+    `SELECT p.*, a.name AS agent_name FROM progress_posts p JOIN api_keys a ON a.id = p.agent_id WHERE ${clauses.join(' AND ')} ORDER BY p.created_at DESC, p.id DESC LIMIT ?`
   ).bind(...binds).all<ProgressRow>();
   const posts = (rows.results ?? []).map(mapProgressRow);
-  const nextBefore = posts.length === limit ? posts[posts.length - 1]?.created_at ?? null : null;
-  return c.json({ posts, next_before: nextBefore });
+  const lastRow = rows.results?.[rows.results.length - 1];
+  const nextCursor = posts.length === limit && lastRow
+    ? { created_at: normalizeTimestamp(lastRow.created_at), id: lastRow.id }
+    : null;
+  return c.json({ posts, next_cursor: nextCursor });
 });
 
 routes.get('/projects', async (c) => {

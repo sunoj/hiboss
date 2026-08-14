@@ -47,12 +47,18 @@ beforeAll(async () => {
 
 describe('POST /api/progress', () => {
   it('creates a post with fallback project and normalized arrays', async () => {
+    const upload = await SELF.fetch('https://test.local/api/attachments/upload', {
+      method: 'POST',
+      headers: { Authorization: authHeaders().Authorization, 'Content-Type': 'image/png', 'X-Filename': 'progress.png' },
+      body: new Uint8Array([1, 2, 3]),
+    });
+    const attachment = await upload.json() as { url: string };
     const res = await SELF.fetch('https://test.local/api/progress', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
         body: 'Shipped the feed',
-        media: [{ url: 'https://test.local/api/attachments/image', kind: 'image', content_type: 'image/png', size: 12 }],
+        media: [{ url: attachment.url, kind: 'image', content_type: 'image/png', size: 3 }],
         tags: ['release'],
       }),
     });
@@ -76,6 +82,31 @@ describe('POST /api/progress', () => {
       body: JSON.stringify({ body: 'too many', media: [1, 2, 3, 4, 5] }),
     });
     expect(tooMany.status).toBe(400);
+  });
+
+  it('rejects missing and foreign attachment keys, including poster URLs', async () => {
+    const missing = await SELF.fetch('https://test.local/api/progress', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'missing media', media: [{ url: 'https://test.local/api/attachments/missing', kind: 'image', content_type: 'image/png', size: 1 }] }),
+    });
+    expect(missing.status).toBe(400);
+
+    await env.ATTACHMENTS.put('owned-progress-video', new Uint8Array([1]), {
+      httpMetadata: { contentType: 'video/mp4' },
+      customMetadata: { agent_id: getTestAgentId() },
+    });
+    await env.ATTACHMENTS.put('foreign-progress-poster', new Uint8Array([1]), {
+      httpMetadata: { contentType: 'image/jpeg' },
+      customMetadata: { agent_id: OTHER_AGENT_ID },
+    });
+    const foreignPoster = await SELF.fetch('https://test.local/api/progress', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({
+        body: 'foreign poster',
+        media: [{ url: 'https://test.local/api/attachments/owned-progress-video', kind: 'video', content_type: 'video/mp4', size: 1, poster_url: 'https://test.local/api/attachments/foreign-progress-poster' }],
+      }),
+    });
+    expect(foreignPoster.status).toBe(400);
   });
 
   it('does not insert a message or delivery row', async () => {
@@ -118,5 +149,31 @@ describe('progress visibility and lifecycle', () => {
     expect(deleted.status).toBe(204);
     const missing = await SELF.fetch('https://test.local/api/progress/progress-own', { headers: authHeaders() });
     expect(missing.status).toBe(404);
+  });
+
+  it('paginates every post sharing one timestamp with a composite cursor', async () => {
+    await env.DB.prepare('DELETE FROM progress_posts').run();
+    const ids = ['tie-a', 'tie-b', 'tie-c', 'tie-d', 'tie-e'];
+    for (const id of ids) {
+      await env.DB.prepare(
+        "INSERT INTO progress_posts (id, agent_id, project, body, created_at) VALUES (?, ?, 'hiboss', ?, '2026-08-14 09:00:00')"
+      ).bind(id, getTestAgentId(), id).run();
+    }
+
+    const seen: string[] = [];
+    let cursor: { created_at: string; id: string } | null = null;
+    for (;;) {
+      const url = new URL('https://test.local/api/progress?limit=2');
+      if (cursor) url.searchParams.set('before', JSON.stringify(cursor));
+      const response = await SELF.fetch(url, { headers: authHeaders() });
+      expect(response.status).toBe(200);
+      const page = await response.json() as { posts: { id: string }[]; next_cursor: typeof cursor };
+      seen.push(...page.posts.map((post) => post.id));
+      cursor = page.next_cursor;
+      if (!cursor) break;
+    }
+
+    expect(seen).toHaveLength(ids.length);
+    expect(new Set(seen).size).toBe(ids.length);
   });
 });

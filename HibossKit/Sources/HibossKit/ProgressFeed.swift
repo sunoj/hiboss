@@ -122,22 +122,37 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
 
 public struct ProgressFeedPage: Codable, Equatable, Sendable {
     public let posts: [ProgressPost]
-    public let nextBefore: String?
+    public let nextCursor: ProgressCursor?
 
     enum CodingKeys: String, CodingKey {
         case posts
-        case nextBefore = "next_before"
+        case nextCursor = "next_cursor"
     }
 
-    public init(posts: [ProgressPost], nextBefore: String? = nil) {
+    public init(posts: [ProgressPost], nextCursor: ProgressCursor? = nil) {
         self.posts = posts
-        self.nextBefore = nextBefore
+        self.nextCursor = nextCursor
     }
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         posts = try values.decodeIfPresent([ProgressPost].self, forKey: .posts) ?? []
-        nextBefore = try values.decodeIfPresent(String.self, forKey: .nextBefore)
+        nextCursor = try values.decodeIfPresent(ProgressCursor.self, forKey: .nextCursor)
+    }
+}
+
+public struct ProgressCursor: Codable, Equatable, Sendable {
+    public let createdAt: String
+    public let id: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case createdAt = "created_at"
+    }
+
+    public init(createdAt: String, id: String) {
+        self.createdAt = createdAt
+        self.id = id
     }
 }
 
@@ -168,7 +183,7 @@ struct ProgressProjectsResponse: Decodable, Sendable {
 }
 
 public protocol ProgressServing: Sendable {
-    func progressFeed(project: String?, limit: Int, before: String?) async throws -> ProgressFeedPage
+    func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage
     func progressProjects() async throws -> [ProgressProject]
     func deleteProgressPost(id: String) async throws
 }
