@@ -1,5 +1,5 @@
 // Sheet for answering a decision with a listed option or a free-text reply.
-// Exports: ReplySheet presented from a pending card's overflow action.
+// Exports: ReplySheet presented from a pending card's Reply swipe.
 // Dependencies: SwiftUI, HibossKit, UIKit (haptics).
 
 import HibossKit
