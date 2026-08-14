@@ -158,6 +158,8 @@ mod tests {
             session_id: None,
             media: None,
             tags: None,
+            agent_label: None,
+            model: None,
         };
         let _f = client.post_progress(&req);
         drop(_f);

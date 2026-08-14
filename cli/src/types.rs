@@ -248,6 +248,10 @@ pub struct ProgressPostRequest {
     pub media: Option<Vec<ProgressMediaItem>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// A single progress post as returned by the server.
@@ -267,6 +271,10 @@ pub struct ProgressPost {
     /// Team identity for this post. None only for posts from pre-v2 server versions.
     #[serde(default)]
     pub team: Option<ProgressTeam>,
+    #[serde(default)]
+    pub agent_label: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Response from GET /api/progress.

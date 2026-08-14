@@ -2,6 +2,7 @@
 // Exports: client, commands, config, sse, types modules.
 // Dependencies: all CLI module dependencies.
 
+pub mod attribution;
 pub mod client;
 pub mod commands;
 pub mod config;
