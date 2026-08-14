@@ -211,6 +211,8 @@ CREATE TABLE IF NOT EXISTS progress_posts (
   body TEXT NOT NULL,
   media TEXT,
   tags TEXT,
+  agent_label TEXT,
+  model TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

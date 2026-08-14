@@ -71,8 +71,8 @@ routes.post('/', async (c) => {
   const mediaError = await verifyMediaOwnership(c, payload.media ?? [], agentId);
   if (mediaError) return c.text(mediaError, 400);
   const row = await c.env.DB.prepare(
-    `INSERT INTO progress_posts (agent_id, session_id, project, body, media, tags) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`
-  ).bind(agentId, payload.session_id, project, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null).first<{ id: string }>();
+    `INSERT INTO progress_posts (agent_id, session_id, project, body, media, tags, agent_label, model) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+  ).bind(agentId, payload.session_id, project, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null, payload.agent_label, payload.model).first<{ id: string }>();
   if (!row) return c.text('failed to create post', 500);
   const post = await findProgressPost(c.env, row.id, [agentId], null);
   if (!post) return c.text('failed to load post', 500);
