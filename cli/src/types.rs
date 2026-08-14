@@ -213,3 +213,60 @@ pub struct UploadResponse {
     pub content_type: String,
     pub size: u64,
 }
+
+/// A single media attachment on a progress post.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgressMediaItem {
+    pub url: String,
+    /// "image" or "video"
+    pub kind: String,
+    pub content_type: String,
+    pub size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub poster_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alt: Option<String>,
+}
+
+/// Request body for POST /api/progress.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProgressPostRequest {
+    pub body: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media: Option<Vec<ProgressMediaItem>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+}
+
+/// A single progress post as returned by the server.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProgressPost {
+    pub id: String,
+    pub project: String,
+    pub agent_id: String,
+    pub agent_name: Option<String>,
+    pub session_id: Option<String>,
+    pub body: String,
+    #[serde(default)]
+    pub media: Vec<ProgressMediaItem>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    pub created_at: String,
+}
+
+/// Response from GET /api/progress.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProgressFeedResponse {
+    pub posts: Vec<ProgressPost>,
+    pub next_before: Option<String>,
+}

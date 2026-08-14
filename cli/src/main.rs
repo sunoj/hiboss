@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
-    hook, inbox, init, react, read, reply, route, send, setup, ss, status, watch,
+    hook, inbox, init, progress, react, read, reply, route, send, setup, ss, status, watch,
 };
 use hiboss::config;
 use std::error::Error;
@@ -66,6 +66,8 @@ enum Commands {
     Ss(ss::SsArgs),
     #[command(about = "Background SSE daemon for real-time message delivery")]
     Daemon(daemon::DaemonArgs),
+    #[command(about = "Post and browse project progress updates")]
+    Progress(progress::ProgressArgs),
 }
 
 #[tokio::main]
@@ -118,6 +120,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
             daemon::run(args).await?;
             return Ok(());
         }
+        Commands::Progress(_) => {}
         _ => {}
     }
     let server = config.require_server()?;
@@ -142,6 +145,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Boss(args) => boss::run(args, &config, &client).await?,
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
         Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
+        Commands::Progress(args) => progress::run(args, &config, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),

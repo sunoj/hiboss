@@ -90,6 +90,17 @@ pub fn project_hash() -> String {
     fnv1a_hash(dir)
 }
 
+/// Return the basename of the resolved project directory (git-root basename or cwd basename).
+/// Used as the default --project value for `hiboss progress post`.
+pub fn project_name() -> String {
+    let dir = PROJECT_DIR.get_or_init(resolve_project_dir);
+    std::path::Path::new(dir.as_str())
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(dir.as_str())
+        .to_owned()
+}
+
 fn fnv1a_hash(s: &str) -> String {
     let mut h: u64 = 0xcbf29ce484222325;
     for b in s.as_bytes() {
@@ -341,4 +352,21 @@ pub fn read_session_id() -> Option<String> {
 /// Write a new session_id to the session file.
 pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
     write_private(&session_file_path(), id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_name_non_empty() {
+        assert!(!project_name().is_empty());
+    }
+
+    #[test]
+    fn project_name_has_no_separator() {
+        let name = project_name();
+        assert!(!name.contains('/'));
+        assert!(!name.contains('\\'));
+    }
 }
