@@ -1,5 +1,5 @@
 // App shell: native tabs, a navigation stack per section, and notification deep-links.
-// Exports: RootTabView switching Inbox / 进展 / Sessions / Settings.
+// Exports: RootTabView switching Inbox / Progress / Sessions / Settings.
 // Dependencies: SwiftUI, HibossKit, the feature views, AppRouter.
 
 import HibossKit
@@ -30,7 +30,7 @@ struct RootTabView: View {
             NavigationStack {
                 ProgressFeedView(store: progress)
             }
-            .tabItem { Label("进展", systemImage: "calendar.day.timeline.leading") }
+            .tabItem { Label("Progress", systemImage: "calendar.day.timeline.leading") }
             .tag(1)
 
             NavigationStack {

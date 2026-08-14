@@ -46,7 +46,7 @@ struct HistoryRow: View {
     }
 
     private var statusLabel: String {
-        message.status.isEmpty ? "" : message.status.capitalized
+        message.status.isEmpty ? "" : MessageMeta.localizedStatusName(message.status)
     }
 
     private var statusColor: Color {

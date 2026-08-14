@@ -13,10 +13,10 @@ public enum ConnectionState: Equatable {
 
     public var label: String {
         switch self {
-        case .disconnected: "Disconnected"
-        case .connecting: "Connecting"
-        case .connected: "Listening"
-        case .failed: "Connection failed"
+        case .disconnected: kitL("Disconnected")
+        case .connecting: kitL("Connecting")
+        case .connected: kitL("Listening")
+        case .failed: kitL("Connection failed")
         }
     }
 

@@ -42,7 +42,7 @@ struct ProgressImageCell: View {
             .aspectRatio(media.aspectRatio, contentMode: .fit)
             .overlay { imageOverlay }
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .accessibilityLabel(media.alt ?? "Image")
+            .accessibilityLabel(media.alt ?? String(localized: "Image"))
     }
 
     @ViewBuilder

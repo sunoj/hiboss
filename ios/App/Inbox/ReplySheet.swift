@@ -75,10 +75,10 @@ struct ReplySheet: View {
                 dismiss()
             case .alreadyResolved:
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                note = "Already answered elsewhere."
+                note = String(localized: "Already answered elsewhere.")
             case .failed:
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
-                note = "Couldn't send your reply. Try again."
+                note = String(localized: "Couldn't send your reply. Try again.")
             }
         }
     }

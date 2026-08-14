@@ -15,7 +15,7 @@ struct ConnectionSettingsPane: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Status") {
+                LabeledContent(L("Status")) {
                     Label {
                         Text(connectionTitle)
                     } icon: {
@@ -23,26 +23,26 @@ struct ConnectionSettingsPane: View {
                             .foregroundStyle(statusTint)
                     }
                 }
-                LabeledContent("Endpoint") {
+                LabeledContent(L("Endpoint")) {
                     Text(connectionDetail)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
-                Button("Reconnect", action: reconnect)
+                Button(L("Reconnect"), action: reconnect)
                     .disabled(isConnecting)
             } header: {
-                Text("Daemon")
+                Text(L("Daemon"))
             }
 
             Section {
-                TextField("Server URL", text: $settings.serverAddress)
+                TextField(L("Server URL"), text: $settings.serverAddress)
                     .font(.system(.body, design: .monospaced))
-                SecureField("Boss Token", text: $settings.bossToken)
+                SecureField(L("Boss Token"), text: $settings.bossToken)
             } header: {
-                Text("Credentials")
+                Text(L("Credentials"))
             } footer: {
-                Text("Token is stored locally in Keychain.")
+                Text(L("Token is stored locally in Keychain."))
                     .foregroundStyle(.secondary)
             }
         }
@@ -61,17 +61,17 @@ struct ConnectionSettingsPane: View {
 
     private var connectionTitle: String {
         switch flow.connectionState {
-        case .connected: "Connected · daemon running"
-        case .connecting: "Connecting · daemon pending"
-        case .disconnected: "Disconnected · daemon idle"
-        case .failed: "Disconnected · daemon error"
+        case .connected: L("Connected · daemon running")
+        case .connecting: L("Connecting · daemon pending")
+        case .disconnected: L("Disconnected · daemon idle")
+        case .failed: L("Disconnected · daemon error")
         }
     }
 
     private var connectionDetail: String {
         if !statusMessage.isEmpty { return statusMessage }
         guard case let .success(config) = settings.connectionConfig() else {
-            return "not configured"
+            return L("not configured")
         }
         return config.serverURL.host ?? config.serverURL.absoluteString
     }

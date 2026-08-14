@@ -31,15 +31,15 @@ final class LaunchAtLoginController: ObservableObject {
         if let failure { return failure }
         switch status {
         case .enabled:
-            return "HiBoss Island starts automatically when you log in."
+            return L("HiBoss Island starts automatically when you log in.")
         case .requiresApproval:
-            return "Approve HiBoss Island under System Settings › General › Login Items to finish enabling this."
+            return L("Approve HiBoss Island under System Settings › General › Login Items to finish enabling this.")
         case .notFound:
             // Seen on a freshly replaced bundle before Launch Services catches
             // up. Registering usually still works, so this only explains.
-            return "macOS does not recognise this copy of the app yet. Turning this on should still work — if it does not, relaunch from /Applications and try again."
+            return L("macOS does not recognise this copy of the app yet. Turning this on should still work — if it does not, relaunch from /Applications and try again.")
         default:
-            return "HiBoss Island stays closed until you open it."
+            return L("HiBoss Island stays closed until you open it.")
         }
     }
 

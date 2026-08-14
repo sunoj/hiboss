@@ -1,4 +1,4 @@
-// Parses ISO history timestamps and formats them as short relative strings.
+// Parses ISO history timestamps and formats them with the system locale.
 // Exports: HistoryMessage.createdDate and relativeCreatedAt display helpers.
 // Dependencies: Foundation date parsing over the shared HistoryMessage model.
 
@@ -9,7 +9,7 @@ extension HistoryMessage {
     /// The parsed `created_at`, tolerant of fractional seconds and plain formats.
     var createdDate: Date? { ISOTimestamp.date(from: createdAt) }
 
-    /// e.g. "just now", "4m ago", "2h ago" — empty when unparseable.
+    /// Locale-aware relative time — empty when unparseable.
     var relativeCreatedAt: String {
         guard let date = createdDate else { return "" }
         return RelativeTime.short(from: date)
@@ -42,19 +42,29 @@ extension ProgressPost {
 }
 
 enum RelativeTime {
-    /// Compact "Nm ago" style, falling back to a short date for older items.
-    static func short(from date: Date, now: Date = Date()) -> String {
+    /// System relative formatting, falling back to a short date for older items.
+    static func short(
+        from date: Date,
+        now: Date = Date(),
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
         let seconds = now.timeIntervalSince(date)
-        if seconds < 45 { return "just now" }
-        if seconds < 3600 { return "\(Int(seconds / 60))m ago" }
-        if seconds < 86_400 { return "\(Int(seconds / 3600))h ago" }
-        if seconds < 604_800 { return "\(Int(seconds / 86_400))d ago" }
-        let calendar = Calendar.current
-        // Include the year once it isn't the current one, so "Jul 24" can't be
-        // mistaken for a different year's date.
-        if calendar.component(.year, from: date) == calendar.component(.year, from: now) {
-            return date.formatted(.dateTime.month(.abbreviated).day())
+        if seconds < 604_800 {
+            return relativeFormatter(locale: locale).localizedString(for: date, relativeTo: now)
         }
-        return date.formatted(.dateTime.year().month(.abbreviated).day())
+        let calendar = Calendar(identifier: .gregorian)
+        var localized = calendar
+        localized.locale = locale
+        if localized.component(.year, from: date) == localized.component(.year, from: now) {
+            return date.formatted(.dateTime.month(.abbreviated).day().locale(locale))
+        }
+        return date.formatted(.dateTime.year().month(.abbreviated).day().locale(locale))
+    }
+
+    private static func relativeFormatter(locale: Locale) -> RelativeDateTimeFormatter {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.locale = locale
+        return formatter
     }
 }

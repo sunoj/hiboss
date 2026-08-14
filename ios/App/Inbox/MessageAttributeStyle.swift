@@ -17,9 +17,9 @@ enum MessageAttributeStyle {
 
     static func directionLabel(_ raw: String) -> String {
         switch raw {
-        case "agent_to_boss": "Agent → Boss"
-        case "boss_to_agent": "Boss → Agent"
-        case "agent_to_agent": "Agent → Agent"
+        case "agent_to_boss": String(localized: "Agent → Boss")
+        case "boss_to_agent": String(localized: "Boss → Agent")
+        case "agent_to_agent": String(localized: "Agent → Agent")
         default: raw
         }
     }
@@ -108,7 +108,7 @@ struct MessageDetailsSection: View {
         }
         let p = MessageAttributeStyle.priority(message.priority)
         AttributeRow(icon: p.icon, tint: p.tint, label: "Priority") {
-            Text(message.priority.capitalized)
+            Text(MessageMeta.localizedPriorityName(message.priority))
         }
     }
 
@@ -121,13 +121,13 @@ struct MessageDetailsSection: View {
         }
         let files = message.metadata?.files ?? []
         if !files.isEmpty {
-            AttributeRow(icon: "doc.text", label: files.count == 1 ? "File" : "Files") {
+            AttributeRow(icon: "doc.text", label: String(localized: "Files")) {
                 Text(files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.joined(separator: ", "))
             }
         }
         if let mode = message.mode, !mode.isEmpty {
             AttributeRow(icon: MessageAttributeStyle.mode(mode), label: "Mode") {
-                Text(mode.capitalized)
+                Text(MessageMeta.localizedModeName(mode))
             }
         }
         if let channel = message.channel, !channel.isEmpty {
@@ -151,7 +151,7 @@ struct MessageDetailsSection: View {
     private var statusRow: some View {
         let s = MessageAttributeStyle.status(message.status)
         return AttributeRow(icon: s.icon, tint: s.tint, label: "Status") {
-            Text(message.status.capitalized)
+            Text(MessageMeta.localizedStatusName(message.status))
         }
     }
 }

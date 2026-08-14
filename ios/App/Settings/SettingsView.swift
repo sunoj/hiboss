@@ -74,7 +74,7 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             if prefs.isSaving { ProgressView() }
-                            Text(prefs.isSaving ? "Saving…" : "Save Changes")
+                            Text(prefs.isSaving ? String(localized: "Saving…") : String(localized: "Save Changes"))
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -158,6 +158,6 @@ private struct NotificationsSection: View {
     }
 
     private var actionTitle: String {
-        push.mustOpenSystemSettings ? "Open Settings to Enable" : "Enable Notifications"
+        push.mustOpenSystemSettings ? String(localized: "Open Settings to Enable") : String(localized: "Enable Notifications")
     }
 }

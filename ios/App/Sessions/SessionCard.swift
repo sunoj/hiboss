@@ -9,6 +9,10 @@ extension SessionGroup {
     /// Live decisions in this session still waiting on the boss.
     var pendingCount: Int { messages.filter(\.isPendingDecision).count }
 
+    var localizedLabel: String {
+        id == SessionGrouping.directSessionID ? String(localized: "Direct") : label
+    }
+
     /// Newest activity timestamp across the session's messages.
     var lastActivity: Date? { messages.compactMap(\.createdDate).max() }
 
@@ -26,7 +30,7 @@ struct SessionCard: View {
             Circle().fill(statusColor).frame(width: 9, height: 9)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(group.label)
+                    Text(group.localizedLabel)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
