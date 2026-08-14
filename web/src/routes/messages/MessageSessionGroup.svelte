@@ -3,6 +3,7 @@
 	import { sessionColor } from '$lib/design/semantics';
 	import type { MessageResponse } from '$lib/api/types';
 	import type { SessionGroup } from './message-helpers';
+	import { sessionLabel } from '$lib/design/semantics';
 
 	interface Props {
 		group: SessionGroup;
@@ -20,7 +21,7 @@
 			title={group.status}
 		></span>
 		<span class="session-title">{group.title}</span>
-		<span class="session-meta">{group.messages.length} · {group.status}</span>
+		<span class="session-meta">{group.messages.length} · {sessionLabel(group.status)}</span>
 	</header>
 	<div class="feed">
 		{#each group.messages as message (message.id)}

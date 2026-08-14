@@ -7,6 +7,7 @@
 		type RuleSortKey,
 		type SortDir
 	} from './sortRules';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		rules: RoutingRuleResponse[];
@@ -29,11 +30,11 @@
 	}: Props = $props();
 
 	const columns: { key: RuleSortKey; label: string }[] = [
-		{ key: 'channel', label: 'Channel' },
-		{ key: 'pattern', label: 'Pattern' },
-		{ key: 'target', label: 'Target agent' },
-		{ key: 'priority', label: 'Priority' },
-		{ key: 'enabled', label: 'Enabled' }
+		{ key: 'channel', label: t('form.channel') },
+		{ key: 'pattern', label: t('form.pattern') },
+		{ key: 'target', label: t('form.targetAgent') },
+		{ key: 'priority', label: t('form.priority') },
+		{ key: 'enabled', label: t('form.enabledReadOnly') }
 	];
 
 	function ariaSort(key: RuleSortKey): 'ascending' | 'descending' | 'none' {
@@ -59,7 +60,7 @@
 							</button>
 						</th>
 					{/each}
-					<th class="actions">Actions</th>
+					<th class="actions">{t('form.actions')}</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -79,15 +80,15 @@
 						</td>
 						<td class="num">{row.priority}</td>
 						<td>
-							<label class="toggle" title="Enabled is read-only">
+							<label class="toggle" title={t('form.enabledReadOnly')}>
 								<input
 									type="checkbox"
 									checked={isRuleEnabled(row.enabled)}
 									disabled
-									aria-label="Enabled (read-only)"
+									aria-label={t('form.enabledReadOnlyAria')}
 								/>
 								<span class="toggle-label">
-									{isRuleEnabled(row.enabled) ? 'on' : 'off'}
+									{isRuleEnabled(row.enabled) ? t('channel.on') : t('channel.off')}
 								</span>
 							</label>
 						</td>
@@ -98,7 +99,7 @@
 								disabled={busyId === row.id}
 								onclick={() => onDelete(row.id)}
 							>
-								{busyId === row.id ? 'Deleting…' : 'Delete'}
+								{busyId === row.id ? t('common.deleting') : t('common.delete')}
 							</button>
 						</td>
 					</tr>

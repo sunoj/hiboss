@@ -7,6 +7,7 @@
 		formatResource,
 		truncateDetails
 	} from './audit-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		entries: AuditEntry[];
@@ -26,15 +27,15 @@
 	}
 </script>
 
-<div class="wrap" role="region" aria-label="Audit log">
+<div class="wrap" role="region" aria-label={t('form.auditLog')}>
 	<table class="table">
 		<thead>
 			<tr>
-				<th scope="col">When</th>
-				<th scope="col">Actor</th>
-				<th scope="col">Action</th>
-				<th scope="col">Resource</th>
-				<th scope="col">Details</th>
+				<th scope="col">{t('form.when')}</th>
+				<th scope="col">{t('form.actor')}</th>
+				<th scope="col">{t('form.action')}</th>
+				<th scope="col">{t('form.resource')}</th>
+				<th scope="col">{t('form.details')}</th>
 			</tr>
 		</thead>
 		<tbody>

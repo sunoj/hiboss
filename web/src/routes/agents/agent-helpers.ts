@@ -1,6 +1,7 @@
 /** Pure helpers for the Agents list and detail drawer. */
 
 import { formatRelativeTime } from '$lib/api/mappers';
+import { t } from '$lib/i18n';
 import type {
 	AgentConfigResponse,
 	AgentConfigUpdateRequest,
@@ -25,9 +26,9 @@ export function roleLabel(role: string | null | undefined): string {
 
 /** Relative last-used label; null/invalid → "Never". */
 export function lastUsedLabel(iso: string | null | undefined, nowMs = Date.now()): string {
-	if (!iso || !iso.trim()) return 'Never';
+	if (!iso || !iso.trim()) return t('common.never');
 	const label = formatRelativeTime(iso, nowMs);
-	return label === '—' ? 'Never' : label;
+	return label === '—' ? t('common.never') : label;
 }
 
 export function compareLastUsedDesc(a: AgentResponse, b: AgentResponse): number {
@@ -92,15 +93,15 @@ export function buildConfigUpdate(input: {
 	routing: RoutingEntry[];
 }): { ok: true; body: AgentConfigUpdateRequest } | { ok: false; error: string } {
 	if (!(PRIORITIES as readonly string[]).includes(input.default_priority)) {
-		return { ok: false, error: 'Invalid default priority' };
+		return { ok: false, error: t('form.invalidPriority') };
 	}
 	const rate_limit = parseRateLimitInput(input.rateLimitRaw);
 	if (rate_limit === undefined) {
-		return { ok: false, error: 'Rate limit must be a non-negative integer or empty' };
+		return { ok: false, error: t('form.invalidRateLimit') };
 	}
 	for (const entry of input.routing) {
 		if (!isAgentChannel(entry.channel)) {
-			return { ok: false, error: 'Invalid channel in routing' };
+			return { ok: false, error: t('form.invalidChannel') };
 		}
 	}
 	return {

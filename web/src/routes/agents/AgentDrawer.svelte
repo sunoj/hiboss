@@ -4,6 +4,7 @@
 	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
 	import { lastUsedLabel, roleLabel, shortId } from './agent-helpers';
 	import AgentConfigForm from './AgentConfigForm.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		agent: AgentResponse;
@@ -15,31 +16,31 @@
 	let { agent, config = null, onClose, onConfigSaved }: Props = $props();
 </script>
 
-<div class="drawer" role="dialog" aria-modal="true" aria-label="Agent detail">
+<div class="drawer" role="dialog" aria-modal="true" aria-label={t('form.agentDetail')}>
 	<header class="head">
 		<div class="titles">
-			<h2>Agent</h2>
+			<h2>{t('nav.agents')}</h2>
 			<AgentIdentity name={agent.name} size="md" />
 		</div>
-		<button type="button" class="close" onclick={onClose} aria-label="Close">✕</button>
+		<button type="button" class="close" onclick={onClose} aria-label={t('common.close')}>✕</button>
 	</header>
 
 	<div class="body">
 		<section class="meta">
 			<div class="row">
-				<span class="k">Id</span>
+				<span class="k">{t('form.id')}</span>
 				<span class="mono" title={agent.id}>{shortId(agent.id)}</span>
 			</div>
 			<div class="row">
-				<span class="k">Role</span>
+				<span class="k">{t('form.role')}</span>
 				<span>{roleLabel(agent.role)}</span>
 			</div>
 			<div class="row">
-				<span class="k">Last used</span>
+				<span class="k">{t('form.lastSeen')}</span>
 				<span>{lastUsedLabel(agent.last_used_at)}</span>
 			</div>
 			<div class="row">
-				<span class="k">Created</span>
+				<span class="k">{t('form.created')}</span>
 				<span>{formatRelativeTime(agent.created_at)}</span>
 			</div>
 		</section>

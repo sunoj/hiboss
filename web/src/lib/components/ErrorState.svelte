@@ -1,18 +1,19 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	interface Props {
 		title?: string;
 		message: string;
 		onRetry?: () => void;
 	}
 
-	let { title = 'Request failed', message, onRetry }: Props = $props();
+	let { title = t('common.requestFailed'), message, onRetry }: Props = $props();
 </script>
 
 <div class="err" role="alert">
 	<div class="title">{title}</div>
 	<p>{message}</p>
 	{#if onRetry}
-		<button type="button" onclick={onRetry}>Retry</button>
+		<button type="button" onclick={onRetry}>{t('common.retry')}</button>
 	{/if}
 </div>
 

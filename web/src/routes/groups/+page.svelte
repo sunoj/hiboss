@@ -11,6 +11,7 @@
 	} from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import BroadcastComposer from './BroadcastComposer.svelte';
 	import CreateGroupForm from './CreateGroupForm.svelte';
@@ -33,7 +34,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -53,13 +54,13 @@
 	async function onCreate(body: CreateGroupRequest) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		creating = true;
 		try {
 			const created = await client.createGroup(body);
-			toasts.push(`Created group ${created.name}`, 'success');
+			toasts.push(t('form.createdGroup', { name: created.name }), 'success');
 			await load();
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
@@ -71,7 +72,7 @@
 	async function onDelete(groupId: string) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const key = `del:${groupId}`;
@@ -79,7 +80,7 @@
 		busyKey = key;
 		try {
 			await client.deleteGroup(groupId);
-			toasts.push('Group deleted', 'success');
+			toasts.push(t('form.groupDeleted'), 'success');
 			await load();
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
@@ -91,7 +92,7 @@
 	async function onAddMember(groupId: string, agentId: string) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const key = `add:${groupId}:${agentId}`;
@@ -99,7 +100,7 @@
 		busyKey = key;
 		try {
 			await client.addGroupMember(groupId, { agent_id: agentId });
-			toasts.push('Member added', 'success');
+			toasts.push(t('form.memberAdded'), 'success');
 			await load();
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
@@ -111,7 +112,7 @@
 	async function onRemoveMember(groupId: string, agentId: string) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const key = `rm:${groupId}:${agentId}`;
@@ -119,7 +120,7 @@
 		busyKey = key;
 		try {
 			await client.removeGroupMember(groupId, agentId);
-			toasts.push('Member removed', 'success');
+			toasts.push(t('form.memberRemoved'), 'success');
 			await load();
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
@@ -131,7 +132,7 @@
 	async function onBroadcast(groupId: string, body: BroadcastGroupRequest) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		const key = `bc:${groupId}`;
@@ -156,11 +157,11 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>Groups</h1>
-			<p class="sub">智能体分组 — group list and whole-group broadcast</p>
+			<h1>{t('page.groups')}</h1>
+			<p class="sub">{t('page.groupsSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
-			Refresh
+			{t('common.refresh')}
 		</button>
 	</header>
 
@@ -182,8 +183,8 @@
 			<div class="main">
 				{#if sorted.length === 0}
 					<EmptyState
-						title="No groups yet"
-						detail="Create a group owned by an accessible agent to get started."
+						title={t('page.noGroups')}
+						detail={t('page.noGroupsDetail')}
 					/>
 				{:else}
 					<div class="grid" role="list">

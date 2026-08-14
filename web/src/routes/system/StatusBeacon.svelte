@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { HealthTone } from './doctor-helpers';
 	import { healthDetail, healthLabel } from './doctor-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		dbOk: boolean;
@@ -22,7 +23,7 @@
 	class:degraded={tone === 'degraded'}
 	class:fail={tone === 'fail'}
 	role="status"
-	aria-label={`System ${label}: ${detail}`}
+	aria-label={`${t('page.system')}: ${label} — ${detail}`}
 >
 	<span class="orb" aria-hidden="true"></span>
 	<div class="copy">
@@ -31,11 +32,11 @@
 		<ul class="probes">
 			<li class:pass={dbOk} class:fail={!dbOk}>
 				<span class="dot" aria-hidden="true"></span>
-				Database
+				{t('form.database')}
 			</li>
 			<li class:pass={meOk} class:fail={!meOk}>
 				<span class="dot" aria-hidden="true"></span>
-				API /me
+				{t('form.apiMe')}
 			</li>
 		</ul>
 	</div>

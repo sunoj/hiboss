@@ -6,6 +6,7 @@
 	import type { BossChannelConfig } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import AgentChannelGroup from './AgentChannelGroup.svelte';
 	import { CLI_NOTE, groupChannelsByAgent } from './groupChannels';
 
@@ -18,7 +19,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -41,11 +42,11 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>Channels</h1>
-			<p class="sub">渠道 — connectivity board by agent</p>
+			<h1>{t('page.channels')}</h1>
+			<p class="sub">{t('page.channelsSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
-			Refresh
+			{t('common.refresh')}
 		</button>
 	</header>
 
@@ -61,8 +62,8 @@
 		</div>
 	{:else if channels.length === 0}
 		<EmptyState
-			title="No channels configured"
-			detail="Configure Discord, Telegram, email, or API delivery via the hiboss CLI. Secrets never appear here."
+			title={t('page.noChannels')}
+			detail={t('page.noChannelsDetail')}
 		/>
 	{:else}
 		<div class="board" role="list">

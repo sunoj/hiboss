@@ -3,6 +3,7 @@
 	import type { BroadcastGroupRequest, GroupResponse } from '$lib/api/types';
 	import { PRIORITIES, type Priority } from '$lib/design/semantics';
 	import { canSendBroadcast } from './groupHelpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		groups: GroupResponse[];
@@ -29,17 +30,17 @@
 	}
 </script>
 
-<section class="composer" aria-label="Group broadcast composer">
+<section class="composer" aria-label={t('form.broadcastDetail')}>
 	<header class="head">
-		<h2>Broadcast</h2>
-		<p class="sub">整组广播 — message every member of a group</p>
+		<h2>{t('form.broadcast')}</h2>
+		<p class="sub">{t('form.broadcastDetail')}</p>
 	</header>
 
 	<form class="form" onsubmit={submit}>
 		<label class="field">
-			<span>Group</span>
+			<span>{t('nav.groups')}</span>
 			<select bind:value={selectedId} disabled={busy || groups.length === 0}>
-				<option value="">Select a group…</option>
+				<option value="">{t('common.selectGroup')}</option>
 				{#each groups as group (group.id)}
 					<option value={group.id}>{group.name}</option>
 				{/each}
@@ -47,7 +48,7 @@
 		</label>
 
 		<label class="field">
-			<span>Priority</span>
+			<span>{t('form.priority')}</span>
 			<div class="prio-row">
 				<select bind:value={priority} disabled={busy}>
 					{#each PRIORITIES as p (p)}
@@ -59,10 +60,10 @@
 		</label>
 
 		<label class="field">
-			<span>Message</span>
+			<span>{t('nav.messages')}</span>
 			<textarea
 				rows="4"
-				placeholder={selected ? `Broadcast to ${selected.name}…` : 'Write a group broadcast…'}
+				placeholder={selected ? t('form.broadcastTo', { name: selected.name }) : t('form.writeBroadcast')}
 				bind:value={body}
 				disabled={busy}
 			></textarea>
@@ -70,7 +71,7 @@
 
 		<div class="footer">
 			<button type="submit" class="send" disabled={busy || !ready}>
-				{busy ? 'Sending…' : 'Send broadcast'}
+				{busy ? t('form.broadcasting') : t('form.sendBroadcast')}
 			</button>
 		</div>
 	</form>

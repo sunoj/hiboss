@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { sessionStatusEntries } from '$lib/api/mappers';
-	import { coerceSessionStatus, sessionColor } from '$lib/design/semantics';
+	import { coerceSessionStatus, sessionColor, sessionLabel } from '$lib/design/semantics';
 
 	interface Props {
 		counts: Record<string, number>;
@@ -15,7 +15,7 @@
 		{@const color = sessionColor(coerceSessionStatus(row.status))}
 		<li>
 			<span class="dot" style:background={color}></span>
-			<span class="status">{row.status}</span>
+			<span class="status">{sessionLabel(coerceSessionStatus(row.status))}</span>
 			<span class="count">{row.count}</span>
 		</li>
 	{/each}

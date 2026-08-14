@@ -2,6 +2,8 @@
 	import type { SessionResponse } from '$lib/api/types';
 	import { sessionColor, type SessionStatus } from '$lib/design/semantics';
 	import SessionCard from './SessionCard.svelte';
+	import { sessionLabel } from '$lib/design/semantics';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		status: SessionStatus;
@@ -15,15 +17,15 @@
 	const color = $derived(sessionColor(status));
 </script>
 
-<section class="col" aria-label="{status} sessions">
+<section class="col" aria-label={`${sessionLabel(status)} ${t('nav.sessions').toLowerCase()}`}>
 	<header class="head">
 		<span class="dot" style:background={color} aria-hidden="true"></span>
-		<h2 style:color={color}>{status}</h2>
+		<h2 style:color={color}>{sessionLabel(status)}</h2>
 		<span class="count" style:color={color}>{sessions.length}</span>
 	</header>
 	<div class="cards">
 		{#if sessions.length === 0}
-			<p class="empty-col">No sessions</p>
+			<p class="empty-col">{t('page.noSessions')}</p>
 		{:else}
 			{#each sessions as session (session.id)}
 				<SessionCard

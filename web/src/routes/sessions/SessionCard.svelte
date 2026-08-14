@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import { formatRelativeTime } from '$lib/api/mappers';
+	import { t } from '$lib/i18n';
 	import type { SessionResponse } from '$lib/api/types';
 	import { coerceSessionStatus, sessionColor } from '$lib/design/semantics';
 	import { sessionDisplayLabel } from './groupSessions';
@@ -28,7 +29,7 @@
 	{#if session.status_text}
 		<p class="status-text">{session.status_text}</p>
 	{:else}
-		<p class="status-text muted">No status text</p>
+		<p class="status-text muted">{t('status.noStatusText')}</p>
 	{/if}
 	<span class="status-pill" style:color={color}>{status}</span>
 </button>

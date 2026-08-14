@@ -1,6 +1,7 @@
 /** Pure helpers for Audit module filters, query building, and pagination. */
 
 import type { AuditActorType, AuditEntry, AuditQuery } from '$lib/api/types';
+import { t } from '$lib/i18n';
 
 export type ActorTypeFilter = 'all' | AuditActorType;
 
@@ -127,18 +128,18 @@ export function formatPageLabel(
 	visibleCount: number
 ): string {
 	const { from, to } = pageRange(offset, limit, total, visibleCount);
-	if (total === 0) return '0 of 0';
-	return `${from}–${to} of ${total}`;
+	if (total === 0) return t('pager.empty');
+	return t('pager.range', { from, to, total });
 }
 
 export function actorTypeLabel(type: AuditActorType): string {
 	switch (type) {
 		case 'boss':
-			return 'Boss';
+			return t('nav.bosses');
 		case 'agent':
-			return 'Agent';
+			return t('nav.agents');
 		case 'system':
-			return 'System';
+			return t('nav.system');
 	}
 }
 

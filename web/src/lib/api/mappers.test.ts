@@ -77,10 +77,10 @@ describe('sessionStatusEntries', () => {
 describe('formatRelativeTime', () => {
 	const now = Date.parse('2026-07-21T12:00:00Z');
 	it('formats seconds, minutes, hours, and days', () => {
-		expect(formatRelativeTime('2026-07-21T11:59:30Z', now)).toBe('30s ago');
-		expect(formatRelativeTime('2026-07-21T11:30:00Z', now)).toBe('30m ago');
-		expect(formatRelativeTime('2026-07-21T09:00:00Z', now)).toBe('3h ago');
-		expect(formatRelativeTime('2026-07-19T12:00:00Z', now)).toBe('2d ago');
+		expect(formatRelativeTime('2026-07-21T11:59:30Z', now)).toBe('30 seconds ago');
+		expect(formatRelativeTime('2026-07-21T11:30:00Z', now)).toBe('30 minutes ago');
+		expect(formatRelativeTime('2026-07-21T09:00:00Z', now)).toBe('3 hours ago');
+		expect(formatRelativeTime('2026-07-19T12:00:00Z', now)).toBe('2 days ago');
 	});
 
 	it('returns an em dash for unparseable input', () => {

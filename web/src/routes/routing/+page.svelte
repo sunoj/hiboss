@@ -10,6 +10,7 @@
 	} from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import AddRuleForm from './AddRuleForm.svelte';
 	import RulesTable from './RulesTable.svelte';
@@ -41,7 +42,7 @@
 	async function load() {
 		const client = auth.client;
 		if (!client) {
-			error = 'Not connected';
+			error = t('top.offline');
 			loading = false;
 			return;
 		}
@@ -70,13 +71,13 @@
 	async function onCreate(body: CreateRoutingRuleRequest) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		creating = true;
 		try {
 			await client.createRoutingRule(body);
-			toasts.push('Routing rule created', 'success');
+			toasts.push(t('form.routingCreated'), 'success');
 			await load();
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
@@ -88,14 +89,14 @@
 	async function onDelete(id: string) {
 		const client = auth.client;
 		if (!client) {
-			toasts.push('Not connected', 'error');
+			toasts.push(t('top.offline'), 'error');
 			return;
 		}
 		if (deletingId) return;
 		deletingId = id;
 		try {
 			await client.deleteRoutingRule(id);
-			toasts.push('Routing rule deleted', 'success');
+			toasts.push(t('form.routingDeleted'), 'success');
 			await load();
 		} catch (e) {
 			toasts.push(errMsg(e), 'error');
@@ -112,11 +113,11 @@
 <section class="page">
 	<header class="head">
 		<div>
-			<h1>Routing</h1>
-			<p class="sub">路由规则 — priority table and regex matchers</p>
+			<h1>{t('page.routing')}</h1>
+			<p class="sub">{t('page.routingSub')}</p>
 		</div>
 		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
-			Refresh
+			{t('common.refresh')}
 		</button>
 	</header>
 
@@ -129,8 +130,8 @@
 
 		{#if rules.length === 0}
 			<EmptyState
-				title="No routing rules"
-				detail="Add a regex routing rule, or wait for agents to define them."
+				title={t('page.noRouting')}
+				detail={t('page.noRoutingDetail')}
 			/>
 		{:else}
 			<RulesTable

@@ -63,7 +63,7 @@ describe('channelStats / channelHealthHint', () => {
 
 	it('builds hint text', () => {
 		expect(channelHealthHint(channels)).toBe('2/3 configured');
-		expect(channelHealthHint([])).toBe('No channels reported');
+		expect(channelHealthHint([])).toBe('No channel rows returned.');
 	});
 });
 
