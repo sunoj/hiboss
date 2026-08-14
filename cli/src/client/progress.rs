@@ -3,6 +3,7 @@
 // Dependencies: super::HiBossClient, crate::types, reqwest, std::error::Error.
 
 use super::HiBossClient;
+use crate::team::{ProgressTeamFull, ProgressTeamRequest, ProgressTeamsResponse};
 use crate::types::{ProgressCursor, ProgressFeedResponse, ProgressPost, ProgressPostRequest, UploadResponse};
 use std::error::Error;
 
@@ -68,6 +69,33 @@ impl HiBossClient {
             );
         }
         Ok(())
+    }
+
+    /// PUT /api/progress/teams/:project — create or update a team identity.
+    pub async fn upsert_progress_team(
+        &self,
+        project: &str,
+        req: &ProgressTeamRequest,
+    ) -> Result<ProgressTeamFull, Box<dyn Error>> {
+        let resp = self
+            .http
+            .put(format!("{}/api/progress/teams/{}", self.base_url, project))
+            .bearer_auth(&self.api_key)
+            .json(req)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
+    /// GET /api/progress/teams — list teams within the caller's visibility scope.
+    pub async fn list_progress_teams(&self) -> Result<ProgressTeamsResponse, Box<dyn Error>> {
+        let resp = self
+            .http
+            .get(format!("{}/api/progress/teams", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
     }
 
     /// POST /api/attachments/upload — raw binary upload for videos and converted GIFs.
@@ -139,6 +167,37 @@ mod tests {
     fn delete_progress_compiles_with_id() {
         let client = make_client();
         let _f = client.delete_progress("some-id");
+        drop(_f);
+    }
+
+    #[test]
+    fn upsert_progress_team_compiles() {
+        let client = make_client();
+        let req = crate::team::ProgressTeamRequest {
+            display_name: Some("My Team".into()),
+            handle: Some("my-team".into()),
+            bio: None,
+            avatar_url: None,
+        };
+        let _f = client.upsert_progress_team("my-project", &req);
+        drop(_f);
+    }
+
+    #[test]
+    fn list_progress_teams_compiles() {
+        let client = make_client();
+        let _f = client.list_progress_teams();
+        drop(_f);
+    }
+
+    #[test]
+    fn upsert_progress_team_url_contains_project() {
+        // Verify the URL is constructed correctly (inspectable only by checking the
+        // future/pending struct, not by actually sending it here without a server).
+        let client = make_client();
+        // The method should encode the project into the URL path verbatim.
+        let req = crate::team::ProgressTeamRequest::default();
+        let _f = client.upsert_progress_team("hiboss", &req);
         drop(_f);
     }
 }

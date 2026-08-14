@@ -2,6 +2,7 @@
 // Exports: Message, SendRequest, SendResponse, MessagesResponse, ReplyRequest, StatusUpdate, PollResponse.
 // Dependencies: serde, serde_json, std::collections::HashMap.
 
+use crate::team::ProgressTeam;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use serde_json::Value;
@@ -263,6 +264,9 @@ pub struct ProgressPost {
     #[serde(default)]
     pub tags: Vec<String>,
     pub created_at: String,
+    /// Team identity for this post. None only for posts from pre-v2 server versions.
+    #[serde(default)]
+    pub team: Option<ProgressTeam>,
 }
 
 /// Response from GET /api/progress.
