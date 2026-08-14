@@ -9,19 +9,11 @@ struct ConnectionDot: View {
     let state: ConnectionState
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: symbol)
-                .foregroundStyle(tint)
-                .symbolRenderingMode(.hierarchical)
-                .symbolEffect(.pulse, isActive: pulsing)
-            if let caption {
-                Text(caption)
-                    .font(.caption)
-                    .foregroundStyle(captionColor)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Connection: \(state.label)")
+        Image(systemName: symbol)
+            .foregroundStyle(tint)
+            .symbolRenderingMode(.hierarchical)
+            .symbolEffect(.pulse, isActive: pulsing)
+            .accessibilityLabel("Connection: \(state.label)")
     }
 
     private var symbol: String {
@@ -33,32 +25,15 @@ struct ConnectionDot: View {
         }
     }
 
+    /// Green only when live; every other state is the same quiet grey, so the
+    /// glyph alone carries the status and nothing on the bar competes for attention.
     private var tint: Color {
-        switch state {
-        case .connected: Color(.tertiaryLabel)
-        case .connecting: Color(.secondaryLabel)
-        case .failed: .red
-        case .disconnected: Color(.tertiaryLabel)
-        }
+        if case .connected = state { return .green }
+        return Color(.tertiaryLabel)
     }
 
     private var pulsing: Bool {
         if case .connecting = state { return true }
         return false
-    }
-
-    /// Healthy is icon-only; connecting and failed keep a short word.
-    private var caption: String? {
-        switch state {
-        case .connected: nil
-        case .connecting: String(localized: "Connecting")
-        case .failed: String(localized: "Failed")
-        case .disconnected: nil
-        }
-    }
-
-    private var captionColor: Color {
-        if case .failed = state { return .red }
-        return .secondary
     }
 }
