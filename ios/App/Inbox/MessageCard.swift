@@ -1,4 +1,4 @@
-// Pending decision card: priority accent, agent header, body, options, countdown.
+// Pending decision card: material tile, agent header, body, inline options, countdown.
 // Exports: MessageCard rendering one pending HistoryMessage with reply actions.
 // Dependencies: SwiftUI, HibossKit HistoryMessage, priority tokens.
 
@@ -8,59 +8,110 @@ import SwiftUI
 struct MessageCard: View {
     let message: HistoryMessage
     var onChoose: (String) -> Void
-    var onMore: () -> Void
+    var onOpen: () -> Void
 
     private var priority: MessagePriority { message.priorityValue }
     private var options: [String] { message.options }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Button(action: onOpen) { info }
+                .buttonStyle(.plain)
+            actions
+            if let defaultOption {
+                Label("Auto-selects “\(defaultOption)” on timeout", systemImage: "clock.arrow.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(alignment: .leading) {
+            UnevenRoundedRectangle(topLeadingRadius: 20, bottomLeadingRadius: 20)
+                .fill(priority.color)
+                .frame(width: 4)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Header, body, and meta — the tappable path through to detail.
+    private var info: some View {
+        VStack(alignment: .leading, spacing: 8) {
             header
             Text(message.body)
                 .font(.body)
                 .foregroundStyle(.primary)
+                .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
             metaRow
-            actions
-            if let defaultOption {
-                Label("Auto-selects “\(defaultOption)” on timeout", systemImage: "clock.arrow.circlepath")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
         }
-        .padding(14)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(alignment: .leading) {
-            UnevenRoundedRectangle(topLeadingRadius: 16, bottomLeadingRadius: 16)
-                .fill(priority.color)
-                .frame(width: 4)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .accessibilityHint("Opens the decision")
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             Text(message.avatarInitials)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 30, height: 30)
+                .frame(width: 36, height: 36)
                 .background(Color(.tertiarySystemFill), in: Circle())
-            VStack(alignment: .leading, spacing: 1) {
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(message.displayName)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.headline)
                     .foregroundStyle(.primary)
-                Text(message.metaLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 if let session = sessionText {
-                    Label(session, systemImage: "square.stack.3d.up")
-                        .font(.caption2)
+                    Text(session)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
-            Spacer(minLength: 6)
-            PriorityBadge(priority: priority)
+            Spacer(minLength: 8)
+            urgency
+        }
+    }
+
+    /// Countdown owns the trailing slot; a priority symbol only when it carries meaning.
+    private var urgency: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            if let deadline = message.expirationDate {
+                HStack(spacing: 4) {
+                    Image(systemName: "timer")
+                    CountdownText(deadline: deadline, tint: countdownTint)
+                }
+                .font(.subheadline)
+                .accessibilityElement(children: .combine)
+            }
+            priorityMark
+        }
+    }
+
+    private var countdownTint: Color {
+        switch priority {
+        case .critical: .red
+        case .high: .orange
+        default: .secondary
+        }
+    }
+
+    @ViewBuilder
+    private var priorityMark: some View {
+        switch priority {
+        case .critical:
+            Image(systemName: "exclamationmark.octagon.fill")
+                .foregroundStyle(.red)
+                .accessibilityLabel("Critical")
+        case .high:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .accessibilityLabel("High")
+        default:
+            EmptyView()
         }
     }
 
@@ -83,68 +134,32 @@ struct MessageCard: View {
 
     @ViewBuilder
     private var metaRow: some View {
-        HStack(spacing: 12) {
-            if let deadline = message.expirationDate {
-                Label {
-                    CountdownText(deadline: deadline, tint: priority == .critical ? .red : .secondary)
-                } icon: {
-                    Image(systemName: "clock")
-                }
-                .font(.caption)
-                .foregroundStyle(priority == .critical ? Color.red : .secondary)
-            }
-            // Blocking/async is the strongest urgency cue — show it independent of
-            // the option count (previously hidden once there were >2 options).
-            Text(message.mode == "blocking" ? "Blocking" : "Async")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if options.count > 2 {
-                Text("\(options.count) options")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-        }
+        Label(
+            message.mode == "blocking" ? "Blocking" : "Async",
+            systemImage: message.mode == "blocking" ? "hourglass" : "paperplane"
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
     private var actions: some View {
         if options.count == 2 {
-            HStack(spacing: 10) {
-                OptionButton(title: options[0], style: priority.isUrgent ? .primary : .secondary) {
-                    onChoose(options[0])
-                }
+            HStack(spacing: 8) {
+                OptionButton(title: options[0], style: .primary) { onChoose(options[0]) }
                 OptionButton(title: options[1], style: .secondary) { onChoose(options[1]) }
-                if priority.isUrgent {
-                    Button(action: onMore) {
-                        Image(systemName: "ellipsis")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-                }
             }
         } else {
             VStack(spacing: 8) {
                 ForEach(options, id: \.self) { option in
-                    OptionButton(title: option, style: .secondary, alignment: .leading) {
-                        onChoose(option)
-                    }
+                    OptionButton(
+                        title: option,
+                        style: option == defaultOption ? .primary : .secondary,
+                        alignment: .leading
+                    ) { onChoose(option) }
                 }
             }
         }
-    }
-}
-
-private struct PriorityBadge: View {
-    let priority: MessagePriority
-
-    var body: some View {
-        Text(priority.badge)
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(priority.textColor)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(priority.color.opacity(0.16), in: Capsule())
     }
 }
 
@@ -160,7 +175,6 @@ struct OptionButton: View {
             if style == .primary {
                 Button(action: action) { label }
                     .buttonStyle(.borderedProminent)
-                    .tint(.green)
             } else {
                 Button(action: action) { label }
                     .buttonStyle(.bordered)
