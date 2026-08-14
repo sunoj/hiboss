@@ -5,6 +5,8 @@
 use crate::{
     client::HiBossClient,
     config::Config,
+    hiboss_dir,
+    hiboss_dir::LocalTeam,
     session,
     team::{ProgressTeamFull, ProgressTeamRequest},
 };
@@ -74,6 +76,22 @@ async fn run_show(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let project = args.project.clone().unwrap_or_else(session::project_name);
+    // Prefer the local team.json; fall back to server query when absent.
+    if let Some(local) = hiboss_dir::read_local_team() {
+        let sync_label = if hiboss_dir::needs_sync() { "needs sync" } else { "in sync" };
+        println!("{} @{}", local.display_name.bold(), local.handle.dimmed());
+        if let Some(bio) = &local.bio {
+            println!("  {}", bio);
+        }
+        match &local.avatar {
+            Some(f) => println!("  avatar: {}", f.dimmed()),
+            None => println!("  avatar: {}", "(none)".dimmed()),
+        }
+        println!("  project: {}", project);
+        println!("  sync: {}", sync_label.dimmed());
+        return Ok(());
+    }
+    // No local team.json — query server
     let resp = client.list_progress_teams().await?;
     match resp.teams.iter().find(|t| t.project == project) {
         Some(team) => print_team(team),
@@ -98,21 +116,19 @@ async fn run_register(
     let project = args.project.clone().unwrap_or_else(session::project_name);
     let display_name = args.display_name.clone().unwrap_or_else(|| project.clone());
     let handle = args.handle.clone().unwrap_or_else(|| slugify(&project));
-    let avatar_url = match &args.avatar {
-        Some(path) => {
-            let up = client.upload_file(path).await?;
-            Some(up.url)
-        }
-        None => None,
-    };
-    let req = ProgressTeamRequest {
-        handle: Some(handle),
-        display_name: Some(display_name),
+
+    let local_team = LocalTeam {
+        handle,
+        display_name,
         bio: args.bio.clone(),
-        avatar_url,
+        avatar: args.avatar.as_ref().map(|_| "avatar.png".to_owned()),
     };
-    let team = client.upsert_progress_team(&project, &req).await?;
-    print_team(&team);
+    hiboss_dir::write_local_team(&local_team)?;
+    if let Some(ref src) = args.avatar {
+        std::fs::copy(src, hiboss_dir::avatar_png_path())?;
+    }
+    let server_team = push_local_team(&project, client).await?;
+    print_team(&server_team);
     Ok(())
 }
 
@@ -122,10 +138,58 @@ async fn run_set_avatar(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let project = args.project.clone().unwrap_or_else(session::project_name);
-    let up = client.upload_file(&args.path).await?;
-    let req = ProgressTeamRequest { avatar_url: Some(up.url), ..Default::default() };
-    let team = client.upsert_progress_team(&project, &req).await?;
+    // Update the local team.json avatar field if team.json exists
+    if let Some(mut local) = hiboss_dir::read_local_team() {
+        local.avatar = Some("avatar.png".to_owned());
+        hiboss_dir::write_local_team(&local)?;
+    }
+    std::fs::copy(&args.path, hiboss_dir::avatar_png_path())?;
+    let team = push_local_team(&project, client).await?;
     print_team(&team);
+    Ok(())
+}
+
+/// Upload avatar (if present), push `team.json` to server, update `state.json`.
+async fn push_local_team(
+    project: &str,
+    client: &HiBossClient,
+) -> Result<ProgressTeamFull, Box<dyn Error>> {
+    let team = hiboss_dir::read_local_team()
+        .ok_or("team.json not found or unreadable")?;
+    let hash = hiboss_dir::team_json_hash()
+        .ok_or("cannot hash team.json")?;
+    let avatar_url = match &team.avatar {
+        Some(filename) => {
+            let path = hiboss_dir::hiboss_dir().join(filename);
+            if path.exists() {
+                let p = path.to_str().ok_or("avatar path not valid UTF-8")?;
+                Some(client.upload_file(p).await?.url)
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+    let req = ProgressTeamRequest {
+        handle: Some(team.handle),
+        display_name: Some(team.display_name),
+        bio: team.bio,
+        avatar_url,
+    };
+    let result = client.upsert_progress_team(project, &req).await?;
+    hiboss_dir::write_local_state(&hiboss_dir::LocalState { synced_hash: hash })?;
+    Ok(result)
+}
+
+/// Lazy sync: push `team.json` to server only when hash differs from `state.json`.
+pub async fn sync_team_to_server(
+    project: &str,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    if !hiboss_dir::needs_sync() {
+        return Ok(());
+    }
+    push_local_team(project, client).await?;
     Ok(())
 }
 
@@ -216,5 +280,19 @@ mod tests {
         // Mirrors how RegisterArgs derives a default handle.
         assert_eq!(slugify("hiboss-server"), "hiboss-server");
         assert_eq!(slugify("HiBoss Server"), "hiboss-server");
+    }
+
+    #[test]
+    fn sync_team_to_server_compiles() {
+        let client = crate::client::HiBossClient::new("http://localhost:19999", "test-key");
+        let _f = sync_team_to_server("myproject", &client);
+        drop(_f);
+    }
+
+    #[test]
+    fn push_local_team_compiles() {
+        let client = crate::client::HiBossClient::new("http://localhost:19999", "test-key");
+        let _f = push_local_team("myproject", &client);
+        drop(_f);
     }
 }

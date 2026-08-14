@@ -137,6 +137,11 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
         "RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation."
     );
 
+    // Prompt registration when project has posted before but has no .hiboss/team.json (fs-only).
+    if crate::hiboss_dir::should_hint_register() {
+        println!("Run: hiboss progress team register --display-name \"{}\"", session::project_name().replace('"', ""));
+    }
+
     // Show peer sessions and auto-broadcast if peers exist
     let has_peers = show_peer_sessions(&session_id).await;
     if has_peers {

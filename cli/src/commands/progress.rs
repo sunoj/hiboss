@@ -11,6 +11,7 @@ mod tests;
 use crate::{
     client::HiBossClient,
     config::Config,
+    hiboss_dir,
     session,
     types::{ProgressCursor, ProgressMediaItem, ProgressPost, ProgressPostRequest},
 };
@@ -126,15 +127,17 @@ async fn run_post(
     let post = client.post_progress(&req).await?;
     eprintln!("Posted");
     println!("{}", post.id);
+    // Lazy sync: push team.json to server if it changed since last sync.
+    let _ = progress_team::sync_team_to_server(&project, client).await;
     maybe_hint_team_register(&project, &post);
     Ok(())
 }
 
-/// Print a one-line team-registration hint to stderr, at most once per project per
-/// session. Never returns an error — a failed hint must not break a successful post.
+/// Print a one-line team-registration hint to stderr when the server reports an
+/// unregistered team and no local team.json is present. Never errors.
 fn maybe_hint_team_register(project: &str, post: &ProgressPost) {
     let unregistered = post.team.as_ref().map_or(false, |t| !t.registered);
-    if !unregistered || !session::should_show_team_hint() {
+    if !unregistered || hiboss_dir::team_json_path().exists() {
         return;
     }
     eprintln!(
