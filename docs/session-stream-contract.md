@@ -26,12 +26,14 @@ CREATE TABLE IF NOT EXISTS session_events (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   session_id TEXT NOT NULL,
   sequence INTEGER NOT NULL,
-  kind TEXT NOT NULL,                    -- 'message' | 'reply' | 'status' | 'session_start' | 'session_end'
+  kind TEXT NOT NULL,                    -- open string; see the taxonomy below
   direction TEXT,                        -- mirrors messages.direction when applicable
   actor_agent_id TEXT,
   target_agent_id TEXT,
   message_id TEXT,                       -- REFERENCES messages(id) when the event projects one
-  payload TEXT,                          -- JSON, event-kind specific
+  source TEXT,                           -- JSON: record_type, record_uuid, parent_uuid, source_version, line_ordinal
+  payload TEXT,                          -- JSON, normalized per kind
+  raw TEXT,                              -- JSON: the original source record, retained verbatim
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   UNIQUE (session_id, sequence)
 );
@@ -95,9 +97,40 @@ sequence, so a cap is no longer data loss.
 { "id": "…", "session_id": "…", "sequence": 42, "kind": "message",
   "direction": "agent_to_boss", "actor_agent_id": "…", "actor_name": "worker-payments",
   "target_agent_id": null, "message_id": "…",
+  "source": { "record_type": "assistant", "record_uuid": "…", "parent_uuid": "…",
+              "source_version": "…", "line_ordinal": 123 },
   "payload": { "body": "…", "priority": "high", "options": ["…"], "type": "approval_request" },
+  "raw": { "…the original record, verbatim…" },
   "created_at": "2026-08-14T09:00:00.123Z" }
 ```
+
+### Taxonomy — grounded in the real Claude Code format
+
+`docs/research-claude-code-format.md` characterised the actual transcripts on this machine:
+**19 top-level record types**, nested content blocks, a UUID parent graph, and separate
+child transcripts for sub-agent runs. The taxonomy is therefore:
+
+`message` · `tool_call` · `tool_result` · `system` · `hook` · `compaction` · `control` ·
+`file_history` · `error` · `raw`
+
+**`kind` is an open string, not a closed enum.** So are record types, block types, tool
+names and hook events. A value we have never seen must be stored, counted and rendered
+through a fallback — never dropped, and never a reason to fail the stream.
+
+The `raw` column is part of the design, not a temporary escape hatch. The on-disk format is
+undocumented and drifts; a normalized projection alone would silently lose whatever we did
+not anticipate, and there would be no way to recover it after the fact.
+
+Two consequences worth stating plainly:
+
+- **Claude's records carry no durable global ordering** — no top-level sequence, index or
+  byte offset. Our per-session `sequence` is the only order that exists. Do not attempt to
+  reconstruct order from timestamps or the UUID graph.
+- **Pairing is a relation, not a merge.** Pair `tool_call` with `tool_result` by
+  `tool_use_id` when both are present, but still store unpaired calls and results. A missing
+  or late partner must not delete a row.
+- Preserve the distinction between absent, `null`, `false`, empty string and empty array
+  when the source draws it; the corpus shows those differences carry meaning.
 
 ## iOS
 
