@@ -104,9 +104,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image = NSImage(
             systemSymbolName: "capsule.tophalf.filled",
-            accessibilityDescription: "HiBoss Island"
+            accessibilityDescription: L("HiBoss Island")
         )
-        item.button?.toolTip = "HiBoss Island"
+        item.button?.toolTip = L("HiBoss Island")
         statusItem = item
         refreshStatusMenu()
     }
@@ -116,10 +116,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: flow.connectionState.label, action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(menuItem("Reconnect", action: #selector(reconnect)))
-        menu.addItem(menuItem("Open HiBoss…", action: #selector(showMainWindow)))
+        menu.addItem(menuItem(L("Reconnect"), action: #selector(reconnect)))
+        menu.addItem(menuItem(L("Open HiBoss…"), action: #selector(showMainWindow)))
         menu.addItem(.separator())
-        menu.addItem(menuItem("Quit HiBoss Island", action: #selector(quit)))
+        menu.addItem(menuItem(L("Quit HiBoss Island"), action: #selector(quit)))
         statusItem.menu = menu
     }
 

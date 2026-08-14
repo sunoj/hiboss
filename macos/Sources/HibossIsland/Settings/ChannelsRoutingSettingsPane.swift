@@ -19,7 +19,7 @@ struct ChannelsRoutingSettingsPane: View {
                     soundPlayer: soundPlayer
                 )
             } header: {
-                Text("Routing")
+                Text(L("Routing"))
             } footer: {
                 SettingsNotAppliedNotice()
             }
@@ -37,7 +37,7 @@ private struct RoutingMatrix: View {
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
             GridRow {
-                Text("Priority")
+                Text(L("Priority"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 ForEach(SettingsPreferencesLogic.channels, id: \.self) { channel in
@@ -46,7 +46,7 @@ private struct RoutingMatrix: View {
                         .foregroundStyle(.secondary)
                         .gridColumnAlignment(.center)
                 }
-                Text("Sound")
+                Text(L("Sound"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .gridColumnAlignment(.trailing)
@@ -60,9 +60,9 @@ private struct RoutingMatrix: View {
                             .toggleStyle(.checkbox)
                             .labelsHidden()
                             .gridColumnAlignment(.center)
-                            .accessibilityLabel("\(priority.settingsLabel) via \(channel.settingsLabel)")
+                            .accessibilityLabel(L("\(priority.settingsLabel) via \(channel.settingsLabel)"))
                     }
-                    Picker("Sound", selection: soundBinding(for: priority)) {
+                    Picker(L("Sound"), selection: soundBinding(for: priority)) {
                         ForEach(OptionSound.allCases) { sound in
                             Text(sound.label).tag(sound)
                         }
@@ -70,7 +70,7 @@ private struct RoutingMatrix: View {
                     .labelsHidden()
                     .frame(minWidth: 120)
                     .gridColumnAlignment(.trailing)
-                    .accessibilityLabel("\(priority.settingsLabel) sound")
+                    .accessibilityLabel(L("\(priority.settingsLabel) sound"))
                 }
             }
         }

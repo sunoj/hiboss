@@ -45,10 +45,10 @@ struct InboxView: View {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             case .alreadyResolved:
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                actionNote = "That decision was already answered elsewhere."
+                actionNote = String(localized: "That decision was already answered elsewhere.")
             case .failed:
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
-                actionNote = "Couldn't send your reply — check your connection."
+                actionNote = String(localized: "Couldn't send your reply — check your connection.")
             }
         }
     }
@@ -138,7 +138,7 @@ struct InboxView: View {
             } label: {
                 let items = MessageMeta.items(for: message, density: .selected)
                 let type = items.first { $0.id == "type" }
-                Label(type?.label ?? "Details", systemImage: type?.icon ?? "info.circle")
+                Label(type?.label ?? String(localized: "Details"), systemImage: type?.icon ?? "info.circle")
             }
             .tint(.accentColor)
         }

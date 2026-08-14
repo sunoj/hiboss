@@ -12,17 +12,17 @@ struct NotificationsSettingsPane: View {
     var body: some View {
         Form {
             Section {
-                Picker("Option display", selection: $settings.optionDisplayMode) {
+                Picker(L("Option display"), selection: $settings.optionDisplayMode) {
                     ForEach(OptionDisplayMode.allCases) { mode in
                         Text(mode.label).tag(mode)
                     }
                 }
-                Toggle("Critical bypasses Do Not Disturb", isOn: criticalBypassBinding)
-                Toggle("Show menu bar icon", isOn: $settings.showsStatusItem)
+                Toggle(L("Critical bypasses Do Not Disturb"), isOn: criticalBypassBinding)
+                Toggle(L("Show menu bar icon"), isOn: $settings.showsStatusItem)
             } header: {
-                Text("Delivery")
+                Text(L("Delivery"))
             } footer: {
-                Text("Critical questions can still alert; the menu bar icon keeps HiBoss visible.")
+                Text(L("Critical questions can still alert; the menu bar icon keeps HiBoss visible."))
                     .foregroundStyle(.secondary)
             }
         }

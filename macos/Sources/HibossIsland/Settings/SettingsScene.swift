@@ -94,12 +94,12 @@ struct SettingsScene: View {
     private var footer: some View {
         HStack(spacing: 16) {
             SettingsFooterStatus(
-                text: "Listening",
+                text: L("Listening"),
                 isActive: flow.connectionState == .connected,
                 error: footerError
             )
             Spacer()
-            Button("Save & Connect", action: connect)
+            Button(L("Save & Connect"), action: connect)
                 .buttonStyle(.borderedProminent)
                 .disabled(isBusy)
         }
@@ -150,7 +150,7 @@ struct SettingsScene: View {
 
     private func connect(using config: ConnectionConfig) async {
         isConnecting = true
-        statusMessage = "Checking connection..."
+        statusMessage = L("Checking connection...")
         let api = HibossAPI(config: config)
         do {
             try await api.verifyConnection()

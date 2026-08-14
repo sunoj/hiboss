@@ -15,14 +15,14 @@ struct GeneralSettingsPane: View {
                 // bundle Launch Services has not caught up with, and greying the
                 // toggle out then hides a switch that would have worked.
                 Toggle(
-                    "Open at login",
+                    L("Open at login"),
                     isOn: Binding(
                         get: { launchAtLogin.isEnabled },
                         set: { launchAtLogin.setEnabled($0) }
                     )
                 )
             } header: {
-                Text("Startup")
+                Text(L("Startup"))
             } footer: {
                 Text(launchAtLogin.explanation)
                     .foregroundStyle(.secondary)

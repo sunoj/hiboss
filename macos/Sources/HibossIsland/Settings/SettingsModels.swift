@@ -20,27 +20,27 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: "General"
-        case .connection: "Connection"
-        case .notifications: "Notifications"
-        case .routing: "Channels & Routing"
-        case .quietHours: "Quiet Hours"
-        case .presentation: "Presentation"
-        case .systemDoctor: "System & Doctor"
-        case .about: "About"
+        case .general: L("General")
+        case .connection: L("Connection")
+        case .notifications: L("Notifications")
+        case .routing: L("Channels & Routing")
+        case .quietHours: L("Quiet Hours")
+        case .presentation: L("Presentation")
+        case .systemDoctor: L("System & Doctor")
+        case .about: L("About")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .general: "Startup behaviour for this Mac."
-        case .connection: "Connect this Mac to the boss daemon."
-        case .notifications: "Choose how questions surface on this Mac."
-        case .routing: "Route each priority to server-backed channels."
-        case .quietHours: "Silence lower-priority alerts on your schedule."
-        case .presentation: "Tune the local option surface and sounds."
-        case .systemDoctor: "Inspect daemon, stream, and preference health."
-        case .about: "Version and project information."
+        case .general: L("Startup behaviour for this Mac.")
+        case .connection: L("Connect this Mac to the boss daemon.")
+        case .notifications: L("Choose how questions surface on this Mac.")
+        case .routing: L("Route each priority to server-backed channels.")
+        case .quietHours: L("Silence lower-priority alerts on your schedule.")
+        case .presentation: L("Tune the local option surface and sounds.")
+        case .systemDoctor: L("Inspect daemon, stream, and preference health.")
+        case .about: L("Version and project information.")
         }
     }
 
@@ -63,8 +63,16 @@ enum SettingsValidationError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case let .invalidTime(label): "Enter a valid \(label) time as HH:mm."
+        case let .invalidTime(label): L("Enter a valid \(localizedTimeField(label)) time as HH:mm.")
         }
+    }
+}
+
+private func localizedTimeField(_ label: String) -> String {
+    switch label {
+    case "start": L("start")
+    case "end": L("end")
+    default: label
     }
 }
 

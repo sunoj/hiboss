@@ -106,7 +106,7 @@ final class IslandPanelController {
     /// leaving the panel draggable by its background and able to focus the reply field.
     private func configureWindow() {
         optionWindow.appearance = NSAppearance(named: .darkAqua)
-        optionWindow.title = "HiBoss Options"
+        optionWindow.title = L("HiBoss Options")
         optionWindow.isReleasedWhenClosed = false
         optionWindow.level = .floating
         optionWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

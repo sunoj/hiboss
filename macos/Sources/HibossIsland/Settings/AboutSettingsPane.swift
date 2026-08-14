@@ -11,15 +11,15 @@ struct AboutSettingsPane: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Version") {
+                LabeledContent(L("Version")) {
                     Text(bundleValue("CFBundleShortVersionString"))
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("Build") {
+                LabeledContent(L("Build")) {
                     Text(bundleValue("CFBundleVersion"))
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("Project") {
+                LabeledContent(L("Project")) {
                     if let url = URL(string: "https://hiboss.ai") {
                         Link("hiboss.ai", destination: url)
                     } else {
@@ -28,29 +28,29 @@ struct AboutSettingsPane: View {
                     }
                 }
             } header: {
-                Text("HiBoss Island")
+                Text(L("HiBoss Island"))
             }
 
             Section {
                 Toggle(
-                    "Automatically check for updates",
+                    L("Automatically check for updates"),
                     isOn: Binding(
                         get: { updater.automaticChecks },
                         set: { updater.setAutomatic($0) }
                     )
                 )
                 .disabled(!updater.isConfigured)
-                LabeledContent("Software update") {
-                    Button("Check for Updates…") { updater.check() }
+                LabeledContent(L("Software update")) {
+                    Button(L("Check for Updates…")) { updater.check() }
                         .disabled(!updater.canCheck)
                 }
             } header: {
-                Text("Updates")
+                Text(L("Updates"))
             } footer: {
                 Text(
                     updater.isConfigured
-                        ? "Updates are delivered via Sparkle and verified with an EdDSA signature before installing."
-                        : "This build has no update feed configured, so it will not check for updates."
+                        ? L("Updates are delivered via Sparkle and verified with an EdDSA signature before installing.")
+                        : L("This build has no update feed configured, so it will not check for updates.")
                 )
                 .foregroundStyle(.secondary)
             }
@@ -59,6 +59,6 @@ struct AboutSettingsPane: View {
     }
 
     private func bundleValue(_ key: String) -> String {
-        Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "Development"
+        Bundle.main.object(forInfoDictionaryKey: key) as? String ?? L("Development")
     }
 }

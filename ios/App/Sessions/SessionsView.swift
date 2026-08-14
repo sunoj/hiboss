@@ -16,13 +16,13 @@ struct SessionsView: View {
             error: store.loadError,
             isEmpty: groups.isEmpty,
             emptyIcon: "square.stack.3d.up",
-            emptyTitle: "No sessions yet",
-            emptyDetail: "Agent sessions appear here as they report in.",
+            emptyTitle: String(localized: "No sessions yet"),
+            emptyDetail: String(localized: "Agent sessions appear here as they report in."),
             onRetry: { await store.refresh() }
         ) {
             List {
                 ForEach(groups) { group in
-                    NavigationLink(value: SessionRoute(id: group.id, label: group.label)) {
+                    NavigationLink(value: SessionRoute(id: group.id, label: group.localizedLabel)) {
                         SessionCard(group: group)
                     }
                 }

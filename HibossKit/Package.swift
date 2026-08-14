@@ -7,12 +7,16 @@ import PackageDescription
 
 let package = Package(
     name: "HibossKit",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .library(name: "HibossKit", targets: ["HibossKit"]),
     ],
     targets: [
-        .target(name: "HibossKit"),
+        .target(
+            name: "HibossKit",
+            resources: [.process("Resources")]
+        ),
         .testTarget(name: "HibossKitTests", dependencies: ["HibossKit"]),
     ]
 )

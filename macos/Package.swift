@@ -7,6 +7,7 @@ import PackageDescription
 
 let package = Package(
     name: "HibossIsland",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "HibossIsland", targets: ["HibossIsland"]),
@@ -23,7 +24,8 @@ let package = Package(
             dependencies: [
                 .product(name: "HibossKit", package: "HibossKit"),
                 .product(name: "Sparkle", package: "Sparkle"),
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "HibossIslandTests",

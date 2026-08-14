@@ -13,26 +13,26 @@ struct SystemDoctorSettingsPane: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Daemon stream") {
+                LabeledContent(L("Daemon stream")) {
                     Text(flow.connectionState.label)
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
-                LabeledContent("Server reachability") {
-                    Text(settings.isConfigured ? "Configured" : "Not configured")
+                LabeledContent(L("Server reachability")) {
+                    Text(settings.isConfigured ? L("Configured") : L("Not configured"))
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("Last error") {
+                LabeledContent(L("Last error")) {
                     Text(lastError)
                         .font(.system(.body, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
             } header: {
-                Text("Health")
+                Text(L("Health"))
             } footer: {
-                Text("Read-only diagnostics for the local daemon stream and preference store.")
+                Text(L("Read-only diagnostics for the local daemon stream and preference store."))
                     .foregroundStyle(.secondary)
             }
         }
@@ -42,6 +42,6 @@ struct SystemDoctorSettingsPane: View {
     private var lastError: String {
         if case let .failed(message) = flow.connectionState { return message }
         if case let .failed(message) = preferencesStore.state { return message }
-        return "None"
+        return L("None")
     }
 }

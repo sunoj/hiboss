@@ -15,6 +15,15 @@ public enum MessagePriority: String, Codable, Equatable, Sendable, CaseIterable,
     case high
     case normal
     case low
+
+    public var localizedTitle: String {
+        switch self {
+        case .critical: kitL("Critical")
+        case .high: kitL("High")
+        case .normal: kitL("Normal")
+        case .low: kitL("Low")
+        }
+    }
 }
 
 public struct QuietHours: Codable, Equatable, Sendable {

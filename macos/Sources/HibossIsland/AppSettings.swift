@@ -15,8 +15,8 @@ enum OptionPresentationMode: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .island: "Island"
-        case .window: "Window"
+        case .island: L("Island")
+        case .window: L("Window")
         }
     }
 }
@@ -30,9 +30,9 @@ enum OptionDisplayMode: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .island: "Island"
-        case .window: "Window"
-        case .banner: "Banner"
+        case .island: L("Island")
+        case .window: L("Window")
+        case .banner: L("Banner")
         }
     }
 }

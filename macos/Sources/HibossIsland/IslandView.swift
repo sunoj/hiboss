@@ -211,7 +211,7 @@ private struct ResolvedOptionRow: View {
                 }
             }
             if chosen, showSource, let source, !source.isEmpty {
-                Text("Answered on \(source)")
+                Text(L("Answered on \(source)"))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
                     .transition(.opacity)
@@ -254,7 +254,7 @@ private struct OptionButton: View {
                     .font(.system(size: 13, weight: .medium))
                     .fixedSize(horizontal: false, vertical: true)
                 if isDefault {
-                    Text("default")
+                    Text(L("default"))
                         .font(.system(size: 9, weight: .semibold))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
@@ -282,7 +282,7 @@ private struct OptionButton: View {
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
         }
-        .accessibilityLabel(isDefault ? "Choose \(title), default" : "Choose \(title)")
+        .accessibilityLabel(isDefault ? L("Choose \(title), default") : L("Choose \(title)"))
     }
 }
 
@@ -303,8 +303,8 @@ private struct SkipButton: View {
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
         }
-        .help("Skip this question")
-        .accessibilityLabel("Skip this question")
+        .help(L("Skip this question"))
+        .accessibilityLabel(L("Skip this question"))
     }
 }
 
@@ -430,7 +430,7 @@ private struct ReplyField: View {
             }
             .buttonStyle(.plain)
             .disabled(!canSubmit)
-            .accessibilityLabel("Send reply")
+            .accessibilityLabel(L("Send reply"))
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
@@ -445,7 +445,7 @@ private struct ReplyField: View {
     @ViewBuilder
     private var placeholder: some View {
         if text.isEmpty {
-            Text("Reply with your own instruction…")
+            Text(L("Reply with your own instruction…"))
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.4))
                 .allowsHitTesting(false)

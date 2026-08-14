@@ -46,7 +46,7 @@ final class DemoBossAPI: BossServing, @unchecked Sendable {
 
 private enum DemoConnectionError: Error, LocalizedError {
     case failed
-    var errorDescription: String? { "Couldn't reach the server." }
+    var errorDescription: String? { String(localized: "Couldn't reach the server.") }
 }
 
 /// Sample history grouped into three sessions plus a direct message.

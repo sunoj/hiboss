@@ -14,9 +14,9 @@ enum HistorySegment: String, CaseIterable, Identifiable {
 
     func title(unreadCount: Int) -> String {
         switch self {
-        case .all: "All"
-        case .unread: "Unread \(unreadCount)"
-        case .blocking: "Blocking"
+        case .all: L("All")
+        case .unread: L("Unread \(unreadCount)")
+        case .blocking: L("Blocking")
         }
     }
 
@@ -67,7 +67,7 @@ enum HistoryTimestamp {
         locale: Locale = .autoupdatingCurrent,
         timeZone: TimeZone = .autoupdatingCurrent
     ) -> String {
-        guard let date = date(from: rawValue) else { return "Unknown" }
+        guard let date = date(from: rawValue) else { return L("Unknown") }
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.timeZone = timeZone
@@ -99,7 +99,7 @@ extension HistoryMessage {
     }
 
     var historyDisplayName: String {
-        isBossHistoryMessage ? "Me" : clean(agentName) ?? "Agent"
+        isBossHistoryMessage ? L("Me") : clean(agentName) ?? L("Agent")
     }
 
     var historyMonogram: String {
@@ -123,9 +123,9 @@ extension HistoryMessage {
 
     var historyDirectionAccessibilityLabel: String {
         switch normalizedDirection {
-        case "agent_to_boss": "To boss"
-        case "boss_to_agent": "From boss"
-        default: "Peer message"
+        case "agent_to_boss": L("To boss")
+        case "boss_to_agent": L("From boss")
+        default: L("Peer message")
         }
     }
 
@@ -142,8 +142,8 @@ extension HistoryMessage {
     }
 
     var historyPriorityAccessibilityLabel: String {
-        let cleaned = clean(priority)?.capitalized ?? "Normal"
-        return "\(cleaned) priority"
+        let cleaned = clean(priority).map(localizedPriorityName) ?? L("Normal")
+        return L("\(cleaned) priority")
     }
 
     /// Kept for tests and any text surfaces; History rows use SF Symbols instead.
@@ -157,16 +157,16 @@ extension HistoryMessage {
     /// Kept for tests and any text surfaces; History rows no longer show status chips.
     var historyStatusChip: String {
         switch normalizedStatus {
-        case "replied": "✓ replied"
-        case "read": "● read"
-        case "expired": "● expired"
-        default: "● \(normalizedStatus)"
+        case "replied": L("✓ replied")
+        case "read": L("● read")
+        case "expired": L("● expired")
+        default: L("● \(normalizedStatus)")
         }
     }
 
     static func monogram(agentName: String?, isBossMessage: Bool) -> String {
-        if isBossMessage { return "Me" }
-        let cleaned = clean(agentName) ?? "Agent"
+        if isBossMessage { return L("Me") }
+        let cleaned = clean(agentName) ?? L("Agent")
         let parts = cleaned
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
@@ -219,6 +219,16 @@ extension HistoryMessage {
             return parts.prefix(2).compactMap(\.first).map(String.init).joined()
         }
         return String(parts[0].prefix(2))
+    }
+}
+
+private func localizedPriorityName(_ raw: String) -> String {
+    switch raw.lowercased() {
+    case "critical": L("Critical")
+    case "high": L("High")
+    case "normal": L("Normal")
+    case "low": L("Low")
+    default: raw.capitalized
     }
 }
 
