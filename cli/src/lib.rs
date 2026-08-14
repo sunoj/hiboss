@@ -6,6 +6,7 @@ pub mod client;
 pub mod commands;
 pub mod config;
 pub mod helpers;
+pub mod hiboss_dir;
 pub mod session;
 pub mod sse;
 pub mod team;
