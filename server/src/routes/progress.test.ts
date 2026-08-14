@@ -23,6 +23,8 @@ async function createProgressSchema(): Promise<void> {
     body TEXT NOT NULL,
     media TEXT,
     tags TEXT,
+    agent_label TEXT,
+    model TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`).run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC)').run();
@@ -78,14 +80,18 @@ describe('POST /api/progress', () => {
       headers: authHeaders(),
       body: JSON.stringify({
         body: 'Shipped the feed',
+        agent_label: 'claude-code',
+        model: 'claude-opus-5',
         media: [{ url: attachment.url, kind: 'image', content_type: 'image/png', size: 3 }],
         tags: ['release'],
       }),
     });
     expect(res.status).toBe(201);
-    const post = await res.json() as { project: string; agent_name: string; media: unknown[]; tags: string[]; created_at: string; team: { handle: string; display_name: string; avatar_url: string; registered: boolean }; like_count: number; liked: boolean };
+    const post = await res.json() as { id: string; project: string; agent_name: string; agent_label: string | null; model: string | null; media: unknown[]; tags: string[]; created_at: string; team: { handle: string; display_name: string; avatar_url: string; registered: boolean }; like_count: number; liked: boolean };
     expect(post.project).toBe('test-agent');
     expect(post.agent_name).toBe('test-agent');
+    expect(post.agent_label).toBe('claude-code');
+    expect(post.model).toBe('claude-opus-5');
     expect(post.media).toHaveLength(1);
     expect(post.tags).toEqual(['release']);
     expect(post.created_at).toMatch(/T.*Z$/);
@@ -93,6 +99,10 @@ describe('POST /api/progress', () => {
     expect(post.team.avatar_url).toContain('/api/progress/teams/test-agent/avatar.png');
     expect(post.like_count).toBe(0);
     expect(post.liked).toBe(false);
+    const single = await SELF.fetch(`https://test.local/api/progress/${post.id}`, { headers: authHeaders() });
+    const list = await SELF.fetch('https://test.local/api/progress?limit=100', { headers: authHeaders() });
+    expect(await single.json()).toMatchObject({ agent_label: 'claude-code', model: 'claude-opus-5' });
+    expect(await list.json()).toMatchObject({ posts: expect.arrayContaining([expect.objectContaining({ id: post.id, agent_label: 'claude-code', model: 'claude-opus-5' })]) });
   });
 
   it('rejects remote media URLs and oversized media lists', async () => {
@@ -106,6 +116,11 @@ describe('POST /api/progress', () => {
       body: JSON.stringify({ body: 'too many', media: [1, 2, 3, 4, 5] }),
     });
     expect(tooMany.status).toBe(400);
+    const tooLong = await SELF.fetch('https://test.local/api/progress', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'too long attribution', model: 'm'.repeat(65) }),
+    });
+    expect(tooLong.status).toBe(400);
   });
 
   it('rejects missing and foreign attachment keys, including poster URLs', async () => {
@@ -140,6 +155,7 @@ describe('POST /api/progress', () => {
       method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'no notification' }),
     });
     expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ agent_label: null, model: null });
     const after = await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first<{ count: number }>();
     const queueAfter = await env.DB.prepare('SELECT COUNT(*) AS count FROM delivery_queue').first<{ count: number }>();
     expect(after?.count).toBe(before?.count);
