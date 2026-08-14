@@ -22,6 +22,7 @@ pub mod react;
 pub mod read;
 pub mod reply;
 pub mod route;
+pub mod progress;
 pub mod send;
 pub mod setup;
 pub mod setup_hooks;
