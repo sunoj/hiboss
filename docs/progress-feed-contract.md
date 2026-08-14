@@ -203,3 +203,6 @@ no transcribed web palette. Build it and look at it before declaring done.
 
 Reactions/likes, comments, editing a post, SSE live updates, the web console surface,
 the macOS client surface, server-side transcoding, and any push notification for a post.
+
+> **Superseded in part.** Team identity, avatars and likes are specified in
+> `docs/progress-feed-v2-contract.md`. The rest of this document still holds.
