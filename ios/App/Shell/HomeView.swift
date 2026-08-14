@@ -31,17 +31,18 @@ struct HomeView: View {
         content
             .navigationTitle(section.title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarTitleMenu {
-                Picker(selection: $section) {
-                    Label("Inbox", systemImage: HomeSection.inbox.systemImage)
-                        .tag(HomeSection.inbox)
-                    Label("Messages", systemImage: HomeSection.messages.systemImage)
-                        .tag(HomeSection.messages)
-                } label: {
-                    Text(section.title)
-                }
-            }
             .toolbar {
+                // Sits in the title position so both sides stay visible and one tap
+                // apart, without spending a row of the queue's vertical space.
+                ToolbarItem(placement: .principal) {
+                    Picker("View", selection: $section) {
+                        ForEach(HomeSection.allCases, id: \.self) { section in
+                            Text(section.title).tag(section)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     ConnectionDot(state: store.connectionState)
                 }
