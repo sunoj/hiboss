@@ -56,7 +56,9 @@ struct RootView: View {
             if isDemoMode {
                 preferences.loadDemo()
                 inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
-                inbox.start(api: DemoBossAPI())
+                if ProcessInfo.processInfo.environment["HIBOSS_DEMO_CONNECTION"] != "disconnected" {
+                    inbox.start(api: DemoBossAPI())
+                }
                 progress.start(api: DemoProgressAPI())
             } else if connection.isConfigured, let api = connection.makeAPI() {
                 Task {
