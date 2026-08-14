@@ -1,5 +1,5 @@
 // Demo backing data so the UI can be exercised without a live server.
-// Exports: DemoBossAPI and isDemoMode, gated by the HIBOSS_DEMO env var.
+// Exports: DemoBossAPI, DemoProgressAPI, and isDemoMode, gated by the HIBOSS_DEMO env var.
 // Dependencies: HibossKit BossServing. Not used in normal (server-backed) runs.
 
 import Foundation
@@ -91,5 +91,86 @@ private enum DemoFixtures {
             priority: "low", channel: "api", mode: "async",
             metadata: nil, expiresAt: nil, createdAt: iso(-120)
         ),
+    ]
+}
+
+/// Sample progress posts so the 进展 tab can be exercised without a live server.
+final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
+    func progressFeed(project: String?, limit: Int, before: String?) async throws -> ProgressFeedPage {
+        var posts = DemoProgressFixtures.posts
+        if let project { posts = posts.filter { $0.project == project } }
+        if let before { posts = posts.filter { $0.createdAt < before } }
+        let page = Array(posts.prefix(limit))
+        let next = posts.count > limit ? page.last?.createdAt : nil
+        return ProgressFeedPage(posts: page, nextBefore: next)
+    }
+
+    func progressProjects() async throws -> [ProgressProject] {
+        DemoProgressFixtures.projects
+    }
+
+    func deleteProgressPost(id _: String) async throws {}
+}
+
+private enum DemoProgressFixtures {
+    static func iso(_ offset: TimeInterval) -> String {
+        Date().addingTimeInterval(offset).ISO8601Format()
+    }
+
+    static let posts: [ProgressPost] = [
+        ProgressPost(
+            id: "pp1", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
+            sessionId: "sess-progress",
+            body: "Shipped the progress feed. Migration + 4 endpoints. Pull-to-refresh, no push.",
+            tags: ["release"], createdAt: iso(-90)
+        ),
+        ProgressPost(
+            id: "pp2", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
+            body: "Native 进展 tab — system List, semantic colours, one looping player at a time.",
+            media: [
+                ProgressMedia(
+                    url: "https://picsum.photos/id/1015/1200/800",
+                    kind: .image, contentType: "image/jpeg", size: 84_000,
+                    width: 1200, height: 800, alt: "screenshot of the new tab"
+                ),
+            ],
+            tags: ["ios"], createdAt: iso(-400)
+        ),
+        ProgressPost(
+            id: "pp3", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
+            body: "Short muted looping clip of the feed scrolling. Tap to unmute.",
+            media: [
+                ProgressMedia(
+                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlips.mp4",
+                    kind: .video, contentType: "video/mp4", size: 512_000,
+                    width: 1280, height: 720, durationMs: 15_000,
+                    posterUrl: "https://picsum.photos/id/1018/1280/720",
+                    alt: "looping demo clip"
+                ),
+            ],
+            createdAt: iso(-900)
+        ),
+        ProgressPost(
+            id: "pp4", project: "payments", agentId: "ak2", agentName: "worker-payments",
+            body: "Retry chart after the Stripe timeout — dimensions omitted on purpose.",
+            media: [
+                ProgressMedia(
+                    url: "https://picsum.photos/id/180/900/500",
+                    kind: .image, contentType: "image/jpeg", size: 40_000,
+                    alt: "retry latency chart"
+                ),
+            ],
+            tags: ["hotfix"], createdAt: iso(-1800)
+        ),
+        ProgressPost(
+            id: "pp5", project: "payments", agentId: "ak2", agentName: "worker-payments",
+            body: "Sandbox timeout reproduced. Waiting on the retry strategy decision.",
+            createdAt: iso(-2400)
+        ),
+    ]
+
+    static let projects: [ProgressProject] = [
+        ProgressProject(project: "hiboss", count: 3, lastPostAt: iso(-90), agentId: "ak1"),
+        ProgressProject(project: "payments", count: 2, lastPostAt: iso(-1800), agentId: "ak2"),
     ]
 }

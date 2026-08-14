@@ -31,6 +31,13 @@ struct InboxView: View {
         }
         .navigationTitle("Inbox")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                NavigationLink {
+                    MessagesView(store: store)
+                } label: {
+                    Label("All messages", systemImage: "bubble.left.and.bubble.right")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 ConnectionDot(state: store.connectionState)
             }
