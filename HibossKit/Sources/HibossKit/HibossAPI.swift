@@ -129,6 +129,31 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         try validate(response)
     }
 
+    public func progressFeed(
+        project: String? = nil,
+        limit: Int = 20,
+        before: String? = nil
+    ) async throws -> ProgressFeedPage {
+        var items = [URLQueryItem(name: "limit", value: String(limit))]
+        if let project, !project.isEmpty { items.append(URLQueryItem(name: "project", value: project)) }
+        if let before, !before.isEmpty { items.append(URLQueryItem(name: "before", value: before)) }
+        return try await decode(ProgressFeedPage.self, from: progressURL.appending(queryItems: items), context: "progress feed")
+    }
+
+    public func progressProjects() async throws -> [ProgressProject] {
+        try await decode(
+            ProgressProjectsResponse.self,
+            from: progressURL.appendingPathComponent("projects"),
+            context: "progress projects"
+        ).projects
+    }
+
+    public func deleteProgressPost(id: String) async throws {
+        let request = authorizedRequest(url: progressURL.appendingPathComponent(id), method: "DELETE")
+        let (_, response) = try await session.data(for: request)
+        try validate(response)
+    }
+
     private var apiURL: URL {
         config.serverURL
             .appendingPathComponent("api")
@@ -183,6 +208,30 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         }
         guard (200..<300).contains(http.statusCode) else {
             throw HibossAPIError.requestFailed(status: http.statusCode, message: "")
+        }
+    }
+
+    private var progressURL: URL {
+        config.serverURL
+            .appendingPathComponent("api")
+            .appendingPathComponent("progress")
+    }
+
+    private func decode<T: Decodable>(
+        _ type: T.Type,
+        from url: URL,
+        context: String
+    ) async throws -> T {
+        let request = authorizedRequest(url: url, method: "GET")
+        let (data, response) = try await session.data(for: request)
+        try validate(response)
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            throw HibossAPIError.decodingFailed(
+                context: context,
+                body: String(data: data, encoding: .utf8) ?? "<non-text>"
+            )
         }
     }
 }
