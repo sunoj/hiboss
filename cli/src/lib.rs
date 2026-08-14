@@ -8,6 +8,7 @@ pub mod config;
 pub mod helpers;
 pub mod session;
 pub mod sse;
+pub mod team;
 pub mod types;
 
 #[cfg(test)]

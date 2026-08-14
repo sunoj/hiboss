@@ -301,6 +301,22 @@ pub fn should_show_ack_hint() -> bool {
     true
 }
 
+/// Marker file: team-registration hint shown this session (keyed per project).
+pub fn team_hint_shown_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-team-hint-{}", project_hash()))
+}
+
+/// Return true (and mark the file) if the team-registration hint has not yet been
+/// printed this session. Subsequent calls return false, so the hint appears once.
+pub fn should_show_team_hint() -> bool {
+    let path = team_hint_shown_path();
+    if path.exists() {
+        return false;
+    }
+    let _ = fs::write(&path, "1");
+    true
+}
+
 /// Check if the daemon is running by reading the PID file and testing the process.
 pub fn is_daemon_running() -> Option<u32> {
     let pid_str = fs::read_to_string(daemon_pid_path()).ok()?;
@@ -368,5 +384,17 @@ mod tests {
         let name = project_name();
         assert!(!name.contains('/'));
         assert!(!name.contains('\\'));
+    }
+
+    #[test]
+    fn team_hint_path_uses_project_hash_prefix() {
+        let path = team_hint_shown_path();
+        let s = path.to_str().expect("path is UTF-8");
+        assert!(s.starts_with("/tmp/hiboss-team-hint-"), "path: {s}");
+    }
+
+    #[test]
+    fn team_hint_path_differs_from_ack_hint_path() {
+        assert_ne!(team_hint_shown_path(), ack_hint_shown_path());
     }
 }
