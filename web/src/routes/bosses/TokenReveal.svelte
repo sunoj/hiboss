@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	interface Props {
 		bossName: string;
 		token: string;
@@ -21,13 +22,13 @@
 
 <div class="reveal" role="status">
 	<div class="head">
-		<strong>New token for {bossName}</strong>
-		<span class="warn">Shown once — copy it now</span>
+		<strong>{t('form.newToken', { name: bossName })}</strong>
+		<span class="warn">{t('form.shownOnce')}</span>
 	</div>
 	<div class="row">
-		<input class="token" type="text" readonly value={token} aria-label="Rotated boss token" />
-		<button type="button" class="btn" onclick={copy}>{copied ? 'Copied' : 'Copy'}</button>
-		<button type="button" class="btn ghost" onclick={onDismiss}>Dismiss</button>
+		<input class="token" type="text" readonly value={token} aria-label={t('form.rotatedToken')} />
+		<button type="button" class="btn" onclick={copy}>{copied ? t('form.copied') : t('form.copy')}</button>
+		<button type="button" class="btn ghost" onclick={onDismiss}>{t('common.dismiss')}</button>
 	</div>
 </div>
 

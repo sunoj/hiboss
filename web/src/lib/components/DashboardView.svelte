@@ -11,6 +11,7 @@
 	import type { BossOverview, MessageResponse } from '$lib/api/types';
 	import { ApiError } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { t } from '$lib/i18n';
 
 	let overview = $state<BossOverview | null>(null);
 	let messages = $state<MessageResponse[]>([]);
@@ -48,10 +49,10 @@
 <section class="dash">
 	<header class="head">
 		<div>
-			<h1>Dashboard</h1>
-			<p class="sub">总览 — live KPIs, channel health, recent traffic</p>
+			<h1>{t('page.dashboard')}</h1>
+			<p class="sub">{t('page.dashboardSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>Refresh</button>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>{t('common.refresh')}</button>
 	</header>
 
 	{#if error}
@@ -70,55 +71,55 @@
 	{:else if overview}
 		<div class="grid kpis">
 			<KpiCard
-				label="Active sessions"
+				label={t('page.activeSessions')}
 				value={overview.kpis.activeSessions}
-				hint={`${overview.kpis.workingSessions} working`}
+				hint={t('page.working', { count: overview.kpis.workingSessions })}
 				tone="accent"
 			/>
 			<KpiCard
-				label="Pending decisions"
+				label={t('page.pendingDecisions')}
 				value={overview.kpis.pendingDecisions}
-				hint="option messages awaiting pick"
+				hint={t('page.pendingDecisionsHint')}
 				tone={overview.kpis.pendingDecisions > 0 ? 'warn' : 'default'}
 			/>
 			<KpiCard
-				label="Blocking pending"
+				label={t('page.blockingPending')}
 				value={overview.kpis.blockingPending}
-				hint="agents waiting on you"
+				hint={t('page.blockingPendingHint')}
 				tone={overview.kpis.blockingPending > 0 ? 'danger' : 'default'}
 			/>
 			<KpiCard
-				label="Unread (1h)"
+				label={t('page.unread1h')}
 				value={overview.kpis.unread1h}
-				hint="agent → boss, not yet read"
+				hint={t('page.unread1hHint')}
 			/>
 		</div>
 
 		<div class="grid mid">
 			<div class="panel">
-				<h2>Priority distribution</h2>
-				<p class="hint">Last 24h</p>
+				<h2>{t('page.priorityDistribution')}</h2>
+				<p class="hint">{t('page.last24h')}</p>
 				<PriorityBars distribution={overview.priorityDistribution} />
 			</div>
 			<div class="panel">
-				<h2>Session status</h2>
-				<p class="hint">Seen in last 24h</p>
+				<h2>{t('page.sessionStatus')}</h2>
+				<p class="hint">{t('page.seenLast24h')}</p>
 				<SessionStatusList counts={overview.sessionStatus} />
 			</div>
 			<div class="panel">
-				<h2>Channel health</h2>
-				<p class="hint">Configured delivery paths</p>
+				<h2>{t('page.channelHealth')}</h2>
+				<p class="hint">{t('page.configuredPaths')}</p>
 				<ChannelLights channels={overview.channels} />
 			</div>
 		</div>
 
 		<div class="panel stream">
 			<div class="stream-head">
-				<h2>Recent messages</h2>
-				<span class="hint">Latest 10 · all directions</span>
+				<h2>{t('page.recentMessages')}</h2>
+				<span class="hint">{t('common.latestDirections')}</span>
 			</div>
 			{#if messages.length === 0}
-				<EmptyState title="No recent messages" detail="When agents send updates, they will land here." />
+				<EmptyState title={t('page.noRecentMessages')} detail={t('page.noRecentMessagesDetail')} />
 			{:else}
 				<div class="feed">
 					{#each messages as message (message.id)}

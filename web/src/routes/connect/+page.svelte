@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { DEFAULT_BASE_URL } from '$lib/api/auth';
+	import { i18n, LOCALES, t, type Locale } from '$lib/i18n';
 
 	let baseUrl = $state(DEFAULT_BASE_URL);
 	let token = $state('');
@@ -22,6 +23,11 @@
 			connecting = false;
 		}
 	}
+
+	function selectLocale(event: Event): void {
+		const value = (event.currentTarget as HTMLSelectElement).value;
+		if ((LOCALES as readonly string[]).includes(value)) i18n.setLocale(value as Locale);
+	}
 </script>
 
 <div class="screen">
@@ -29,13 +35,22 @@
 		<div class="brand">
 			<span class="mark">hb</span>
 			<div>
-				<div class="name">hiboss 指挥台</div>
-				<div class="sub">Connect to your boss server</div>
+				<div class="name">{t('app.title')}</div>
+				<div class="sub">{t('brand.subtitle')}</div>
 			</div>
+			<label class="language">
+				<span class="sr-only">{t('language.label')}</span>
+				<select value={i18n.locale} onchange={selectLocale} aria-label={t('language.label')}>
+					<option value="en">{t('language.en')}</option>
+					<option value="zh-CN">{t('language.zh')}</option>
+					<option value="ja">{t('language.ja')}</option>
+					<option value="ko">{t('language.ko')}</option>
+				</select>
+			</label>
 		</div>
 
 		<label>
-			<span>Server URL</span>
+			<span>{t('connect.serverUrl')}</span>
 			<input
 				type="url"
 				bind:value={baseUrl}
@@ -46,7 +61,7 @@
 		</label>
 
 		<label>
-			<span>Boss token</span>
+			<span>{t('connect.bossToken')}</span>
 			<input
 				type="password"
 				bind:value={token}
@@ -61,10 +76,10 @@
 		{/if}
 
 		<button type="submit" disabled={connecting || !token.trim()}>
-			{connecting ? 'Connecting…' : 'Connect'}
+			{connecting ? t('connect.connecting') : t('connect.connect')}
 		</button>
 
-		<p class="hint">The token is stored only in this browser (localStorage).</p>
+		<p class="hint">{t('connect.storedHint')}</p>
 	</form>
 </div>
 
@@ -92,6 +107,29 @@
 		align-items: center;
 		gap: 0.65rem;
 		margin-bottom: 0.25rem;
+	}
+	.language {
+		margin-left: auto;
+	}
+	.language select {
+		border: 1px solid var(--hb-border);
+		background: var(--hb-bg);
+		border-radius: var(--hb-radius-sm);
+		padding: 0.25rem 0.35rem;
+		color: var(--hb-text-muted);
+		font: inherit;
+		font-size: 11px;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 	.mark {
 		width: 32px;

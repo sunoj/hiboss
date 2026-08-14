@@ -2,6 +2,7 @@
 	import { formatRelativeTime } from '$lib/api/mappers';
 	import type { AgentResponse, GroupResponse } from '$lib/api/types';
 	import { displayDescription, hasDescription, memberCountLabel } from './groupHelpers';
+	import { t } from '$lib/i18n';
 	import MemberEditor from './MemberEditor.svelte';
 
 	interface Props {
@@ -25,7 +26,7 @@
 
 	function confirmDelete() {
 		if (busy) return;
-		const ok = confirm(`Delete group “${group.name}”? This cannot be undone.`);
+		const ok = confirm(t('form.deleteGroupConfirm', { name: group.name }));
 		if (ok) onDelete(group.id);
 	}
 </script>
@@ -37,7 +38,7 @@
 	</div>
 	<p class="desc" class:muted={!descPresent}>{desc}</p>
 	<div class="meta">
-		<span class="when">Created {when}</span>
+		<span class="when">{t('form.created')} {when}</span>
 		<span class="id" title={group.id}>{group.id.slice(0, 8)}</span>
 	</div>
 	<div class="actions">
@@ -47,10 +48,10 @@
 			disabled={busy}
 			onclick={() => (editing = !editing)}
 		>
-			{editing ? 'Hide members' : 'Edit members'}
+			{editing ? t('form.hideMembers') : t('form.editMembers')}
 		</button>
 		<button type="button" class="btn danger" disabled={busy} onclick={confirmDelete}>
-			Delete
+			{t('common.delete')}
 		</button>
 	</div>
 	{#if editing}

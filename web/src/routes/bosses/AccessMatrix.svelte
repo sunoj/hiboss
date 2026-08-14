@@ -3,6 +3,7 @@
 	import type { AgentResponse, BossRecord } from '$lib/api/types';
 	import { bindingSummary, hasAccess, shortId } from './access-helpers';
 	import RoleBadge from './RoleBadge.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		bosses: BossRecord[];
@@ -19,14 +20,14 @@
 	}
 </script>
 
-<div class="wrap" role="region" aria-label="Boss agent access matrix">
+<div class="wrap" role="region" aria-label={t('page.bossesSub')}>
 	<table class="matrix">
 		<thead>
 			<tr>
-				<th class="boss-col">Boss</th>
-				<th class="meta">Role</th>
-				<th class="meta">Bindings</th>
-				<th class="meta">Token</th>
+				<th class="boss-col">{t('nav.bosses')}</th>
+				<th class="meta">{t('form.role')}</th>
+				<th class="meta">{t('form.channel')}</th>
+				<th class="meta">{t('connect.bossToken')}</th>
 				{#each agents as agent (agent.id)}
 					<th class="agent-col" title={agent.id}>
 						<AgentIdentity name={agent.name} size="sm" />
@@ -54,14 +55,14 @@
 							disabled={busyKey === `rotate:${boss.id}`}
 							onclick={() => onRotate(boss.id)}
 						>
-							Rotate
+							{t('form.rotateToken')}
 						</button>
 					</td>
 					{#each agents as agent (agent.id)}
 						{@const granted = hasAccess(boss, agent.id)}
 						{@const key = cellKey(boss.id, agent.id)}
 						<td class="cell">
-							<label class="check" title={granted ? 'Revoke access' : 'Grant access'}>
+							<label class="check" title={granted ? t('form.revokeAccess') : t('form.grantAccess')}>
 								<input
 									type="checkbox"
 									checked={granted}

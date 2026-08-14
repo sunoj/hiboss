@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { BossCreateRequest, BossRole } from '$lib/api/types';
 	import { BOSS_ROLES, roleLabel } from './access-helpers';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		busy?: boolean;
@@ -35,15 +36,15 @@
 
 <div class="create">
 	{#if !open}
-		<button type="button" class="toggle" onclick={() => (open = true)}>Create boss</button>
+		<button type="button" class="toggle" onclick={() => (open = true)}>{t('form.createBoss')}</button>
 	{:else}
 		<form class="form" onsubmit={submit}>
 			<label>
-				<span>Name</span>
-				<input bind:value={name} required maxlength={80} placeholder="Boss name" disabled={busy} />
+				<span>{t('form.name')}</span>
+				<input bind:value={name} required maxlength={80} placeholder={t('form.bossName')} disabled={busy} />
 			</label>
 			<label>
-				<span>Role</span>
+				<span>{t('form.role')}</span>
 				<select bind:value={role} disabled={busy}>
 					{#each BOSS_ROLES as r (r)}
 						<option value={r}>{roleLabel(r)}</option>
@@ -51,19 +52,19 @@
 				</select>
 			</label>
 			<label>
-				<span>Telegram ID</span>
-				<input bind:value={telegram} placeholder="optional" disabled={busy} />
+				<span>{t('form.telegramId')}</span>
+				<input bind:value={telegram} placeholder={t('common.optional')} disabled={busy} />
 			</label>
 			<label>
-				<span>Discord ID</span>
-				<input bind:value={discord} placeholder="optional" disabled={busy} />
+				<span>{t('form.discordId')}</span>
+				<input bind:value={discord} placeholder={t('common.optional')} disabled={busy} />
 			</label>
 			<div class="actions">
 				<button type="submit" class="primary" disabled={busy || !name.trim()}>
-					{busy ? 'Creating…' : 'Create'}
+					{busy ? t('common.creating') : t('common.create')}
 				</button>
 				<button type="button" class="ghost" disabled={busy} onclick={() => (open = false)}>
-					Cancel
+					{t('common.cancel')}
 				</button>
 			</div>
 		</form>

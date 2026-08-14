@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ChannelHealth } from '$lib/api/types';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		channels: ChannelHealth[];
@@ -13,7 +14,7 @@
 		<li class:ok={ch.configured} class:off={!ch.configured}>
 			<span class="light" aria-hidden="true"></span>
 			<span class="name">{ch.channel}</span>
-			<span class="state">{ch.configured ? 'configured' : 'missing'}</span>
+			<span class="state">{ch.configured ? t('channel.configured') : t('channel.missing')}</span>
 		</li>
 	{/each}
 </ul>

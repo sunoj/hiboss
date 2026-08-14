@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { agentColor, agentInitials } from '$lib/design/agent-color';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		name: string | null | undefined;
@@ -11,7 +12,7 @@
 
 	const color = $derived(agentColor(name));
 	const initials = $derived(agentInitials(name));
-	const label = $derived(name?.trim() || 'unknown');
+	const label = $derived(name?.trim() || t('common.unknown'));
 </script>
 
 <span class="agent" class:sm={size === 'sm'} class:md={size === 'md'} title={label}>

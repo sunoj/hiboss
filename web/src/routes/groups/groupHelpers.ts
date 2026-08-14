@@ -1,6 +1,7 @@
 /** Pure helpers for Groups list display, sorting, and write UX copy. */
 
 import type { AgentResponse, GroupResponse } from '$lib/api/types';
+import { t } from '$lib/i18n';
 
 export function compareGroupsByName(a: GroupResponse, b: GroupResponse): number {
 	return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
@@ -21,15 +22,14 @@ export function sortAgentsByName(agents: AgentResponse[]): AgentResponse[] {
 }
 
 export function memberCountLabel(count: number): string {
-	if (count === 1) return '1 member';
-	return `${count} members`;
+	return t('common.members', { count });
 }
 
 /** Human-readable description, or a muted fallback when empty/null. */
 export function displayDescription(description: string | null | undefined): string {
 	const text = description?.trim();
 	if (text) return text;
-	return 'No description';
+	return t('form.noDescription');
 }
 
 export function hasDescription(description: string | null | undefined): boolean {
@@ -49,8 +49,7 @@ export function agentOptionLabel(agent: Pick<AgentResponse, 'id' | 'name'>): str
 
 /** Toast / status copy after a group broadcast. */
 export function broadcastResultLabel(count: number): string {
-	if (count === 1) return 'Broadcast delivered to 1 agent';
-	return `Broadcast delivered to ${count} agents`;
+	return t('form.broadcastDelivered', { count });
 }
 
 export function canSendBroadcast(groupId: string, body: string): boolean {

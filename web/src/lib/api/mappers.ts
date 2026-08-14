@@ -1,6 +1,7 @@
 /** Pure mappers / formatters for boss API payloads. */
 
 import { coercePriority, isDirection, isMessageStatus } from '$lib/design/semantics';
+export { formatRelativeTime } from '$lib/i18n';
 import type { Direction, MessageStatus, Priority } from '$lib/design/semantics';
 import type { MessageMetadata, MessageResponse } from './types';
 
@@ -25,19 +26,6 @@ export function truncateBody(body: string, max = 120): string {
 	const text = body.replace(/\s+/g, ' ').trim();
 	if (text.length <= max) return text;
 	return `${text.slice(0, max - 1)}…`;
-}
-
-export function formatRelativeTime(iso: string, nowMs = Date.now()): string {
-	const then = Date.parse(iso);
-	if (Number.isNaN(then)) return '—';
-	const deltaSec = Math.round((nowMs - then) / 1000);
-	if (deltaSec < 60) return `${Math.max(deltaSec, 0)}s ago`;
-	const mins = Math.round(deltaSec / 60);
-	if (mins < 60) return `${mins}m ago`;
-	const hours = Math.round(mins / 60);
-	if (hours < 48) return `${hours}h ago`;
-	const days = Math.round(hours / 24);
-	return `${days}d ago`;
 }
 
 export function priorityBarWidths(

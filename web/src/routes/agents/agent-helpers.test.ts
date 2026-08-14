@@ -53,7 +53,7 @@ describe('lastUsedLabel', () => {
 	});
 
 	it('delegates valid timestamps to formatRelativeTime', () => {
-		expect(lastUsedLabel('2026-07-21T11:30:00Z', now)).toBe('30m ago');
+		expect(lastUsedLabel('2026-07-21T11:30:00Z', now)).toBe('30 minutes ago');
 	});
 });
 
