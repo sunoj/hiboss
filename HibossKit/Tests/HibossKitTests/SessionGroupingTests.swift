@@ -69,6 +69,23 @@ final class SessionGroupingTests: XCTestCase {
         XCTAssertEqual(groups.map(\.label), ["Labeled", "feat/session-group", "abcdef12"])
     }
 
+    func testSessionKeyFallsBackToTargetSessionId() {
+        let reply = historyMessage(
+            id: "r1",
+            direction: "boss_to_agent",
+            createdAt: "2026-07-15 12:01:00",
+            sessionId: nil,
+            targetSessionId: "sess-new"
+        )
+        XCTAssertEqual(SessionGrouping.sessionKey(for: reply), "sess-new")
+        let groups = SessionGrouping.groupBySession([
+            historyMessage(id: "a1", createdAt: "2026-07-15 12:00:00", sessionId: "sess-new"),
+            reply,
+        ])
+        XCTAssertEqual(groups.map(\.id), ["sess-new"])
+        XCTAssertEqual(groups[0].messages.map(\.id), ["a1", "r1"])
+    }
+
     private func historyMessage(
         id: MessageID,
         body: String = "Message body",
@@ -78,6 +95,7 @@ final class SessionGroupingTests: XCTestCase {
         priority: String = "normal",
         createdAt: String = "2026-07-15 10:00:00",
         sessionId: String? = nil,
+        targetSessionId: String? = nil,
         sessionLabel: String? = nil,
         sessionBranch: String? = nil,
         sessionStatus: String? = nil
@@ -91,6 +109,7 @@ final class SessionGroupingTests: XCTestCase {
             priority: priority,
             createdAt: createdAt,
             sessionId: sessionId,
+            targetSessionId: targetSessionId,
             sessionLabel: sessionLabel,
             sessionBranch: sessionBranch,
             sessionStatus: sessionStatus

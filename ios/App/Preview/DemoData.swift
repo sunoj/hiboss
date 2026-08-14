@@ -11,15 +11,42 @@ var isDemoMode: Bool {
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
 final class DemoBossAPI: BossServing, @unchecked Sendable {
-    private let messages: [HistoryMessage] = DemoFixtures.queue
+    private var messages: [HistoryMessage]
+
+    init() {
+        messages = DemoFixtures.queue
+    }
 
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
-        AsyncThrowingStream { _ in }
+        let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_CONNECTION"]
+        if mode == "connecting" {
+            await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+        }
+        return AsyncThrowingStream { continuation in
+            if mode == "failed" {
+                continuation.finish(throwing: DemoConnectionError.failed)
+                return
+            }
+            continuation.onTermination = { _ in }
+        }
     }
 
     func fetchHistory() async throws -> [HistoryMessage] { messages }
 
-    func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
+    func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
+        guard let index = messages.firstIndex(where: { $0.id == messageID }) else {
+            return .accepted
+        }
+        let parent = messages[index]
+        messages[index] = DemoFixtures.answered(parent)
+        messages.append(DemoFixtures.bossReply(to: parent, choice: choice, source: "ios"))
+        return .accepted
+    }
+}
+
+private enum DemoConnectionError: Error, LocalizedError {
+    case failed
+    var errorDescription: String? { "Couldn't reach the server." }
 }
 
 /// Sample history grouped into three sessions plus a direct message.
@@ -37,11 +64,55 @@ private enum DemoFixtures {
 
     static let messages: [HistoryMessage] = deploy + payments + data + direct
 
+    static func answered(_ parent: HistoryMessage) -> HistoryMessage {
+        HistoryMessage(
+            id: parent.id, body: parent.body, agentName: parent.agentName,
+            direction: parent.direction, status: "replied", priority: parent.priority,
+            channel: parent.channel, mode: parent.mode, type: parent.type,
+            replyTo: parent.replyTo, metadata: parent.metadata, expiresAt: parent.expiresAt,
+            createdAt: parent.createdAt, sessionId: parent.sessionId,
+            targetSessionId: parent.targetSessionId, sessionLabel: parent.sessionLabel,
+            sessionBranch: parent.sessionBranch, sessionStatus: parent.sessionStatus
+        )
+    }
+
+    static func bossReply(to parent: HistoryMessage, choice: String, source: String) -> HistoryMessage {
+        HistoryMessage(
+            id: MessageID(rawValue: "r-\(parent.id.rawValue)"), body: choice, agentName: parent.agentName,
+            direction: "boss_to_agent", status: "sent", priority: "normal",
+            channel: "api", mode: "async", replyTo: parent.id.rawValue,
+            metadata: MessageMetadata(options: [], source: source),
+            createdAt: Date().ISO8601Format(),
+            sessionId: parent.sessionId, targetSessionId: parent.sessionId ?? parent.targetSessionId,
+            sessionLabel: parent.sessionLabel, sessionBranch: parent.sessionBranch,
+            sessionStatus: parent.sessionStatus
+        )
+    }
+
     private static let deploy: [HistoryMessage] = [
+        HistoryMessage(
+            id: "c0", body: "Ship the changelog to TestFlight tonight?",
+            agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
+            priority: "high", channel: "discord", mode: "blocking", type: "approval_request",
+            metadata: MessageMetadata(options: ["Ship", "Hold"]),
+            expiresAt: nil, createdAt: iso(-120),
+            sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "working"
+        ),
+        HistoryMessage(
+            id: "r0", body: "Ship",
+            agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
+            priority: "normal", channel: "telegram", mode: "async",
+            replyTo: "c0",
+            metadata: MessageMetadata(options: [], source: "telegram"),
+            createdAt: iso(-90),
+            targetSessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "working"
+        ),
         HistoryMessage(
             id: "c1", body: "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "delivered",
-            priority: "critical", channel: "discord", mode: "blocking",
+            priority: "critical", channel: "discord", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(options: ["Approve", "Reject"]),
             expiresAt: iso(95), createdAt: iso(-40),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
@@ -50,8 +121,9 @@ private enum DemoFixtures {
         HistoryMessage(
             id: "h1", body: "Deployment to staging complete. All 214 tests green.",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
-            priority: "normal", channel: "discord", mode: "async",
-            metadata: nil, expiresAt: nil, createdAt: iso(-1800),
+            priority: "normal", channel: "discord", mode: "async", type: "task_update",
+            metadata: MessageMetadata(options: [], files: ["server/migrations/003.sql", "cli/src/commands/send.rs"]),
+            expiresAt: nil, createdAt: iso(-1800),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "waiting"
         ),
@@ -61,7 +133,7 @@ private enum DemoFixtures {
         HistoryMessage(
             id: "c2", body: "Stripe timed out 3× in a row. Pick a retry strategy:",
             agentName: "worker-payments", direction: "agent_to_boss", status: "delivered",
-            priority: "high", channel: "telegram", mode: "blocking",
+            priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(options: [
                 "Retry now (same gateway)", "Retry with exponential backoff", "Fail over to Adyen",
             ]),
@@ -83,7 +155,7 @@ private enum DemoFixtures {
         HistoryMessage(
             id: "c3", body: "Need read-only staging DB credentials to continue the export.",
             agentName: "worker-data", direction: "agent_to_boss", status: "delivered",
-            priority: "normal", channel: "api", mode: "async",
+            priority: "normal", channel: "api", mode: "async", type: "steer_command",
             metadata: MessageMetadata(options: ["Provide", "Later"]),
             expiresAt: nil, createdAt: iso(-300),
             sessionId: "sess-data", sessionLabel: "nightly-export", sessionBranch: "main",

@@ -19,47 +19,6 @@ public struct MessageID: RawRepresentable, Codable, Hashable, Sendable,
     public var description: String { rawValue }
 }
 
-public struct MessageMetadata: Codable, Equatable, Sendable {
-    public let options: [String]
-    public let isExpired: Bool
-    /// Label of the option auto-selected on timeout, if the asker marked one.
-    public let defaultOption: String?
-    /// On a reply's metadata, where the answer came from: "ios", "telegram", etc.
-    public let source: String?
-    public let content: String?
-
-    enum CodingKeys: String, CodingKey {
-        case options
-        case isExpired = "options_expired"
-        case defaultOption = "default_option"
-        case source
-        case content
-    }
-
-    public init(
-        options: [String],
-        isExpired: Bool = false,
-        defaultOption: String? = nil,
-        source: String? = nil,
-        content: String? = nil
-    ) {
-        self.options = options
-        self.isExpired = isExpired
-        self.defaultOption = defaultOption
-        self.source = source
-        self.content = content
-    }
-
-    public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        options = try values.decodeIfPresent([String].self, forKey: .options) ?? []
-        isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
-        defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
-        source = try values.decodeIfPresent(String.self, forKey: .source)
-        content = try values.decodeIfPresent(String.self, forKey: .content)
-    }
-}
-
 public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
     public let id: MessageID
     public let body: String
@@ -127,6 +86,8 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public let priority: String
     public let channel: String?
     public let mode: String?
+    /// Agent message type: `task_update`, `approval_request`, `text`, …
+    public let type: String?
     /// Parent id when this message is a reply; a decision's answer is the reply
     /// whose `replyTo` equals the decision's id.
     public let replyTo: String?
@@ -134,6 +95,8 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public let expiresAt: String?
     public let createdAt: String
     public let sessionId: String?
+    /// Session a boss→agent reply is scoped to when `sessionId` is unset.
+    public let targetSessionId: String?
     public let sessionLabel: String?
     public let sessionBranch: String?
     public let sessionStatus: String?
@@ -147,11 +110,13 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         case priority
         case channel
         case mode
+        case type
         case replyTo = "reply_to"
         case metadata
         case expiresAt = "expires_at"
         case createdAt = "created_at"
         case sessionId = "session_id"
+        case targetSessionId = "target_session_id"
         case sessionLabel = "session_label"
         case sessionBranch = "session_branch"
         case sessionStatus = "session_status"
@@ -166,11 +131,13 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         priority: String,
         channel: String? = nil,
         mode: String? = nil,
+        type: String? = nil,
         replyTo: String? = nil,
         metadata: MessageMetadata? = nil,
         expiresAt: String? = nil,
         createdAt: String,
         sessionId: String? = nil,
+        targetSessionId: String? = nil,
         sessionLabel: String? = nil,
         sessionBranch: String? = nil,
         sessionStatus: String? = nil
@@ -183,11 +150,13 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         self.priority = priority
         self.channel = channel
         self.mode = mode
+        self.type = type
         self.replyTo = replyTo
         self.metadata = metadata
         self.expiresAt = expiresAt
         self.createdAt = createdAt
         self.sessionId = sessionId
+        self.targetSessionId = targetSessionId
         self.sessionLabel = sessionLabel
         self.sessionBranch = sessionBranch
         self.sessionStatus = sessionStatus

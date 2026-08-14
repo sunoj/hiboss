@@ -65,6 +65,32 @@ final class HistoryMessageDecodingTests: XCTestCase {
         let message = try JSONDecoder().decode(HistoryMessage.self, from: Data(json.utf8))
         XCTAssertEqual(message.content, "payments · retry policy")
     }
+
+    func testDecodesTypeTargetSessionAndNestedFiles() throws {
+        let json = """
+        {
+          "id": "m4",
+          "body": "Approve",
+          "direction": "boss_to_agent",
+          "status": "sent",
+          "priority": "normal",
+          "type": "approval_request",
+          "reply_to": "m3",
+          "target_session_id": "sess-pay",
+          "created_at": "2026-07-15T10:01:00Z",
+          "metadata": {
+            "source": "telegram",
+            "task_context": { "files": ["cli/src/send.rs", "server/src/routes/messages.ts"] }
+          }
+        }
+        """
+        let message = try JSONDecoder().decode(HistoryMessage.self, from: Data(json.utf8))
+        XCTAssertEqual(message.type, "approval_request")
+        XCTAssertEqual(message.targetSessionId, "sess-pay")
+        XCTAssertEqual(message.replyTo, "m3")
+        XCTAssertEqual(message.metadata?.source, "telegram")
+        XCTAssertEqual(message.metadata?.files, ["cli/src/send.rs", "server/src/routes/messages.ts"])
+    }
 }
 
 final class SSEDecodingTests: XCTestCase {

@@ -7,6 +7,7 @@ import SwiftUI
 
 struct MessageCard: View {
     let message: HistoryMessage
+    var settlement: DecisionSettlement? = nil
     var onChoose: (String) -> Void
     var onOpen: () -> Void
 
@@ -17,8 +18,12 @@ struct MessageCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Button(action: onOpen) { info }
                 .buttonStyle(.plain)
-            actions
-            if let defaultOption {
+            if let settlement {
+                settledChoice(settlement)
+            } else {
+                actions
+            }
+            if settlement == nil, let defaultOption {
                 Label("Auto-selects “\(defaultOption)” on timeout", systemImage: "clock.arrow.circlepath")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -44,7 +49,7 @@ struct MessageCard: View {
                 .foregroundStyle(.primary)
                 .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
-            metaRow
+            MessageMetaStrip(message: message, density: .selected)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -79,7 +84,7 @@ struct MessageCard: View {
     /// Countdown owns the trailing slot; a priority symbol only when it carries meaning.
     private var urgency: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            if let deadline = message.expirationDate {
+            if settlement == nil, let deadline = message.expirationDate {
                 HStack(spacing: 4) {
                     Image(systemName: "timer")
                     CountdownText(deadline: deadline, tint: countdownTint)
@@ -87,7 +92,7 @@ struct MessageCard: View {
                 .font(.subheadline)
                 .accessibilityElement(children: .combine)
             }
-            priorityMark
+            if settlement == nil { priorityMark }
         }
     }
 
@@ -132,14 +137,23 @@ struct MessageCard: View {
         return value
     }
 
-    @ViewBuilder
-    private var metaRow: some View {
-        Label(
-            message.mode == "blocking" ? "Blocking" : "Async",
-            systemImage: message.mode == "blocking" ? "hourglass" : "paperplane"
-        )
-        .font(.caption)
-        .foregroundStyle(.secondary)
+    private func settledChoice(_ settlement: DecisionSettlement) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(settlement.answer, systemImage: "checkmark.circle.fill")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .symbolRenderingMode(.hierarchical)
+            if settlement.answeredElsewhere, let source = settlement.sourceLabel {
+                Text("Answered on \(source)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Answered")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder

@@ -33,6 +33,7 @@ struct HistoryRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                MessageMetaStrip(message: message, density: .row)
                 if !statusLabel.isEmpty {
                     Text(statusLabel)
                         .font(.caption)
