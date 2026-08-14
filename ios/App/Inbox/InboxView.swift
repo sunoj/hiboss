@@ -13,12 +13,6 @@ struct InboxView: View {
 
     var body: some View {
         content
-            .navigationTitle("Inbox")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ConnectionDot(state: store.connectionState)
-                }
-            }
             .sheet(item: $replyTarget) { message in
                 ReplySheet(message: message) { choice in
                     await store.reply(choice, to: message.id)

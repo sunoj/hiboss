@@ -15,11 +15,14 @@ struct RootTabView: View {
 
     @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress" ? 1 : 0
     @State private var inboxPath = NavigationPath()
+    /// Survives leaving the home tab and coming back within the session.
+    @State private var homeSection: HomeSection =
+        ProcessInfo.processInfo.environment["HIBOSS_HOME"] == "messages" ? .messages : .inbox
 
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack(path: $inboxPath) {
-                InboxView(store: inbox)
+                HomeView(store: inbox, section: $homeSection)
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                     .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
             }
