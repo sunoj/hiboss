@@ -29,6 +29,10 @@ targets:
     dependencies:
       - package: HibossKit
       - target: HiBossWidgets
+    scheme:
+      testTargets:
+        - HiBossTests
+        - HiBossUITests
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios
@@ -71,3 +75,17 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.tests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGNING_ALLOWED: NO
+
+  HiBossUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: HiBoss
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        TEST_TARGET_NAME: HiBoss
