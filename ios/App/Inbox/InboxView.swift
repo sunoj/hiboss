@@ -78,30 +78,23 @@ struct InboxView: View {
     }
 
     private var inboxList: some View {
-        List {
-            if store.pending.isEmpty {
-                allClear
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            ForEach(store.pending) { message in
-                pendingRow(message)
-            }
-            if !store.settledCards.isEmpty {
-                DisclosureGroup(isExpanded: $resolvedExpanded) {
-                    ForEach(store.settledCards) { message in
-                        settledRow(message)
-                    }
-                } label: {
-                    Label("Resolved", systemImage: "checkmark.circle")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .badge(store.settledCards.count)
+        GeometryReader { geo in
+            List {
+                if store.pending.isEmpty {
+                    allClear
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+                ForEach(store.pending) { message in
+                    pendingRow(message)
+                }
+                if !store.settledCards.isEmpty {
+                    resolvedFooter(listHeight: geo.size.height)
                 }
             }
+            .listStyle(.plain)
+            .refreshable { await store.refresh() }
         }
-        .listStyle(.plain)
-        .refreshable { await store.refresh() }
     }
 
     private func pendingRow(_ message: HistoryMessage) -> some View {
@@ -165,13 +158,36 @@ struct InboxView: View {
         }
     }
 
-    private var allClear: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "checkmark.circle")
-                .font(.largeTitle)
+    @ViewBuilder
+    private func resolvedFooter(listHeight: CGFloat) -> some View {
+        Color.clear
+            .frame(height: InboxResolvedPlacement.spacerHeight(
+                pendingIsEmpty: store.pending.isEmpty,
+                listHeight: listHeight
+            ))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets())
+            .accessibilityHidden(true)
+        DisclosureGroup(isExpanded: $resolvedExpanded) {
+            ForEach(store.settledCards) { message in
+                settledRow(message)
+            }
+        } label: {
+            Label("Resolved", systemImage: "checkmark.circle")
+                .font(.footnote)
                 .foregroundStyle(.tertiary)
                 .symbolRenderingMode(.hierarchical)
-                .accessibilityHidden(true)
+        }
+        .tint(Color(.tertiaryLabel))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
+    }
+
+    private var allClear: some View {
+        VStack(spacing: 10) {
+            AllClearIslandView()
             Text("All clear")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.primary)
@@ -181,7 +197,20 @@ struct InboxView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .padding(.vertical, 16)
         .accessibilityElement(children: .combine)
+    }
+}
+
+enum InboxResolvedPlacement {
+    /// Room taken by the all-clear glyph + copy, so the footer can sit on the bottom edge.
+    private static let allClearBlock: CGFloat = 280
+    private static let label: CGFloat = 44
+
+    static func spacerHeight(pendingIsEmpty: Bool, listHeight: CGFloat) -> CGFloat {
+        if pendingIsEmpty {
+            return max(48, listHeight - allClearBlock - label)
+        }
+        return 40
     }
 }
