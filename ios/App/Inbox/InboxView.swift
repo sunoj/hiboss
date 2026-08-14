@@ -1,6 +1,6 @@
 // The Inbox screen: the pending decision queue, live over SSE.
 // Exports: InboxView bound to an InboxStore.
-// Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow, ReplySheet.
+// Dependencies: SwiftUI, HibossKit, MessageCard, ReplySheet.
 
 import HibossKit
 import SwiftUI
@@ -10,6 +10,8 @@ struct InboxView: View {
     @ObservedObject var store: InboxStore
     @State private var replyTarget: HistoryMessage?
     @State private var actionNote: String?
+    /// Completed decision cards stay off-screen until the boss opens this group.
+    @State private var resolvedExpanded = false
 
     var body: some View {
         content
@@ -76,7 +78,7 @@ struct InboxView: View {
 
     private var inboxList: some View {
         List {
-            if store.pending.isEmpty, store.settledCards.isEmpty {
+            if store.pending.isEmpty {
                 allClear
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -84,12 +86,15 @@ struct InboxView: View {
             ForEach(store.pending) { message in
                 pendingRow(message)
             }
-            ForEach(store.settledCards) { message in
-                settledRow(message)
-            }
-            ForEach(store.settledHistory) { message in
-                NavigationLink(value: SessionRoute(message: message)) {
-                    HistoryRow(message: message)
+            if !store.settledCards.isEmpty {
+                DisclosureGroup(isExpanded: $resolvedExpanded) {
+                    ForEach(store.settledCards) { message in
+                        settledRow(message)
+                    }
+                } label: {
+                    Text("Resolved")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
