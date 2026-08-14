@@ -110,6 +110,44 @@ private enum DemoFixtures {
             sessionStatus: "working"
         ),
         HistoryMessage(
+            id: "c4", body: "Merge the payments hotfix to main?",
+            agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
+            priority: "high", channel: "discord", mode: "blocking", type: "approval_request",
+            metadata: MessageMetadata(options: ["Merge", "Hold"]),
+            createdAt: iso(-90_000),
+            sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "working"
+        ),
+        HistoryMessage(
+            id: "r4", body: "Merge",
+            agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
+            priority: "normal", channel: "api", mode: "async",
+            replyTo: "c4",
+            metadata: MessageMetadata(options: [], source: "ios"),
+            createdAt: iso(-89_900),
+            targetSessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "working"
+        ),
+        HistoryMessage(
+            id: "c5", body: "Page the on-call for the staging 5xx spike?",
+            agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
+            priority: "normal", channel: "api", mode: "blocking", type: "approval_request",
+            metadata: MessageMetadata(options: ["Page", "Later"]),
+            createdAt: iso(-180_000),
+            sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "working"
+        ),
+        HistoryMessage(
+            id: "r5", body: "Later",
+            agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
+            priority: "normal", channel: "api", mode: "async",
+            replyTo: "c5",
+            metadata: MessageMetadata(options: [], source: "macos"),
+            createdAt: iso(-179_900),
+            targetSessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "working"
+        ),
+        HistoryMessage(
             id: "c1", body: "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "delivered",
             priority: "critical", channel: "discord", mode: "blocking", type: "approval_request",

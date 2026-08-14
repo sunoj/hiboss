@@ -1,6 +1,6 @@
 // The Inbox screen: the pending decision queue, live over SSE.
 // Exports: InboxView bound to an InboxStore.
-// Dependencies: SwiftUI, HibossKit, MessageCard, ReplySheet.
+// Dependencies: SwiftUI, HibossKit, MessageCard, ReplySheet, ResolvedDecisionsView.
 
 import HibossKit
 import SwiftUI
@@ -10,11 +10,14 @@ struct InboxView: View {
     @ObservedObject var store: InboxStore
     @State private var replyTarget: HistoryMessage?
     @State private var actionNote: String?
-    /// Completed decision cards stay off-screen until the boss opens this group.
-    @State private var resolvedExpanded = false
+    @State private var showResolved =
+        ProcessInfo.processInfo.environment["HIBOSS_DEMO_RESOLVED"] == "1"
 
     var body: some View {
         content
+            .navigationDestination(isPresented: $showResolved) {
+                ResolvedDecisionsView(store: store)
+            }
             .sheet(item: $replyTarget) { message in
                 ReplySheet(message: message) { choice in
                     await store.reply(choice, to: message.id)
@@ -39,7 +42,6 @@ struct InboxView: View {
             switch await store.reply(choice, to: id) {
             case .sent:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                withAnimation { resolvedExpanded = true }
             case .alreadyResolved:
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 actionNote = String(localized: "That decision was already answered elsewhere.")
@@ -121,28 +123,6 @@ struct InboxView: View {
         }
     }
 
-    private func settledRow(_ message: HistoryMessage) -> some View {
-        MessageCard(
-            message: message,
-            settlement: store.settlement(for: message.id),
-            onChoose: { _ in },
-            onOpen: { AppRouter.shared.open(messageID: message.id.rawValue) }
-        )
-        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button {
-                AppRouter.shared.open(messageID: message.id.rawValue)
-            } label: {
-                let items = MessageMeta.items(for: message, density: .selected)
-                let type = items.first { $0.id == "type" }
-                Label(type?.label ?? String(localized: "Details"), systemImage: type?.icon ?? "info.circle")
-            }
-            .tint(.accentColor)
-        }
-    }
-
     @ViewBuilder
     private func trailingSwipes(for message: HistoryMessage) -> some View {
         let options = message.options
@@ -174,15 +154,18 @@ struct InboxView: View {
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets())
             .accessibilityHidden(true)
-        DisclosureGroup(isExpanded: $resolvedExpanded) {
-            ForEach(store.settledCards) { message in
-                settledRow(message)
-            }
+        NavigationLink {
+            ResolvedDecisionsView(store: store)
         } label: {
-            Label("Resolved", systemImage: "checkmark.circle")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-                .symbolRenderingMode(.hierarchical)
+            HStack {
+                Label("Resolved", systemImage: "checkmark.circle")
+                Spacer()
+                Text(store.settledCards.count, format: .number)
+                    .monospacedDigit()
+            }
+            .font(.footnote)
+            .foregroundStyle(.tertiary)
+            .symbolRenderingMode(.hierarchical)
         }
         .tint(Color(.tertiaryLabel))
         .listRowBackground(Color.clear)

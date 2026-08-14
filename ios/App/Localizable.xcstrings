@@ -851,6 +851,50 @@
         }
       }
     },
+    "No handled decisions": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无已处理的决定"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "処理済みの決定はまだありません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "처리된 결정이 없습니다"
+          }
+        }
+      }
+    },
+    "Handled decisions will appear here.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "处理过的决定会显示在这里。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "処理した決定がここに表示されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "처리한 결정이 여기에 표시됩니다."
+          }
+        }
+      }
+    },
     "No messages": {
       "localizations": {
         "zh-Hans": {
