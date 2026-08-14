@@ -38,17 +38,42 @@ final class InboxStore: ObservableObject {
         self.decisionAlertsEnabled = decisionAlertsEnabled
     }
 
-    /// Pending decisions, most urgent first, then newest.
+    /// Pending decisions, soonest-to-expire first, then critical > high > normal.
     var pending: [HistoryMessage] {
         history
             .filter { $0.isPendingDecision && !withdrawn.contains($0.id) }
-            .sorted {
-                let l = $0.priorityValue.rank, r = $1.priorityValue.rank
-                return l == r ? $0.createdAt > $1.createdAt : l > r
-            }
+            .sorted(by: Self.moreUrgent)
     }
 
     var pendingCount: Int { pending.count }
+
+    /// Newest settled message per session, for Messages-style inbox rows.
+    /// Live pending cards are excluded so a decision isn't shown twice.
+    var settledHistory: [HistoryMessage] {
+        let live = Set(pending.map(\.id))
+        var seen = Set<String>()
+        return history
+            .filter { !live.contains($0.id) }
+            .sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
+            .filter { seen.insert(SessionGrouping.sessionKey(for: $0)).inserted }
+    }
+
+    /// Soonest deadline first (none last), then higher priority, then newest.
+    private static func moreUrgent(_ lhs: HistoryMessage, _ rhs: HistoryMessage) -> Bool {
+        switch (lhs.expirationDate, rhs.expirationDate) {
+        case let (a?, b?) where a != b:
+            return a < b
+        case (_?, nil):
+            return true
+        case (nil, _?):
+            return false
+        default:
+            break
+        }
+        let left = lhs.priorityValue.rank, right = rhs.priorityValue.rank
+        if left != right { return left > right }
+        return (lhs.createdDate ?? .distantPast) > (rhs.createdDate ?? .distantPast)
+    }
 
     /// True once a backing API is attached (i.e. `start` has run). Deep-linked
     /// detail views poll this to avoid declaring a message missing during the

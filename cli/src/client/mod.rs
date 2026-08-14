@@ -389,4 +389,5 @@ mod tests {
 mod bosses;
 mod groups;
 mod messages;
+mod progress;
 mod routing;

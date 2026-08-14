@@ -57,3 +57,16 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         CODE_SIGNING_ALLOWED: NO
+
+  HiBossTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: HiBoss
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO

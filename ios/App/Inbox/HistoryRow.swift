@@ -1,4 +1,4 @@
-// Compact history row for the "All" list and the Messages tab.
+// Compact history row in the Inbox list, following iOS Messages.
 // Exports: HistoryRow rendering one HistoryMessage as a native list row.
 // Dependencies: SwiftUI, HibossKit.
 
@@ -9,20 +9,18 @@ struct HistoryRow: View {
     let message: HistoryMessage
 
     var body: some View {
-        HStack(alignment: .top, spacing: 11) {
-            Circle()
-                .fill(message.priorityValue.color)
-                .frame(width: 8, height: 8)
-                .padding(.top, 5)
+        HStack(alignment: .top, spacing: 12) {
+            Text(message.avatarInitials)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 40, height: 40)
+                .background(Color(.tertiarySystemFill), in: Circle())
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(message.displayName)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.headline)
                         .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(message.metaLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                     Spacer(minLength: 4)
                     if !message.relativeCreatedAt.isEmpty {
@@ -35,10 +33,9 @@ struct HistoryRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
                 if !statusLabel.isEmpty {
                     Text(statusLabel)
-                        .font(.caption2.weight(.medium))
+                        .font(.caption)
                         .foregroundStyle(statusColor)
                 }
             }
