@@ -1,6 +1,6 @@
 // The Inbox screen: the pending decision queue, live over SSE.
 // Exports: InboxView bound to an InboxStore.
-// Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow, ReplySheet.
+// Dependencies: SwiftUI, HibossKit, MessageCard, ReplySheet.
 
 import HibossKit
 import SwiftUI
@@ -10,15 +10,11 @@ struct InboxView: View {
     @ObservedObject var store: InboxStore
     @State private var replyTarget: HistoryMessage?
     @State private var actionNote: String?
+    /// Completed decision cards stay off-screen until the boss opens this group.
+    @State private var resolvedExpanded = false
 
     var body: some View {
         content
-            .navigationTitle("Inbox")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    ConnectionDot(state: store.connectionState)
-                }
-            }
             .sheet(item: $replyTarget) { message in
                 ReplySheet(message: message) { choice in
                     await store.reply(choice, to: message.id)
@@ -43,6 +39,7 @@ struct InboxView: View {
             switch await store.reply(choice, to: id) {
             case .sent:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                withAnimation { resolvedExpanded = true }
             case .alreadyResolved:
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 actionNote = String(localized: "That decision was already answered elsewhere.")
@@ -82,7 +79,7 @@ struct InboxView: View {
 
     private var inboxList: some View {
         List {
-            if store.pending.isEmpty, store.settledCards.isEmpty {
+            if store.pending.isEmpty {
                 allClear
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
@@ -90,12 +87,16 @@ struct InboxView: View {
             ForEach(store.pending) { message in
                 pendingRow(message)
             }
-            ForEach(store.settledCards) { message in
-                settledRow(message)
-            }
-            ForEach(store.settledHistory) { message in
-                NavigationLink(value: SessionRoute(message: message)) {
-                    HistoryRow(message: message)
+            if !store.settledCards.isEmpty {
+                DisclosureGroup(isExpanded: $resolvedExpanded) {
+                    ForEach(store.settledCards) { message in
+                        settledRow(message)
+                    }
+                } label: {
+                    Label("Resolved", systemImage: "checkmark.circle")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .badge(store.settledCards.count)
                 }
             }
         }

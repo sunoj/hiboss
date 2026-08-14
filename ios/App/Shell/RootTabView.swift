@@ -15,11 +15,14 @@ struct RootTabView: View {
 
     @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress" ? 1 : 0
     @State private var inboxPath = NavigationPath()
+    /// Survives leaving the home tab and coming back within the session.
+    @State private var homeSection: HomeSection =
+        ProcessInfo.processInfo.environment["HIBOSS_HOME"] == "messages" ? .messages : .inbox
 
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack(path: $inboxPath) {
-                InboxView(store: inbox)
+                HomeView(store: inbox, section: $homeSection)
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                     .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
             }
@@ -67,8 +70,10 @@ struct RootTabView: View {
             // atomic assignment: a reset-then-append pair in one update races
             // SwiftUI's pop-to-root and can leave the previously-open detail on
             // screen. NavigationPath([messageID]) lands exactly [messageID].
+            // Decision notifications belong on Inbox, not the Messages firehose.
             router.pendingMessageID = nil
             tab = 0
+            homeSection = .inbox
             inboxPath = NavigationPath([messageID])
         }
         .onChange(of: scenePhase) { _, phase in
@@ -88,6 +93,7 @@ struct RootTabView: View {
     private func applyDemoRoute() {
         let env = ProcessInfo.processInfo.environment
         if let id = env["HIBOSS_DEMO_OPEN"], !id.isEmpty {
+            homeSection = .inbox
             inboxPath = NavigationPath([MessageID(rawValue: id)])
             return
         }
