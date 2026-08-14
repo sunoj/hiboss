@@ -8,11 +8,10 @@ import SwiftUI
 struct SessionMessagesView: View {
     @ObservedObject var store: InboxStore
     let route: SessionRoute
+    @State private var expandedID: MessageID?
 
     private var messages: [HistoryMessage] {
-        store.history
-            .filter { SessionGrouping.sessionKey(for: $0) == route.id }
-            .sorted { ($0.createdDate ?? .distantPast) < ($1.createdDate ?? .distantPast) }
+        store.messages(inSession: route.id)
     }
 
     var body: some View {
@@ -37,14 +36,23 @@ struct SessionMessagesView: View {
             ScrollView {
                 LazyVStack(spacing: 12) {
                     ForEach(messages) { message in
-                        ThreadBubble(message: message)
-                            .id(message.id)
+                        ThreadBubble(
+                            message: message,
+                            expanded: expandedID == message.id
+                        )
+                        .id(message.id)
+                        .onTapGesture {
+                            expandedID = expandedID == message.id ? nil : message.id
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-            .onAppear { scrollToLatest(proxy) }
+            .onAppear {
+                expandedID = messages.last(where: { $0.direction == "boss_to_agent" })?.id
+                scrollToLatest(proxy)
+            }
             .onChange(of: messages.count) { _, _ in scrollToLatest(proxy) }
         }
     }
@@ -58,6 +66,7 @@ struct SessionMessagesView: View {
 /// One bubble in a session thread. Agent on the leading edge, boss on the trailing.
 struct ThreadBubble: View {
     let message: HistoryMessage
+    var expanded: Bool = false
 
     private var fromBoss: Bool { message.direction == "boss_to_agent" }
 
@@ -71,6 +80,14 @@ struct ThreadBubble: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(fill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                if fromBoss, let parentHint {
+                    Text(parentHint)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if expanded {
+                    MessageMetaStrip(message: message, density: .selected)
+                }
                 if !message.relativeCreatedAt.isEmpty {
                     Text(message.relativeCreatedAt)
                         .font(.caption2)
@@ -80,6 +97,17 @@ struct ThreadBubble: View {
             if !fromBoss { Spacer(minLength: 48) }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Shows message details")
+    }
+
+    /// A short "You chose …" cue so a boss reply reads as a turn, not a stray bubble.
+    private var parentHint: String? {
+        guard message.replyTo != nil else { return nil }
+        if let source = resolutionSourceLabel(message.metadata?.source) {
+            return "Choice · \(source)"
+        }
+        return "Choice"
     }
 
     private var fill: Color {
