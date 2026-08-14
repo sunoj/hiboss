@@ -15,13 +15,6 @@ struct InboxView: View {
         content
             .navigationTitle("Inbox")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        MessagesView(store: store)
-                    } label: {
-                        Label("All messages", systemImage: "bubble.left.and.bubble.right")
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     ConnectionDot(state: store.connectionState)
                 }
@@ -74,36 +67,44 @@ struct InboxView: View {
             } actions: {
                 Button("Retry") { Task { await store.refresh() } }
             }
-        } else if store.pending.isEmpty {
-            emptyQueue
         } else {
-            pendingList
+            inboxList
         }
     }
 
-    private var pendingList: some View {
+    private var inboxList: some View {
         List {
+            if store.pending.isEmpty {
+                allClear
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
             ForEach(store.pending) { message in
-                MessageCard(
-                    message: message,
-                    onChoose: { choice in handleReply(choice, to: message.id) },
-                    onOpen: { AppRouter.shared.open(messageID: message.id.rawValue) }
-                )
-                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                    Button("Reply") { replyTarget = message }
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    trailingSwipes(for: message)
-                }
+                pendingRow(message)
+            }
+            ForEach(store.settledHistory) { message in
+                NavigationLink(value: message.id) { HistoryRow(message: message) }
             }
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color(.systemGroupedBackground))
         .refreshable { await store.refresh() }
+    }
+
+    private func pendingRow(_ message: HistoryMessage) -> some View {
+        MessageCard(
+            message: message,
+            onChoose: { choice in handleReply(choice, to: message.id) },
+            onOpen: { AppRouter.shared.open(messageID: message.id.rawValue) }
+        )
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button("Reply") { replyTarget = message }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            trailingSwipes(for: message)
+        }
     }
 
     @ViewBuilder
@@ -118,25 +119,6 @@ struct InboxView: View {
         if options.count > 2 {
             Button("More") { replyTarget = message }
         }
-    }
-
-    private var emptyQueue: some View {
-        List {
-            Section {
-                allClear
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            if !store.recentActivity.isEmpty {
-                Section("Recent") {
-                    ForEach(store.recentActivity) { message in
-                        NavigationLink(value: message.id) { HistoryRow(message: message) }
-                    }
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .refreshable { await store.refresh() }
     }
 
     private var allClear: some View {

@@ -47,15 +47,13 @@ final class InboxStore: ObservableObject {
 
     var pendingCount: Int { pending.count }
 
-    /// Newest settled messages for the empty-queue activity strip.
-    var recentActivity: [HistoryMessage] {
+    /// Settled history for the Messages-style list, newest first. Live pending
+    /// cards are excluded so a decision isn't shown twice.
+    var settledHistory: [HistoryMessage] {
         let live = Set(pending.map(\.id))
-        return Array(
-            history
-                .filter { !live.contains($0.id) }
-                .sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
-                .prefix(5)
-        )
+        return history
+            .filter { !live.contains($0.id) }
+            .sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
     }
 
     /// Soonest deadline first (none last), then higher priority, then newest.
