@@ -1,6 +1,6 @@
 // Progress-feed domain models and the client protocol for GET/DELETE /api/progress.
-// Exports: ProgressPost, ProgressMedia, ProgressFeedPage, ProgressProject, ProgressServing.
-// Dependencies: Foundation Codable. Wire format is docs/progress-feed-contract.md.
+// Exports: ProgressPost, ProgressTeam, ProgressLikeState, ProgressServing.
+// Dependencies: Foundation Codable. Wire format is docs/progress-feed-v2-contract.md.
 
 import Foundation
 
@@ -65,6 +65,46 @@ public struct ProgressMedia: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
+public struct ProgressTeam: Codable, Equatable, Sendable {
+    public let handle: String
+    public let displayName: String
+    public let avatarUrl: String
+    public let registered: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case handle, registered
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+    }
+
+    public init(handle: String, displayName: String, avatarUrl: String, registered: Bool) {
+        self.handle = handle
+        self.displayName = displayName
+        self.avatarUrl = avatarUrl
+        self.registered = registered
+    }
+
+    /// v1 posts and fixtures omit `team`; fall back to the project string.
+    public static func fallback(project: String) -> ProgressTeam {
+        ProgressTeam(handle: project, displayName: project, avatarUrl: "", registered: false)
+    }
+}
+
+public struct ProgressLikeState: Codable, Equatable, Sendable {
+    public let likeCount: Int
+    public let liked: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case liked
+        case likeCount = "like_count"
+    }
+
+    public init(likeCount: Int, liked: Bool) {
+        self.likeCount = likeCount
+        self.liked = liked
+    }
+}
+
 public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let id: String
     public let project: String
@@ -75,13 +115,17 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let media: [ProgressMedia]
     public let tags: [String]
     public let createdAt: String
+    public let team: ProgressTeam
+    public let likeCount: Int
+    public let liked: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, project, body, media, tags
+        case id, project, body, media, tags, team, liked
         case agentId = "agent_id"
         case agentName = "agent_name"
         case sessionId = "session_id"
         case createdAt = "created_at"
+        case likeCount = "like_count"
     }
 
     public init(
@@ -93,7 +137,10 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         body: String,
         media: [ProgressMedia] = [],
         tags: [String] = [],
-        createdAt: String
+        createdAt: String,
+        team: ProgressTeam? = nil,
+        likeCount: Int = 0,
+        liked: Bool = false
     ) {
         self.id = id
         self.project = project
@@ -104,6 +151,9 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         self.media = media
         self.tags = tags
         self.createdAt = createdAt
+        self.team = team ?? .fallback(project: project)
+        self.likeCount = likeCount
+        self.liked = liked
     }
 
     public init(from decoder: Decoder) throws {
@@ -117,6 +167,17 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         media = try values.decodeIfPresent([ProgressMedia].self, forKey: .media) ?? []
         tags = try values.decodeIfPresent([String].self, forKey: .tags) ?? []
         createdAt = try values.decode(String.self, forKey: .createdAt)
+        team = try values.decodeIfPresent(ProgressTeam.self, forKey: .team) ?? .fallback(project: project)
+        likeCount = try values.decodeIfPresent(Int.self, forKey: .likeCount) ?? 0
+        liked = try values.decodeIfPresent(Bool.self, forKey: .liked) ?? false
+    }
+
+    public func withLike(count: Int, liked: Bool) -> ProgressPost {
+        ProgressPost(
+            id: id, project: project, agentId: agentId, agentName: agentName,
+            sessionId: sessionId, body: body, media: media, tags: tags,
+            createdAt: createdAt, team: team, likeCount: count, liked: liked
+        )
     }
 }
 
@@ -186,6 +247,6 @@ public protocol ProgressServing: Sendable {
     func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage
     func progressProjects() async throws -> [ProgressProject]
     func deleteProgressPost(id: String) async throws
+    func likeProgressPost(id: String) async throws -> ProgressLikeState
+    func unlikeProgressPost(id: String) async throws -> ProgressLikeState
 }
-
-extension HibossAPI: ProgressServing {}
