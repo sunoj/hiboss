@@ -1,5 +1,5 @@
 // The Inbox screen: the pending decision queue, live over SSE.
-// Exports: InboxView bound to an InboxStore, plus the shared ConnectionDot.
+// Exports: InboxView bound to an InboxStore.
 // Dependencies: SwiftUI, HibossKit, MessageCard, HistoryRow, ReplySheet.
 
 import HibossKit
@@ -56,9 +56,17 @@ struct InboxView: View {
     @ViewBuilder
     private var content: some View {
         if !store.didLoad && store.history.isEmpty {
-            ProgressView()
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if store.connectionState == .disconnected {
+                ContentUnavailableView(
+                    "Disconnected",
+                    systemImage: "wifi.slash",
+                    description: Text("Connect in Settings to receive decisions.")
+                )
+            } else {
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         } else if store.pending.isEmpty, store.history.isEmpty, let error = store.loadError {
             ContentUnavailableView {
                 Label("Can't reach the server", systemImage: "wifi.exclamationmark")
@@ -74,13 +82,16 @@ struct InboxView: View {
 
     private var inboxList: some View {
         List {
-            if store.pending.isEmpty {
+            if store.pending.isEmpty, store.settledCards.isEmpty {
                 allClear
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
             ForEach(store.pending) { message in
                 pendingRow(message)
+            }
+            ForEach(store.settledCards) { message in
+                settledRow(message)
             }
             ForEach(store.settledHistory) { message in
                 NavigationLink(value: SessionRoute(message: message)) {
@@ -102,10 +113,34 @@ struct InboxView: View {
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button("Reply") { replyTarget = message }
+            Button { replyTarget = message } label: {
+                Label("Reply", systemImage: "arrowshape.turn.up.left")
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             trailingSwipes(for: message)
+        }
+    }
+
+    private func settledRow(_ message: HistoryMessage) -> some View {
+        MessageCard(
+            message: message,
+            settlement: store.settlement(for: message.id),
+            onChoose: { _ in },
+            onOpen: { AppRouter.shared.open(messageID: message.id.rawValue) }
+        )
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button {
+                AppRouter.shared.open(messageID: message.id.rawValue)
+            } label: {
+                let items = MessageMeta.items(for: message, density: .selected)
+                let type = items.first { $0.id == "type" }
+                Label(type?.label ?? "Details", systemImage: type?.icon ?? "info.circle")
+            }
+            .tint(.accentColor)
         }
     }
 
@@ -113,13 +148,19 @@ struct InboxView: View {
     private func trailingSwipes(for message: HistoryMessage) -> some View {
         let options = message.options
         if let first = options.first {
-            Button(first) { handleReply(first, to: message.id) }
+            Button { handleReply(first, to: message.id) } label: {
+                Label(first, systemImage: MessageMeta.optionIcon(first))
+            }
         }
         if options.count >= 2 {
-            Button(options[1]) { handleReply(options[1], to: message.id) }
+            Button { handleReply(options[1], to: message.id) } label: {
+                Label(options[1], systemImage: MessageMeta.optionIcon(options[1]))
+            }
         }
         if options.count > 2 {
-            Button("More") { replyTarget = message }
+            Button { replyTarget = message } label: {
+                Label("More", systemImage: "ellipsis")
+            }
         }
     }
 
@@ -141,27 +182,5 @@ struct InboxView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 28)
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// A small colored dot summarising the live connection state.
-struct ConnectionDot: View {
-    let state: ConnectionState
-
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 7, height: 7)
-            Text(state.label).font(.caption).foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var color: Color {
-        switch state {
-        case .connected: .green
-        case .connecting: .orange
-        case .failed: .red
-        case .disconnected: .secondary
-        }
     }
 }

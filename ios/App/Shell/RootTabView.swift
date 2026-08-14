@@ -81,5 +81,18 @@ struct RootTabView: View {
             ProgressVideoPlayback.shared.feedVisible = new == 1
             if new == 1 { Task { await progress.refresh() } }
         }
+        .onAppear { applyDemoRoute() }
+    }
+
+    /// Screenshot / demo deep-links: open a message or a session thread.
+    private func applyDemoRoute() {
+        let env = ProcessInfo.processInfo.environment
+        if let id = env["HIBOSS_DEMO_OPEN"], !id.isEmpty {
+            inboxPath = NavigationPath([MessageID(rawValue: id)])
+            return
+        }
+        if env["HIBOSS_DEMO_SESSION"] == "1" {
+            inboxPath = NavigationPath([SessionRoute(id: "sess-deploy", label: "prod-release")])
+        }
     }
 }

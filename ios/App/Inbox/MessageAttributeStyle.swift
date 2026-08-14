@@ -102,6 +102,10 @@ struct MessageDetailsSection: View {
         AttributeRow(icon: MessageAttributeStyle.directionIcon(message.direction), label: "Direction") {
             Text(MessageAttributeStyle.directionLabel(message.direction))
         }
+        let glyph = MessageMeta.typeGlyph(message.type)
+        AttributeRow(icon: glyph.icon, label: "Type") {
+            Text(glyph.label)
+        }
         let p = MessageAttributeStyle.priority(message.priority)
         AttributeRow(icon: p.icon, tint: p.tint, label: "Priority") {
             Text(message.priority.capitalized)
@@ -109,6 +113,18 @@ struct MessageDetailsSection: View {
     }
 
     @ViewBuilder private var optionalRows: some View {
+        if let branch = message.sessionBranch?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !branch.isEmpty {
+            AttributeRow(icon: "arrow.triangle.branch", label: "Branch") {
+                Text(branch).monospaced()
+            }
+        }
+        let files = message.metadata?.files ?? []
+        if !files.isEmpty {
+            AttributeRow(icon: "doc.text", label: files.count == 1 ? "File" : "Files") {
+                Text(files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.joined(separator: ", "))
+            }
+        }
         if let mode = message.mode, !mode.isEmpty {
             AttributeRow(icon: MessageAttributeStyle.mode(mode), label: "Mode") {
                 Text(mode.capitalized)

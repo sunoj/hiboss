@@ -20,6 +20,10 @@ final class InboxStore: ObservableObject {
     @Published private(set) var didLoad = false
     /// Ids removed optimistically (answered/expired locally) until history catches up.
     @Published private(set) var withdrawn: Set<MessageID> = []
+    /// Decisions that should keep a settled card after leaving `pending`.
+    @Published private(set) var settledIDs: Set<MessageID> = []
+    /// Optimistic / stream-provided answers until history replies catch up.
+    @Published private(set) var localResolutions: [MessageID: DecisionSettlement] = [:]
 
     private var api: (any BossServing)?
     private let reconnectDelay: Duration
@@ -46,17 +50,6 @@ final class InboxStore: ObservableObject {
     }
 
     var pendingCount: Int { pending.count }
-
-    /// Newest settled message per session, for Messages-style inbox rows.
-    /// Live pending cards are excluded so a decision isn't shown twice.
-    var settledHistory: [HistoryMessage] {
-        let live = Set(pending.map(\.id))
-        var seen = Set<String>()
-        return history
-            .filter { !live.contains($0.id) }
-            .sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
-            .filter { seen.insert(SessionGrouping.sessionKey(for: $0)).inserted }
-    }
 
     /// Soonest deadline first (none last), then higher priority, then newest.
     private static func moreUrgent(_ lhs: HistoryMessage, _ rhs: HistoryMessage) -> Bool {
@@ -107,6 +100,8 @@ final class InboxStore: ObservableObject {
         api = nil
         history = []
         withdrawn = []
+        settledIDs = []
+        localResolutions = [:]
         didLoad = false
         loadError = nil
         connectionState = .disconnected
@@ -149,6 +144,7 @@ final class InboxStore: ObservableObject {
         loadError = nil
         didLoad = true
         pruneWithdrawn()
+        adoptHistoryReplies()
         rescheduleExpiries()
     }
 
@@ -156,12 +152,19 @@ final class InboxStore: ObservableObject {
     func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
         guard let api else { return .failed }
         withdrawn.insert(id)
+        settledIDs.insert(id)
+        localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
         do {
             let outcome = try await api.reply(to: id, with: choice)
+            if outcome == .alreadyResolved {
+                localResolutions[id] = DecisionSettlement(answer: choice, source: nil)
+            }
             refreshHistory()
             return outcome == .alreadyResolved ? .alreadyResolved : .sent
         } catch {
             withdrawn.remove(id)
+            settledIDs.remove(id)
+            localResolutions[id] = nil
             loadError = error.localizedDescription
             return .failed
         }
@@ -204,6 +207,14 @@ final class InboxStore: ObservableObject {
             refreshHistory()
         case let .resolved(resolution):
             withdrawn.insert(resolution.id)
+            settledIDs.insert(resolution.id)
+            if let answer = resolution.answer?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !answer.isEmpty {
+                localResolutions[resolution.id] = DecisionSettlement(
+                    answer: answer,
+                    source: resolution.source
+                )
+            }
             refreshHistory()
         }
     }
@@ -212,6 +223,15 @@ final class InboxStore: ObservableObject {
     private func pruneWithdrawn() {
         let stillPending = Set(history.filter(\.isPendingDecision).map(\.id))
         withdrawn.formIntersection(stillPending)
+    }
+
+    /// Prefer the persisted boss reply (body + source) over an optimistic guess.
+    private func adoptHistoryReplies() {
+        for message in history where message.isDecision {
+            guard let found = DecisionSettlement.fromReply(in: history, for: message.id) else { continue }
+            localResolutions[message.id] = found
+            settledIDs.insert(message.id)
+        }
     }
 
     /// Arm one timer per pending deadline; when it fires, republish so `pending`
