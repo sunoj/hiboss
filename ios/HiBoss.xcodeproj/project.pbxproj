@@ -33,6 +33,7 @@
 		8285A0578EE66FFEE5F46114 /* HibossKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0812026A36C6DC3A7D604423 /* HibossKit */; };
 		86203834974A33A8C0E3584B /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BA3966B5965FDF38682FE72 /* ConnectView.swift */; };
 		8A173100FC93F5D88A35F31F /* RoutingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71907C16801CD73E13B8C90D /* RoutingSection.swift */; };
+		9276EB382DA08B0A2A5B5BCD /* SessionMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */; };
 		9975477625707226F0569D49 /* RespondIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */; };
 		9A601988E4CF388CDA003659 /* DecisionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6984921D9196A67C9F627A26 /* DecisionActivity.swift */; };
 		9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */; };
@@ -85,6 +86,7 @@
 		04E38393C7F0BB67A364CC15 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
 		0888F1DE33B534799B2E9C52 /* PreferencesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesStore.swift; sourceTree = "<group>"; };
 		0A59FEA0ECFFD31DD1F93981 /* RelativeTime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTime.swift; sourceTree = "<group>"; };
+		0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionMessagesView.swift; sourceTree = "<group>"; };
 		10ABFC55E827E2018CBA37A0 /* HiBossWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HiBossWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AB277BBD9EEE996D38F2992 /* Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Palette.swift; sourceTree = "<group>"; };
 		28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDetailView.swift; sourceTree = "<group>"; };
@@ -315,6 +317,7 @@
 				BF8FDF2319CA7E57192C7679 /* MessageCard.swift */,
 				28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */,
 				AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */,
+				0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */,
 				30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */,
 			);
 			path = Inbox;
@@ -499,6 +502,7 @@
 				A6D52D02F7F9A096BEC123B0 /* RootTabView.swift in Sources */,
 				8A173100FC93F5D88A35F31F /* RoutingSection.swift in Sources */,
 				F9206BC91FCBEF650BFD18E5 /* SessionCard.swift in Sources */,
+				9276EB382DA08B0A2A5B5BCD /* SessionMessagesView.swift in Sources */,
 				A5EC5D86F37311FE30E74AD3 /* SessionSectionHeader.swift in Sources */,
 				634D1F39A52B99D7231102F5 /* SessionsView.swift in Sources */,
 				45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */,

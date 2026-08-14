@@ -47,13 +47,15 @@ final class InboxStore: ObservableObject {
 
     var pendingCount: Int { pending.count }
 
-    /// Settled history for the Messages-style list, newest first. Live pending
-    /// cards are excluded so a decision isn't shown twice.
+    /// Newest settled message per session, for Messages-style inbox rows.
+    /// Live pending cards are excluded so a decision isn't shown twice.
     var settledHistory: [HistoryMessage] {
         let live = Set(pending.map(\.id))
+        var seen = Set<String>()
         return history
             .filter { !live.contains($0.id) }
             .sorted { ($0.createdDate ?? .distantPast) > ($1.createdDate ?? .distantPast) }
+            .filter { seen.insert(SessionGrouping.sessionKey(for: $0)).inserted }
     }
 
     /// Soonest deadline first (none last), then higher priority, then newest.

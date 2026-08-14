@@ -83,7 +83,9 @@ struct InboxView: View {
                 pendingRow(message)
             }
             ForEach(store.settledHistory) { message in
-                NavigationLink(value: message.id) { HistoryRow(message: message) }
+                NavigationLink(value: SessionRoute(message: message)) {
+                    HistoryRow(message: message)
+                }
             }
         }
         .listStyle(.plain)
