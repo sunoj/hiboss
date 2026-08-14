@@ -17,7 +17,7 @@ describe('POST /api/attachments/upload', () => {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
-        'Content-Type': 'text/plain',
+        'Content-Type': 'image/png',
         'X-Filename': 'test.txt',
       },
       body: data,
@@ -27,8 +27,36 @@ describe('POST /api/attachments/upload', () => {
     expect(json.key).toBeTruthy();
     expect(json.url).toContain('/api/attachments/');
     expect(json.filename).toBe('test.txt');
-    expect(json.content_type).toBe('text/plain');
+    expect(json.content_type).toBe('image/png');
     expect(json.size).toBe(11);
+  });
+
+  it('accepts raw video/mp4 uploads', async () => {
+    const res = await SELF.fetch('https://test.local/api/attachments/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: authHeaders().Authorization,
+        'Content-Type': 'video/mp4',
+        'X-Filename': 'clip.mp4',
+      },
+      body: new Uint8Array([0, 1, 2]),
+    });
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as { content_type: string; size: number };
+    expect(json.content_type).toBe('video/mp4');
+    expect(json.size).toBe(3);
+  });
+
+  it('rejects unsupported raw content types', async () => {
+    const res = await SELF.fetch('https://test.local/api/attachments/upload', {
+      method: 'POST',
+      headers: {
+        Authorization: authHeaders().Authorization,
+        'Content-Type': 'text/plain',
+      },
+      body: new TextEncoder().encode('not media'),
+    });
+    expect(res.status).toBe(400);
   });
 
   it('rejects empty file', async () => {
@@ -36,7 +64,7 @@ describe('POST /api/attachments/upload', () => {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
-        'Content-Type': 'application/octet-stream',
+        'Content-Type': 'image/png',
       },
       body: new ArrayBuffer(0),
     });
@@ -62,7 +90,7 @@ describe('GET /api/attachments/:key', () => {
       method: 'POST',
       headers: {
         Authorization: authHeaders().Authorization,
-        'Content-Type': 'text/plain',
+        'Content-Type': 'image/png',
         'X-Filename': 'serve-test.txt',
       },
       body: data,
@@ -71,7 +99,7 @@ describe('GET /api/attachments/:key', () => {
 
     const res = await SELF.fetch(`https://test.local/api/attachments/${key}`);
     expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toBe('text/plain');
+    expect(res.headers.get('content-type')).toBe('image/png');
     expect(res.headers.get('content-disposition')).toContain('serve-test.txt');
     const body = await res.text();
     expect(body).toBe(content);
