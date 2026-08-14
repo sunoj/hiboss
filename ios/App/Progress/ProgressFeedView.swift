@@ -8,7 +8,7 @@ import SwiftUI
 struct ProgressFeedView: View {
     @ObservedObject var store: ProgressFeedStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var opened: ProgressMedia?
+    @State private var opened: ProgressMediaSession?
 
     var body: some View {
         ListStateView(
@@ -31,8 +31,8 @@ struct ProgressFeedView: View {
         }
         .onAppear { ProgressVideoPlayback.shared.feedVisible = true }
         .onDisappear { ProgressVideoPlayback.shared.feedVisible = false }
-        .fullScreenCover(item: $opened) { media in
-            ProgressMediaViewer(media: media)
+        .fullScreenCover(item: $opened) { session in
+            ProgressMediaViewer(items: session.items, startIndex: session.index)
                 .onAppear { ProgressVideoPlayback.shared.feedVisible = false }
                 .onDisappear { ProgressVideoPlayback.shared.feedVisible = true }
         }
@@ -41,7 +41,10 @@ struct ProgressFeedView: View {
     private var feedList: some View {
         List {
             ForEach(store.posts) { post in
-                ProgressPostCard(post: post, onOpenMedia: { opened = $0 }) {
+                ProgressPostCard(post: post, onOpenMedia: { media in
+                    let index = post.media.firstIndex(where: { $0.url == media.url }) ?? 0
+                    opened = ProgressMediaSession(items: post.media, index: index)
+                }) {
                     Task { await store.toggleLike(id: post.id) }
                 }
                 .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
