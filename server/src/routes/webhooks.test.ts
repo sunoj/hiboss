@@ -161,6 +161,10 @@ describe('POST /api/webhooks/telegram', () => {
     const data = (await res.json()) as { target_session_id: string | null; body: string };
     expect(data.target_session_id).toBe('tg-topic-session-1');
     expect(data.body).toBe('Topic scoped hello');
+    const event = await env.DB.prepare(
+      "SELECT session_id FROM session_events WHERE raw LIKE '%Topic scoped hello%' ORDER BY sequence DESC LIMIT 1",
+    ).first<{ session_id: string }>();
+    expect(event?.session_id).toBe('tg-topic-session-1');
   });
 
   it('returns 400 when chat is missing', async () => {

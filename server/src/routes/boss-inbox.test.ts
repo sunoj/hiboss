@@ -109,6 +109,26 @@ describe('POST /api/boss/inbox/:id/reply', () => {
     expect(data.metadata?.boss_id).toBe(bossId);
   });
 
+  it('appends a session event for a boss-agent reply', async () => {
+    const sessionId = 'boss-inbox-event-session';
+    await env.DB.prepare("INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')")
+      .bind(sessionId, subAgentId, sessionId).run();
+    const parentId = 'boss-inbox-event-parent';
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'Need approval', 'sent', 'normal', ?)",
+    ).bind(parentId, subAgentId, sessionId).run();
+    const res = await SELF.fetch(`http://localhost/api/boss/inbox/${parentId}/reply`, {
+      method: 'POST',
+      headers: bossHeaders(),
+      body: JSON.stringify({ body: 'Approved' }),
+    });
+    expect(res.status).toBe(201);
+    const reply = await res.json() as { id: string };
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
+      .bind(reply.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: sessionId, message_id: reply.id });
+  });
+
   it('marks parent as replied', async () => {
     const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind('msg-from-sub-1').first<{ status: string }>();

@@ -12,6 +12,7 @@ import {
   requireTelegramConfig,
   safeParse,
 } from './message-helpers';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 const FORWARD_CHANNELS = ['discord', 'telegram'] as const;
 
@@ -60,16 +61,16 @@ export async function forwardMessage(
       fileUrl,
       avatar,
       env,
-      original.session_id,
+      original.session_id ?? original.target_session_id,
     )
   );
   if (!result.delivered) throw new Error('forward delivery failed');
 
-  const inserted = await env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, reply_to, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(
+  const inserted = await insertMessageWithEvent(
+    env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, reply_to, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [
+      createMessageId(),
       original.agent_id,
       original.direction,
       original.mode,
@@ -83,8 +84,9 @@ export async function forwardMessage(
       original.session_id,
       original.target_agent_id,
       original.target_session_id,
-    )
-    .first<MessageRow>();
+    ],
+    original.session_id ?? original.target_session_id,
+  );
   if (!inserted) throw new Error('failed to persist');
 
   if (result.discordMessageId) {

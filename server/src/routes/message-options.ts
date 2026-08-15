@@ -14,6 +14,7 @@ import {
 import { selectChannelConfig, fetchAgentName } from './message-queries';
 import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 const MAX_MESSAGE_OPTIONS = 5;
 const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
@@ -86,12 +87,12 @@ async function autoResolveDefaultOption(
     .bind(JSON.stringify(meta), message.id)
     .first<{ id: string }>();
   if (!claimed) return;
-  const inserted = await env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true, source: 'api' }), replyTargetSession(message))
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true, source: 'api' }), replyTargetSession(message)],
+    replyTargetSession(message),
+  );
   if (!inserted) return;
   // Best-effort notifications: the default is already durably recorded above, so a failed
   // agent callback / channel edit (e.g. unreachable URL) must not throw out of the cron path.

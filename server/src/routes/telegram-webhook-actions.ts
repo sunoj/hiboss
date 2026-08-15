@@ -13,6 +13,7 @@ import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './
 import { findTelegramSessionRoute } from './session-channels';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 type TelegramConfigRow = { agent_id: string; config: string };
 type TelegramContext = Context<{ Bindings: Env }>;
@@ -100,10 +101,12 @@ async function handleMessageCallback(
   const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
   if (rejection) return rejection;
   const metadata = buildCallbackReplyMetadata(parentMsg.metadata, parsed.selectedOption, bossInfo);
-  const inserted = await c.env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(configRow.agent_id, 'boss_to_agent', 'async', 'telegram', parsed.selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, metadata ? JSON.stringify(metadata) : null, replyTargetSession(parentMsg))
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    c.env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), configRow.agent_id, 'boss_to_agent', 'async', 'telegram', parsed.selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, metadata ? JSON.stringify(metadata) : null, replyTargetSession(parentMsg)],
+    replyTargetSession(parentMsg),
+  );
   if (!inserted) return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
   answerTelegramCallback(c, botToken, queryId, `Selected: ${parsed.selectedOption}`);
   await updateCallbackMessage(botToken, chatMessage(query), `✅ Selected: ${parsed.selectedOption}`);
