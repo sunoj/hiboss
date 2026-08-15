@@ -23,6 +23,16 @@ final class SessionEventDecodingTests: XCTestCase {
         XCTAssertEqual(event.payload?.objectValue?["tool"]?.stringValue, "bash")
     }
 
+    func testUnknownKindUsesCompactPayloadPreview() throws {
+        let json = """
+        {"id":"e9","session_id":"s1","sequence":9,"kind":"future_kind",
+         "payload":{"note":"keep me","count":2},"created_at":"2026-08-14T09:00:00Z"}
+        """
+        let event = try JSONDecoder().decode(SessionEvent.self, from: Data(json.utf8))
+        XCTAssertFalse(event.isKnownKind)
+        XCTAssertEqual(event.displayBody, "keep me")
+    }
+
     func testPageResyncFlag() throws {
         let json = #"{"events":[],"resync":true}"#
         let page = try JSONDecoder().decode(SessionEventsPage.self, from: Data(json.utf8))
