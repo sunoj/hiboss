@@ -154,7 +154,7 @@ struct SessionTranscriptRow: View {
                     .lineLimit(1)
                 Text(event.kind)
                     .font(.caption2)
-                    .foregroundStyle(event.isKnownKind ? .tertiary : Color.accentColor)
+                    .foregroundStyle(event.isKnownKind ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.accentColor))
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 Text(timeLabel)
