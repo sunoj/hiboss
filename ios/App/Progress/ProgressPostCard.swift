@@ -1,6 +1,7 @@
 // One progress post as a full-width timeline row: avatar, identity, body, media, like.
 // Exports: ProgressPostCard.
-// Dependencies: SwiftUI, HibossKit ProgressPost, ProgressMediaView, RelativeTime.
+// Dependencies: SwiftUI, HibossKit ProgressPost, ProgressMediaView, RelativeTime,
+//   ProgressAttributionChip.
 
 import HibossKit
 import SwiftUI
@@ -39,29 +40,34 @@ struct ProgressPostCard: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(post.team.displayName)
-                .font(.headline)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-            Text("·")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-            Text("@\(post.team.handle)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .layoutPriority(-1)
-            if !post.relativeCreatedAt.isEmpty {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(post.team.displayName)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
                 Text("·")
                     .font(.subheadline)
                     .foregroundStyle(.tertiary)
-                Text(post.relativeCreatedAt)
-                    .font(.caption)
+                Text("@\(post.team.handle)")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .layoutPriority(-1)
+                if !post.relativeCreatedAt.isEmpty {
+                    Text("·")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                    Text(post.relativeCreatedAt)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            if post.agentLabel != nil || post.model != nil {
+                ProgressAttributionChip(agentLabel: post.agentLabel, model: post.model)
+            }
         }
     }
 }

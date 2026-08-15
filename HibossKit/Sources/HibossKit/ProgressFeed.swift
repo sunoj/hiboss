@@ -118,14 +118,17 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let team: ProgressTeam
     public let likeCount: Int
     public let liked: Bool
+    public let agentLabel: String?
+    public let model: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, project, body, media, tags, team, liked
+        case id, project, body, media, tags, team, liked, model
         case agentId = "agent_id"
         case agentName = "agent_name"
         case sessionId = "session_id"
         case createdAt = "created_at"
         case likeCount = "like_count"
+        case agentLabel = "agent_label"
     }
 
     public init(
@@ -140,7 +143,9 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         createdAt: String,
         team: ProgressTeam? = nil,
         likeCount: Int = 0,
-        liked: Bool = false
+        liked: Bool = false,
+        agentLabel: String? = nil,
+        model: String? = nil
     ) {
         self.id = id
         self.project = project
@@ -154,6 +159,8 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         self.team = team ?? .fallback(project: project)
         self.likeCount = likeCount
         self.liked = liked
+        self.agentLabel = Self.nonEmpty(agentLabel)
+        self.model = Self.nonEmpty(model)
     }
 
     public init(from decoder: Decoder) throws {
@@ -170,14 +177,22 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         team = try values.decodeIfPresent(ProgressTeam.self, forKey: .team) ?? .fallback(project: project)
         likeCount = try values.decodeIfPresent(Int.self, forKey: .likeCount) ?? 0
         liked = try values.decodeIfPresent(Bool.self, forKey: .liked) ?? false
+        agentLabel = Self.nonEmpty(try values.decodeIfPresent(String.self, forKey: .agentLabel))
+        model = Self.nonEmpty(try values.decodeIfPresent(String.self, forKey: .model))
     }
 
     public func withLike(count: Int, liked: Bool) -> ProgressPost {
         ProgressPost(
             id: id, project: project, agentId: agentId, agentName: agentName,
             sessionId: sessionId, body: body, media: media, tags: tags,
-            createdAt: createdAt, team: team, likeCount: count, liked: liked
+            createdAt: createdAt, team: team, likeCount: count, liked: liked,
+            agentLabel: agentLabel, model: model
         )
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let value, !value.isEmpty else { return nil }
+        return value
     }
 }
 
