@@ -5,8 +5,8 @@
 
 import type { Env, MessageRow } from '../types';
 import { mapMessageRow } from './message-helpers';
+import { DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 
-const POLL_INTERVAL_MS = 3_000;
 const KEEPALIVE_INTERVAL_MS = 15_000;
 const MAX_DURATION_MS = 5 * 60 * 1_000;
 
@@ -20,6 +20,7 @@ export async function streamBossFeed(
   let lastKeepalive = Date.now();
   let sinceTimestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const seenIds = new Set<string>();
+  const pollIntervalMs = getStreamPollIntervalMs(env, DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS);
   const placeholders = agentIds.map(() => '?').join(', ');
   const sql =
     `SELECT messages.*, api_keys.name AS agent_name
@@ -45,7 +46,7 @@ export async function streamBossFeed(
         await writer.write(encoder.encode(': keepalive\n\n'));
         lastKeepalive = Date.now();
       }
-      await delay(POLL_INTERVAL_MS);
+      await delay(pollIntervalMs);
     }
   } catch {
     // The client disconnected; nothing to clean up (no shared state, no writes).

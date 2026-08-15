@@ -17,6 +17,7 @@ export type Env = {
   APNS_KEY_ID?: string;
   APNS_TEAM_ID?: string;
   APNS_AUTH_KEY?: string;
+  STREAM_POLL_INTERVAL_MS?: string;
 };
 
 export type Direction = 'agent_to_boss' | 'boss_to_agent' | 'agent_to_agent';
