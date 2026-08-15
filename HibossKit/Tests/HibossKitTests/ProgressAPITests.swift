@@ -20,8 +20,11 @@ final class ProgressAPITests: XCTestCase {
             let items = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?.queryItems
             XCTAssertEqual(items?.first { $0.name == "limit" }?.value, "20")
             XCTAssertEqual(items?.first { $0.name == "project" }?.value, "hiboss")
-            let cursor = #"{"id":"p2","created_at":"2026-08-14T09:00:00Z"}"#
-            XCTAssertEqual(items?.first { $0.name == "before" }?.value, cursor)
+            let encoded = items?.first { $0.name == "before" }?.value
+            let decoded = try JSONDecoder().decode(
+                ProgressCursor.self, from: Data((encoded ?? "").utf8)
+            )
+            XCTAssertEqual(decoded, ProgressCursor(createdAt: "2026-08-14T09:00:00Z", id: "p2"))
             return try Self.response(
                 for: request,
                 json: #"{"posts":[{"id":"p1","project":"hiboss","agent_id":"ak1","agent_name":"cli","body":"Hi","media":[],"tags":[],"created_at":"2026-08-14T08:00:00Z"}],"next_cursor":null}"#
