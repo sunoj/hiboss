@@ -10,7 +10,7 @@ var isDemoMode: Bool {
 }
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
-final class DemoBossAPI: BossServing, @unchecked Sendable {
+final class DemoBossAPI: BossServing, SessionStreamServing, @unchecked Sendable {
     private var messages: [HistoryMessage]
 
     init() {
@@ -42,6 +42,31 @@ final class DemoBossAPI: BossServing, @unchecked Sendable {
         messages.append(DemoFixtures.bossReply(to: parent, choice: choice, source: "ios"))
         return .accepted
     }
+
+    func fetchSessionEvents(
+        sessionID: String,
+        after: Int?,
+        limit: Int
+    ) async throws -> SessionEventsPage {
+        let all = DemoFixtures.sessionEvents(for: sessionID, from: messages)
+        let start = (after ?? -1) + 1
+        let slice = all.filter { $0.sequence >= start }.prefix(limit)
+        let events = Array(slice)
+        return SessionEventsPage(
+            events: events,
+            nextAfter: events.last?.sequence,
+            resync: false
+        )
+    }
+
+    func sessionEventStream(
+        sessionID: String,
+        after: Int
+    ) async -> AsyncThrowingStream<SessionStreamFrame, Error> {
+        AsyncThrowingStream { continuation in
+            continuation.onTermination = { _ in }
+        }
+    }
 }
 
 private enum DemoConnectionError: Error, LocalizedError {
@@ -63,6 +88,23 @@ private enum DemoFixtures {
     }
 
     static let messages: [HistoryMessage] = deploy + payments + data + direct
+
+    /// Projects demo history into session events ordered by created_at within a session.
+    static func sessionEvents(for sessionID: String, from messages: [HistoryMessage]) -> [SessionEvent] {
+        messages
+            .filter { $0.sessionId == sessionID || $0.targetSessionId == sessionID }
+            .sorted { ($0.createdDate ?? .distantPast) < ($1.createdDate ?? .distantPast) }
+            .enumerated()
+            .map { index, message in
+                SessionEvent(
+                    id: "evt-\(message.id.rawValue)", sessionId: sessionID, sequence: index + 1,
+                    kind: "message", direction: message.direction, actorName: message.agentName,
+                    messageId: message.id.rawValue,
+                    payload: .object(["body": .string(message.body), "priority": .string(message.priority)]),
+                    createdAt: message.createdAt
+                )
+            }
+    }
 
     static func answered(_ parent: HistoryMessage) -> HistoryMessage {
         HistoryMessage(
