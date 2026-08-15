@@ -26,6 +26,15 @@ final class ProgressMediaTapUITests: XCTestCase {
         assertViewerOpened(after: "single-image accessibility tap")
     }
 
+    func testViewerImageFillsScreenAndIsCentered() {
+        openViewer(label: "wide landscape screenshot")
+        assertViewerMediaFitted(label: "wide landscape screenshot")
+        dismissViewer()
+
+        openViewer(label: "tall portrait screenshot")
+        assertViewerMediaFitted(label: "tall portrait screenshot")
+    }
+
     func testTappingTwoItemMosaicOpensViewer() {
         continueAfterFailure = true
         assertCellOpensViewer("leading still", corner: CGVector(dx: 0.25, dy: 0.25))
@@ -134,6 +143,88 @@ private extension ProgressMediaTapUITests {
         XCTAssertTrue(
             app.buttons["Close"].firstMatch.waitForExistence(timeout: 3),
             "full-screen viewer should present after \(reason)"
+        )
+    }
+
+    func openViewer(label: String) {
+        let cell = ensureFullyOnScreen(reveal(media(label)))
+        XCTAssertTrue(cell.waitForExistence(timeout: 8), "\(label) should appear in feed")
+        cell.tap()
+        assertViewerOpened(after: "\(label) open for geometry")
+    }
+
+    /// Zoom host UIView must fill the scroll view, and the image sit near center —
+    /// not a zero/corner UIKit frame (pre-fix ProgressZoomView failure mode).
+    /// SwiftUI accessibility frames alone can look fine while the UIKit host is 0x0.
+    func assertViewerMediaFitted(label: String) {
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThan(window.width, 0, "window should have a size")
+
+        let scroll = app.scrollViews.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "progress-zoom-scroll")
+        ).firstMatch
+        XCTAssertTrue(
+            scroll.waitForExistence(timeout: 5),
+            "progress-zoom-scroll should exist"
+        )
+
+        var hostWidth: CGFloat = 0
+        var hostHeight: CGFloat = 0
+        var parsed = false
+        var lastID = ""
+        for _ in 0..<20 {
+            lastID = scroll.identifier
+            if let host = parseHostValue(fromIdentifier: lastID) {
+                hostWidth = host.width
+                hostHeight = host.height
+                parsed = true
+                if hostWidth > 1, hostHeight > 1 { break }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.15))
+        }
+        XCTAssertTrue(parsed, "expected identifier containing host:WxH@X,Y, got \(lastID)")
+        XCTAssertGreaterThan(
+            hostWidth, window.width * 0.9,
+            "zoom host width \(hostWidth) should track screen (\(window.width)); id=\(lastID)"
+        )
+        XCTAssertGreaterThan(
+            hostHeight, window.height * 0.9,
+            "zoom host height \(hostHeight) should track screen (\(window.height)); id=\(lastID)"
+        )
+
+        let query = app.images.matching(NSPredicate(format: "label == %@", label))
+        XCTAssertTrue(query.firstMatch.waitForExistence(timeout: 8), "\(label) in viewer")
+
+        var best = CGRect.zero
+        for i in 0..<query.count {
+            let frame = query.element(boundBy: i).frame
+            if frame.width * frame.height > best.width * best.height {
+                best = frame
+            }
+        }
+
+        XCTAssertGreaterThan(best.width, 40, "\(label) should be visible; frame=\(best)")
+        XCTAssertEqual(
+            best.midX, window.midX, accuracy: window.width * 0.12,
+            "\(label) should be horizontally centred; frame=\(best) window=\(window)"
+        )
+        XCTAssertEqual(
+            best.midY, window.midY, accuracy: window.height * 0.2,
+            "\(label) should be vertically centred; frame=\(best) window=\(window)"
+        )
+    }
+
+    func parseHostValue(fromIdentifier value: String) -> CGRect? {
+        guard let range = value.range(of: "host:") else { return nil }
+        let body = String(value[range.upperBound...])
+        let atParts = body.split(separator: "@", maxSplits: 1).map(String.init)
+        guard atParts.count == 2 else { return nil }
+        let sizeParts = atParts[0].split(separator: "x").compactMap { Double($0) }
+        let originParts = atParts[1].split(separator: ",").compactMap { Double($0) }
+        guard sizeParts.count == 2, originParts.count == 2 else { return nil }
+        return CGRect(
+            x: originParts[0], y: originParts[1],
+            width: sizeParts[0], height: sizeParts[1]
         )
     }
 

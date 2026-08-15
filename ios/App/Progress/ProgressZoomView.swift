@@ -46,10 +46,14 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
             self.onZoomed = onZoomed
             host = UIHostingController(rootView: content)
             host.view.backgroundColor = .clear
+            // Not attached as a child VC: UIViewRepresentable has no parent to addChild.
+            // Safe here — we size the hosted view explicitly in syncFrame; lifecycle /
+            // safe-area forwarding is unused. Switching to UIViewControllerRepresentable
+            // would parent it but would not fix the zero-bounds layout bug on its own.
         }
 
         func makeScrollView() -> UIScrollView {
-            let scroll = UIScrollView()
+            let scroll = ZoomScrollView()
             scroll.delegate = self
             scroll.minimumZoomScale = 1
             scroll.maximumZoomScale = 4
@@ -57,16 +61,40 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
             scroll.showsHorizontalScrollIndicator = false
             scroll.showsVerticalScrollIndicator = false
             scroll.backgroundColor = .black
+            scroll.accessibilityIdentifier = "progress-zoom-scroll host:0x0@0,0"
             scroll.addSubview(host.view)
+            scroll.onBoundsChange = { [weak self, weak scroll] in
+                guard let self, let scroll else { return }
+                self.syncFrame(scroll)
+            }
             self.scroll = scroll
             return scroll
         }
 
         func syncFrame(_ scroll: UIScrollView) {
             let size = scroll.bounds.size
-            guard size.width > 0, size.height > 0, scroll.zoomScale == 1 else { return }
-            host.view.frame = CGRect(origin: .zero, size: size)
-            scroll.contentSize = size
+            guard size.width > 0, size.height > 0, scroll.zoomScale == 1 else {
+                publishHostSize(scroll)
+                return
+            }
+            let frame = CGRect(origin: .zero, size: size)
+            if host.view.frame != frame {
+                host.view.frame = frame
+            }
+            if scroll.contentSize != size {
+                scroll.contentSize = size
+            }
+            publishHostSize(scroll)
+        }
+
+        /// Exposes the UIKit host frame to UI tests via accessibilityIdentifier.
+        /// (SwiftUI AX frames can look correct while the hosting UIView is still 0x0.)
+        private func publishHostSize(_ scroll: UIScrollView) {
+            let f = host.view.frame
+            scroll.accessibilityIdentifier = String(
+                format: "progress-zoom-scroll host:%.0fx%.0f@%.0f,%.0f",
+                f.width, f.height, f.origin.x, f.origin.y
+            )
         }
 
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { host.view }
@@ -92,5 +120,20 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
             )
             scroll.zoom(to: rect, animated: true)
         }
+    }
+}
+
+/// Relays bounds changes so the hosted SwiftUI view can track the scroll view after layout.
+/// `updateUIView` alone is too early — bounds are still zero before the first layout pass.
+private final class ZoomScrollView: UIScrollView {
+    var onBoundsChange: (() -> Void)?
+    private var lastBoundsSize: CGSize = .zero
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let size = bounds.size
+        guard size != lastBoundsSize else { return }
+        lastBoundsSize = size
+        onBoundsChange?()
     }
 }
