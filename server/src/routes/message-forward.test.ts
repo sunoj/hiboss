@@ -18,6 +18,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   await env.DB.prepare('DELETE FROM channel_configs WHERE agent_id = ? AND channel IN (?, ?)').bind(getTestAgentId(), 'telegram', 'discord').run();
   await env.DB.prepare("DELETE FROM channel_configs WHERE agent_id = 'forward-route-owner'").run();
+  await env.DB.prepare("DELETE FROM session_events WHERE message_id IN (SELECT id FROM messages WHERE reply_to LIKE 'forward-helper-%' OR reply_to LIKE 'forward-route-%' OR id LIKE 'forward-helper-%' OR id LIKE 'forward-route-%' OR body LIKE 'forward-route:%')").run();
   await env.DB.prepare("DELETE FROM messages WHERE reply_to LIKE 'forward-helper-%'").run();
   await env.DB.prepare("DELETE FROM messages WHERE reply_to LIKE 'forward-route-%'").run();
   await env.DB.prepare("DELETE FROM messages WHERE id LIKE 'forward-helper-%'").run();
@@ -41,8 +42,11 @@ describe('forwardMessage', () => {
       "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
     ).bind(getTestAgentId(), JSON.stringify({ chat_id: 'chat-1', bot_token: 'telegram-token' })).run();
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'sent', 'normal', ?)"
-    ).bind('forward-helper-source', getTestAgentId(), 'Needs review', JSON.stringify({ file_url: fileUrl })).run();
+      "INSERT OR IGNORE INTO sessions (id, agent_id, label, status) VALUES ('forward-helper-session', ?, 'forward-helper-session', 'working')"
+    ).bind(getTestAgentId()).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'sent', 'normal', ?, ?)"
+    ).bind('forward-helper-source', getTestAgentId(), 'Needs review', JSON.stringify({ file_url: fileUrl }), 'forward-helper-session').run();
 
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
@@ -66,6 +70,9 @@ describe('forwardMessage', () => {
     const metadata = JSON.parse(stored?.metadata ?? '{}') as Record<string, unknown>;
     expect(metadata.file_url).toBe(fileUrl);
     expect(metadata.telegram_message_id).toBe(4242);
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
+      .bind(forwarded.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: 'forward-helper-session', message_id: forwarded.id });
   });
 });
 
@@ -75,8 +82,11 @@ describe('POST /api/messages/:id/forward', () => {
       "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
     ).bind(getTestAgentId(), JSON.stringify({ chat_id: 'forward-route-chat', bot_token: 'forward-route-bot' })).run();
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'delivered', 'normal')"
-    ).bind('forward-route-source', getTestAgentId(), 'forward-route:source-body').run();
+      "INSERT OR IGNORE INTO sessions (id, agent_id, label, status) VALUES ('forward-route-session', ?, 'forward-route-session', 'working')"
+    ).bind(getTestAgentId()).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'delivered', 'normal', ?)"
+    ).bind('forward-route-source', getTestAgentId(), 'forward-route:source-body', 'forward-route-session').run();
 
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response('{}', { status: 200 }))
@@ -97,6 +107,8 @@ describe('POST /api/messages/:id/forward', () => {
       reply_to: 'forward-route-source',
       body: '[Forwarded from discord] forward-route:source-body',
     });
+    const stored = await env.DB.prepare("SELECT session_id FROM session_events WHERE raw LIKE '%forward-route:source-body%' ORDER BY sequence DESC LIMIT 1").first<{ session_id: string }>();
+    expect(stored?.session_id).toBe('forward-route-session');
   });
 
   it('does not let a different agent forward another agent message', async () => {

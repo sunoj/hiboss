@@ -43,6 +43,9 @@ describe('expireMessageOptions default option handling', () => {
     expect(reply?.channel).toBe('api');
     expect(reply?.status).toBe('sent');
     expect(parseMetadata(reply?.metadata)['auto_default']).toBe(true);
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
+      .bind(reply?.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: 'option-expiry-session-default', message_id: reply?.id });
     expect(mockedNotifyAgentCallback).toHaveBeenCalledTimes(1);
     const callbackArgs = mockedNotifyAgentCallback.mock.calls[0];
     expect(callbackArgs?.[1]).toBe(message.agent_id);
@@ -80,9 +83,12 @@ describe('expireMessageOptions default option handling', () => {
 
 async function insertOptionMessage(label: string, metadata: Record<string, unknown>): Promise<MessageRow> {
   const id = `option-expiry-${label}-${crypto.randomUUID()}`;
+  const sessionId = `option-expiry-session-${label}`;
+  await env.DB.prepare("INSERT OR IGNORE INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')")
+    .bind(sessionId, getTestAgentId(), sessionId).run();
   await env.DB.prepare(
-    "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Choose', 'delivered', 'normal', ?, ?)"
-  ).bind(id, getTestAgentId(), JSON.stringify(metadata), '2026-01-01T00:00:00.000Z').run();
+    "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, session_id, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Choose', 'delivered', 'normal', ?, ?, ?)"
+  ).bind(id, getTestAgentId(), JSON.stringify(metadata), sessionId, '2026-01-01T00:00:00.000Z').run();
   const row = await fetchMessage(id);
   if (!row) throw new Error('failed to insert option message');
   return row;
