@@ -1,6 +1,6 @@
 // App shell: native tabs, a navigation stack per section, and notification deep-links.
 // Exports: RootTabView switching Inbox / Progress / Sessions / Settings.
-// Dependencies: SwiftUI, HibossKit, the feature views, AppRouter.
+// Dependencies: SwiftUI, HibossKit, the feature views, AppRouter, DemoLaunchRoute.
 
 import HibossKit
 import SwiftUI
@@ -110,18 +110,16 @@ struct RootTabView: View {
 
     /// Screenshot / demo deep-links: open a message or a session thread.
     private func applyDemoRoute() {
-        let env = ProcessInfo.processInfo.environment
-        if let id = env["HIBOSS_DEMO_OPEN"], !id.isEmpty {
+        switch DemoLaunchRoute.resolve() {
+        case .none:
+            break
+        case .open(let id):
             tab = 0
-            inboxPath = NavigationPath([MessageID(rawValue: id)])
-            return
-        }
-        if env["HIBOSS_DEMO_SESSION"] == "1" {
+            inboxPath = NavigationPath([id])
+        case .session(let id, let label):
             tab = 0
-            inboxPath = NavigationPath([SessionRoute(id: "sess-deploy", label: "prod-release")])
-            return
-        }
-        if env["HIBOSS_DEMO_RESOLVED"] == "1" {
+            inboxPath = NavigationPath([SessionRoute(id: id, label: label)])
+        case .resolved:
             tab = 0
             inboxPath = NavigationPath([ResolvedRoute()])
         }
