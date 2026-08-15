@@ -261,6 +261,8 @@ describe('POST /api/boss/messages/:id/reply', () => {
     expect(res.status).toBe(201);
     const reply = await res.json() as { id: string; target_session_id: string | null };
     expect(reply.target_session_id).toBe('affinity-sess-a');
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?').bind(reply.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: 'affinity-sess-a', message_id: reply.id });
 
     // Session A sees it as unread; session B does not.
     const unreadFor = async (sid: string) => {
@@ -371,7 +373,7 @@ describe('GET /api/boss/sessions', () => {
 
     const res = await SELF.fetch('http://localhost/api/boss/sessions', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { sessions: unknown[] };
     expect(data.sessions).toBeInstanceOf(Array);
   });
 });
@@ -387,11 +389,13 @@ describe('POST /api/boss/sessions/:id/message', () => {
       body: JSON.stringify({ body: 'Run the deploy', priority: 'high' }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; direction: string; target_session_id: string; priority: string; body: string };
     expect(data.direction).toBe('boss_to_agent');
     expect(data.target_session_id).toBe('boss-sess-cmd');
     expect(data.priority).toBe('high');
     expect(data.body).toBe('Run the deploy');
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?').bind(data.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: 'boss-sess-cmd', message_id: data.id });
   });
 
   it('rejects empty body', async () => {

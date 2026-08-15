@@ -8,6 +8,7 @@ import { apiAuth, getAgentId } from '../middleware/auth';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 const MAX_LIMIT = 100;
 
@@ -148,12 +149,12 @@ routes.post('/:id/reply', async (c) => {
     return c.text('body is required', 400);
   }
   const metadata = JSON.stringify({ boss_id: boss.id, boss_name: boss.name });
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent))
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    c.env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
+    replyTargetSession(parent),
+  );
   if (!inserted) {
     return c.text('failed to persist', 500);
   }

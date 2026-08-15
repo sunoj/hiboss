@@ -3,6 +3,7 @@
 // Depends on Env typings and D1 bindings.
 
 import type { Env, MessageResponse, MessageRow } from '../types';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 export function asString(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
@@ -212,9 +213,11 @@ export async function insertBossDiscordMessage(
   // to every sibling session under this agent — the same mis-route this change
   // closes elsewhere. A non-thread channel message keeps sessionId NULL and
   // stays agent-wide. Mirrors the Telegram fresh-message path (webhooks.ts).
-  const inserted = await env.DB
-    .prepare('INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *')
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId, sessionId)
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId, sessionId],
+    sessionId,
+  );
   return inserted ?? null;
 }

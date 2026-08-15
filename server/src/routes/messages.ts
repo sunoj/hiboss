@@ -32,6 +32,7 @@ import {
   parsePriorityFilter,
   priorityOptions,
   requireTelegramConfig,
+  replyTargetSession,
   resolveChannelRouting,
   selectChannelConfig,
   validateChannel,
@@ -41,6 +42,7 @@ import { propagateMessageEdit } from './message-edit';
 import { ensureTopicForSession } from './session-channels';
 import { logAudit } from '../audit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
@@ -83,13 +85,14 @@ export async function insertMessageWithRecovery(
   values: [Direction, Mode, Channel | null, string, Priority, string, string | null, string | null, string | null, string | null, string | null]
 ): Promise<{ inserted: MessageRow | null; existing: MessageRow | null }> {
   const [direction, mode, channel, body, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId] = values;
+  const messageId = createMessageId();
   try {
-    const inserted = await env.DB
-      .prepare(
-        'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-      )
-      .bind(agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId)
-      .first<MessageRow>();
+    const inserted = await insertMessageWithEvent(
+      env,
+      'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+      [messageId, agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
+      sessionId ?? targetSessionId,
+    );
     return { inserted, existing: null };
   } catch (error) {
     if (!idempotencyKey || !isUniqueConstraintError(error)) throw error;
@@ -383,13 +386,13 @@ routes.post('/:id/reply', async (c) => {
     ? 'agent_to_agent'
     : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
   const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
-  const replyTargetSessionId = replyDirection === 'agent_to_agent' ? parent.session_id : null;
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId)
-    .first<MessageRow>();
+  const replyTargetSessionId = replyDirection === 'agent_to_agent' ? replyTargetSession(parent) : null;
+  const inserted = await insertMessageWithEvent(
+    c.env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId],
+    replyTargetSession(parent),
+  );
   if (!inserted) {
     return c.text('failed to persist', 500);
   }

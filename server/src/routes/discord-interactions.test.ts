@@ -74,16 +74,41 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(metadata?.type).toBe(2);
   });
 
+  it('appends an event for a session-scoped /msg command', async () => {
+    const sessionId = 'discord-interaction-event-session';
+    await env.DB.prepare("INSERT OR IGNORE INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')")
+      .bind(sessionId, TEST_AGENT_ID, sessionId).run();
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'pending discord', 'sent', 'normal', ?)",
+    ).bind('discord-interaction-event-parent', TEST_AGENT_ID, sessionId).run();
+    const bodyText = 'session discord command';
+    const res = await signedFetch({
+      type: 2,
+      channel_id: CHANNEL_ID,
+      data: { name: 'msg', options: [{ name: 'message', value: bodyText }] },
+    });
+    expect(res.status).toBe(200);
+    const stored = await env.DB.prepare('SELECT id FROM messages WHERE body = ? ORDER BY created_at DESC LIMIT 1')
+      .bind(bodyText).first<{ id: string }>();
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
+      .bind(stored?.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: sessionId, message_id: stored?.id });
+  });
+
   it('creates a reply when a button is clicked', async () => {
     const parentId = 'b077e0fa00000001aabbccdd00000001';
+    const sessionId = 'discord-option-event-session';
+    await env.DB.prepare("INSERT OR IGNORE INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')")
+      .bind(sessionId, TEST_AGENT_ID, sessionId).run();
     await env.DB
       .prepare(
-        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'parent', 'delivered', 'normal', ?, ?)"
+        "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, session_id, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', 'parent', 'delivered', 'normal', ?, ?, ?)"
       )
       .bind(
         parentId,
         TEST_AGENT_ID,
         JSON.stringify({ options: ['optionA'] }),
+        sessionId,
         new Date(Date.now() + 60_000).toISOString(),
       )
       .run();
@@ -111,6 +136,9 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(reply).not.toBeNull();
     expect(reply?.body).toBe('optionA');
     expect(reply?.reply_to).toBe(parentId);
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = (SELECT id FROM messages WHERE reply_to = ? ORDER BY created_at DESC LIMIT 1)')
+      .bind(parentId).first<{ session_id: string; message_id: string }>();
+    expect(event?.session_id).toBe(sessionId);
     const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind(parentId).first<{ status: string }>();
     expect(parent?.status).toBe('replied');

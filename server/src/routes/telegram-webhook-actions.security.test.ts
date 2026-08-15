@@ -20,6 +20,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await env.DB.prepare("DELETE FROM boss_agent_access WHERE boss_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM bosses WHERE telegram_user_id LIKE 'tg-sec-%'").run();
+  await env.DB.prepare("DELETE FROM session_events WHERE message_id IN (SELECT id FROM messages WHERE id LIKE 'tg-sec-%' OR agent_id LIKE 'tg-sec-%')").run();
   await env.DB.prepare("DELETE FROM messages WHERE id LIKE 'tg-sec-%' OR agent_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM sessions WHERE id LIKE 'tg-sec-%' OR agent_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM channel_configs WHERE agent_id LIKE 'tg-sec-%'").run();
@@ -67,6 +68,8 @@ describe('Telegram webhook security', () => {
     const parentId = 'cafebabe000000000000000000000001';
     await createAgent('tg-sec-generic-agent');
     await createAgent('tg-sec-thread-agent');
+    await env.DB.prepare("INSERT INTO sessions (id, agent_id, label, status, telegram_topic_id) VALUES (?, ?, ?, 'working', ?)")
+      .bind('tg-sec-option-session', 'tg-sec-thread-agent', 'tg-sec-option-session', 777).run();
     await env.DB.prepare(
       "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
     ).bind('tg-sec-generic-agent', JSON.stringify({ chat_id: 'tg-sec-topic-chat', bot_token: 'generic-token' })).run();
@@ -74,11 +77,12 @@ describe('Telegram webhook security', () => {
       "INSERT INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'telegram', ?, 1)"
     ).bind('tg-sec-thread-agent', JSON.stringify({ chat_id: 'tg-sec-topic-chat', bot_token: 'thread-token', message_thread_id: 777 })).run();
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Choose', 'delivered', 'normal', ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, session_id, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'Choose', 'delivered', 'normal', ?, ?, ?)"
     ).bind(
       parentId,
       'tg-sec-thread-agent',
       JSON.stringify({ options: ['approve'] }),
+      'tg-sec-option-session',
       new Date(Date.now() + 60_000).toISOString(),
     ).run();
 
@@ -108,6 +112,9 @@ describe('Telegram webhook security', () => {
     const parent = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind(parentId).first<{ status: string }>();
     expect(parent?.status).toBe('replied');
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = (SELECT id FROM messages WHERE reply_to = ? ORDER BY created_at DESC LIMIT 1)')
+      .bind(parentId).first<{ session_id: string; message_id: string }>();
+    expect(event?.session_id).toBe('tg-sec-option-session');
   });
 
   it('rejects forged callback_data that is not one of the offered options', async () => {
