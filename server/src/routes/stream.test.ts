@@ -6,6 +6,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 import { buildStreamQuery, pruneSeenMessageIds } from './stream';
+import { DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -13,6 +14,27 @@ beforeAll(async () => {
 
 describe('stream helpers', () => {
   const agentId = 'test-agent-id';
+
+  describe('poll interval configuration', () => {
+    it('uses the documented production default when no override is present', () => {
+      expect(getStreamPollIntervalMs({}, DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS))
+        .toBe(DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS);
+    });
+
+    it('uses a positive integer environment override', () => {
+      expect(getStreamPollIntervalMs(
+        { STREAM_POLL_INTERVAL_MS: '25' },
+        DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS,
+      )).toBe(25);
+    });
+
+    it('falls back for invalid environment values', () => {
+      expect(getStreamPollIntervalMs(
+        { STREAM_POLL_INTERVAL_MS: 'not-a-duration' },
+        DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS,
+      )).toBe(DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS);
+    });
+  });
 
   describe('buildStreamQuery', () => {
     it('returns correct SQL for agent-only (no session)', () => {
