@@ -5,8 +5,8 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 
-const POLL_INTERVAL_MS = 2000;
 const KEEPALIVE_INTERVAL_MS = 15000;
 const MAX_DURATION_MS = 5 * 60 * 1000;
 
@@ -44,6 +44,7 @@ async function streamLoop(
   let lastCheck = new Date().toISOString().replace('T', ' ').slice(0, 19);
   let lastKeepalive = Date.now();
   const seenMessageIds = new Set<string>();
+  const pollIntervalMs = getStreamPollIntervalMs(env, DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS);
 
   // Build the WHERE clause based on whether session filtering is active
   const { sql, buildBinds } = buildStreamQuery(agentId, sessionId);
@@ -73,7 +74,7 @@ async function streamLoop(
         lastKeepalive = Date.now();
       }
 
-      await delay(POLL_INTERVAL_MS);
+      await delay(pollIntervalMs);
     }
   } catch {
     // Client disconnected or write failed — close gracefully.
