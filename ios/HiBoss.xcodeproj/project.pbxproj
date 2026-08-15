@@ -25,6 +25,7 @@
 		439087A86D4FA8E054A15F1E /* ListStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */; };
 		45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C85DD59D113BDF201E19A /* SettingsView.swift */; };
 		4806ED4EF03F14CEBB6030CB /* DecisionActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */; };
+		4961C83E5598728E5AAE4341 /* ProgressAttributionChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6B071EE4BD1DF0070BBB00 /* ProgressAttributionChip.swift */; };
 		4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F038DB693219FA633FDAACC /* InboxStore.swift */; };
 		59EC4486EB14BA43AC79AFB7 /* ProgressFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */; };
 		5EDC0AEB743173107F498F2F /* InboxSettlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A90DD2D68361065EC14E /* InboxSettlement.swift */; };
@@ -168,6 +169,7 @@
 		A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListStateView.swift; sourceTree = "<group>"; };
 		A9195B9F8ACC692EF5D82C85 /* ProgressMediaLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMediaLayoutTests.swift; sourceTree = "<group>"; };
 		AADE1388284DE331D043B203 /* RelativeTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTimeTests.swift; sourceTree = "<group>"; };
+		AB6B071EE4BD1DF0070BBB00 /* ProgressAttributionChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAttributionChip.swift; sourceTree = "<group>"; };
 		AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplySheet.swift; sourceTree = "<group>"; };
 		B3F1A90DD2D68361065EC14E /* InboxSettlement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxSettlement.swift; sourceTree = "<group>"; };
 		B448CB7C1CB5C5B31FEBB796 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 		139253F1204A42B03D79E4EA /* Progress */ = {
 			isa = PBXGroup;
 			children = (
+				AB6B071EE4BD1DF0070BBB00 /* ProgressAttributionChip.swift */,
 				ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */,
 				CCDC745C836E39A5B0650834 /* ProgressFeedView.swift */,
 				D14706EB7C3D0C23F4FE4937 /* ProgressMediaLayout.swift */,
@@ -666,6 +669,7 @@
 				B390797FAB6B075E3C8D234C /* Palette.swift in Sources */,
 				E6A9A6EB7B5A63F93A38137D /* PreferencesStore.swift in Sources */,
 				B97C7284B01AC80CE892A264 /* Priority.swift in Sources */,
+				4961C83E5598728E5AAE4341 /* ProgressAttributionChip.swift in Sources */,
 				59EC4486EB14BA43AC79AFB7 /* ProgressFeedStore.swift in Sources */,
 				1B3C732EF15C1BA795BD70EC /* ProgressFeedView.swift in Sources */,
 				1DE86178D9794D1353514B9E /* ProgressMediaLayout.swift in Sources */,
