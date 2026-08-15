@@ -24,7 +24,8 @@ enum DemoProgressFixtures {
             body: "Landscape screenshot wider than 2:1 — centre-cropped in the feed, full image on tap.",
             media: [image(1015, width: 2000, height: 800, alt: "wide landscape screenshot")],
             tags: ["ios"], createdAt: iso(-60),
-            team: .hiboss, likeCount: 4, liked: false
+            team: .hiboss, likeCount: 4, liked: false,
+            agentLabel: "claude-code", model: "claude-opus-5"
         ),
         ProgressPost(
             id: "pp-tall", project: "hiboss", agentId: "ak1", agentName: "hiboss-cli",
