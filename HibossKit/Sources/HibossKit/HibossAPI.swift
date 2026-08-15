@@ -32,9 +32,9 @@ public enum HibossAPIError: Error, LocalizedError {
 }
 
 public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Sendable {
-    private let config: ConnectionConfig
-    private let session: URLSession
-    private let decoder = JSONDecoder()
+    let config: ConnectionConfig
+    let session: URLSession
+    let decoder = JSONDecoder()
     /// Tags replies with the surface that produced them ("ios", "macos", "api").
     private let clientSource: String
 

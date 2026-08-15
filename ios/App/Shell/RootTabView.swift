@@ -21,6 +21,11 @@ struct RootTabView: View {
     @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress" ? Self.progressTab : 0
     @State private var inboxPath = NavigationPath()
 
+    private var sessionStreamAPI: (any SessionStreamServing)? {
+        if isDemoMode { return DemoBossAPI() }
+        return connection.makeAPI()
+    }
+
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack(path: $inboxPath) {
@@ -28,7 +33,7 @@ struct RootTabView: View {
                     .navigationTitle("Inbox")
                     .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
                     .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
             }
             .tabItem { Label("Inbox", systemImage: "tray.full") }
@@ -40,7 +45,7 @@ struct RootTabView: View {
                     .navigationTitle("Messages")
                     .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
             }
             .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
             .tag(1)
@@ -53,7 +58,7 @@ struct RootTabView: View {
 
             NavigationStack {
                 SessionsView(store: inbox)
-                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(store: inbox, route: $0) }
+                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
                     .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             }
             .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
@@ -112,6 +117,7 @@ struct RootTabView: View {
             return
         }
         if env["HIBOSS_DEMO_SESSION"] == "1" {
+            tab = 0
             inboxPath = NavigationPath([SessionRoute(id: "sess-deploy", label: "prod-release")])
             return
         }

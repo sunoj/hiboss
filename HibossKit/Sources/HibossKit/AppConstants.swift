@@ -9,6 +9,10 @@ public enum AppConstants {
         public static let reconnectDelay: Duration = .seconds(2)
         public static let requestTimeout: TimeInterval = 15
         public static let historyLimit = 100
+        /// Max events held in the session transcript render window.
+        public static let sessionStreamWindow = 300
+        /// Coalesce bursty SSE appends before publishing to SwiftUI.
+        public static let sessionStreamBatchMilliseconds: UInt64 = 50
     }
 
     public enum Island {
