@@ -10,8 +10,7 @@ final class ProgressMediaTapUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchEnvironment["HIBOSS_DEMO"] = "1"
-        app.launchEnvironment["HIBOSS_TAB"] = "progress"
+        app.configureDemoLaunch(["HIBOSS_TAB": "progress"])
         app.launch()
         XCTAssertTrue(
             app.navigationBars["Progress"].waitForExistence(timeout: 10),

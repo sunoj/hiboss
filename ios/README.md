@@ -38,6 +38,24 @@ xcrun simctl install booted "$(…)/HiBoss.app"
 SIMCTL_CHILD_HIBOSS_DEMO=1 xcrun simctl launch booted ai.hiboss.ios
 ```
 
+Prefer `SIMCTL_CHILD_*` (per-launch only). Do **not** `launchctl setenv HIBOSS_DEMO_*`
+inside the simulator — those values stick on the device and every later UI-test / demo
+launch inherits them. If you already did, clear with:
+
+```bash
+xcrun simctl spawn booted launchctl unsetenv HIBOSS_DEMO_SESSION
+xcrun simctl spawn booted launchctl unsetenv HIBOSS_DEMO_OPEN
+xcrun simctl spawn booted launchctl unsetenv HIBOSS_DEMO_RESOLVED
+xcrun simctl spawn booted launchctl unsetenv HIBOSS_TAB
+```
+
+Deep-link flags (mutually exclusive; OPEN > RESOLVED > SESSION):
+
+- `HIBOSS_DEMO_OPEN=<message-id>` — message detail
+- `HIBOSS_DEMO_RESOLVED=1` — Resolved list
+- `HIBOSS_DEMO_SESSION=1` — `sess-deploy` / prod-release transcript
+- `HIBOSS_TAB=progress` — select the Progress tab
+
 ## Push (APNs)
 
 The app registers its device token with `POST /api/boss/devices`. The server sends

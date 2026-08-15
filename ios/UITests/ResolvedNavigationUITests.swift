@@ -14,8 +14,7 @@ final class ResolvedNavigationUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchEnvironment["HIBOSS_DEMO"] = "1"
-        app.launchEnvironment["HIBOSS_DEMO_RESOLVED"] = "1"
+        app.configureDemoLaunch(["HIBOSS_DEMO_RESOLVED": "1"])
         app.launch()
     }
 
