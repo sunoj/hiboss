@@ -3,11 +3,23 @@
 // Depends on cloudflare:test env, seeded D1 state, and webhook auth helpers.
 
 import { env, SELF } from 'cloudflare:test';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
 import { seedDatabase } from '../test-helpers';
 
 const TELEGRAM_SECRET = 'telegram-security-secret';
+
+// Outbound Telegram calls were never stubbed here, so these tests really reached
+// api.telegram.org and their runtime depended on the network. That made them slow
+// enough to trip the suite timeout as soon as anything added a few milliseconds.
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify({ ok: true, result: {} }), {
+      headers: { 'content-type': 'application/json' },
+    }))
+  );
+});
 
 beforeAll(async () => {
   await seedDatabase();
@@ -26,6 +38,7 @@ afterEach(async () => {
   await env.DB.prepare("DELETE FROM channel_configs WHERE agent_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM api_keys WHERE id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM join_requests WHERE name LIKE 'tg-sec-%'").run();
+  vi.unstubAllGlobals();
 });
 
 describe('Telegram webhook security', () => {
