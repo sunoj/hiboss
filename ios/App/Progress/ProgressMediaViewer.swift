@@ -33,7 +33,6 @@ struct ProgressMediaViewer: View {
             pager
                 .offset(y: offset)
         }
-        .modifier(SwipeDownDismiss(enabled: !zoomed, offset: $offset, dismiss: { dismiss() }))
         .overlay(alignment: .topLeading) { closeButton }
         .accessibilityAddTraits(.isModal)
     }
@@ -60,7 +59,12 @@ struct ProgressMediaViewer: View {
 
     @ViewBuilder
     private func page(_ item: ProgressMedia, size: CGSize) -> some View {
-        ProgressZoomView(pageID: item.url, onZoomed: { zoomed = $0 }) {
+        ProgressZoomView(
+            pageID: item.url,
+            onZoomed: { zoomed = $0 },
+            onDismissDrag: { offset = $0 },
+            onDismiss: { dismiss() }
+        ) {
             pageContent(item)
                 .frame(width: size.width, height: size.height)
         }
@@ -128,27 +132,5 @@ struct ProgressMediaViewer: View {
         }
         .padding()
         .accessibilityLabel("Close")
-    }
-}
-
-private struct SwipeDownDismiss: ViewModifier {
-    let enabled: Bool
-    @Binding var offset: CGFloat
-    var dismiss: () -> Void
-
-    func body(content: Content) -> some View {
-        if enabled {
-            content.gesture(drag)
-        } else {
-            content
-        }
-    }
-
-    private var drag: some Gesture {
-        DragGesture()
-            .onChanged { offset = $0.translation.height }
-            .onEnded { value in
-                if value.translation.height > 120 { dismiss() } else { offset = 0 }
-            }
     }
 }
