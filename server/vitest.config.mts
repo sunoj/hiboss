@@ -13,6 +13,8 @@ export default defineConfig({
   plugins: [cloudflareTest(workerOptions)],
   test: {
     globals: true,
+    // Stream integration tests poll D1 every 2-3s and need room under worker load.
+    testTimeout: 15_000,
     pool: cloudflarePool(workerOptions),
   },
 });
