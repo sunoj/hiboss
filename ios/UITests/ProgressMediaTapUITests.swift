@@ -34,6 +34,27 @@ final class ProgressMediaTapUITests: XCTestCase {
         assertViewerMediaFitted(label: "tall portrait screenshot")
     }
 
+    func testSwipeDownOnImageDismissesViewer() {
+        openViewer(label: "wide landscape screenshot")
+        swipeDownOnViewerImage()
+        XCTAssertTrue(
+            app.buttons["Close"].firstMatch.waitForNonExistence(timeout: 3),
+            "swipe down on the image should dismiss the full-screen viewer"
+        )
+    }
+
+    func testSwipeDownWhileZoomedDoesNotDismissViewer() {
+        openViewer(label: "wide landscape screenshot")
+        let scroll = viewerZoomScroll()
+        scroll.doubleTap()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        swipeDownOnViewerImage()
+        XCTAssertTrue(
+            app.buttons["Close"].firstMatch.waitForExistence(timeout: 2),
+            "downward pan while zoomed must not dismiss"
+        )
+    }
+
     func testTappingTwoItemMosaicOpensViewer() {
         continueAfterFailure = true
         assertCellOpensViewer("leading still", corner: CGVector(dx: 0.25, dy: 0.25))
@@ -150,6 +171,19 @@ private extension ProgressMediaTapUITests {
         XCTAssertTrue(cell.waitForExistence(timeout: 8), "\(label) should appear in feed")
         cell.tap()
         assertViewerOpened(after: "\(label) open for geometry")
+    }
+
+    func viewerZoomScroll() -> XCUIElement {
+        app.scrollViews.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "progress-zoom-scroll")
+        ).firstMatch
+    }
+
+    func swipeDownOnViewerImage() {
+        let scroll = viewerZoomScroll()
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5), "zoom scroll should exist")
+        let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 450)))
     }
 
     /// Zoom host UIView must fill the scroll view, and the image sit near center —

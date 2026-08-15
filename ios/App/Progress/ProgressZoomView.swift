@@ -1,6 +1,6 @@
 // Pinch and double-tap zoom wrapper used by the progress media viewer.
 // Exports: ProgressZoomView.
-// Dependencies: SwiftUI, UIKit.
+// Dependencies: SwiftUI, UIKit, ProgressSwipeDismiss.
 
 import SwiftUI
 import UIKit
@@ -8,10 +8,17 @@ import UIKit
 struct ProgressZoomView<Content: View>: UIViewRepresentable {
     let pageID: String
     var onZoomed: (Bool) -> Void
+    var onDismissDrag: (CGFloat) -> Void
+    var onDismiss: () -> Void
     @ViewBuilder var content: () -> Content
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onZoomed: onZoomed, content: content())
+        Coordinator(
+            onZoomed: onZoomed,
+            onDismissDrag: onDismissDrag,
+            onDismiss: onDismiss,
+            content: content()
+        )
     }
 
     func makeUIView(context: Context) -> UIScrollView {
@@ -27,6 +34,8 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
 
     func updateUIView(_ scroll: UIScrollView, context: Context) {
         context.coordinator.onZoomed = onZoomed
+        context.coordinator.onDismissDrag = onDismissDrag
+        context.coordinator.onDismiss = onDismiss
         context.coordinator.host.rootView = content()
         context.coordinator.syncFrame(scroll)
         if context.coordinator.pageID != pageID {
@@ -38,12 +47,21 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
 
     final class Coordinator: NSObject, UIScrollViewDelegate {
         var onZoomed: (Bool) -> Void
+        var onDismissDrag: (CGFloat) -> Void
+        var onDismiss: () -> Void
         var pageID = ""
         let host: UIHostingController<Content>
         weak var scroll: UIScrollView?
 
-        init(onZoomed: @escaping (Bool) -> Void, content: Content) {
+        init(
+            onZoomed: @escaping (Bool) -> Void,
+            onDismissDrag: @escaping (CGFloat) -> Void,
+            onDismiss: @escaping () -> Void,
+            content: Content
+        ) {
             self.onZoomed = onZoomed
+            self.onDismissDrag = onDismissDrag
+            self.onDismiss = onDismiss
             host = UIHostingController(rootView: content)
             host.view.backgroundColor = .clear
             // Not attached as a child VC: UIViewRepresentable has no parent to addChild.
@@ -67,6 +85,8 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
                 guard let self, let scroll else { return }
                 self.syncFrame(scroll)
             }
+            scroll.onDismissDrag = { [weak self] in self?.onDismissDrag($0) }
+            scroll.onDismiss = { [weak self] in self?.onDismiss() }
             self.scroll = scroll
             return scroll
         }
@@ -100,7 +120,7 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { host.view }
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            let zoomed = scrollView.zoomScale > 1.01
+            let zoomed = scrollView.zoomScale > ProgressSwipeDismiss.zoomedScale
             DispatchQueue.main.async { [onZoomed] in onZoomed(zoomed) }
         }
 
@@ -125,9 +145,24 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
 
 /// Relays bounds changes so the hosted SwiftUI view can track the scroll view after layout.
 /// `updateUIView` alone is too early — bounds are still zero before the first layout pass.
-private final class ZoomScrollView: UIScrollView {
+private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
     var onBoundsChange: (() -> Void)?
+    var onDismissDrag: ((CGFloat) -> Void)?
+    var onDismiss: (() -> Void)?
     private var lastBoundsSize: CGSize = .zero
+    private let dismissPan = UIPanGestureRecognizer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        dismissPan.addTarget(self, action: #selector(handleDismissPan(_:)))
+        dismissPan.delegate = self
+        dismissPan.cancelsTouchesInView = false
+        dismissPan.maximumNumberOfTouches = 1
+        addGestureRecognizer(dismissPan)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -135,5 +170,39 @@ private final class ZoomScrollView: UIScrollView {
         guard size != lastBoundsSize else { return }
         lastBoundsSize = size
         onBoundsChange?()
+    }
+
+    @objc func handleDismissPan(_ gesture: UIPanGestureRecognizer) {
+        let y = ProgressSwipeDismiss.dragOffset(
+            translation: gesture.translation(in: self),
+            zoomScale: zoomScale
+        )
+        switch gesture.state {
+        case .changed:
+            onDismissDrag?(y)
+        case .ended, .cancelled, .failed:
+            if ProgressSwipeDismiss.shouldDismiss(offset: y, zoomScale: zoomScale) {
+                onDismiss?()
+            } else {
+                onDismissDrag?(0)
+            }
+        default:
+            break
+        }
+    }
+
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer == dismissPan else { return true }
+        return ProgressSwipeDismiss.shouldBegin(
+            zoomScale: zoomScale,
+            velocity: dismissPan.velocity(in: self)
+        )
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+    ) -> Bool {
+        gestureRecognizer == dismissPan && other == panGestureRecognizer
     }
 }
