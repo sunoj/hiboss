@@ -15,6 +15,7 @@ import { streamBossOptions } from './boss-option-stream';
 import { streamBossFeed } from './boss-feed-stream';
 import { getBossOverview } from './boss-overview';
 import { withdrawResolvedOptions } from './message-options';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 const MAX_LIMIT = 100;
 interface JoinRequestRow {
@@ -282,12 +283,12 @@ routes.post('/messages/:id/reply', async (c) => {
   if (optionClaim.kind === 'resolved') return c.text('option already resolved', 409);
   const bossName = getBossName(c);
   const metadata = JSON.stringify(replyMetadata(bossId, bossName, source));
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent))
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    c.env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
+    replyTargetSession(parent),
+  );
   if (!inserted) return c.text('failed to persist', 500);
   if (optionClaim.kind === 'not_option') {
     await c.env.DB
@@ -367,12 +368,12 @@ routes.post('/sessions/:id/message', async (c) => {
   const bossName = getBossName(c);
   const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });
 
-  const inserted = await c.env.DB
-    .prepare(
-      "INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, target_session_id, metadata) VALUES (?, 'boss_to_agent', 'async', 'api', ?, 'sent', ?, ?, ?) RETURNING *"
-    )
-    .bind(session.agent_id, body, priority, session.id, metadata)
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    c.env,
+    "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_session_id, metadata) VALUES (?, ?, 'boss_to_agent', 'async', 'api', ?, 'sent', ?, ?, ?) RETURNING *",
+    [createMessageId(), session.agent_id, body, priority, session.id, metadata],
+    session.id,
+  );
   if (!inserted) return c.text('failed to persist', 500);
 
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, session.agent_id, inserted));

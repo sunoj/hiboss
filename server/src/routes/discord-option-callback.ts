@@ -10,6 +10,7 @@ import { claimOptionReply } from './boss-option-reply';
 import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 interface DiscordOptionPayload {
   member?: { user?: { id?: string } };
@@ -83,10 +84,12 @@ async function insertReply(
   agentId: string,
 ): Promise<MessageRow | null> {
   const metadata = getActionMetadata(parent.metadata, option);
-  return env.DB.prepare(
-    'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-  ).bind(agentId, 'boss_to_agent', 'async', 'discord', option, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent))
-    .first<MessageRow>();
+  return insertMessageWithEvent(
+    env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), agentId, 'boss_to_agent', 'async', 'discord', option, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
+    replyTargetSession(parent),
+  );
 }
 
 async function markParentReplied(env: Env, messageId: string): Promise<void> {

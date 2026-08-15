@@ -5,7 +5,7 @@
 import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, getTestAgentId } from '../test-helpers';
-import { asString, mapMessage, evaluateRoutingRules, resolveBossForChannel, hasBossAccess } from './webhook-helpers';
+import { asString, mapMessage, evaluateRoutingRules, resolveBossForChannel, hasBossAccess, insertBossDiscordMessage } from './webhook-helpers';
 import type { MessageRow } from '../types';
 
 let bossId: string;
@@ -63,6 +63,29 @@ describe('mapMessage', () => {
   });
   it('returns null for invalid JSON', () => {
     expect(mapMessage({ ...base, metadata: '{broken' }).metadata).toBeNull();
+  });
+});
+
+describe('insertBossDiscordMessage', () => {
+  it('appends an event for a thread-scoped Discord message', async () => {
+    const sessionId = 'discord-helper-event-session';
+    await env.DB.prepare("INSERT INTO sessions (id, agent_id, label, status, discord_thread_id) VALUES (?, ?, ?, 'working', ?)")
+      .bind(sessionId, getTestAgentId(), sessionId, 'discord-helper-event-thread').run();
+    await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'discord', ?, 1)")
+      .bind(getTestAgentId(), JSON.stringify({ channel_id: 'discord-helper-parent-channel' })).run();
+    const inserted = await insertBossDiscordMessage(
+      env,
+      'discord-helper-event-thread',
+      'Discord thread body',
+      'dc-user-888',
+      undefined,
+      undefined,
+      { discord_msg: { id: 'discord-event-message' } },
+    );
+    expect(inserted).not.toBeNull();
+    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?')
+      .bind(inserted?.id).first<{ session_id: string; message_id: string }>();
+    expect(event).toEqual({ session_id: sessionId, message_id: inserted?.id });
   });
 });
 

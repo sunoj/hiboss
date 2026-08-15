@@ -241,3 +241,22 @@ CREATE TABLE IF NOT EXISTS progress_likes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_progress_likes_post ON progress_likes(post_id);
+
+-- Append-only per-session event log for history and resumable SSE streams.
+CREATE TABLE IF NOT EXISTS session_events (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  session_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  direction TEXT,
+  actor_agent_id TEXT,
+  target_agent_id TEXT,
+  message_id TEXT REFERENCES messages(id),
+  source TEXT,
+  payload TEXT,
+  raw TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (session_id, sequence)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_events_cursor ON session_events(session_id, sequence);

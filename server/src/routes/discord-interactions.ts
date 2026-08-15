@@ -11,6 +11,7 @@ import { handleDiscordOptionCallback } from './discord-option-callback';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { asString, checkBossPermission, findDiscordAgent, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
+import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 interface DiscordInteractionPayload { type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
 interface DiscordInteractionData { name?: string; options?: DiscordInteractionOption[]; custom_id?: string }
@@ -93,12 +94,12 @@ async function handleApplicationCommand(
     .first<Pick<MessageRow, 'id' | 'session_id' | 'target_session_id'>>();
   if (pendingMsg) replyTo = pendingMsg.id;
   const targetSessionId = pendingMsg ? replyTargetSession(pendingMsg) : null;
-  const inserted = await c.env.DB
-    .prepare(
-      'INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
-    )
-    .bind(agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta), targetSessionId)
-    .first<MessageRow>();
+  const inserted = await insertMessageWithEvent(
+    c.env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta), targetSessionId],
+    targetSessionId,
+  );
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossCheck.boss ? 'boss' : 'system', bossCheck.boss?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord-slash'));
