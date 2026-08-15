@@ -33,6 +33,8 @@ final class ProgressFeedDecodingTests: XCTestCase {
         XCTAssertEqual(post.team, ProgressTeam.fallback(project: "hiboss"))
         XCTAssertEqual(post.likeCount, 0)
         XCTAssertFalse(post.liked)
+        XCTAssertNil(post.agentLabel)
+        XCTAssertNil(post.model)
     }
 
     func testDecodesPostWithImage() throws {
@@ -222,5 +224,74 @@ final class ProgressFeedDecodingTests: XCTestCase {
         XCTAssertEqual(post.likeCount, 0)
         XCTAssertFalse(post.liked)
         XCTAssertEqual(post.team.displayName, "hiboss")
+    }
+
+    func testDecodesAttributionWhenBothPresent() throws {
+        let json = """
+        {
+          "id": "p9",
+          "project": "hiboss",
+          "agent_id": "ak1",
+          "agent_name": "hiboss-cli",
+          "body": "Attributed post.",
+          "created_at": "2026-08-14T09:08:00Z",
+          "agent_label": "claude-code",
+          "model": "claude-opus-5"
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertEqual(post.agentLabel, "claude-code")
+        XCTAssertEqual(post.model, "claude-opus-5")
+    }
+
+    func testDecodesAttributionWhenNeitherPresent() throws {
+        let json = """
+        {
+          "id": "p10",
+          "project": "hiboss",
+          "agent_id": "ak1",
+          "agent_name": "hiboss-cli",
+          "body": "Legacy post.",
+          "created_at": "2026-08-14T09:09:00Z"
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertNil(post.agentLabel)
+        XCTAssertNil(post.model)
+    }
+
+    func testDecodesAttributionWhenOnlyAgentLabelPresent() throws {
+        let json = """
+        {
+          "id": "p11",
+          "project": "hiboss",
+          "agent_id": "ak1",
+          "agent_name": "hiboss-cli",
+          "body": "Agent only.",
+          "created_at": "2026-08-14T09:10:00Z",
+          "agent_label": "claude-code",
+          "model": null
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertEqual(post.agentLabel, "claude-code")
+        XCTAssertNil(post.model)
+    }
+
+    func testDecodesAttributionWhenOnlyModelPresent() throws {
+        let json = """
+        {
+          "id": "p12",
+          "project": "hiboss",
+          "agent_id": "ak1",
+          "agent_name": "hiboss-cli",
+          "body": "Model only.",
+          "created_at": "2026-08-14T09:11:00Z",
+          "model": "gpt-5.6"
+        }
+        """
+        let post = try JSONDecoder().decode(ProgressPost.self, from: Data(json.utf8))
+        XCTAssertNil(post.agentLabel)
+        XCTAssertEqual(post.model, "gpt-5.6")
     }
 }
