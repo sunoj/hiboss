@@ -19,14 +19,21 @@ pub struct ProgressTeam {
 /// Full team record returned by PUT /api/progress/teams/:project and GET /api/progress/teams.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProgressTeamFull {
-    pub id: String,
     pub project: String,
     pub handle: String,
     pub display_name: String,
     pub bio: Option<String>,
     pub avatar_url: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    /// Server-side bookkeeping the CLI never reads. Optional on purpose: requiring fields
+    /// we do not use made `team register` fail to decode a perfectly valid 200 response.
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub registered: Option<bool>,
 }
 
 /// Request body for PUT /api/progress/teams/:project.

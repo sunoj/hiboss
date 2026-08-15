@@ -90,7 +90,20 @@ and write `IHDR`/`IDAT`/`IEND` with a small CRC32. Keep the image small (64×64 
 Create or update. Body: `{ handle?, display_name?, bio?, avatar_url? }`. `handle` must match
 `^[a-z0-9_-]{1,32}$` and be unique (409 otherwise). `avatar_url` follows v1's media rule:
 it must be a `/api/attachments/<key>` URL on this worker whose `customMetadata.agent_id`
-matches the caller. Returns the full team object.
+matches the caller.
+
+Returns exactly:
+
+```jsonc
+{ "project": "hiboss", "handle": "hiboss", "display_name": "HiBoss",
+  "bio": "…" | null, "avatar_url": "https://…/avatar.png", "registered": true }
+```
+
+"the full team object" was all this once said, and the two slices read it differently —
+the server returned the shape above while the CLI required `id`, `created_at` and
+`updated_at`, so `team register` failed to decode a valid 200. Any field beyond this list is
+server bookkeeping; clients must treat extras as optional and never require one they do not
+read.
 
 ### `GET /api/progress/teams` — `dualAuth`. Teams within the caller's v1 visibility scope.
 
