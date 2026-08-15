@@ -59,6 +59,13 @@ public struct SessionEvent: Codable, Identifiable, Equatable, Sendable {
         self.createdAt = createdAt
     }
 
+    private static let knownKinds: Set<String> = [
+        "message", "tool_call", "tool_result", "system", "hook",
+        "compaction", "control", "file_history", "error", "raw",
+    ]
+
+    public var isKnownKind: Bool { Self.knownKinds.contains(kind) }
+
     /// Primary text for a transcript row; falls back for unknown kinds.
     public var displayBody: String {
         if let body = payload?.objectValue?["body"]?.stringValue, !body.isEmpty { return body }
@@ -66,6 +73,8 @@ public struct SessionEvent: Codable, Identifiable, Equatable, Sendable {
             return summary
         }
         if let error = payload?.objectValue?["error"]?.stringValue, !error.isEmpty { return error }
+        if let note = payload?.objectValue?["note"]?.stringValue, !note.isEmpty { return note }
+        if let preview = payload?.compactPreview, !preview.isEmpty { return preview }
         return kind
     }
 
@@ -126,6 +135,26 @@ public enum AnyJSON: Codable, Equatable, Sendable {
     public var objectValue: [String: AnyJSON]? {
         if case let .object(value) = self { return value }
         return nil
+    }
+
+    /// One-line preview for unknown / unstructured payloads (never drop the event).
+    public var compactPreview: String {
+        switch self {
+        case .null: return ""
+        case let .bool(value): return value ? "true" : "false"
+        case let .number(value): return String(value)
+        case let .string(value): return value
+        case let .array(values):
+            let parts = values.prefix(4).map(\.compactPreview).filter { !$0.isEmpty }
+            return parts.isEmpty ? "[]" : parts.joined(separator: ", ")
+        case let .object(object):
+            let parts = object.keys.sorted().prefix(4).compactMap { key -> String? in
+                guard let value = object[key]?.compactPreview, !value.isEmpty else { return nil }
+                let clipped = value.count > 40 ? String(value.prefix(37)) + "…" : value
+                return "\(key)=\(clipped)"
+            }
+            return parts.joined(separator: " · ")
+        }
     }
 
     public init(from decoder: Decoder) throws {

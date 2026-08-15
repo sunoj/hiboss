@@ -66,7 +66,8 @@ final class SessionStreamStoreTests: XCTestCase {
         store.start(api: api)
         await waitUntil { !store.events.isEmpty }
         XCTAssertEqual(store.events.first?.kind, "future_kind")
-        XCTAssertEqual(store.events.first?.displayBody, "future_kind")
+        XCTAssertEqual(store.events.first?.displayBody, "keep me")
+        XCTAssertFalse(store.events.first?.isKnownKind ?? true)
     }
 
     private func waitUntil(
