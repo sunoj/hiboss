@@ -74,6 +74,7 @@
 		D336BC91FE1CA0B804066C74 /* ProgressZoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCAF1F8FA1CBE5B516D462F4 /* ProgressZoomView.swift */; };
 		D65E72F56B3D3C17098619BF /* PushTieringSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976383649266ED887CEAA454 /* PushTieringSection.swift */; };
 		D707E905303289002E122935 /* DecisionLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */; };
+		D8AB374CD22976C87E188C8B /* SessionStatusStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690FCE774D0C5469D59B0417 /* SessionStatusStyleTests.swift */; };
 		DBCC47DE56A53759D0FA4159 /* CountdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978AF84900C9EC8584C7AAA /* CountdownText.swift */; };
 		DCBE6F0DDAC502A6C6A9C410 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C397AF3D692ACAAF94388C64 /* Localizable.xcstrings */; };
 		DDC345411AD51AF290865A6F /* ProgressMediaTapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */; };
@@ -156,6 +157,7 @@
 		4F038DB693219FA633FDAACC /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
 		5276F4AAC028EDB51E9BE783 /* ResolvedDayGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedDayGroupingTests.swift; sourceTree = "<group>"; };
 		64F5157C51583AAFCCBC212A /* SessionTranscriptLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTranscriptLayoutTests.swift; sourceTree = "<group>"; };
+		690FCE774D0C5469D59B0417 /* SessionStatusStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStatusStyleTests.swift; sourceTree = "<group>"; };
 		6984921D9196A67C9F627A26 /* DecisionActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionActivity.swift; sourceTree = "<group>"; };
 		698713D5102923E7503E7814 /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
 		6BA3966B5965FDF38682FE72 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
@@ -457,6 +459,7 @@
 				0E669E95E96627DA0E3A5DC2 /* ProgressSwipeDismissTests.swift */,
 				AADE1388284DE331D043B203 /* RelativeTimeTests.swift */,
 				5276F4AAC028EDB51E9BE783 /* ResolvedDayGroupingTests.swift */,
+				690FCE774D0C5469D59B0417 /* SessionStatusStyleTests.swift */,
 				64F5157C51583AAFCCBC212A /* SessionTranscriptLayoutTests.swift */,
 			);
 			path = Tests;
@@ -648,6 +651,7 @@
 				4DD822DA8B29C75A05C5921B /* ProgressSwipeDismissTests.swift in Sources */,
 				72CD211678873F5869792D31 /* RelativeTimeTests.swift in Sources */,
 				C59B8ECC621AA034B8E1B451 /* ResolvedDayGroupingTests.swift in Sources */,
+				D8AB374CD22976C87E188C8B /* SessionStatusStyleTests.swift in Sources */,
 				0FAC7102A968494DED387632 /* SessionTranscriptLayoutTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
