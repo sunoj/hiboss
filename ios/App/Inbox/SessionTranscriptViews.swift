@@ -89,8 +89,8 @@ struct SessionBubbleView: View {
             bubbleColumn
             if !style.isOutgoing { Spacer(minLength: 48) }
         }
-        .padding(.top, style.isFirstInGroup ? 8 : 1)
-        .padding(.bottom, style.isLastInGroup ? 6 : 1)
+        .padding(.top, style.isFirstInGroup ? 10 : 2)
+        .padding(.bottom, style.isLastInGroup ? 8 : 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
         .accessibilityIdentifier(style.isOutgoing ? "session-bubble-outgoing" : "session-bubble-incoming")
@@ -114,17 +114,10 @@ struct SessionBubbleView: View {
             .foregroundStyle(textColor)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            .padding(.leading, style.isOutgoing || !style.isLastInGroup ? 0 : 5)
+            .padding(.trailing, style.isOutgoing && style.isLastInGroup ? 5 : 0)
             .textSelection(.enabled)
-            .background(fill, in: bubbleShape)
-            .overlay(alignment: style.isOutgoing ? .bottomTrailing : .bottomLeading) {
-                if style.isLastInGroup {
-                    SessionBubbleTail(isOutgoing: style.isOutgoing)
-                        .fill(fill)
-                        .frame(width: 10, height: 12)
-                        .offset(x: style.isOutgoing ? 4 : -4, y: -1)
-                        .accessibilityHidden(true)
-                }
-            }
+            .background(fill, in: SessionChatBubble(style: style))
     }
 
     private var fill: Color {
@@ -135,29 +128,54 @@ struct SessionBubbleView: View {
         style.isOutgoing ? Color(.systemBackground) : Color.primary
     }
 
-    private var bubbleShape: UnevenRoundedRectangle {
+    private var accessibilityText: String {
+        "\(SessionTranscriptLayout.directionLabel(for: event)), \(SessionTranscriptLayout.actorLabel(for: event)), \(event.displayBody)"
+    }
+}
+
+struct SessionChatBubble: Shape {
+    var style: SessionBubbleStyle
+
+    func path(in rect: CGRect) -> Path {
+        let tail: CGFloat = style.isLastInGroup ? 7 : 0
+        let bubble = CGRect(
+            x: style.isOutgoing ? 0 : tail,
+            y: 0,
+            width: max(0, rect.width - tail),
+            height: rect.height
+        )
+        var path = cornerRadii.path(in: bubble)
+        if style.isLastInGroup {
+            let tailRect = CGRect(
+                x: style.isOutgoing ? rect.maxX - tail : 0,
+                y: rect.maxY - 13,
+                width: tail,
+                height: 13
+            )
+            path.addPath(SessionBubbleTail(isOutgoing: style.isOutgoing).path(in: tailRect))
+        }
+        return path
+    }
+
+    private var cornerRadii: UnevenRoundedRectangle {
         let r: CGFloat = 18
-        let tight: CGFloat = 5
+        let tight: CGFloat = 4
         if style.isOutgoing {
             return UnevenRoundedRectangle(
                 topLeadingRadius: r,
                 bottomLeadingRadius: r,
-                bottomTrailingRadius: style.isLastInGroup ? r : tight,
+                bottomTrailingRadius: style.isLastInGroup ? 6 : tight,
                 topTrailingRadius: style.isFirstInGroup ? r : tight,
                 style: .continuous
             )
         }
         return UnevenRoundedRectangle(
             topLeadingRadius: style.isFirstInGroup ? r : tight,
-            bottomLeadingRadius: style.isLastInGroup ? r : tight,
+            bottomLeadingRadius: style.isLastInGroup ? 6 : tight,
             bottomTrailingRadius: r,
             topTrailingRadius: r,
             style: .continuous
         )
-    }
-
-    private var accessibilityText: String {
-        "\(SessionTranscriptLayout.directionLabel(for: event)), \(SessionTranscriptLayout.actorLabel(for: event)), \(event.displayBody)"
     }
 }
 
@@ -167,19 +185,27 @@ struct SessionBubbleTail: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         if isOutgoing {
-            path.move(to: CGPoint(x: 0, y: 0))
-            path.addQuadCurve(
+            path.move(to: CGPoint(x: 0, y: rect.height * 0.15))
+            path.addCurve(
                 to: CGPoint(x: rect.maxX, y: rect.maxY),
-                control: CGPoint(x: rect.minX, y: rect.maxY)
+                control1: CGPoint(x: rect.maxX * 0.15, y: rect.height * 0.55),
+                control2: CGPoint(x: rect.maxX * 0.85, y: rect.height * 0.75)
             )
-            path.addLine(to: CGPoint(x: 0, y: rect.maxY * 0.4))
-        } else {
-            path.move(to: CGPoint(x: rect.maxX, y: 0))
             path.addQuadCurve(
-                to: CGPoint(x: 0, y: rect.maxY),
-                control: CGPoint(x: rect.maxX, y: rect.maxY)
+                to: CGPoint(x: 0, y: rect.height * 0.62),
+                control: CGPoint(x: rect.maxX * 0.2, y: rect.maxY)
             )
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY * 0.4))
+        } else {
+            path.move(to: CGPoint(x: rect.maxX, y: rect.height * 0.15))
+            path.addCurve(
+                to: CGPoint(x: 0, y: rect.maxY),
+                control1: CGPoint(x: rect.maxX * 0.85, y: rect.height * 0.55),
+                control2: CGPoint(x: rect.maxX * 0.15, y: rect.height * 0.75)
+            )
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX, y: rect.height * 0.62),
+                control: CGPoint(x: rect.maxX * 0.8, y: rect.maxY)
+            )
         }
         path.closeSubpath()
         return path
