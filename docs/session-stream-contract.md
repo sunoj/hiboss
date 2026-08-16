@@ -146,8 +146,10 @@ approach in `SessionMessagesView`:
   back to the bottom mid-read is the single most irritating thing this screen can do.
 - On foreground and on reconnect, resumes from the last applied sequence; on `resync: true`,
   reloads the window and says so rather than showing a hole.
-- Dense and legible: this is a transcript, not chat bubbles. Monospace for raw output regions
-  only, respecting Dynamic Type.
+- Dense and legible. Presentation: `message` events are SMS-style bubbles (boss trailing,
+  agents leading); every other kind — including unknown — is a slim centred system line.
+  Monospace for raw output regions only, respecting Dynamic Type. Data model, streaming,
+  cursor and scroll-lock are unchanged.
 
 Native-first still binds (`docs/macos-design-v2.md`). New strings go through the String
 Catalog with zh-Hans / ja / ko (ja/ko needs-review).

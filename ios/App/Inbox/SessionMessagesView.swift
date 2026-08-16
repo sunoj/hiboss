@@ -77,7 +77,7 @@ struct SessionMessagesView: View {
     private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                LazyVStack(spacing: 0) {
                     if stream.hasEarlier {
                         ProgressView()
                             .controlSize(.small)
@@ -85,13 +85,13 @@ struct SessionMessagesView: View {
                             .padding(.vertical, 8)
                             .onAppear { Task { await stream.loadEarlier() } }
                     }
-                    ForEach(stream.events) { event in
-                        SessionTranscriptRow(event: event)
-                            .id(event.id)
+                    ForEach(SessionTranscriptLayout.items(from: stream.events)) { item in
+                        SessionTranscriptItemView(item: item)
+                            .id(item.id)
                     }
                     Color.clear.frame(height: 1).id("live-end")
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
             .coordinateSpace(name: "transcript")
@@ -133,98 +133,5 @@ struct SessionMessagesView: View {
 
     private func scrollToLive(_ proxy: ScrollViewProxy) {
         proxy.scrollTo("live-end", anchor: .bottom)
-    }
-}
-
-/// Dense transcript line — not a chat bubble.
-struct SessionTranscriptRow: View {
-    let event: SessionEvent
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Label(directionShort, systemImage: directionSymbol)
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(directionTint)
-                    .accessibilityLabel(directionLabel)
-                Text(actorLabel)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(event.kind)
-                    .font(.caption2)
-                    .foregroundStyle(event.isKnownKind ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.accentColor))
-                    .lineLimit(1)
-                Spacer(minLength: 4)
-                Text(timeLabel)
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-            }
-            Text(event.displayBody)
-                .font(bodyFont)
-                .foregroundStyle(event.isKnownKind ? .primary : .secondary)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, 3)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var bodyFont: Font {
-        if event.isRawOutput { return .callout.monospaced() }
-        if !event.isKnownKind { return .caption.monospaced() }
-        return .callout
-    }
-
-    private var actorLabel: String {
-        if let name = event.actorName, !name.isEmpty { return name }
-        return directionShort
-    }
-
-    private var directionShort: String {
-        switch event.direction {
-        case "boss_to_agent": return String(localized: "Boss")
-        case "agent_to_agent": return String(localized: "Peer")
-        case "agent_to_boss": return String(localized: "Agent")
-        default: return String(localized: "Event")
-        }
-    }
-
-    private var directionSymbol: String {
-        switch event.direction {
-        case "boss_to_agent": return "arrow.left"
-        case "agent_to_agent": return "arrow.left.arrow.right"
-        case "agent_to_boss": return "arrow.right"
-        default: return "questionmark.circle"
-        }
-    }
-
-    private var directionTint: Color {
-        switch event.direction {
-        case "boss_to_agent": return Color.accentColor
-        case "agent_to_agent": return .secondary
-        case "agent_to_boss": return .primary
-        default: return .secondary
-        }
-    }
-
-    private var directionLabel: String {
-        switch event.direction {
-        case "boss_to_agent": return String(localized: "Boss to agent")
-        case "agent_to_agent": return String(localized: "Agent to agent")
-        case "agent_to_boss": return String(localized: "Agent to boss")
-        default: return String(localized: "Unknown direction")
-        }
-    }
-
-    private var timeLabel: String {
-        guard let date = parseDate(event.createdAt) else { return "" }
-        return date.formatted(date: .omitted, time: .shortened)
-    }
-
-    private func parseDate(_ value: String) -> Date? {
-        (try? Date(value, strategy: .iso8601))
-            ?? (try? Date(value, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
     }
 }
