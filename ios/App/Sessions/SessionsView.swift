@@ -8,7 +8,13 @@ import SwiftUI
 struct SessionsView: View {
     @ObservedObject var store: InboxStore
 
-    private var groups: [SessionGroup] { SessionGrouping.groupBySession(store.history) }
+    private var groups: [SessionGroup] {
+        // Screenshot-only: demo history is never empty, so the empty board is gated.
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSIONS_EMPTY"] == "1" {
+            return []
+        }
+        return SessionGrouping.groupBySession(store.history)
+    }
 
     var body: some View {
         ListStateView(
@@ -22,9 +28,7 @@ struct SessionsView: View {
         ) {
             List {
                 ForEach(groups) { group in
-                    NavigationLink(value: SessionRoute(id: group.id, label: group.localizedLabel)) {
-                        SessionCard(group: group)
-                    }
+                    sessionRow(group)
                 }
             }
             .listStyle(.plain)
@@ -36,5 +40,19 @@ struct SessionsView: View {
                 ConnectionDot(state: store.connectionState)
             }
         }
+    }
+
+    /// Same list-row treatment as Inbox pending `MessageCard` rows: the card
+    /// draws its own material tile; the list supplies no separator or fill.
+    private func sessionRow(_ group: SessionGroup) -> some View {
+        NavigationLink(value: SessionRoute(id: group.id, label: group.localizedLabel)) {
+            SessionCard(group: group)
+        }
+        .buttonStyle(.plain)
+        .navigationLinkIndicatorVisibility(.hidden)
+        .accessibilityHint("Opens the session")
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
     }
 }
