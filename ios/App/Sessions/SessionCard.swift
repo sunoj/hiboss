@@ -22,29 +22,99 @@ extension SessionGroup {
     }
 }
 
+/// Localized status word, glyph, and tint for a session board card.
+struct SessionStatusStyle {
+    let label: String
+    let icon: String
+    let tint: Color
+
+    init?(word: String) {
+        guard !word.isEmpty else { return nil }
+        switch word {
+        case "working":
+            label = String(localized: "Working")
+            icon = "ellipsis.circle.fill"
+            tint = .green
+        case "blocked":
+            label = String(localized: "Blocked")
+            icon = "exclamationmark.octagon.fill"
+            tint = .red
+        case "waiting":
+            label = String(localized: "Waiting")
+            icon = "clock.fill"
+            tint = .orange
+        case "idle":
+            label = String(localized: "Idle")
+            icon = "pause.circle.fill"
+            tint = .secondary
+        case "completed":
+            label = String(localized: "Completed")
+            icon = "checkmark.circle.fill"
+            tint = .secondary
+        default:
+            label = word.capitalized
+            icon = "circle.fill"
+            tint = .secondary
+        }
+    }
+}
+
 struct SessionCard: View {
     let group: SessionGroup
 
     var body: some View {
-        HStack(spacing: 11) {
-            Circle().fill(statusColor).frame(width: 9, height: 9)
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(group.localizedLabel)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    if group.pendingCount > 0 { pendingBadge }
-                }
-                metaRow
-            }
-            Spacer(minLength: 6)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+        VStack(alignment: .leading, spacing: 10) {
+            statusRow
+            titleRow
+            metaRow
         }
-        .padding(.vertical, 4)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(alignment: .leading) { statusStripe }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var statusStripe: some View {
+        if let tint = statusStyle?.tint {
+            UnevenRoundedRectangle(topLeadingRadius: 20, bottomLeadingRadius: 20)
+                .fill(tint)
+                .frame(width: 4)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var statusRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if let statusStyle {
+                Label(statusStyle.label, systemImage: statusStyle.icon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(statusStyle.tint)
+                    .symbolRenderingMode(.hierarchical)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if let last = group.lastActivity {
+                Text(RelativeTime.short(from: last))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var titleRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(group.localizedLabel)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            if group.pendingCount > 0 { pendingBadge }
+            Spacer(minLength: 0)
+        }
     }
 
     private var pendingBadge: some View {
@@ -58,15 +128,11 @@ struct SessionCard: View {
 
     private var metaRow: some View {
         HStack(spacing: 12) {
-            if !statusLabel.isEmpty { chip("circle.fill", statusLabel, statusColor) }
             if let agent = group.agentName, !agent.isEmpty { chip("person", agent, .secondary) }
             if let branch = group.branch, !branch.isEmpty {
                 chip("arrow.triangle.branch", branch, .secondary)
             }
             chip("bubble.left", "\(group.messages.count)", .secondary)
-            if let last = group.lastActivity {
-                chip("clock", RelativeTime.short(from: last), .secondary)
-            }
             Spacer(minLength: 0)
         }
         .font(.caption)
@@ -81,15 +147,7 @@ struct SessionCard: View {
         }
     }
 
-    private var statusLabel: String {
-        group.statusWord.isEmpty ? "" : group.statusWord.capitalized
-    }
-
-    private var statusColor: Color {
-        switch group.statusWord {
-        case "working": .green
-        case "waiting", "blocked": .orange
-        default: .secondary
-        }
+    private var statusStyle: SessionStatusStyle? {
+        SessionStatusStyle(word: group.statusWord)
     }
 }
