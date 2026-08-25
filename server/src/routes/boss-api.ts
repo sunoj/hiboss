@@ -14,6 +14,7 @@ import { claimOptionReply } from './boss-option-reply';
 import { streamBossOptions } from './boss-option-stream';
 import { streamBossFeed } from './boss-feed-stream';
 import { getBossOverview } from './boss-overview';
+import { getBossHome } from './boss-home';
 import { withdrawResolvedOptions } from './message-options';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 
@@ -83,6 +84,13 @@ routes.get('/overview', async (c) => {
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   return c.json(await getBossOverview(c.env, agentIds));
+});
+
+/** GET /api/boss/home — iOS Home tab aggregate (KPIs, activity, projects, attention) */
+routes.get('/home', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  return c.json(await getBossHome(c.env, getBossName(c), agentIds));
 });
 
 /** GET /api/boss/me/preferences — get boss preferences */
