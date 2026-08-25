@@ -42,7 +42,7 @@ endpoint reuses its internals but is a separate surface so the two can evolve ap
       "lastActivityAt": "…"                    // max(session.last_seen_at, lastPost.createdAt)
     }
   ],
-  "attention": [                              // "needs you", max 10, ordered: blocking first, then priority, then createdAt DESC
+  "attention": [                              // "needs you", max 10. Tiers: blocking decisions → blocked sessions → other decisions → waiting sessions; within a tier by priority, then createdAt DESC
     {
       "kind": "decision",                     // pending decision → deep-links to MessageDetail
       "messageId": "…", "sessionId": "…" | null, "sessionLabel": "hiboss/main" | null,
