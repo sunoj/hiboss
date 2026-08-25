@@ -1,6 +1,6 @@
 // Demo backing data so the UI can be exercised without a live server.
-// Exports: DemoBossAPI, DemoProgressAPI, and isDemoMode, gated by the HIBOSS_DEMO env var.
-// Dependencies: HibossKit BossServing. Not used in normal (server-backed) runs.
+// Exports: DemoBossAPI (incl. HomeServing), DemoProgressAPI, and isDemoMode.
+// Dependencies: HibossKit BossServing/HomeServing. Not used in normal runs.
 
 import Foundation
 import HibossKit
@@ -10,11 +10,15 @@ var isDemoMode: Bool {
 }
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
-final class DemoBossAPI: BossServing, SessionStreamServing, @unchecked Sendable {
+final class DemoBossAPI: BossServing, SessionStreamServing, HomeServing, @unchecked Sendable {
     private var messages: [HistoryMessage]
 
     init() {
         messages = DemoFixtures.queue
+    }
+
+    func fetchHome() async throws -> HomeDashboard {
+        DemoHomeFixtures.dashboard
     }
 
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
