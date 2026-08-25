@@ -8,3 +8,4 @@ wrangler.toml
 .env
 *.log
 .DS_Store
+ios/build/
