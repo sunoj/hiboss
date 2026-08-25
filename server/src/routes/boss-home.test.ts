@@ -41,13 +41,16 @@ beforeAll(async () => {
     .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
     .bind('Empty Home Boss', 'viewer', await hashApiKey(EMPTY_TOKEN)).run();
 
-  // Live sessions: label prefix → project; one waiting for attention.
+  // Live sessions: label prefix → project; waiting + blocked for attention tiers.
   await env.DB.prepare(
     "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'hiboss/main', 'waiting', 'Awaiting boss reply')",
   ).bind('home-sess-wait', AGENT_ID).run();
   await env.DB.prepare(
     "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'smart-router/feat', 'working', 'building')",
   ).bind('home-sess-work', AGENT_ID).run();
+  await env.DB.prepare(
+    "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'hiboss/blocked', 'blocked', 'Needs input')",
+  ).bind('home-sess-block', AGENT_ID).run();
 
   // Progress-only project (no session label) + post under hiboss.
   await env.DB.prepare(
@@ -132,19 +135,21 @@ describe('GET /api/boss/home', () => {
     expect(last.messages).toBeGreaterThanOrEqual(1);
   });
 
-  it('orders attention: blocking first, then priority, then createdAt DESC', async () => {
+  it('orders attention: blocking decisions, blocked sessions, other decisions, waiting', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/home', { headers: headers(BOSS_TOKEN) });
     const body = await res.json() as {
-      attention: { kind: string; messageId?: string; mode?: string; priority?: string; status?: string }[];
+      attention: { kind: string; messageId?: string; sessionId?: string; mode?: string; status?: string }[];
     };
-    expect(body.attention.length).toBeGreaterThanOrEqual(2);
-    const firstDecision = body.attention.find((a) => a.kind === 'decision');
-    expect(firstDecision?.messageId).toBe('home-dec-block');
-    expect(firstDecision?.mode).toBe('blocking');
-    const decisionIds = body.attention.filter((a) => a.kind === 'decision').map((a) => a.messageId);
-    expect(decisionIds[0]).toBe('home-dec-block');
-    expect(decisionIds).toContain('home-dec-async');
-    const waitSession = body.attention.find((a) => a.kind === 'session' && a.status === 'waiting');
-    expect(waitSession).toBeDefined();
+    expect(body.attention.length).toBeGreaterThanOrEqual(4);
+    const keys = body.attention.map((a) =>
+      a.kind === 'decision' ? `d:${a.messageId}` : `s:${a.sessionId}:${a.status}`);
+    const blockDec = keys.indexOf('d:home-dec-block');
+    const blockedSess = keys.indexOf('s:home-sess-block:blocked');
+    const asyncDec = keys.indexOf('d:home-dec-async');
+    const waitSess = keys.indexOf('s:home-sess-wait:waiting');
+    expect(blockDec).toBeGreaterThanOrEqual(0);
+    expect(blockedSess).toBeGreaterThan(blockDec);
+    expect(asyncDec).toBeGreaterThan(blockedSess);
+    expect(waitSess).toBeGreaterThan(asyncDec);
   });
 });

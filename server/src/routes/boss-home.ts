@@ -216,11 +216,11 @@ function buildProjects(sessions: LiveSession[], pending: PendingRow[], progress:
 }
 
 function buildAttention(sessions: LiveSession[], pending: PendingRow[]): AttentionItem[] {
-  type Ranked = { blocking: number; priority: number; createdAt: string; item: AttentionItem };
+  type Ranked = { tier: number; priority: number; createdAt: string; item: AttentionItem };
   const ranked: Ranked[] = [];
   for (const d of pending) {
     ranked.push({
-      blocking: d.mode === 'blocking' ? 0 : 1,
+      tier: d.mode === 'blocking' ? 0 : 2,
       priority: PRIORITY_RANK[d.priority] ?? 2,
       createdAt: d.created_at,
       item: {
@@ -235,8 +235,8 @@ function buildAttention(sessions: LiveSession[], pending: PendingRow[]): Attenti
     if (s.status !== 'waiting' && s.status !== 'blocked') continue;
     const label = s.label ?? '';
     ranked.push({
-      blocking: s.status === 'blocked' ? 0 : 1,
-      priority: s.status === 'blocked' ? PRIORITY_RANK.high : PRIORITY_RANK.normal,
+      tier: s.status === 'blocked' ? 1 : 3,
+      priority: 2,
       createdAt: s.last_seen_at,
       item: {
         kind: 'session', sessionId: s.id, sessionLabel: label,
@@ -246,7 +246,7 @@ function buildAttention(sessions: LiveSession[], pending: PendingRow[]): Attenti
     });
   }
   ranked.sort((a, b) =>
-    a.blocking - b.blocking || a.priority - b.priority || b.createdAt.localeCompare(a.createdAt));
+    a.tier - b.tier || a.priority - b.priority || b.createdAt.localeCompare(a.createdAt));
   return ranked.slice(0, 10).map((r) => r.item);
 }
 
