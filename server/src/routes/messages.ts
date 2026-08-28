@@ -45,6 +45,8 @@ import { forwardMessage, validateForwardChannel } from './message-forward';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 
 const MAX_LIMIT = 100;
+const MAX_TARGET_CANDIDATES = 10;
+const TARGET_ACTIVITY_WINDOW_MS = 15 * 60 * 1000;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -63,6 +65,12 @@ function isUniqueConstraintError(error: unknown): boolean {
 
 function escapeLike(value: string): string {
   return value.replace(/[%_\\]/g, '\\$&');
+}
+
+function isSessionActive(lastSeenAt: string | null): boolean {
+  if (!lastSeenAt) return false;
+  const lastSeen = new Date(`${lastSeenAt}Z`).getTime();
+  return Number.isFinite(lastSeen) && Date.now() - lastSeen < TARGET_ACTIVITY_WINDOW_MS;
 }
 
 async function enqueueDelivery(
@@ -179,13 +187,18 @@ routes.post('/', async (c) => {
         .bind(...(sessionId ? [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`, sessionId] : [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`]))
         .all<{ id: string; agent_id: string; label: string | null; status: string | null; last_seen_at: string | null }>();
       const matchedTargets = sessionTargets.results ?? [];
-      const exactTarget = matchedTargets.find((target) => target.label === toAgent);
-      const resolvedTargets = exactTarget ? [exactTarget] : matchedTargets;
+      const liveTargets = matchedTargets.filter((target) => isSessionActive(target.last_seen_at));
+      const exactTarget = matchedTargets.find((target) => target.label === toAgent && isSessionActive(target.last_seen_at))
+        ?? matchedTargets.find((target) => target.label === toAgent);
+      const resolvedTargets = exactTarget ? [exactTarget] : liveTargets;
       if (resolvedTargets.length > 1) {
-        const candidates = resolvedTargets.map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
-        return c.json({ error: 'ambiguous_target', target: toAgent, candidates }, 409);
+        const candidates = resolvedTargets
+          .slice(0, MAX_TARGET_CANDIDATES)
+          .map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
+        const remaining = resolvedTargets.length - candidates.length;
+        return c.json({ error: 'ambiguous_target', target: toAgent, candidates, remaining }, 409);
       }
-      const sessionTarget = resolvedTargets[0];
+      const sessionTarget = resolvedTargets[0] ?? matchedTargets[0];
       if (sessionTarget) {
         targetAgentId = sessionTarget.agent_id;
         targetSessionId = sessionTarget.id;
