@@ -180,11 +180,14 @@ routes.post('/', async (c) => {
         .prepare(`SELECT id, agent_id, label, status, last_seen_at FROM sessions WHERE (label = ? OR label LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\')${excludeSelf} ORDER BY last_seen_at DESC`)
         .bind(...(sessionId ? [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`, sessionId] : [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`]))
         .all<{ id: string; agent_id: string; label: string | null; status: string | null; last_seen_at: string | null }>();
-      if ((sessionTargets.results ?? []).length > 1) {
-        const candidates = (sessionTargets.results ?? []).map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
+      const matchedTargets = sessionTargets.results ?? [];
+      const exactTarget = matchedTargets.find((target) => target.label === toAgent);
+      const resolvedTargets = exactTarget ? [exactTarget] : matchedTargets;
+      if (resolvedTargets.length > 1) {
+        const candidates = resolvedTargets.map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
         return c.json({ error: 'ambiguous_target', target: toAgent, candidates }, 409);
       }
-      const sessionTarget = sessionTargets.results?.[0];
+      const sessionTarget = resolvedTargets[0];
       if (sessionTarget) {
         targetAgentId = sessionTarget.agent_id;
         targetSessionId = sessionTarget.id;

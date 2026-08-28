@@ -1123,4 +1123,23 @@ describe('Session-scoped messages', () => {
     const data = await res.json() as { target: { id: string } };
     expect(data.target.id).toBe('collide-peer');
   });
+
+  it('uses the newest non-self session for an exact duplicate label', async () => {
+    await createAgentAuth('exact-label-peer', 'hb_test_key_exact_label_peer_000000');
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, last_seen_at) VALUES (?, ?, ?, datetime('now', '-1 minute'))"
+    ).bind('exact-label-old', 'exact-label-peer', 'exact-project/main').run();
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, last_seen_at) VALUES (?, ?, ?, datetime('now'))"
+    ).bind('exact-label-new', 'exact-label-peer', 'exact-project/main').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Exact duplicate label', to: 'exact-project/main' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as { target: { label: string; id: string } };
+    expect(data.target).toEqual({ label: 'exact-project/main', id: 'exact-label-new' });
+  });
 });
