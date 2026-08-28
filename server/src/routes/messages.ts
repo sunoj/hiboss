@@ -47,6 +47,7 @@ import { createMessageId, insertMessageWithEvent } from '../session-events';
 const MAX_LIMIT = 100;
 const MAX_TARGET_CANDIDATES = 10;
 const TARGET_ACTIVITY_WINDOW_MS = 15 * 60 * 1000;
+const REACHABLE_TARGET_MAX_AGE_HOURS = 24;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -222,11 +223,11 @@ routes.post('/', async (c) => {
         }
       } else {
         const reachableTargets = await c.env.DB
-          .prepare(`SELECT id, label, last_seen_at FROM sessions WHERE 1 = 1${excludeSelf} ORDER BY CASE WHEN last_seen_at > datetime('now', '-15 minutes') THEN 0 ELSE 1 END, last_seen_at DESC`)
-          .bind(...(sessionId ? [sessionId] : []))
-          .all<{ id: string; label: string | null; last_seen_at: string | null }>();
+          .prepare(`SELECT id, label, last_seen_at, COUNT(*) OVER () AS total_count FROM sessions WHERE status != 'completed' AND last_seen_at > datetime('now', '-${REACHABLE_TARGET_MAX_AGE_HOURS} hours')${excludeSelf} ORDER BY CASE WHEN last_seen_at > datetime('now', '-15 minutes') THEN 0 ELSE 1 END, last_seen_at DESC LIMIT ?`)
+          .bind(...(sessionId ? [sessionId, MAX_TARGET_CANDIDATES] : [MAX_TARGET_CANDIDATES]))
+          .all<{ id: string; label: string | null; last_seen_at: string | null; total_count: number }>();
         const targets = reachableTargets.results ?? [];
-        const candidates = targets.slice(0, MAX_TARGET_CANDIDATES).map(({ label, id, last_seen_at }) => {
+        const candidates = targets.map(({ label, id, last_seen_at }) => {
           const idleMinutes = sessionIdleMinutes(last_seen_at);
           return {
             label,
@@ -234,7 +235,7 @@ routes.post('/', async (c) => {
             ...(idleMinutes !== null && !isSessionActive(last_seen_at) ? { idle_minutes: idleMinutes } : {}),
           };
         });
-        const remaining = targets.length - candidates.length;
+        const remaining = Math.max((targets[0]?.total_count ?? 0) - candidates.length, 0);
         return c.json({ error: 'target_not_found', target: toAgent, candidates, remaining }, 404);
       }
     }
