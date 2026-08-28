@@ -332,3 +332,36 @@ one.
 > says nothing about behaviour at production scale. My local migration test had one row; the
 > session fixtures have a handful of rows; production has hundreds. Both defects were invisible
 > until real data ran through them, and both were found in the first minute of looking.
+
+## Verified in production (worker `0cfcbb76`)
+
+The activity filter moved off the targeting query and onto the ambiguity decision — filtering
+resolution instead broke sending to any session idle over 15 minutes, which is the common case
+here and which two live sends had already exercised that day. Server suite 580 tests / 45 files.
+
+```
+$ hiboss send --to smart-router "..."          # the form that 404'd four times
+sent -> smart-router/main (aefb4ffd) id=8a830f94…      EXIT=0
+
+$ hiboss send --to poolstrade-compounder "..."          # idle 20m
+Warning: target session 'poolstrade-compounder' last seen 20m ago
+sent -> poolstrade-compounder/main (b81eef1d) id=19a6d6f8…   EXIT=0
+
+$ hiboss send --to zzz-nope-9x "probe"
+Error: request failed (404 Not Found): target 'zzz-nope-9x' was not found;
+       no active targets are available                 EXIT=2
+```
+
+The originally failing command works, and the receipt names the **resolved** target rather than
+the string the caller typed — the property that stops "sent" being upgraded into "coordinated".
+
+### Known inconsistency, still open
+
+The third line is wrong in a small way. Delivery accepts stale sessions; the 404 candidate list
+is live-only. So when every peer is idle the error says *no active targets are available* while
+those very targets are in fact reachable — the two sends above prove it. An agent reading that
+concludes nobody can be reached and stops.
+
+An error must describe the world the caller is actually in. The 404 should list reachable
+targets — live ones first, then stale ones marked with their idle time — rather than silently
+applying a stricter rule than delivery does.
