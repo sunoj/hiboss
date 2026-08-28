@@ -293,3 +293,42 @@ column via `ALTER TABLE messages ADD COLUMN`, which is O(1) in SQLite and needs 
 no copy, and no index work. "Queued" becomes the absence of an acknowledgement rather than a
 state name. It is also strictly more informative — a timestamp answers *when*, not just *whether*.
 Cost: rework the merged server change and the readers that now filter on `'queued'`.
+
+## Deployed, and production immediately found what tests could not
+
+Worker version `c73ceb6c` deployed with **zero pending migrations** — the `queued` state was
+removed entirely rather than reworked, so no schema change was needed at all. `queued` had been
+invented to mean "persisted, peer has not picked it up", which is exactly what `sent` already
+meant: a2a messages were inserted as `sent` and `stream.ts` flipped them to `delivered` on SSE
+pickup. The new state bought nothing and cost a full table rebuild. Removing it was a net
+deletion of 63 lines. Suites after the change: server 577 tests / 45 files, CLI 154 tests.
+
+Two live checks against production:
+
+**The 404 branch works exactly as designed.**
+
+```
+target 'zzz-nope-9x' was not found; valid targets:
+  poolstrade-compounder/main (b81eef1d), smart-router/main (aefb4ffd)
+```
+
+Two entries, both live, directly actionable.
+
+**The 409 branch was unusable.** `--to smart-router` — the exact command this investigation
+started from — returned **over three hundred candidates**, almost all long-dead `smart-router/main`
+sessions stretching back months.
+
+The two failure branches had drifted: the 404 branch filters candidates to sessions seen in the
+last 15 minutes, while the ambiguity branch reuses the raw match set from the targeting query,
+which has no activity or status filter. Nothing caught it — 577 server tests pass, both audits
+passed, and a test fixture holds a handful of sessions where production holds thousands.
+
+The fix is not truncation. **Once only live sessions count as candidates, `--to smart-router`
+matches exactly one active session and should simply be delivered.** A 409 is only justified by a
+real choice between two or more *live* sessions. The originally failing command becomes a working
+one.
+
+> This is the same lesson as the migration, one layer up: correctness verified at fixture scale
+> says nothing about behaviour at production scale. My local migration test had one row; the
+> session fixtures have a handful of rows; production has hundreds. Both defects were invisible
+> until real data ran through them, and both were found in the first minute of looking.
