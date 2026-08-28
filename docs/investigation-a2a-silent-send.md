@@ -133,3 +133,73 @@ surfaced by `hiboss status` and by an opt-in `--wait-ack`. Largest scope; the ho
 Replace the global-`CLAUDE.md` line with: *"`hiboss ask` blocks; `hiboss send` to the boss does not.
 Peer sends (`--to`, `--broadcast`) run in the foreground and their stdout must be read — an
 unreadable send is not a sent message."* Update the matching memory entry in the same pass.
+
+---
+
+## Audit round (2026-08-28, after the first server implementation)
+
+The `aic` audit wired to this repo is **misconfigured and its verdict is noise**: it ran `cargo check`
+and `cargo clippy` at the repo root against a TypeScript-only change (no `Cargo.toml` there — it lives
+in `cli/`), plus an unrelated smart-router address-verification script. It reported FAIL having
+examined none of the change. Two independent read-only audits were dispatched instead.
+
+`aid` itself exits 0 on its own dispatch errors — an unsupported `--read-only`, a missing agent
+binary, and a `--read-only`/`--worktree` conflict each printed `Error:` and returned 0. Same class of
+defect as the one under investigation, in the tool being used to investigate it.
+
+### What the auditors got right
+
+Both independently confirmed the exact-label regression (below). One executed the full server suite
+(575 tests, 45 files, pass) and did the per-query enumeration of every status filter in `server/`.
+
+### What both auditors got wrong
+
+Both marked `server/src/scheduled.ts:38` as N/A for `queued`, on the stated grounds that the options
+expiry sweep only covers `agent_to_boss`. **That query has no direction filter.** And `hiboss ask
+--to <peer> --option A --option B` is a real command — `cli/src/commands/ask.rs:64` carries `--to`,
+and lines 219-223 send `options` and `to` in the same request. So a2a messages do carry options and
+`expires_at`, they now start at `queued`, and the sweep never sees them: **an a2a ask hangs forever
+instead of expiring.** Two auditors made the identical wrong assumption; reading the SQL settled it.
+
+### The migration: one auditor said BLOCK, and was wrong
+
+The BLOCK claimed `DROP TABLE messages` must throw `FOREIGN KEY constraint failed` because
+`delivery_queue.message_id` and `session_events.message_id` reference it. Its own reasoning was
+self-contradictory — it asserted both that D1 wraps migrations in a transaction and that the DROP
+throws regardless. Measured directly against sqlite 3.51.0:
+
+| Case | Result |
+|---|---|
+| Inside a transaction, `foreign_keys=ON` | Applies cleanly. All child rows survive. `PRAGMA foreign_key_check` empty. Rebuilt table still enforces `delivery_queue`'s FK (a dangling insert is rejected). a2a backfill correct. |
+| Autocommit, no transaction | `DROP TABLE messages` throws FK failure at line 40 — **and the script keeps going**: RENAME fails, the UPDATE hits the *old* table's CHECK, all 8 index creations fail. Database left half-migrated with a `messages_with_a2a_status` shadow table. |
+
+So the migration's safety rests entirely on D1 wrapping a migration file in a transaction. The
+decisive evidence is precedent, not documentation: `0022_delivery_queue.sql` created the child FK,
+and `0023_expired_message_status.sql` then shipped this identical `defer_foreign_keys` + `DROP` +
+`RENAME` rebuild to production (`0011_direction_constraint.sql` did it once before that). The pattern
+has already survived D1 with the child FK in place. **Migration stands as written.**
+
+### Confirmed defects, sent back for fix
+
+1. **[HIGH] Exact-label collision returns 409.** Session labels are `cwd/branch` and carry no UNIQUE
+   constraint; two windows on one repo and branch share a label, which the preserved comment at
+   `messages.ts:176-177` calls normal. The replaced code resolved this with `ORDER BY last_seen_at
+   DESC LIMIT 1`. `hiboss send --to hiboss/main` worked before and 409s now. Match *quality* must
+   decide: an exact label match wins outright and never 409s; only a prefix match that hits more than
+   one session is ambiguous.
+2. **[MEDIUM] a2a asks never expire** — `scheduled.ts:38`, as above.
+
+### Operational constraint, not a code defect
+
+**Migration 0030 must be applied before or with the code deploy.** The pre-migration CHECK constraint
+has no `queued`, and the new code inserts it. Deploy in the wrong order and every a2a insert fails.
+Recorded here because merging is not deploying.
+
+### Noted, not fixed this round
+
+- `notify.ts:53-55` swallows every callback error, leaving an a2a message silently at `queued` — the
+  same defect class as this whole investigation, one layer down. Belongs with P2.
+- `messages.ts:167-173` resolves `--to` against `api_keys.name` before session labels, so an agent
+  literally named `smart-router` would shadow the session `smart-router/main`. Pre-existing.
+- `cli/src/commands/inbox.rs:101` auto-marks read on `sent`/`delivered` only and does not know
+  `queued`. Created by splitting server and CLI across two agents; belongs to the CLI task.
