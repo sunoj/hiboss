@@ -1,0 +1,47 @@
+{
+  "verdict": {
+    "FailBlocking": {
+      "reason": "L0 command failed: cargo check, cargo clippy -- -D warnings"
+    }
+  },
+  "layer_results": [
+    {
+      "layer": "L0Static",
+      "verdict": {
+        "FailBlocking": {
+          "reason": "L0 command failed: cargo check, cargo clippy -- -D warnings"
+        }
+      },
+      "duration_ms": 775,
+      "evidence_count": 3
+    }
+  ],
+  "evidence": [
+    {
+      "layer": "L0Static",
+      "signal": "Compile",
+      "passed": false,
+      "detail": "error: could not find `Cargo.toml` in `/Users/mingsun/.aid/worktrees/hiboss-1834ea17/fix/a2a-addressing` or any parent directory\n",
+      "cite": "cargo check",
+      "cost_usd": 0.0
+    },
+    {
+      "layer": "L0Static",
+      "signal": "Compile",
+      "passed": false,
+      "detail": "error: could not find `Cargo.toml` in `/Users/mingsun/.aid/worktrees/hiboss-1834ea17/fix/a2a-addressing` or any parent directory\n",
+      "cite": "cargo clippy -- -D warnings",
+      "cost_usd": 0.0
+    },
+    {
+      "layer": "L0Static",
+      "signal": "Script",
+      "passed": true,
+      "detail": "\nSmart Router Address Verification\nRPC: eth_getCode | Explorer: Etherscan\n\n────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\nSummary: 0 passed  (0 total)\n\n\nWARNING: RPC_URL_BASE not set, skipping RPC checks for base\nWARNING: RPC_URL_ARBITRUM not set, skipping RPC checks for arbitrum\nWARNING: RPC_URL_ETHEREUM_STANDARD not set, skipping RPC checks for ethereum\nWARNING: RPC_URL_ROBINHOOD not set, skipping RPC checks for robinhood\nWARNING: RPC_URL_AVALANCHE not set, skipping RPC checks for avalanche\nWARNING: RPC_URL_BSC not set, skipping RPC checks for bsc\nWARNING: RPC_URL_GNOSIS not set, skipping RPC checks for gnosis\n",
+      "cite": "/Users/mingsun/.claude/tools/verify-addresses.sh",
+      "cost_usd": 0.0
+    }
+  ],
+  "total_cost_usd": 0.0,
+  "duration_ms": 776
+}
