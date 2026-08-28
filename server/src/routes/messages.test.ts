@@ -101,6 +101,65 @@ describe('POST /api/messages', () => {
     expect(res.status).toBe(201);
   });
 
+  it('resolves a session by project label prefix and returns the target', async () => {
+    await createAgentAuth('address-peer', 'hb_test_key_address_peer_000000');
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now'))"
+    ).bind('address-peer-main', 'address-peer', 'address-project/main').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Prefix target', to: 'address-project' }),
+    });
+    expect(res.status).toBe(201);
+    const data = await res.json() as { status: string; target: { label: string; id: string } };
+    expect(data.status).toBe('queued');
+    expect(data.target).toEqual({ label: 'address-project/main', id: 'address-peer-main' });
+  });
+
+  it('rejects ambiguous session label prefixes with candidates', async () => {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now'))"
+    ).bind('ambiguous-main', 'address-peer', 'ambiguous/main').run();
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now', '-1 minute'))"
+    ).bind('ambiguous-review', 'address-peer', 'ambiguous/review').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Ambiguous target', to: 'ambiguous' }),
+    });
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error: 'ambiguous_target',
+      target: 'ambiguous',
+      candidates: [
+        { label: 'ambiguous/main', id: 'ambiguou' },
+        { label: 'ambiguous/review', id: 'ambiguou' },
+      ],
+    });
+  });
+
+  it('lists active session targets when no target matches', async () => {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, 'working', datetime('now'))"
+    ).bind('suggest-peer-id', 'address-peer', 'suggest-project/main').run();
+
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ body: 'Missing target', to: 'not-a-target' }),
+    });
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toMatchObject({
+      error: 'target_not_found',
+      target: 'not-a-target',
+      candidates: expect.arrayContaining([{ label: 'suggest-project/main', id: 'suggest-' }]),
+    });
+  });
+
   it('queues normal-priority delivery when a boss is in quiet hours', async () => {
     const quietHeaders = await setupQuietHoursAgent('quiet-agent-normal', 'hb_test_key_quiet_normal_000000');
 
@@ -462,7 +521,7 @@ describe('PATCH /api/messages/:id', () => {
     expect(await secondPatch.text()).toContain('invalid status transition');
   });
 
-  it('rejects status updates from the target recipient', async () => {
+  it('allows the target recipient to mark an a2a message read', async () => {
     const otherApiKey = 'hb_test_key_agent2_patch_000000';
     const otherKeyHash = await hashApiKey(otherApiKey);
     await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
@@ -480,8 +539,8 @@ describe('PATCH /api/messages/:id', () => {
       },
       body: JSON.stringify({ status: 'read' }),
     });
-    expect(res.status).toBe(403);
-    expect(await res.text()).toContain('only message owner can update message');
+    expect(res.status).toBe(200);
+    expect((await res.json() as { status: string }).status).toBe('read');
   });
 
   it('updates message body', async () => {
@@ -951,12 +1010,12 @@ describe('Session-scoped messages', () => {
 
     // Agent-2 sends a message targeted at agent-1's specific session
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For session X only', 'sent', 'normal', ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For session X only', 'queued', 'normal', ?, ?)"
     ).bind('a2a-sess-targeted', 'test-agent-2', agentId, 'sess-xxx').run();
 
     // Agent-2 sends a message targeted at agent-1 (no session)
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For all sessions', 'sent', 'normal', ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For all sessions', 'queued', 'normal', ?)"
     ).bind('a2a-no-sess', 'test-agent-2', agentId).run();
 
     // Query unread with target_session=sess-xxx: should see both
@@ -1030,11 +1089,11 @@ describe('Session-scoped messages', () => {
     // A session that authored an a2a message (session_id == query session) must never
     // see it as unread, even if it was self-targeted (target_session_id == session_id).
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Self broadcast', 'sent', 'normal', ?, ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Self broadcast', 'queued', 'normal', ?, ?, ?)"
     ).bind('a2a-self-broadcast', agentId, agentId, 'sess-self', 'sess-self').run();
     // A genuine peer message authored by a different session, targeted at sess-self.
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Peer broadcast', 'sent', 'normal', ?, ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Peer broadcast', 'queued', 'normal', ?, ?, ?)"
     ).bind('a2a-peer-broadcast', agentId, agentId, 'sess-self', 'sess-peer').run();
 
     const res = await SELF.fetch('https://test.local/api/messages?unread=true&target_session=sess-self&limit=100', {
@@ -1048,8 +1107,6 @@ describe('Session-scoped messages', () => {
   });
 
   it('does not resolve a colliding label back to the sender own session', async () => {
-    // Two sessions share a label; the sender is the most recently active. Sending to that
-    // label must resolve to the OTHER session, never self.
     await env.DB.prepare(
       "INSERT OR IGNORE INTO sessions (id, agent_id, label, last_seen_at) VALUES (?, ?, ?, datetime('now', '-1 minute'))"
     ).bind('collide-peer', agentId, 'shared-label').run();
@@ -1063,12 +1120,7 @@ describe('Session-scoped messages', () => {
       body: JSON.stringify({ body: 'Broadcast', to: 'shared-label', session_id: 'collide-self' }),
     });
     expect(res.status).toBe(201);
-    const { id } = await res.json() as { id: string };
-    const getRes = await SELF.fetch(`https://test.local/api/messages/${id}`, {
-      headers: authHeaders(),
-    });
-    const msg = await getRes.json() as { target_session_id: string | null };
-    expect(msg.target_session_id).toBe('collide-peer');
-    expect(msg.target_session_id).not.toBe('collide-self');
+    const data = await res.json() as { target: { id: string } };
+    expect(data.target.id).toBe('collide-peer');
   });
 });

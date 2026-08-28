@@ -62,7 +62,7 @@ async function streamLoop(
         const data = JSON.stringify({ ...row, metadata: safeJson(row.metadata) });
         await writer.write(encoder.encode(`event: message\ndata: ${data}\n\n`));
         await env.DB
-          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?")
+          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ? AND ((direction = 'agent_to_agent' AND status = 'queued') OR (direction = 'boss_to_agent' AND status = 'sent'))")
           .bind(row.id)
           .run();
         seenMessageIds.add(row.id);
@@ -92,10 +92,10 @@ export function buildStreamQuery(agentId: string, sessionId?: string) {
 
   if (sessionId) {
     // Session-scoped: boss messages + a2a targeting this agent (no session) + a2a targeting this session
-    const where = `WHERE messages.status = 'sent' AND messages.created_at >= ? AND (
-      (messages.agent_id = ? AND messages.direction = 'boss_to_agent' AND (messages.target_session_id IS NULL OR messages.target_session_id = ?))
-      OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.target_session_id IS NULL)
-      OR (messages.target_session_id = ? AND messages.direction = 'agent_to_agent')
+    const where = `WHERE messages.created_at >= ? AND (
+      (messages.agent_id = ? AND messages.direction = 'boss_to_agent' AND messages.status = 'sent' AND (messages.target_session_id IS NULL OR messages.target_session_id = ?))
+      OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.status = 'queued' AND messages.target_session_id IS NULL)
+      OR (messages.target_session_id = ? AND messages.direction = 'agent_to_agent' AND messages.status = 'queued')
     ) ORDER BY messages.created_at ASC`;
     return {
       sql: `${baseCols} ${where}`,
@@ -104,9 +104,9 @@ export function buildStreamQuery(agentId: string, sessionId?: string) {
   }
 
   // Agent-wide: boss messages + all a2a targeting this agent
-  const where = `WHERE messages.status = 'sent' AND messages.created_at >= ? AND (
-    (messages.agent_id = ? AND messages.direction = 'boss_to_agent')
-    OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent')
+  const where = `WHERE messages.created_at >= ? AND (
+    (messages.agent_id = ? AND messages.direction = 'boss_to_agent' AND messages.status = 'sent')
+    OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.status = 'queued')
   ) ORDER BY messages.created_at ASC`;
   return {
     sql: `${baseCols} ${where}`,

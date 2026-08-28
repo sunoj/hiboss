@@ -30,7 +30,7 @@ interface SessionLabelRow {
   branch: string | null;
 }
 
-export async function notifyAgentCallback(env: Env, agentId: string, message: MessageRow): Promise<void> {
+export async function notifyAgentCallback(env: Env, agentId: string, message: MessageRow, markDelivered = false): Promise<void> {
   try {
     const row = await env.DB
       .prepare('SELECT callback_url FROM api_keys WHERE id = ?')
@@ -39,11 +39,17 @@ export async function notifyAgentCallback(env: Env, agentId: string, message: Me
     if (!row?.callback_url) {
       return;
     }
-    await fetch(row.callback_url, {
+    const response = await fetch(row.callback_url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(message),
     });
+    if (markDelivered && response.ok && message.direction === 'agent_to_agent') {
+      await env.DB
+        .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ? AND direction = 'agent_to_agent' AND status = 'queued'")
+        .bind(message.id)
+        .run();
+    }
   } catch {
     // Best-effort: swallow errors to avoid disrupting the webhook response.
   }
@@ -51,7 +57,7 @@ export async function notifyAgentCallback(env: Env, agentId: string, message: Me
 
 /** Notify target agent via callback URL for agent-to-agent messages. */
 export async function notifyTargetAgent(env: Env, targetAgentId: string, message: MessageRow): Promise<void> {
-  await notifyAgentCallback(env, targetAgentId, message);
+  await notifyAgentCallback(env, targetAgentId, message, true);
 }
 
 /** Notify boss-agents who have access to the given sub-agent. */
