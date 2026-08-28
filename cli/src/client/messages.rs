@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 struct TargetCandidate {
     label: Option<String>,
     id: String,
+    idle_minutes: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,11 +33,12 @@ fn format_target_error(status: StatusCode, body: &str) -> Option<String> {
         .candidates
         .iter()
         .map(|candidate| {
-            format!(
-                "{} ({})",
-                candidate.label.as_deref().unwrap_or(candidate.id.as_str()),
-                crate::helpers::short_id(&candidate.id)
-            )
+            let target = candidate.label.as_deref().unwrap_or(candidate.id.as_str());
+            let idle = candidate
+                .idle_minutes
+                .map(|minutes| format!(", idle {minutes}m"))
+                .unwrap_or_default();
+            format!("{target} ({}){idle}", crate::helpers::short_id(&candidate.id))
         })
         .collect::<Vec<_>>();
     let message = match error.error.as_str() {
@@ -98,6 +100,7 @@ impl HiBossClient {
         direction: Option<&str>,
         target_session: Option<&str>,
         search: Option<&str>,
+        status: Option<&str>,
     ) -> Result<MessagesResponse, Box<dyn Error>> {
         let mut request = self
             .http
@@ -130,6 +133,9 @@ impl HiBossClient {
         }
         if let Some(s) = search {
             request = request.query(&[("search", s)]);
+        }
+        if let Some(s) = status {
+            request = request.query(&[("status", s)]);
         }
         let resp = request.send().await?;
         Self::parse_response(resp).await
@@ -230,6 +236,19 @@ mod tests {
         assert_eq!(
             message,
             "target 'smart-router' was not found; valid targets: smart-router/main (aefb4ffd)"
+        );
+    }
+
+    #[test]
+    fn target_not_found_formats_stale_target_idle_time() {
+        let message = format_target_error(
+            StatusCode::NOT_FOUND,
+            r#"{"error":"target_not_found","target":"missing","candidates":[{"label":"peer/main","id":"peer123456789","idle_minutes":20}],"remaining":0}"#,
+        )
+        .expect("target error formats");
+        assert_eq!(
+            message,
+            "target 'missing' was not found; valid targets: peer/main (peer1234, idle 20m)"
         );
     }
 

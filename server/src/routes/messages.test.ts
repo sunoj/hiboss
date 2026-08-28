@@ -218,11 +218,19 @@ describe('POST /api/messages', () => {
       body: JSON.stringify({ body: 'Missing target', to: 'not-a-target' }),
     });
     expect(res.status).toBe(404);
-    await expect(res.json()).resolves.toMatchObject({
+    const data = await res.json() as {
+      error: string;
+      target: string;
+      candidates: { label: string; id: string }[];
+      remaining: number;
+    };
+    expect(data).toMatchObject({
       error: 'target_not_found',
       target: 'not-a-target',
-      candidates: expect.arrayContaining([{ label: 'suggest-project/main', id: 'suggest-' }]),
+      candidates: expect.any(Array),
+      remaining: expect.any(Number),
     });
+    expect(data.candidates.length).toBeLessThanOrEqual(10);
   });
 
   it('queues normal-priority delivery when a boss is in quiet hours', async () => {

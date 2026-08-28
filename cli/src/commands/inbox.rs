@@ -61,6 +61,7 @@ pub async fn run(
             args.direction.as_deref(),
             session_id.as_deref(),
             args.search.as_deref(),
+            None,
         )
         .await?;
     if args.count {
