@@ -196,17 +196,17 @@ describe('buildFilters', () => {
     expect(where).not.toContain('priority');
   });
 
-  it('uses status-aware filter for unread (boss=sent, a2a=sent+delivered)', () => {
+  it('uses status-aware filter for unread (boss=sent, a2a=queued+delivered)', () => {
     const { where, binds } = buildFilters('a1', null, null, undefined, undefined, undefined, true);
     expect(where).toContain("direction = 'boss_to_agent' AND status = 'sent'");
-    expect(where).toContain("direction = 'agent_to_agent' AND status IN ('sent', 'delivered')");
+    expect(where).toContain("direction = 'agent_to_agent' AND status IN ('queued', 'delivered')");
     expect(binds).toContain('a1');
   });
 
-  it('uses sent+delivered for unread a2a-only filter', () => {
+  it('uses queued+delivered for unread a2a-only filter', () => {
     const { where } = buildFilters('a1', 'agent_to_agent', null, undefined, undefined, undefined, true);
     expect(where).toContain("direction = 'agent_to_agent'");
-    expect(where).toContain("status IN ('sent', 'delivered')");
+    expect(where).toContain("status IN ('queued', 'delivered')");
   });
 
   it('includes target_session_id in unread filter when provided', () => {

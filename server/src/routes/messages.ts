@@ -48,6 +48,7 @@ const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
 const VALID_TRANSITIONS: Record<string, string[]> = {
+  queued: ['delivered', 'read', 'replied', 'expired'],
   sent: ['delivered', 'read', 'replied', 'expired'],
   delivered: ['read', 'replied', 'expired'],
   read: ['replied', 'expired'],
@@ -86,11 +87,12 @@ export async function insertMessageWithRecovery(
 ): Promise<{ inserted: MessageRow | null; existing: MessageRow | null }> {
   const [direction, mode, channel, body, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId] = values;
   const messageId = createMessageId();
+  const initialStatus: Status = direction === 'agent_to_agent' ? 'queued' : 'sent';
   try {
     const inserted = await insertMessageWithEvent(
       env,
       'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-      [messageId, agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
+      [messageId, agentId, direction, mode, channel, body, initialStatus, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
       sessionId ?? targetSessionId,
     );
     return { inserted, existing: null };
@@ -159,6 +161,7 @@ routes.post('/', async (c) => {
   let targetSessionId: string | null = null;
   let direction: Direction = 'agent_to_boss';
   let targetWarning: string | null = null;
+  let targetSession: { id: string; label: string | null } | null = null;
   if (toAgent) {
     // 1. Try agent by name or id prefix
     const agentTarget = await c.env.DB
@@ -173,13 +176,22 @@ routes.post('/', async (c) => {
       // Exclude the sender's own session so a colliding label can never self-target
       // (all sessions of one agent share a key; the newest same-label session is often self).
       const excludeSelf = sessionId ? ' AND id != ?' : '';
-      const sessionTarget = await c.env.DB
-        .prepare(`SELECT id, agent_id, status, last_seen_at FROM sessions WHERE (label = ? OR id LIKE ? ESCAPE '\\')${excludeSelf} ORDER BY last_seen_at DESC LIMIT 1`)
-        .bind(...(sessionId ? [toAgent, `${escapeLike(toAgent)}%`, sessionId] : [toAgent, `${escapeLike(toAgent)}%`]))
-        .first<{ id: string; agent_id: string; status: string | null; last_seen_at: string | null }>();
+      const sessionTargets = await c.env.DB
+        .prepare(`SELECT id, agent_id, label, status, last_seen_at FROM sessions WHERE (label = ? OR label LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\')${excludeSelf} ORDER BY last_seen_at DESC`)
+        .bind(...(sessionId ? [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`, sessionId] : [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`]))
+        .all<{ id: string; agent_id: string; label: string | null; status: string | null; last_seen_at: string | null }>();
+      const matchedTargets = sessionTargets.results ?? [];
+      const exactTarget = matchedTargets.find((target) => target.label === toAgent);
+      const resolvedTargets = exactTarget ? [exactTarget] : matchedTargets;
+      if (resolvedTargets.length > 1) {
+        const candidates = resolvedTargets.map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
+        return c.json({ error: 'ambiguous_target', target: toAgent, candidates }, 409);
+      }
+      const sessionTarget = resolvedTargets[0];
       if (sessionTarget) {
         targetAgentId = sessionTarget.agent_id;
         targetSessionId = sessionTarget.id;
+        targetSession = { id: sessionTarget.id, label: sessionTarget.label };
         direction = 'agent_to_agent';
         // Warn if target session is completed or stale (>15 min)
         if (sessionTarget.status === 'completed') {
@@ -191,7 +203,12 @@ routes.post('/', async (c) => {
           }
         }
       } else {
-        return c.text(`target not found: ${toAgent}`, 404);
+        const activeTargets = await c.env.DB
+          .prepare(`SELECT id, label FROM sessions WHERE last_seen_at > datetime('now', '-15 minutes')${excludeSelf} ORDER BY last_seen_at DESC`)
+          .bind(...(sessionId ? [sessionId] : []))
+          .all<{ id: string; label: string | null }>();
+        const candidates = (activeTargets.results ?? []).map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
+        return c.json({ error: 'target_not_found', target: toAgent, candidates }, 404);
       }
     }
   }
@@ -201,7 +218,9 @@ routes.post('/', async (c) => {
   if (idempotencyKey) {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
     if (existing) {
-      return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
+      const response: Record<string, unknown> = { id: existing.id, status: existing.status, created_at: existing.created_at };
+      if (targetSession) response.target = targetSession;
+      return c.json(response, 200);
     }
   }
   const { inserted, existing } = await insertMessageWithRecovery(c.env, agentId, [
@@ -218,7 +237,9 @@ routes.post('/', async (c) => {
     targetSessionId,
   ]);
   if (existing) {
-    return c.json({ id: existing.id, status: existing.status, created_at: existing.created_at }, 200);
+    const response: Record<string, unknown> = { id: existing.id, status: existing.status, created_at: existing.created_at };
+    if (targetSession) response.target = targetSession;
+    return c.json(response, 200);
   }
   if (!inserted) {
     return c.text('failed to persist', 500);
@@ -322,6 +343,7 @@ routes.post('/', async (c) => {
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.send', 'message', inserted.id, JSON.stringify({ direction, priority, mode })));
   const response: Record<string, unknown> = { id: inserted.id, status: inserted.status, created_at: inserted.created_at };
+  if (targetSession) response.target = targetSession;
   if (targetWarning) response.warning = targetWarning;
   return c.json(response, 201);
 });
@@ -332,7 +354,7 @@ routes.get('/', async (c) => {
   const directionParam = c.req.query('direction') || undefined;
   const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent', 'agent_to_agent']);
   const statusParam = unread ? undefined : c.req.query('status') || undefined;
-  const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
+  const status = validateOption<Status>(statusParam, ['queued', 'sent', 'delivered', 'read', 'replied']);
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const typeFilter = c.req.query('type') || undefined;
   const sessionFilter = c.req.query('session') || undefined;
@@ -387,10 +409,11 @@ routes.post('/:id/reply', async (c) => {
     : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
   const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
   const replyTargetSessionId = replyDirection === 'agent_to_agent' ? replyTargetSession(parent) : null;
+  const replyStatus: Status = replyDirection === 'agent_to_agent' ? 'queued' : 'sent';
   const inserted = await insertMessageWithEvent(
     c.env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId],
+    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, replyStatus, 'normal', parent.id, replyTargetAgentId, replyTargetSessionId],
     replyTargetSession(parent),
   );
   if (!inserted) {
@@ -494,11 +517,15 @@ routes.patch('/:id', async (c) => {
   if (!existing) {
     return c.text('not found', 404);
   }
-  if (existing.agent_id !== agentId) {
+  const isTargetAgent = existing.direction === 'agent_to_agent' && existing.target_agent_id === agentId;
+  if (existing.agent_id !== agentId && !isTargetAgent) {
     return c.text('only message owner can update message', 403);
   }
   if (body && existing.direction !== 'agent_to_boss') {
     return c.text('only agent_to_boss messages can be edited', 403);
+  }
+  if (isTargetAgent && (body || status !== 'read')) {
+    return c.text('only message owner can update message', 403);
   }
 
   const updates: string[] = ["updated_at = datetime('now')"];
@@ -543,8 +570,8 @@ routes.patch('/:id', async (c) => {
 routes.post('/mark-all-read', async (c) => {
   const agentId = getAgentId(c);
   const result = await c.env.DB
-    .prepare("UPDATE messages SET status = 'read', updated_at = datetime('now') WHERE agent_id = ? AND status IN ('sent', 'delivered')")
-    .bind(agentId)
+    .prepare("UPDATE messages SET status = 'read', updated_at = datetime('now') WHERE ((agent_id = ? AND direction != 'agent_to_agent') OR target_agent_id = ?) AND status IN ('queued', 'sent', 'delivered')")
+    .bind(agentId, agentId)
     .run();
   const count = result.meta.changes ?? 0;
   return c.json({ marked: count });

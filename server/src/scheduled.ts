@@ -35,7 +35,7 @@ export async function handleScheduled(env: Env): Promise<void> {
 async function expireDueOptions(env: Env, now: string): Promise<void> {
   const rows = await env.DB
     .prepare(
-      `SELECT * FROM messages WHERE expires_at IS NOT NULL AND expires_at < ? AND status IN ('sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL LIMIT ?`
+      `SELECT * FROM messages WHERE expires_at IS NOT NULL AND expires_at < ? AND status IN ('queued', 'sent', 'delivered', 'read') AND json_extract(metadata, '$.options') IS NOT NULL LIMIT ?`
     )
     .bind(now, BATCH_SIZE)
     .all<MessageRow>();
