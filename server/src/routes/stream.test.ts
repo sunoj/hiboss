@@ -126,11 +126,11 @@ describe('GET /api/messages/stream', () => {
     expect(updated?.status).toBe('delivered');
   });
 
-  it('marks queued a2a messages delivered only after SSE pickup', async () => {
+  it('marks sent a2a messages delivered only after SSE pickup', async () => {
     const agentId = getTestAgentId();
     const msgId = `stream-a2a-${Date.now()}`;
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'A2A stream', 'queued', ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'A2A stream', 'sent', ?)"
     ).bind(msgId, agentId, agentId).run();
 
     const res = await SELF.fetch('https://test.local/api/messages/stream', {

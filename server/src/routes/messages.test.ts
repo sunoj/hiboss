@@ -114,7 +114,7 @@ describe('POST /api/messages', () => {
     });
     expect(res.status).toBe(201);
     const data = await res.json() as { status: string; target: { label: string; id: string } };
-    expect(data.status).toBe('queued');
+    expect(data.status).toBe('sent');
     expect(data.target).toEqual({ label: 'address-project/main', id: 'address-peer-main' });
   });
 
@@ -1010,12 +1010,12 @@ describe('Session-scoped messages', () => {
 
     // Agent-2 sends a message targeted at agent-1's specific session
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For session X only', 'queued', 'normal', ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For session X only', 'sent', 'normal', ?, ?)"
     ).bind('a2a-sess-targeted', 'test-agent-2', agentId, 'sess-xxx').run();
 
     // Agent-2 sends a message targeted at agent-1 (no session)
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For all sessions', 'queued', 'normal', ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'For all sessions', 'sent', 'normal', ?)"
     ).bind('a2a-no-sess', 'test-agent-2', agentId).run();
 
     // Query unread with target_session=sess-xxx: should see both
@@ -1089,11 +1089,11 @@ describe('Session-scoped messages', () => {
     // A session that authored an a2a message (session_id == query session) must never
     // see it as unread, even if it was self-targeted (target_session_id == session_id).
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Self broadcast', 'queued', 'normal', ?, ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Self broadcast', 'sent', 'normal', ?, ?, ?)"
     ).bind('a2a-self-broadcast', agentId, agentId, 'sess-self', 'sess-self').run();
     // A genuine peer message authored by a different session, targeted at sess-self.
     await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Peer broadcast', 'queued', 'normal', ?, ?, ?)"
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, priority, target_agent_id, target_session_id, session_id) VALUES (?, ?, 'agent_to_agent', 'async', 'Peer broadcast', 'sent', 'normal', ?, ?, ?)"
     ).bind('a2a-peer-broadcast', agentId, agentId, 'sess-self', 'sess-peer').run();
 
     const res = await SELF.fetch('https://test.local/api/messages?unread=true&target_session=sess-self&limit=100', {

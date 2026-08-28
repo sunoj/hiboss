@@ -70,18 +70,18 @@ describe('notifyAgentCallback', () => {
 });
 
 describe('notifyTargetAgent', () => {
-  it('marks a queued a2a message delivered after callback acceptance', async () => {
+  it('marks a sent a2a message delivered after callback acceptance', async () => {
     const agentId = getTestAgentId();
     const messageId = 'notify-target-a2a';
     await env.DB.prepare('UPDATE api_keys SET callback_url = ? WHERE id = ?')
       .bind('https://peer.test/callback', agentId)
       .run();
     await env.DB.prepare(
-      "INSERT OR REPLACE INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', 'Callback pickup', 'queued', 'normal', ?)"
+      "INSERT OR REPLACE INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', 'Callback pickup', 'sent', 'normal', ?)"
     ).bind(messageId, agentId, agentId).run();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
 
-    await notifyTargetAgent(env as never, agentId, { ...fakeMessage, id: messageId, direction: 'agent_to_agent', status: 'queued' });
+    await notifyTargetAgent(env as never, agentId, { ...fakeMessage, id: messageId, direction: 'agent_to_agent', status: 'sent' });
 
     const row = await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(messageId).first<{ status: string }>();
     expect(row?.status).toBe('delivered');

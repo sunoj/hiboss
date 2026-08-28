@@ -148,7 +148,7 @@ mod tests {
     fn send_response_roundtrips_resolved_target() {
         let response = SendResponse {
             id: "rsp-a2a".to_string(),
-            status: "queued".to_string(),
+            status: "sent".to_string(),
             created_at: "2026-03-16T01:00:00Z".to_string(),
             warning: None,
             target: Some(crate::types::SendTarget {

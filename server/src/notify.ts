@@ -46,7 +46,7 @@ export async function notifyAgentCallback(env: Env, agentId: string, message: Me
     });
     if (markDelivered && response.ok && message.direction === 'agent_to_agent') {
       await env.DB
-        .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ? AND direction = 'agent_to_agent' AND status = 'queued'")
+        .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ? AND direction = 'agent_to_agent' AND status = 'sent'")
         .bind(message.id)
         .run();
     }
