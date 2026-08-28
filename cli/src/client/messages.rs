@@ -248,7 +248,7 @@ mod tests {
         .expect("target error formats");
         assert_eq!(
             message,
-            "target 'missing' was not found; valid targets: peer/main (peer1234, idle 20m)"
+            "target 'missing' was not found; valid targets: peer/main (peer1234), idle 20m"
         );
     }
 
