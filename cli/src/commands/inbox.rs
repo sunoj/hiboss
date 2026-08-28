@@ -98,7 +98,7 @@ pub async fn run(
         .iter()
         .filter(|m| {
             let status = m.status.as_deref().unwrap_or("");
-            status == "sent" || status == "delivered"
+            status == "queued" || status == "sent" || status == "delivered"
         })
         .map(|m| m.id.as_str())
         .collect();

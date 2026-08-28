@@ -17,12 +17,21 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
-    if let Err(err) = client.update_status(&args.id, "read").await {
-        eprintln!("Could not update status: {}", err);
+    let mut message = client.get_message(&args.id).await?;
+    let is_a2a = message.direction.as_deref() == Some("agent_to_agent");
+    if !is_a2a {
+        if let Err(err) = client.update_status(&args.id, "read").await {
+            eprintln!("Could not update status: {}", err);
+        }
+        message = client.get_message(&args.id).await?;
     }
-    let message = client.get_message(&args.id).await?;
     println!("ID: {}", message.id);
-    println!("Status: {}", message.status.as_deref().unwrap_or("unknown"));
+    let status = message.status.as_deref().unwrap_or("unknown");
+    if is_a2a {
+        println!("Delivery: {status}");
+    } else {
+        println!("Status: {status}");
+    }
     if let Some(replies) = &message.replies {
         for reply in replies {
             println!(

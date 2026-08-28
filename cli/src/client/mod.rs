@@ -76,7 +76,7 @@ impl HiBossClient {
             .json(req)
             .send()
             .await?;
-        Self::parse_response(resp).await
+        messages::parse_send_response(resp).await
     }
     pub async fn create_agent(&self, name: &str) -> Result<CreateAgentResponse, Box<dyn Error>> {
         let resp = self
