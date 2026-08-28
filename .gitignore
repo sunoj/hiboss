@@ -9,3 +9,9 @@ wrangler.toml
 *.log
 .DS_Store
 ios/build/
+
+# Scratch artifacts from agent/audit runs — never commit
+.aic/
+result-t-*.md
+*.db
+test_migration*.sql
