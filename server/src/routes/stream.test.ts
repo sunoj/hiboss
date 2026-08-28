@@ -125,4 +125,24 @@ describe('GET /api/messages/stream', () => {
     const updated = await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(msgId).first<{ status: string }>();
     expect(updated?.status).toBe('delivered');
   });
+
+  it('marks queued a2a messages delivered only after SSE pickup', async () => {
+    const agentId = getTestAgentId();
+    const msgId = `stream-a2a-${Date.now()}`;
+    await env.DB.prepare(
+      "INSERT INTO messages (id, agent_id, direction, mode, body, status, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'A2A stream', 'queued', ?)"
+    ).bind(msgId, agentId, agentId).run();
+
+    const res = await SELF.fetch('https://test.local/api/messages/stream', {
+      headers: authHeaders(),
+    });
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error('No reader');
+    const { value } = await reader.read();
+    expect(new TextDecoder().decode(value)).toContain(msgId);
+    await reader.cancel();
+
+    const updated = await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(msgId).first<{ status: string }>();
+    expect(updated?.status).toBe('delivered');
+  });
 });

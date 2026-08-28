@@ -3,9 +3,9 @@
 // Depends on cloudflare:test D1 and shared test helpers.
 
 import { env } from 'cloudflare:test';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId } from './test-helpers';
-import { notifyAgentCallback, notifyBossAgents } from './notify';
+import { notifyAgentCallback, notifyBossAgents, notifyTargetAgent } from './notify';
 import type { Env, MessageRow } from './types';
 
 const fakeMessage: MessageRow = {
@@ -30,6 +30,10 @@ const fakeMessage: MessageRow = {
 
 beforeAll(async () => {
   await seedDatabase();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('notifyAgentCallback', () => {
@@ -62,6 +66,26 @@ describe('notifyAgentCallback', () => {
     await env.DB.prepare('UPDATE api_keys SET callback_url = NULL WHERE id = ?')
       .bind(agentId)
       .run();
+  });
+});
+
+describe('notifyTargetAgent', () => {
+  it('marks a queued a2a message delivered after callback acceptance', async () => {
+    const agentId = getTestAgentId();
+    const messageId = 'notify-target-a2a';
+    await env.DB.prepare('UPDATE api_keys SET callback_url = ? WHERE id = ?')
+      .bind('https://peer.test/callback', agentId)
+      .run();
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO messages (id, agent_id, direction, mode, channel, body, status, priority, target_agent_id) VALUES (?, ?, 'agent_to_agent', 'async', 'api', 'Callback pickup', 'queued', 'normal', ?)"
+    ).bind(messageId, agentId, agentId).run();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+
+    await notifyTargetAgent(env as never, agentId, { ...fakeMessage, id: messageId, direction: 'agent_to_agent', status: 'queued' });
+
+    const row = await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(messageId).first<{ status: string }>();
+    expect(row?.status).toBe('delivered');
+    await env.DB.prepare('UPDATE api_keys SET callback_url = NULL WHERE id = ?').bind(agentId).run();
   });
 });
 

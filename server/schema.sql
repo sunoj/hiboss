@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS messages (
   mode TEXT NOT NULL CHECK (mode IN ('async', 'blocking')),
   channel TEXT CHECK (channel IN ('discord', 'telegram', 'email', 'api')),
   body TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read', 'replied', 'expired')),
+  status TEXT NOT NULL DEFAULT 'sent' CHECK (status IN ('queued', 'sent', 'delivered', 'read', 'replied', 'expired')),
   reply_to TEXT REFERENCES messages(id),
   priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('critical', 'high', 'normal', 'low')),
   type TEXT DEFAULT 'text',
