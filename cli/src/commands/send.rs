@@ -108,7 +108,7 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
         .collect();
 
     if peers.is_empty() {
-        eprintln!("No active peer sessions to broadcast to");
+        println!("No active peer sessions to broadcast to");
         return Ok(());
     }
 
@@ -133,7 +133,7 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
         println!("{}: {outcome}", broadcast_result_prefix(label, &peer.id));
     }
 
-    eprintln!("Broadcast sent to {} peer session(s)", sent);
+    println!("Broadcast sent to {} peer session(s)", sent);
     if failures > 0 {
         return Err(format!(
             "Broadcast failed: {} of {} peer session(s) failed",
@@ -153,6 +153,8 @@ fn broadcast_request(
     metadata: Option<&HashMap<String, Value>>,
     peer_id: &str,
 ) -> SendRequest {
+    // Target by exact session ID — labels (repo/branch) collide across sessions and the
+    // server resolves a colliding label to the newest same-label session (often self).
     SendRequest {
         body: body.to_owned(),
         mode: "async".to_owned(),
