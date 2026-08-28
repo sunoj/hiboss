@@ -203,3 +203,39 @@ Recorded here because merging is not deploying.
   literally named `smart-router` would shadow the session `smart-router/main`. Pre-existing.
 - `cli/src/commands/inbox.rs:101` auto-marks read on `sent`/`delivered` only and does not know
   `queued`. Created by splitting server and CLI across two agents; belongs to the CLI task.
+
+---
+
+## Deploy (2026-08-28)
+
+Pre-migration D1 restore bookmark, captured before applying `0030`:
+
+```
+wrangler d1 time-travel restore hiboss-db --bookmark=00002526-0000043a-000050d5-763c6ed5054da4c98978959adc040c04
+```
+
+Order applied: migration first, worker second. The pre-migration CHECK constraint has no
+`queued` and the new code inserts it, so the reverse order fails every a2a insert.
+
+## A late finding: `--default` erases decision provenance
+
+Approving this deploy surfaced another instance of the same defect class, in the decision path
+itself. `hiboss ask --default <LABEL>` auto-selects the default server-side on timeout and
+returns it to the caller exactly as a real answer would be returned. The server *does* record
+which happened — `server/src/routes/message-options.ts:93` stamps the auto-generated reply with
+`metadata: { auto_default: true }` — but neither `hiboss ask` nor `hiboss read` surfaces that
+flag. The returned string is identical either way.
+
+So an agent holding a returned option label cannot distinguish **"the boss chose this"** from
+**"nobody answered and the fallback fired"**, and will report the former. In a tool whose entire
+purpose is conveying decisions, that is the same disease as `Message sent`: an output that reads
+stronger than it is.
+
+Settling it here took a raw API call for the reply's metadata (`auto_default` absent,
+`source: "macos"`, 99 seconds between ask and reply — a real human answer). That should have
+been one line of CLI output.
+
+**Fix**: `hiboss ask` must mark an auto-selected reply in its own output — e.g.
+`[auto-selected on timeout: <LABEL>]` versus a plain answer — and `hiboss read` should render
+the `auto_default` flag on any reply that carries it. Until then, treat any returned value that
+equals the `--default` as unconfirmed and re-ask without a default before acting irreversibly.
