@@ -9,8 +9,7 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::error::Error;
+use std::{collections::HashMap, error::Error, time::Duration};
 
 #[derive(Debug, Args)]
 pub struct SendArgs {
@@ -29,6 +28,8 @@ pub struct SendArgs {
     pub message_type: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
     pub to: Option<String>,
+    #[arg(long, help = "Wait until peer delivery leaves queued")]
+    pub wait_ack: bool,
     #[arg(long, help = "Broadcast to all active peer sessions on same project")]
     pub broadcast: bool,
     #[arg(long, help = "Task summary for structured context")]
@@ -44,7 +45,6 @@ pub struct SendArgs {
     #[arg(value_name = "body")]
     pub body: String,
 }
-
 pub async fn run(
     args: &SendArgs,
     _config: &Config,
@@ -53,17 +53,17 @@ pub async fn run(
     if args.broadcast && args.to.is_some() {
         return Err("Cannot use --broadcast and --to together".into());
     }
-
+    if args.wait_ack && args.to.is_none() {
+        return Err("--wait-ack requires --to".into());
+    }
     // Read-before-write: check for unread messages before sending (skip for broadcasts/a2a)
     if args.to.is_none() && !args.broadcast {
         warn_unread_messages(client).await;
     }
-
     // Handle broadcast: send to all active peer sessions
     if args.broadcast {
         return run_broadcast(args, client).await;
     }
-
     // Only send channel when explicitly specified via --channel.
     // When omitted, server uses channel_routing (per-priority) to decide.
     let channel = args.channel.clone();
@@ -88,16 +88,34 @@ pub async fn run(
         session_id: session::read_session_id(),
         to: args.to.clone(),
     };
-    let response = client.send_message(&request).await?;
+    let mut response = client.send_message(&request).await?;
+    if args.wait_ack {
+        response.status = client
+            .wait_for_delivery(&response.id, Duration::from_secs(30))
+            .await?;
+    }
     eprintln!("Message sent");
     if let Some(warning) = &response.warning {
         eprintln!("{}", format!("Warning: {warning}").yellow());
     }
     session::mark_replied();
-    println!("{}", response.id);
+    if args.to.is_some() {
+        let target = response
+            .target
+            .as_ref()
+            .ok_or("send response did not include resolved target")?;
+        println!(
+            "{} -> {} ({}) id={}",
+            response.status,
+            target.label.as_deref().unwrap_or(target.id.as_str()),
+            short_id(&target.id),
+            response.id
+        );
+    } else {
+        println!("{}", response.id);
+    }
     Ok(())
 }
-
 async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let my_session_id = session::read_session_id().unwrap_or_default();
     let sessions = client.list_sessions().await?;
@@ -106,17 +124,14 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
         .iter()
         .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
         .collect();
-
     if peers.is_empty() {
         println!("No active peer sessions to broadcast to");
         return Ok(());
     }
-
     let body = unescape_body(&args.body);
     let metadata = build_metadata(args)?;
     let mut sent = 0u32;
     let mut failures = 0u32;
-
     for peer in &peers {
         let request = broadcast_request(args, &body, metadata.as_ref(), &peer.id);
         let label = peer.label.as_deref().filter(|label| !label.is_empty());
@@ -132,7 +147,6 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
         };
         println!("{}: {outcome}", broadcast_result_prefix(label, &peer.id));
     }
-
     println!("Broadcast sent to {} peer session(s)", sent);
     if failures > 0 {
         return Err(format!(
@@ -146,7 +160,6 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     session::mark_replied();
     Ok(())
 }
-
 fn broadcast_request(
     args: &SendArgs,
     body: &str,
@@ -168,12 +181,10 @@ fn broadcast_request(
         to: Some(peer_id.to_owned()),
     }
 }
-
 fn broadcast_result_prefix(label: Option<&str>, id: &str) -> String {
     let resolved_label = label.unwrap_or(id);
     format!("Broadcast target {} ({})", resolved_label, short_id(id))
 }
-
 /// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
 async fn warn_unread_messages(client: &HiBossClient) {
     let sid = crate::session::read_session_id();
@@ -197,7 +208,6 @@ async fn warn_unread_messages(client: &HiBossClient) {
         );
     }
 }
-
 fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
     let has_context = args.task.is_some() || args.files.is_some() || args.branch.is_some();
     let has_content = args.content.as_ref().is_some_and(|s| !s.is_empty());
@@ -232,7 +242,6 @@ fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box
     }
     Ok(Some(meta))
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,6 +254,7 @@ mod tests {
             file: None,
             message_type: None,
             to: None,
+            wait_ack: false,
             broadcast: false,
             task: None,
             summary: None,
@@ -254,7 +264,6 @@ mod tests {
             body: "body".to_owned(),
         }
     }
-
     #[test]
     fn metadata_includes_content() {
         let metadata = build_metadata(&args_with_content(Some("deploy context")))

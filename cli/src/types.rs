@@ -1,5 +1,5 @@
 // Purpose: Define API-aligned data shapes for hiboss CLI requests and responses.
-// Exports: Message, SendRequest, SendResponse, MessagesResponse, ReplyRequest, StatusUpdate, PollResponse.
+// Exports: Message, SendRequest, SendTarget, SendResponse, MessagesResponse, ReplyRequest, StatusUpdate, PollResponse.
 // Dependencies: serde, serde_json, std::collections::HashMap.
 
 use crate::team::ProgressTeam;
@@ -56,26 +56,27 @@ pub struct SendRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct SendTarget { pub id: String, #[serde(default)] pub label: Option<String> }
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SendResponse {
     pub id: String,
     pub status: String,
     pub created_at: String,
     pub warning: Option<String>,
+    #[serde(default)] pub target: Option<SendTarget>,
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessagesResponse {
     pub messages: Vec<Message>,
     pub total: u32,
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateAgentResponse {
     pub id: String,
     pub name: String,
     pub key: String,
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AgentInfo {
     pub id: String,
@@ -86,7 +87,6 @@ pub struct AgentInfo {
     pub created_at: Option<String>,
     pub last_used_at: Option<String>,
 }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AgentsResponse {
     pub agents: Vec<AgentInfo>,

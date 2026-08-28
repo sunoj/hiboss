@@ -139,6 +139,22 @@ mod tests {
             status: "ok".to_string(),
             created_at: "2026-03-16T01:00:00Z".to_string(),
             warning: None,
+            target: None,
+        };
+        assert_roundtrip(&response);
+    }
+
+    #[test]
+    fn send_response_roundtrips_resolved_target() {
+        let response = SendResponse {
+            id: "rsp-a2a".to_string(),
+            status: "queued".to_string(),
+            created_at: "2026-03-16T01:00:00Z".to_string(),
+            warning: None,
+            target: Some(crate::types::SendTarget {
+                id: "aefb4ffd12345678".to_string(),
+                label: Some("smart-router/main".to_string()),
+            }),
         };
         assert_roundtrip(&response);
     }
