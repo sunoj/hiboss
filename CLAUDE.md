@@ -33,12 +33,34 @@ rather than failing the post.
 When peer sessions are active on the same project:
 - **Broadcast before starting**: `hiboss send --broadcast "Working on X"` — prevents conflicts
 - **Broadcast on completion**: `hiboss send --broadcast "Done with X, files Y changed"` — keeps peers informed
-- **Direct message**: `hiboss send --to <label> "message"` — for targeted coordination
+- **Direct message**: `hiboss send --to <target> "message"` — for targeted coordination
 - **Check peer status**: `hiboss ss` — see what other sessions are doing
+
+**Addressing (`--to`)** resolves in this order: agent name or id prefix, then session label or
+id prefix. The project name alone works — `--to smart-router` resolves to the one live session
+whose label starts with it. An exact label (`smart-router/main`) always wins outright, even when
+several sessions share it; the most recently active non-self one is picked. A 409 means a genuine
+choice between two or more *live* sessions, and a 404 lists reachable targets with their idle
+times — both errors name valid targets, so correct the command from the error rather than
+guessing. Idle sessions are still deliverable (you get a staleness warning); they read the
+message when they resume.
+
+**Reading the result is part of sending.** `--to` prints `sent -> <resolved-target> (<id>)
+id=<msg-id>` on stdout, naming the target the server actually resolved, not the string you typed.
+`--broadcast` prints one line per peer and **exits non-zero if any peer failed**. Never report
+that you coordinated with a peer on the strength of the command returning — a send whose output
+you did not read is not a sent message. Add `--wait-ack` when you need delivery confirmed before
+you report anything. If a `UNACKED WARNING` appears, earlier peer messages were never picked up:
+check them with `hiboss status <id>` before claiming coordination happened.
 
 ### After Receiving Boss Reply (CRITICAL)
 - When `hiboss ask` returns a boss reply, **always acknowledge via `hiboss send "your ack"`** — never just print text in conversation.
 - The reply output includes a reminder: `[reply <id>] Acknowledge via: hiboss send "..." or hiboss react <id> 👍`
+- **A returned value that equals your `--default` is not proof the boss chose it.** On timeout the
+  server auto-selects the default and returns it looking exactly like a real answer. The server
+  records which it was (the auto-generated reply carries `auto_default: true` in its metadata) but
+  no CLI surface shows it yet. Before acting on such a value irreversibly — a deploy, a migration,
+  anything outward-facing — re-ask without `--default`, or read the reply's metadata directly.
 
 ### Before Finishing (CRITICAL)
 1. Summarize what you accomplished

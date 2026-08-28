@@ -23,6 +23,10 @@ hiboss send --type task_update "Build v2.1 deployed"
 hiboss send --file ./screenshot.png "See attached"
 hiboss send --to worker-1 "Implement OAuth2 login"                    # agent-to-agent
 hiboss send --to worker-1 --task "Implement OAuth2" --files src/auth/ # with context
+hiboss send --to smart-router "..."        # project name: resolves to its one live session
+hiboss send --to smart-router/main "..."   # exact label: wins outright even if several share it
+hiboss send --to aefb4ffd "..."            # session id prefix
+hiboss send --to smart-router --wait-ack "..."  # block until it leaves 'sent', then report
 hiboss send --content "sim reverted @block 21M" "Retry at 2x gas?"    # --content = notification subtitle
 hiboss send --summary "build status" "Full private-safe body here"    # --summary shown in private-mode pushes
 ```
