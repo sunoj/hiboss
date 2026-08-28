@@ -3,7 +3,8 @@
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
 use crate::{
-    client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest,
+    client::HiBossClient, config::Config, helpers::{short_id, unescape_body}, session,
+    types::SendRequest,
 };
 use clap::Args;
 use colored::Colorize;
@@ -114,36 +115,61 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     let body = unescape_body(&args.body);
     let metadata = build_metadata(args)?;
     let mut sent = 0u32;
+    let mut failures = 0u32;
 
     for peer in &peers {
-        // Target by exact session ID — labels (repo/branch) collide across sessions and the
-        // server resolves a colliding label to the newest same-label session (often self).
-        let request = SendRequest {
-            body: body.clone(),
-            mode: "async".to_owned(),
-            priority: args.priority.clone(),
-            channel: None,
-            metadata: metadata.clone(),
-            options: None,
-            file_url: None,
-            message_type: args.message_type.clone(),
-            session_id: session::read_session_id(),
-            to: Some(peer.id.clone()),
+        let request = broadcast_request(args, &body, metadata.as_ref(), &peer.id);
+        let label = peer.label.as_deref().filter(|label| !label.is_empty());
+        let outcome = match client.send_message(&request).await {
+            Ok(_) => {
+                sent += 1;
+                "succeeded".to_owned()
+            }
+            Err(e) => {
+                failures += 1;
+                format!("failed: {e}")
+            }
         };
-        match client.send_message(&request).await {
-            Ok(_) => sent += 1,
-            Err(e) => eprintln!(
-                "Failed to send to {}: {}",
-                peer.label.as_deref().unwrap_or(&peer.id),
-                e
-            ),
-        }
+        println!("{}: {outcome}", broadcast_result_prefix(label, &peer.id));
     }
 
     eprintln!("Broadcast sent to {} peer session(s)", sent);
+    if failures > 0 {
+        return Err(format!(
+            "Broadcast failed: {} of {} peer session(s) failed",
+            failures,
+            peers.len()
+        )
+        .into());
+    }
     session::mark_broadcast();
     session::mark_replied();
     Ok(())
+}
+
+fn broadcast_request(
+    args: &SendArgs,
+    body: &str,
+    metadata: Option<&HashMap<String, Value>>,
+    peer_id: &str,
+) -> SendRequest {
+    SendRequest {
+        body: body.to_owned(),
+        mode: "async".to_owned(),
+        priority: args.priority.clone(),
+        channel: None,
+        metadata: metadata.cloned(),
+        options: None,
+        file_url: None,
+        message_type: args.message_type.clone(),
+        session_id: session::read_session_id(),
+        to: Some(peer_id.to_owned()),
+    }
+}
+
+fn broadcast_result_prefix(label: Option<&str>, id: &str) -> String {
+    let resolved_label = label.unwrap_or(id);
+    format!("Broadcast target {} ({})", resolved_label, short_id(id))
 }
 
 /// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
@@ -243,5 +269,21 @@ mod tests {
         let metadata = build_metadata(&args_with_content(Some("")))
             .expect("metadata builds");
         assert!(metadata.is_none());
+    }
+
+    #[test]
+    fn broadcast_result_prefix_names_label_and_short_id() {
+        assert_eq!(
+            broadcast_result_prefix(Some("smart-router/main"), "aefb4ffd12345678"),
+            "Broadcast target smart-router/main (aefb4ffd)"
+        );
+    }
+
+    #[test]
+    fn broadcast_request_targets_peer_session_id() {
+        let args = args_with_content(None);
+        let request = broadcast_request(&args, "broadcast body", None, "peer-session-id");
+        assert_eq!(request.body, "broadcast body");
+        assert_eq!(request.to.as_deref(), Some("peer-session-id"));
     }
 }
