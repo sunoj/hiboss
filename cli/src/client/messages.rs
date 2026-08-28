@@ -76,11 +76,11 @@ impl HiBossClient {
         let deadline = Instant::now() + timeout;
         loop {
             let message = self.get_message(id).await?;
-            if message.status.as_deref() != Some("queued") {
+            if message.status.as_deref() != Some("sent") {
                 return Ok(message.status.unwrap_or_else(|| "unknown".to_owned()));
             }
             if Instant::now() >= deadline {
-                return Err(format!("timed out waiting for message {id} to leave queued").into());
+                return Err(format!("timed out waiting for message {id} to leave sent").into());
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }

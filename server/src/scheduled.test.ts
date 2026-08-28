@@ -157,8 +157,8 @@ describe('handleScheduled', () => {
     expect(mockedExpire).toHaveBeenCalledWith(env, 'agent-b', row2);
   });
 
-  it('expires queued a2a option messages', async () => {
-    const row = { ...makeExpiryRow('a2a-expired', 'agent-peer'), direction: 'agent_to_agent', status: 'queued' };
+  it('expires sent a2a option messages', async () => {
+    const row = { ...makeExpiryRow('a2a-expired', 'agent-peer'), direction: 'agent_to_agent', status: 'sent' };
     const { env } = makeFakeEnv({ expiryRows: [row] });
 
     await handleScheduled(env as never);
@@ -232,7 +232,7 @@ describe('handleScheduled', () => {
     const queueQuery = preparedStatements.find((stmt) => stmt.sql.includes('FROM delivery_queue'));
 
     expect(expiryQuery?.sql).toContain("json_extract(metadata, '$.options') IS NOT NULL");
-    expect(expiryQuery?.sql).toContain("status IN ('queued', 'sent', 'delivered', 'read')");
+    expect(expiryQuery?.sql).toContain("status IN ('sent', 'delivered', 'read')");
     expect(expiryQuery?.binds[1]).toBe(50);
     expect(queueQuery?.sql).toContain("status = 'pending'");
     expect(queueQuery?.sql).toContain('scheduled_at <= ?');

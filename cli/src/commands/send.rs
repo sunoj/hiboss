@@ -28,7 +28,7 @@ pub struct SendArgs {
     pub message_type: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
     pub to: Option<String>,
-    #[arg(long, help = "Wait until peer delivery leaves queued")]
+    #[arg(long, help = "Wait until peer delivery leaves sent")]
     pub wait_ack: bool,
     #[arg(long, help = "Broadcast to all active peer sessions on same project")]
     pub broadcast: bool,

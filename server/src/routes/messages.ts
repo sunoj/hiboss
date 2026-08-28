@@ -48,7 +48,6 @@ const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  queued: ['delivered', 'read', 'replied', 'expired'],
   sent: ['delivered', 'read', 'replied', 'expired'],
   delivered: ['read', 'replied', 'expired'],
   read: ['replied', 'expired'],
@@ -87,12 +86,11 @@ export async function insertMessageWithRecovery(
 ): Promise<{ inserted: MessageRow | null; existing: MessageRow | null }> {
   const [direction, mode, channel, body, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId] = values;
   const messageId = createMessageId();
-  const initialStatus: Status = direction === 'agent_to_agent' ? 'queued' : 'sent';
   try {
     const inserted = await insertMessageWithEvent(
       env,
       'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, idempotency_key, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-      [messageId, agentId, direction, mode, channel, body, initialStatus, priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
+      [messageId, agentId, direction, mode, channel, body, 'sent', priority, messageType, idempotencyKey, metadataJson, sessionId, targetAgentId, targetSessionId],
       sessionId ?? targetSessionId,
     );
     return { inserted, existing: null };
@@ -354,7 +352,7 @@ routes.get('/', async (c) => {
   const directionParam = c.req.query('direction') || undefined;
   const direction = validateOption<Direction>(directionParam, ['agent_to_boss', 'boss_to_agent', 'agent_to_agent']);
   const statusParam = unread ? undefined : c.req.query('status') || undefined;
-  const status = validateOption<Status>(statusParam, ['queued', 'sent', 'delivered', 'read', 'replied']);
+  const status = validateOption<Status>(statusParam, ['sent', 'delivered', 'read', 'replied']);
   const priorityFilter = parsePriorityFilter(c.req.query('priority'));
   const typeFilter = c.req.query('type') || undefined;
   const sessionFilter = c.req.query('session') || undefined;
@@ -409,11 +407,10 @@ routes.post('/:id/reply', async (c) => {
     : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
   const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
   const replyTargetSessionId = replyDirection === 'agent_to_agent' ? replyTargetSession(parent) : null;
-  const replyStatus: Status = replyDirection === 'agent_to_agent' ? 'queued' : 'sent';
   const inserted = await insertMessageWithEvent(
     c.env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, replyStatus, 'normal', parent.id, replyTargetAgentId, replyTargetSessionId],
+    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId],
     replyTargetSession(parent),
   );
   if (!inserted) {
@@ -570,7 +567,7 @@ routes.patch('/:id', async (c) => {
 routes.post('/mark-all-read', async (c) => {
   const agentId = getAgentId(c);
   const result = await c.env.DB
-    .prepare("UPDATE messages SET status = 'read', updated_at = datetime('now') WHERE ((agent_id = ? AND direction != 'agent_to_agent') OR target_agent_id = ?) AND status IN ('queued', 'sent', 'delivered')")
+    .prepare("UPDATE messages SET status = 'read', updated_at = datetime('now') WHERE ((agent_id = ? AND direction != 'agent_to_agent') OR target_agent_id = ?) AND status IN ('sent', 'delivered')")
     .bind(agentId, agentId)
     .run();
   const count = result.meta.changes ?? 0;
