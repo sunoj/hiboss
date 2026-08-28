@@ -4,7 +4,7 @@
 
 use crate::{
     client::HiBossClient, config::Config, helpers::{short_id, unescape_body}, session,
-    types::SendRequest,
+    types::{SendRequest, SendTarget},
 };
 use clap::Args;
 use colored::Colorize;
@@ -45,6 +45,7 @@ pub struct SendArgs {
     #[arg(value_name = "body")]
     pub body: String,
 }
+
 pub async fn run(
     args: &SendArgs,
     _config: &Config,
@@ -53,17 +54,21 @@ pub async fn run(
     if args.broadcast && args.to.is_some() {
         return Err("Cannot use --broadcast and --to together".into());
     }
+
     if args.wait_ack && args.to.is_none() {
         return Err("--wait-ack requires --to".into());
     }
+
     // Read-before-write: check for unread messages before sending (skip for broadcasts/a2a)
     if args.to.is_none() && !args.broadcast {
         warn_unread_messages(client).await;
     }
+
     // Handle broadcast: send to all active peer sessions
     if args.broadcast {
         return run_broadcast(args, client).await;
     }
+
     // Only send channel when explicitly specified via --channel.
     // When omitted, server uses channel_routing (per-priority) to decide.
     let channel = args.channel.clone();
@@ -100,15 +105,10 @@ pub async fn run(
     }
     session::mark_replied();
     if args.to.is_some() {
-        let target = response
-            .target
-            .as_ref()
-            .ok_or("send response did not include resolved target")?;
         println!(
-            "{} -> {} ({}) id={}",
+            "{} -> {} id={}",
             response.status,
-            target.label.as_deref().unwrap_or(target.id.as_str()),
-            short_id(&target.id),
+            format_peer_target(response.target.as_ref(), args.to.as_deref().unwrap_or("")),
             response.id
         );
     } else {
@@ -116,6 +116,7 @@ pub async fn run(
     }
     Ok(())
 }
+
 async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let my_session_id = session::read_session_id().unwrap_or_default();
     let sessions = client.list_sessions().await?;
@@ -124,14 +125,17 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
         .iter()
         .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
         .collect();
+
     if peers.is_empty() {
         println!("No active peer sessions to broadcast to");
         return Ok(());
     }
+
     let body = unescape_body(&args.body);
     let metadata = build_metadata(args)?;
     let mut sent = 0u32;
     let mut failures = 0u32;
+
     for peer in &peers {
         let request = broadcast_request(args, &body, metadata.as_ref(), &peer.id);
         let label = peer.label.as_deref().filter(|label| !label.is_empty());
@@ -147,6 +151,7 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
         };
         println!("{}: {outcome}", broadcast_result_prefix(label, &peer.id));
     }
+
     println!("Broadcast sent to {} peer session(s)", sent);
     if failures > 0 {
         return Err(format!(
@@ -160,7 +165,8 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     session::mark_replied();
     Ok(())
 }
-fn broadcast_request(
+
+pub(crate) fn broadcast_request(
     args: &SendArgs,
     body: &str,
     metadata: Option<&HashMap<String, Value>>,
@@ -181,10 +187,24 @@ fn broadcast_request(
         to: Some(peer_id.to_owned()),
     }
 }
-fn broadcast_result_prefix(label: Option<&str>, id: &str) -> String {
+
+pub(crate) fn broadcast_result_prefix(label: Option<&str>, id: &str) -> String {
     let resolved_label = label.unwrap_or(id);
     format!("Broadcast target {} ({})", resolved_label, short_id(id))
 }
+
+pub(crate) fn format_peer_target(target: Option<&SendTarget>, requested: &str) -> String {
+    target
+        .map(|target| {
+            format!(
+                "{} ({})",
+                target.label.as_deref().unwrap_or(target.id.as_str()),
+                short_id(&target.id)
+            )
+        })
+        .unwrap_or_else(|| requested.to_owned())
+}
+
 /// Check for unread boss messages before sending. Warns via stdout so the AI sees it.
 async fn warn_unread_messages(client: &HiBossClient) {
     let sid = crate::session::read_session_id();
@@ -208,7 +228,8 @@ async fn warn_unread_messages(client: &HiBossClient) {
         );
     }
 }
-fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
+
+pub(crate) fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
     let has_context = args.task.is_some() || args.files.is_some() || args.branch.is_some();
     let has_content = args.content.as_ref().is_some_and(|s| !s.is_empty());
     if !has_context && args.summary.is_none() && !has_content {
@@ -241,60 +262,4 @@ fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box
         meta.insert("task_context".to_owned(), serde_json::to_value(ctx)?);
     }
     Ok(Some(meta))
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn args_with_content(content: Option<&str>) -> SendArgs {
-        SendArgs {
-            priority: "normal".to_owned(),
-            channel: None,
-            file_url: None,
-            file: None,
-            message_type: None,
-            to: None,
-            wait_ack: false,
-            broadcast: false,
-            task: None,
-            summary: None,
-            content: content.map(str::to_owned),
-            files: None,
-            branch: None,
-            body: "body".to_owned(),
-        }
-    }
-    #[test]
-    fn metadata_includes_content() {
-        let metadata = build_metadata(&args_with_content(Some("deploy context")))
-            .expect("metadata builds")
-            .expect("metadata present");
-        assert_eq!(
-            metadata.get("content"),
-            Some(&Value::String("deploy context".to_owned()))
-        );
-    }
-
-    #[test]
-    fn metadata_omits_empty_content() {
-        let metadata = build_metadata(&args_with_content(Some("")))
-            .expect("metadata builds");
-        assert!(metadata.is_none());
-    }
-
-    #[test]
-    fn broadcast_result_prefix_names_label_and_short_id() {
-        assert_eq!(
-            broadcast_result_prefix(Some("smart-router/main"), "aefb4ffd12345678"),
-            "Broadcast target smart-router/main (aefb4ffd)"
-        );
-    }
-
-    #[test]
-    fn broadcast_request_targets_peer_session_id() {
-        let args = args_with_content(None);
-        let request = broadcast_request(&args, "broadcast body", None, "peer-session-id");
-        assert_eq!(request.body, "broadcast body");
-        assert_eq!(request.to.as_deref(), Some("peer-session-id"));
-    }
 }
