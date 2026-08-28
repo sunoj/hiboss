@@ -10,6 +10,7 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::hook_helpers::*;
+use super::hook_unacked::unacknowledged_outbound_warning;
 
 #[derive(Debug, Args)]
 pub struct HookArgs {
@@ -157,6 +158,11 @@ async fn run_session_start() -> Result<(), Box<dyn Error>> {
             print!("{}", String::from_utf8_lossy(&out.stdout));
         }
         println!("Handle these messages first. Reply with: hiboss reply <id> \"response\"");
+    }
+    if let Ok(client) = build_client() {
+        if let Some(warning) = unacknowledged_outbound_warning(&client, &session_id).await {
+            println!("{warning}");
+        }
     }
     Ok(())
 }
@@ -310,6 +316,13 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
             let urgent_file = session::urgent_file_path();
             let existing = fs::read_to_string(&urgent_file).unwrap_or_default();
             let _ = session::write_private(&urgent_file, &format!("{}{}", existing, msg));
+        }
+    }
+    if let Some(sid) = session::read_session_id() {
+        if let Some(warning) = unacknowledged_outbound_warning(&client, &sid).await {
+            let urgent_file = session::urgent_file_path();
+            let existing = fs::read_to_string(&urgent_file).unwrap_or_default();
+            let _ = session::write_private(&urgent_file, &format!("{}{}\n", existing, warning));
         }
     }
     Ok(())

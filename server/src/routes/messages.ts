@@ -73,6 +73,13 @@ function isSessionActive(lastSeenAt: string | null): boolean {
   return Number.isFinite(lastSeen) && Date.now() - lastSeen < TARGET_ACTIVITY_WINDOW_MS;
 }
 
+function sessionIdleMinutes(lastSeenAt: string | null): number | null {
+  if (!lastSeenAt) return null;
+  const lastSeen = new Date(`${lastSeenAt}Z`).getTime();
+  if (!Number.isFinite(lastSeen)) return null;
+  return Math.max(0, Math.round((Date.now() - lastSeen) / 60000));
+}
+
 async function enqueueDelivery(
   env: Env,
   messageId: string,
@@ -214,12 +221,21 @@ routes.post('/', async (c) => {
           }
         }
       } else {
-        const activeTargets = await c.env.DB
-          .prepare(`SELECT id, label FROM sessions WHERE last_seen_at > datetime('now', '-15 minutes')${excludeSelf} ORDER BY last_seen_at DESC`)
+        const reachableTargets = await c.env.DB
+          .prepare(`SELECT id, label, last_seen_at FROM sessions WHERE 1 = 1${excludeSelf} ORDER BY CASE WHEN last_seen_at > datetime('now', '-15 minutes') THEN 0 ELSE 1 END, last_seen_at DESC`)
           .bind(...(sessionId ? [sessionId] : []))
-          .all<{ id: string; label: string | null }>();
-        const candidates = (activeTargets.results ?? []).map(({ label, id }) => ({ label, id: id.slice(0, 8) }));
-        return c.json({ error: 'target_not_found', target: toAgent, candidates }, 404);
+          .all<{ id: string; label: string | null; last_seen_at: string | null }>();
+        const targets = reachableTargets.results ?? [];
+        const candidates = targets.slice(0, MAX_TARGET_CANDIDATES).map(({ label, id, last_seen_at }) => {
+          const idleMinutes = sessionIdleMinutes(last_seen_at);
+          return {
+            label,
+            id: id.slice(0, 8),
+            ...(idleMinutes !== null && !isSessionActive(last_seen_at) ? { idle_minutes: idleMinutes } : {}),
+          };
+        });
+        const remaining = targets.length - candidates.length;
+        return c.json({ error: 'target_not_found', target: toAgent, candidates, remaining }, 404);
       }
     }
   }

@@ -16,6 +16,7 @@ pub mod forward;
 pub mod group;
 pub mod hook;
 pub(crate) mod hook_helpers;
+pub(crate) mod hook_unacked;
 pub mod inbox;
 pub mod init;
 pub mod react;
