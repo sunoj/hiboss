@@ -239,3 +239,57 @@ been one line of CLI output.
 `[auto-selected on timeout: <LABEL>]` versus a plain answer — and `hiboss read` should render
 the `auto_default` flag on any reply that carries it. Until then, treat any returned value that
 equals the `--default` as unconfirmed and re-ask without a default before acting irreversibly.
+
+## The migration failed in production — for a reason nobody checked
+
+`wrangler d1 migrations apply hiboss-db --remote` returned:
+
+```
+0030_a2a_delivery_status.sql  ❌
+D1 DB exceeded its CPU time limit and was reset. [code: 7429]
+```
+
+Not a foreign key error. A **CPU time limit**. The production `messages` table holds **24,429
+rows in a ~91 MB database**, and rebuilding it — `INSERT INTO … SELECT` across every row plus
+eight index creations in one statement sequence — exceeds D1's per-migration CPU budget. The
+migration as written can never be applied to this database.
+
+### Post-failure state: clean
+
+| Check | Result |
+|---|---|
+| `messages_with_a2a_status` shadow table | absent |
+| indexes on `messages` | 9, intact |
+| row counts (`messages` / `delivery_queue` / `session_events`) | 24429 / 48 / 20882, intact |
+| `status` CHECK contains `queued` | no — schema unchanged |
+| migration recorded as applied | no, still listed pending |
+| production serving | verified with a live peer send |
+
+**D1 wrapped the migration in a transaction and rolled it back atomically.** That empirically
+settles the question both audits left open — one called it unknown, the other asserted a
+mechanism that was wrong. It was answered by a failure, not by analysis.
+
+### Why nobody caught it
+
+Both audits reasoned about **correctness** — foreign keys, constraint parity, index restoration,
+status coverage. So did I. My local sqlite test that cleared the migration and refuted the BLOCK
+ran against a table with **one row**. It proved the migration was correct, and correctness was
+never the risk. Nobody asked how large the table was.
+
+> A migration review that never asks "how many rows, how big, how long" has reviewed the SQL and
+> not the operation. Correctness and cost are separate audits; passing one says nothing about the
+> other.
+
+### Options
+
+**A — chunk the rebuild across several migrations.** Create the new table, copy in batches, build
+indexes incrementally, then a final cheap `DROP` + `RENAME`. Preserves all merged work. Fatal
+flaw: rows written to `messages` during the chunked copy are missed, so the swap needs a re-sync
+that is itself expensive. Rejected.
+
+**B — stop rebuilding the table at all (recommended).** The rebuild exists solely to widen a
+CHECK constraint. Drop that requirement: keep the existing status values and add a nullable
+column via `ALTER TABLE messages ADD COLUMN`, which is O(1) in SQLite and needs no rebuild,
+no copy, and no index work. "Queued" becomes the absence of an acknowledgement rather than a
+state name. It is also strictly more informative — a timestamp answers *when*, not just *whether*.
+Cost: rework the merged server change and the readers that now filter on `'queued'`.
