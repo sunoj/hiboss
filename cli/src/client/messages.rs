@@ -38,7 +38,7 @@ fn format_target_error(status: StatusCode, body: &str) -> Option<String> {
                 .idle_minutes
                 .map(|minutes| format!(", idle {minutes}m"))
                 .unwrap_or_default();
-            format!("{target} ({}){idle}", crate::helpers::short_id(&candidate.id))
+            format!("{target} ({}{idle})", crate::helpers::short_id(&candidate.id))
         })
         .collect::<Vec<_>>();
     let message = match error.error.as_str() {
@@ -248,7 +248,7 @@ mod tests {
         .expect("target error formats");
         assert_eq!(
             message,
-            "target 'missing' was not found; valid targets: peer/main (peer1234), idle 20m"
+            "target 'missing' was not found; valid targets: peer/main (peer1234, idle 20m)"
         );
     }
 
