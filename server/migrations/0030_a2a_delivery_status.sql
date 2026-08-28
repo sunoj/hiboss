@@ -1,5 +1,6 @@
 -- Add a first-class queued state for agent-to-agent delivery receipts.
 -- Rebuild messages because SQLite cannot alter a CHECK constraint in place.
+-- Apply before or with the code deploy because pre-migration inserts reject queued.
 
 PRAGMA defer_foreign_keys = on;
 
