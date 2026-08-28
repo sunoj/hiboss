@@ -365,3 +365,62 @@ concludes nobody can be reached and stops.
 An error must describe the world the caller is actually in. The 404 should list reachable
 targets — live ones first, then stale ones marked with their idle time — rather than silently
 applying a stricter rule than delivery does.
+
+---
+
+## Closed — final state
+
+Shipped in worker `890b9822`, **no schema change and no migration at any point**. Suites at close:
+server 580 / 45 files, CLI 158.
+
+| Defect | Fix | Verified in production |
+|---|---|---|
+| F2 label exact-match only | prefix resolution; bare project name resolves to its one live session | `--to smart-router` delivers |
+| F2b exact-label collision 409 (regression introduced mid-work) | exact match wins outright, newest non-self | delivers |
+| F3 404 carried no remedy | lists reachable targets, live first, stale annotated with idle time, capped at 10 + remaining | shown |
+| F4 broadcast swallowed failures | per-peer line on stdout, non-zero exit on any failure | — |
+| F6 success output unciteable | `sent -> <resolved-target> (<id>) id=<msg>` — the *resolved* target, not the typed string | shown |
+| a2a asks never expired | expiry sweep covers them | — |
+| no outbound acknowledgement signal | `UNACKED WARNING` in the session hooks | — |
+
+### What the fixes cost, and what that says
+
+Three of the six defects above were **introduced during this work**, not found at the start: the
+exact-label 409, the candidate flood, and an activity filter placed on resolution instead of on
+ambiguity — which would have made every session idle over 15 minutes unreachable. Each passed its
+tests and at least one audit. Six review rounds sent work back, and every one of them was the same
+shape: *the change was correct and quietly broke a path that already worked.* That is why the
+first question in every brief here is "did this break something that already worked?".
+
+The `queued` state deserves its own line. It was invented to mean "persisted, peer has not picked
+it up" — which `sent` already meant. For a distinction the schema already made, we wrote a
+migration that rebuilds a 24,429-row table, failed it against production on a D1 CPU limit, and
+then deleted the whole idea for a net **−63 lines** with identical behaviour. The cheapest version
+of this feature was the one that added nothing.
+
+### How every real defect was actually found
+
+Not one came from reading code, a diff, or a green test run:
+
+| Defect | Found by |
+|---|---|
+| the original 404 attribution ("exit=0") | running the command — it exits 2 |
+| migration cannot apply | applying it to production (local test had **1 row**; production has 24,429) |
+| 409 candidate flood | first live command after deploy (fixtures hold a handful of sessions; production holds 3,604) |
+| CLI erroring *after* a successful send | running the new CLI against the not-yet-deployed server |
+| idle-time rendered as its own candidate | reading the printed error, not the passing test — **the test had encoded the wrong format** |
+
+Two of those were mine. A `--verify` of `cd cli && cargo test` on a task that also changed
+`server/` meant the server suite never ran and still reported PASS; and a test that asserts the
+buggy output stays green forever.
+
+> Correctness verified at fixture scale says nothing about behaviour at production scale, and a
+> passing test says nothing about output nobody has read.
+
+### Still open
+
+1. `aic` runs the wrong profile in this repo — `cargo check` and a smart-router address script
+   against a TypeScript change. Its verdicts here are noise and must be discarded, not counted.
+2. `hiboss ask --default` erases decision provenance: the server stamps `auto_default: true` on a
+   timeout fallback, no CLI surface renders it, so a returned label cannot be told apart from a
+   real answer. Documented in `CLAUDE.md` as a manual check; the fix is to print it.
