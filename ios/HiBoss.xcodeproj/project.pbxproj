@@ -323,6 +323,14 @@
 			path = Home;
 			sourceTree = "<group>";
 		};
+		650EE2C3126C4D81A39DD22F /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				9CA912B230E7BA70642D064A /* AllClearIslandView.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		5D60A2C6CE16EE123EDF1F3C /* Theme */ = {
 			isa = PBXGroup;
 			children = (
@@ -404,6 +412,7 @@
 				7765F38B2EDBDC216DE54643 /* Sessions */,
 				FB03F7CEAD066A6CD1FCFBC8 /* Settings */,
 				F14C6E022235C0E8BDBA4B61 /* Shell */,
+				650EE2C3126C4D81A39DD22F /* Shared */,
 				5D60A2C6CE16EE123EDF1F3C /* Theme */,
 				FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */,
 				714548036141EBBCA3849272 /* HiBoss.entitlements */,
@@ -460,7 +469,6 @@
 		E8A479B7491E9CFD214AD32B /* Inbox */ = {
 			isa = PBXGroup;
 			children = (
-				9CA912B230E7BA70642D064A /* AllClearIslandView.swift */,
 				3978AF84900C9EC8584C7AAA /* CountdownText.swift */,
 				7E6F98DC309E23CE3C223B13 /* HistoryRow.swift */,
 				B3F1A90DD2D68361065EC14E /* InboxSettlement.swift */,

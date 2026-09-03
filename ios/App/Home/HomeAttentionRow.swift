@@ -55,9 +55,7 @@ struct HomeAttentionSection: View {
 
     private var allClear: some View {
         VStack(spacing: 14) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(Theme.positive)
+            AllClearIslandView()
             Text("Nothing needs you")
                 .font(.hbH2)
                 .foregroundStyle(Theme.ink)

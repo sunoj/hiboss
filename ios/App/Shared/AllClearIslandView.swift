@@ -1,4 +1,4 @@
-// Empty-state island: a flat reading of the app icon for the all-clear Inbox.
+// Empty-state island: a flat reading of the app icon for all-clear surfaces.
 // Exports: AllClearIslandView, AllClearIslandMotion, IslandSwatch.
 // Dependencies: SwiftUI TimelineView + Canvas; colours from the asset catalog.
 
