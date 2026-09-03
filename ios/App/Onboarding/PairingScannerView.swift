@@ -68,7 +68,7 @@ struct PairingScannerView: View {
     private var permissionDenied: some View {
         VStack(spacing: 16) {
             Image(systemName: "camera.fill")
-                .font(.system(size: 38))
+                .font(.largeTitle)
                 .foregroundStyle(Theme.ink2)
             Text("Camera access is needed to scan a pairing code.")
                 .font(.hbBody)
