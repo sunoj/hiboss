@@ -182,6 +182,7 @@ struct OptionButton: View {
     let title: String
     var style: Style = .secondary
     var alignment: Alignment = .center
+    var controlSize: ControlSize = .large
     var action: () -> Void
 
     var body: some View {
@@ -194,7 +195,7 @@ struct OptionButton: View {
                     .buttonStyle(.bordered)
             }
         }
-        .controlSize(.large)
+        .controlSize(controlSize)
     }
 
     private var label: some View {
