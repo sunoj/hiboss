@@ -281,7 +281,7 @@ routes.post('/:id/token', async (c) => {
   if (!boss) return c.text('not found', 404);
   await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND revoked_at IS NULL")
     .bind(boss.id).run();
-  const token = await issueBossToken(c.env, boss.id, 'rotated');
+  const { token } = await issueBossToken(c.env, boss.id, 'rotated');
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.token', 'boss', boss.id));
   return c.json({ id: boss.id, name: boss.name, label: 'rotated', token });
 });

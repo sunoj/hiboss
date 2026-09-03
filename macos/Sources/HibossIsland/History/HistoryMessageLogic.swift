@@ -31,6 +31,7 @@ enum HistorySegment: String, CaseIterable, Identifiable {
 
 enum HistoryMessageLogic {
     static let directSessionID = SessionGrouping.directSessionID
+    static let detailClickCount = 2
 
     static func filtered(
         _ messages: [HistoryMessage],

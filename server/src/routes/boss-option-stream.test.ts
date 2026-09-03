@@ -33,7 +33,7 @@ describe('Boss option stream lifecycle', () => {
     expect(resolved).toContain(`"id":"${messageId}"`);
     expect(resolved).toContain('"status":"replied"');
     expect(resolved).toContain('"answer":"Approve"');
-    expect(resolved).toContain('"source":"ios"');
+    expect(resolved).toContain('"source":"api"');
 
     await first.cancel();
     await second.cancel();

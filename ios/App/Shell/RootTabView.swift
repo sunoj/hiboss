@@ -20,6 +20,8 @@ struct RootTabView: View {
     private static let homeTab = 0
     private static let messagesTab = 1
     private static let progressTab = 3
+    private static let routeReadinessChecks = 20
+    private static let routeReadinessDelay = Duration.milliseconds(50)
 
     @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress"
         ? Self.progressTab
@@ -34,68 +36,13 @@ struct RootTabView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            NavigationStack(path: $homePath) {
-                HomeView(inbox: inbox, sessionAPI: sessionStreamAPI)
-            }
-            .tabItem { Label("Home", systemImage: "house") }
-            .tag(Self.homeTab)
-
-            NavigationStack(path: $messagesPath) {
-                MessagesView(store: inbox)
-                    .navigationTitle("Messages")
-                    .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
-                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
-                    .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
-            }
-            .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
-            .tag(Self.messagesTab)
-
-            NavigationStack {
-                ProgressFeedView(store: progress)
-            }
-            .tabItem { Label("Progress", systemImage: "calendar.day.timeline.leading") }
-            .tag(Self.progressTab)
-
-            NavigationStack {
-                SessionsView(store: inbox)
-                    .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
-                    .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-            }
-            .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
-            .tag(4)
-
-            NavigationStack {
-                SettingsView(
-                    connection: connection,
-                    connectionState: inbox.connectionState,
-                    prefs: preferences,
-                    onReconnect: {
-                        if let api = connection.makeAPI() {
-                            Task {
-                                await preferences.load(api: api)
-                                inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
-                                inbox.start(api: api)
-                                progress.start(api: api)
-                                home.start(api: api)
-                            }
-                        }
-                    },
-                    onDecisionAlertsChanged: { inbox.setDecisionAlertsEnabled($0) }
-                )
-            }
-            .tabItem { Label("Settings", systemImage: "gearshape") }
-            .tag(5)
+            homeTabView
+            messagesTabView
+            progressTabView
+            sessionsTabView
+            settingsTabView
         }
-        .onReceive(router.$pendingMessageID.compactMap { $0 }) { messageID in
-            // Clear first to avoid re-entrancy, then build the stack in a single
-            // atomic assignment: a reset-then-append pair in one update races
-            // SwiftUI's pop-to-root and can leave the previously-open detail on
-            // screen. NavigationPath([messageID]) lands exactly [messageID].
-            router.pendingMessageID = nil
-            tab = Self.messagesTab
-            messagesPath = NavigationPath([messageID])
-        }
+        .task(id: router.pendingMessageID) { await openPendingMessage() }
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
@@ -107,6 +54,83 @@ struct RootTabView: View {
             if new == Self.progressTab { Task { await progress.refresh() } }
         }
         .onAppear { applyDemoRoute() }
+    }
+
+    private var homeTabView: some View {
+        NavigationStack(path: $homePath) {
+            HomeView(inbox: inbox, sessionAPI: sessionStreamAPI)
+        }
+        .tabItem { Label("Home", systemImage: "house") }
+        .tag(Self.homeTab)
+    }
+
+    private var messagesTabView: some View {
+        NavigationStack(path: $messagesPath) {
+            MessagesView(store: inbox)
+                .navigationTitle("Messages")
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
+                .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
+                .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
+        }
+        .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
+        .tag(Self.messagesTab)
+    }
+
+    private var progressTabView: some View {
+        NavigationStack { ProgressFeedView(store: progress) }
+            .tabItem { Label("Progress", systemImage: "calendar.day.timeline.leading") }
+            .tag(Self.progressTab)
+    }
+
+    private var sessionsTabView: some View {
+        NavigationStack {
+            SessionsView(store: inbox)
+                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
+                .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
+        }
+        .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
+        .tag(4)
+    }
+
+    private var settingsTabView: some View {
+        NavigationStack {
+            SettingsView(
+                connection: connection,
+                connectionState: inbox.connectionState,
+                prefs: preferences,
+                onReconnect: reconnect,
+                onDecisionAlertsChanged: { inbox.setDecisionAlertsEnabled($0) }
+            )
+        }
+        .tabItem { Label("Settings", systemImage: "gearshape") }
+        .tag(5)
+    }
+
+    private func reconnect() {
+        guard let api = connection.makeAPI() else { return }
+        inbox.start(api: api)
+        progress.start(api: api)
+        home.start(api: api)
+        Task {
+            await preferences.load(api: api)
+            inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+        }
+    }
+
+    /// Runs outside SwiftUI's observation callback and briefly waits for the
+    /// restored API, avoiding cold-launch navigation during an unfinished update.
+    private func openPendingMessage() async {
+        guard let messageID = router.pendingMessageID else { return }
+        for _ in 0..<Self.routeReadinessChecks where !inbox.isReady {
+            try? await Task.sleep(for: Self.routeReadinessDelay)
+            if Task.isCancelled { return }
+        }
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        tab = Self.messagesTab
+        messagesPath = NavigationPath([messageID])
+        router.finishOpening(messageID)
     }
 
     /// Screenshot / demo deep-links: open a message or a session thread.

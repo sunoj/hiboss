@@ -6,6 +6,11 @@ import { Hono } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole, hashApiKey } from '../middleware/auth';
 import { issueBossToken } from '../boss-token';
+import {
+  parseSigningRegistration,
+  verifyPairingRegistration,
+  type SigningRegistration,
+} from '../message-security';
 
 const PAIRING_CODE_BYTES = 32;
 const PAIRING_TTL_MS = 5 * 60 * 1000;
@@ -15,6 +20,7 @@ const MAX_DEVICE_LABEL_LENGTH = 100;
 interface PairingRedeemRequest {
   code: string;
   deviceLabel: string;
+  signing?: SigningRegistration;
 }
 
 interface BossIdentity {
@@ -65,6 +71,10 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
     }
     const request = parsePairingRedeemRequest(body);
     if (!request) return c.text('code and device_label are required', 400);
+    const signingKey = request.signing
+      ? await verifyPairingRegistration(request.code, request.signing)
+      : undefined;
+    if (request.signing && !signingKey) return c.text('invalid signing proof', 400);
     const now = new Date().toISOString();
     const claimed = await c.env.DB.prepare(
       'UPDATE boss_pairing_codes SET consumed_at = ? WHERE code_hash = ? AND consumed_at IS NULL AND expires_at > ? RETURNING boss_id',
@@ -73,8 +83,12 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
     const boss = await c.env.DB.prepare('SELECT id, name, role FROM bosses WHERE id = ?')
       .bind(claimed.boss_id).first<BossIdentity>();
     if (!boss) return c.text('invalid or expired pairing code', 400);
-    const token = await issueBossToken(c.env, boss.id, request.deviceLabel);
-    return c.json({ token, boss });
+    const grant = await issueBossToken(c.env, boss.id, request.deviceLabel, signingKey ?? undefined);
+    return c.json({
+      token: grant.token,
+      boss,
+      ...(signingKey ? { signing_key_id: signingKey.id } : {}),
+    });
   });
   return routes;
 }
@@ -85,5 +99,7 @@ function parsePairingRedeemRequest(value: unknown): PairingRedeemRequest | null 
   const code = typeof record.code === 'string' ? record.code.trim() : '';
   const deviceLabel = typeof record.device_label === 'string' ? record.device_label.trim() : '';
   if (!code || !deviceLabel || deviceLabel.length > MAX_DEVICE_LABEL_LENGTH || /[<>&\u0000-\u001f]/.test(deviceLabel)) return null;
-  return { code, deviceLabel };
+  const signing = parseSigningRegistration(record.signing);
+  if (record.signing !== undefined && !signing) return null;
+  return { code, deviceLabel, ...(signing ? { signing } : {}) };
 }

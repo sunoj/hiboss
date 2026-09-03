@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     private func connectIfConfigured() {
         if case let .success(config) = settings.connectionConfig() {
-            flow.connect(api: HibossAPI(config: config, clientSource: "macos"))
+            flow.connect(api: HibossAPI(config: config))
             Task { await preferencesStore.load() }
         }
     }

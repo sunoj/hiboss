@@ -375,7 +375,13 @@ describe('POST /api/webhooks/telegram', () => {
 
     expect(res.status).toBe(201);
     const data = (await res.json()) as { metadata: Record<string, unknown> | null };
-    expect(data.metadata).toEqual({ source: 'telegram' });
+    expect(data.metadata).toMatchObject({
+      source: 'telegram',
+      provenance: {
+        source: 'telegram',
+        signature: { status: 'unsupported' },
+      },
+    });
   });
 
   it('returns 500 when telegram webhook secret is unset', async () => {

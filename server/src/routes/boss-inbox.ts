@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow, Priority, Status } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { bearerApiMetadata } from '../message-security';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
@@ -148,7 +149,9 @@ routes.post('/:id/reply', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
-  const metadata = JSON.stringify({ boss_id: boss.id, boss_name: boss.name });
+  const metadata = JSON.stringify(bearerApiMetadata(
+    { id: boss.id, name: boss.name }, agentId,
+  ));
   const inserted = await insertMessageWithEvent(
     c.env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',

@@ -14,6 +14,7 @@ import { findTelegramSessionRoute } from './session-channels';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { channelMetadata, mergeProvenance } from '../message-security';
 
 type TelegramConfigRow = { agent_id: string; config: string };
 type TelegramContext = Context<{ Bindings: Env }>;
@@ -100,7 +101,10 @@ async function handleMessageCallback(
   const claim = await claimOptionReply(c.env, parentMsg, parsed.selectedOption, false);
   const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
   if (rejection) return rejection;
-  const metadata = buildCallbackReplyMetadata(parentMsg.metadata, parsed.selectedOption, bossInfo);
+  const senderId = asString((query['from'] as Record<string, unknown>)?.['id']);
+  const metadata = buildCallbackReplyMetadata(
+    parentMsg.metadata, parsed.selectedOption, bossInfo, senderId,
+  );
   const inserted = await insertMessageWithEvent(
     c.env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
@@ -188,7 +192,8 @@ function buildCallbackReplyMetadata(
   metadata: string | null,
   selectedOption: string,
   bossInfo: { id: string; name: string; role: string } | null,
-): Record<string, unknown> | null {
+  externalUserId: string | undefined,
+): Record<string, unknown> {
   let replyMetadata: Record<string, unknown> | null = null;
   if (metadata) {
     try {
@@ -197,9 +202,10 @@ function buildCallbackReplyMetadata(
       if (actions?.[selectedOption]) replyMetadata = { action: actions[selectedOption] };
     } catch {}
   }
-  return bossInfo
-    ? { ...(replyMetadata ?? {}), boss_id: bossInfo.id, boss_name: bossInfo.name, source: 'telegram' }
-    : { ...(replyMetadata ?? {}), source: 'telegram' };
+  return mergeProvenance(
+    replyMetadata ?? {},
+    channelMetadata('telegram', bossInfo, externalUserId),
+  );
 }
 
 async function findTelegramConfigRow(env: Env, chatId: string, threadId: number | undefined): Promise<TelegramConfigRow | null> {

@@ -3,20 +3,19 @@
 // Depends on Hono, boss auth middleware, and D1 bindings.
 
 import { Hono } from 'hono';
-import type { Env, MessageRow, ResolutionSource } from '../types';
+import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId, hashApiKey } from '../middleware/auth';
-import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions, replyTargetSession, validateResolutionSource } from './message-helpers';
+import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
-import { claimOptionReply } from './boss-option-reply';
 import { streamBossOptions } from './boss-option-stream';
 import { streamBossFeed } from './boss-feed-stream';
 import { getBossOverview } from './boss-overview';
 import { getBossHome } from './boss-home';
-import { withdrawResolvedOptions } from './message-options';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { bearerApiMetadata } from '../message-security';
 
 const MAX_LIMIT = 100;
 interface JoinRequestRow {
@@ -270,54 +269,6 @@ routes.get('/messages/:id', async (c) => {
   return c.json({ ...mapMessageRow(row), replies: (replies.results ?? []).map(mapMessageRow) });
 });
 
-/** POST /api/boss/messages/:id/reply — boss replies to an agent message */
-routes.post('/messages/:id/reply', async (c) => {
-  const bossId = getBossId(c);
-  const role = getBossRole(c);
-  if (role === 'viewer') return c.text('viewer cannot send messages', 403);
-  const agentIds = await getAccessibleAgentIds(c.env, bossId, role);
-  const messageId = c.req.param('id');
-  const parent = await c.env.DB
-    .prepare("SELECT * FROM messages WHERE id = ? OR id LIKE ? ESCAPE '\\'")
-    .bind(messageId, `${escapeLike(messageId)}%`)
-    .first<MessageRow>();
-  if (!parent || !agentIds.includes(parent.agent_id)) return c.text('not found', 404);
-  const payload = await c.req.json<Record<string, unknown>>();
-  const body = typeof payload.body === 'string' ? payload.body.trim() : '';
-  if (!body) return c.text('body is required', 400);
-  const source = validateResolutionSource(payload.source, 'api');
-  if (!source) return c.text('source must be ios, macos, telegram, discord, or api', 400);
-  const optionClaim = await claimOptionReply(c.env, parent, body, true);
-  if (optionClaim.kind === 'resolved') return c.text('option already resolved', 409);
-  const bossName = getBossName(c);
-  const metadata = JSON.stringify(replyMetadata(bossId, bossName, source));
-  const inserted = await insertMessageWithEvent(
-    c.env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
-    replyTargetSession(parent),
-  );
-  if (!inserted) return c.text('failed to persist', 500);
-  if (optionClaim.kind === 'not_option') {
-    await c.env.DB
-      .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
-      .bind(parent.id)
-      .run();
-  }
-  if (optionClaim.kind === 'claimed') {
-    c.executionCtx.waitUntil(
-      withdrawResolvedOptions(c.env, parent.agent_id, parent, body).catch(() => {}),
-    );
-  }
-  c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
-  c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.reply', 'message', parent.id, bossName));
-  return c.json(mapMessageRow(inserted), 201);
-});
-
-function replyMetadata(bossId: string, bossName: string, source: ResolutionSource): Record<string, unknown> {
-  return { boss_id: bossId, boss_name: bossName, source };
-}
-
 routes.post('/messages/:id/forward', async (c) => {
   const bossId = getBossId(c);
   const role = getBossRole(c);
@@ -374,7 +325,9 @@ routes.post('/sessions/:id/message', async (c) => {
   if (!body) return c.text('body is required', 400);
   const priority = validateOption(payload.priority, priorityOptions, 'normal') ?? 'normal';
   const bossName = getBossName(c);
-  const metadata = JSON.stringify({ boss_id: bossId, boss_name: bossName });
+  const metadata = JSON.stringify(bearerApiMetadata(
+    { id: bossId, name: bossName }, getBossTokenId(c),
+  ));
 
   const inserted = await insertMessageWithEvent(
     c.env,

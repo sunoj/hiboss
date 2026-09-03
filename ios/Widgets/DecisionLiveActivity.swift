@@ -54,8 +54,8 @@ struct DecisionLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if let deadline = context.state.deadline {
-                        Text(timerInterval: Date()...deadline, countsDown: true)
+                    if let range = DecisionTimerRange.active(until: context.state.deadline) {
+                        Text(timerInterval: range, countsDown: true)
                             .font(.system(size: 13, weight: .semibold, design: .monospaced))
                             .foregroundStyle(LA.rust)
                             .frame(width: 56)
@@ -79,8 +79,8 @@ struct DecisionLiveActivity: Widget {
             } compactLeading: {
                 Logo(size: 18)
             } compactTrailing: {
-                if let deadline = context.state.deadline {
-                    Text(timerInterval: Date()...deadline, countsDown: true)
+                if let range = DecisionTimerRange.active(until: context.state.deadline) {
+                    Text(timerInterval: range, countsDown: true)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundStyle(LA.rust)
                         .frame(width: 44)
@@ -156,8 +156,8 @@ private struct LockScreenCard: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                if let deadline = context.state.deadline {
-                    Text(timerInterval: Date()...deadline, countsDown: true)
+                if let range = DecisionTimerRange.active(until: context.state.deadline) {
+                    Text(timerInterval: range, countsDown: true)
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .foregroundStyle(LA.rust).frame(width: 48)
                 }

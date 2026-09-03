@@ -12,6 +12,7 @@ import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './
 import { asString, checkBossPermission, findDiscordAgent, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { channelMetadata, mergeProvenance } from '../message-security';
 
 interface DiscordInteractionPayload { type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
 interface DiscordInteractionData { name?: string; options?: DiscordInteractionOption[]; custom_id?: string }
@@ -81,9 +82,10 @@ async function handleApplicationCommand(
   if (bossCheck.error) {
     return c.json({ type: 4, data: { content: bossCheck.error, flags: 64 } });
   }
-  const meta = bossCheck.boss
-    ? { ...(payload as unknown as Record<string, unknown>), boss_id: bossCheck.boss.id, boss_name: bossCheck.boss.name }
-    : payload;
+  const meta = mergeProvenance(
+    payload as unknown as Record<string, unknown>,
+    channelMetadata('discord', bossCheck.boss, discordUserId),
+  );
   // Auto-link to most recent pending blocking message for this agent
   let replyTo: string | null = null;
   const pendingMsg = await c.env.DB

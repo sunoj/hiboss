@@ -22,6 +22,7 @@ import {
 import { handleTelegramCallbackQuery, handleTelegramReaction } from './telegram-webhook-actions';
 import type { Env, MessageRow } from '../types';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { channelMetadata, mergeProvenance } from '../message-security';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -143,7 +144,11 @@ async function createTelegramBossMessage(
   const routedAgentId = target.targetSessionId ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
   const agentId = routedAgentId ?? target.configRow.agent_id;
   const replyTo = await resolveTelegramReplyTo(c.env, agentId, message);
-  const metadata = bossInfo ? { ...payload, boss_id: bossInfo.id, boss_name: bossInfo.name, source: 'telegram' } : { ...payload, source: 'telegram' };
+  const senderId = asString((message?.['from'] as Record<string, unknown>)?.['id']);
+  const metadata = mergeProvenance(
+    payload,
+    channelMetadata('telegram', bossInfo, senderId),
+  );
   const inserted = await insertMessageWithEvent(
     c.env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',

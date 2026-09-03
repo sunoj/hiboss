@@ -17,16 +17,23 @@ final class ConnectionStore: ObservableObject {
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
+    private let signerStore: any MessageSignerStoring
     private let pairingRedeemer: PairingRedeemer
+    private var messageSigner: SecureEnclaveMessageSigner?
 
     init(
         defaults: UserDefaults = .standard,
         keychain: (any TokenStoring)? = nil,
+        signerStore: (any MessageSignerStoring)? = nil,
         pairingRedeemer: PairingRedeemer = PairingRedeemer()
     ) {
         self.defaults = defaults
         self.keychain = keychain ?? KeychainStore(
             service: HiBossStore.keychainService, account: HiBossStore.keychainAccount
+        )
+        self.signerStore = signerStore ?? KeychainMessageSignerStore(
+            service: HiBossStore.keychainService,
+            account: HiBossStore.signingKeychainAccount
         )
         self.pairingRedeemer = pairingRedeemer
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
@@ -38,10 +45,12 @@ final class ConnectionStore: ObservableObject {
     /// Loads a persisted token and, if valid, restores the active config.
     func restore() async {
         let keychain = keychain
-        let stored = try? await Task.detached(priority: .userInitiated) {
-            try keychain.read()
+        let signerStore = signerStore
+        let stored = await Task.detached(priority: .userInitiated) {
+            (token: try? keychain.read(), signer: try? signerStore.read())
         }.value
-        bossToken = stored ?? ""
+        bossToken = stored.token ?? ""
+        messageSigner = stored.signer
         if case let .success(config) = makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken) {
             self.config = config
         }
@@ -60,7 +69,12 @@ final class ConnectionStore: ObservableObject {
                 return .failure(error)
             }
             do {
+                let replacesToken = try keychain.read() != candidate.bossToken
                 try keychain.write(candidate.bossToken)
+                if replacesToken {
+                    try signerStore.delete()
+                    messageSigner = nil
+                }
             } catch {
                 return .failure(error)
             }
@@ -73,16 +87,27 @@ final class ConnectionStore: ObservableObject {
     /// Redeems a Mac-generated pairing code and persists the resulting connection.
     func pair(payload: PairingPayload, deviceLabel: String) async -> Result<Void, Error> {
         do {
-            let token = try await pairingRedeemer.redeem(payload: payload, deviceLabel: deviceLabel)
+            let redemption = try await pairingRedeemer.redeem(
+                payload: payload,
+                deviceLabel: deviceLabel
+            )
             guard case let .success(candidate) = makeConnectionConfig(
-                serverAddress: payload.serverURL.absoluteString, bossToken: token
+                serverAddress: payload.serverURL.absoluteString,
+                bossToken: redemption.token
             ) else {
                 return .failure(SettingsError.invalidServerURL)
             }
-            try keychain.write(candidate.bossToken)
+            try signerStore.write(redemption.signer)
+            do {
+                try keychain.write(candidate.bossToken)
+            } catch {
+                try? signerStore.delete()
+                throw error
+            }
             defaults.set(candidate.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
             serverAddress = candidate.serverURL.absoluteString
             bossToken = candidate.bossToken
+            messageSigner = redemption.signer
             config = candidate
             return .success(())
         } catch {
@@ -92,12 +117,14 @@ final class ConnectionStore: ObservableObject {
 
     func signOut() {
         try? keychain.write("")
+        try? signerStore.delete()
         bossToken = ""
+        messageSigner = nil
         config = nil
     }
 
     func makeAPI() -> HibossAPI? {
         guard let config else { return nil }
-        return HibossAPI(config: config, clientSource: "ios")
+        return HibossAPI(config: config, messageSigner: messageSigner)
     }
 }

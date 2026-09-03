@@ -2,7 +2,7 @@
 // Exports: ReadArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use crate::{client::HiBossClient, config::Config, types::Message};
+use crate::{client::HiBossClient, config::Config, message_security, types::Message};
 use clap::Args;
 use std::error::Error;
 
@@ -55,6 +55,7 @@ fn print_message(message: &Message, depth: usize) {
         indent,
         message.channel.as_deref().unwrap_or("-")
     );
+    println!("{}Source: {}", indent, message_security::assurance_label(message));
     println!(
         "{}Status: {}",
         indent,

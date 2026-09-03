@@ -6,6 +6,7 @@ use crate::{
     client::HiBossClient,
     config::Config,
     helpers::{short_id, truncate},
+    message_security,
     session, sse,
     types::Message,
 };
@@ -70,8 +71,9 @@ pub async fn run(
             }
             Some(event) = rx.recv() => {
                 if event.event_type == "message" {
-                    if let Ok(message) = serde_json::from_str::<Message>(&event.data) {
-                        handle_message(&args.handler, client, &message).await;
+                    match message_security::parse_verified_message(&event.data) {
+                        Ok(message) => handle_message(&args.handler, client, &message).await,
+                        Err(error) => eprintln!("Blocked unverified message: {error}"),
                     }
                 }
             }

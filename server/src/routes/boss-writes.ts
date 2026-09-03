@@ -101,26 +101,6 @@ routes.delete('/groups/:id/members/:agentId', async (c) => {
   return c.json({ ok: true });
 });
 
-routes.post('/groups/:id/broadcast', async (c) => {
-  const scope = await requireWriteScope(c);
-  if (!scope.ok) return scope.response;
-  const group = await findAccessibleGroup(c.env, c.req.param('id'), scope.agentIds);
-  if (!group) return c.text('group not found', 404);
-  const payload = await c.req.json<JsonObject>();
-  const body = typeof payload.body === 'string' ? payload.body.trim() : '';
-  if (!body) return c.text('body is required', 400);
-  const priority = parsePriority(payload.priority, 'normal');
-  const rows = await c.env.DB.prepare('SELECT agent_id FROM agent_group_members WHERE group_id = ?').bind(group.id).all<{ agent_id: string }>();
-  const messages: { agent_id: string; message_id: string }[] = [];
-  for (const agentId of rows.results ?? []) {
-    if (!scope.agentIds.includes(agentId.agent_id)) continue;
-    const inserted = await insertBroadcastMessage(c.env, agentId.agent_id, body, priority);
-    if (inserted) messages.push({ agent_id: agentId.agent_id, message_id: inserted });
-  }
-  audit(c, scope.bossId, 'group.broadcast', 'agent_group', group.id, JSON.stringify({ count: messages.length, priority }));
-  return c.json({ messages, count: messages.length }, 201);
-});
-
 routes.post('/routing-rules', async (c) => {
   const scope = await requireWriteScope(c);
   if (!scope.ok) return scope.response;
@@ -203,13 +183,6 @@ async function findAccessibleGroup(env: Env, groupId: string, agentIds: string[]
   const row = await env.DB.prepare('SELECT * FROM agent_groups WHERE id = ?').bind(groupId).first<GroupRow>();
   if (!row || !agentIds.includes(row.owner_id)) return null;
   return row;
-}
-
-async function insertBroadcastMessage(env: Env, agentId: string, body: string, priority: Priority): Promise<string | null> {
-  const row = await env.DB.prepare("INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority) VALUES (?, 'boss_to_agent', 'async', NULL, ?, 'sent', ?) RETURNING id")
-    .bind(agentId, body, priority)
-    .first<{ id: string }>();
-  return row?.id ?? null;
 }
 
 function parsePriority(value: unknown, fallback: Priority): Priority {

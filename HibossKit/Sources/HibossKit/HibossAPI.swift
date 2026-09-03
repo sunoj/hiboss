@@ -35,13 +35,16 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     let config: ConnectionConfig
     let session: URLSession
     let decoder = JSONDecoder()
-    /// Tags replies with the surface that produced them ("ios", "macos", "api").
-    private let clientSource: String
+    private let messageSigner: (any BossMessageSignatureProvider)?
 
-    public init(config: ConnectionConfig, session: URLSession = .shared, clientSource: String = "api") {
+    public init(
+        config: ConnectionConfig,
+        session: URLSession = .shared,
+        messageSigner: (any BossMessageSignatureProvider)? = nil
+    ) {
         self.config = config
         self.session = session
-        self.clientSource = clientSource
+        self.messageSigner = messageSigner
     }
 
     public func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
@@ -61,7 +64,17 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     public func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         let endpoint = messageEndpoint(messageID).appendingPathComponent("reply")
         var request = authorizedRequest(url: endpoint, method: "POST")
-        request.httpBody = try JSONEncoder().encode(ReplyPayload(body: choice, source: clientSource))
+        let body = choice.trimmingCharacters(in: .whitespacesAndNewlines)
+        let signedMessage = try messageSigner.map {
+            try BossMessageJWS.signedReply(
+                body: body,
+                parentMessageID: messageID.rawValue,
+                provider: $0
+            )
+        }
+        request.httpBody = try JSONEncoder().encode(
+            ReplyPayload(body: body, signedMessage: signedMessage)
+        )
         let (_, response) = try await session.data(for: request)
         if (response as? HTTPURLResponse)?.statusCode == 409 {
             return .alreadyResolved
@@ -220,7 +233,12 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
 
 private struct ReplyPayload: Encodable {
     let body: String
-    let source: String
+    let signedMessage: String?
+
+    enum CodingKeys: String, CodingKey {
+        case body
+        case signedMessage = "signed_message"
+    }
 }
 
 private struct DeviceRegistration: Encodable {

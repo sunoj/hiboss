@@ -30,5 +30,6 @@ public enum AppConstants {
         public static let alertSound = "hiboss.alertSound"
         public static let keychainService = "ai.hiboss.island.stable"
         public static let keychainAccount = "boss-token"
+        public static let signingKeychainAccount = "boss-message-signer"
     }
 }

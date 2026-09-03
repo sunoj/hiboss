@@ -17,4 +17,9 @@ final class AppRouter: ObservableObject {
     func open(messageID: String) {
         pendingMessageID = MessageID(rawValue: messageID)
     }
+
+    func finishOpening(_ messageID: MessageID) {
+        guard pendingMessageID == messageID else { return }
+        pendingMessageID = nil
+    }
 }

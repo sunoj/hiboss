@@ -2,6 +2,7 @@
 // Exports: HiBossApp (@main) and RootView.
 // Dependencies: SwiftUI, HibossKit, feature stores and views.
 
+import HibossKit
 import SwiftUI
 
 @main
@@ -54,14 +55,7 @@ struct RootView: View {
         .onChange(of: connection.config) { _, config in
             guard !isDemoMode else { return }
             if config != nil, let api = connection.makeAPI() {
-                Task {
-                    await preferences.load(api: api)
-                    inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
-                    inbox.start(api: api)
-                    progress.start(api: api)
-                    home.start(api: api)
-                    PushManager.shared.promptIfNeeded()
-                }
+                startConnectedServices(api)
             } else {
                 inbox.stop()
                 progress.stop()
@@ -79,15 +73,22 @@ struct RootView: View {
                 }
                 progress.start(api: DemoProgressAPI())
             } else if connection.isConfigured, let api = connection.makeAPI() {
-                Task {
-                    await preferences.load(api: api)
-                    inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
-                    inbox.start(api: api)
-                    progress.start(api: api)
-                    home.start(api: api)
-                    PushManager.shared.promptIfNeeded()
-                }
+                startConnectedServices(api)
             }
+        }
+    }
+
+    /// Start message loading immediately; preferences are not on the critical
+    /// path for notification deep-links and may require a separate network round trip.
+    private func startConnectedServices(_ api: HibossAPI) {
+        inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+        inbox.start(api: api)
+        progress.start(api: api)
+        home.start(api: api)
+        Task {
+            await preferences.load(api: api)
+            inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+            PushManager.shared.promptIfNeeded()
         }
     }
 }

@@ -15,6 +15,7 @@ import { selectChannelConfig, fetchAgentName } from './message-queries';
 import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { systemMetadata } from '../message-security';
 
 const MAX_MESSAGE_OPTIONS = 5;
 const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
@@ -90,7 +91,7 @@ async function autoResolveDefaultOption(
   const inserted = await insertMessageWithEvent(
     env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify({ auto_default: true, source: 'api' }), replyTargetSession(message)],
+    [createMessageId(), agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify(systemMetadata({ auto_default: true })), replyTargetSession(message)],
     replyTargetSession(message),
   );
   if (!inserted) return;

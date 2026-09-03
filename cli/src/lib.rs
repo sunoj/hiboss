@@ -8,6 +8,7 @@ pub mod commands;
 pub mod config;
 pub mod helpers;
 pub mod hiboss_dir;
+pub mod message_security;
 pub mod session;
 pub mod sse;
 pub mod team;
@@ -15,3 +16,5 @@ pub mod types;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod message_security_tests;

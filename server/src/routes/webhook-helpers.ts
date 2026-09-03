@@ -4,6 +4,7 @@
 
 import type { Env, MessageResponse, MessageRow } from '../types';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { channelMetadata, mergeProvenance } from '../message-security';
 
 export function asString(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
@@ -187,9 +188,10 @@ export async function insertBossDiscordMessage(
   const discordMsgPayload = rawMetadata['discord_msg'] as Record<string, unknown> | undefined;
   const discordMessageId = typeof discordMsgPayload?.['id'] === 'string' ? discordMsgPayload['id'] as string : undefined;
   const baseMetadata = discordMessageId ? { ...rawMetadata, discord_message_id: discordMessageId } : rawMetadata;
-  const metadata = bossInfo
-    ? { ...baseMetadata, boss_id: bossInfo.id, boss_name: bossInfo.name, source: 'discord' }
-    : { ...baseMetadata, source: 'discord' };
+  const metadata = mergeProvenance(
+    baseMetadata,
+    channelMetadata('discord', bossInfo, senderUserId),
+  );
   // Precise reply linking: look up parent by discord_message_id in metadata
   let replyTo: string | null = null;
   if (replyToDiscordMsgId) {
