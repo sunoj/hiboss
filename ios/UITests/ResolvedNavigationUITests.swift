@@ -1,5 +1,5 @@
-// UI coverage for navigating out of the handled-decisions screen.
-// Exports: ResolvedNavigationUITests.
+// UI coverage for Home attention states and handled-decision navigation.
+// Exports: HomeAttentionUITests, ResolvedNavigationUITests.
 // Dependencies: XCTest.
 
 import XCTest
@@ -33,5 +33,30 @@ final class ResolvedNavigationUITests: XCTestCase {
             resolvedBar.waitForNonExistence(timeout: 8),
             "tapping a handled decision must not re-open Resolved"
         )
+    }
+}
+
+final class HomeAttentionUITests: XCTestCase {
+    private var app: XCUIApplication!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.configureDemoLaunch()
+        app.launch()
+    }
+
+    func testPopulatedDemoShowsAttentionCount() {
+        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
+    }
+
+    func testEmptyDemoShowsSettledAnswer() {
+        app.terminate()
+        app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_EMPTY": "1"])
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Everything is settled. This is where an agent's next question will appear."].exists)
     }
 }

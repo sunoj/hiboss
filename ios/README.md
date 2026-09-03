@@ -55,6 +55,7 @@ Deep-link flags (mutually exclusive; OPEN > RESOLVED > SESSION):
 - `HIBOSS_DEMO_RESOLVED=1` — Resolved list
 - `HIBOSS_DEMO_SESSION=1` — `sess-deploy` / prod-release transcript
 - `HIBOSS_TAB=progress` — select the Progress tab
+- `HIBOSS_DEMO_EMPTY=1` — show the settled, all-clear Home
 
 ## Push (APNs)
 

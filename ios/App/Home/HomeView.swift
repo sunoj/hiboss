@@ -15,8 +15,6 @@ struct HomeView: View {
     var body: some View {
         content
             .background(Theme.paper)
-            .navigationTitle("Home")
-            .navigationBarTitleDisplayMode(.large)
             .refreshable { await inbox.refresh() }
             .task { await inbox.refresh() }
             .onChange(of: scenePhase) { _, phase in
