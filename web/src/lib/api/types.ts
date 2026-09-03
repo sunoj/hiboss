@@ -9,6 +9,7 @@ export type AuditActorType = 'boss' | 'agent' | 'system';
 
 export interface BossMe {
 	id: string;
+	token_id: string;
 	name: string;
 	role: string;
 	agent_ids?: string[];

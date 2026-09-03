@@ -220,10 +220,10 @@ Revoke one token belonging to the authenticated boss. Any boss may revoke its ow
 ### POST /api/boss/tokens/revoke-others
 Admin only. Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
 
-Token-management controls do not prevent a stolen admin token from revoking sibling devices. The five-minute, single-use pairing-code lifetime limits the exposure of a photographed QR code.
+Token-management controls do not prevent a stolen admin bearer from revoking sibling devices; this residual risk is accepted. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
 
 ### POST /api/boss/pairing
-Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five active codes are retained per boss; expired and consumed rows are cleaned before minting. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
+Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five active codes are retained per boss; expired and consumed rows are cleaned before minting. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
 `{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
 The server stores only a hash of the code.
 
@@ -255,7 +255,7 @@ Mark as read. Request: `{ "status": "read" }`.
 Authenticated with `hb_boss_*` tokens. Role-based access control.
 
 ### GET /api/boss/me
-Boss profile with accessible agent IDs.
+Boss profile with the caller's `token_id` and accessible agent IDs. The token ID is safe to use with `DELETE /api/boss/tokens/:tokenId` to sign out this device.
 
 ### GET /api/boss/agents
 Agents the boss can access.

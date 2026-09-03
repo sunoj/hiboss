@@ -43,7 +43,7 @@ selects an option, the server accepts only the first selection and broadcasts a
 Unanswered options withdraw locally at their exact `expires_at` timestamp.
 
 To generate a token for an existing boss, call the server endpoint with an admin
-agent key or admin Boss Token:
+Boss Token:
 
 ```bash
 curl -X POST \
@@ -53,6 +53,22 @@ curl -X POST \
 
 Use the returned `token` value in the app. A boss with the `viewer` role can see
 messages but cannot send option replies, so use an `admin` or `manager` boss.
+
+Security note: a stolen admin bearer can revoke sibling devices; this residual
+risk is accepted. The five-minute, single-use pairing-code lifetime protects only
+an unredeemed QR code, not a bearer token that has already been issued.
+
+Break-glass recovery is a manual database operation if all live tokens are lost,
+a rotated secret is discarded, or rotation revokes tokens before minting fails.
+Generate a new bearer locally, hash it with SHA-256, insert only the hash into
+`boss_tokens`, and keep the bearer private:
+
+```bash
+TOKEN="hb_boss_$(openssl rand -hex 32)"
+HASH="$(printf %s "$TOKEN" | shasum -a 256 | awk '{print $1}')"
+npx wrangler d1 execute hiboss-db --remote --command "INSERT INTO boss_tokens (boss_id, label, token_hash) VALUES ('<BOSS_ID>', 'break-glass', '$HASH')"
+echo "$TOKEN"
+```
 
 ## Verify
 

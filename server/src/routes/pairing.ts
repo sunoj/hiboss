@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, hashApiKey } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, hashApiKey } from '../middleware/auth';
 import { issueBossToken } from '../boss-token';
 
 const PAIRING_CODE_BYTES = 32;
@@ -30,6 +30,7 @@ function createBossPairingRouter(): Hono<{ Bindings: Env }> {
   const routes = new Hono<{ Bindings: Env }>({});
   routes.use('*', bossAuth);
   routes.post('/', async (c) => {
+    if (getBossRole(c) !== 'admin') return c.json({ error: 'admin required' }, 403);
     const bossId = getBossId(c);
     const now = new Date().toISOString();
     await c.env.DB.prepare(

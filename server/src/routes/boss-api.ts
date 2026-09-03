@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env, MessageRow, ResolutionSource } from '../types';
-import { bossAuth, getBossId, getBossRole, getBossName, hashApiKey } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId, hashApiKey } from '../middleware/auth';
 import { mapMessageRow, clampNumber, parsePriorityFilter, validateOption, priorityOptions, replyTargetSession, validateResolutionSource } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
@@ -76,7 +76,7 @@ routes.get('/me', async (c) => {
     .first<Record<string, unknown>>();
   if (!boss) return c.text('not found', 404);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  return c.json({ ...boss, preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
+  return c.json({ ...boss, token_id: getBossTokenId(c), preferences: safeParse(boss.preferences as string | null), agent_ids: agentIds });
 });
 
 /** GET /api/boss/overview — dashboard KPIs, priority distribution, session status, channel health */

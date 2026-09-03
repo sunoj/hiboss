@@ -9,6 +9,7 @@ import { seedBossToken, seedDatabase } from '../test-helpers';
 
 const BOSS_TOKEN = 'hb_boss_pairing_test_existing_token';
 const RATE_LIMIT_TOKEN = 'hb_boss_pairing_rate_limit_token';
+const VIEWER_TOKEN = 'hb_boss_pairing_viewer_token';
 const TOKEN_MANAGEMENT_TOKEN = 'hb_boss_pairing_token_management_token';
 const SELF_ROTATE_TOKEN = 'hb_boss_pairing_self_rotate_token';
 let bossId: string;
@@ -17,7 +18,8 @@ let selfRotateBossId: string;
 beforeAll(async () => {
   await seedDatabase();
   bossId = await seedBossToken('Pairing Boss', 'admin', BOSS_TOKEN, 'pairing-boss');
-  await seedBossToken('Rate Limit Boss', 'viewer', RATE_LIMIT_TOKEN, 'pairing-rate-limit-boss');
+  await seedBossToken('Rate Limit Boss', 'admin', RATE_LIMIT_TOKEN, 'pairing-rate-limit-boss');
+  await seedBossToken('Pairing Viewer Boss', 'viewer', VIEWER_TOKEN, 'pairing-viewer-boss');
   await seedBossToken('Token Management Boss', 'admin', TOKEN_MANAGEMENT_TOKEN, 'pairing-token-management-boss');
   selfRotateBossId = await seedBossToken('Self Rotate Boss', 'admin', SELF_ROTATE_TOKEN, 'pairing-self-rotate-boss');
 });
@@ -55,6 +57,13 @@ describe('POST /api/boss/pairing', () => {
     expect(response.status).toBe(401);
   });
 
+  it('requires an admin boss to mint pairing codes', async () => {
+    const response = await SELF.fetch('http://localhost/api/boss/pairing', {
+      method: 'POST', headers: bossHeaders(VIEWER_TOKEN),
+    });
+    expect(response.status).toBe(403);
+  });
+
   it('caps active pairing codes and cleans consumed rows before minting', async () => {
     const codes: string[] = [];
     for (let index = 0; index < 5; index += 1) codes.push((await issueCode(RATE_LIMIT_TOKEN)).code);
@@ -82,11 +91,14 @@ describe('POST /api/pairing/redeem', () => {
     const data = await response.json() as { token: string; boss: { id: string; name: string; role: string } };
     expect(data.token).toMatch(/^hb_boss_[0-9a-f]{64}$/);
     expect(data.boss).toEqual({ id: bossId, name: 'Pairing Boss', role: 'admin' });
-    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(data.token) })).status).toBe(200);
+    const newMe = await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(data.token) });
+    expect(newMe.status).toBe(200);
+    const newMeData = await newMe.json() as { token_id: string };
+    expect(newMeData.token_id).toBeTruthy();
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders() })).status).toBe(200);
-    const token = await env.DB.prepare('SELECT label, revoked_at FROM boss_tokens WHERE token_hash = ?')
-      .bind(await hashApiKey(data.token)).first<{ label: string; revoked_at: string | null }>();
-    expect(token).toEqual({ label: 'Alice iPhone', revoked_at: null });
+    const token = await env.DB.prepare('SELECT id, label, revoked_at FROM boss_tokens WHERE token_hash = ?')
+      .bind(await hashApiKey(data.token)).first<{ id: string; label: string; revoked_at: string | null }>();
+    expect(token).toEqual({ id: newMeData.token_id, label: 'Alice iPhone', revoked_at: null });
   });
 
   it('consumes a code only once', async () => {
@@ -159,29 +171,29 @@ describe('boss token management', () => {
   });
 
   it('requires admin for listing, revoke-others, and revoking another token', async () => {
-    const list = await SELF.fetch('http://localhost/api/boss/tokens', { headers: bossHeaders(RATE_LIMIT_TOKEN) });
+    const list = await SELF.fetch('http://localhost/api/boss/tokens', { headers: bossHeaders(VIEWER_TOKEN) });
     expect(list.status).toBe(403);
     const revokeOthers = await SELF.fetch('http://localhost/api/boss/tokens/revoke-others', {
-      method: 'POST', headers: bossHeaders(RATE_LIMIT_TOKEN),
+      method: 'POST', headers: bossHeaders(VIEWER_TOKEN),
     });
     expect(revokeOthers.status).toBe(403);
     const adminToken = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
       .bind(await hashApiKey(TOKEN_MANAGEMENT_TOKEN)).first<{ id: string }>();
     const revokeOther = await SELF.fetch(`http://localhost/api/boss/tokens/${adminToken?.id}`, {
-      method: 'DELETE', headers: bossHeaders(RATE_LIMIT_TOKEN),
+      method: 'DELETE', headers: bossHeaders(VIEWER_TOKEN),
     });
     expect(revokeOther.status).toBe(403);
   });
 
   it('allows a non-admin token to revoke itself and then rejects it', async () => {
     const viewerToken = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
-      .bind(await hashApiKey(RATE_LIMIT_TOKEN)).first<{ id: string }>();
+      .bind(await hashApiKey(VIEWER_TOKEN)).first<{ id: string }>();
     const response = await SELF.fetch(`http://localhost/api/boss/tokens/${viewerToken?.id}`, {
-      method: 'DELETE', headers: bossHeaders(RATE_LIMIT_TOKEN),
+      method: 'DELETE', headers: bossHeaders(VIEWER_TOKEN),
     });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, authenticated: false });
-    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(RATE_LIMIT_TOKEN) })).status).toBe(401);
+    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(VIEWER_TOKEN) })).status).toBe(401);
   });
 });
 
