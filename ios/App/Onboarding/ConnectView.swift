@@ -8,6 +8,7 @@ struct ConnectView: View {
     @ObservedObject var connection: ConnectionStore
     @State private var connecting = false
     @State private var error: String?
+    @State private var showingScanner = false
     @FocusState private var focus: Field?
 
     enum Field { case server, token }
@@ -20,7 +21,7 @@ struct ConnectView: View {
                 .font(.hbH2)
                 .foregroundStyle(Theme.ink)
                 .padding(.top, 22)
-            Text("Point the app at your HiBoss server and paste a Boss Token.")
+            Text("Use a pairing code from your Mac, or enter a server URL and Boss Token.")
                 .font(.hbSmall)
                 .foregroundStyle(Theme.ink2)
                 .padding(.top, 4)
@@ -31,6 +32,8 @@ struct ConnectView: View {
             field(title: String(localized: "BOSS TOKEN"), text: $connection.bossToken,
                   placeholder: "hb_…", field: .token, secure: true)
                 .padding(.top, 14)
+
+            scanButton.padding(.top, 16)
 
             if let error {
                 Text(error)
@@ -45,6 +48,12 @@ struct ConnectView: View {
         .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.paper.ignoresSafeArea())
+        .sheet(isPresented: $showingScanner) {
+            PairingScannerView { payload in
+                showingScanner = false
+                pair(payload)
+            }
+        }
     }
 
     private var logo: some View {
@@ -107,12 +116,47 @@ struct ConnectView: View {
         .disabled(connecting)
     }
 
+    private var scanButton: some View {
+        Button {
+            focus = nil
+            error = nil
+            showingScanner = true
+        } label: {
+            Label("Scan a code", systemImage: "qrcode.viewfinder")
+                .font(.hbBodyStrong)
+                .foregroundStyle(Theme.ink)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Theme.line2, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(connecting)
+    }
+
     private func connect() {
         focus = nil
         error = nil
         connecting = true
         Task {
             let result = await connection.connect()
+            connecting = false
+            if case let .failure(failure) = result {
+                error = failure.localizedDescription
+            }
+        }
+    }
+
+    private func pair(_ payload: PairingPayload) {
+        focus = nil
+        error = nil
+        connecting = true
+        Task {
+            let result = await connection.pair(payload: payload, deviceLabel: DeviceLabel.current())
             connecting = false
             if case let .failure(failure) = result {
                 error = failure.localizedDescription
