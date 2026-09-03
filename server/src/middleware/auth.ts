@@ -79,7 +79,9 @@ export async function apiAuth(c: AuthContext, next: Next): Promise<Response | vo
   const record = await c.env.DB.prepare('SELECT id FROM api_keys WHERE key_hash = ?').bind(keyHash).first<{ id: string }>();
   if (!record) return c.text('Unauthorized', 401);
   c.agentId = record.id;
-  await c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(record.id).run();
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(record.id).run(),
+  );
   return next();
 }
 
@@ -93,7 +95,9 @@ export async function bossAuth(c: AuthContext, next: Next): Promise<Response | v
     .bind(keyHash)
     .first<{ id: string; name: string; role: string; token_id: string }>();
   if (!boss) return c.text('Unauthorized', 401);
-  await c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run();
+  c.executionCtx.waitUntil(
+    c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run(),
+  );
   c.bossId = boss.id;
   c.bossTokenId = boss.token_id;
   c.bossRole = boss.role;
@@ -110,7 +114,9 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
   const agent = await c.env.DB.prepare('SELECT id FROM api_keys WHERE key_hash = ?').bind(keyHash).first<{ id: string }>();
   if (agent) {
     c.agentId = agent.id;
-    await c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(agent.id).run();
+    c.executionCtx.waitUntil(
+      c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(agent.id).run(),
+    );
     return next();
   }
   // Try boss
@@ -119,7 +125,9 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
     .bind(keyHash)
     .first<{ id: string; name: string; role: string; token_id: string }>();
   if (boss) {
-    await c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run();
+    c.executionCtx.waitUntil(
+      c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run(),
+    );
     c.bossId = boss.id;
     c.bossTokenId = boss.token_id;
     c.bossRole = boss.role;
