@@ -46,7 +46,7 @@ final class AllClearIslandTests: XCTestCase {
     }
 
     func testNamedColorsLoadFromAppCatalog() {
-        let bundle = Bundle(identifier: "ai.hiboss.ios")
+        let bundle = Bundle(identifier: "ai.hiboss.app")
         XCTAssertNotNil(bundle)
         for name in IslandSwatch.names {
             XCTAssertNotNil(UIColor(named: name, in: bundle, compatibleWith: nil), name)

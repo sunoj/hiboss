@@ -8,7 +8,7 @@ import UIKit
 import UserNotifications
 import os
 
-private let pushLog = Logger(subsystem: "ai.hiboss.ios", category: "Push")
+private let pushLog = Logger(subsystem: "ai.hiboss.app", category: "Push")
 
 enum PushCategory {
     static let options = "HIBOSS_OPTIONS"

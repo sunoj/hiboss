@@ -5,7 +5,7 @@
 import UIKit
 import os
 
-private let pushLog = Logger(subsystem: "ai.hiboss.ios", category: "Push")
+private let pushLog = Logger(subsystem: "ai.hiboss.app", category: "Push")
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(

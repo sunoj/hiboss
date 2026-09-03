@@ -282,7 +282,7 @@ counts sessions seen in the last 15 minutes.
 
 ### POST /api/boss/devices
 Registers an iOS device's APNs token for push. Body:
-`{ "token": "<apns-hex>", "bundleId": "ai.hiboss.ios", "environment": "sandbox"|"production", "platform": "ios" }`.
+`{ "token": "<apns-hex>", "bundleId": "ai.hiboss.app", "environment": "sandbox"|"production", "platform": "ios" }`.
 Upserts by device token for the authenticated boss. Returns `{ "ok": true }`.
 
 ### DELETE /api/boss/devices/:token

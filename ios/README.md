@@ -5,7 +5,7 @@ them — in-app, from the Dynamic Island (Live Activity), or from a push notific
 
 ## Layout
 
-- `App/` — the app target (`ai.hiboss.ios`)
+- `App/` — the app target (`ai.hiboss.app`)
   - `Theme/` — design tokens ported from the shared design system (light + dark, priority colors)
   - `Connection/` — server URL + Keychain token → `ConnectionStore`
   - `Inbox/` — Inbox screen: live pending decisions over SSE, option/reply actions, countdowns
@@ -35,7 +35,7 @@ Run with sample data (no live server):
 
 ```bash
 xcrun simctl install booted "$(…)/HiBoss.app"
-SIMCTL_CHILD_HIBOSS_DEMO=1 xcrun simctl launch booted ai.hiboss.ios
+SIMCTL_CHILD_HIBOSS_DEMO=1 xcrun simctl launch booted ai.hiboss.app
 ```
 
 Prefer `SIMCTL_CHILD_*` (per-launch only). Do **not** `launchctl setenv HIBOSS_DEMO_*`

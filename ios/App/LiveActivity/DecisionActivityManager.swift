@@ -7,7 +7,7 @@ import Foundation
 import HibossKit
 import os
 
-private let laLog = Logger(subsystem: "ai.hiboss.ios", category: "LiveActivity")
+private let laLog = Logger(subsystem: "ai.hiboss.app", category: "LiveActivity")
 
 @MainActor
 enum DecisionActivityManager {

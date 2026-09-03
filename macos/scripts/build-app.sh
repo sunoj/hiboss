@@ -1,11 +1,11 @@
 #!/bin/sh
 # Builds the release executable and wraps it in a runnable macOS app bundle
 # with Sparkle embedded for auto-updates.
-# Outputs: dist/HiBoss Island.app, signed with a stable local identity.
+# Outputs: dist/HiBoss Island.app, ad-hoc signed by default.
 # Dependencies: SwiftPM, codesign, PlistBuddy, Info.plist, and AppIcon.icns.
 #
 # Optional env:
-#   HIBOSS_SIGNING_IDENTITY  codesign identity (default: local Apple Development).
+#   HIBOSS_SIGNING_IDENTITY  codesign identity (default: ad-hoc).
 #   HIBOSS_APPCAST_URL       overrides SUFeedURL in the bundled Info.plist.
 #   HIBOSS_SPARKLE_PUBKEY    overrides SUPublicEDKey (EdDSA public key, base64).
 
@@ -15,7 +15,7 @@ PACKAGE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 APP_DIR="$PACKAGE_DIR/dist/HiBoss Island.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
-DEFAULT_SIGNING_IDENTITY="Apple Development: Ming Sun (234582ZA6V)"
+DEFAULT_SIGNING_IDENTITY="-"
 SIGNING_IDENTITY="${HIBOSS_SIGNING_IDENTITY:-$DEFAULT_SIGNING_IDENTITY}"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
