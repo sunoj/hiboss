@@ -21,11 +21,23 @@ struct IslandView: View {
     }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            islandContent(now: context.date)
+        }
+    }
+
+    @ViewBuilder
+    private func islandContent(now: Date) -> some View {
         if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
             resolvedCard(message, answer: answer, source: source)
-        } else if let message = flow.activeMessage {
+        } else if let presentation = IslandAttention.presentation(
+            live: flow.activeMessage,
+            history: flow.historyMessages,
+            now: now
+        ) {
+            let message = presentation.message
             VStack(alignment: .leading, spacing: 12) {
-                agentHeader(message)
+                agentHeader(message, item: presentation.item, now: now)
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(message.body)
@@ -84,7 +96,7 @@ struct IslandView: View {
         .background(surfaceShape)
     }
 
-    private func agentHeader(_ message: OptionMessage) -> some View {
+    private func agentHeader(_ message: OptionMessage, item: AttentionItem?, now: Date) -> some View {
         HStack(spacing: 7) {
             Circle()
                 .fill(Color.green)
@@ -94,7 +106,14 @@ struct IslandView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                messageContext(message)
+                if let item, let caption = IslandAttention.autoDecisionCaption(for: item, now: now) {
+                    Text(caption)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                } else {
+                    messageContext(message)
+                }
             }
             Spacer()
             if case .submitting = flow.presentationState {
@@ -102,8 +121,10 @@ struct IslandView: View {
                     .controlSize(.small)
                     .tint(.white)
             }
-            SkipButton { flow.skip() }
-                .disabled(isSubmitting)
+            if flow.activeMessage?.id == message.id {
+                SkipButton { flow.skip() }
+                    .disabled(isSubmitting)
+            }
         }
     }
 
@@ -137,7 +158,16 @@ struct IslandView: View {
     private func submitReply(for messageID: MessageID) {
         let pending = replyText
         Task {
-            if await flow.submit(pending, for: messageID) { replyText = "" }
+            let trimmed = pending.trimmingCharacters(in: .whitespacesAndNewlines)
+            let sent: Bool
+            if flow.activeMessage?.id == messageID {
+                sent = await flow.submit(pending, for: messageID)
+            } else if trimmed.isEmpty {
+                sent = false
+            } else {
+                sent = await flow.answerHistory(trimmed, for: messageID)
+            }
+            if sent { replyText = "" }
         }
     }
 
@@ -145,9 +175,19 @@ struct IslandView: View {
         VStack(spacing: 7) {
             ForEach(message.options, id: \.self) { option in
                 OptionButton(title: option, isDefault: option == message.defaultOption) {
-                    Task { await flow.choose(option, for: message.id) }
+                    chooseOption(option, for: message.id)
                 }
                 .disabled(isSubmitting)
+            }
+        }
+    }
+
+    private func chooseOption(_ option: String, for messageID: MessageID) {
+        Task {
+            if flow.activeMessage?.id == messageID {
+                await flow.choose(option, for: messageID)
+            } else {
+                await flow.answerHistory(option, for: messageID)
             }
         }
     }
