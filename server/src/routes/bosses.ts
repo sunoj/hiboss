@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, getBossTokenId } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { issueBossToken } from '../boss-token';
 
@@ -272,16 +272,23 @@ routes.delete('/:id/access/:agentId', async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /api/bosses/:id/token — generate an additional boss auth token
+// POST /api/bosses/:id/token — rotate a boss auth token
 routes.post('/:id/token', async (c) => {
   if (getBossRole(c) !== 'admin') {
     return c.json({ error: 'admin required' }, 403);
   }
   const boss = await findBoss(c.env, c.req.param('id'));
   if (!boss) return c.text('not found', 404);
-  const token = await issueBossToken(c.env, boss.id, 'admin-issued');
+  if (boss.id === getBossId(c)) {
+    await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND id != ? AND revoked_at IS NULL")
+      .bind(boss.id, getBossTokenId(c)).run();
+  } else {
+    await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND revoked_at IS NULL")
+      .bind(boss.id).run();
+  }
+  const token = await issueBossToken(c.env, boss.id, 'rotated');
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.token', 'boss', boss.id));
-  return c.json({ id: boss.id, name: boss.name, label: 'admin-issued', token });
+  return c.json({ id: boss.id, name: boss.name, label: 'rotated', token });
 });
 
 export const bossesRouter = routes;

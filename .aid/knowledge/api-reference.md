@@ -208,7 +208,17 @@ Grant agent access. Request: `{ "agent_id" }`.
 Revoke agent access.
 
 ### POST /api/bosses/:id/token
-Generate an additional boss auth token (`hb_boss_*` prefix). Token shown once; existing tokens remain valid.
+Rotate a boss auth token (`hb_boss_*` prefix). Token shown once; prior tokens for the target boss are revoked. When rotating the authenticated boss itself, the token making the request remains valid.
+
+### GET /api/boss/tokens
+List the authenticated boss's token metadata: `{ "tokens": [{ "id", "label", "created_at", "last_used_at", "revoked_at" }] }`.
+Token hashes and bearer token values are never returned.
+
+### DELETE /api/boss/tokens/:tokenId
+Revoke one token belonging to the authenticated boss. Returns `{ "ok": true }`.
+
+### POST /api/boss/tokens/revoke-others
+Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
 
 ### POST /api/boss/pairing
 Issue a short-lived, single-use QR pairing code for the authenticated boss. Response:
