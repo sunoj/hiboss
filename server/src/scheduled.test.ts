@@ -174,6 +174,17 @@ describe('handleScheduled', () => {
     expect(mockedExpire).not.toHaveBeenCalled();
   });
 
+  it('cleans consumed and expired pairing codes', async () => {
+    const { env, preparedStatements } = makeFakeEnv({});
+
+    await handleScheduled(env as never);
+
+    const cleanup = preparedStatements.find((stmt) => stmt.sql.startsWith('DELETE FROM boss_pairing_codes'));
+    expect(cleanup?.sql).toContain('consumed_at IS NOT NULL');
+    expect(cleanup?.sql).toContain('expires_at <= ?');
+    expect(cleanup?.binds[0]).toBe('2026-03-21T00:05:00.000Z');
+  });
+
   it('continues processing when one message fails to expire', async () => {
     const row1 = makeExpiryRow('msg-fail', 'agent-a');
     const row2 = makeExpiryRow('msg-ok', 'agent-b');

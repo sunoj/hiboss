@@ -9,6 +9,8 @@ import { issueBossToken } from '../boss-token';
 
 const PAIRING_CODE_BYTES = 32;
 const PAIRING_TTL_MS = 5 * 60 * 1000;
+const MAX_ACTIVE_PAIRING_CODES = 5;
+const MAX_PAIRING_CODES_PER_MINUTE = 5;
 const MAX_DEVICE_LABEL_LENGTH = 100;
 
 interface PairingRedeemRequest {
@@ -29,13 +31,24 @@ function createBossPairingRouter(): Hono<{ Bindings: Env }> {
   const routes = new Hono<{ Bindings: Env }>({});
   routes.use('*', bossAuth);
   routes.post('/', async (c) => {
+    const bossId = getBossId(c);
+    const now = new Date().toISOString();
+    const active = await c.env.DB.prepare(
+      'SELECT COUNT(*) AS count FROM boss_pairing_codes WHERE boss_id = ? AND consumed_at IS NULL AND expires_at > ?',
+    ).bind(bossId, now).first<{ count: number }>();
+    const recent = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM boss_pairing_codes WHERE boss_id = ? AND created_at > datetime('now', '-1 minute')",
+    ).bind(bossId).first<{ count: number }>();
+    if ((active?.count ?? 0) >= MAX_ACTIVE_PAIRING_CODES || (recent?.count ?? 0) >= MAX_PAIRING_CODES_PER_MINUTE) {
+      return c.text('too many pairing codes', 429);
+    }
     const bytes = new Uint8Array(PAIRING_CODE_BYTES);
     crypto.getRandomValues(bytes);
     const code = `hb_pair_${Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
     const expiresAt = new Date(Date.now() + PAIRING_TTL_MS).toISOString();
     await c.env.DB.prepare(
       'INSERT INTO boss_pairing_codes (boss_id, code_hash, expires_at) VALUES (?, ?, ?)',
-    ).bind(getBossId(c), await hashApiKey(code), expiresAt).run();
+    ).bind(bossId, await hashApiKey(code), expiresAt).run();
     return c.json({ code, expires_at: expiresAt });
   });
   return routes;
@@ -71,6 +84,6 @@ function parsePairingRedeemRequest(value: unknown): PairingRedeemRequest | null 
   const record = value as Record<string, unknown>;
   const code = typeof record.code === 'string' ? record.code.trim() : '';
   const deviceLabel = typeof record.device_label === 'string' ? record.device_label.trim() : '';
-  if (!code || !deviceLabel || deviceLabel.length > MAX_DEVICE_LABEL_LENGTH) return null;
+  if (!code || !deviceLabel || deviceLabel.length > MAX_DEVICE_LABEL_LENGTH || /[<>&\u0000-\u001f]/.test(deviceLabel)) return null;
   return { code, deviceLabel };
 }

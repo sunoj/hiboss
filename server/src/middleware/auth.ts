@@ -8,6 +8,7 @@ import type { Env } from '../types';
 type AuthContext = Context<{ Bindings: Env }> & {
   agentId?: string;
   bossId?: string;
+  bossTokenId?: string;
   bossRole?: string;
   bossName?: string;
 };
@@ -44,6 +45,14 @@ export function getBossId(c: Context<{ Bindings: Env }>): string {
     throw new Error('boss context missing');
   }
   return ctx.bossId;
+}
+
+export function getBossTokenId(c: Context<{ Bindings: Env }>): string {
+  const ctx = c as AuthContext;
+  if (!ctx.bossTokenId) {
+    throw new Error('boss token context missing');
+  }
+  return ctx.bossTokenId;
 }
 
 export function getBossRole(c: Context<{ Bindings: Env }>): string {
@@ -86,6 +95,7 @@ export async function bossAuth(c: AuthContext, next: Next): Promise<Response | v
   if (!boss) return c.text('Unauthorized', 401);
   await c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run();
   c.bossId = boss.id;
+  c.bossTokenId = boss.token_id;
   c.bossRole = boss.role;
   c.bossName = boss.name;
   return next();
@@ -111,6 +121,7 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
   if (boss) {
     await c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run();
     c.bossId = boss.id;
+    c.bossTokenId = boss.token_id;
     c.bossRole = boss.role;
     c.bossName = boss.name;
     return next();

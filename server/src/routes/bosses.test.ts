@@ -13,6 +13,7 @@ beforeAll(async () => {
 });
 
 let createdBossId: string;
+let generatedToken: string;
 
 function adminHeaders(): Record<string, string> {
   return {
@@ -290,6 +291,22 @@ describe('POST /api/bosses/:id/token', () => {
     const data = await res.json() as any;
     expect(data.token).toMatch(/^hb_boss_/);
     expect(data.id).toBe(createdBossId);
+    generatedToken = data.token;
+  });
+
+  it('revokes the prior target token when rotating', async () => {
+    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/token`, {
+      method: 'POST',
+      headers: adminHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { token: string };
+    expect((await SELF.fetch('http://localhost/api/boss/me', {
+      headers: { Authorization: `Bearer ${generatedToken}` },
+    })).status).toBe(401);
+    expect((await SELF.fetch('http://localhost/api/boss/me', {
+      headers: { Authorization: `Bearer ${data.token}` },
+    })).status).toBe(200);
   });
 
   it('returns 404 for unknown boss', async () => {
