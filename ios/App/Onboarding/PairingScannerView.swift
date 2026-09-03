@@ -102,7 +102,7 @@ private struct QRScannerCameraView: UIViewControllerRepresentable {
 }
 
 @MainActor
-private final class QRScannerViewController: UIViewController, @preconcurrency AVCaptureMetadataOutputObjectsDelegate {
+private final class QRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     private let onCode: (String) -> Bool
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "ai.hiboss.qr-scanner")
@@ -143,31 +143,25 @@ private final class QRScannerViewController: UIViewController, @preconcurrency A
     }
 
     private func configureSession() {
-        let session = session
-        let sessionQueue = sessionQueue
-        sessionQueue.async { [weak self] in
-            guard let self, let device = AVCaptureDevice.default(for: .video) else { return }
-            guard let input = try? AVCaptureDeviceInput(device: device), session.canAddInput(input) else { return }
-            let output = AVCaptureMetadataOutput()
-            guard session.canAddOutput(output) else { return }
-            session.beginConfiguration()
-            session.addInput(input)
-            session.addOutput(output)
-            output.setMetadataObjectsDelegate(self, queue: sessionQueue)
-            output.metadataObjectTypes = [.qr]
-            session.commitConfiguration()
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                let layer = AVCaptureVideoPreviewLayer(session: self.session)
-                layer.videoGravity = .resizeAspectFill
-                self.previewLayer = layer
-                self.view.layer.insertSublayer(layer, at: 0)
-                layer.frame = self.view.bounds
-            }
-        }
+        guard let device = AVCaptureDevice.default(for: .video) else { return }
+        guard let input = try? AVCaptureDeviceInput(device: device), session.canAddInput(input) else { return }
+        let output = AVCaptureMetadataOutput()
+        guard session.canAddOutput(output) else { return }
+        session.beginConfiguration()
+        session.addInput(input)
+        session.addOutput(output)
+        output.setMetadataObjectsDelegate(self, queue: sessionQueue)
+        output.metadataObjectTypes = [.qr]
+        session.commitConfiguration()
+
+        let layer = AVCaptureVideoPreviewLayer(session: session)
+        layer.videoGravity = .resizeAspectFill
+        previewLayer = layer
+        view.layer.insertSublayer(layer, at: 0)
+        layer.frame = view.bounds
     }
 
-    func metadataOutput(
+    nonisolated func metadataOutput(
         _ output: AVCaptureMetadataOutput,
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
