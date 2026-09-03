@@ -46,11 +46,13 @@ struct HistoryRow: View {
     }
 
     private var statusLabel: String {
-        message.status.isEmpty ? "" : MessageMeta.localizedStatusName(message.status)
+        if message.metadata?.isExpired == true { return String(localized: "Auto-decided") }
+        return message.status.isEmpty ? "" : MessageMeta.localizedStatusName(message.status)
     }
 
     private var statusColor: Color {
-        switch message.status {
+        if message.metadata?.isExpired == true { return .orange }
+        return switch message.status {
         case "replied": .green
         case "expired": .orange
         default: .secondary

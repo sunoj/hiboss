@@ -1,117 +1,182 @@
-// "Needs you" attention list with deep-links into decision / session detail.
+// Actionable Home attention list with project, requester, wait, and choices.
 // Exports: HomeAttentionSection and HomeAttentionRow.
-// Dependencies: SwiftUI, HibossKit HomeAttentionItem, Theme tokens.
+// Dependencies: SwiftUI, HibossKit MessageID, AttentionItem, OptionButton, Theme.
 
 import HibossKit
 import SwiftUI
 
 struct HomeAttentionSection: View {
-    let items: [HomeAttentionItem]
+    let groups: [AttentionGroupItems]
+    let onChoose: (String, MessageID) -> Void
+    let onOpen: (MessageID) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Needs you")
-                .font(.hbH3)
-                .foregroundStyle(Theme.ink)
-            if items.isEmpty {
-                Label("You're all clear", systemImage: "checkmark.circle")
-                    .font(.hbCallout)
-                    .foregroundStyle(Theme.ink3)
+            title
+            if groups.isEmpty {
+                allClear
             } else {
-                ForEach(items) { item in
-                    attentionLink(item)
+                ForEach(groups, id: \.group) { group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(group.group.title)
+                            .font(.hbCaption.weight(.semibold))
+                            .foregroundStyle(group.group == .blocked ? Theme.negative : Theme.ink2)
+                            .textCase(.uppercase)
+                        ForEach(group.items) { item in
+                            HomeAttentionRow(
+                                item: item,
+                                onChoose: { onChoose($0, item.id) },
+                                onOpen: { onOpen(item.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
         .padding(.horizontal, 16)
     }
 
-    @ViewBuilder
-    private func attentionLink(_ item: HomeAttentionItem) -> some View {
-        switch item.kind {
-        case .decision:
-            if let raw = item.messageId, !raw.isEmpty {
-                NavigationLink(value: MessageID(rawValue: raw)) {
-                    HomeAttentionRow(item: item)
-                }
-                .buttonStyle(.plain)
-            } else {
-                HomeAttentionRow(item: item)
-            }
-        case .session:
-            if let sessionId = item.sessionId, !sessionId.isEmpty {
-                NavigationLink(value: SessionRoute(id: sessionId, label: sessionLabel(for: item, fallback: sessionId))) {
-                    HomeAttentionRow(item: item)
-                }
-                .buttonStyle(.plain)
-            } else {
-                HomeAttentionRow(item: item)
-            }
+    private var title: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Needs you now")
+                .font(.hbLargeTitle)
+                .foregroundStyle(Theme.ink)
+            Text("The work waiting on your call")
+                .font(.hbCallout)
+                .foregroundStyle(Theme.ink2)
         }
     }
 
-    private func sessionLabel(for item: HomeAttentionItem, fallback: String) -> String {
-        if let label = item.sessionLabel, !label.isEmpty { return label }
-        return String(fallback.prefix(8))
+    private var allClear: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(Theme.positive)
+            Text("Nothing needs you")
+                .font(.hbH2)
+                .foregroundStyle(Theme.ink)
+            Text("Everything is settled. This is where an agent's next question will appear.")
+                .font(.hbCallout)
+                .foregroundStyle(Theme.ink2)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 300)
+        }
+        .frame(maxWidth: .infinity, minHeight: 360)
+        .accessibilityElement(children: .combine)
     }
 }
 
 struct HomeAttentionRow: View {
-    let item: HomeAttentionItem
+    let item: AttentionItem
+    let onChoose: (String) -> Void
+    let onOpen: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(tint)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.hbBodyStrong)
-                    .foregroundStyle(Theme.ink)
-                    .lineLimit(2)
-                Text(subtitle)
-                    .font(.hbCaption)
-                    .foregroundStyle(Theme.ink3)
-            }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.hbCaption)
-                .foregroundStyle(Theme.ink4)
+        VStack(alignment: .leading, spacing: 12) {
+            Button(action: onOpen) { info }
+                .buttonStyle(.plain)
+            timing
+            choices
         }
-        .padding(14)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
+        .padding(16)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(alignment: .leading) {
+            UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: 18)
+                .fill(tint)
+                .frame(width: 4)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private var icon: String {
-        switch item.kind {
-        case .decision: return item.mode == "blocking" ? "exclamationmark.octagon.fill" : "hand.raised.fill"
-        case .session: return item.status == "blocked" ? "exclamationmark.octagon.fill" : "clock.fill"
+    private var info: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Label(project, systemImage: "square.stack.3d.up")
+                    .font(.hbCaption.weight(.semibold))
+                    .foregroundStyle(Theme.ink2)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.hbCaption)
+                    .foregroundStyle(Theme.ink4)
+            }
+            Text(item.message.body)
+                .font(.hbBodyStrong)
+                .foregroundStyle(Theme.ink)
+                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
+            if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty {
+                Text(content)
+                    .font(.hbCaption)
+                    .foregroundStyle(Theme.ink2)
+                    .lineLimit(3)
+            }
+            Text("Asked by \(item.message.displayName)")
+                .font(.hbCaption)
+                .foregroundStyle(Theme.ink3)
         }
+    }
+
+    private var project: String {
+        item.project ?? String(localized: "Unassigned session")
     }
 
     private var tint: Color {
-        switch item.kind {
-        case .decision:
-            return item.mode == "blocking" || item.priority == "high" || item.priority == "critical"
-                ? Theme.warn : Theme.ink2
-        case .session:
-            return item.status == "blocked" ? Theme.negative : Theme.warn
+        switch item.group {
+        case .autoDecision: return Theme.warn
+        case .blocked: return Theme.negative
+        case .priority: return item.message.priorityValue == .critical ? Theme.negative : Theme.warn
         }
     }
 
-    private var title: String {
-        switch item.kind {
-        case .decision: return item.body ?? String(localized: "Pending decision")
-        case .session: return item.statusText ?? item.sessionLabel ?? String(localized: "Session needs you")
+    private var timing: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Label(waitedText, systemImage: "clock")
+                if item.group == .autoDecision, let deadline = item.expiresAt {
+                    Spacer(minLength: 0)
+                    Label { CountdownText(deadline: deadline, tint: tint) } icon: {
+                        Image(systemName: "timer")
+                    }
+                } else if item.group == .blocked {
+                    Spacer(minLength: 0)
+                    Text("Agent stopped")
+                }
+            }
+            if item.group == .autoDecision, let option = item.defaultOption {
+                Label("Auto-selects \u{201C}\(option)\u{201D}", systemImage: "arrow.trianglehead.timer")
+            }
+        }
+        .font(.hbCaption)
+        .foregroundStyle(Theme.ink2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var waitedText: String {
+        guard let date = item.message.createdDate else { return "Waiting" }
+        return "Waiting \(RelativeTime.short(from: date))"
+    }
+
+    @ViewBuilder
+    private var choices: some View {
+        if item.options.count == 2 {
+            HStack(spacing: 8) {
+                choiceButton(item.options[0])
+                choiceButton(item.options[1])
+            }
+        } else {
+            VStack(spacing: 8) {
+                ForEach(item.options, id: \.self) { option in
+                    choiceButton(option, alignment: .leading)
+                }
+            }
         }
     }
 
-    private var subtitle: String {
-        var parts = [item.project]
-        if let label = item.sessionLabel, !label.isEmpty { parts.append(label) }
-        if item.kind == .decision, let mode = item.mode { parts.append(mode) }
-        if item.kind == .session, let status = item.status { parts.append(status) }
-        return parts.joined(separator: " · ")
+    private func choiceButton(_ option: String, alignment: Alignment = .center) -> some View {
+        OptionButton(
+            title: option,
+            style: option == item.defaultOption ? .primary : .secondary,
+            alignment: alignment
+        ) { onChoose(option) }
     }
 }
