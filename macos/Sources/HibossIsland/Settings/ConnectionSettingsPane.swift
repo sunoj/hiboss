@@ -11,6 +11,7 @@ struct ConnectionSettingsPane: View {
     let statusMessage: String
     let isConnecting: Bool
     let reconnect: () -> Void
+    @State private var isPairingPresented = false
 
     var body: some View {
         Form {
@@ -45,8 +46,25 @@ struct ConnectionSettingsPane: View {
                 Text(L("Token is stored locally in Keychain."))
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                Button {
+                    isPairingPresented = true
+                } label: {
+                    Label(L("Pair a new device…"), systemImage: "qrcode")
+                }
+                .disabled(!settings.isConfigured)
+            } header: {
+                Text(L("Device pairing"))
+            } footer: {
+                Text(L("Show a one-time QR code that includes this server and enrolls a phone without typing a token."))
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $isPairingPresented) {
+            DevicePairingSheet(settings: settings)
+        }
     }
 
     private var statusSymbol: String {
