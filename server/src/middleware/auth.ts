@@ -80,10 +80,11 @@ export async function bossAuth(c: AuthContext, next: Next): Promise<Response | v
   if (!token) return c.text('Unauthorized', 401);
   const keyHash = await hashApiKey(token);
   const boss = await c.env.DB
-    .prepare('SELECT id, name, role FROM bosses WHERE token_hash = ?')
+    .prepare('SELECT b.id, b.name, b.role, bt.id AS token_id FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id WHERE bt.token_hash = ? AND bt.revoked_at IS NULL')
     .bind(keyHash)
-    .first<{ id: string; name: string; role: string }>();
+    .first<{ id: string; name: string; role: string; token_id: string }>();
   if (!boss) return c.text('Unauthorized', 401);
+  await c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run();
   c.bossId = boss.id;
   c.bossRole = boss.role;
   c.bossName = boss.name;
@@ -104,10 +105,11 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
   }
   // Try boss
   const boss = await c.env.DB
-    .prepare('SELECT id, name, role FROM bosses WHERE token_hash = ?')
+    .prepare('SELECT b.id, b.name, b.role, bt.id AS token_id FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id WHERE bt.token_hash = ? AND bt.revoked_at IS NULL')
     .bind(keyHash)
-    .first<{ id: string; name: string; role: string }>();
+    .first<{ id: string; name: string; role: string; token_id: string }>();
   if (boss) {
+    await c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run();
     c.bossId = boss.id;
     c.bossRole = boss.role;
     c.bossName = boss.name;

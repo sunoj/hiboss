@@ -208,7 +208,19 @@ Grant agent access. Request: `{ "agent_id" }`.
 Revoke agent access.
 
 ### POST /api/bosses/:id/token
-Generate boss auth token (`hb_boss_*` prefix). Token shown once.
+Generate an additional boss auth token (`hb_boss_*` prefix). Token shown once; existing tokens remain valid.
+
+### POST /api/boss/pairing
+Issue a short-lived, single-use QR pairing code for the authenticated boss. Response:
+`{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
+The server stores only a hash of the code.
+
+### POST /api/pairing/redeem
+Unauthenticated by design. Redeem a pairing code once to create a new boss token for a device.
+Request: `{ "code": "hb_pair_<64 hex characters>", "device_label": "string" }`.
+Response:
+`{ "token": "hb_boss_<64 hex characters>", "boss": { "id", "name", "role" } }`.
+The new token is independent from all other boss tokens; an existing device remains online.
 
 ## Boss Inbox Endpoints (Agent-as-Boss)
 

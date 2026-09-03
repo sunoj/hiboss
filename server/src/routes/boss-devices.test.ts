@@ -4,8 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { hashApiKey } from '../middleware/auth';
-import { seedDatabase } from '../test-helpers';
+import { seedDatabase, seedBossToken } from '../test-helpers';
 
 const BOSS_TOKEN = 'hb_boss_devices_00112233445566778899';
 const DEVICE_TOKEN = 'abcdef1234567890';
@@ -13,12 +12,7 @@ let bossId: string;
 
 beforeAll(async () => {
   await seedDatabase();
-  const tokenHash = await hashApiKey(BOSS_TOKEN);
-  await env.DB
-    .prepare('INSERT OR REPLACE INTO bosses (id, name, role, token_hash) VALUES (?, ?, ?, ?)')
-    .bind('boss-devices-test', 'Device Boss', 'admin', tokenHash)
-    .run();
-  bossId = 'boss-devices-test';
+  bossId = await seedBossToken('Device Boss', 'admin', BOSS_TOKEN, 'boss-devices-test');
 });
 
 function bossHeaders(): Record<string, string> {
