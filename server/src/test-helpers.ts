@@ -32,11 +32,14 @@ const SCHEMA_STATEMENTS = [
   'CREATE INDEX IF NOT EXISTS idx_routing_rules_channel ON routing_rules(channel, enabled, priority DESC)',
   "CREATE TABLE IF NOT EXISTS agent_groups (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL UNIQUE, description TEXT, owner_id TEXT REFERENCES api_keys(id), created_at TEXT NOT NULL DEFAULT (datetime('now')))",
   "CREATE TABLE IF NOT EXISTS agent_group_members (group_id TEXT NOT NULL, agent_id TEXT NOT NULL, added_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (group_id, agent_id), FOREIGN KEY (group_id) REFERENCES agent_groups(id) ON DELETE CASCADE, FOREIGN KEY (agent_id) REFERENCES api_keys(id))",
-  "CREATE TABLE IF NOT EXISTS bosses (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'manager', 'viewer')), telegram_user_id TEXT, discord_user_id TEXT, agent_id TEXT REFERENCES api_keys(id), token_hash TEXT, preferences TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+  "CREATE TABLE IF NOT EXISTS bosses (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'manager', 'viewer')), telegram_user_id TEXT, discord_user_id TEXT, agent_id TEXT REFERENCES api_keys(id), preferences TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id) WHERE telegram_user_id IS NOT NULL',
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_discord ON bosses(discord_user_id) WHERE discord_user_id IS NOT NULL',
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL',
-  'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_token ON bosses(token_hash) WHERE token_hash IS NOT NULL',
+  "CREATE TABLE IF NOT EXISTS boss_tokens (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, label TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL DEFAULT (datetime('now')), last_used_at TEXT, revoked_at TEXT)",
+  'CREATE INDEX IF NOT EXISTS idx_boss_tokens_boss ON boss_tokens(boss_id, created_at DESC)',
+  "CREATE TABLE IF NOT EXISTS boss_pairing_codes (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, code_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, consumed_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+  'CREATE INDEX IF NOT EXISTS idx_boss_pairing_codes_expiry ON boss_pairing_codes(expires_at)',
   "CREATE TABLE IF NOT EXISTS boss_agent_access (boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, agent_id TEXT NOT NULL REFERENCES api_keys(id), PRIMARY KEY (boss_id, agent_id))",
   "CREATE TABLE IF NOT EXISTS boss_devices (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, device_token TEXT NOT NULL UNIQUE, bundle_id TEXT NOT NULL, environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'production')), platform TEXT NOT NULL DEFAULT 'ios' CHECK (platform = 'ios'), created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')), last_seen_at TEXT NOT NULL DEFAULT (datetime('now')))",
   'CREATE INDEX IF NOT EXISTS idx_boss_devices_boss ON boss_devices(boss_id, last_seen_at DESC)',
@@ -68,4 +71,17 @@ export function authHeaders(): Record<string, string> {
 
 export function getTestAgentId(): string {
   return 'test-agent-id';
+}
+
+export async function seedBossToken(name: string, role: string, token: string, id?: string): Promise<string> {
+  const tokenHash = await hashApiKey(token);
+  const boss = id
+    ? await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role) VALUES (?, ?, ?) RETURNING id')
+      .bind(id, name, role).first<{ id: string }>()
+    : await env.DB.prepare('INSERT INTO bosses (name, role) VALUES (?, ?) RETURNING id')
+      .bind(name, role).first<{ id: string }>();
+  if (!boss) throw new Error('failed to seed boss');
+  await env.DB.prepare('INSERT OR REPLACE INTO boss_tokens (boss_id, label, token_hash) VALUES (?, ?, ?)')
+    .bind(boss.id, 'test', tokenHash).run();
+  return boss.id;
 }

@@ -28,8 +28,13 @@ interface QueuedMessageRow extends MessageRow {
 
 export async function handleScheduled(env: Env): Promise<void> {
   const now = new Date().toISOString();
+  await cleanupPairingCodes(env, now);
   await expireDueOptions(env, now);
   await drainDeliveryQueue(env, now);
+}
+
+async function cleanupPairingCodes(env: Env, now: string): Promise<void> {
+  await env.DB.prepare('DELETE FROM boss_pairing_codes WHERE consumed_at IS NOT NULL OR expires_at <= ?').bind(now).run();
 }
 
 async function expireDueOptions(env: Env, now: string): Promise<void> {

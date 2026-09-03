@@ -4,24 +4,16 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, authHeaders } from '../test-helpers';
-import { hashApiKey } from '../middleware/auth';
+import { seedDatabase, authHeaders, seedBossToken } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
-  const adminTokenHash = await hashApiKey('hb_boss_test_admin_token_0001');
-  await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
-    .bind('Boss Admin', 'admin', adminTokenHash)
-    .run();
-  const viewerTokenHash = await hashApiKey('hb_boss_test_viewer_token_0001');
-  await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
-    .bind('Boss Viewer', 'viewer', viewerTokenHash)
-    .run();
+  await seedBossToken('Boss Admin', 'admin', 'hb_boss_test_admin_token_0001');
+  await seedBossToken('Boss Viewer', 'viewer', 'hb_boss_test_viewer_token_0001');
 });
 
 let createdBossId: string;
+let generatedToken: string;
 
 function adminHeaders(): Record<string, string> {
   return {
@@ -299,6 +291,26 @@ describe('POST /api/bosses/:id/token', () => {
     const data = await res.json() as any;
     expect(data.token).toMatch(/^hb_boss_/);
     expect(data.id).toBe(createdBossId);
+    generatedToken = data.token;
+  });
+
+  it('revokes the prior target token when rotating', async () => {
+    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}/token`, {
+      method: 'POST',
+      headers: adminHeaders(),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { token: string };
+    expect((await SELF.fetch('http://localhost/api/boss/me', {
+      headers: { Authorization: `Bearer ${generatedToken}` },
+    })).status).toBe(401);
+    expect((await SELF.fetch('http://localhost/api/boss/me', {
+      headers: { Authorization: `Bearer ${data.token}` },
+    })).status).toBe(200);
+    const live = await env.DB.prepare('SELECT token_hash FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL')
+      .bind(createdBossId).all<{ token_hash: string }>();
+    expect(live.results).toHaveLength(1);
+    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: adminHeaders() })).status).toBe(200);
   });
 
   it('returns 404 for unknown boss', async () => {

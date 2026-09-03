@@ -35,6 +35,8 @@ import iconSvg from './icon.js';
 import { handleScheduled } from './scheduled';
 import { discordGatewayRouter } from './routes/discord-gateway-api';
 import { requestId } from './middleware/request-id';
+import { bossPairingRouter, pairingRouter } from './routes/pairing';
+import { bossTokensRouter } from './routes/boss-tokens';
 
 const app = new Hono<{ Bindings: Env; Variables: { reqId: string } }>({});
 const manifest = {
@@ -87,8 +89,11 @@ app.route('/api/groups', groupsRouter);
 app.route('/api/bosses', bossesRouter);
 app.route('/api/boss/inbox', bossInboxRouter);
 app.route('/api/boss/devices', bossDevicesRouter);
+app.route('/api/boss/tokens', bossTokensRouter);
 app.route('/api/boss', bossWritesRouter);
 app.route('/api/boss', bossApiRouter);
+app.route('/api/boss/pairing', bossPairingRouter);
+app.route('/api/pairing', pairingRouter);
 app.route('/api/audit', auditRouter);
 app.route('/api/sessions', sessionsRouter);
 app.route('/api/sessions', sessionEventsRouter);

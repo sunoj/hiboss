@@ -5,8 +5,9 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, getBossRole, hashApiKey } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { issueBossToken } from '../boss-token';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
 
@@ -271,24 +272,18 @@ routes.delete('/:id/access/:agentId', async (c) => {
   return c.json({ ok: true });
 });
 
-// POST /api/bosses/:id/token — generate or regenerate a boss auth token
+// POST /api/bosses/:id/token — rotate a boss auth token
 routes.post('/:id/token', async (c) => {
   if (getBossRole(c) !== 'admin') {
     return c.json({ error: 'admin required' }, 403);
   }
   const boss = await findBoss(c.env, c.req.param('id'));
   if (!boss) return c.text('not found', 404);
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-  const token = `hb_boss_${hex}`;
-  const tokenHash = await hashApiKey(token);
-  await c.env.DB
-    .prepare('UPDATE bosses SET token_hash = ? WHERE id = ?')
-    .bind(tokenHash, boss.id)
-    .run();
+  await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND revoked_at IS NULL")
+    .bind(boss.id).run();
+  const token = await issueBossToken(c.env, boss.id, 'rotated');
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.token', 'boss', boss.id));
-  return c.json({ id: boss.id, name: boss.name, token });
+  return c.json({ id: boss.id, name: boss.name, label: 'rotated', token });
 });
 
 export const bossesRouter = routes;

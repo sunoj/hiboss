@@ -4,7 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
+import { seedDatabase, authHeaders, getTestAgentId, seedBossToken } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 beforeAll(async () => {
@@ -14,11 +14,7 @@ beforeAll(async () => {
     .prepare('INSERT INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id-2', 'test-agent-2', otherAgentKeyHash)
     .run();
-  const bossTokenHash = await hashApiKey('hb_boss_sessions_token_0001');
-  await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
-    .bind('Sessions Boss', 'admin', bossTokenHash)
-    .run();
+  await seedBossToken('Sessions Boss', 'admin', 'hb_boss_sessions_token_0001');
 });
 
 function otherAgentHeaders(): Record<string, string> {

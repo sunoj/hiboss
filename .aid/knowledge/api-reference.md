@@ -208,7 +208,31 @@ Grant agent access. Request: `{ "agent_id" }`.
 Revoke agent access.
 
 ### POST /api/bosses/:id/token
-Generate boss auth token (`hb_boss_*` prefix). Token shown once.
+Admin only. Rotate a boss auth token (`hb_boss_*` prefix). Token shown once; every prior token for the target boss, including the caller's, is revoked. When rotating the authenticated boss itself, use the returned token immediately.
+
+### GET /api/boss/tokens
+Admin only. List the authenticated boss's token metadata: `{ "tokens": [{ "id", "label", "created_at", "last_used_at", "revoked_at" }] }`.
+Token hashes and bearer token values are never returned.
+
+### DELETE /api/boss/tokens/:tokenId
+Revoke one token belonging to the authenticated boss. Any boss may revoke its own token to sign out that device; the response is `{ "ok": true, "authenticated": false }` and the caller's next request is unauthenticated. Revoking another token is admin-only and returns `{ "ok": true }`.
+
+### POST /api/boss/tokens/revoke-others
+Admin only. Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
+
+Token-management controls do not prevent a stolen admin bearer from revoking sibling devices; this residual risk is accepted. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
+
+### POST /api/boss/pairing
+Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five active codes are retained per boss; expired and consumed rows are cleaned before minting. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
+`{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
+The server stores only a hash of the code.
+
+### POST /api/pairing/redeem
+Unauthenticated by design. Redeem a pairing code once to create a new boss token for a device.
+Request: `{ "code": "hb_pair_<64 hex characters>", "device_label": "string" }`.
+Response:
+`{ "token": "hb_boss_<64 hex characters>", "boss": { "id", "name", "role" } }`.
+The new token is independent from all other boss tokens; an existing device remains online.
 
 ## Boss Inbox Endpoints (Agent-as-Boss)
 
@@ -231,7 +255,7 @@ Mark as read. Request: `{ "status": "read" }`.
 Authenticated with `hb_boss_*` tokens. Role-based access control.
 
 ### GET /api/boss/me
-Boss profile with accessible agent IDs.
+Boss profile with the caller's `token_id` and accessible agent IDs. The token ID is safe to use with `DELETE /api/boss/tokens/:tokenId` to sign out this device.
 
 ### GET /api/boss/agents
 Agents the boss can access.
