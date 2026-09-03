@@ -64,13 +64,18 @@ export async function getBossHome(env: Env, bossName: string, agentIds: string[]
   if (agentIds.length === 0) return emptyHome(bossName);
   const ph = agentIds.map(() => '?').join(', ');
   const now = new Date().toISOString();
-  const [kpis, activityRows, liveSessions, pending, progressRows] = await Promise.all([
+  const [kpiResult, activityResult, liveSessionResult, pendingResult, progressResult] = await env.DB.batch([
     loadKpis(env, ph, agentIds, now),
     loadActivity(env, ph, agentIds),
     loadLiveSessions(env, ph, agentIds),
     loadPending(env, ph, agentIds, now),
     loadProgress7d(env, ph, agentIds),
   ]);
+  const kpis = mapKpis(kpiResult.results[0] as Record<string, number> | undefined);
+  const activityRows = activityResult.results as { d: string; kind: string; c: number }[];
+  const liveSessions = liveSessionResult.results as LiveSession[];
+  const pending = pendingResult.results as PendingRow[];
+  const progressRows = progressResult.results as ProgressRow[];
   const days = fillActivityDays(activityRows);
   return {
     boss: { name: bossName },
@@ -81,8 +86,8 @@ export async function getBossHome(env: Env, bossName: string, agentIds: string[]
   };
 }
 
-async function loadKpis(env: Env, ph: string, agentIds: string[], now: string): Promise<BossHome['kpis']> {
-  const row = await env.DB.prepare(
+function loadKpis(env: Env, ph: string, agentIds: string[], now: string): D1PreparedStatement {
+  return env.DB.prepare(
     `SELECT
        (SELECT COUNT(*) FROM sessions WHERE agent_id IN (${ph})
           AND last_seen_at > datetime('now', '-15 minutes')) AS activeSessions,
@@ -94,8 +99,10 @@ async function loadKpis(env: Env, ph: string, agentIds: string[], now: string): 
        (SELECT COUNT(*) FROM messages WHERE agent_id IN (${ph})
           AND direction = 'agent_to_boss' AND status IN ('sent','delivered')
           AND created_at >= datetime('now', '-1 hour')) AS unread1h`,
-  ).bind(...agentIds, ...agentIds, ...agentIds, now, ...agentIds, now, ...agentIds)
-    .first<Record<string, number>>();
+  ).bind(...agentIds, ...agentIds, ...agentIds, now, ...agentIds, now, ...agentIds);
+}
+
+function mapKpis(row: Record<string, number> | undefined): BossHome['kpis'] {
   return {
     activeSessions: row?.activeSessions ?? 0,
     workingSessions: row?.workingSessions ?? 0,
@@ -104,9 +111,8 @@ async function loadKpis(env: Env, ph: string, agentIds: string[], now: string): 
     unread1h: row?.unread1h ?? 0,
   };
 }
-
-async function loadActivity(env: Env, ph: string, ids: string[]): Promise<{ d: string; kind: string; c: number }[]> {
-  const rows = await env.DB.prepare(
+function loadActivity(env: Env, ph: string, ids: string[]): D1PreparedStatement {
+  return env.DB.prepare(
     `SELECT date(created_at) AS d, 'posts' AS kind, COUNT(*) AS c FROM progress_posts
      WHERE agent_id IN (${ph}) AND created_at >= datetime('now', '-28 days') GROUP BY d
      UNION ALL
@@ -118,30 +124,25 @@ async function loadActivity(env: Env, ph: string, ids: string[]): Promise<{ d: s
      SELECT date(created_at), 'messages', COUNT(*) FROM messages
      WHERE agent_id IN (${ph}) AND created_at >= datetime('now', '-28 days')
      GROUP BY date(created_at)`,
-  ).bind(...ids, ...ids, ...ids).all<{ d: string; kind: string; c: number }>();
-  return rows.results ?? [];
+  ).bind(...ids, ...ids, ...ids);
 }
 
-async function loadLiveSessions(env: Env, ph: string, ids: string[]): Promise<LiveSession[]> {
-  const rows = await env.DB.prepare(
+function loadLiveSessions(env: Env, ph: string, ids: string[]): D1PreparedStatement {
+  return env.DB.prepare(
     `SELECT id, label, status, status_text, last_seen_at FROM sessions
      WHERE agent_id IN (${ph}) AND last_seen_at > datetime('now', '-15 minutes')`,
-  ).bind(...ids).all<LiveSession>();
-  return rows.results ?? [];
+  ).bind(...ids);
 }
-
-async function loadPending(env: Env, ph: string, ids: string[], now: string): Promise<PendingRow[]> {
-  const rows = await env.DB.prepare(
+function loadPending(env: Env, ph: string, ids: string[], now: string): D1PreparedStatement {
+  return env.DB.prepare(
     `SELECT m.id, m.session_id, m.body, m.priority, m.mode, m.created_at, m.expires_at,
             s.label AS session_label
      FROM messages m LEFT JOIN sessions s ON s.id = m.session_id
      WHERE m.agent_id IN (${ph}) AND ${pendingSql('m')}`,
-  ).bind(...ids, now).all<PendingRow>();
-  return rows.results ?? [];
+  ).bind(...ids, now);
 }
-
-async function loadProgress7d(env: Env, ph: string, ids: string[]): Promise<ProgressRow[]> {
-  const rows = await env.DB.prepare(
+function loadProgress7d(env: Env, ph: string, ids: string[]): D1PreparedStatement {
+  return env.DB.prepare(
     `SELECT project, COUNT(*) AS post_count,
        (SELECT id FROM progress_posts x WHERE x.project = p.project AND x.agent_id IN (${ph})
           AND x.created_at >= datetime('now', '-7 days') ORDER BY x.created_at DESC LIMIT 1) AS last_id,
@@ -152,8 +153,7 @@ async function loadProgress7d(env: Env, ph: string, ids: string[]): Promise<Prog
      FROM progress_posts p
      WHERE p.agent_id IN (${ph}) AND p.created_at >= datetime('now', '-7 days')
      GROUP BY p.project`,
-  ).bind(...ids, ...ids, ...ids, ...ids).all<ProgressRow>();
-  return rows.results ?? [];
+  ).bind(...ids, ...ids, ...ids, ...ids);
 }
 
 function projectFromLabel(label: string | null | undefined): string | null {
