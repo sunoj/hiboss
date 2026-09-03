@@ -98,6 +98,19 @@ extension HistoryMessage {
         hasActiveHistoryOptions && !isResolvedHistoryMessage
     }
 
+    /// Server auto-selected on timeout — history only, never as if the boss chose.
+    var isAutoDecidedHistoryMessage: Bool {
+        metadata?.isExpired == true || normalizedStatus == "expired"
+    }
+
+    var historyAutoDecidedLabel: String? {
+        guard isAutoDecidedHistoryMessage else { return nil }
+        if let option = clean(defaultOption) {
+            return L("Auto-decided · \(option)")
+        }
+        return L("Auto-decided")
+    }
+
     var historyDisplayName: String {
         isBossHistoryMessage ? L("Me") : clean(agentName) ?? L("Agent")
     }
