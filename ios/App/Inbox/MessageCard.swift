@@ -188,11 +188,17 @@ struct OptionButton: View {
     var body: some View {
         Group {
             if style == .primary {
-                Button(action: action) { label }
+                Button(action: action) {
+                    label.foregroundStyle(Theme.paper)
+                }
                     .buttonStyle(.borderedProminent)
+                    .tint(Theme.ink)
             } else {
-                Button(action: action) { label }
+                Button(action: action) {
+                    label.foregroundStyle(Theme.ink)
+                }
                     .buttonStyle(.bordered)
+                    .tint(Theme.ink)
             }
         }
         .controlSize(controlSize)
