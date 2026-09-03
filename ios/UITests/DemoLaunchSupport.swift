@@ -13,6 +13,7 @@ extension XCUIApplication {
         "HIBOSS_DEMO_OPEN",
         "HIBOSS_DEMO_SESSION",
         "HIBOSS_DEMO_RESOLVED",
+        "HIBOSS_DEMO_EMPTY",
         "HIBOSS_TAB",
     ]
 
