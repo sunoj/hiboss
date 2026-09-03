@@ -5,7 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, authHeaders } from '../test-helpers';
-import { hashApiKey } from './auth';
+import { apiAuth, bossAuth, dualAuth, hashApiKey } from './auth';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -80,3 +80,63 @@ describe('hashApiKey helper', () => {
     expect(hashA).not.toBe(hashB);
   });
 });
+
+describe('auth activity writes', () => {
+  it('does not wait for api key activity persistence before the handler', async () => {
+    await assertAuthWriteIsDeferred(apiAuth, { id: 'agent-id' });
+  });
+
+  it('does not wait for boss token activity persistence before the handler', async () => {
+    await assertAuthWriteIsDeferred(bossAuth, {
+      id: 'boss-id', name: 'Boss', role: 'admin', token_id: 'token-id',
+    });
+  });
+
+  it('does not wait for dual agent activity persistence before the handler', async () => {
+    await assertAuthWriteIsDeferred(dualAuth, { id: 'agent-id' });
+  });
+
+  it('does not wait for dual boss activity persistence before the handler', async () => {
+    await assertAuthWriteIsDeferred(dualAuth, null, {
+      id: 'boss-id', name: 'Boss', role: 'admin', token_id: 'token-id',
+    });
+  });
+});
+
+async function assertAuthWriteIsDeferred(
+  authenticate: typeof apiAuth,
+  ...records: (Record<string, string> | null)[]
+): Promise<void> {
+  let releaseUpdate: () => void = () => {};
+  const update = new Promise<unknown>((resolve) => { releaseUpdate = () => resolve({}); });
+  const waits: Promise<unknown>[] = [];
+  let selectIndex = 0;
+  const db = {
+    prepare(sql: string) {
+      return {
+        bind(..._values: unknown[]) {
+          if (sql.startsWith('SELECT')) {
+            return { first: async <T>(): Promise<T | null> => records[selectIndex++] as T | null };
+          }
+          return { run: () => update };
+        },
+      };
+    },
+  };
+  const context = {
+    req: { header: () => 'Bearer test-token' },
+    env: { DB: db },
+    executionCtx: { waitUntil: (promise: Promise<unknown>) => waits.push(promise) },
+    text: (body: string, status: number) => new Response(body, { status }),
+  } as unknown as Parameters<typeof apiAuth>[0];
+  let handlerCalled = false;
+  const response = await authenticate(context, async () => {
+    handlerCalled = true;
+  });
+
+  expect(response).toBeUndefined();
+  expect(handlerCalled).toBe(true);
+  expect(waits).toHaveLength(1);
+  releaseUpdate();
+  await waits[0];
+}
