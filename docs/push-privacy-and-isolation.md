@@ -26,8 +26,8 @@ your agents ──► your Worker ──► your D1 (messages, bosses, boss_devi
 APNs delivery is bound to the **app's bundle ID**, which is owned by **one Apple Developer
 team**. An APNs auth key (`.p8`) can only push to app IDs of the team that created it.
 
-**Consequence:** the first-party build `ai.hiboss.ios` (team `YX8SMYQJ6U`) can only be pushed
-to by that team's APNs key. A different operator **cannot** push to `ai.hiboss.ios` with their
+**Consequence:** the first-party build `ai.hiboss.app` (team `JHH9GC8Y8C`) can only be pushed
+to by that team's APNs key. A different operator **cannot** push to `ai.hiboss.app` with their
 own key — and you should not hand out your key, because whoever holds it can push to every
 install of that bundle ID. So:
 
@@ -35,7 +35,7 @@ install of that bundle ID. So:
   bundle ID (e.g. `com.acme.hiboss`), their own signing team, their own APNs key — and points
   it at their own server. Full isolation, no shared push plane. This is the honest
   self-hosted story (you build the client, like any self-hosted app).
-- The published `ai.hiboss.ios` is a **first-party/reference client** tied to our team. Others
+- The published `ai.hiboss.app` is a **first-party/reference client** tied to our team. Others
   can point a build at their server for in-app SSE/history, but **push** requires their own
   bundle ID + key.
 

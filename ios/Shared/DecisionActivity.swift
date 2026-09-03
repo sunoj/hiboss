@@ -26,7 +26,7 @@ struct DecisionActivityAttributes: ActivityAttributes {
 
 /// Storage keys shared by the app's ConnectionStore and the Live Activity intent.
 enum HiBossStore {
-    static let keychainService = "ai.hiboss.ios"
+    static let keychainService = "ai.hiboss.app"
     static let keychainAccount = "boss-token"
 
     /// Rebuilds the boss API from persisted server URL + Keychain token.

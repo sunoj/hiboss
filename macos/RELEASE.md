@@ -28,14 +28,15 @@ verifies each build's signature before installing, so the artifacts are public.
    ```
 
 4. **Store notary credentials** (only needed to notarize; the profile name is
-   what `NOTARY_PROFILE` refers to):
+   what `NOTARY_PROFILE` refers to). The App Store Connect API key belongs to
+   team `JHH9GC8Y8C`:
    ```sh
    xcrun notarytool store-credentials hiboss-notary \
-     --apple-id <your-apple-id> --team-id YX8SMYQJ6U \
-     --password <app-specific-password>
+     --key ~/.asc/keys/AuthKey_X4MPPK98FQ.p8 \
+     --key-id X4MPPK98FQ \
+     --issuer 8099100b-af06-423e-bc8d-10f5eec00ee9
    ```
-   Generate the app-specific password at appleid.apple.com → Sign-In and
-   Security → App-Specific Passwords. It is stored in your login Keychain.
+   The profile is stored in your login Keychain.
 
 ## Cut a release
 
@@ -44,7 +45,7 @@ From `macos/`:
 UPLOAD_SECRET=<worker RELEASE_UPLOAD_SECRET> \
 HIBOSS_UPDATES_BASE=https://<your-server>/updates/macos \
 HIBOSS_SPARKLE_PUBKEY=<public key from step 1> \
-[HIBOSS_SIGNING_IDENTITY="Developer ID Application: … (TEAMID)"] \
+[HIBOSS_SIGNING_IDENTITY="Developer ID Application: … (JHH9GC8Y8C)"] \
 [NOTARY_PROFILE=hiboss-notary] \
 ./scripts/release.sh 0.2.0 "What changed in this version."
 ```

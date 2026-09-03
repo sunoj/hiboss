@@ -7,6 +7,11 @@ options:
   groupSortPosition: top
   developmentLanguage: en
 
+configs:
+  Debug: debug
+  Release: release
+  AdHoc: release
+
 packages:
   HibossKit:
     path: ../HibossKit
@@ -18,6 +23,17 @@ settings:
     SWIFT_VERSION: "6.0"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEVELOPMENT_TEAM: JHH9GC8Y8C
+  configs:
+    Debug:
+      APS_ENVIRONMENT: development
+      CODE_SIGNING_ALLOWED: NO
+    Release:
+      APS_ENVIRONMENT: production
+      CODE_SIGNING_ALLOWED: YES
+    AdHoc:
+      APS_ENVIRONMENT: production
+      CODE_SIGNING_ALLOWED: YES
 
 targets:
   HiBoss:
@@ -35,7 +51,7 @@ targets:
         - HiBossUITests
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.app
         INFOPLIST_FILE: App/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: App/HiBoss.entitlements
@@ -44,7 +60,16 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
         CODE_SIGN_STYLE: Automatic
-        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: ""
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
+          PROVISIONING_PROFILE_SPECIFIER: "HiBoss iOS AppStore"
+        AdHoc:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
+          PROVISIONING_PROFILE_SPECIFIER: "HiBoss iOS AdHoc"
 
   HiBossWidgets:
     type: app-extension
@@ -56,12 +81,21 @@ targets:
       - package: HibossKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.app.widgets
         INFOPLIST_FILE: Widgets/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
-        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGN_IDENTITY: ""
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
+          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Widgets AppStore"
+        AdHoc:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
+          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Widgets AdHoc"
 
   HiBossTests:
     type: bundle.unit-test
@@ -72,9 +106,8 @@ targets:
       - target: HiBoss
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.tests
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.app.tests
         GENERATE_INFOPLIST_FILE: YES
-        CODE_SIGNING_ALLOWED: NO
 
   HiBossUITests:
     type: bundle.ui-testing
@@ -85,7 +118,6 @@ targets:
       - target: HiBoss
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.ios.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.app.uitests
         GENERATE_INFOPLIST_FILE: YES
-        CODE_SIGNING_ALLOWED: NO
         TEST_TARGET_NAME: HiBoss
