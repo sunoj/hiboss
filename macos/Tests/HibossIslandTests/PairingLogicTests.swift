@@ -4,6 +4,7 @@
 
 import AppKit
 import Foundation
+import HibossKit
 import XCTest
 @testable import HibossIsland
 
@@ -37,6 +38,112 @@ final class PairingLogicTests: XCTestCase {
         let image = try XCTUnwrap(PairingQRCodeGenerator.image(for: link))
 
         XCTAssertFalse(image.representations.isEmpty)
+    }
+
+    func testPairingContentStateShowsProgressWhileRequesting() {
+        XCTAssertEqual(
+            PairingContentState.derive(
+                grant: nil,
+                hasConfiguredServer: false,
+                now: Date(),
+                isRequesting: true,
+                requestFailure: nil,
+                linkResult: nil,
+                canRenderQRCode: false
+            ),
+            .requesting
+        )
+    }
+
+    func testPairingContentStateReportsMissingConfiguration() {
+        XCTAssertEqual(Self.deriveState(hasConfiguredServer: false), .notConfigured)
+    }
+
+    func testPairingContentStateReportsMissingCode() {
+        XCTAssertEqual(Self.deriveState(), .noCode)
+    }
+
+    func testPairingContentStateReportsExpiredCode() throws {
+        let grant = try Self.grant(expiresIn: -1)
+        XCTAssertEqual(Self.deriveState(grant: grant), .expired)
+    }
+
+    func testPairingContentStateReportsPermissionDenied() {
+        XCTAssertEqual(
+            Self.deriveState(requestFailure: .permissionDenied),
+            .permissionDenied
+        )
+        XCTAssertEqual(
+            PairingRequestFailure.from(HibossAPIError.requestFailed(status: 403, message: "admin required")),
+            .permissionDenied
+        )
+    }
+
+    func testPairingContentStateReportsRequestFailure() {
+        XCTAssertEqual(Self.deriveState(requestFailure: .failed), .requestFailed)
+        XCTAssertEqual(
+            PairingRequestFailure.from(HibossAPIError.requestFailed(status: 500, message: "unavailable")),
+            .failed
+        )
+    }
+
+    func testPairingContentStateReportsInvalidLink() throws {
+        let grant = try Self.grant(expiresIn: 300)
+        XCTAssertEqual(
+            Self.deriveState(grant: grant, linkResult: .failure(.invalidServerURL)),
+            .invalidLink
+        )
+    }
+
+    func testPairingContentStateReportsUnavailableQRCode() throws {
+        let grant = try Self.grant(expiresIn: 300)
+        let link = try Self.link()
+        XCTAssertEqual(
+            Self.deriveState(grant: grant, linkResult: .success(link), canRenderQRCode: false),
+            .qrUnavailable
+        )
+    }
+
+    func testPairingContentStateCarriesReadyGrantAndLink() throws {
+        let grant = try Self.grant(expiresIn: 300)
+        let link = try Self.link()
+        let state = Self.deriveState(grant: grant, linkResult: .success(link), canRenderQRCode: true)
+
+        guard case let .ready(actualGrant, actualLink) = state else {
+            return XCTFail("Expected a ready pairing state")
+        }
+        XCTAssertEqual(actualGrant, grant)
+        XCTAssertEqual(actualLink, link)
+    }
+
+    private static func deriveState(
+        grant: PairingGrant? = nil,
+        hasConfiguredServer: Bool = true,
+        requestFailure: PairingRequestFailure? = nil,
+        linkResult: Result<PairingLink, PairingLinkError>? = nil,
+        canRenderQRCode: Bool = false
+    ) -> PairingContentState {
+        PairingContentState.derive(
+            grant: grant,
+            hasConfiguredServer: hasConfiguredServer,
+            now: Date(timeIntervalSince1970: 1_000),
+            isRequesting: false,
+            requestFailure: requestFailure,
+            linkResult: linkResult,
+            canRenderQRCode: canRenderQRCode
+        )
+    }
+
+    private static func grant(expiresIn: TimeInterval) throws -> PairingGrant {
+        try PairingGrant(
+            code: validCode,
+            expiresAt: Date(timeIntervalSince1970: 1_000 + expiresIn)
+        )
+    }
+
+    private static func link() throws -> PairingLink {
+        let serverURL = try XCTUnwrap(URL(string: "https://hiboss.example"))
+        return try PairingLink(serverURL: serverURL, code: validCode)
     }
 
     private static let validCode = "hb_pair_" + String(repeating: "a", count: 64)
