@@ -208,20 +208,22 @@ Grant agent access. Request: `{ "agent_id" }`.
 Revoke agent access.
 
 ### POST /api/bosses/:id/token
-Rotate a boss auth token (`hb_boss_*` prefix). Token shown once; prior tokens for the target boss are revoked. When rotating the authenticated boss itself, the token making the request remains valid.
+Admin only. Rotate a boss auth token (`hb_boss_*` prefix). Token shown once; every prior token for the target boss, including the caller's, is revoked. When rotating the authenticated boss itself, use the returned token immediately.
 
 ### GET /api/boss/tokens
-List the authenticated boss's token metadata: `{ "tokens": [{ "id", "label", "created_at", "last_used_at", "revoked_at" }] }`.
+Admin only. List the authenticated boss's token metadata: `{ "tokens": [{ "id", "label", "created_at", "last_used_at", "revoked_at" }] }`.
 Token hashes and bearer token values are never returned.
 
 ### DELETE /api/boss/tokens/:tokenId
-Revoke one token belonging to the authenticated boss. Returns `{ "ok": true }`.
+Revoke one token belonging to the authenticated boss. Any boss may revoke its own token to sign out that device; the response is `{ "ok": true, "authenticated": false }` and the caller's next request is unauthenticated. Revoking another token is admin-only and returns `{ "ok": true }`.
 
 ### POST /api/boss/tokens/revoke-others
-Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
+Admin only. Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
+
+Token-management controls do not prevent a stolen admin token from revoking sibling devices. The five-minute, single-use pairing-code lifetime limits the exposure of a photographed QR code.
 
 ### POST /api/boss/pairing
-Issue a short-lived, single-use QR pairing code for the authenticated boss. Response:
+Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five active codes are retained per boss; expired and consumed rows are cleaned before minting. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
 `{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
 The server stores only a hash of the code.
 

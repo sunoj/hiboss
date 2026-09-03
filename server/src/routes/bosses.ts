@@ -5,7 +5,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, getBossRole, getBossTokenId } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { issueBossToken } from '../boss-token';
 
@@ -279,13 +279,8 @@ routes.post('/:id/token', async (c) => {
   }
   const boss = await findBoss(c.env, c.req.param('id'));
   if (!boss) return c.text('not found', 404);
-  if (boss.id === getBossId(c)) {
-    await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND id != ? AND revoked_at IS NULL")
-      .bind(boss.id, getBossTokenId(c)).run();
-  } else {
-    await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND revoked_at IS NULL")
-      .bind(boss.id).run();
-  }
+  await c.env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE boss_id = ? AND revoked_at IS NULL")
+    .bind(boss.id).run();
   const token = await issueBossToken(c.env, boss.id, 'rotated');
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.token', 'boss', boss.id));
   return c.json({ id: boss.id, name: boss.name, label: 'rotated', token });
