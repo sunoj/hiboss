@@ -307,6 +307,10 @@ describe('POST /api/bosses/:id/token', () => {
     expect((await SELF.fetch('http://localhost/api/boss/me', {
       headers: { Authorization: `Bearer ${data.token}` },
     })).status).toBe(200);
+    const live = await env.DB.prepare('SELECT token_hash FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL')
+      .bind(createdBossId).all<{ token_hash: string }>();
+    expect(live.results).toHaveLength(1);
+    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: adminHeaders() })).status).toBe(200);
   });
 
   it('returns 404 for unknown boss', async () => {

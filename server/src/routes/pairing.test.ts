@@ -10,13 +10,16 @@ import { seedBossToken, seedDatabase } from '../test-helpers';
 const BOSS_TOKEN = 'hb_boss_pairing_test_existing_token';
 const RATE_LIMIT_TOKEN = 'hb_boss_pairing_rate_limit_token';
 const TOKEN_MANAGEMENT_TOKEN = 'hb_boss_pairing_token_management_token';
+const SELF_ROTATE_TOKEN = 'hb_boss_pairing_self_rotate_token';
 let bossId: string;
+let selfRotateBossId: string;
 
 beforeAll(async () => {
   await seedDatabase();
   bossId = await seedBossToken('Pairing Boss', 'admin', BOSS_TOKEN, 'pairing-boss');
   await seedBossToken('Rate Limit Boss', 'viewer', RATE_LIMIT_TOKEN, 'pairing-rate-limit-boss');
   await seedBossToken('Token Management Boss', 'admin', TOKEN_MANAGEMENT_TOKEN, 'pairing-token-management-boss');
+  selfRotateBossId = await seedBossToken('Self Rotate Boss', 'admin', SELF_ROTATE_TOKEN, 'pairing-self-rotate-boss');
 });
 
 function bossHeaders(token: string = BOSS_TOKEN): Record<string, string> {
@@ -52,19 +55,18 @@ describe('POST /api/boss/pairing', () => {
     expect(response.status).toBe(401);
   });
 
-  it('limits active pairing codes per boss', async () => {
+  it('caps active pairing codes and cleans consumed rows before minting', async () => {
     const codes: string[] = [];
     for (let index = 0; index < 5; index += 1) codes.push((await issueCode(RATE_LIMIT_TOKEN)).code);
-    for (const code of codes) {
-      const redeemed = await SELF.fetch('http://localhost/api/pairing/redeem', {
-        method: 'POST', body: JSON.stringify({ code, device_label: 'Rate-limited device' }),
-      });
-      expect(redeemed.status).toBe(200);
-    }
     const response = await SELF.fetch('http://localhost/api/boss/pairing', {
       method: 'POST', headers: bossHeaders(RATE_LIMIT_TOKEN),
     });
     expect(response.status).toBe(429);
+    const redeemed = await SELF.fetch('http://localhost/api/pairing/redeem', {
+      method: 'POST', body: JSON.stringify({ code: codes[0], device_label: 'Rate-limited device' }),
+    });
+    expect(redeemed.status).toBe(200);
+    expect((await issueCode(RATE_LIMIT_TOKEN)).code).toMatch(/^hb_pair_/);
   });
 });
 
@@ -154,6 +156,48 @@ describe('boss token management', () => {
     expect(response.status).toBe(200);
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(TOKEN_MANAGEMENT_TOKEN) })).status).toBe(200);
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(data.token) })).status).toBe(401);
+  });
+
+  it('requires admin for listing, revoke-others, and revoking another token', async () => {
+    const list = await SELF.fetch('http://localhost/api/boss/tokens', { headers: bossHeaders(RATE_LIMIT_TOKEN) });
+    expect(list.status).toBe(403);
+    const revokeOthers = await SELF.fetch('http://localhost/api/boss/tokens/revoke-others', {
+      method: 'POST', headers: bossHeaders(RATE_LIMIT_TOKEN),
+    });
+    expect(revokeOthers.status).toBe(403);
+    const adminToken = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
+      .bind(await hashApiKey(TOKEN_MANAGEMENT_TOKEN)).first<{ id: string }>();
+    const revokeOther = await SELF.fetch(`http://localhost/api/boss/tokens/${adminToken?.id}`, {
+      method: 'DELETE', headers: bossHeaders(RATE_LIMIT_TOKEN),
+    });
+    expect(revokeOther.status).toBe(403);
+  });
+
+  it('allows a non-admin token to revoke itself and then rejects it', async () => {
+    const viewerToken = await env.DB.prepare('SELECT id FROM boss_tokens WHERE token_hash = ?')
+      .bind(await hashApiKey(RATE_LIMIT_TOKEN)).first<{ id: string }>();
+    const response = await SELF.fetch(`http://localhost/api/boss/tokens/${viewerToken?.id}`, {
+      method: 'DELETE', headers: bossHeaders(RATE_LIMIT_TOKEN),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, authenticated: false });
+    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(RATE_LIMIT_TOKEN) })).status).toBe(401);
+  });
+});
+
+describe('boss token rotation', () => {
+  it('revokes every token on self-rotation and returns the only live token', async () => {
+    const response = await SELF.fetch(`http://localhost/api/bosses/${selfRotateBossId}/token`, {
+      method: 'POST', headers: bossHeaders(SELF_ROTATE_TOKEN),
+    });
+    expect(response.status).toBe(200);
+    const data = await response.json() as { token: string };
+    const live = await env.DB.prepare('SELECT token_hash FROM boss_tokens WHERE boss_id = ? AND revoked_at IS NULL')
+      .bind(selfRotateBossId).all<{ token_hash: string }>();
+    expect(live.results).toHaveLength(1);
+    expect(live.results[0]?.token_hash).toBe(await hashApiKey(data.token));
+    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(SELF_ROTATE_TOKEN) })).status).toBe(401);
+    expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders(data.token) })).status).toBe(200);
   });
 });
 

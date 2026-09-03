@@ -37,6 +37,14 @@ class AuthStore {
 		this.client = BossApiClient.fromConnection(stored);
 	}
 
+	replaceToken(token: string): void {
+		if (!this.connection) return;
+		const stored: StoredConnection = { ...this.connection, token };
+		saveConnection(stored);
+		this.connection = stored;
+		this.client = BossApiClient.fromConnection(stored);
+	}
+
 	signOut(): void {
 		clearConnection();
 		this.connection = null;

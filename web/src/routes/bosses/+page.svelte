@@ -84,6 +84,7 @@
 		busyKey = key;
 		try {
 			const res = await client.rotateToken(bossId);
+			if (auth.connection?.boss?.id === bossId) auth.replaceToken(res.token);
 			revealed = res;
 			toasts.push(t('form.tokenRotated', { name: res.name }), 'success');
 		} catch (e) {
