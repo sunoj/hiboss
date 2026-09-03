@@ -11,7 +11,7 @@ struct HomeAttentionSection: View {
     let onOpen: (MessageID) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             title
             if groups.isEmpty {
                 allClear
@@ -41,10 +41,16 @@ struct HomeAttentionSection: View {
             Text("Needs you now")
                 .font(.hbLargeTitle)
                 .foregroundStyle(Theme.ink)
-            Text("The work waiting on your call")
+            Text(verbatim: titleSubtitle)
                 .font(.hbCallout)
                 .foregroundStyle(Theme.ink2)
         }
+    }
+
+    private var titleSubtitle: String {
+        guard !groups.isEmpty else { return "Nothing is waiting on your call" }
+        let count = groups.reduce(0) { $0 + $1.items.count }
+        return count == 1 ? "1 item waiting on your call" : String(count) + " items waiting on your call"
     }
 
     private var allClear: some View {
@@ -78,7 +84,7 @@ struct HomeAttentionRow: View {
             timing
             choices
         }
-        .padding(16)
+        .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(alignment: .leading) {
             UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: 18)
@@ -89,7 +95,7 @@ struct HomeAttentionRow: View {
     }
 
     private var info: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Label(project, systemImage: "square.stack.3d.up")
                     .font(.hbCaption.weight(.semibold))
@@ -102,13 +108,13 @@ struct HomeAttentionRow: View {
             Text(item.message.body)
                 .font(.hbBodyStrong)
                 .foregroundStyle(Theme.ink)
-                .lineLimit(4)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
             if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty {
                 Text(content)
                     .font(.hbCaption)
                     .foregroundStyle(Theme.ink2)
-                    .lineLimit(3)
+                    .lineLimit(2)
             }
             Text("Asked by \(item.message.displayName)")
                 .font(.hbCaption)
@@ -129,8 +135,8 @@ struct HomeAttentionRow: View {
     }
 
     private var timing: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
                 Label(waitedText, systemImage: "clock")
                 if item.group == .autoDecision, let deadline = item.expiresAt {
                     Spacer(minLength: 0)
@@ -159,12 +165,12 @@ struct HomeAttentionRow: View {
     @ViewBuilder
     private var choices: some View {
         if item.options.count == 2 {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 choiceButton(item.options[0])
                 choiceButton(item.options[1])
             }
         } else {
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 ForEach(item.options, id: \.self) { option in
                     choiceButton(option, alignment: .leading)
                 }
@@ -176,7 +182,8 @@ struct HomeAttentionRow: View {
         OptionButton(
             title: option,
             style: option == item.defaultOption ? .primary : .secondary,
-            alignment: alignment
+            alignment: alignment,
+            controlSize: .regular
         ) { onChoose(option) }
     }
 }
