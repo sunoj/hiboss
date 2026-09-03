@@ -58,7 +58,7 @@ struct ConnectView: View {
 
     private var logo: some View {
         Text("h")
-            .font(.system(size: 26, weight: .semibold, design: .monospaced))
+            .font(.title2.monospaced().weight(.semibold))
             .foregroundStyle(Color(uiColor: UIColor(rgb: 0xECEBE7)))
             .frame(width: 52, height: 52)
             .background(
