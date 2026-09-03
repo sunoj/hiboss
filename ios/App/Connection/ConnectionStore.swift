@@ -17,15 +17,18 @@ final class ConnectionStore: ObservableObject {
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
+    private let pairingRedeemer: PairingRedeemer
 
     init(
         defaults: UserDefaults = .standard,
-        keychain: (any TokenStoring)? = nil
+        keychain: (any TokenStoring)? = nil,
+        pairingRedeemer: PairingRedeemer = PairingRedeemer()
     ) {
         self.defaults = defaults
         self.keychain = keychain ?? KeychainStore(
             service: HiBossStore.keychainService, account: HiBossStore.keychainAccount
         )
+        self.pairingRedeemer = pairingRedeemer
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
     }
@@ -64,6 +67,26 @@ final class ConnectionStore: ObservableObject {
             defaults.set(candidate.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
             config = candidate
             return .success(())
+        }
+    }
+
+    /// Redeems a Mac-generated pairing code and persists the resulting connection.
+    func pair(payload: PairingPayload, deviceLabel: String) async -> Result<Void, Error> {
+        do {
+            let token = try await pairingRedeemer.redeem(payload: payload, deviceLabel: deviceLabel)
+            guard case let .success(candidate) = makeConnectionConfig(
+                serverAddress: payload.serverURL.absoluteString, bossToken: token
+            ) else {
+                return .failure(SettingsError.invalidServerURL)
+            }
+            try keychain.write(candidate.bossToken)
+            defaults.set(candidate.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+            serverAddress = candidate.serverURL.absoluteString
+            bossToken = candidate.bossToken
+            config = candidate
+            return .success(())
+        } catch {
+            return .failure(error)
         }
     }
 
