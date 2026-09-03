@@ -4,6 +4,16 @@ All versions through v1.0 are complete and shipped.
 
 ## Current Unreleased — Convergent Options and Native macOS Client
 
+### Native Client Layout Corrections
+- macOS Settings uses the same `Window` and `NavigationSplitView` shell as the
+  main window so the sidebar toggle stays in the native title-bar position.
+- The main macOS sidebar keeps a Settings entry pinned below its scrolling list,
+  and the connection indicator has explicit toolbar-safe sizing and spacing.
+- The macOS decision surface scrolls only message content; options, errors, and
+  the reply field remain fixed at the bottom.
+- iOS option buttons use explicit semantic foreground and tint colors so primary
+  and secondary actions remain legible in dark mode.
+
 ### Option Contract and CLI
 - `hiboss ask` uses repeatable singular `--option "TEXT"` and
   `--action "LABEL=COMMAND"` flags.

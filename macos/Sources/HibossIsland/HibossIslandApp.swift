@@ -1,5 +1,5 @@
 // Application shell wiring settings, SSE flow, menu bar, Dock, and option UI.
-// Exports: HibossIslandApp and AppDelegate lifecycle integration.
+// Exports: HibossIslandApp, settings commands, and AppDelegate lifecycle integration.
 // Dependencies: SwiftUI, AppKit, Combine, settings, flow, and panel controller.
 
 import AppKit
@@ -16,8 +16,9 @@ struct HibossIslandApp: App {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow)
         }
         .defaultSize(width: 960, height: 640)
+        .commands { SettingsWindowCommands() }
 
-        Settings {
+        Window(L("Settings"), id: "settings") {
             SettingsScene(
                 settings: appDelegate.settings,
                 flow: appDelegate.flow,
@@ -25,6 +26,20 @@ struct HibossIslandApp: App {
                 updater: appDelegate.updater.state,
                 launchAtLogin: appDelegate.launchAtLogin
             )
+        }
+        .defaultSize(width: 960, height: 640)
+    }
+}
+
+private struct SettingsWindowCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button(L("Settings")) {
+                openWindow(id: "settings")
+            }
+            .keyboardShortcut(",", modifiers: .command)
         }
     }
 }
