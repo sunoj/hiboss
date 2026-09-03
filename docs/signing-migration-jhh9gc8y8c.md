@@ -75,6 +75,21 @@ every rebuild unless `HIBOSS_SIGNING_IDENTITY` names a real identity. That is
 documented in the script header rather than fixed by hardcoding a personal
 certificate name into a repo headed for open source.
 
+## Cutover completed 2026-09-03
+
+The iOS Ad Hoc build was installed on the registered iPhone and signed in, which
+produced the first `production` row `boss_devices` has ever held
+(`ai.hiboss.app`, boss `a9e07edb`). The three APNs secrets then moved together
+via `wrangler secret bulk` -- `APNS_TEAM_ID=JHH9GC8Y8C`, `APNS_KEY_ID=3YJTLCW9K5`,
+and the new auth key -- in a single atomic call, so the worker never ran with a
+mismatched key/team pair. No redeploy was needed; all three are secrets.
+
+The old `ai.hiboss.ios` row survives but is dead: a push to it now reaches the
+sandbox gateway with a key from another team and returns `InvalidProviderToken`,
+which is a 403 and therefore does **not** prune. Only `BadDeviceToken` and 410
+prune, so a surviving row is not evidence of delivery -- read the client, not the
+table.
+
 ## Blocked / manual steps
 
 - **Developer ID Application cert cannot be created via API.** Apple restricts it
