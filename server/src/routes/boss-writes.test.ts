@@ -162,9 +162,11 @@ async function seedAgent(id: string): Promise<void> {
 
 async function seedBoss(id: string, name: string, role: string, token: string): Promise<void> {
   const tokenHash = await hashApiKey(token);
-  await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role, token_hash) VALUES (?, ?, ?, ?)')
-    .bind(id, name, role, tokenHash)
+  await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role) VALUES (?, ?, ?)')
+    .bind(id, name, role)
     .run();
+  await env.DB.prepare('INSERT OR IGNORE INTO boss_tokens (boss_id, label, token_hash) VALUES (?, ?, ?)')
+    .bind(id, 'test', tokenHash).run();
 }
 
 async function grantAccess(bossId: string, agentId: string): Promise<void> {

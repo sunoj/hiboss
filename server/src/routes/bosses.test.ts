@@ -4,21 +4,12 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
-import { seedDatabase, authHeaders } from '../test-helpers';
-import { hashApiKey } from '../middleware/auth';
+import { seedDatabase, authHeaders, seedBossToken } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
-  const adminTokenHash = await hashApiKey('hb_boss_test_admin_token_0001');
-  await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
-    .bind('Boss Admin', 'admin', adminTokenHash)
-    .run();
-  const viewerTokenHash = await hashApiKey('hb_boss_test_viewer_token_0001');
-  await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?)')
-    .bind('Boss Viewer', 'viewer', viewerTokenHash)
-    .run();
+  await seedBossToken('Boss Admin', 'admin', 'hb_boss_test_admin_token_0001');
+  await seedBossToken('Boss Viewer', 'viewer', 'hb_boss_test_viewer_token_0001');
 });
 
 let createdBossId: string;

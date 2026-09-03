@@ -4,8 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { seedDatabase, getTestAgentId, authHeaders } from '../test-helpers';
-import { hashApiKey } from '../middleware/auth';
+import { seedDatabase, getTestAgentId, authHeaders, seedBossToken } from '../test-helpers';
 
 const BOSS_TOKEN = 'hb_boss_aabbccddeeff00112233445566778899';
 let bossId: string;
@@ -13,12 +12,7 @@ let bossId: string;
 beforeAll(async () => {
   await seedDatabase();
   // Create boss with token
-  const tokenHash = await hashApiKey(BOSS_TOKEN);
-  const row = await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?) RETURNING id')
-    .bind('API Boss', 'admin', tokenHash)
-    .first<{ id: string }>();
-  bossId = row!.id;
+  bossId = await seedBossToken('API Boss', 'admin', BOSS_TOKEN);
   // Grant access to test agent
   await env.DB
     .prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')

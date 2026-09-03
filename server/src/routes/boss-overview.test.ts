@@ -5,7 +5,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { seedDatabase } from '../test-helpers';
+import { seedDatabase, seedBossToken } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 const BOSS_TOKEN = 'hb_boss_overview_00112233445566778899aabb';
@@ -17,12 +17,9 @@ beforeAll(async () => {
     "INSERT INTO api_keys (id, name, key_hash) VALUES (?, 'overview-agent', ?)",
   ).bind(AGENT_ID, await hashApiKey('hb_overview_agent_key')).run();
 
-  const boss = await env.DB
-    .prepare('INSERT INTO bosses (name, role, token_hash) VALUES (?, ?, ?) RETURNING id')
-    .bind('Overview Boss', 'viewer', await hashApiKey(BOSS_TOKEN))
-    .first<{ id: string }>();
+  const bossId = await seedBossToken('Overview Boss', 'viewer', BOSS_TOKEN);
   await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
-    .bind(boss!.id, AGENT_ID).run();
+    .bind(bossId, AGENT_ID).run();
 
   // Two pending option decisions (one blocking), one plain unread, priorities vary.
   const soon = new Date(Date.now() + 10 * 60 * 1000).toISOString();

@@ -1,4 +1,4 @@
--- hiboss D1 database schema (consolidated from migrations 0001-0018)
+-- hiboss D1 database schema (consolidated from migrations 0001-0030)
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- API keys for agent authentication
@@ -120,7 +120,6 @@ CREATE TABLE IF NOT EXISTS bosses (
   telegram_user_id TEXT,
   discord_user_id TEXT,
   agent_id TEXT REFERENCES api_keys(id),
-  token_hash TEXT,
   preferences TEXT DEFAULT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -128,7 +127,30 @@ CREATE TABLE IF NOT EXISTS bosses (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id) WHERE telegram_user_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_discord ON bosses(discord_user_id) WHERE discord_user_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_token ON bosses(token_hash) WHERE token_hash IS NOT NULL;
+
+-- Independent bearer tokens and short-lived QR pairing codes for bosses
+CREATE TABLE IF NOT EXISTS boss_tokens (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_used_at TEXT,
+  revoked_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_boss_tokens_boss ON boss_tokens(boss_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS boss_pairing_codes (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_boss_pairing_codes_expiry ON boss_pairing_codes(expires_at);
 
 -- Boss-agent access control
 CREATE TABLE IF NOT EXISTS boss_agent_access (

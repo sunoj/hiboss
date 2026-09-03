@@ -4,18 +4,14 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { hashApiKey } from '../middleware/auth';
-import { getTestAgentId, seedDatabase } from '../test-helpers';
+import { getTestAgentId, seedDatabase, seedBossToken } from '../test-helpers';
 
 const TOKEN = 'hb_boss_option_stream_test_00000001';
 const STREAM_URL = 'http://localhost/api/boss/stream?options=true';
 
 beforeAll(async () => {
   await seedDatabase();
-  const tokenHash = await hashApiKey(TOKEN);
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO bosses (id, name, role, token_hash) VALUES ('option-stream-boss', 'Option Stream Boss', 'admin', ?)",
-  ).bind(tokenHash).run();
+  await seedBossToken('Option Stream Boss', 'admin', TOKEN, 'option-stream-boss');
 });
 
 describe('Boss option stream lifecycle', () => {

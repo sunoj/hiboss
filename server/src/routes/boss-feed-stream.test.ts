@@ -4,17 +4,14 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { hashApiKey } from '../middleware/auth';
-import { getTestAgentId, seedDatabase } from '../test-helpers';
+import { getTestAgentId, seedDatabase, seedBossToken } from '../test-helpers';
 
 const TOKEN = 'hb_boss_feed_stream_test_0000000001';
 const FEED_URL = 'http://localhost/api/boss/stream?feed=true';
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO bosses (id, name, role, token_hash) VALUES ('feed-stream-boss', 'Feed Boss', 'admin', ?)",
-  ).bind(await hashApiKey(TOKEN)).run();
+  await seedBossToken('Feed Boss', 'admin', TOKEN, 'feed-stream-boss');
 });
 
 describe('Boss console feed stream', () => {

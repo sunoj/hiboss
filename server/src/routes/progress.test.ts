@@ -5,7 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
-import { authHeaders, getTestAgentId, seedDatabase } from '../test-helpers';
+import { authHeaders, getTestAgentId, seedDatabase, seedBossToken } from '../test-helpers';
 
 const BOSS_TOKEN = 'hb_progress_boss_token_0000000000000001';
 const OTHER_AGENT_ID = 'progress-other-agent';
@@ -55,8 +55,7 @@ beforeAll(async () => {
   await createProgressSchema();
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind(OTHER_AGENT_ID, 'other-agent', await hashApiKey('progress-other-key')).run();
-  await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role, token_hash) VALUES (?, ?, ?, ?)')
-    .bind('progress-boss', 'Progress Boss', 'manager', await hashApiKey(BOSS_TOKEN)).run();
+  await seedBossToken('Progress Boss', 'manager', BOSS_TOKEN, 'progress-boss');
   await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind('progress-boss', getTestAgentId()).run();
   await env.DB.prepare('DELETE FROM progress_posts').run();
