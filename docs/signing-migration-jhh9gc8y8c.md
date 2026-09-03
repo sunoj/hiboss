@@ -44,6 +44,7 @@ scope for now.
 | Device `Ming iPhone 15 Pro` | `FU62NVTMSH` | UDID `00008130-000A352624E1401C` |
 | Cert `Apple Distribution: Ming Sun (JHH9GC8Y8C)` | `G2V2Q9Y929` | expires 2027-09-03, in login keychain |
 | Cert `Apple Development: Created via API (X4MPPK98FQ)` | `NM8C338CX9` | expires 2027-09-03, in login keychain. The CN says "Created via API" because an API key, not a person, requested it; that is not editable. |
+| APNs auth key | `3YJTLCW9K5` | at `~/.asc/keys/AuthKey_3YJTLCW9K5.p8` (0600). Verified against Apple before use: a push to a 64-zero device token returned `400 BadDeviceToken`, which means the provider JWT, the team and the topic `ai.hiboss.app` were all accepted and only the made-up token was not. |
 | Profile `HiBoss iOS AdHoc` | `KF83TB4BMD` | |
 | Profile `HiBoss Widgets AdHoc` | `JP3ZJH7C7K` | |
 | Profile `HiBoss iOS AppStore` | `23HB7UGHSC` | |
