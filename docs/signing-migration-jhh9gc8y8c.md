@@ -82,6 +82,13 @@ certificate name into a repo headed for open source.
 
 ## Known consequences of the team switch
 
+- **`security import -T /usr/bin/codesign` is not enough to stop the prompt.**
+  Since macOS Sierra the key's *partition list* gates access too, and `-T` alone
+  leaves it unset, so the first `codesign` run blocks on a GUI dialog with no
+  output -- a build that looks hung. Either click "Always Allow" once, or run
+  `security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k <login
+  password> ~/Library/Keychains/login.keychain-db`, which needs the login
+  password and so cannot be automated on someone's behalf.
 - **Keychain items do not survive.** macOS service `ai.hiboss.island.stable` and
   the iOS keychain are gated on the signing team; every device re-authenticates.
 - **Sparkle**: the first Developer-ID-signed build must be installed by hand.
@@ -93,6 +100,17 @@ certificate name into a repo headed for open source.
   worker secrets move: `APNS_TEAM_ID` -> `JHH9GC8Y8C`, plus a new `APNS_KEY_ID`
   and `APNS_AUTH_KEY`. Existing device tokens belong to the old app and die with
   it; rows self-prune on `BadDeviceToken`.
+- **The APNs cutover is one-way and cannot be staged.** The server holds exactly
+  one auth key (`env.APNS_KEY_ID`, singular) and a key can only push to its own
+  team's app IDs, so old-app and new-app tokens cannot both be served. Worse,
+  rollback does not exist: Cloudflare secrets are write-only, Apple serves a
+  `.p8` once, and no old APNs key file survives on disk (checked). Therefore
+  **install and register the new app first, then swap** -- doing it the other
+  way opens a window with no working push and no way back.
+  Use `wrangler secret bulk` rather than three `wrangler secret put` calls: the
+  three values must move together, and between individual puts the worker runs
+  a mismatched key/team pair that fails every push as `InvalidProviderToken`.
+  All three are secrets, not `[vars]`, so no redeploy is needed.
 - **Production APNs runs for the first time.** Both Ad Hoc and TestFlight force
   `aps-environment: production`, and `PushManager.environment` returns
   `production` for any non-DEBUG build. The server's production branch has never
