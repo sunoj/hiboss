@@ -30,6 +30,7 @@ struct HistoryView: View {
     var body: some View {
         historyContent
             .background(Color(nsColor: .windowBackgroundColor))
+            .navigationTitle(L("History"))
             .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
             .toolbar { historyToolbar }
             .task {
@@ -38,8 +39,7 @@ struct HistoryView: View {
     }
 
     /// The filter sits in `.principal` — the centre slot Mail and Xcode use for a segmented
-    /// control. At `.navigation` it crowded in beside the traffic lights and collided with
-    /// the window title. Status and refresh travel together on the trailing side.
+    /// control. Connection and refresh live on MainView so both surfaces share one chrome.
     @ToolbarContentBuilder
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .principal) {
@@ -52,39 +52,6 @@ struct HistoryView: View {
             .labelsHidden()
             .frame(minWidth: 240)
             .accessibilityLabel(L("Message filter"))
-        }
-
-        ToolbarItemGroup(placement: .primaryAction) {
-            connectionStatus
-
-            Button {
-                Task { await flow.refreshHistory() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .help(L("Refresh messages"))
-            .disabled(flow.historyState == .loading)
-            .accessibilityLabel(L("Refresh messages"))
-        }
-    }
-
-    /// Icon-only, with the state in the tooltip: a toolbar item that grows with its label
-    /// gets squeezed and clipped as the window narrows, which is what "SSE connected" did.
-    private var connectionStatus: some View {
-        Image(systemName: connectionSymbol)
-            .foregroundStyle(
-                flow.connectionState == .connected ? DesignTokens.live : Color.secondary
-            )
-            .help(flow.connectionState.label)
-            .accessibilityLabel(L("Connection: \(flow.connectionState.label)"))
-    }
-
-    private var connectionSymbol: String {
-        switch flow.connectionState {
-        case .connected: "antenna.radiowaves.left.and.right"
-        case .connecting: "antenna.radiowaves.left.and.right"
-        case .failed: "exclamationmark.triangle"
-        case .disconnected: "antenna.radiowaves.left.and.right.slash"
         }
     }
 
