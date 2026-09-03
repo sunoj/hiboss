@@ -180,7 +180,10 @@ private enum DemoFixtures {
             id: "c1", body: "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "delivered",
             priority: "critical", channel: "discord", mode: "blocking", type: "approval_request",
-            metadata: MessageMetadata(options: ["Approve", "Reject"]),
+            metadata: MessageMetadata(
+                options: ["Approve", "Reject"], defaultOption: "Reject",
+                content: "The migration cannot be undone once it starts."
+            ),
             expiresAt: iso(95), createdAt: iso(-40),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "waiting"
@@ -203,7 +206,7 @@ private enum DemoFixtures {
             priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(options: [
                 "Retry now (same gateway)", "Retry with exponential backoff", "Fail over to Adyen",
-            ]),
+            ], defaultOption: "Retry with exponential backoff", content: "The agent is waiting for a retry policy."),
             expiresAt: iso(760), createdAt: iso(-90),
             sessionId: "sess-pay", sessionLabel: "payments-hotfix", sessionBranch: "fix/stripe-retry",
             sessionStatus: "blocked"
@@ -226,7 +229,7 @@ private enum DemoFixtures {
             metadata: MessageMetadata(options: ["Provide", "Later"]),
             expiresAt: nil, createdAt: iso(-300),
             sessionId: "sess-data", sessionLabel: "nightly-export", sessionBranch: "main",
-            sessionStatus: "working"
+            sessionStatus: "waiting"
         ),
     ]
 

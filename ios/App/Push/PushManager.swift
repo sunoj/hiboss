@@ -21,6 +21,13 @@ enum PushAction {
     static let reply = "HIBOSS_REPLY"
 }
 
+private struct PushActionRequest: Sendable {
+    let messageID: String
+    let options: [String]
+    let actionIdentifier: String
+    let replyText: String?
+}
+
 /// Server-side device-registration state, surfaced in Settings so "Push:
 /// Enabled" (OS auth) can't imply the device is actually reachable.
 enum DeviceRegistration: Equatable {
@@ -137,39 +144,46 @@ final class PushManager: NSObject, ObservableObject {
     }
 }
 
-extension PushManager: @preconcurrency UNUserNotificationCenterDelegate {
+extension PushManager: UNUserNotificationCenterDelegate {
     // Show banners even while the app is foregrounded.
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
         let info = response.notification.request.content.userInfo
         guard let messageID = info["messageId"] as? String else { return }
-        let options = info["options"] as? [String] ?? []
+        let request = PushActionRequest(
+            messageID: messageID,
+            options: info["options"] as? [String] ?? [],
+            actionIdentifier: response.actionIdentifier,
+            replyText: (response as? UNTextInputNotificationResponse)?.userText
+        )
+        Task { @MainActor in await PushManager.shared.handle(request) }
+    }
 
+    private func handle(_ request: PushActionRequest) async {
         let choice: String?
-        switch response.actionIdentifier {
-        case PushAction.approve: choice = options.first
-        case PushAction.reject: choice = options.count > 1 ? options[1] : nil
-        case PushAction.reply: choice = (response as? UNTextInputNotificationResponse)?.userText
+        switch request.actionIdentifier {
+        case PushAction.approve: choice = request.options.first
+        case PushAction.reject: choice = request.options.count > 1 ? request.options[1] : nil
+        case PushAction.reply: choice = request.replyText
         case UNNotificationDefaultActionIdentifier:
-            // A plain tap opens the message's full-text detail.
-            AppRouter.shared.open(messageID: messageID)
+            AppRouter.shared.open(messageID: request.messageID)
             return
         default: choice = nil
         }
         guard let choice, !choice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         if let api = HiBossStore.bossAPI() {
-            _ = try? await api.reply(to: MessageID(rawValue: messageID), with: choice)
-            pushLog.info("replied to \(messageID) from notification action")
+            _ = try? await api.reply(to: MessageID(rawValue: request.messageID), with: choice)
+            pushLog.info("replied to \(request.messageID) from notification action")
         }
     }
 }
