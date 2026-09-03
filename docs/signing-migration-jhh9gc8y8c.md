@@ -60,6 +60,12 @@ bundle carries `application-identifier JHH9GC8Y8C.ai.hiboss.app`,
 `aps-environment production`, and `com.apple.developer.team-identifier
 JHH9GC8Y8C`, with the widget at `ai.hiboss.app.widgets`.
 
+Signing the same macOS bundle both ways and reading `codesign -dr -` confirms
+the keychain reasoning below is not folklore: a real identity yields
+`identifier "ai.hiboss.island" and anchor apple generic and certificate
+leaf[subject.CN] = "Apple Development: Created via API (X4MPPK98FQ)"`, while
+ad-hoc yields `cdhash H"ab518848..."` -- a different requirement on every build.
+
 `macos/scripts/build-app.sh` defaults to ad-hoc signing so the script stays
 portable for an open-source checkout. An ad-hoc signature has no stable
 designated requirement, and the boss token lives in a plain login-keychain item
