@@ -43,6 +43,7 @@ scope for now.
 | Bundle ID `ai.hiboss.app.widgets` | `ZJ2VF4X5CK` | no capabilities needed |
 | Device `Ming iPhone 15 Pro` | `FU62NVTMSH` | UDID `00008130-000A352624E1401C` |
 | Cert `Apple Distribution: Ming Sun (JHH9GC8Y8C)` | `G2V2Q9Y929` | expires 2027-09-03, in login keychain |
+| Cert `Apple Development: Created via API (X4MPPK98FQ)` | `NM8C338CX9` | expires 2027-09-03, in login keychain. The CN says "Created via API" because an API key, not a person, requested it; that is not editable. |
 | Profile `HiBoss iOS AdHoc` | `KF83TB4BMD` | |
 | Profile `HiBoss Widgets AdHoc` | `JP3ZJH7C7K` | |
 | Profile `HiBoss iOS AppStore` | `23HB7UGHSC` | |
@@ -50,6 +51,22 @@ scope for now.
 
 Profiles are downloaded to `~/.asc/profiles/` and installed under
 `~/Library/Developer/Xcode/UserData/Provisioning Profiles/` by UUID.
+
+## Verified
+
+An Ad Hoc archive builds and signs end to end
+(`xcodebuild -configuration AdHoc ... archive`, ARCHIVE SUCCEEDED). The signed
+bundle carries `application-identifier JHH9GC8Y8C.ai.hiboss.app`,
+`aps-environment production`, and `com.apple.developer.team-identifier
+JHH9GC8Y8C`, with the widget at `ai.hiboss.app.widgets`.
+
+`macos/scripts/build-app.sh` defaults to ad-hoc signing so the script stays
+portable for an open-source checkout. An ad-hoc signature has no stable
+designated requirement, and the boss token lives in a plain login-keychain item
+whose ACL is bound to one, so local builds prompt for keychain access after
+every rebuild unless `HIBOSS_SIGNING_IDENTITY` names a real identity. That is
+documented in the script header rather than fixed by hardcoding a personal
+certificate name into a repo headed for open source.
 
 ## Blocked / manual steps
 

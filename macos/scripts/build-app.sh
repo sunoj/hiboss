@@ -8,6 +8,13 @@
 #   HIBOSS_SIGNING_IDENTITY  codesign identity (default: ad-hoc).
 #   HIBOSS_APPCAST_URL       overrides SUFeedURL in the bundled Info.plist.
 #   HIBOSS_SPARKLE_PUBKEY    overrides SUPublicEDKey (EdDSA public key, base64).
+#
+# The ad-hoc default keeps this script portable, but an ad-hoc signature has no
+# stable designated requirement -- the cdhash changes on every build. The boss
+# token lives in a plain login-keychain item (service ai.hiboss.island.stable)
+# whose ACL is bound to that requirement, so an ad-hoc build prompts for
+# keychain access after every rebuild. Export HIBOSS_SIGNING_IDENTITY with a
+# real Apple Development identity to keep local builds quiet.
 
 set -eu
 
