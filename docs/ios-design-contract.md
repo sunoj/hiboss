@@ -49,6 +49,12 @@ empty state on 2026-09-03. Size a symbol with a text style
 
 Add a token when a style is missing. Do not inline a size.
 
+**The widget target is exempt.** `ios/Widgets` is a compact surface the system
+scales itself, with its own layout constraints and no Dynamic Type ramp to
+follow; it keeps its fixed sizes deliberately. The ban applies to `ios/App`.
+When the sweep of 2026-09-03 cleared `ios/App` it left 17 fixed sizes in the
+widget on purpose — that is a decision, not an oversight.
+
 ## 3. The fold is the scarcest thing on the phone
 
 A Mac window can afford a heading that says where you are. A phone cannot.
