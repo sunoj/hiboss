@@ -65,6 +65,7 @@ struct DevicePairingSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var grant: PairingGrant?
     @State private var isRequesting = false
+    @State private var requestFailure: PairingRequestFailure?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -86,12 +87,7 @@ struct DevicePairingSheet: View {
             }
 
             Section {
-                Button {
-                    Task { await requestPairingCode() }
-                } label: {
-                    Label(L("Request a fresh code"), systemImage: "arrow.clockwise")
-                }
-                .disabled(isRequesting)
+                requestButton
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -115,42 +111,141 @@ struct DevicePairingSheet: View {
 
     @ViewBuilder
     private func pairingContent(at now: Date) -> some View {
-        if let grant,
-           let serverURL = configuredServerURL,
-           PairingValidity.isValid(expiresAt: grant.expiresAt, now: now),
-           let link = try? PairingLink(serverURL: serverURL, code: grant.code),
-           let image = PairingQRCodeGenerator.image(for: link) {
-            VStack(spacing: 12) {
-                Image(nsImage: image)
-                    .interpolation(.none)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 280, height: 280)
-                    .padding(16)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .accessibilityLabel(L("Device pairing QR code"))
-
-                LabeledContent(L("Valid for")) {
-                    Text(PairingValidity.formatted(
-                        remainingSeconds: PairingValidity.remainingSeconds(
-                            expiresAt: grant.expiresAt, now: now
-                        )
-                    ))
-                    .monospacedDigit()
-                }
+        let state = contentState(at: now)
+        switch state {
+        case let .ready(grant, link):
+            if let image = PairingQRCodeGenerator.image(for: link) {
+                readyPairingContent(grant: grant, image: image, now: now)
+            } else {
+                unavailableContent(for: .qrUnavailable)
             }
-            .frame(maxWidth: .infinity)
-        } else if isRequesting {
+        case .requesting:
             ProgressView(L("Requesting a pairing code…"))
                 .frame(maxWidth: .infinity, minHeight: 300)
-        } else {
-            ContentUnavailableView(
-                L("Pairing code expired"),
-                systemImage: "clock.badge.exclamationmark",
-                description: Text(L("Request a fresh code before scanning."))
-            )
+        default:
+            unavailableContent(for: state)
+        }
+    }
+
+    private func readyPairingContent(grant: PairingGrant, image: NSImage, now: Date) -> some View {
+        VStack(spacing: 12) {
+            Image(nsImage: image)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 280, height: 280)
+                .padding(16)
+                .background(Color(nsColor: .textBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityLabel(L("Device pairing QR code"))
+
+            LabeledContent(L("Valid for")) {
+                Text(PairingValidity.formatted(
+                    remainingSeconds: PairingValidity.remainingSeconds(
+                        expiresAt: grant.expiresAt, now: now
+                    )
+                ))
+                .monospacedDigit()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func unavailableContent(title: String, systemImage: String, description: String) -> some View {
+        ContentUnavailableView(title, systemImage: systemImage, description: Text(description))
             .frame(maxWidth: .infinity, minHeight: 300)
+    }
+
+    @ViewBuilder
+    private func unavailableContent(for state: PairingContentState) -> some View {
+        switch state {
+        case .notConfigured:
+            unavailableContent(
+                title: L("Pairing is not configured"), systemImage: "network.slash",
+                description: L("Configure the server URL and Boss Token before pairing a device.")
+            )
+        case .noCode:
+            unavailableContent(
+                title: L("No pairing code"), systemImage: "qrcode",
+                description: L("A pairing code is not available yet.")
+            )
+        case .expired:
+            unavailableContent(
+                title: L("Pairing code expired"), systemImage: "clock.badge.exclamationmark",
+                description: L("Request a fresh code before scanning.")
+            )
+        case .permissionDenied:
+            unavailableContent(
+                title: L("Administrator permission required"), systemImage: "person.badge.key",
+                description: L("Only an administrator can mint pairing codes. Use an admin Boss Token.")
+            )
+        case .requestFailed:
+            unavailableContent(
+                title: L("Couldn’t request a pairing code"), systemImage: "exclamationmark.triangle",
+                description: L("Try again when the server is reachable.")
+            )
+        case .invalidLink:
+            unavailableContent(
+                title: L("Pairing link unavailable"), systemImage: "link.badge.plus",
+                description: L("The server URL or pairing code could not be encoded.")
+            )
+        case .qrUnavailable:
+            unavailableContent(
+                title: L("QR code unavailable"), systemImage: "qrcode",
+                description: L("HiBoss could not render the pairing QR code.")
+            )
+        case .requesting, .ready:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var requestButton: some View {
+        switch currentContentState {
+        case .expired:
+            Button { Task { await requestPairingCode() } } label: {
+                Label(L("Request a fresh code"), systemImage: "arrow.clockwise")
+            }
+            .disabled(isRequesting)
+        case .requestFailed:
+            Button { Task { await requestPairingCode() } } label: {
+                Label(L("Try again"), systemImage: "arrow.clockwise")
+            }
+            .disabled(isRequesting)
+        default:
+            EmptyView()
+        }
+    }
+
+    private var currentContentState: PairingContentState { contentState(at: Date()) }
+
+    private func contentState(at now: Date) -> PairingContentState {
+        let linkResult = pairingLinkResult
+        let canRenderQRCode: Bool
+        if case let .success(link) = linkResult {
+            canRenderQRCode = PairingQRCodeGenerator.image(for: link) != nil
+        } else {
+            canRenderQRCode = false
+        }
+        return PairingContentState.derive(
+            grant: grant,
+            hasConfiguredServer: configuredServerURL != nil,
+            now: now,
+            isRequesting: isRequesting,
+            requestFailure: requestFailure,
+            linkResult: linkResult,
+            canRenderQRCode: canRenderQRCode
+        )
+    }
+
+    private var pairingLinkResult: Result<PairingLink, PairingLinkError>? {
+        guard let grant, let serverURL = configuredServerURL else { return nil }
+        do {
+            return .success(try PairingLink(serverURL: serverURL, code: grant.code))
+        } catch let error as PairingLinkError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidServerURL)
         }
     }
 
@@ -162,16 +257,22 @@ struct DevicePairingSheet: View {
     private func requestPairingCode() async {
         guard !isRequesting else { return }
         guard case let .success(config) = settings.connectionConfig() else {
+            grant = nil
+            requestFailure = nil
             errorMessage = L("Configure the server URL and Boss Token before pairing a device.")
             return
         }
         isRequesting = true
+        grant = nil
+        requestFailure = nil
         errorMessage = nil
         defer { isRequesting = false }
         do {
             grant = try await HibossAPI(config: config).requestPairingCode()
         } catch {
-            errorMessage = error.localizedDescription
+            let failure = PairingRequestFailure.from(error)
+            requestFailure = failure
+            errorMessage = failure == .permissionDenied ? nil : error.localizedDescription
         }
     }
 }
