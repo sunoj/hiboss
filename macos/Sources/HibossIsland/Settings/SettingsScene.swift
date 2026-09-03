@@ -1,6 +1,6 @@
 // Native macOS Settings shell with sidebar navigation and save footer.
 // Exports: SettingsScene.
-// Dependencies: SwiftUI, AppSettings, OptionFlowStore, BossPreferencesStore, and panes.
+// Dependencies: SwiftUI, AppSettings, OptionFlowStore, and settings panes.
 
 import HibossKit
 import SwiftUI
@@ -34,15 +34,13 @@ struct SettingsScene: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavigationSplitView {
-                sidebar
-                    .navigationSplitViewColumnWidth(210)
-            } detail: {
-                detailPane
-            }
-            footer
+        NavigationSplitView {
+            sidebar
+                .navigationSplitViewColumnWidth(210)
+        } detail: {
+            detailPane
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { footer }
         .frame(minWidth: 820, minHeight: 560)
         .task { await loadPreferencesIfConfigured() }
     }
@@ -105,6 +103,7 @@ struct SettingsScene: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+        .background(Color(nsColor: .windowBackgroundColor))
         .overlay(alignment: .top) {
             Divider()
         }

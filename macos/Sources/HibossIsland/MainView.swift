@@ -27,6 +27,7 @@ enum MainSurface: String, CaseIterable, Identifiable {
 }
 
 struct MainView: View {
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
     @State private var surface: MainSurface = .attention
@@ -50,15 +51,7 @@ struct MainView: View {
                 now: context.date
             ).count
             NavigationSplitView {
-                List(selection: $surface) {
-                    Label(MainSurface.attention.title, systemImage: MainSurface.attention.icon)
-                        .badge(attentionCount)
-                        .tag(MainSurface.attention)
-                    Label(MainSurface.history.title, systemImage: MainSurface.history.icon)
-                        .tag(MainSurface.history)
-                }
-                .listStyle(.sidebar)
-                .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+                mainSidebar(attentionCount: attentionCount)
             } detail: {
                 switch surface {
                 case .attention:
@@ -74,13 +67,45 @@ struct MainView: View {
         }
     }
 
+    private func mainSidebar(attentionCount: Int) -> some View {
+        List(selection: $surface) {
+            Label(MainSurface.attention.title, systemImage: MainSurface.attention.icon)
+                .badge(attentionCount)
+                .tag(MainSurface.attention)
+            Label(MainSurface.history.title, systemImage: MainSurface.history.icon)
+                .tag(MainSurface.history)
+        }
+        .listStyle(.sidebar)
+        .safeAreaInset(edge: .bottom, spacing: 0) { settingsLink }
+        .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+    }
+
+    private var settingsLink: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Button {
+                openWindow(id: "settings")
+            } label: {
+                Label(L("Settings"), systemImage: "gear")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+    }
+
     @ToolbarContentBuilder
     private var mainToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
             Image(systemName: connectionSymbol)
+                .font(.body.weight(.medium))
                 .foregroundStyle(
                     flow.connectionState == .connected ? DesignTokens.live : Color.secondary
                 )
+                .frame(width: 18, height: 18)
+                .padding(.leading, 8)
                 .help(flow.connectionState.label)
                 .accessibilityLabel(L("Connection: \(flow.connectionState.label)"))
 
