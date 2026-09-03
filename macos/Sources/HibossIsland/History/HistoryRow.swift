@@ -23,7 +23,11 @@ struct HistoryRow: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if !message.options.isEmpty {
+                if let autoDecided = message.historyAutoDecidedLabel {
+                    Text(autoDecided)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if !message.options.isEmpty {
                     optionRow
                 }
             }
