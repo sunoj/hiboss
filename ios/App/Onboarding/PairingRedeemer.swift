@@ -3,6 +3,7 @@
 // Dependencies: Foundation URLSession and UIKit device metadata.
 
 import Foundation
+import HibossKit
 import UIKit
 
 struct PairingRedeemer: Sendable {
@@ -12,7 +13,9 @@ struct PairingRedeemer: Sendable {
         self.session = session
     }
 
-    func redeem(payload: PairingPayload, deviceLabel: String) async throws -> String {
+    func redeem(payload: PairingPayload, deviceLabel: String) async throws -> PairingRedemption {
+        let pendingSigner = try PendingSecureEnclaveSigner.create(clientKind: .ios)
+        let signing = try pendingSigner.registration(pairingCode: payload.code)
         let endpoint = payload.serverURL
             .appendingPathComponent("api")
             .appendingPathComponent("pairing")
@@ -22,7 +25,11 @@ struct PairingRedeemer: Sendable {
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(
-            PairingRedeemRequest(code: payload.code, deviceLabel: DeviceLabel.sanitize(deviceLabel))
+            PairingRedeemRequest(
+                code: payload.code,
+                deviceLabel: DeviceLabel.sanitize(deviceLabel),
+                signing: signing
+            )
         )
 
         let (data, response) = try await session.data(for: request)
@@ -36,9 +43,19 @@ struct PairingRedeemer: Sendable {
             throw PairingRedeemError.requestFailed
         }
         let decoded = try JSONDecoder().decode(PairingRedeemResponse.self, from: data)
-        guard !decoded.token.isEmpty else { throw PairingRedeemError.invalidResponse }
-        return decoded.token
+        guard !decoded.token.isEmpty, !decoded.signingKeyID.isEmpty, !decoded.boss.id.isEmpty else {
+            throw PairingRedeemError.invalidResponse
+        }
+        return PairingRedemption(
+            token: decoded.token,
+            signer: pendingSigner.bind(bossID: decoded.boss.id, keyID: decoded.signingKeyID)
+        )
     }
+}
+
+struct PairingRedemption: Sendable {
+    let token: String
+    let signer: SecureEnclaveMessageSigner
 }
 
 enum PairingRedeemError: Error, LocalizedError {
@@ -78,6 +95,7 @@ enum DeviceLabel {
 private struct PairingRedeemRequest: Encodable {
     let code: String
     let deviceLabel: String
+    let signing: PairingSigningRegistration
 
     enum CodingKeys: String, CodingKey {
         case code
@@ -87,4 +105,15 @@ private struct PairingRedeemRequest: Encodable {
 
 private struct PairingRedeemResponse: Decodable {
     let token: String
+    let boss: PairingBoss
+    let signingKeyID: String
+
+    enum CodingKeys: String, CodingKey {
+        case token, boss
+        case signingKeyID = "signing_key_id"
+    }
+}
+
+private struct PairingBoss: Decodable {
+    let id: String
 }

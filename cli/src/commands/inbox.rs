@@ -6,6 +6,7 @@ use crate::{
     client::HiBossClient,
     config::Config,
     helpers::{SessionFields, color_priority, group_messages, short_id, truncate},
+    message_security,
     session,
 };
 use clap::Args;
@@ -151,7 +152,7 @@ fn print_message_row(message: &crate::types::Message, has_types: bool) {
     let origin_label = if direction == "agent_to_agent" {
         format!("[agent] {}", agent).cyan()
     } else {
-        format!("[boss] {}", agent).cyan()
+        format!("[boss/{}] {}", message_security::assurance_label(message), agent).cyan()
     };
     let priority = message.priority.as_deref().unwrap_or("normal");
     let priority_display = color_priority(priority);

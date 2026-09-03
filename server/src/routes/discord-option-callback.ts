@@ -11,6 +11,7 @@ import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { channelMetadata, mergeProvenance } from '../message-security';
 
 interface DiscordOptionPayload {
   member?: { user?: { id?: string } };
@@ -41,7 +42,9 @@ export async function handleDiscordOptionCallback(
   const claim = await claimOptionReply(c.env, parent, selection.option, false);
   if (claim.kind === 'invalid_choice') return c.text('invalid selection', 400);
   if (claim.kind === 'resolved') return resolvedResponse(c, payload.message?.content);
-  const reply = await insertReply(c.env, parent, selection.option, agentRow.agent_id);
+  const reply = await insertReply(
+    c.env, parent, selection.option, agentRow.agent_id, permission.boss, userId,
+  );
   if (!reply) return c.text('failed to persist', 500);
   if (claim.kind === 'not_option') await markParentReplied(c.env, parent.id);
   if (claim.kind === 'claimed') {
@@ -82,8 +85,10 @@ async function insertReply(
   parent: Pick<MessageRow, 'id' | 'metadata' | 'session_id' | 'target_session_id'>,
   option: string,
   agentId: string,
+  boss: { id: string; name: string } | null,
+  externalUserId: string | undefined,
 ): Promise<MessageRow | null> {
-  const metadata = getActionMetadata(parent.metadata, option);
+  const metadata = getActionMetadata(parent.metadata, option, boss, externalUserId);
   return insertMessageWithEvent(
     env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
@@ -97,13 +102,19 @@ async function markParentReplied(env: Env, messageId: string): Promise<void> {
     .bind(messageId).run();
 }
 
-function getActionMetadata(metadata: string | null, option: string): string | null {
-  const sourceMetadata = { source: 'discord' };
+function getActionMetadata(
+  metadata: string | null,
+  option: string,
+  boss: { id: string; name: string } | null,
+  externalUserId: string | undefined,
+): string {
+  const sourceMetadata = channelMetadata('discord', boss, externalUserId);
   if (!metadata) return JSON.stringify(sourceMetadata);
   try {
     const parsed = JSON.parse(metadata) as Record<string, unknown>;
     const actions = parsed['actions'] as Record<string, string> | undefined;
-    return actions?.[option] ? JSON.stringify({ action: actions[option], ...sourceMetadata }) : JSON.stringify(sourceMetadata);
+    const base = actions?.[option] ? { action: actions[option] } : {};
+    return JSON.stringify(mergeProvenance(base, sourceMetadata));
   } catch {
     return JSON.stringify(sourceMetadata);
   }

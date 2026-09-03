@@ -265,7 +265,14 @@ describe('POST /api/webhooks/discord-interactions', () => {
 
     expect(reply).not.toBeNull();
     expect(reply?.metadata).not.toBeNull();
-    expect(JSON.parse(reply!.metadata!)).toEqual({ action: 'aid merge t-123', source: 'discord' });
+    expect(JSON.parse(reply!.metadata!)).toMatchObject({
+      action: 'aid merge t-123',
+      source: 'discord',
+      provenance: {
+        source: 'discord',
+        signature: { status: 'unsupported' },
+      },
+    });
   });
 
   it('returns 400 when channel_id is missing', async () => {

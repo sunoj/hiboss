@@ -141,6 +141,21 @@ CREATE TABLE IF NOT EXISTS boss_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_boss_tokens_boss ON boss_tokens(boss_id, created_at DESC);
 
+-- Optional device-held signing keys. A token with a live key must sign messages.
+CREATE TABLE IF NOT EXISTS boss_signing_keys (
+  id TEXT PRIMARY KEY,
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  boss_token_id TEXT NOT NULL UNIQUE REFERENCES boss_tokens(id) ON DELETE CASCADE,
+  algorithm TEXT NOT NULL CHECK (algorithm = 'ES256'),
+  client_kind TEXT NOT NULL CHECK (client_kind IN ('ios', 'macos')),
+  public_key TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_boss_signing_keys_boss
+  ON boss_signing_keys(boss_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS boss_pairing_codes (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,

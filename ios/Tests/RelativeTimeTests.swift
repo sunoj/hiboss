@@ -1,5 +1,5 @@
-// RelativeTime locale-driven formatting tests.
-// Exports: RelativeTimeTests covering system relative strings vs hand-built English.
+// Time-display safety tests for relative labels and Live Activity countdowns.
+// Exports: RelativeTimeTests covering locale output and valid timer intervals.
 // Dependencies: XCTest, HiBoss app target.
 
 import XCTest
@@ -48,5 +48,22 @@ final class RelativeTimeTests: XCTestCase {
 
         XCTAssertFalse(formatted.contains("ago"))
         XCTAssertFalse(formatted.isEmpty)
+    }
+
+    func testDecisionTimerRejectsAnExpiredDeadline() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+        XCTAssertNil(DecisionTimerRange.active(until: now.addingTimeInterval(-1), now: now))
+        XCTAssertNil(DecisionTimerRange.active(until: now, now: now))
+    }
+
+    func testDecisionTimerBuildsAForwardOnlyInterval() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let deadline = now.addingTimeInterval(60)
+
+        let range = DecisionTimerRange.active(until: deadline, now: now)
+
+        XCTAssertEqual(range?.lowerBound, now)
+        XCTAssertEqual(range?.upperBound, deadline)
     }
 }

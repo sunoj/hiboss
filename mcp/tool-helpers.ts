@@ -11,6 +11,7 @@ type ToolMessage = {
   agent_id?: string;
   priority?: string;
   type?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 type ToolSession = {
@@ -22,7 +23,7 @@ type ToolSession = {
 
 export function formatMessage(msg: ToolMessage): string {
   const from = msg.agent_name || msg.agent_id || 'unknown';
-  return `[${msg.id}] from=${from} priority=${msg.priority || 'normal'} type=${msg.type || 'text'}\n${msg.body}`;
+  return `[${msg.id}] from=${from} source=${sourceLabel(msg)} priority=${msg.priority || 'normal'} type=${msg.type || 'text'}\n${msg.body}`;
 }
 
 export function formatMessageList(messages: ToolMessage[], emptyText: string): string {
@@ -58,4 +59,16 @@ export function enumField(values: string[]) {
 
 export function tool(name: string, description: string, properties: Record<string, unknown>, required?: string[]) {
   return { name, description, inputSchema: { type: 'object', properties, required: required && required.length ? required : undefined } };
+}
+
+function sourceLabel(message: ToolMessage): string {
+  const provenance = message.metadata?.['provenance'];
+  if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) return 'unknown';
+  const record = provenance as Record<string, unknown>;
+  const source = typeof record['source'] === 'string' ? record['source'] : 'unknown';
+  const signature = record['signature'];
+  if (!signature || typeof signature !== 'object' || Array.isArray(signature)) return source;
+  const state = signature as Record<string, unknown>;
+  const assurance = state['scheme'] === 'JWS-ES256' ? 'verified' : state['status'];
+  return typeof assurance === 'string' ? `${source}/${assurance}` : source;
 }

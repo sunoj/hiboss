@@ -10,6 +10,7 @@ struct HistoryView: View {
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
     @State private var selection: HistoryMessage.ID?
+    @State private var detailMessage: HistoryMessage?
 
     private var unreadCount: Int {
         HistoryMessageLogic.unreadCount(in: flow.historyMessages)
@@ -33,6 +34,11 @@ struct HistoryView: View {
             .navigationTitle(L("History"))
             .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
             .toolbar { historyToolbar }
+            .sheet(item: $detailMessage) { message in
+                HistoryMessageDetail(message: message) { choice in
+                    Task { await flow.answerHistory(choice, for: message.id) }
+                }
+            }
             .task {
                 if flow.historyState == .idle { await flow.refreshHistory() }
             }
@@ -80,6 +86,10 @@ struct HistoryView: View {
                             Task { await flow.answerHistory(choice, for: message.id) }
                         }
                         .tag(message.id)
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: HistoryMessageLogic.detailClickCount) {
+                            detailMessage = message
+                        }
                     }
                 } header: {
                     SessionGroupHeader(group: group)

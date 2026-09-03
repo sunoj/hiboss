@@ -6,6 +6,7 @@ use crate::{
     client::HiBossClient,
     config::Config,
     helpers::{color_priority, short_id, truncate},
+    message_security,
     session, sse,
     types::Message,
 };
@@ -84,12 +85,13 @@ pub async fn run(
             }
             Some(event) = rx.recv() => {
                 if event.event_type == "message" {
-                    if let Ok(message) = serde_json::from_str::<Message>(&event.data) {
-                        print_message(&message);
-                        if notify {
-                            trigger_notification(&message);
+                    match message_security::parse_verified_message(&event.data) {
+                        Ok(message) => {
+                            print_message(&message);
+                            if notify { trigger_notification(&message); }
+                            let _ = client.update_status(&message.id, "read").await;
                         }
-                        let _ = client.update_status(&message.id, "read").await;
+                        Err(error) => eprintln!("Blocked unverified message: {error}"),
                     }
                 }
             }
@@ -106,7 +108,7 @@ fn print_message(message: &Message) {
     let origin = if direction == "agent_to_agent" {
         format!("[peer] {}", agent)
     } else {
-        format!("[boss] {}", agent)
+        format!("[boss/{}] {}", message_security::assurance_label(message), agent)
     };
     let priority = message.priority.as_deref().unwrap_or("normal");
     let priority_display = color_priority(priority);

@@ -38,6 +38,8 @@ const SCHEMA_STATEMENTS = [
   'CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL',
   "CREATE TABLE IF NOT EXISTS boss_tokens (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, label TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL DEFAULT (datetime('now')), last_used_at TEXT, revoked_at TEXT)",
   'CREATE INDEX IF NOT EXISTS idx_boss_tokens_boss ON boss_tokens(boss_id, created_at DESC)',
+  "CREATE TABLE IF NOT EXISTS boss_signing_keys (id TEXT PRIMARY KEY, boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, boss_token_id TEXT NOT NULL UNIQUE REFERENCES boss_tokens(id) ON DELETE CASCADE, algorithm TEXT NOT NULL CHECK (algorithm = 'ES256'), client_kind TEXT NOT NULL CHECK (client_kind IN ('ios', 'macos')), public_key TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), revoked_at TEXT)",
+  'CREATE INDEX IF NOT EXISTS idx_boss_signing_keys_boss ON boss_signing_keys(boss_id, created_at DESC)',
   "CREATE TABLE IF NOT EXISTS boss_pairing_codes (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, code_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, consumed_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
   'CREATE INDEX IF NOT EXISTS idx_boss_pairing_codes_expiry ON boss_pairing_codes(expires_at)',
   "CREATE TABLE IF NOT EXISTS boss_agent_access (boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE, agent_id TEXT NOT NULL REFERENCES api_keys(id), PRIMARY KEY (boss_id, agent_id))",

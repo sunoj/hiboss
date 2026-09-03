@@ -110,6 +110,10 @@ final class HistoryLogicTests: XCTestCase {
         XCTAssertEqual(result.map(\.id), [matching.id])
     }
 
+    func testHistoryDetailsRequireDoubleClick() {
+        XCTAssertEqual(HistoryMessageLogic.detailClickCount, 2)
+    }
+
     func testMonogramDerivesFromAgentNameAndBossMessages() {
         XCTAssertEqual(HistoryMessage.monogram(agentName: "Build Agent", isBossMessage: false), "BA")
         XCTAssertEqual(HistoryMessage.monogram(agentName: "qa-bot", isBossMessage: false), "QB")

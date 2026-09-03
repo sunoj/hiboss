@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Env, Priority } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { agentApiMetadata } from '../message-security';
 
 interface GroupRow {
   id: string;
@@ -148,9 +149,9 @@ routes.post('/:id/broadcast', async (c) => {
   for (const agentId of agentIds) {
     const inserted = await c.env.DB
       .prepare(
-        "INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority) VALUES (?, 'boss_to_agent', 'async', NULL, ?, 'sent', ?) RETURNING id"
+        "INSERT INTO messages (agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, 'boss_to_agent', 'async', 'api', ?, 'sent', ?, ?) RETURNING id"
       )
-      .bind(agentId, body, priority)
+      .bind(agentId, body, priority, JSON.stringify(agentApiMetadata(ownerId)))
       .first<{ id: string }>();
     if (inserted) {
       messages.push({ agent_id: agentId, message_id: inserted.id });

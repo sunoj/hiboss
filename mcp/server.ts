@@ -12,19 +12,21 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult, type Notification, type Request } from '@modelcontextprotocol/sdk/types.js';
 import { sendFile } from './send-file.js';
 import { enumField, fail, field, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
+import { assuranceLabel, verifyMessage, verifyMessages, type VerifiableMessage } from './message-security.js';
+import { parseEvents } from './sse-events.js';
 
 type Config = { server_url: string; api_key: string; agent_name?: string };
 type FileConfig = Partial<Config> & { server?: string; key?: string };
-type Message = { id: string; body: string; direction: string; priority?: string; type?: string | null; reply_to?: string | null; agent_name?: string | null; agent_id?: string; status?: string; replies?: Message[] };
+type Message = VerifiableMessage & { priority?: string; type?: string | null; agent_name?: string | null; agent_id?: string; status?: string; replies?: Message[] };
 type MessageList = { messages?: Message[] };
 type Session = { id: string };
 type SessionInfo = { id: string; label?: string | null; status?: string | null; agent_name?: string | null };
 type SessionList = { sessions?: SessionInfo[] };
-type ClaudeChannelNotification = Notification & { method: 'notifications/claude/channel'; params: { content: string; meta: { source: 'hiboss'; message_id: string; direction: string; from: string; priority?: string; type?: string | null; reply_to?: string | null } } };
+type ClaudeChannelNotification = Notification & { method: 'notifications/claude/channel'; params: { content: string; meta: { source: 'hiboss'; origin: string; signature: string; message_id: string; direction: string; from: string; priority?: string; type?: string | null; reply_to?: string | null } } };
 
 const VERSION = '1.3.0';
 const INSTRUCTIONS = [
-  'Messages from your boss arrive as <channel source="hiboss" message_id="..." from="..." priority="...">.',
+  'Boss messages include origin and signature assurance. Native clients are verified; Discord/Telegram are explicitly marked unsupported.',
   'Reply using the reply tool with the message_id. Use send for new outbound messages.',
   'Use ask (with options) when you need boss input - it blocks until reply or timeout.',
   "For peer agents, use send with the 'to' parameter.",
@@ -104,6 +106,7 @@ async function askTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const timeout = intOr(args.timeout, 300);
   const created = await api('POST', '/api/messages', compact({ body: str(args.body, 'body'), mode: 'blocking', options: splitOptions(args.options), session_id: mustState().session.id })) as Message;
   const polled = await api('POST', `/api/messages/${encodeURIComponent(created.id)}/poll?timeout=${timeout}`) as Message;
+  await verifyMessage(polled);
   const reply = latestReply(polled);
   return ok(reply ? reply.body : `No reply before timeout. Message id: ${created.id}`);
 }
@@ -127,12 +130,14 @@ async function inboxTool(args: Record<string, unknown>): Promise<CallToolResult>
   const unread = boolOr(args.unread, true);
   const limit = intOr(args.limit, 10);
   const data = await api('GET', `/api/messages?unread=${unread}&direction=boss_to_agent&limit=${limit}`) as MessageList;
+  await verifyMessages(data.messages ?? []);
   return ok(formatMessageList(data.messages ?? [], 'Inbox is empty.'));
 }
 async function searchTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const query = str(args.query, 'query');
   const limit = intOr(args.limit, 10);
   const data = await api('GET', `/api/messages?search=${encodeURIComponent(query)}&limit=${limit}`) as MessageList;
+  await verifyMessages(data.messages ?? []);
   return ok(formatMessageList(data.messages ?? [], 'No messages found.'));
 }
 async function listSessionsTool(args: Record<string, unknown>): Promise<CallToolResult> {
@@ -190,23 +195,10 @@ async function streamMessages(controller: AbortController): Promise<void> {
   }
 }
 
-async function parseEvents(buffer: string, event: string, data: string, onMessage: (raw: string) => Promise<void>): Promise<{ buffer: string; event: string; data: string }> {
-  const lines = buffer.split('\n');
-  buffer = lines.pop() ?? '';
-  for (const line of lines) {
-    if (line.startsWith('event:')) event = line.slice(6).trim();
-    else if (line.startsWith('data:')) data += line.slice(5).trim();
-    else if (line === '') {
-      if (event === 'message' && data) await onMessage(data);
-      event = '';
-      data = '';
-    }
-  }
-  return { buffer, event, data };
-}
-
 async function forwardMessage(mcp: Server<Request, ClaudeChannelNotification>, msg: Message): Promise<void> {
-  await mcp.notification({ method: 'notifications/claude/channel', params: { content: msg.body, meta: { source: 'hiboss', message_id: msg.id, direction: msg.direction, from: msg.agent_name || msg.agent_id || 'unknown', priority: msg.priority, type: msg.type, reply_to: msg.reply_to } } });
+  const assurance = await verifyMessage(msg);
+  const [origin, signature] = assuranceLabel(assurance).split('/');
+  await mcp.notification({ method: 'notifications/claude/channel', params: { content: msg.body, meta: { source: 'hiboss', origin: origin ?? 'unknown', signature: signature ?? 'not_applicable', message_id: msg.id, direction: msg.direction, from: msg.agent_name || msg.agent_id || 'unknown', priority: msg.priority, type: msg.type, reply_to: msg.reply_to } } });
   try {
     await api('PATCH', `/api/messages/${encodeURIComponent(msg.id)}`, { status: 'delivered' });
   } catch (error) {
