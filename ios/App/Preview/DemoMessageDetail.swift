@@ -1,5 +1,5 @@
 // Targeted message lookup for demo-mode notification deep links.
-// Exports: DemoBossAPI.fetchMessage without coupling it to history timing.
+// Exports: targeted fetches and current-production notification preview payloads.
 // Dependencies: Foundation process environment, DemoBossAPI, and HibossKit.
 
 import Foundation
@@ -20,5 +20,22 @@ extension DemoBossAPI {
             throw HibossAPIError.requestFailed(status: 404, message: "")
         }
         return detail
+    }
+
+    func notificationPreviewUserInfo(for messageID: MessageID) -> [AnyHashable: Any]? {
+        guard let message = messageDetail(for: messageID)?.message else { return nil }
+        var alert: [AnyHashable: Any] = [
+            "title": message.sessionLabel ?? message.agentName ?? "HiBoss",
+            "body": message.body,
+        ]
+        if let content = message.metadata?.content { alert["subtitle"] = content }
+        return [
+            "aps": ["alert": alert],
+            "messageId": message.id.rawValue,
+            "agentName": message.agentName ?? "HiBoss",
+            "priority": message.priority,
+            "direction": message.direction,
+            "options": message.options,
+        ]
     }
 }

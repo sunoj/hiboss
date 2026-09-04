@@ -1,13 +1,13 @@
 // Deep-link router: carries a tapped notification's message into the UI.
 // Exports: AppRouter.shared, observed by the shell to navigate on launch/tap.
-// Dependencies: HibossKit MessageID.
+// Dependencies: HibossKit MessageID and push cache values.
 
 import Combine
 import HibossKit
 
 struct PendingMessageRoute: Equatable, Sendable {
     let messageID: MessageID
-    let cachedDetail: MessageDetail?
+    let cachedMessage: PushCachedMessage?
 }
 
 @MainActor
@@ -21,10 +21,10 @@ final class AppRouter: ObservableObject {
 
     private init() {}
 
-    func open(messageID: String, cachedDetail: MessageDetail? = nil) {
+    func open(messageID: String, cachedMessage: PushCachedMessage? = nil) {
         let id = MessageID(rawValue: messageID)
-        let matchingDetail = cachedDetail?.message.id == id ? cachedDetail : nil
-        pendingMessage = PendingMessageRoute(messageID: id, cachedDetail: matchingDetail)
+        let matchingCache = cachedMessage?.detail.message.id == id ? cachedMessage : nil
+        pendingMessage = PendingMessageRoute(messageID: id, cachedMessage: matchingCache)
     }
 
     func finishOpening(_ messageID: MessageID) {

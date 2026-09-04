@@ -5,6 +5,22 @@
 import XCTest
 
 final class NotificationDeepLinkUITests: XCTestCase {
+    func testCurrentProductionNotificationShowsAlertBodyBeforeAPIsLoad() {
+        let app = XCUIApplication()
+        app.configureDemoLaunch([
+            "HIBOSS_DEMO_NOTIFICATION_PREVIEW": "c1",
+            "HIBOSS_DEMO_HISTORY_DELAY_MS": "10000",
+            "HIBOSS_DEMO_MESSAGE_DELAY_MS": "10000",
+        ])
+        app.launch()
+
+        XCTAssertTrue(
+            app.staticTexts["Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?"]
+                .waitForExistence(timeout: 3),
+            "the current production APNs alert body should render without waiting for an API"
+        )
+    }
+
     func testNotificationSnapshotOpensWhileMessageAPIsAreStillLoading() {
         let app = XCUIApplication()
         app.configureDemoLaunch([

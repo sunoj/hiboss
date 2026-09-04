@@ -1,5 +1,5 @@
 // Renders the option picker for island and standard-window presentation.
-// Exports: IslandView and OptionSurfaceStyle.
+// Exports: IslandView, OptionMessageBody, and OptionSurfaceStyle.
 // Dependencies: SwiftUI and OptionFlowStore observation.
 
 import SwiftUI
@@ -39,15 +39,7 @@ struct IslandView: View {
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)
                     .padding(.bottom, 12)
-                ScrollView(.vertical, showsIndicators: true) {
-                    Text(message.body)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.trailing, 8)
-                }
-                .frame(minHeight: 56, maxHeight: .infinity)
+                OptionMessageBody(text: message.body)
                 fixedActions(message)
             }
             .padding(.horizontal, 18)
@@ -234,5 +226,28 @@ struct IslandView: View {
     private var isSubmitting: Bool {
         if case .submitting = flow.presentationState { return true }
         return false
+    }
+}
+
+/// Renders a complete short question directly and adds scrolling only when the
+/// available panel height cannot contain the question.
+struct OptionMessageBody: View {
+    let text: String
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView(.vertical, showsIndicators: true) { content }
+        }
+        .frame(minHeight: 56, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var content: some View {
+        Text(text)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 8)
     }
 }
