@@ -77,6 +77,16 @@ actor ScriptedBossAPI: BossServing {
     func fetchHistory() async throws -> [HistoryMessage] {
         history
     }
+
+    func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail {
+        guard let message = history.first(where: { $0.id == messageID }) else {
+            throw TestError.rejected
+        }
+        return MessageDetail(
+            message: message,
+            replies: history.filter { $0.replyTo == messageID.rawValue }
+        )
+    }
 }
 
 extension HistoryMessage {

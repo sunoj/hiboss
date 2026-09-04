@@ -37,13 +37,13 @@ struct MessageDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     /// What to show when the message isn't (yet) in history.
-    private enum Fallback { case loading, missing }
+    private enum Fallback { case loading, missing, failed(String) }
 
-    private var message: HistoryMessage? { store.history.first { $0.id == messageID } }
+    private var message: HistoryMessage? { store.message(for: messageID) }
 
     /// The boss reply that resolved this decision, if it's in the loaded history.
     private var reply: HistoryMessage? {
-        store.history.first { $0.replyTo == messageID.rawValue }
+        store.reply(to: messageID)
     }
 
     /// The chosen option text, trimmed and non-empty, or nil if unresolved.
@@ -114,37 +114,52 @@ struct MessageDetailView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .task(id: loadAttempt) { await load() }
         case .missing:
-            ContentUnavailableView {
-                Label("Message not found", systemImage: "questionmark.circle")
-            } description: {
-                Text(store.loadError == nil
-                    ? String(localized: "It may have been cleared or expired.")
-                    : String(localized: "Couldn't reach the server."))
-            } actions: {
-                Button("Retry") { fallback = .loading; loadAttempt += 1 }
-            }
+            unavailableView(
+                title: String(localized: "Message not found"),
+                icon: "questionmark.circle",
+                description: String(localized: "It may have been cleared or expired.")
+            )
+        case .failed(let reason):
+            unavailableView(
+                title: String(localized: "Couldn't load message"),
+                icon: "wifi.exclamationmark",
+                description: reason
+            )
         }
     }
 
-    /// Polls for the store to become ready, refreshes, and only declares the
-    /// message missing after a clean successful load that still lacks the id.
-    /// Waiting for readiness is network-free; once ready we refresh at most a
-    /// couple of times so a down server isn't hammered before showing the error.
-    private func load() async {
-        var errorAttempts = 0
-        for _ in 0..<10 {
-            if Task.isCancelled { return }
-            if store.isReady {
-                await store.refresh()
-                if Task.isCancelled { return }          // cancelled once the message branch renders
-                if message != nil { return }            // body re-renders into the message branch
-                if store.loadError == nil { break }     // connected + clean load, genuinely absent
-                errorAttempts += 1
-                if errorAttempts >= 2 { break }         // don't hammer a failing server
-            }
-            try? await Task.sleep(for: .milliseconds(400))
+    private func unavailableView(title: String, icon: String, description: String) -> some View {
+        ContentUnavailableView {
+            Label(title, systemImage: icon)
+        } description: {
+            Text(description)
+        } actions: {
+            Button("Retry") { fallback = .loading; loadAttempt += 1 }
         }
-        if !Task.isCancelled, message == nil { fallback = .missing }
+    }
+
+    /// Waits briefly for restored credentials, then fetches only the notification
+    /// target. Full history may continue loading independently in the background.
+    private func load() async {
+        if message != nil { return }
+        for _ in 0..<AppConstants.API.notificationReadinessChecks where !store.isReady {
+            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
+            if Task.isCancelled { return }
+        }
+        guard store.isReady else {
+            fallback = .failed(String(localized: "Connection isn't ready."))
+            return
+        }
+        let result = await store.loadMessage(messageID)
+        guard !Task.isCancelled else { return }
+        switch result {
+        case .loaded:
+            break
+        case .missing:
+            fallback = .missing
+        case .failed(let reason):
+            fallback = .failed(reason)
+        }
     }
 
     /// Options UI: interactive buttons while pending, a read-only picked/others

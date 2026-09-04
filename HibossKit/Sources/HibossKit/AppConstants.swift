@@ -8,7 +8,10 @@ public enum AppConstants {
     public enum API {
         public static let reconnectDelay: Duration = .seconds(2)
         public static let requestTimeout: TimeInterval = 15
+        public static let notificationMessageTimeout: TimeInterval = 4
         public static let historyLimit = 100
+        public static let notificationReadinessChecks = 20
+        public static let notificationReadinessDelay = Duration.milliseconds(50)
         /// Max events held in the session transcript render window.
         public static let sessionStreamWindow = 300
         /// Coalesce bursty SSE appends before publishing to SwiftUI.

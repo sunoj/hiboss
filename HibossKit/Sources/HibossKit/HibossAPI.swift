@@ -142,7 +142,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         try validate(response)
     }
 
-    private var apiURL: URL {
+    var apiURL: URL {
         config.serverURL
             .appendingPathComponent("api")
             .appendingPathComponent("boss")

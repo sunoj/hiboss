@@ -14,6 +14,7 @@ extension XCUIApplication {
         "HIBOSS_DEMO_SESSION",
         "HIBOSS_DEMO_RESOLVED",
         "HIBOSS_DEMO_EMPTY",
+        "HIBOSS_DEMO_HISTORY_DELAY_MS",
         "HIBOSS_TAB",
     ]
 
