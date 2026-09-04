@@ -38,6 +38,20 @@ All versions through v1.0 are complete and shipped.
   restores the same process and window.
 - The optional menu bar icon uses native `NSStatusItem`, avoiding SwiftUI scene
   loops when hidden. Keychain reads run asynchronously after launch.
+- Device pairing reports the connected device in the original QR sheet without
+  exposing the newly issued bearer token to the Mac.
+- History rows reserve double-click for opening details. The detail sheet leads
+  with the message and keeps transport/session metadata collapsed by default.
+
+### Native Pairing and Notification Reliability
+- The iOS QR flow adopts the encoded server URL before redemption and includes the
+  Secure Enclave signing registration in the request body.
+- Connection restoration rejects orphan Keychain tokens when no valid server URL
+  is stored, so onboarding never displays a misleading authenticated state.
+- Onboarding, lock-screen Live Activities, and Dynamic Island surfaces share the
+  same image-backed HiBoss brand icon instead of an inconsistent lettermark.
+- Long native notification content uses one bounded presentation path; short
+  prompts retain a minimum body viewport and do not collapse into blank surfaces.
 
 ## v0.1 — Core
 Rust CLI (send, ask, inbox, read, reply, status, agent, bot, watch, init, config, channel). Cloudflare Worker server with D1. Discord + Telegram adapters. Multi-agent support. MCP server.

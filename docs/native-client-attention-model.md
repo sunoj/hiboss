@@ -84,6 +84,11 @@ never silently rendered as if the boss had chosen.
 Two unread counts on two tabs for two kinds of "someone said something" is the
 defect, not the fix. There is one place for messages.
 
+History detail preserves the same hierarchy: message content is first, active
+choices are second, and diagnostic metadata is last and collapsed by default.
+Compact history rows reserve double-click for opening details; text selection belongs
+inside the opened detail so it cannot intercept the row gesture.
+
 ## What is removed
 
 - **The activity heatmap and the percentage deltas.** They encode nothing the

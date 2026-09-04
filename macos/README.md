@@ -15,6 +15,10 @@ The app stores the server URL in user defaults and the Boss Token in the macOS
 Keychain. Its main window fetches the latest 100 messages from the server and does
 not persist a separate local history.
 
+Double-clicking a History row opens its detail sheet. Message content is the primary
+section, active choices follow it, and transport/session metadata is available in a
+collapsed **Details** disclosure. Text remains selectable inside the detail sheet.
+
 ## Build and run
 
 ```bash
@@ -41,6 +45,11 @@ Every connected client receives each active option independently. When any clien
 selects an option, the server accepts only the first selection and broadcasts a
 `resolved` event so all other clients withdraw the picker within one polling cycle.
 Unanswered options withdraw locally at their exact `expires_at` timestamp.
+
+**Pair another device** creates a QR code containing the server URL and a short-lived
+single-use code, never a Boss Token. The sheet observes redemption and replaces the
+QR with the connected device label. Pairing another device does not rotate or expose
+the Mac's existing token.
 
 To generate a token for an existing boss, call the server endpoint with an admin
 Boss Token:

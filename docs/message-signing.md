@@ -37,6 +37,13 @@ The signing key identifier is `base64url(SHA-256(public_key))`.
 
 The `client_kind` value is covered by the pairing proof, so it cannot be changed after registration without invalidating that proof. It is not platform attestation: a custom client with a valid pairing code can still declare itself as `ios`. Proving that a key belongs to an official iOS build requires a future Apple App Attest integration.
 
+The QR payload contains the server URL and pairing code, never a bearer token. The
+iOS client adopts that URL before redemption and sends the complete signing
+registration as the `signing` request field. After redemption, the server retains a
+temporary link from the consumed code to the issued token's label. The issuing Mac
+may poll `/api/boss/pairing/status` to show that the named device connected, but the
+status response cannot recover or reveal the issued token.
+
 ## Signed reply format
 
 Native replies use compact JWS with an unencoded JSON header and payload represented as base64url segments:
