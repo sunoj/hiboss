@@ -6,11 +6,9 @@ import {
   hasApnsConfig,
   sendPush,
   type ApnsEnvironment,
-  type ApnsInterruptionLevel,
-  type ApnsPayload,
-  type ApnsPriority,
 } from './apns';
-import type { Env, MessageRow, Priority } from './types';
+import { prepareBossPush, type BossPushSession } from './push/boss-payload';
+import type { Env, MessageRow } from './types';
 
 interface BossRecipientRow {
   id: string;
@@ -23,11 +21,6 @@ interface BossDeviceRow {
   device_token: string;
   bundle_id: string;
   environment: ApnsEnvironment;
-}
-
-interface SessionLabelRow {
-  label: string | null;
-  branch: string | null;
 }
 
 export async function notifyAgentCallback(env: Env, agentId: string, message: MessageRow, markDelivered = false): Promise<void> {
@@ -100,28 +93,19 @@ async function notifyBossDevices(
   if (!devices.results?.length) return;
   const agentName = message.agent_name ?? await fetchAgentName(env, subAgentId) ?? 'HiBoss';
   const session = await fetchSessionLabel(env, message.session_id);
-  const projectLabel = session?.label ?? (session?.branch ?? null);
-  const content = extractContent(message.metadata);
-  const options = extractOptions(message.metadata);
-  const isDecision = options !== undefined && options.length > 0;
   const preferencesByBoss = new Map(bosses.map((boss) => [boss.id, boss.preferences]));
   for (const device of devices.results) {
     const prefs = preferencesByBoss.get(device.boss_id);
-    const effectiveDecision = isDecision && decisionAlertsEnabled(prefs);
-    const tier = pushTier(message.priority, effectiveDecision, prefs);
-    if (!tier.deliver) continue;
+    const prepared = prepareBossPush(message, agentName, session, device.boss_id, prefs);
+    if (!prepared) continue;
     try {
-      const payload = buildBossPushPayload(
-        message,
-        agentName,
-        projectLabel,
-        content,
-        device.boss_id,
-        tier,
-        isPrivatePush(prefs),
-      );
       const result = await sendPush(
-        env, device.device_token, device.environment, device.bundle_id, payload, tier.apnsPriority,
+        env,
+        device.device_token,
+        device.environment,
+        device.bundle_id,
+        prepared.payload,
+        prepared.apnsPriority,
       );
       if (result.prune) {
         await env.DB.prepare('DELETE FROM boss_devices WHERE device_token = ?').bind(device.device_token).run();
@@ -130,214 +114,6 @@ async function notifyBossDevices(
       // Best-effort per device.
     }
   }
-}
-
-function buildBossPushPayload(
-  message: MessageRow,
-  agentName: string,
-  projectLabel: string | null,
-  content: string | undefined,
-  bossId: string,
-  tier: PushTier,
-  privatePush: boolean,
-): ApnsPayload {
-  const options = extractOptions(message.metadata);
-  // Private mode keeps message content off Apple's servers: the payload carries
-  // only a generic alert + the message id, and the app fetches the body itself.
-  const category = privatePush ? 'HIBOSS_MESSAGE' : (options ? 'HIBOSS_OPTIONS' : 'HIBOSS_MESSAGE');
-  const summary = extractSummary(message.metadata);
-  const body = privatePush
-    ? (summary ?? (options ? `New decision from ${agentName}` : `New message from ${agentName}`))
-    : normalPushBody(message.body, agentName, projectLabel);
-  const alert: ApnsPayload['aps']['alert'] = {
-    title: privatePush ? 'HiBoss' : (projectLabel || agentName || 'HiBoss'),
-    body,
-  };
-  if (!privatePush && content) {
-    alert.subtitle = truncateSubtitle(content);
-  }
-  const aps: ApnsPayload['aps'] = {
-    alert,
-    'interruption-level': tier.level,
-    'thread-id': bossId,
-    // iOS renders the notification's action buttons from aps.category.
-    category,
-  };
-  // Only interruptive tiers make a sound; quiet tiers land silently.
-  if (tier.sound) {
-    aps.sound = 'default';
-  }
-  const payload: ApnsPayload = {
-    aps,
-    messageId: message.id,
-    agentName,
-    priority: message.priority,
-    direction: message.direction,
-    category,
-  };
-  // Omit option text from the payload in private mode so no content reaches APNs.
-  if (options && !privatePush) {
-    payload.options = options;
-  }
-  return payload;
-}
-
-/** Agent-supplied non-sensitive summary shown in private-mode pushes. */
-function extractSummary(metadata: string | null): string | undefined {
-  if (!metadata) return undefined;
-  try {
-    const parsed = JSON.parse(metadata) as { summary?: unknown };
-    const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
-    return summary.length > 0 ? summary : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/** Agent-supplied non-sensitive context shown as normal push subtitle. */
-function extractContent(metadata: string | null): string | undefined {
-  if (!metadata) return undefined;
-  try {
-    const parsed = JSON.parse(metadata) as { content?: unknown };
-    const content = typeof parsed.content === 'string' ? parsed.content.trim() : '';
-    return content.length > 0 ? content : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function isPrivatePush(preferences: string | null | undefined): boolean {
-  if (!preferences) return false;
-  try {
-    const parsed = JSON.parse(preferences) as Record<string, unknown>;
-    return parsed.private_push === true;
-  } catch {
-    return false;
-  }
-}
-
-function decisionAlertsEnabled(preferences: string | null | undefined): boolean {
-  if (!preferences) return true;
-  try {
-    const parsed = JSON.parse(preferences) as Record<string, unknown>;
-    return parsed.decision_alerts !== false;
-  } catch {
-    return true;
-  }
-}
-
-function extractOptions(metadata: string | null): string[] | undefined {
-  if (!metadata) return undefined;
-  try {
-    const parsed = JSON.parse(metadata) as unknown;
-    if (!parsed || typeof parsed !== 'object') return undefined;
-    const options = (parsed as { options?: unknown }).options;
-    return Array.isArray(options) && options.every((option): option is string => typeof option === 'string')
-      ? options
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-interface PushTier {
-  deliver: boolean;
-  sound: boolean;
-  level: ApnsInterruptionLevel;
-  apnsPriority: ApnsPriority;
-}
-
-interface PushPreferenceOverride {
-  deliver?: boolean;
-  sound?: boolean;
-  level?: 'passive' | 'active' | 'time-sensitive' | 'critical';
-}
-
-// Maps a message's priority to how intrusive its push is. A pending decision
-// (carries options) always alerts. Plain status messages tier down by priority:
-// normal is silent/passive; low is not pushed at all (visible in-app only).
-// critical uses 'time-sensitive' (safe without the critical-alerts entitlement).
-function pushTier(priority: Priority, isDecision: boolean, preferences: string | null | undefined): PushTier {
-  if (isDecision) {
-    return priority === 'critical'
-      ? { deliver: true, sound: true, level: 'time-sensitive', apnsPriority: '10' }
-      : { deliver: true, sound: true, level: 'active', apnsPriority: '10' };
-  }
-  const base = defaultStatusPushTier(priority);
-  const override = statusPushOverride(priority, preferences);
-  if (!override) return base;
-  const sound = override.sound ?? base.sound;
-  const level = normalizeInterruptionLevel(override.level ?? base.level);
-  return {
-    deliver: override.deliver ?? base.deliver,
-    sound,
-    level,
-    apnsPriority: apnsPriorityFor(sound, level),
-  };
-}
-
-function defaultStatusPushTier(priority: Priority): PushTier {
-  switch (priority) {
-    case 'critical':
-      return { deliver: true, sound: true, level: 'time-sensitive', apnsPriority: '10' };
-    case 'high':
-      return { deliver: true, sound: true, level: 'active', apnsPriority: '10' };
-    case 'normal':
-      return { deliver: true, sound: false, level: 'passive', apnsPriority: '5' };
-    case 'low':
-      return { deliver: false, sound: false, level: 'passive', apnsPriority: '5' };
-    default:
-      return { deliver: true, sound: false, level: 'passive', apnsPriority: '5' };
-  }
-}
-
-function statusPushOverride(priority: Priority, preferences: string | null | undefined): PushPreferenceOverride | null {
-  if (!preferences) return null;
-  try {
-    const parsed = JSON.parse(preferences) as Record<string, unknown>;
-    const push = parsed['push'];
-    if (!push || typeof push !== 'object' || Array.isArray(push)) return null;
-    const priorityOverride = (push as Record<string, unknown>)[priority];
-    if (!priorityOverride || typeof priorityOverride !== 'object' || Array.isArray(priorityOverride)) return null;
-    const raw = priorityOverride as Record<string, unknown>;
-    return {
-      deliver: typeof raw['deliver'] === 'boolean' ? raw['deliver'] : undefined,
-      sound: typeof raw['sound'] === 'boolean' ? raw['sound'] : undefined,
-      level: pushLevel(raw['level']),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function pushLevel(value: unknown): PushPreferenceOverride['level'] {
-  return value === 'passive' || value === 'active' || value === 'time-sensitive' || value === 'critical'
-    ? value
-    : undefined;
-}
-
-function normalizeInterruptionLevel(level: PushPreferenceOverride['level']): ApnsInterruptionLevel {
-  return level === 'critical' ? 'time-sensitive' : level ?? 'passive';
-}
-
-function apnsPriorityFor(sound: boolean, level: ApnsInterruptionLevel): ApnsPriority {
-  return sound || level === 'active' || level === 'time-sensitive' ? '10' : '5';
-}
-
-function normalPushBody(body: string, agentName: string, projectLabel: string | null): string {
-  const truncatedBody = truncateBody(body);
-  if (projectLabel && agentName && agentName !== projectLabel) {
-    return `${agentName} · ${truncatedBody}`;
-  }
-  return truncatedBody;
-}
-
-function truncateBody(body: string): string {
-  return body.length > 150 ? `${body.slice(0, 147)}...` : body;
-}
-
-function truncateSubtitle(content: string): string {
-  return content.length > 120 ? `${content.slice(0, 117)}...` : content;
 }
 
 async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
@@ -351,11 +127,11 @@ async function fetchAgentName(env: Env, agentId: string): Promise<string | null>
 async function fetchSessionLabel(
   env: Env,
   sessionId: string | null | undefined,
-): Promise<SessionLabelRow | null> {
+): Promise<BossPushSession | null> {
   if (!sessionId) return null;
   const row = await env.DB
     .prepare('SELECT label, branch FROM sessions WHERE id = ?')
     .bind(sessionId)
-    .first<SessionLabelRow>();
+    .first<BossPushSession>();
   return row ?? null;
 }

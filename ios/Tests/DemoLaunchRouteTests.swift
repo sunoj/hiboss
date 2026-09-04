@@ -24,6 +24,18 @@ final class DemoLaunchRouteTests: XCTestCase {
         )
     }
 
+    func testNotificationSnapshotWinsOverOtherDemoRoutes() {
+        let env = [
+            "HIBOSS_DEMO_NOTIFICATION_OPEN": "cached-message",
+            "HIBOSS_DEMO_OPEN": "network-message",
+            "HIBOSS_DEMO_RESOLVED": "1",
+        ]
+        XCTAssertEqual(
+            DemoLaunchRoute.resolve(env: env),
+            .notification(.init(rawValue: "cached-message"))
+        )
+    }
+
     func testResolvedWinsOverStaleSession() {
         // Simulator `launchctl setenv HIBOSS_DEMO_SESSION` outlives screenshot runs.
         let env = [
