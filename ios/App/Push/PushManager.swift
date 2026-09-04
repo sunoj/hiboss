@@ -146,28 +146,42 @@ final class PushManager: NSObject, ObservableObject {
 }
 
 extension PushManager: UNUserNotificationCenterDelegate {
+    // These delegate methods use the completion-handler form on purpose: with the
+    // `async` form the ObjC bridge fires UIKit's completion on a cooperative
+    // background thread, and UIKit asserts main-thread there (NSInternalInconsistency
+    // → SIGABRT on every notification tap). Always complete on the main thread.
+
     // Show banners even while the app is foregrounded.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .list]
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
+    ) {
+        DispatchQueue.main.async { completionHandler([.banner, .sound, .list]) }
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
+        let request = Self.actionRequest(from: response)
+        Task { @MainActor in
+            if let request { await PushManager.shared.handle(request) }
+            completionHandler()
+        }
+    }
+
+    private nonisolated static func actionRequest(from response: UNNotificationResponse) -> PushActionRequest? {
         let info = response.notification.request.content.userInfo
-        guard let messageID = info["messageId"] as? String else { return }
-        let request = PushActionRequest(
+        guard let messageID = info["messageId"] as? String else { return nil }
+        return PushActionRequest(
             messageID: messageID,
             cachedMessage: PushMessageSnapshot.decode(from: info),
             options: info["options"] as? [String] ?? [],
             actionIdentifier: response.actionIdentifier,
             replyText: (response as? UNTextInputNotificationResponse)?.userText
         )
-        Task { @MainActor in await PushManager.shared.handle(request) }
     }
 
     private func handle(_ request: PushActionRequest) async {
