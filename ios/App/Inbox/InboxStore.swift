@@ -24,8 +24,11 @@ final class InboxStore: ObservableObject {
     @Published private(set) var settledIDs: Set<MessageID> = []
     /// Optimistic / stream-provided answers until history replies catch up.
     @Published private(set) var localResolutions: [MessageID: DecisionSettlement] = [:]
+    /// Targeted responses stay available even when the message is older than the
+    /// bounded history page loaded in parallel during a notification cold launch.
+    @Published var openedMessages: [MessageID: MessageDetail] = [:]
 
-    private var api: (any BossServing)?
+    var api: (any BossServing)?
     private let reconnectDelay: Duration
     private var streamTask: Task<Void, Never>?
     private var historyTask: Task<Void, Never>?
@@ -102,6 +105,7 @@ final class InboxStore: ObservableObject {
         withdrawn = []
         settledIDs = []
         localResolutions = [:]
+        openedMessages = [:]
         didLoad = false
         loadError = nil
         connectionState = .disconnected

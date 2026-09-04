@@ -11,7 +11,7 @@ var isDemoMode: Bool {
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
 final class DemoBossAPI: BossServing, SessionStreamServing, HomeServing, @unchecked Sendable {
-    private var messages: [HistoryMessage]
+    var messages: [HistoryMessage]
 
     init() {
         messages = DemoFixtures.queue
@@ -35,7 +35,12 @@ final class DemoBossAPI: BossServing, SessionStreamServing, HomeServing, @unchec
         }
     }
 
-    func fetchHistory() async throws -> [HistoryMessage] { messages }
+    func fetchHistory() async throws -> [HistoryMessage] {
+        let rawDelay = ProcessInfo.processInfo.environment["HIBOSS_DEMO_HISTORY_DELAY_MS"] ?? "0"
+        let delay = UInt64(rawDelay) ?? 0
+        if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
+        return messages
+    }
 
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         guard let index = messages.firstIndex(where: { $0.id == messageID }) else {

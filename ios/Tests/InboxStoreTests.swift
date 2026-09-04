@@ -48,6 +48,16 @@ final class InboxStoreTests: XCTestCase {
         XCTAssertEqual(settlement?.answeredElsewhere, true)
     }
 
+    func testTargetedMessageLoadsWithoutWaitingForHistory() async {
+        let api = MutableBossAPI(messages: [Self.question, Self.older])
+        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
+        store.start(api: api)
+
+        let result = await store.loadMessage("q1")
+        XCTAssertEqual(result, .loaded)
+        XCTAssertEqual(store.message(for: "q1")?.body, "Ship it?")
+    }
+
     private static let question = HistoryMessage(
         id: "q1", body: "Ship it?", agentName: "agent",
         direction: "agent_to_boss", status: "delivered", priority: "high",
@@ -91,6 +101,16 @@ private final class MutableBossAPI: BossServing, @unchecked Sendable {
     }
 
     func fetchHistory() async throws -> [HistoryMessage] { messages }
+
+    func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail {
+        guard let message = messages.first(where: { $0.id == messageID }) else {
+            throw HibossAPIError.requestFailed(status: 404, message: "")
+        }
+        return MessageDetail(
+            message: message,
+            replies: messages.filter { $0.replyTo == messageID.rawValue }
+        )
+    }
 
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         guard let index = messages.firstIndex(where: { $0.id == messageID }) else { return .accepted }

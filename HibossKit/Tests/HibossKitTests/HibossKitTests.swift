@@ -224,6 +224,10 @@ actor RecordingBossAPI: BossServing {
 
     func fetchHistory() async throws -> [HistoryMessage] { [] }
 
+    func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail {
+        throw HibossAPIError.requestFailed(status: 404, message: "")
+    }
+
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         replies.append(Reply(id: messageID, body: choice))
         return .accepted

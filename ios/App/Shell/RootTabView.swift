@@ -20,8 +20,6 @@ struct RootTabView: View {
     private static let homeTab = 0
     private static let messagesTab = 1
     private static let progressTab = 3
-    private static let routeReadinessChecks = 20
-    private static let routeReadinessDelay = Duration.milliseconds(50)
 
     @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress"
         ? Self.progressTab
@@ -122,8 +120,8 @@ struct RootTabView: View {
     /// restored API, avoiding cold-launch navigation during an unfinished update.
     private func openPendingMessage() async {
         guard let messageID = router.pendingMessageID else { return }
-        for _ in 0..<Self.routeReadinessChecks where !inbox.isReady {
-            try? await Task.sleep(for: Self.routeReadinessDelay)
+        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
+            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
             if Task.isCancelled { return }
         }
         await Task.yield()
