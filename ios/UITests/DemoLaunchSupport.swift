@@ -12,6 +12,7 @@ extension XCUIApplication {
     private static let demoRouteKeys = [
         "HIBOSS_DEMO_OPEN",
         "HIBOSS_DEMO_NOTIFICATION_OPEN",
+        "HIBOSS_DEMO_NOTIFICATION_PREVIEW",
         "HIBOSS_DEMO_SESSION",
         "HIBOSS_DEMO_RESOLVED",
         "HIBOSS_DEMO_EMPTY",

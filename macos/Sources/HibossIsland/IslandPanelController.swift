@@ -16,6 +16,8 @@ enum OptionPanelLayout {
     private static let minimumOptionHeight: CGFloat = 35
     /// Reply input row plus the stack spacing above it.
     private static let replyFieldHeight: CGFloat = 45
+    /// SwiftUI controls consume slightly more height than AppKit text metrics report.
+    private static let controlLayoutReserve: CGFloat = 20
 
     static func expandedHeight(
         for message: OptionMessage,
@@ -37,7 +39,7 @@ enum OptionPanelLayout {
         }
         let gaps = CGFloat(max(optionHeights.count - 1, 0)) * optionSpacing
         let optionsHeight: CGFloat = optionHeights.reduce(0, +) + gaps
-        let chrome: CGFloat = verticalChrome + replyFieldHeight
+        let chrome: CGFloat = verticalChrome + replyFieldHeight + controlLayoutReserve
         return ceil(chrome + bodyHeight + optionsHeight)
     }
 

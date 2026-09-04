@@ -116,12 +116,12 @@ struct RootTabView: View {
         }
     }
 
-    /// Opens a cached push snapshot immediately; ID-only private or oversized
-    /// notifications briefly wait for the restored API before navigation.
+    /// Opens cached snapshot or alert text immediately. Alert-only previews refresh
+    /// in the background; payloads without either briefly wait for the restored API.
     private func openPendingMessage() async {
         guard let route = router.pendingMessage else { return }
-        if let detail = route.cachedDetail {
-            inbox.cacheMessage(detail)
+        if let cached = route.cachedMessage {
+            inbox.cacheMessage(cached.detail)
         } else {
             for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
                 try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
@@ -133,6 +133,17 @@ struct RootTabView: View {
         tab = Self.messagesTab
         messagesPath = NavigationPath([route.messageID])
         router.finishOpening(route.messageID)
+        if route.cachedMessage?.requiresRefresh == true {
+            Task { await refreshNotificationPreview(route.messageID) }
+        }
+    }
+
+    private func refreshNotificationPreview(_ messageID: MessageID) async {
+        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
+            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
+        }
+        guard inbox.isReady else { return }
+        _ = await inbox.loadMessage(messageID)
     }
 
     /// Screenshot / demo deep-links: open a message or a session thread.
@@ -145,7 +156,11 @@ struct RootTabView: View {
             messagesPath = NavigationPath([id])
         case .notification(let id):
             let detail = DemoBossAPI().messageDetail(for: id)
-            router.open(messageID: id.rawValue, cachedDetail: detail)
+            let cached = detail.map { PushCachedMessage(detail: $0, requiresRefresh: false) }
+            router.open(messageID: id.rawValue, cachedMessage: cached)
+        case .notificationPreview(let id):
+            let userInfo = DemoBossAPI().notificationPreviewUserInfo(for: id) ?? [:]
+            router.open(messageID: id.rawValue, cachedMessage: PushMessageSnapshot.decode(from: userInfo))
         case .session(let id, let label):
             tab = Self.messagesTab
             messagesPath = NavigationPath([SessionRoute(id: id, label: label)])

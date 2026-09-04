@@ -2,8 +2,10 @@
 // Covers: persisted mode choices and complete long-text presentation.
 // Dependencies: XCTest, isolated UserDefaults, AppSettings, and layout sizing.
 
+import AppKit
 import Foundation
 import HibossKit
+import SwiftUI
 import XCTest
 @testable import HibossIsland
 
@@ -89,6 +91,31 @@ final class PresentationSettingsE2ETests: XCTestCase {
         XCTAssertGreaterThan(longHeight, compactHeight + 80)
     }
 
+    func testShortDecisionBodyRendersWithoutAScrollContainer() async throws {
+        let message = OptionMessage(
+            id: "review-757",
+            body: "PR #757 review done (verdict FIX). Draft at scratchpad/review-757.md. Post it as a PR review comment, dispatch the fix round now, or hold for the response audit result?",
+            agentName: "Review Agent",
+            metadata: MessageMetadata(
+                options: ["Post review to PR #757", "Dispatch fix round (aid)", "Hold"],
+                defaultOption: "Hold"
+            ),
+            expiresAt: "2100-09-04T02:00:00Z",
+            sessionLabel: "smart-router/perf/723-rh-fast-mode"
+        )
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+        store.connect(api: ScriptedBossAPI(messages: [message]))
+        try await waitUntilActive(message.id, in: store)
+        let height = OptionPanelLayout.expandedHeight(for: message)
+        let host = NSHostingView(
+            rootView: IslandView(flow: store).frame(width: AppConstants.Island.width, height: height)
+        )
+        host.frame = NSRect(x: 0, y: 0, width: AppConstants.Island.width, height: height)
+        host.layoutSubtreeIfNeeded()
+
+        XCTAssertFalse(containsScrollView(host))
+    }
+
     func testDecodesMessageHistoryWithRepliesAndOptionMetadata() throws {
         let payload = """
         {
@@ -132,6 +159,18 @@ final class PresentationSettingsE2ETests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
         addTeardownBlock { defaults.removePersistentDomain(forName: suiteName) }
         return defaults
+    }
+
+    private func waitUntilActive(_ id: MessageID, in store: OptionFlowStore) async throws {
+        for _ in 0..<100 {
+            if store.activeMessage?.id == id { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        throw TestError.timeout
+    }
+
+    private func containsScrollView(_ view: NSView) -> Bool {
+        view is NSScrollView || view.subviews.contains(where: containsScrollView)
     }
 }
 
