@@ -64,7 +64,7 @@ describe('POST /api/boss/pairing', () => {
     expect(response.status).toBe(403);
   });
 
-  it('caps active pairing codes and cleans consumed rows before minting', async () => {
+  it('caps active pairing codes without counting a consumed code', async () => {
     const codes: string[] = [];
     for (let index = 0; index < 5; index += 1) codes.push((await issueCode(RATE_LIMIT_TOKEN)).code);
     const response = await SELF.fetch('http://localhost/api/boss/pairing', {
@@ -76,6 +76,23 @@ describe('POST /api/boss/pairing', () => {
     });
     expect(redeemed.status).toBe(200);
     expect((await issueCode(RATE_LIMIT_TOKEN)).code).toMatch(/^hb_pair_/);
+  });
+
+  it('reports a paired device after its one-time code is redeemed', async () => {
+    const { code } = await issueCode();
+    const pending = await pairingStatus(code);
+    expect(pending).toEqual({ status: 'pending' });
+
+    const redeemed = await SELF.fetch('http://localhost/api/pairing/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, device_label: 'Status iPhone' }),
+    });
+    expect(redeemed.status).toBe(200);
+
+    const paired = await pairingStatus(code);
+    expect(paired).toEqual({ status: 'paired', device_label: 'Status iPhone' });
+    expect(JSON.stringify(paired)).not.toContain('hb_boss_');
   });
 });
 
@@ -225,3 +242,13 @@ describe('boss token authentication', () => {
     expect((await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders() })).status).toBe(401);
   });
 });
+
+async function pairingStatus(code: string): Promise<Record<string, unknown>> {
+  const response = await SELF.fetch('http://localhost/api/boss/pairing/status', {
+    method: 'POST',
+    headers: bossHeaders(),
+    body: JSON.stringify({ code }),
+  });
+  expect(response.status).toBe(200);
+  return await response.json() as Record<string, unknown>;
+}

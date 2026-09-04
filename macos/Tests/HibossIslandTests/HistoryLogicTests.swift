@@ -114,6 +114,22 @@ final class HistoryLogicTests: XCTestCase {
         XCTAssertEqual(HistoryMessageLogic.detailClickCount, 2)
     }
 
+    func testHistoryPreviewReservesDoubleClickForOpeningDetails() {
+        XCTAssertFalse(HistoryMessageLogic.allowsPreviewTextSelection)
+    }
+
+    func testHistoryDetailPrioritizesMessageOverSupportingMetadata() {
+        XCTAssertEqual(
+            HistoryDetailLayout.sections(hasChoices: true),
+            [.message, .choices, .metadata]
+        )
+        XCTAssertEqual(
+            HistoryDetailLayout.sections(hasChoices: false),
+            [.message, .metadata]
+        )
+        XCTAssertFalse(HistoryDetailLayout.showsMetadataByDefault)
+    }
+
     func testMonogramDerivesFromAgentNameAndBossMessages() {
         XCTAssertEqual(HistoryMessage.monogram(agentName: "Build Agent", isBossMessage: false), "BA")
         XCTAssertEqual(HistoryMessage.monogram(agentName: "qa-bot", isBossMessage: false), "QB")

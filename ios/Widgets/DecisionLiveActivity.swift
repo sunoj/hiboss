@@ -39,7 +39,7 @@ struct DecisionLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 8) {
-                        Logo()
+                        HiBossBrandIcon(size: 30)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(context.attributes.project)
                                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(LA.ink)
@@ -77,7 +77,7 @@ struct DecisionLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                Logo(size: 18)
+                HiBossBrandIcon(size: 18)
             } compactTrailing: {
                 if let range = DecisionTimerRange.active(until: context.state.deadline) {
                     Text(timerInterval: range, countsDown: true)
@@ -86,25 +86,10 @@ struct DecisionLiveActivity: Widget {
                         .frame(width: 44)
                 }
             } minimal: {
-                Logo(size: 16)
+                HiBossBrandIcon(size: 16)
             }
             .keylineTint(LA.priorityColor(context.state.priority))
         }
-    }
-}
-
-private struct Logo: View {
-    var size: CGFloat = 30
-    var body: some View {
-        Text("h")
-            .font(.system(size: size * 0.5, weight: .semibold, design: .monospaced))
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(
-                LinearGradient(colors: [Color(white: 0.23), Color(white: 0.09)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
     }
 }
 
@@ -136,7 +121,7 @@ private struct LockScreenCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 11) {
-                Logo(size: 34)
+                HiBossBrandIcon(size: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 7) {
                         Text(context.attributes.project)

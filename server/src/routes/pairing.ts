@@ -29,6 +29,12 @@ interface BossIdentity {
   role: string;
 }
 
+interface PairingStatusRow {
+  expires_at: string;
+  consumed_at: string | null;
+  device_label: string | null;
+}
+
 export const bossPairingRouter = createBossPairingRouter();
 export const pairingRouter = createPairingRouter();
 
@@ -40,7 +46,7 @@ function createBossPairingRouter(): Hono<{ Bindings: Env }> {
     const bossId = getBossId(c);
     const now = new Date().toISOString();
     await c.env.DB.prepare(
-      'DELETE FROM boss_pairing_codes WHERE boss_id = ? AND (consumed_at IS NOT NULL OR expires_at <= ?)',
+      'DELETE FROM boss_pairing_codes WHERE boss_id = ? AND expires_at <= ?',
     ).bind(bossId, now).run();
     const active = await c.env.DB.prepare(
       'SELECT COUNT(*) AS count FROM boss_pairing_codes WHERE boss_id = ? AND consumed_at IS NULL AND expires_at > ?',
@@ -56,6 +62,23 @@ function createBossPairingRouter(): Hono<{ Bindings: Env }> {
       'INSERT INTO boss_pairing_codes (boss_id, code_hash, expires_at) VALUES (?, ?, ?)',
     ).bind(bossId, await hashApiKey(code), expiresAt).run();
     return c.json({ code, expires_at: expiresAt });
+  });
+  routes.post('/status', async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json<unknown>();
+    } catch {
+      return c.text('code is required', 400);
+    }
+    const code = parsePairingStatusCode(body);
+    if (!code) return c.text('code is required', 400);
+    const row = await pairingStatusRow(c.env, getBossId(c), code);
+    if (!row) return c.text('pairing code not found', 404);
+    if (row.consumed_at && row.device_label) {
+      return c.json({ status: 'paired', device_label: row.device_label });
+    }
+    if (row.expires_at <= new Date().toISOString()) return c.json({ status: 'expired' });
+    return c.json({ status: 'pending' });
   });
   return routes;
 }
@@ -77,13 +100,16 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
     if (request.signing && !signingKey) return c.text('invalid signing proof', 400);
     const now = new Date().toISOString();
     const claimed = await c.env.DB.prepare(
-      'UPDATE boss_pairing_codes SET consumed_at = ? WHERE code_hash = ? AND consumed_at IS NULL AND expires_at > ? RETURNING boss_id',
-    ).bind(now, await hashApiKey(request.code), now).first<{ boss_id: string }>();
+      'UPDATE boss_pairing_codes SET consumed_at = ? WHERE code_hash = ? AND consumed_at IS NULL AND expires_at > ? RETURNING id, boss_id',
+    ).bind(now, await hashApiKey(request.code), now).first<{ id: string; boss_id: string }>();
     if (!claimed) return c.text('invalid or expired pairing code', 400);
     const boss = await c.env.DB.prepare('SELECT id, name, role FROM bosses WHERE id = ?')
       .bind(claimed.boss_id).first<BossIdentity>();
     if (!boss) return c.text('invalid or expired pairing code', 400);
     const grant = await issueBossToken(c.env, boss.id, request.deviceLabel, signingKey ?? undefined);
+    await c.env.DB.prepare(
+      'UPDATE boss_pairing_codes SET redeemed_token_id = ? WHERE id = ?',
+    ).bind(grant.tokenId, claimed.id).run();
     return c.json({
       token: grant.token,
       boss,
@@ -91,6 +117,23 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
     });
   });
   return routes;
+}
+
+async function pairingStatusRow(env: Env, bossId: string, code: string): Promise<PairingStatusRow | null> {
+  return env.DB.prepare(
+    `SELECT pc.expires_at, pc.consumed_at, bt.label AS device_label
+     FROM boss_pairing_codes pc
+     LEFT JOIN boss_tokens bt ON bt.id = pc.redeemed_token_id
+     WHERE pc.boss_id = ? AND pc.code_hash = ?`,
+  ).bind(bossId, await hashApiKey(code)).first<PairingStatusRow>();
+}
+
+function parsePairingStatusCode(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null;
+  const code = (value as Record<string, unknown>).code;
+  if (typeof code !== 'string') return null;
+  const trimmed = code.trim();
+  return /^hb_pair_[0-9a-f]{64}$/i.test(trimmed) ? trimmed : null;
 }
 
 function parsePairingRedeemRequest(value: unknown): PairingRedeemRequest | null {

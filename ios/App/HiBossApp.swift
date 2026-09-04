@@ -38,7 +38,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if isDemoMode || connection.isConfigured {
+            if ProcessInfo.processInfo.environment["HIBOSS_DEMO_ONBOARDING"] == "1" {
+                ConnectView(connection: connection)
+            } else if isDemoMode || connection.isConfigured {
                 RootTabView(
                     home: home,
                     inbox: inbox,

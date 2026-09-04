@@ -92,13 +92,13 @@ enum DeviceLabel {
     }
 }
 
-private struct PairingRedeemRequest: Encodable {
+struct PairingRedeemRequest: Encodable {
     let code: String
     let deviceLabel: String
     let signing: PairingSigningRegistration
 
     enum CodingKeys: String, CodingKey {
-        case code
+        case code, signing
         case deviceLabel = "device_label"
     }
 }

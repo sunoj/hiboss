@@ -174,13 +174,13 @@ describe('handleScheduled', () => {
     expect(mockedExpire).not.toHaveBeenCalled();
   });
 
-  it('cleans consumed and expired pairing codes', async () => {
+  it('keeps consumed pairing codes observable until they expire', async () => {
     const { env, preparedStatements } = makeFakeEnv({});
 
     await handleScheduled(env as never);
 
     const cleanup = preparedStatements.find((stmt) => stmt.sql.startsWith('DELETE FROM boss_pairing_codes'));
-    expect(cleanup?.sql).toContain('consumed_at IS NOT NULL');
+    expect(cleanup?.sql).not.toContain('consumed_at IS NOT NULL');
     expect(cleanup?.sql).toContain('expires_at <= ?');
     expect(cleanup?.binds[0]).toBe('2026-03-21T00:05:00.000Z');
   });

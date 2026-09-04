@@ -1,64 +1,12 @@
 // Native device-pairing sheet with an in-memory QR code and expiry countdown.
 // Exports: PairingLink, PairingValidity, PairingQRCodeGenerator, and DevicePairingSheet.
-// Dependencies: SwiftUI, AppKit/CoreImage, AppSettings, and HibossKit pairing contracts.
+// Dependencies: SwiftUI, AppKit, AppSettings, and HibossKit pairing contracts.
 
 import AppKit
-import CoreImage
 import HibossKit
 import SwiftUI
 
-enum PairingLinkError: Error, Equatable {
-    case invalidCode
-    case invalidServerURL
-}
-
-struct PairingLink: Equatable, Sendable {
-    let url: URL
-
-    init(serverURL: URL, code: String) throws {
-        guard PairingGrant.isValidCode(code) else { throw PairingLinkError.invalidCode }
-        let allowedCharacters = CharacterSet(
-            charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~"
-        )
-        guard let encodedServer = serverURL.absoluteString.addingPercentEncoding(
-            withAllowedCharacters: allowedCharacters
-        ), let url = URL(string: "hiboss://pair?server=\(encodedServer)&code=\(code)") else {
-            throw PairingLinkError.invalidServerURL
-        }
-        self.url = url
-    }
-}
-
-enum PairingValidity {
-    static func isValid(expiresAt: Date, now: Date) -> Bool {
-        expiresAt > now
-    }
-
-    static func remainingSeconds(expiresAt: Date, now: Date) -> Int {
-        max(0, Int(ceil(expiresAt.timeIntervalSince(now))))
-    }
-
-    static func formatted(remainingSeconds: Int) -> String {
-        let minutes = max(0, remainingSeconds) / 60
-        let seconds = max(0, remainingSeconds) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-}
-
-enum PairingQRCodeGenerator {
-    static func image(for link: PairingLink) -> NSImage? {
-        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-        filter.setValue(Data(link.url.absoluteString.utf8), forKey: "inputMessage")
-        filter.setValue("M", forKey: "inputCorrectionLevel")
-        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 12, y: 12)) else {
-            return nil
-        }
-        let representation = NSCIImageRep(ciImage: output)
-        let image = NSImage(size: representation.size)
-        image.addRepresentation(representation)
-        return image
-    }
-}
+private let pairingStatusPollInterval: Duration = .seconds(1)
 
 struct DevicePairingSheet: View {
     @ObservedObject var settings: AppSettings
@@ -67,6 +15,7 @@ struct DevicePairingSheet: View {
     @State private var isRequesting = false
     @State private var requestFailure: PairingRequestFailure?
     @State private var errorMessage: String?
+    @State private var pairedDeviceLabel: String?
 
     var body: some View {
         Form {
@@ -107,12 +56,15 @@ struct DevicePairingSheet: View {
             }
         }
         .task { await requestPairingCode() }
+        .task(id: grant?.code) { await monitorPairingStatus() }
     }
 
     @ViewBuilder
     private func pairingContent(at now: Date) -> some View {
         let state = contentState(at: now)
         switch state {
+        case let .paired(deviceLabel):
+            pairedContent(deviceLabel: deviceLabel)
         case let .ready(grant, link):
             if let image = PairingQRCodeGenerator.image(for: link) {
                 readyPairingContent(grant: grant, image: image, now: now)
@@ -125,6 +77,23 @@ struct DevicePairingSheet: View {
         default:
             unavailableContent(for: state)
         }
+    }
+
+    private func pairedContent(deviceLabel: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 52))
+                .foregroundStyle(DesignTokens.live)
+            Text(L("Device connected"))
+                .font(.title2.weight(.semibold))
+            Text(deviceLabel)
+                .font(.body.weight(.medium))
+            Text(L("This one-time code has been used."))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 300)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("pairing-success")
     }
 
     private func readyPairingContent(grant: PairingGrant, image: NSImage, now: Date) -> some View {
@@ -194,7 +163,7 @@ struct DevicePairingSheet: View {
                 title: L("QR code unavailable"), systemImage: "qrcode",
                 description: L("HiBoss could not render the pairing QR code.")
             )
-        case .requesting, .ready:
+        case .requesting, .paired, .ready:
             EmptyView()
         }
     }
@@ -202,6 +171,11 @@ struct DevicePairingSheet: View {
     @ViewBuilder
     private var requestButton: some View {
         switch currentContentState {
+        case .paired:
+            Button { Task { await requestPairingCode() } } label: {
+                Label(L("Pair another device"), systemImage: "qrcode")
+            }
+            .disabled(isRequesting)
         case .expired:
             Button { Task { await requestPairingCode() } } label: {
                 Label(L("Request a fresh code"), systemImage: "arrow.clockwise")
@@ -234,7 +208,8 @@ struct DevicePairingSheet: View {
             isRequesting: isRequesting,
             requestFailure: requestFailure,
             linkResult: linkResult,
-            canRenderQRCode: canRenderQRCode
+            canRenderQRCode: canRenderQRCode,
+            pairedDeviceLabel: pairedDeviceLabel
         )
     }
 
@@ -264,6 +239,7 @@ struct DevicePairingSheet: View {
         }
         isRequesting = true
         grant = nil
+        pairedDeviceLabel = nil
         requestFailure = nil
         errorMessage = nil
         defer { isRequesting = false }
@@ -273,6 +249,32 @@ struct DevicePairingSheet: View {
             let failure = PairingRequestFailure.from(error)
             requestFailure = failure
             errorMessage = failure == .permissionDenied ? nil : error.localizedDescription
+        }
+    }
+
+    private func monitorPairingStatus() async {
+        guard let grant,
+              case let .success(config) = settings.connectionConfig() else { return }
+        let api = HibossAPI(config: config)
+        while !Task.isCancelled && PairingValidity.isValid(expiresAt: grant.expiresAt, now: .now) {
+            do {
+                switch try await api.pairingStatus(code: grant.code) {
+                case let .paired(deviceLabel):
+                    pairedDeviceLabel = deviceLabel
+                    return
+                case .expired:
+                    return
+                case .pending:
+                    break
+                }
+            } catch {
+                // Polling is advisory; the visible QR remains usable through transient failures.
+            }
+            do {
+                try await Task.sleep(for: pairingStatusPollInterval)
+            } catch {
+                return
+            }
         }
     }
 }

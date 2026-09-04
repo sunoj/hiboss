@@ -33,6 +33,18 @@ public struct PairingSigningRegistration: Encodable, Sendable {
     public let publicKey: String
     public let proof: String
 
+    public init(
+        algorithm: String,
+        clientKind: SigningClientKind,
+        publicKey: String,
+        proof: String
+    ) {
+        self.algorithm = algorithm
+        self.clientKind = clientKind
+        self.publicKey = publicKey
+        self.proof = proof
+    }
+
     enum CodingKeys: String, CodingKey {
         case algorithm
         case clientKind = "client_kind"
