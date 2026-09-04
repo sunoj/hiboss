@@ -223,16 +223,24 @@ Admin only. Revoke every token belonging to the authenticated boss except the to
 Token-management controls do not prevent a stolen admin bearer from revoking sibling devices; this residual risk is accepted. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
 
 ### POST /api/boss/pairing
-Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five active codes are retained per boss; expired and consumed rows are cleaned before minting. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
+Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five unconsumed codes are active per boss; expired rows are cleaned before minting. Consumed rows remain until expiry so the issuing client can observe completion. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:
 `{ "code": "hb_pair_<64 hex characters>", "expires_at": "ISO8601" }`.
 The server stores only a hash of the code.
 
+### POST /api/boss/pairing/status
+Return the authenticated boss's pairing-code state without exposing the redeemed token.
+Request: `{ "code": "hb_pair_<64 hex characters>" }`.
+Response is `{ "status": "pending" }`, `{ "status": "expired" }`, or
+`{ "status": "paired", "device_label": "string" }`.
+
 ### POST /api/pairing/redeem
 Unauthenticated by design. Redeem a pairing code once to create a new boss token for a device.
-Request: `{ "code": "hb_pair_<64 hex characters>", "device_label": "string" }`.
+Request: `{ "code": "hb_pair_<64 hex characters>", "device_label": "string", "signing"?: { "algorithm": "ES256", "client_kind": "ios", "public_key": "base64url", "proof": "base64url" } }`.
 Response:
 `{ "token": "hb_boss_<64 hex characters>", "boss": { "id", "name", "role" } }`.
 The new token is independent from all other boss tokens; an existing device remains online.
+The consumed code is linked to the new token's metadata so the issuing client can
+report which device connected, but the bearer value is never returned by the status API.
 
 ## Boss Inbox Endpoints (Agent-as-Boss)
 
@@ -289,7 +297,7 @@ streams it is a passive monitor and **never mutates message status**. Used by th
 web console's live message feed. Same `message` event shape; 15s keepalives, 5min cap.
 
 ### GET /api/boss/overview
-Single-shot dashboard aggregate for the web console 总览:
+Single-shot dashboard aggregate for the web console overview:
 ```json
 {
   "kpis": { "activeSessions": 5, "workingSessions": 3, "pendingDecisions": 4,

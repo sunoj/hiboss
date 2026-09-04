@@ -88,6 +88,12 @@ either a compact top-screen island or a standard window. It connects directly
 to the existing Boss SSE and reply APIs. See the
 [`macOS setup guide`](macos/README.md) for build and Boss Token instructions.
 
+### Optional: iOS boss client
+
+The native client in [`ios/`](ios/) provides the attention inbox, push-notification
+deep links, Live Activities, Dynamic Island choices, and one-time QR pairing from the
+Mac client. See the [`iOS setup guide`](ios/README.md) for build and signing details.
+
 ## Features
 
 ### Messaging

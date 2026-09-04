@@ -41,6 +41,20 @@ Option messages use fan-out delivery with a single global resolution state:
   effects.
 - Option values are structured arrays. Never infer choice boundaries from commas.
 
+### Observable One-Time Device Pairing
+The QR payload carries only the server URL and a five-minute, single-use code; it
+never carries a Boss Token. Redemption creates a separate device token and links
+the consumed code to that token's non-secret label until the code expires. The
+issuing macOS client polls the authenticated status endpoint and can therefore show
+`paired` without learning or recovering the new device's bearer. The iOS client
+adopts the QR server URL before redemption and only restores a token when a valid
+server URL is also present, preventing an orphan bearer from appearing as a session.
+
+### History Detail Hierarchy
+History exists to read the message first. Native detail views order message content,
+then actionable choices, then supporting metadata. Channel, mode, status, priority,
+session, and raw timestamps remain available through collapsed progressive disclosure.
+
 ### Webhook Security (v1.1.0)
 Webhook endpoints validate request origin via optional secret tokens:
 - `TELEGRAM_WEBHOOK_SECRET` — checked against `X-Telegram-Bot-Api-Secret-Token` header
