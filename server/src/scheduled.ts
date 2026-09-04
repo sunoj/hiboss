@@ -34,7 +34,7 @@ export async function handleScheduled(env: Env): Promise<void> {
 }
 
 async function cleanupPairingCodes(env: Env, now: string): Promise<void> {
-  await env.DB.prepare('DELETE FROM boss_pairing_codes WHERE consumed_at IS NOT NULL OR expires_at <= ?').bind(now).run();
+  await env.DB.prepare('DELETE FROM boss_pairing_codes WHERE expires_at <= ?').bind(now).run();
 }
 
 async function expireDueOptions(env: Env, now: string): Promise<void> {

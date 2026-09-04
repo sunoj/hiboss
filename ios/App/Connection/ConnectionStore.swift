@@ -49,12 +49,22 @@ final class ConnectionStore: ObservableObject {
         let stored = await Task.detached(priority: .userInitiated) {
             (token: try? keychain.read(), signer: try? signerStore.read())
         }.value
-        bossToken = stored.token ?? ""
-        messageSigner = stored.signer
-        if case let .success(config) = makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken) {
-            self.config = config
+        defer { isRestoring = false }
+
+        let storedToken = stored.token ?? ""
+        guard case let .success(restoredConfig) = makeConnectionConfig(
+            serverAddress: serverAddress,
+            bossToken: storedToken
+        ) else {
+            bossToken = ""
+            messageSigner = nil
+            config = nil
+            return
         }
-        isRestoring = false
+
+        bossToken = storedToken
+        messageSigner = stored.signer
+        config = restoredConfig
     }
 
     /// Validates + persists the entered credentials and verifies them against the server.

@@ -116,12 +116,22 @@ final class PairingLogicTests: XCTestCase {
         XCTAssertEqual(actualLink, link)
     }
 
+    func testPairingContentStateKeepsObservedSuccessAfterCodeExpires() throws {
+        let grant = try Self.grant(expiresIn: -1)
+
+        XCTAssertEqual(
+            Self.deriveState(grant: grant, pairedDeviceLabel: "Ming’s iPhone"),
+            .paired(deviceLabel: "Ming’s iPhone")
+        )
+    }
+
     private static func deriveState(
         grant: PairingGrant? = nil,
         hasConfiguredServer: Bool = true,
         requestFailure: PairingRequestFailure? = nil,
         linkResult: Result<PairingLink, PairingLinkError>? = nil,
-        canRenderQRCode: Bool = false
+        canRenderQRCode: Bool = false,
+        pairedDeviceLabel: String? = nil
     ) -> PairingContentState {
         PairingContentState.derive(
             grant: grant,
@@ -130,7 +140,8 @@ final class PairingLogicTests: XCTestCase {
             isRequesting: false,
             requestFailure: requestFailure,
             linkResult: linkResult,
-            canRenderQRCode: canRenderQRCode
+            canRenderQRCode: canRenderQRCode,
+            pairedDeviceLabel: pairedDeviceLabel
         )
     }
 

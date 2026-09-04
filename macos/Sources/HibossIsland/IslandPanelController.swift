@@ -14,20 +14,24 @@ enum OptionPanelLayout {
     private static let optionVerticalPadding: CGFloat = 18
     private static let optionSpacing: CGFloat = 7
     private static let minimumOptionHeight: CGFloat = 35
+    private static let minimumBodyViewportHeight: CGFloat = 56
     /// Reply input row plus the stack spacing above it.
     private static let replyFieldHeight: CGFloat = 45
     /// SwiftUI controls consume slightly more height than AppKit text metrics report.
-    private static let controlLayoutReserve: CGFloat = 20
+    private static let controlLayoutReserve: CGFloat = 24
 
     static func expandedHeight(
         for message: OptionMessage,
         width: CGFloat = AppConstants.Island.width
     ) -> CGFloat {
         let contentWidth = width - contentHorizontalPadding
-        let bodyHeight = textHeight(
-            message.body,
-            font: .systemFont(ofSize: 15, weight: .semibold),
-            width: contentWidth
+        let bodyHeight = max(
+            minimumBodyViewportHeight,
+            textHeight(
+                message.body,
+                font: .systemFont(ofSize: 15, weight: .semibold),
+                width: contentWidth
+            )
         )
         let optionWidth = contentWidth - optionTextChrome
         let optionHeights = message.options.map { option in

@@ -15,13 +15,7 @@ struct HistoryRow: View {
             avatar
             VStack(alignment: .leading, spacing: 6) {
                 header
-                Text(message.body)
-                    .font(.body)
-                    .foregroundStyle(
-                        message.isUnreadHistoryMessage ? Color.primary : Color.secondary
-                    )
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                messagePreview
 
                 if let autoDecided = message.historyAutoDecidedLabel {
                     Text(autoDecided)
@@ -34,6 +28,24 @@ struct HistoryRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var messagePreview: some View {
+        if HistoryMessageLogic.allowsPreviewTextSelection {
+            messagePreviewText.textSelection(.enabled)
+        } else {
+            messagePreviewText.textSelection(.disabled)
+        }
+    }
+
+    private var messagePreviewText: some View {
+        Text(message.body)
+            .font(.body)
+            .foregroundStyle(
+                message.isUnreadHistoryMessage ? Color.primary : Color.secondary
+            )
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var optionRow: some View {

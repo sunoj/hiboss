@@ -162,6 +162,7 @@ CREATE TABLE IF NOT EXISTS boss_pairing_codes (
   code_hash TEXT NOT NULL UNIQUE,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
+  redeemed_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

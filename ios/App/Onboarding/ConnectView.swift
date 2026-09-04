@@ -54,20 +54,11 @@ struct ConnectView: View {
                 pair(payload)
             }
         }
+        .onAppear(perform: pairDemoPayloadIfPresent)
     }
 
     private var logo: some View {
-        Text("h")
-            .font(.title2.monospaced().weight(.semibold))
-            .foregroundStyle(Color(uiColor: UIColor(rgb: 0xECEBE7)))
-            .frame(width: 52, height: 52)
-            .background(
-                LinearGradient(
-                    colors: [Color(uiColor: UIColor(rgb: 0x3A3A36)), Color(uiColor: UIColor(rgb: 0x171715))],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+        HiBossBrandIcon(size: 52)
     }
 
     private func field(
@@ -88,6 +79,7 @@ struct ConnectView: View {
             }
             .font(.hbBody)
             .focused($focus, equals: field)
+            .accessibilityIdentifier(field == .server ? "server-url-field" : "boss-token-field")
             .padding(.horizontal, 14)
             .frame(height: 48)
             .background(Theme.surface)
@@ -106,7 +98,7 @@ struct ConnectView: View {
                 Text(connecting ? String(localized: "Connecting…") : String(localized: "Connect"))
                     .font(.hbBodyStrong)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.paper)
             .frame(maxWidth: .infinity)
             .frame(height: 50)
             .background(Theme.ink)
@@ -154,6 +146,7 @@ struct ConnectView: View {
     private func pair(_ payload: PairingPayload) {
         focus = nil
         error = nil
+        connection.serverAddress = payload.serverURL.absoluteString
         connecting = true
         Task {
             let result = await connection.pair(payload: payload, deviceLabel: DeviceLabel.current())
@@ -162,5 +155,11 @@ struct ConnectView: View {
                 error = failure.localizedDescription
             }
         }
+    }
+
+    private func pairDemoPayloadIfPresent() {
+        guard let rawValue = ProcessInfo.processInfo.environment["HIBOSS_DEMO_PAIRING_SCAN"],
+              case let .success(payload) = PairingPayload.parse(rawValue) else { return }
+        pair(payload)
     }
 }

@@ -1,11 +1,17 @@
 // Shared device-pairing response and the authenticated pairing-code request.
-// Exports: PairingGrant, PairingGrantError, and HibossAPI.requestPairingCode().
+// Exports: pairing grants/status plus HibossAPI pairing request and status methods.
 // Dependencies: Foundation Codable and HibossAPI's authenticated request helpers.
 
 import Foundation
 
 public enum PairingGrantError: Error, Equatable, Sendable {
     case invalidCode
+}
+
+public enum PairingStatus: Equatable, Sendable {
+    case pending
+    case paired(deviceLabel: String)
+    case expired
 }
 
 public struct PairingGrant: Decodable, Equatable, Sendable {
@@ -67,6 +73,51 @@ extension HibossAPI {
             return try decoder.decode(PairingGrant.self, from: data)
         } catch {
             throw HibossAPIError.decodingFailed(context: "pairing response", body: "<unreadable>")
+        }
+    }
+
+    public func pairingStatus(code: String) async throws -> PairingStatus {
+        guard PairingGrant.isValidCode(code) else { throw PairingGrantError.invalidCode }
+        let endpoint = config.serverURL
+            .appendingPathComponent("api")
+            .appendingPathComponent("boss")
+            .appendingPathComponent("pairing")
+            .appendingPathComponent("status")
+        var request = authorizedRequest(url: endpoint, method: "POST")
+        request.httpBody = try JSONEncoder().encode(PairingStatusRequest(code: code))
+        let (data, response) = try await session.data(for: request)
+        try validate(response)
+        do {
+            return try decoder.decode(PairingStatusResponse.self, from: data).status
+        } catch {
+            throw HibossAPIError.decodingFailed(context: "pairing status", body: "<unreadable>")
+        }
+    }
+}
+
+private struct PairingStatusRequest: Encodable {
+    let code: String
+}
+
+private struct PairingStatusResponse: Decodable {
+    let status: PairingStatus
+
+    private enum CodingKeys: String, CodingKey {
+        case status
+        case deviceLabel = "device_label"
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        switch try values.decode(String.self, forKey: .status) {
+        case "pending": status = .pending
+        case "expired": status = .expired
+        case "paired":
+            status = .paired(deviceLabel: try values.decode(String.self, forKey: .deviceLabel))
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: .status, in: values, debugDescription: "Unknown pairing status"
+            )
         }
     }
 }

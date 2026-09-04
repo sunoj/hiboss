@@ -37,6 +37,42 @@ final class PairingAPITests: XCTestCase {
         XCTAssertFalse(PairingGrant.isValidCode("hb_pair_" + String(repeating: "a", count: 63)))
     }
 
+    func testPairingStatusUsesAuthorizedPostAndDecodesPairedDevice() async throws {
+        PairingURLProtocol.handler = { request in
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.url?.path, "/api/boss/pairing/status")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+            let body = try JSONDecoder().decode(
+                PairingStatusRequestCapture.self,
+                from: try Self.bodyData(from: request)
+            )
+            XCTAssertEqual(body.code, Self.validCode)
+            return try Self.response(
+                for: request,
+                json: "{\"status\":\"paired\",\"device_label\":\"Ming’s iPhone\"}"
+            )
+        }
+
+        let status = try await HibossAPI(config: Self.config, session: Self.session())
+            .pairingStatus(code: Self.validCode)
+
+        XCTAssertEqual(status, .paired(deviceLabel: "Ming’s iPhone"))
+    }
+
+    func testPairingStatusDecodesPendingAndExpiredStates() async throws {
+        for (wireStatus, expected) in [
+            ("pending", PairingStatus.pending),
+            ("expired", PairingStatus.expired),
+        ] {
+            PairingURLProtocol.handler = { request in
+                try Self.response(for: request, json: "{\"status\":\"" + wireStatus + "\"}")
+            }
+            let status = try await HibossAPI(config: Self.config, session: Self.session())
+                .pairingStatus(code: Self.validCode)
+            XCTAssertEqual(status, expected)
+        }
+    }
+
     func testMalformedPairingResponseDoesNotEchoCredentialInError() async throws {
         let invalidCode = "hb_pair_not-a-code"
         PairingURLProtocol.handler = { request in
@@ -76,6 +112,26 @@ final class PairingAPITests: XCTestCase {
         )
         return (response, Data(json.utf8))
     }
+
+    private static func bodyData(from request: URLRequest) throws -> Data {
+        if let body = request.httpBody { return body }
+        let stream = try XCTUnwrap(request.httpBodyStream)
+        stream.open()
+        defer { stream.close() }
+
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 { throw stream.streamError ?? HibossAPIError.invalidResponse }
+            if count == 0 { return data }
+            data.append(buffer, count: count)
+        }
+    }
+}
+
+private struct PairingStatusRequestCapture: Decodable {
+    let code: String
 }
 
 private final class PairingURLProtocol: URLProtocol, @unchecked Sendable {

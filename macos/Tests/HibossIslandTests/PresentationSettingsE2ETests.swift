@@ -88,7 +88,43 @@ final class PresentationSettingsE2ETests: XCTestCase {
         let compactHeight = OptionPanelLayout.expandedHeight(for: compact)
         let longHeight = OptionPanelLayout.expandedHeight(for: long)
 
-        XCTAssertGreaterThan(longHeight, compactHeight + 80)
+        XCTAssertGreaterThan(longHeight, compactHeight + 50)
+    }
+
+    func testShortQuestionSizingHonorsBodyViewportMinimum() {
+        let oneLine = message(body: "Choose a path", option: "Continue")
+        let twoLines = message(body: "Choose a path\nThen confirm", option: "Continue")
+
+        XCTAssertEqual(
+            OptionPanelLayout.expandedHeight(for: oneLine),
+            OptionPanelLayout.expandedHeight(for: twoLines)
+        )
+    }
+
+    func testReportedShortPromptFitsCalculatedPanelHeight() async throws {
+        let message = OptionMessage(
+            id: "provenance-check",
+            body: "HiBoss provenance 部署验证：请回复一个选项。",
+            agentName: "zhang-yuan",
+            metadata: MessageMetadata(
+                options: ["确认：收到测试消息", "异常：未收到或无法回复"],
+                content: "请任选一个选项回复；收到后我会验证来源 metadata"
+            ),
+            expiresAt: "2100-09-04T02:00:00Z",
+            sessionLabel: "hiboss/main"
+        )
+        let store = OptionFlowStore(reconnectDelay: .seconds(60))
+        store.connect(api: ScriptedBossAPI(messages: [message]))
+        try await waitUntilActive(message.id, in: store)
+        let calculatedHeight = OptionPanelLayout.expandedHeight(for: message)
+        let host = NSHostingView(
+            rootView: IslandView(flow: store)
+                .frame(width: AppConstants.Island.width)
+                .fixedSize(horizontal: false, vertical: true)
+        )
+        host.layoutSubtreeIfNeeded()
+
+        XCTAssertLessThanOrEqual(host.fittingSize.height, calculatedHeight)
     }
 
     func testShortDecisionBodyRendersWithoutAScrollContainer() async throws {
