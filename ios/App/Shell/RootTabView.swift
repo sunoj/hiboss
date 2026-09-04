@@ -116,19 +116,23 @@ struct RootTabView: View {
         }
     }
 
-    /// Runs outside SwiftUI's observation callback and briefly waits for the
-    /// restored API, avoiding cold-launch navigation during an unfinished update.
+    /// Opens a cached push snapshot immediately; ID-only private or oversized
+    /// notifications briefly wait for the restored API before navigation.
     private func openPendingMessage() async {
-        guard let messageID = router.pendingMessageID else { return }
-        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
-            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
-            if Task.isCancelled { return }
+        guard let route = router.pendingMessage else { return }
+        if let detail = route.cachedDetail {
+            inbox.cacheMessage(detail)
+        } else {
+            for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
+                try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
+                if Task.isCancelled { return }
+            }
         }
         await Task.yield()
         guard !Task.isCancelled else { return }
         tab = Self.messagesTab
-        messagesPath = NavigationPath([messageID])
-        router.finishOpening(messageID)
+        messagesPath = NavigationPath([route.messageID])
+        router.finishOpening(route.messageID)
     }
 
     /// Screenshot / demo deep-links: open a message or a session thread.
@@ -139,6 +143,9 @@ struct RootTabView: View {
         case .open(let id):
             tab = Self.messagesTab
             messagesPath = NavigationPath([id])
+        case .notification(let id):
+            let detail = DemoBossAPI().messageDetail(for: id)
+            router.open(messageID: id.rawValue, cachedDetail: detail)
         case .session(let id, let label):
             tab = Self.messagesTab
             messagesPath = NavigationPath([SessionRoute(id: id, label: label)])

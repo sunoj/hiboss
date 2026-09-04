@@ -13,6 +13,7 @@ final class MessageDetailAPITests: XCTestCase {
     }
 
     func testFetchMessageTargetsOneIDWithShortTimeout() async throws {
+        XCTAssertEqual(AppConstants.API.notificationMessageTimeout, 2)
         MessageDetailURLProtocol.handler = { request in
             XCTAssertEqual(request.httpMethod, "GET")
             XCTAssertEqual(request.url?.path, "/api/boss/messages/m1")

@@ -12,6 +12,10 @@ enum MessageLoadResult: Equatable {
 }
 
 extension InboxStore {
+    func cacheMessage(_ detail: MessageDetail) {
+        openedMessages[detail.message.id] = detail
+    }
+
     func message(for id: MessageID) -> HistoryMessage? {
         history.first { $0.id == id } ?? openedMessages[id]?.message
     }
@@ -30,7 +34,7 @@ extension InboxStore {
             guard detail.message.id == id else {
                 return .failed(String(localized: "The server returned the wrong message."))
             }
-            openedMessages[id] = detail
+            cacheMessage(detail)
             return .loaded
         } catch let error as HibossAPIError {
             if case .requestFailed(status: 404, message: _) = error { return .missing }
