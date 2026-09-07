@@ -91,17 +91,6 @@ export class PanelRoom extends DurableObject<Env> {
     return row ? (row.epoch as string) : null;
   }
 
-  private async initialTask(panelId: string): Promise<unknown> {
-    const row = await this.env.DB.prepare('SELECT initial_state_json FROM panel_definitions WHERE panel_id = ? ORDER BY definition_revision DESC LIMIT 1')
-      .bind(panelId).first<{ initial_state_json: string }>();
-    if (!row) return {};
-    try {
-      const state = JSON.parse(row.initial_state_json) as unknown;
-      if (state && typeof state === 'object' && !Array.isArray(state) && 'task' in state) return state.task;
-    } catch {}
-    return {};
-  }
-
   private attachment(ws: WebSocket): ConnectionAttachment | null {
     const value = ws.deserializeAttachment() as unknown;
     if (!value || typeof value !== 'object') return null;
@@ -134,12 +123,11 @@ export class PanelRoom extends DurableObject<Env> {
     return row !== null;
   }
 
-  private async sendSnapshot(ws: WebSocket, panelId: string): Promise<void> {
+  private sendSnapshot(ws: WebSocket, panelId: string): void {
     const snap = this.getSnapshot(panelId);
-    const task = snap?.task ?? await this.initialTask(panelId);
     ws.send(JSON.stringify(snap
-      ? { kind: 'state.snapshot', epoch: snap.epoch, sequence: snap.sequence, task, persistedAt: snap.persistedAt }
-      : { kind: 'state.snapshot', sequence: 0, task }));
+      ? { kind: 'state.snapshot', epoch: snap.epoch, sequence: snap.sequence, task: snap.task, persistedAt: snap.persistedAt }
+      : { kind: 'state.snapshot', sequence: 0, task: {} }));
   }
 
   private async handleSubscribe(ws: WebSocket, ticket: ConnectionAttachment, panelId: unknown): Promise<void> {
@@ -148,7 +136,7 @@ export class PanelRoom extends DurableObject<Env> {
       return;
     }
     ws.serializeAttachment({ ...ticket, subscribedPanelId: panelId });
-    await this.sendSnapshot(ws, panelId);
+    this.sendSnapshot(ws, panelId);
   }
 
   private async handleLeaseClaim(ws: WebSocket, ticket: ConnectionAttachment, msg: Record<string, unknown>): Promise<void> {
@@ -177,7 +165,7 @@ export class PanelRoom extends DurableObject<Env> {
       this.sendError(ws, 'lease_conflict');
       return;
     }
-    const snap = this.getSnapshot(msg.panelId) || { epoch: msg.epoch, sequence: 0, task: await this.initialTask(msg.panelId) };
+    const snap = this.getSnapshot(msg.panelId) || { epoch: msg.epoch, sequence: 0, task: {} };
     if (snap.sequence !== msg.baseSequence) {
       this.sendError(ws, 'resync_required');
       return;

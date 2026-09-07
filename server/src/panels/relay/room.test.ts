@@ -63,19 +63,6 @@ beforeAll(async () => {
 });
 
 describe('PanelRoom', () => {
-  it('sends the published task baseline before any producer update', async () => {
-    const roomId = 'test-initial-state';
-    const panelId = `${roomId}-panel`;
-    await seedPanel(roomId, panelId);
-    await env.DB.prepare('INSERT INTO panel_definitions (panel_id, definition_revision, protocol_version, catalog_id, catalog_version, spec_json, state_schema_json, initial_state_json, created_at) VALUES (?, 1, 1, ?, 1, ?, ?, ?, datetime(\'now\'))')
-      .bind(panelId, 'hiboss.panel', '{}', '{}', JSON.stringify({ task: { done: 3 } })).run();
-    const stub = env.PANEL_ROOM!.get(env.PANEL_ROOM!.idFromName(roomId));
-    const { ws, messages } = await connectToRoom(stub, roomId, 'subscriber', roomId, panelId);
-    const snapshot = messages.find((message) => message.kind === 'state.snapshot');
-    expect(snapshot).toMatchObject({ sequence: 0, task: { done: 3 } });
-    ws.close();
-  });
-
   it('1. acknowledged update is readable by new subscriber (eviction unproven)', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-1');
     const stub = env.PANEL_ROOM!.get(id);
