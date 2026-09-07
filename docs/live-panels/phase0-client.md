@@ -87,3 +87,16 @@ The chart now draws a line, with the fixture's middle `null` visible as a break 
 two line segments. The leaf height settles to the measured document content, so the
 heading is followed by the plot without the former empty band above it. The keychain
 prompt was denied without entering a password; the fixture surface remained usable.
+
+## Tile wall verification — 2026-09-07
+
+The rebuilt `HIBOSS_PANELS_DEMO=1` app showed seven producer-labelled tiles. Several
+updates changed numbers in place without moving tiles. After the Research Desk
+producer stopped, `Image pipeline benchmark` showed `Stale` beside live tiles; a later
+check correctly progressed it to `Offline`. The captures are
+`screenshots/panels-wall-live.png`, `screenshots/panels-wall-stale.png`, and
+`screenshots/panels-wall-dark.png`.
+
+One cosmetic issue was visible: wide chart-series tiles reserve more blank vertical
+space than their compact scalar summaries use. The wall remained readable, and the
+full-panel path still renders charts and tables through the existing web leaf.
