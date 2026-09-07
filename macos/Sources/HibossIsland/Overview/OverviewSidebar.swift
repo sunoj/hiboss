@@ -58,9 +58,11 @@ struct OverviewSidebar: View {
         historyState == .loaded || !snapshot.history.isEmpty
     }
 
-    private var panelsDemoEnabled: Bool {
-        ProcessInfo.processInfo.environment["HIBOSS_PANELS_DEMO"] == "1"
-    }
+    // The destination is always reachable. The demo flag chooses where panels come from,
+    // not whether the surface exists — gating the entry on it left server-backed panels
+    // with no way in at all. An empty destination is consistent with the categories
+    // above, which show a zero rather than disappearing.
+    private var panelsDemoEnabled: Bool { true }
 
     private var notice: String? {
         if case let .failed(error) = historyState { return error }
