@@ -9,9 +9,21 @@ Both live under `spikes/` and are deleted once this gate closes, so neither appr
 gained an advantage from already being wired into a shipped target.
 
 Every number below was reproduced by rebuilding and re-running each harness
-independently of the agent that produced it. Figures that could not be reproduced
-would not appear here; an earlier SwiftUI attempt was rejected for reporting latency
-and memory that no code in it could have produced.
+independently of the agent that produced it. An earlier SwiftUI attempt was rejected
+for reporting latency and memory that no code in it could have produced.
+
+What "reproduced" means differs by measure, so it is stated exactly:
+
+| Measure | Reproduction |
+| --- | --- |
+| Apply latency, both sides | Re-ran both harnesses; web p50 identical at 16.66 ms, SwiftUI within run-to-run variance |
+| Cold mount, both sides | Same order and same ranking; absolute values move between runs |
+| Memory, SwiftUI | The harness prints it; within one percent of the reported figures |
+| Memory, web | Re-measured with `footprint` on both processes: 34 to 33 MB native, 21 to 20 MB WebKit, against 35 to 34 and 25 to 25 reported. Absolute values sit a few megabytes lower on this run; what reproduces is the absence of a measurable incremental cost, not the digits |
+| Artifact size | The JavaScript payload matches exactly at 326,602 bytes; the native executable differs by 560 bytes across a rebuild |
+
+Absolute memory and cold-mount figures are machine and run dependent. Treat the
+rankings and the orders of magnitude as the evidence, not the individual digits.
 
 ## What each side measured
 
