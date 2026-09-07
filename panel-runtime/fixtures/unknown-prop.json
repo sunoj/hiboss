@@ -1,0 +1,6 @@
+{
+  "root": "main",
+  "elements": {
+    "main": { "type": "Text", "props": { "text": "Hello", "fontFamily": "unsafe" }, "children": [] }
+  }
+}

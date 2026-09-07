@@ -1,0 +1,6 @@
+{
+  "root": "main",
+  "elements": {
+    "main": { "type": "Metric", "props": { "label": "Unsafe", "value": { "$state": "/task/__proto__" } }, "children": [] }
+  }
+}

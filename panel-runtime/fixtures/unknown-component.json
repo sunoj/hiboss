@@ -1,0 +1,6 @@
+{
+  "root": "main",
+  "elements": {
+    "main": { "type": "Sparkline", "props": {}, "children": [] }
+  }
+}
