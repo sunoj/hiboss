@@ -143,3 +143,13 @@ extension HibossAPI: PanelsServing {
         )
     }
 }
+
+extension PanelValue {
+    /// True when the value is an object with no members. A snapshot carrying one at
+    /// sequence zero means the producer has not written yet, which is not the same as a
+    /// task whose state is genuinely empty.
+    public var isEmptyObject: Bool {
+        if case let .object(members) = self { return members.isEmpty }
+        return false
+    }
+}

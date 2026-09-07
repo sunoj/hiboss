@@ -62,7 +62,7 @@ final class PanelsModelTests: XCTestCase {
     }
 }
 
-private actor StubPanelsService: PanelsServing {
+actor StubPanelsService: PanelsServing {
     enum Failure: Error, LocalizedError {
         case unavailable
 

@@ -10,8 +10,11 @@ enum PanelTileSize: Equatable, Sendable {
 
     var dimensions: CGSize {
         switch self {
-        case .compact: CGSize(width: 236, height: 176)
-        case .wide: CGSize(width: 488, height: 176)
+        // A tile has to be tall enough to carry a chart, which is most of why a panel is
+        // worth watching. At 176 the content was cropped just below the metric labels, so
+        // a card showed headings with nothing under them.
+        case .compact: CGSize(width: 236, height: 300)
+        case .wide: CGSize(width: 488, height: 300)
         }
     }
 }

@@ -17,7 +17,7 @@ struct PanelTilePreview: View {
     @StateObject private var webModel = PanelWebModel()
     @State private var contentSize = CGSize.zero
 
-    private let viewportHeight: CGFloat = 70
+    private let viewportHeight: CGFloat = 196
     private let minimumScale: CGFloat = 0.62
 
     var body: some View {

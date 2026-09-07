@@ -176,7 +176,13 @@ final class PanelsModel: ObservableObject {
             liveSubscriptions.insert(tileID)
             lastRelayActivity[tileID] = Date()
             if result == .resyncRequired { connection?.requestSnapshot() }
-            if result == .installed || result == .applied, let index = tiles.firstIndex(where: { $0.id == tileID }) {
+            // A snapshot at sequence zero with an empty task means the producer has not
+            // written anything yet — not that the task state is empty. Overwriting with it
+            // wipes the published initial state and the card falls to em-dashes, which is
+            // what the boss saw on every server-backed panel.
+            let producerHasWritten = state.sequence > 0 || !state.task.isEmptyObject
+            if producerHasWritten, result == .installed || result == .applied,
+               let index = tiles.firstIndex(where: { $0.id == tileID }) {
                 tiles[index].store.replaceTask(PanelJSONValue(remote: state.task))
             }
             return
