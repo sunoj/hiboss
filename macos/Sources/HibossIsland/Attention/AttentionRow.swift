@@ -16,7 +16,9 @@ struct AttentionRow: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
-                trailing
+                TimelineView(.periodic(from: now, by: 1)) { context in
+                    trailing(at: context.date)
+                }
             }
             Text(item.asker)
                 .font(.subheadline)
@@ -38,7 +40,7 @@ struct AttentionRow: View {
     }
 
     @ViewBuilder
-    private var trailing: some View {
+    private func trailing(at now: Date) -> some View {
         if let remaining = item.remaining(at: now), let option = item.defaultOption {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(remaining)

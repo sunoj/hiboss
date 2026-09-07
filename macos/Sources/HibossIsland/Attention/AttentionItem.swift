@@ -7,6 +7,18 @@ import HibossKit
 
 struct AttentionItem: Identifiable, Equatable, Sendable {
     let message: HistoryMessage
+    let defaultOption: String?
+    let expirationDate: Date?
+    let createdDate: Date?
+    let options: [String]
+
+    init(message: HistoryMessage) {
+        self.message = message
+        defaultOption = nonEmpty(message.defaultOption)
+        expirationDate = message.expirationDate
+        createdDate = HistoryTimestamp.date(from: message.createdAt)
+        options = message.options.compactMap { nonEmpty($0) }
+    }
 
     var id: MessageID { message.id }
 
@@ -20,15 +32,6 @@ struct AttentionItem: Identifiable, Equatable, Sendable {
 
     var body: String { message.body }
     var content: String? { nonEmpty(message.content) }
-    var defaultOption: String? { nonEmpty(message.defaultOption) }
-    var expirationDate: Date? { message.expirationDate }
-    var createdDate: Date? { HistoryTimestamp.date(from: message.createdAt) }
-
-    var options: [String] {
-        message.options
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
 
     /// critical = 0, high = 1, anything else last. Only used inside the priority band.
     var priorityRank: Int {
@@ -94,7 +97,7 @@ struct AttentionItem: Identifiable, Equatable, Sendable {
     }
 
     private var isBlockedWithoutDeadline: Bool {
-        message.expirationDate == nil && normalizedSession == "waiting"
+        expirationDate == nil && normalizedSession == "waiting"
     }
 
     private var isDeclaredPriority: Bool {

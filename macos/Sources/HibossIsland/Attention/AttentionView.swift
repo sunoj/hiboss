@@ -7,18 +7,14 @@ import SwiftUI
 
 struct AttentionView: View {
     @ObservedObject var flow: OptionFlowStore
+    @ObservedObject var reply: AttentionReplyState
+    let category: OverviewCategory
+    let items: [AttentionItem]
+    let now: Date
     @State private var selection: MessageID?
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let items = AttentionRanking.items(
-                history: flow.historyMessages,
-                live: flow.activeMessage,
-                now: context.date
-            )
-            content(items: items, now: context.date)
-        }
-        .navigationTitle(L("Needs You"))
+        content(items: items, now: now)
     }
 
     @ViewBuilder
@@ -40,8 +36,9 @@ struct AttentionView: View {
                 items: items,
                 now: now,
                 selection: $selection,
+                reply: reply,
                 onChoose: { choice, id in
-                    Task { await flow.answerHistory(choice, for: id) }
+                    await flow.answerHistory(choice, for: id)
                 }
             )
         }
@@ -49,9 +46,11 @@ struct AttentionView: View {
 
     private var settledEmpty: some View {
         ContentUnavailableView(
-            L("Nothing needs you"),
+            category == .needsYou ? L("Nothing needs you") : L("No questions in this category"),
             systemImage: "checkmark.circle",
-            description: Text(L("You're clear. Agents will show up here when they need a decision."))
+            description: Text(category == .needsYou
+                ? L("You're clear. Agents will show up here when they need a decision.")
+                : L("Choose another category to see more messages."))
         )
     }
 }
@@ -60,7 +59,11 @@ struct AttentionWorkspace: View {
     let items: [AttentionItem]
     let now: Date
     @Binding var selection: MessageID?
-    let onChoose: (String, MessageID) -> Void
+    @ObservedObject var reply: AttentionReplyState
+    let onChoose: (String, MessageID) async -> Bool
+    @State private var showsCompactDetail = false
+
+    private static let splitMinimumWidth: CGFloat = 720
 
     private var sections: [AttentionSection] {
         AttentionRanking.grouped(items, now: now)
@@ -71,14 +74,42 @@ struct AttentionWorkspace: View {
     }
 
     var body: some View {
-        HSplitView {
-            list
-                .frame(minWidth: 280, idealWidth: 320, maxWidth: 420)
-            detail
-                .frame(minWidth: 400)
+        GeometryReader { geometry in
+            if geometry.size.width >= Self.splitMinimumWidth {
+                HSplitView {
+                    list
+                        .frame(minWidth: 260, idealWidth: 300, maxWidth: 360)
+                    detail
+                        .frame(minWidth: 360)
+                }
+            } else {
+                compactContent
+            }
         }
         .onAppear { syncSelection() }
         .onChange(of: items.map(\.id)) { syncSelection() }
+        .onChange(of: selection) { showsCompactDetail = selection != nil }
+    }
+
+    private var compactContent: some View {
+        VStack(spacing: 0) {
+            if showsCompactDetail, selectedItem != nil {
+                HStack {
+                    Button {
+                        showsCompactDetail = false
+                    } label: {
+                        Label(L("All questions"), systemImage: "chevron.left")
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                Divider()
+                detail
+            } else {
+                list
+            }
+        }
     }
 
     private var list: some View {
@@ -88,6 +119,11 @@ struct AttentionWorkspace: View {
                     ForEach(section.items) { item in
                         AttentionRow(item: item, now: now)
                             .tag(item.id)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selection = item.id
+                                showsCompactDetail = true
+                            }
                     }
                 }
             }
@@ -99,7 +135,19 @@ struct AttentionWorkspace: View {
     private var detail: some View {
         if let selectedItem {
             AttentionDetail(item: selectedItem, now: now) { choice in
-                onChoose(choice, selectedItem.id)
+                send(choice, for: selectedItem.id)
+            }
+            .disabled(reply.submitting.contains(selectedItem.id))
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                AttentionReplyComposer(
+                    text: Binding(
+                        get: { reply.drafts[selectedItem.id] ?? "" },
+                        set: { reply.drafts[selectedItem.id] = $0 }
+                    ),
+                    isSubmitting: reply.submitting.contains(selectedItem.id),
+                    error: reply.errors[selectedItem.id],
+                    onSend: { send(reply.drafts[selectedItem.id] ?? "", for: selectedItem.id) }
+                )
             }
         } else {
             ContentUnavailableView(
@@ -108,6 +156,10 @@ struct AttentionWorkspace: View {
                 description: Text(L("Full context appears here."))
             )
         }
+    }
+
+    private func send(_ text: String, for id: MessageID) {
+        Task { await reply.send(text, for: id, using: onChoose) }
     }
 
     private func syncSelection() {

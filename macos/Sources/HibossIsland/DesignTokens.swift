@@ -1,5 +1,5 @@
 // Semantic accents for the macOS client; everything else uses AppKit system colors.
-// Exports: DesignTokens priority accents and the live-connection tint.
+// Exports: DesignTokens category/priority accents and the live-connection tint.
 // Dependencies: SwiftUI Color bridged from NSColor.
 
 import AppKit
@@ -16,6 +16,17 @@ import SwiftUI
 /// Priority accents are the exception — they carry meaning the system has no colour for.
 /// They resolve per appearance so they stay legible in both light and dark.
 enum DesignTokens {
+    // Bright glazed category colors retain a dark, readable ink in both appearances.
+    enum Overview {
+        static let needsYou = adaptive(light: 0x69B5F8, dark: 0x63AEF4)
+        static let automatic = adaptive(light: 0xF6B369, dark: 0xEFAC65)
+        static let waiting = adaptive(light: 0xF28E98, dark: 0xEB8695)
+        static let urgent = adaptive(light: 0xF08AB9, dark: 0xE882B3)
+        static let all = adaptive(light: 0xA1B9D0, dark: 0x9AB2CC)
+        static let completed = adaptive(light: 0x70CEBD, dark: 0x68C6B8)
+        static let ink = adaptive(light: 0x15324B, dark: 0x15324B)
+    }
+
     enum Priority {
         static let critical = adaptive(light: 0x9E4634, dark: 0xE08A76)
         static let high = adaptive(light: 0x8A6520, dark: 0xD9AE66)

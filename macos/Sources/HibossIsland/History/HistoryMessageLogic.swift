@@ -55,13 +55,15 @@ enum HistoryMessageLogic {
 }
 
 enum HistoryTimestamp {
+    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss")
+
     static func date(from rawValue: String) -> Date? {
         (try? Date(rawValue, strategy: .iso8601))
             ?? (try? Date(
                 rawValue,
                 strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
             ))
-            ?? dateFormatter("yyyy-MM-dd HH:mm:ss").date(from: rawValue)
+            ?? sqlFormatter.date(from: rawValue)
     }
 
     static func shortLocalTime(
@@ -70,12 +72,8 @@ enum HistoryTimestamp {
         timeZone: TimeZone = .autoupdatingCurrent
     ) -> String {
         guard let date = date(from: rawValue) else { return L("Unknown") }
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = timeZone
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return date.formatted(Date.FormatStyle(date: .omitted, time: .shortened,
+            locale: locale, timeZone: timeZone))
     }
 
     private static func dateFormatter(_ format: String) -> DateFormatter {

@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else { return }
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings)
         Task { [weak self] in

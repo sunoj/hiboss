@@ -213,7 +213,9 @@ public final class OptionFlowStore: ObservableObject {
         case let .message(message):
             receive(message)
             refreshHistoryInBackground()
-        case let .resolved(resolution): resolve(resolution)
+        case let .resolved(resolution):
+            resolve(resolution)
+            refreshHistoryInBackground()
         }
     }
 

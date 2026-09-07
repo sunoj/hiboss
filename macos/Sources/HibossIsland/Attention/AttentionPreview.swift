@@ -6,23 +6,28 @@ import HibossKit
 import SwiftUI
 
 enum AttentionPreview {
-    /// `HIBOSS_ATTENTION_PREVIEW=populated|empty` swaps the main window content.
-    @MainActor
-    static func workspaceIfRequested() -> AnyView? {
+    static func historyIfRequested() -> [HistoryMessage]? {
         switch ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] {
         case "1", "populated":
-            return AnyView(AttentionPreviewHost(items: populated(now: Date())))
-        case "empty":
-            return AnyView(AttentionPreviewHost(items: []))
-        default:
-            return nil
+            let now = Date()
+            return populated(now: now).map(\.message) + [
+                attentionMessage(id: "preview-done", body: "Release verified. All checks passed.",
+                    priority: "normal", options: ["Done"], createdAt: iso(now.addingTimeInterval(-3600)),
+                    sessionLabel: "hiboss/main", sessionStatus: "idle", status: "replied")
+            ]
+        case "empty": return []
+        default: return nil
         }
     }
 
     static func populated(now: Date) -> [AttentionItem] {
         let auto = attentionMessage(
             id: "preview-auto",
-            body: "Ship the attention window tonight?",
+            body: """
+            Please run the deployment from your terminal:
+            SR_DEPLOY_HOST=preview-host ~/Develop/web3/project/deploy-smart-router.sh --skip-indexer
+            The build and restart take about 10 minutes. Reply with the result and include any errors.
+            """,
             priority: "normal",
             options: ["Ship", "Hold"],
             defaultOption: "Hold",
@@ -65,14 +70,15 @@ enum AttentionPreview {
         expiresAt: String? = nil,
         createdAt: String,
         sessionLabel: String?,
-        sessionStatus: String?
+        sessionStatus: String?,
+        status: String = "delivered"
     ) -> HistoryMessage {
         HistoryMessage(
             id: id,
             body: body,
             agentName: "Preview Agent",
             direction: "agent_to_boss",
-            status: "delivered",
+            status: status,
             priority: priority,
             metadata: MessageMetadata(options: options, defaultOption: defaultOption),
             expiresAt: expiresAt,
@@ -81,30 +87,5 @@ enum AttentionPreview {
             sessionLabel: sessionLabel,
             sessionStatus: sessionStatus
         )
-    }
-}
-
-private struct AttentionPreviewHost: View {
-    let items: [AttentionItem]
-    @State private var selection: MessageID?
-
-    var body: some View {
-        Group {
-            if items.isEmpty {
-                ContentUnavailableView(
-                    L("Nothing needs you"),
-                    systemImage: "checkmark.circle",
-                    description: Text(L("You're clear. Agents will show up here when they need a decision."))
-                )
-            } else {
-                AttentionWorkspace(
-                    items: items,
-                    now: Date(),
-                    selection: $selection,
-                    onChoose: { _, _ in }
-                )
-            }
-        }
-        .navigationTitle(L("Needs You"))
     }
 }

@@ -7,18 +7,23 @@ import SwiftUI
 
 struct HistoryView: View {
     @ObservedObject var flow: OptionFlowStore
+    let snapshot: OverviewSnapshot
+    let scope: OverviewDestination
+    @ObservedObject var reply: AttentionReplyState
+
+    private var scopedMessages: [HistoryMessage] { snapshot.messages(for: scope) }
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
     @State private var selection: HistoryMessage.ID?
     @State private var detailMessage: HistoryMessage?
 
     private var unreadCount: Int {
-        HistoryMessageLogic.unreadCount(in: flow.historyMessages)
+        HistoryMessageLogic.unreadCount(in: scopedMessages)
     }
 
     private var messages: [HistoryMessage] {
         HistoryMessageLogic.filtered(
-            flow.historyMessages,
+            scopedMessages,
             segment: segment,
             searchText: searchText
         )
@@ -31,12 +36,13 @@ struct HistoryView: View {
     var body: some View {
         historyContent
             .background(Color(nsColor: .windowBackgroundColor))
-            .navigationTitle(L("History"))
+            .navigationTitle(snapshot.title(for: scope))
+            .onChange(of: scope) { segment = .all; searchText = ""; selection = nil }
             .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
             .toolbar { historyToolbar }
             .sheet(item: $detailMessage) { message in
-                HistoryMessageDetail(message: message) { choice in
-                    Task { await flow.answerHistory(choice, for: message.id) }
+                HistoryMessageDetail(message: message, reply: reply) { choice in
+                    await flow.answerHistory(choice, for: message.id)
                 }
             }
             .task {
@@ -66,7 +72,7 @@ struct HistoryView: View {
         if flow.historyMessages.isEmpty, flow.historyState == .loading {
             ProgressView(L("Loading messages…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if flow.historyMessages.isEmpty || messages.isEmpty {
+        } else if messages.isEmpty {
             ContentUnavailableView(
                 emptyTitle,
                 systemImage: emptySystemImage,
@@ -101,9 +107,8 @@ struct HistoryView: View {
 
     private var emptyTitle: String {
         if case .failed = flow.historyState { return L("History Unavailable") }
-        return messages.isEmpty && !flow.historyMessages.isEmpty
-            ? L("No Matching Messages")
-            : L("No Messages")
+        if scopedMessages.isEmpty, scope == .category(.completed) { return L("No completed questions") }
+        return scopedMessages.isEmpty ? L("No Messages") : L("No Matching Messages")
     }
 
     private var emptySystemImage: String {
@@ -113,7 +118,10 @@ struct HistoryView: View {
 
     private var emptyDescription: String {
         if case let .failed(message) = flow.historyState { return message }
-        if messages.isEmpty && !flow.historyMessages.isEmpty {
+        if scopedMessages.isEmpty, scope == .category(.completed) {
+            return L("Answered and expired questions appear here.")
+        }
+        if messages.isEmpty && !scopedMessages.isEmpty {
             return L("Try a different filter or search.")
         }
         return L("Agent messages will appear here.")

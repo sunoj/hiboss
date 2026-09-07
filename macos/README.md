@@ -32,7 +32,21 @@ The build script uses a stable Apple Development identity. Set
 The bundled app icon depicts a relaxed boss on a tiny tropical island and is
 compiled from the source asset catalog under `Resources/Assets.xcassets`.
 
-The app opens a resizable main window with **History** and **Settings** sections.
+The app opens a resizable main window with a Reminders-inspired overview:
+**Needs You**, **Automatic**, **Waiting on you**, **High priority**, **All messages**,
+and **Completed**, followed by session lists. Counts match each destination and
+reflect recently loaded messages. Below 760 points, the **Overview** toolbar button
+switches between the overview and the selected surface. Attention areas narrower
+than 720 points show questions and details in a single column; **All questions**
+returns to the list. The minimum main window is 480 × 400.
+
+Question text wraps and scrolls above a persistent reply composer. Use **Send reply**
+or Command-Return to submit custom instructions. Drafts stay with their question
+when selecting another category or resizing, for the main window's lifetime.
+History detail shares those drafts and supports custom replies to pending questions.
+Failed submissions retain the draft and show a retry message. See the
+[overview contract](../docs/macos-information-redesign.md) for count definitions.
+
 On first launch, enter the server root URL and Boss Token, then select
 **Save & Connect**. Presentation settings let users choose Island or Window mode
 and independently show or hide the menu bar icon. Closing the main window keeps
@@ -88,5 +102,6 @@ swift test
 
 The end-to-end tests cover option filtering, sequential presentation, successful
 replies, duplicate suppression, global resolution, exact expiry, recoverable reply
-failures, history decoding, persisted presentation preferences, and background
+failures, attention draft isolation, reply editor bounds at four window sizes,
+history decoding, persisted presentation preferences, and background
 survival after the last window closes.

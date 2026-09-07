@@ -45,7 +45,7 @@ struct HistoryRow: View {
             .foregroundStyle(
                 message.isUnreadHistoryMessage ? Color.primary : Color.secondary
             )
-            .fixedSize(horizontal: false, vertical: true)
+            .lineLimit(2)
     }
 
     private var optionRow: some View {

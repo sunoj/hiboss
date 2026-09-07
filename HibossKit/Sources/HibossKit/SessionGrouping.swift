@@ -36,11 +36,12 @@ public enum SessionGrouping {
             }
             buckets[key, default: []].append(message)
         }
-        return order.compactMap { key in
+        return order.compactMap { key -> (group: SessionGroup, newest: Date)? in
             guard let groupMessages = buckets[key], !groupMessages.isEmpty else { return nil }
-            return makeGroup(id: key, messages: groupMessages)
+            return (makeGroup(id: key, messages: groupMessages), newestDate(in: groupMessages))
         }
-        .sorted { newestDate(in: $0.messages) > newestDate(in: $1.messages) }
+        .sorted { $0.newest > $1.newest }
+        .map(\.group)
     }
 
     /// The grouping key for a message — its trimmed `sessionId`, then
@@ -82,13 +83,15 @@ public enum SessionGrouping {
 }
 
 enum HistoryCreatedAt {
+    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss")
+
     static func date(from rawValue: String) -> Date? {
         (try? Date(rawValue, strategy: .iso8601))
             ?? (try? Date(
                 rawValue,
                 strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
             ))
-            ?? dateFormatter("yyyy-MM-dd HH:mm:ss").date(from: rawValue)
+            ?? sqlFormatter.date(from: rawValue)
     }
 
     private static func dateFormatter(_ format: String) -> DateFormatter {
