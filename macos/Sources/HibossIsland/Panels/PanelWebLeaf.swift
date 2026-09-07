@@ -12,12 +12,12 @@ private final class DisplayWebView: WKWebView {
 
 @MainActor
 final class PanelWebModel: ObservableObject {
-    @Published private(set) var contentHeight: CGFloat = 240
+    @Published private(set) var contentHeight: CGFloat = 48
     @Published private(set) var failureMessage: String?
     fileprivate var sendMessage: ((PanelHostMessage) -> Void)?
 
     func mount(definition: [String: PanelJSONValue]) {
-        sendMessage?(PanelHostMessage(kind: .mount, panelId: "panels-demo", definition: definition, state: ["chartHeight": .number(240)], sequence: 0))
+        sendMessage?(PanelHostMessage(kind: .mount, panelId: "panels-demo", definition: definition, state: nil, sequence: 0))
     }
 
     fileprivate func handle(_ message: PanelViewMessage) {

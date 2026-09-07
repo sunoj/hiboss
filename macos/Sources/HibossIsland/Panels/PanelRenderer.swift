@@ -20,7 +20,7 @@ struct PanelRenderer {
         case "Button": return renderButton(element)
         case "Metric": return renderMetric(element)
         case "Text": return AnyView(Text(element.props["value"]?.string ?? ""))
-        case "LineChart": return AnyView(PanelWebLeafSlot(model: webModel, definition: element.props))
+        case "LineChart", "BarChart": return renderWebChart(element)
         default: return AnyView(Text("Unsupported component: \(element.type)").foregroundStyle(.secondary))
         }
     }
@@ -75,6 +75,12 @@ struct PanelRenderer {
         let path = element.props["value"]?.object?["$state"]?.string ?? ""
         let value = panelValue(at: path, in: store.state)?.displayText ?? "—"
         return AnyView(LabeledContent(label) { Text(value).font(.title2.bold()).foregroundStyle(.primary) })
+    }
+
+    private func renderWebChart(_ element: PanelElement) -> AnyView {
+        var definition = element.props
+        definition["type"] = .string(element.type)
+        return AnyView(PanelWebLeafSlot(model: webModel, definition: definition))
     }
 }
 
