@@ -8,6 +8,7 @@
   figcaption { font-weight: 600; }
   .plot { display: block; width: 100%; aspect-ratio: 8 / 1; height: auto; overflow: visible; }
   .plot .series { fill: none; stroke: Highlight; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .plot .point { fill: Highlight; }
   .plot .bar { fill: Highlight; }
   .plot .baseline { stroke: color-mix(in srgb, CanvasText 45%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
   table { border-collapse: collapse; width: 100%; font-size: .9rem; } th, td { padding: .45rem .6rem; border-bottom: 1px solid color-mix(in srgb, CanvasText 18%, transparent); text-align: left; } th { font-weight: 600; }
@@ -59,6 +60,12 @@
     lineSegments(values, scale).forEach((points) => {
       const path = document.createElementNS(SVG_NS, 'path');
       path.setAttribute('class', 'series'); path.setAttribute('d', points.map((point, index) => `${index ? 'L' : 'M'}${point}`).join(' ')); plot.append(path);
+    });
+    values.forEach((value, index) => {
+      if (value === null) return;
+      const [cx, cy] = pointFor(index, value, values, scale).split(',');
+      const point = document.createElementNS(SVG_NS, 'circle');
+      point.setAttribute('class', 'point'); point.setAttribute('cx', cx); point.setAttribute('cy', cy); point.setAttribute('r', '1.5'); plot.append(point);
     });
   }
   function renderTable(definition) {
