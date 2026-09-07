@@ -112,6 +112,23 @@ describe('panel publication and reads', () => {
     expect(boss.status).toBe(200);
   });
 
+  it('does not list another agent panel', async () => {
+    // The by-id route was covered; the list route was not. Breaking the agent scope on
+    // the list query left every test green, which is why this exists.
+    const mine = await publish('panel-list-scope-mine');
+    expect(mine.status).toBe(201);
+    const minePanelId = (await mine.json() as { panelId: string }).panelId;
+    // Their own session, or the ownership check rejects the publish and the test would
+    // pass with nothing to leak.
+    const theirs = await publish('panel-list-scope-theirs', panelBody({ taskKey: 'theirs', sessionId: 'panels-other-session' }), OTHER_AGENT_KEY);
+    expect(theirs.status).toBe(201);
+
+    const listed = await SELF.fetch('https://test.local/api/panels', { headers: authHeaders() });
+    expect(listed.status).toBe(200);
+    const body = await listed.json() as { panels: { panelId: string; agentId?: string }[] };
+    expect(body.panels.map((panel) => panel.panelId)).toEqual([minePanelId]);
+  });
+
   it('paginates with a stable cursor without repeats or skips', async () => {
     await publish('panel-page-1', panelBody({ taskKey: 'page-1' }));
     await publish('panel-page-2', panelBody({ taskKey: 'page-2' }));

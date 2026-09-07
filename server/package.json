@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@hiboss/panel-runtime": "workspace:*",
+    "@hiboss/panel-runtime": "*",
     "hono": "^4.0.0"
   },
   "devDependencies": {
