@@ -140,6 +140,7 @@ app.onError((err, c) => {
 });
 
 export { DiscordGateway } from './discord-gateway';
+export { PanelRoom } from './panels/relay/room';
 
 export default {
   fetch: app.fetch,
