@@ -24,6 +24,7 @@ pub mod read;
 pub mod reply;
 pub mod route;
 pub mod progress;
+pub mod panel;
 pub mod send;
 pub mod setup;
 pub mod setup_hooks;

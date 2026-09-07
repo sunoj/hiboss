@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
-    hook, inbox, init, progress, react, read, reply, route, send, setup, ss, status, watch,
+    hook, inbox, init, panel, progress, react, read, reply, route, send, setup, ss, status, watch,
 };
 use hiboss::config;
 use std::error::Error;
@@ -68,6 +68,8 @@ enum Commands {
     Daemon(daemon::DaemonArgs),
     #[command(about = "Post and browse project progress updates")]
     Progress(progress::ProgressArgs),
+    #[command(about = "Publish and read live panels")]
+    Panel(panel::PanelArgs),
 }
 
 #[tokio::main]
@@ -120,6 +122,10 @@ async fn run() -> Result<(), Box<dyn Error>> {
             daemon::run(args).await?;
             return Ok(());
         }
+        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Validate(_)) => {
+            panel::run_validate(match &args.command { panel::PanelCommand::Validate(arguments) => arguments, _ => unreachable!() })?;
+            return Ok(());
+        }
         Commands::Progress(_) => {}
         _ => {}
     }
@@ -146,6 +152,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
         Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
         Commands::Progress(args) => progress::run(args, &config, &client).await?,
+        Commands::Panel(args) => panel::run(args, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),
