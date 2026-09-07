@@ -39,3 +39,42 @@ two approved fixture payloads are source-owned in `Panels/PanelFixtures.swift` s
 the release bundle remains self-contained. Their catalog content is copied from
 `panel-runtime/fixtures/mixed-panel.json` and `metric-panel.json` without adding a
 runtime fetch or a publication claim.
+
+## Orchestrator verification — 2026-09-07
+
+Rebuilt the bundle and looked at the running app rather than reading the report.
+Screenshots captured independently: `screenshots/orchestrator-verified-light.png`
+and `screenshots/orchestrator-verified-dark.png`.
+
+What holds:
+
+- The existing overview sidebar is untouched and the new Panels entry sits beside it.
+- The split renders as designed: a native `Picker`, a native number field and a native
+  prominent button, with the web chart leaf **between** them, so the seam is inside the
+  focus order rather than tacked on the end.
+- Dark mode carries the whole window including the leaf — dark chart ground, adjusted
+  series colour, no stranded light rectangle.
+- The sample-data notice is present, native, and honest about there being no live panel.
+- macOS tests remain at 121 passing; this surface is additive.
+
+Two defects visible on screen that the delivery report does not mention:
+
+1. **The chart leaf reserves far more height than it draws into.** Roughly 250 points of
+   empty space sit between the "Observed rollout health" heading and the top of the
+   plotted bars. The leaf is not oscillating or clipping — the height simply settles too
+   large — so this is cosmetic rather than structural, but it makes the panel look broken.
+2. **`LineChart` renders as bars.** The bundled asset draws `rect` elements; there is no
+   line or polyline path. The catalog declares LineChart and the fixture asks for one, so
+   the renderer is not honouring its own component contract. The seam spike has the same
+   defect, which is where this asset came from.
+
+Neither blocks the split, and both belong to the web leaf rather than the seam.
+
+## Environment note
+
+A freshly built bundle prompts for keychain access to `ai.hiboss.island.stable` on every
+launch and re-prompts on each read. This is the ad-hoc signing behaviour the build script
+already documents — an ad-hoc signature has no stable designated requirement, so the
+cdhash changes every build and the stored item's ACL never matches. It is unrelated to
+this work. Denying the prompt is safe here because the panels surface is fixture-driven
+and needs no boss token; the screenshots above were captured that way.
