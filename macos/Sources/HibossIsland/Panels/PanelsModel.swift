@@ -111,7 +111,11 @@ final class PanelsModel: ObservableObject {
     func open(_ tileID: String) { selectedTileID = tileID }
     func closeDetail() { selectedTileID = nil }
 
-    func freshness(for tile: PanelTile) -> PanelFreshness {
+    /// Takes the reference time so a stalled subscription can be tested. A socket that
+    /// quietly stops delivering is far commoner than one that is revoked, and it is the
+    /// case where a green badge actively misleads: the tile says live, the agent died.
+    func freshness(for tile: PanelTile, at reference: Date? = nil) -> PanelFreshness {
+        let now = reference ?? self.now
         if tile.agentID != nil {
             if liveSubscriptions.contains(tile.id), let updated = lastRelayActivity[tile.id] {
                 let age = now.timeIntervalSince(updated)

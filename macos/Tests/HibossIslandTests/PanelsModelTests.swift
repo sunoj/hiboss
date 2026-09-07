@@ -44,6 +44,14 @@ final class PanelsModelTests: XCTestCase {
             XCTFail("a receiving subscription should claim live")
         }
 
+        // A subscription that silently stops delivering must degrade on its own. Only the
+        // revoked path was covered, and revocation is the rarer failure — a socket that
+        // goes quiet keeps its badge unless age is what decides.
+        let stalled = Date().addingTimeInterval(PanelRelayConnection.expectedInterval * 2)
+        assertNotLive(model.freshness(for: tile, at: stalled))
+        let abandoned = Date().addingTimeInterval(PanelRelayConnection.expectedInterval * 10)
+        assertNotLive(model.freshness(for: tile, at: abandoned))
+
         model.receive(.subscriptionRevoked, for: tile.id)
         assertNotLive(model.freshness(for: tile))
     }
