@@ -117,3 +117,50 @@ attribution, settings, errors and submission review staying native.
 
 The exception must be written into the native contract before client UI work starts.
 It is not granted by this document.
+
+## Resolution — 2026-09-07
+
+Neither renderer wins outright. The gate closes on a split by component class:
+**anything the user types into or activates is native; only non-interactive display
+components render in a web view.**
+
+| Renderer | Components |
+| --- | --- |
+| Native SwiftUI | Stack, Grid, Section, Text, Metric, Progress, Status, TextInput, TextArea, NumberInput, Select, MultiSelect, Toggle, Slider, Button |
+| Bundled web | LineChart, BarChart, Table |
+
+The line follows the evidence rather than splitting the difference. The native spike's
+only disclosed rendering hardships were charts and the `Table` it had to collapse into
+a single column, because SwiftUI's statically typed column builder cannot express a
+generic catalog table. Those are exactly the three components handed to the web
+renderer. Everything the native spike rendered comfortably stays native.
+
+Three consequences follow, and they are the reason this split is worth its cost:
+
+1. **The native-contract exception shrinks to almost nothing.** It is no longer
+   "generated content renders as web"; it is "a non-interactive display leaf may render
+   in a web view". Every control, every piece of chrome, and all navigation stay native,
+   which removes the cause of the verdict that ended the first native attempt.
+2. **The decision path never touches web content.** Focus, keyboard traversal, VoiceOver
+   over the form, validation errors, and submission review are entirely native. The web
+   renderer cannot reach an answer, a draft, or a submission, so the bridge stops being
+   part of the security boundary for decisions.
+3. **The bridge collapses.** `draftChanged` and submission-bearing `actionRequested`
+   disappear. What remains is `mount`, `applyTaskState`, `contentSizeChanged` and
+   `renderFailed` — a display channel, not an interaction channel.
+
+### What this decision introduces that neither pure option had
+
+The seam. A web-rendered leaf inside a native panel raises questions that do not exist
+in either single-renderer design, and none of them are answered by the spikes:
+
+- Scroll ownership when a web leaf sits inside a native scroll view.
+- Whether the native host can size the leaf correctly from `contentSizeChanged` while
+  the surrounding native layout is also negotiating height.
+- Keyboard traversal across the boundary: whether Tab enters the web leaf, and whether
+  it can be kept out of the focus order entirely, which is what a display leaf wants.
+- Appearance synchronisation when the system switches light/dark with a leaf mounted.
+- VoiceOver traversal across the boundary in both directions.
+- Behaviour when the web process dies while a native form above it holds a draft.
+
+No production work starts until these are answered. The spikes stay until then.
