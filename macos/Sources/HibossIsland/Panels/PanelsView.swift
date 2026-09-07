@@ -53,6 +53,13 @@ struct PanelsView: View {
         .task { await model.loadIfNeeded() }
     }
 
+    /// Server messages already end in a full stop, so appending one produced "again..".
+    private func trimmedTerminator(_ message: String) -> String {
+        var text = message
+        while let last = text.last, last == "." || last == " " { text.removeLast() }
+        return text
+    }
+
     private var sampleNotice: some View {
         Label("Sample data — fixture preview only; no live agent panel is connected.", systemImage: "info.circle")
             .font(.callout).foregroundStyle(.secondary)
@@ -60,7 +67,7 @@ struct PanelsView: View {
     }
 
     private func fetchFailure(_ message: String) -> some View {
-        Label("Panel fetch failed: \(message). Cached panels are shown as cached.", systemImage: "exclamationmark.triangle")
+        Label("Panel fetch failed: \(trimmedTerminator(message)). Cached panels are shown as cached.", systemImage: "exclamationmark.triangle")
             .font(.callout).foregroundStyle(.orange)
             .fixedSize(horizontal: false, vertical: true)
     }

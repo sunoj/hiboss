@@ -207,14 +207,27 @@ export class PanelRoom extends DurableObject<Env> {
     }
   }
 
+  // Handlers await storage, and a real client sends subscribe and lease.claim back to
+  // back rather than pausing between them. Without this chain the second frame reads the
+  // attachment the first has not written yet and is refused, which no test caught because
+  // they all slept between sends. A server must not depend on clients pacing themselves.
+  private queues = new WeakMap<WebSocket, Promise<void>>();
+
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const previous = this.queues.get(ws) ?? Promise.resolve();
+    const next = previous.then(() => this.dispatch(ws, message)).catch(() => {});
+    this.queues.set(ws, next);
+    return next;
+  }
+
+  private async dispatch(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     try {
       const msg = JSON.parse(message as string) as Record<string, unknown>;
       const ticket = this.attachment(ws);
       if (!ticket) return this.sendError(ws, 'invalid_connection');
-      if (msg.kind === 'subscribe') return this.handleSubscribe(ws, ticket, msg.panelId);
-      if (msg.kind === 'lease.claim') return this.handleLeaseClaim(ws, ticket, msg);
-      if (msg.kind === 'state.update') return this.handleStateUpdate(ws, ticket, msg as unknown as UpdateCommand);
+      if (msg.kind === 'subscribe') return await this.handleSubscribe(ws, ticket, msg.panelId);
+      if (msg.kind === 'lease.claim') return await this.handleLeaseClaim(ws, ticket, msg);
+      if (msg.kind === 'state.update') return await this.handleStateUpdate(ws, ticket, msg as unknown as UpdateCommand);
     } catch {
       this.sendError(ws, 'invalid_json');
     }
