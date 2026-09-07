@@ -1,0 +1,30 @@
+{
+  "protocolVersion": 1,
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "spec": {
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "Stack",
+        "props": { "direction": "vertical" },
+        "children": ["completed"]
+      },
+      "completed": {
+        "type": "Metric",
+        "props": {
+          "label": "Completed tests",
+          "value": { "$state": "/task/completed" }
+        },
+        "children": []
+      }
+    }
+  },
+  "stateSchema": {
+    "type": "object",
+    "properties": { "task": { "type": "object", "properties": { "completed": { "type": "integer", "minimum": 0 }, "label": { "type": "string" } }, "required": ["completed"], "additionalProperties": false } },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "initialState": { "task": { "completed": 0, "label": "Preparing" } }
+}

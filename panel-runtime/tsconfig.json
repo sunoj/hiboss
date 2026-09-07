@@ -1,0 +1,19 @@
+// Strict TypeScript settings for the transport-free panel runtime.
+// Exports are typechecked as ESM and JSON fixtures are available to tests.
+// Dependencies: TypeScript compiler only.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": ["vitest/globals"]
+  },
+  "include": ["src", "tests"]
+}

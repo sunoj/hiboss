@@ -1,0 +1,18 @@
+{
+  "root": "n0",
+  "elements": {
+    "n0": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n1"] },
+    "n1": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n2"] },
+    "n2": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n3"] },
+    "n3": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n4"] },
+    "n4": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n5"] },
+    "n5": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n6"] },
+    "n6": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n7"] },
+    "n7": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n8"] },
+    "n8": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n9"] },
+    "n9": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n10"] },
+    "n10": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n11"] },
+    "n11": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["n12"] },
+    "n12": { "type": "Stack", "props": { "direction": "vertical" }, "children": [] }
+  }
+}

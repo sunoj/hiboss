@@ -1,0 +1,58 @@
+{
+  "kind": "decision",
+  "title": "Choose the test rollout",
+  "blocking": true,
+  "priority": "normal",
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "context": { "candidate": "build-42", "purpose": "Staging evaluation" },
+  "defaults": { "strategy": "canary", "trafficPercent": 10 },
+  "answerSchema": {
+    "type": "object",
+    "properties": {
+      "strategy": { "type": "string", "enum": ["canary", "full"] },
+      "trafficPercent": { "type": "integer", "minimum": 1, "maximum": 100 }
+    },
+    "required": ["strategy", "trafficPercent"],
+    "additionalProperties": false,
+    "allOf": [{
+      "if": { "properties": { "strategy": { "enum": ["full"] } } },
+      "then": { "properties": { "trafficPercent": { "enum": [100] } } }
+    }]
+  },
+  "formSpec": {
+    "root": "form",
+    "elements": {
+      "form": {
+        "type": "Stack",
+        "props": { "direction": "vertical" },
+        "children": ["strategy", "traffic", "submit"]
+      },
+      "strategy": {
+        "type": "Select",
+        "props": {
+          "label": "Strategy",
+          "value": { "$bindState": "/form/strategy" },
+          "options": [{ "id": "canary", "label": "Canary" }, { "id": "full", "label": "Full rollout" }]
+        },
+        "children": []
+      },
+      "traffic": {
+        "type": "NumberInput",
+        "props": {
+          "label": "Traffic percentage",
+          "value": { "$bindState": "/form/trafficPercent" },
+          "min": 1,
+          "max": 100
+        },
+        "children": []
+      },
+      "submit": {
+        "type": "Button",
+        "props": { "label": "Submit selection" },
+        "on": { "press": { "action": "submitRequest" } },
+        "children": []
+      }
+    }
+  }
+}

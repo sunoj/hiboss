@@ -1,0 +1,11 @@
+{
+  "root": "submit",
+  "elements": {
+    "submit": {
+      "type": "Button",
+      "props": { "label": "Submit" },
+      "on": { "press": { "action": "deleteEverything" } },
+      "children": []
+    }
+  }
+}
