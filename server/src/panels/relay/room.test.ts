@@ -6,6 +6,16 @@ import { env } from 'cloudflare:test';
 import { describe, it, expect, vi } from 'vitest';
 import { runInDurableObject } from 'cloudflare:test';
 
+export type ServerMessage = {
+  kind: string;
+  epoch?: string;
+  sequence?: number;
+  code?: string;
+  task?: Record<string, unknown>;
+  ops?: { op: string; path: string; value?: unknown }[];
+  persistedAt?: number;
+};
+
 async function connectToRoom(stub: DurableObjectStub) {
   const req = new Request('http://localhost/', {
     headers: { 'Upgrade': 'websocket', 'Sec-WebSocket-Protocol': 'stub-ticket-123' }
@@ -15,7 +25,7 @@ async function connectToRoom(stub: DurableObjectStub) {
   if (!ws) throw new Error('No websocket');
   ws.accept();
   
-  const messages: any[] = [];
+  const messages: ServerMessage[] = [];
   ws.addEventListener('message', (ev) => {
     messages.push(JSON.parse(ev.data as string));
   });
@@ -23,9 +33,9 @@ async function connectToRoom(stub: DurableObjectStub) {
 }
 
 describe('PanelRoom', () => {
-  it('1. acknowledged update survives eviction and new subscriber receives it', async () => {
-    const id = env.PANEL_ROOM.idFromName('test-1');
-    const stub = env.PANEL_ROOM.get(id);
+  it('1. acknowledged update is readable by new subscriber (eviction unproven)', async () => {
+    const id = env.PANEL_ROOM!.idFromName('test-1');
+    const stub = env.PANEL_ROOM!.get(id);
     const { ws, messages } = await connectToRoom(stub);
     
     // claim lease
@@ -44,30 +54,56 @@ describe('PanelRoom', () => {
     expect(messages.some(m => m.kind === 'state.ack' && m.sequence === 1)).toBe(true);
     ws.close();
     
-    await runInDurableObject(stub, (instance: any) => {
-       // Prove no in-memory state is used by clearing any we can
-       // We can't use ctx.abort() here because it breaks the test harness's output gate for this DO.
-       instance.inMemoryFlag = false;
-       // Delete any potential internal maps
-       for (const key of Object.keys(instance)) {
-         if (key !== 'ctx' && key !== 'env') delete instance[key];
-       }
-    });
-    
     // new subscriber connects
     const { ws: ws2, messages: msg2 } = await connectToRoom(stub);
     await new Promise(r => setTimeout(r, 50));
     
     const snap = msg2.find(m => m.kind === 'state.snapshot');
     expect(snap).toBeDefined();
-    expect(snap.sequence).toBe(1);
-    expect(snap.task).toEqual({ hello: 'world' });
+    expect(snap!.sequence).toBe(1);
+    expect(snap!.task).toEqual({ hello: 'world' });
     ws2.close();
   });
 
+  it('1.5. acknowledged update is persisted immediately (not a session log)', async () => {
+    const id = env.PANEL_ROOM!.idFromName('test-1-5');
+    const stub = env.PANEL_ROOM!.get(id);
+    const { ws, messages } = await connectToRoom(stub);
+    
+    // claim lease
+    ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    await new Promise(r => setTimeout(r, 50));
+    
+    // send update
+    ws.send(JSON.stringify({
+      kind: 'state.update',
+      epoch: 'e1',
+      baseSequence: 0,
+      ops: [{ op: 'add', path: '/task/isolated', value: 'yes' }]
+    }));
+    await new Promise(r => setTimeout(r, 50));
+    
+    expect(messages.some(m => m.kind === 'state.ack' && m.sequence === 1)).toBe(true);
+    
+    // Read directly from SQL, simulating no observer logic
+    await runInDurableObject(stub as unknown as DurableObjectStub<import('./room').PanelRoom>, (instance: import('./room').PanelRoom) => {
+      const rows = [...instance['ctx'].storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', 'default')];
+      expect(rows.length).toBe(1);
+      const row = rows[0];
+      expect(row.sequence).toBe(1);
+      const task = JSON.parse(row.task as string);
+      expect(task.isolated).toBe('yes');
+      // Verify persisted_at is a real timestamp (distinct from liveness sequence)
+      expect(typeof row.persisted_at).toBe('number');
+      expect(row.persisted_at as number).toBeGreaterThan(1700000000000); // realistic timestamp
+    });
+    
+    ws.close();
+  });
+
   it('2. snapshot has no gap, patches follow without duplicate array append', async () => {
-    const id = env.PANEL_ROOM.idFromName('test-2');
-    const stub = env.PANEL_ROOM.get(id);
+    const id = env.PANEL_ROOM!.idFromName('test-2');
+    const stub = env.PANEL_ROOM!.get(id);
     const { ws: producer, messages: prodMsg } = await connectToRoom(stub);
     
     producer.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
@@ -87,7 +123,7 @@ describe('PanelRoom', () => {
     const res = await stub.fetch(req);
     const subscriber = res.webSocket!;
     subscriber.accept();
-    const subMsg: any[] = [];
+    const subMsg: ServerMessage[] = [];
     subscriber.addEventListener('message', ev => subMsg.push(JSON.parse(ev.data as string)));
     
     producer.send(JSON.stringify({
@@ -101,18 +137,19 @@ describe('PanelRoom', () => {
     expect(subMsg.length).toBeGreaterThan(0);
     const snap = subMsg[0];
     expect(snap.kind).toBe('state.snapshot');
+    expect(snap.persistedAt).toBeGreaterThan(1700000000000);
     
     // The snapshot could be seq 1 or seq 2 depending on race, but patches must follow strictly
-    let currentSeq = snap.sequence;
-    let arr = snap.task.arr || [];
+    let currentSeq = snap.sequence!;
+    let arr = (snap.task?.arr as unknown[]) || [];
     
     for (let i = 1; i < subMsg.length; i++) {
        const m = subMsg[i];
        expect(m.kind).toBe('state.patch');
        expect(m.sequence).toBe(currentSeq + 1);
-       currentSeq = m.sequence;
-       if (m.ops[0].path.startsWith('/task/arr/')) {
-           arr.push(m.ops[0].value);
+       currentSeq = m.sequence!;
+       if (m.ops![0].path.startsWith('/task/arr/')) {
+           arr.push(m.ops![0].value);
        }
     }
     
@@ -124,8 +161,8 @@ describe('PanelRoom', () => {
   });
 
   it('3. fenced superseded epoch cannot write', async () => {
-    const id = env.PANEL_ROOM.idFromName('test-3');
-    const stub = env.PANEL_ROOM.get(id);
+    const id = env.PANEL_ROOM!.idFromName('test-3');
+    const stub = env.PANEL_ROOM!.get(id);
     const { ws: w1, messages: m1 } = await connectToRoom(stub);
     const { ws: w2, messages: m2 } = await connectToRoom(stub);
     
@@ -146,15 +183,15 @@ describe('PanelRoom', () => {
     
     const err = m1.find(m => m.kind === 'error');
     expect(err).toBeDefined();
-    expect(err.code).toBe('lease_conflict');
+    expect(err!.code).toBe('lease_conflict');
     
     w1.close();
     w2.close();
   });
 
   it('4. update with old baseSequence is rejected and drives resync', async () => {
-    const id = env.PANEL_ROOM.idFromName('test-4');
-    const stub = env.PANEL_ROOM.get(id);
+    const id = env.PANEL_ROOM!.idFromName('test-4');
+    const stub = env.PANEL_ROOM!.get(id);
     const { ws, messages } = await connectToRoom(stub);
     
     ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
@@ -181,8 +218,8 @@ describe('PanelRoom', () => {
   });
 
   it('5. invalid op anywhere in a patch rejects whole command, nothing partial commits', async () => {
-    const id = env.PANEL_ROOM.idFromName('test-5');
-    const stub = env.PANEL_ROOM.get(id);
+    const id = env.PANEL_ROOM!.idFromName('test-5');
+    const stub = env.PANEL_ROOM!.get(id);
     const { ws, messages } = await connectToRoom(stub);
     
     ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
@@ -205,7 +242,8 @@ describe('PanelRoom', () => {
     await new Promise(r => setTimeout(r, 50));
     
     const snap = msg2.find(m => m.kind === 'state.snapshot');
-    expect(snap.task.valid).toBeUndefined(); // 'valid' should not exist
+    expect(snap).toBeDefined();
+    expect(snap!.task?.valid).toBeUndefined(); // 'valid' should not exist
     
     ws.close();
     ws2.close();

@@ -9,10 +9,10 @@ interface UpdateCommand {
   kind: 'state.update';
   epoch: string;
   baseSequence: number;
-  ops: { op: 'replace' | 'add' | 'remove'; path: string; value?: any }[];
+  ops: { op: 'replace' | 'add' | 'remove'; path: string; value?: unknown }[];
 }
 
-export class PanelRoom extends DurableObject {
+export class PanelRoom extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ctx.storage.sql.exec(`
@@ -49,7 +49,7 @@ export class PanelRoom extends DurableObject {
     // Send initial snapshot before any patches
     const snap = this.getSnapshot();
     if (snap) {
-      server.send(JSON.stringify({ kind: 'state.snapshot', epoch: snap.epoch, sequence: snap.sequence, task: snap.task }));
+      server.send(JSON.stringify({ kind: 'state.snapshot', epoch: snap.epoch, sequence: snap.sequence, task: snap.task, persistedAt: snap.persistedAt }));
     } else {
       server.send(JSON.stringify({ kind: 'state.snapshot', sequence: 0, task: {} }));
     }
@@ -61,7 +61,12 @@ export class PanelRoom extends DurableObject {
     const rows = [...this.ctx.storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', 'default')];
     const row = rows[0];
     if (row) {
-      return { epoch: row.epoch as string, sequence: row.sequence as number, task: JSON.parse(row.task as string) };
+      return { 
+        epoch: row.epoch as string, 
+        sequence: row.sequence as number, 
+        task: JSON.parse(row.task as string),
+        persistedAt: row.persisted_at as number
+      };
     }
     return null;
   }
