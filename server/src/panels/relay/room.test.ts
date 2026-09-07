@@ -3,8 +3,9 @@
 // Dependencies: cloudflare:test, vitest
 
 import { env } from 'cloudflare:test';
-import { describe, it, expect, vi } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { runInDurableObject } from 'cloudflare:test';
+import { seedDatabase } from '../../test-helpers';
 
 export type ServerMessage = {
   kind: string;
@@ -16,9 +17,32 @@ export type ServerMessage = {
   persistedAt?: number;
 };
 
-async function connectToRoom(stub: DurableObjectStub) {
+const RELAY_AGENT = 'relay-test-agent';
+
+async function seedPanel(roomId: string, panelId: string): Promise<void> {
+  await seedDatabase();
+  await env.DB.prepare("INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, 'relay test agent', 'relay-test-hash')").bind(RELAY_AGENT).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO bosses (id, name, role) VALUES (?, 'Relay test boss', 'viewer')").bind(roomId).run();
+  await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(roomId, RELAY_AGENT).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO sessions (id, agent_id, label) VALUES (?, ?, 'relay test')").bind(`${panelId}-session`, RELAY_AGENT).run();
+  await env.DB.prepare("INSERT OR IGNORE INTO panels (panel_id, agent_id, target_boss_id, task_key, session_id, title, catalog_id, catalog_version, summary_json, idempotency_key, request_hash, created_at) VALUES (?, ?, ?, 'relay-test', ?, 'Relay test', 'hiboss.panel', 1, '{}', ?, 'relay-test-hash', datetime('now'))")
+    .bind(panelId, RELAY_AGENT, roomId, `${panelId}-session`, `${panelId}-key`).run();
+}
+
+async function issueTicket(stub: DurableObjectStub, roomId: string, panelId: string, role: 'producer' | 'subscriber', identity: string): Promise<string> {
+  const response = await stub.fetch(new Request('https://panel-room.internal/__issue-ticket', {
+    method: 'POST',
+    body: JSON.stringify({ roomId, identity, role, panelId, operations: role === 'producer' ? ['subscribe', 'lease.claim', 'state.update'] : ['subscribe'], expiresAt: Date.now() + 60_000 }),
+  }));
+  const body = await response.json() as { ticket: string };
+  return body.ticket;
+}
+
+async function connectToRoom(stub: DurableObjectStub, roomId: string, role: 'producer' | 'subscriber' = 'producer', identity = RELAY_AGENT, panelId = `${roomId}-panel`) {
+  await seedPanel(roomId, panelId);
+  const ticket = await issueTicket(stub, roomId, panelId, role, identity);
   const req = new Request('http://localhost/', {
-    headers: { 'Upgrade': 'websocket', 'Sec-WebSocket-Protocol': 'stub-ticket-123' }
+    headers: { 'Upgrade': 'websocket', 'X-Panel-Connection-Ticket': ticket }
   });
   const res = await stub.fetch(req);
   const ws = res.webSocket;
@@ -29,22 +53,29 @@ async function connectToRoom(stub: DurableObjectStub) {
   ws.addEventListener('message', (ev) => {
     messages.push(JSON.parse(ev.data as string));
   });
+  ws.send(JSON.stringify({ kind: 'subscribe', panelId }));
+  await new Promise(r => setTimeout(r, 50));
   return { ws, messages };
 }
+
+beforeAll(async () => {
+  await seedDatabase();
+});
 
 describe('PanelRoom', () => {
   it('1. acknowledged update is readable by new subscriber (eviction unproven)', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-1');
     const stub = env.PANEL_ROOM!.get(id);
-    const { ws, messages } = await connectToRoom(stub);
+    const { ws, messages } = await connectToRoom(stub, 'test-1');
     
     // claim lease
-    ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    ws.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-1-panel', epoch: 'e1' }));
     await new Promise(r => setTimeout(r, 50));
     
     // send update
     ws.send(JSON.stringify({
       kind: 'state.update',
+      panelId: 'test-1-panel',
       epoch: 'e1',
       baseSequence: 0,
       ops: [{ op: 'add', path: '/task/hello', value: 'world' }]
@@ -55,7 +86,7 @@ describe('PanelRoom', () => {
     ws.close();
     
     // new subscriber connects
-    const { ws: ws2, messages: msg2 } = await connectToRoom(stub);
+    const { ws: ws2, messages: msg2 } = await connectToRoom(stub, 'test-1', 'subscriber', 'test-1');
     await new Promise(r => setTimeout(r, 50));
     
     const snap = msg2.find(m => m.kind === 'state.snapshot');
@@ -68,15 +99,16 @@ describe('PanelRoom', () => {
   it('1.5. acknowledged update is persisted immediately (not a session log)', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-1-5');
     const stub = env.PANEL_ROOM!.get(id);
-    const { ws, messages } = await connectToRoom(stub);
+    const { ws, messages } = await connectToRoom(stub, 'test-1-5');
     
     // claim lease
-    ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    ws.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-1-5-panel', epoch: 'e1' }));
     await new Promise(r => setTimeout(r, 50));
     
     // send update
     ws.send(JSON.stringify({
       kind: 'state.update',
+      panelId: 'test-1-5-panel',
       epoch: 'e1',
       baseSequence: 0,
       ops: [{ op: 'add', path: '/task/isolated', value: 'yes' }]
@@ -104,30 +136,25 @@ describe('PanelRoom', () => {
   it('2. snapshot has no gap, patches follow without duplicate array append', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-2');
     const stub = env.PANEL_ROOM!.get(id);
-    const { ws: producer, messages: prodMsg } = await connectToRoom(stub);
+    const { ws: producer, messages: prodMsg } = await connectToRoom(stub, 'test-2');
     
-    producer.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    producer.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-2-panel', epoch: 'e1' }));
     await new Promise(r => setTimeout(r, 50));
     
     // Send 1st update
     producer.send(JSON.stringify({
       kind: 'state.update', epoch: 'e1', baseSequence: 0,
+      panelId: 'test-2-panel',
       ops: [{ op: 'add', path: '/task/arr', value: ['a'] }]
     }));
     await new Promise(r => setTimeout(r, 50));
     
     // Connect subscriber at the exact same time as 2nd update
-    const req = new Request('http://localhost/', {
-      headers: { 'Upgrade': 'websocket', 'Sec-WebSocket-Protocol': 'stub-ticket-123' }
-    });
-    const res = await stub.fetch(req);
-    const subscriber = res.webSocket!;
-    subscriber.accept();
-    const subMsg: ServerMessage[] = [];
-    subscriber.addEventListener('message', ev => subMsg.push(JSON.parse(ev.data as string)));
+    const { ws: subscriber, messages: subMsg } = await connectToRoom(stub, 'test-2', 'subscriber', 'test-2');
     
     producer.send(JSON.stringify({
       kind: 'state.update', epoch: 'e1', baseSequence: 1,
+      panelId: 'test-2-panel',
       ops: [{ op: 'add', path: '/task/arr/1', value: 'b' }]
     }));
     
@@ -163,20 +190,21 @@ describe('PanelRoom', () => {
   it('3. fenced superseded epoch cannot write', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-3');
     const stub = env.PANEL_ROOM!.get(id);
-    const { ws: w1, messages: m1 } = await connectToRoom(stub);
-    const { ws: w2, messages: m2 } = await connectToRoom(stub);
+    const { ws: w1, messages: m1 } = await connectToRoom(stub, 'test-3');
+    const { ws: w2, messages: m2 } = await connectToRoom(stub, 'test-3');
     
     // w1 claims e1
-    w1.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    w1.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-3-panel', epoch: 'e1' }));
     await new Promise(r => setTimeout(r, 50));
     
     // w2 claims e2 (supersedes)
-    w2.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e2' }));
+    w2.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-3-panel', epoch: 'e2' }));
     await new Promise(r => setTimeout(r, 50));
     
     // w1 tries to write with e1
     w1.send(JSON.stringify({
       kind: 'state.update', epoch: 'e1', baseSequence: 0,
+      panelId: 'test-3-panel',
       ops: [{ op: 'add', path: '/task/x', value: 1 }]
     }));
     await new Promise(r => setTimeout(r, 50));
@@ -192,13 +220,14 @@ describe('PanelRoom', () => {
   it('4. update with old baseSequence is rejected and drives resync', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-4');
     const stub = env.PANEL_ROOM!.get(id);
-    const { ws, messages } = await connectToRoom(stub);
+    const { ws, messages } = await connectToRoom(stub, 'test-4');
     
-    ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    ws.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-4-panel', epoch: 'e1' }));
     await new Promise(r => setTimeout(r, 50));
     
     ws.send(JSON.stringify({
       kind: 'state.update', epoch: 'e1', baseSequence: 0,
+      panelId: 'test-4-panel',
       ops: [{ op: 'add', path: '/task/x', value: 1 }]
     }));
     await new Promise(r => setTimeout(r, 50));
@@ -207,6 +236,7 @@ describe('PanelRoom', () => {
     // Send with old baseSequence 0 instead of 1
     ws.send(JSON.stringify({
       kind: 'state.update', epoch: 'e1', baseSequence: 0,
+      panelId: 'test-4-panel',
       ops: [{ op: 'add', path: '/task/y', value: 2 }]
     }));
     await new Promise(r => setTimeout(r, 50));
@@ -220,13 +250,14 @@ describe('PanelRoom', () => {
   it('5. invalid op anywhere in a patch rejects whole command, nothing partial commits', async () => {
     const id = env.PANEL_ROOM!.idFromName('test-5');
     const stub = env.PANEL_ROOM!.get(id);
-    const { ws, messages } = await connectToRoom(stub);
+    const { ws, messages } = await connectToRoom(stub, 'test-5');
     
-    ws.send(JSON.stringify({ kind: 'lease.claim', epoch: 'e1' }));
+    ws.send(JSON.stringify({ kind: 'lease.claim', panelId: 'test-5-panel', epoch: 'e1' }));
     await new Promise(r => setTimeout(r, 50));
     
     ws.send(JSON.stringify({
       kind: 'state.update', epoch: 'e1', baseSequence: 0,
+      panelId: 'test-5-panel',
       ops: [
         { op: 'add', path: '/task/valid', value: 'ok' },
         { op: 'add', path: '/form/invalid', value: 'bad' } // Confined to /task
@@ -238,7 +269,7 @@ describe('PanelRoom', () => {
     expect(err).toBeDefined();
     
     // Verify snapshot did not partially commit
-    const { ws: ws2, messages: msg2 } = await connectToRoom(stub);
+    const { ws: ws2, messages: msg2 } = await connectToRoom(stub, 'test-5', 'subscriber', 'test-5');
     await new Promise(r => setTimeout(r, 50));
     
     const snap = msg2.find(m => m.kind === 'state.snapshot');
