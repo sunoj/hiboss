@@ -121,18 +121,20 @@ public enum PanelValue: Codable, Equatable, Sendable {
 }
 
 extension HibossAPI: PanelsServing {
+    /// Panels live under /api, not under /api/boss. The shared apiURL helper appends
+    /// "boss", so reusing it asked for /api/boss/panels — a path the server does not
+    /// serve, which fell through to boss auth and surfaced as "Boss Token was rejected".
+    /// The token was never the problem.
+    var panelsURL: URL { config.serverURL.appendingPathComponent("api").appendingPathComponent("panels") }
+
     public func fetchPanels() async throws -> [PanelMetadata] {
-        try await decode(
-            PanelListPage.self,
-            from: apiURL.appendingPathComponent("panels"),
-            context: "panel list"
-        ).panels
+        try await decode(PanelListPage.self, from: panelsURL, context: "panel list").panels
     }
 
     public func fetchPanel(_ panelID: String) async throws -> PanelDetail {
         try await decode(
             PanelDetail.self,
-            from: apiURL.appendingPathComponent("panels").appendingPathComponent(panelID),
+            from: panelsURL.appendingPathComponent(panelID),
             context: "panel detail"
         )
     }
