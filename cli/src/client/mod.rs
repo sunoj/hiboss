@@ -389,5 +389,8 @@ mod tests {
 mod bosses;
 mod groups;
 mod messages;
+mod panels;
 mod progress;
 mod routing;
+
+pub use panels::PanelPublishResponse;
