@@ -29,6 +29,45 @@ a muted looping MP4 when `ffmpeg` is present (iOS shows a still frame otherwise)
 `ffprobe`/`sips` fill in dimensions when available — all of them degrade with a warning
 rather than failing the post.
 
+### Live Panels
+
+`hiboss panel` gives a long-running task a **persistent visual surface** on the boss's
+wall — a chart that keeps updating, a test run with per-test status, a benchmark sweep.
+It is not a message and not a timeline post: use `hiboss send` for something the boss
+should read, `hiboss progress` for something worth showing once, and a panel for
+something worth **watching** while the task runs.
+
+```bash
+hiboss panel validate <file>            # local pre-check; prints the JSON Pointer path on failure
+hiboss panel publish <file>             # prints panelId; re-running the same file does not duplicate
+hiboss panel stream <panel-id>          # NDJSON on stdin, one partial task state per line
+hiboss panel list [--json] [--cursor]
+hiboss panel show <id> [--json]
+```
+
+Start from a reference in `panel-runtime/fixtures/examples/` — download progress, an
+end-to-end suite, a benchmark sweep, a continuous monitor, an intake questionnaire.
+They are **reference points, not templates**: the catalog is the space you compose in,
+and a panel resembling none of them is a success. `docs/live-panels/authoring-examples.md`
+says where the real limits are.
+
+Two rules are contract, not style, because both mislead the boss when broken:
+
+- **A gap in a series is an explicit `null`, never a zero.** Zero draws a cliff to the
+  baseline and reads as an outage that did not happen.
+- **No completion percentage without a real denominator.** A continuous task shows stage,
+  duration, observed values and freshness instead. `service-monitor.json` demonstrates
+  that this still looks finished — the instinct to invent a percentage because a progress
+  bar looks tidy is the thing to resist.
+
+`stream` prints `ack <sequence>` per accepted update and **exits non-zero if the stream
+ends with unacknowledged work** — an update that was sent but not acknowledged has not
+landed. If another producer takes the lease, it stops and says so rather than fighting.
+
+Not yet available: iOS shows no panels, and structured questionnaires with typed answers
+are designed but unbuilt. Panels today are display surfaces plus a form that reports what
+it would submit.
+
 ### Cross-Session Coordination
 When peer sessions are active on the same project:
 - **Broadcast before starting**: `hiboss send --broadcast "Working on X"` — prevents conflicts
