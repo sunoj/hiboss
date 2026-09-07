@@ -1,0 +1,35 @@
+{
+  "protocolVersion": 1,
+  "targetBossId": "boss_chart",
+  "taskKey": "chart-task",
+  "sessionId": "chart-session",
+  "title": "Live chart",
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "spec": {
+    "root": "main",
+    "elements": {
+      "main": {
+        "type": "LineChart",
+        "props": { "label": "Observed values", "values": { "$state": "/task/series" } },
+        "children": []
+      }
+    }
+  },
+  "stateSchema": {
+    "type": "object",
+    "properties": {
+      "task": {
+        "type": "object",
+        "properties": {
+          "series": { "type": "array", "items": { "type": ["number", "null"] } }
+        },
+        "required": ["series"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "initialState": { "task": { "series": [12, null, 18] } }
+}

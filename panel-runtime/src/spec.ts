@@ -187,6 +187,35 @@ export function validatePanelSummary(value: unknown, stateSchema: unknown): Vali
   };
 }
 
+function schemaAtPath(value: unknown, path: readonly string[]): unknown {
+  let current = value;
+  for (const segment of path) {
+    if (!isRecord(current) || !isRecord(current.properties)) return undefined;
+    current = current.properties[segment];
+  }
+  return current;
+}
+
+function isChartSeriesSchema(value: unknown): boolean {
+  if (!isRecord(value) || value.type !== 'array' || !isRecord(value.items)) return false;
+  const itemType = value.items.type;
+  if (itemType === 'number') return true;
+  return Array.isArray(itemType)
+    && itemType.length === 2
+    && itemType.includes('number')
+    && itemType.includes('null');
+}
+
+function validateChartBinding(value: unknown, path: string, declaredPaths: ReadonlySet<string>, stateSchema: unknown): ValidationResult<BindingExpression> {
+  const bindingResult = validateBinding(value, path, declaredPaths);
+  if (!bindingResult.ok) return bindingResult;
+  if (!isRecord(value) || typeof value.$state !== 'string') return failure('invalid_spec', path, 'Chart values must use a $state binding');
+  const decoded = decodePointer(value.$state);
+  if (!Array.isArray(decoded)) return { ok: false, error: { ...decoded, path: `${path}/$state` } };
+  if (!isChartSeriesSchema(schemaAtPath(stateSchema, decoded))) return failure('invalid_spec', `${path}/$state`, 'Chart binding must point to an array of numbers or nulls');
+  return bindingResult;
+}
+
 function validateAction(value: unknown, path: string): ValidationResult<PanelAction> {
   if (!isRecord(value) || Object.keys(value).some((key) => !actionKeys.has(key)) || typeof value.action !== 'string') {
     return failure('invalid_spec', path, 'Action binding is malformed');
@@ -201,7 +230,7 @@ function validateAction(value: unknown, path: string): ValidationResult<PanelAct
   return params === undefined ? { ok: true, value: { action: value.action } } : { ok: true, value: { action: value.action, params } };
 }
 
-function validateElement(value: unknown, path: string, declaredPaths: ReadonlySet<string>): ValidationResult<PanelElement> {
+function validateElement(value: unknown, path: string, declaredPaths: ReadonlySet<string>, stateSchema: unknown): ValidationResult<PanelElement> {
   if (!isRecord(value)) return failure('invalid_spec', path, 'Element must be an object');
   const unknownKey = Object.keys(value).find((key) => !elementKeys.has(key));
   if (unknownKey !== undefined) return failure('invalid_spec', `${path}/${unknownKey}`, 'Unknown element property');
@@ -209,6 +238,10 @@ function validateElement(value: unknown, path: string, declaredPaths: ReadonlySe
   if (!isRecord(value.props)) return failure('invalid_spec', `${path}/props`, 'Component props must be an object');
   const props = componentPropSchemas[value.type].safeParse(value.props);
   if (!props.success) return failure('invalid_spec', zodIssuePath(props.error, `${path}/props`), props.error.issues[0]?.message ?? 'Invalid component props');
+  if ((value.type === 'LineChart' || value.type === 'BarChart') && isRecord(value.props) && isRecord(value.props.values)) {
+    const bindingResult = validateChartBinding(value.props.values, `${path}/props/values`, declaredPaths, stateSchema);
+    if (!bindingResult.ok) return bindingResult;
+  }
   if (!Array.isArray(value.children) || value.children.some((child) => typeof child !== 'string')) return failure('invalid_spec', `${path}/children`, 'Children must be string element IDs');
   const actions: Record<string, PanelAction> = Object.create(null) as Record<string, PanelAction>;
   if (value.on !== undefined) {
@@ -261,7 +294,7 @@ export function validatePanelSpec(value: unknown, options: SpecValidationOptions
   const declaredPaths = new Set([...schemaPaths(options.stateSchema), ...(options.declaredPaths ?? [])]);
   const elements: Record<string, PanelElement> = Object.create(null) as Record<string, PanelElement>;
   for (const id of elementIds) {
-    const result = validateElement(value.elements[id], `/elements/${id}`, declaredPaths);
+    const result = validateElement(value.elements[id], `/elements/${id}`, declaredPaths, options.stateSchema);
     if (!result.ok) return result;
     elements[id] = result.value;
   }

@@ -32,7 +32,10 @@ const option = z.strictObject({
   description: z.string().optional(),
 });
 const sharedLabel = { label: z.string().min(1) };
-const chartValues = z.array(z.union([finiteNumber, z.null()]));
+const chartValues = z.union([
+  z.array(z.union([finiteNumber, z.null()])),
+  z.strictObject({ $state: pointer }),
+]);
 
 export const componentPropSchemas = {
   Stack: z.strictObject({ direction: z.enum(['vertical', 'horizontal']), gap: finiteNumber.nonnegative().optional() }),
