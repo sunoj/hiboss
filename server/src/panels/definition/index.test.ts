@@ -75,8 +75,9 @@ describe('panel publication and reads', () => {
     expect(receipt).toMatchObject({ definitionRevision: 1, metadataVersion: 1, catalogVersion: 1 });
     const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
     expect(read.status).toBe(200);
-    const panel = await read.json() as { panelId: string; definition: { definitionRevision: number; spec: { root: string } }; summary: { stage: string } };
+    const panel = await read.json() as { panelId: string; agentName: string; sessionLabel: string; definition: { definitionRevision: number; spec: { root: string } }; summary: { stage: string } };
     expect(panel.panelId).toBe(receipt.panelId);
+    expect(panel).toMatchObject({ agentName: 'test-agent', sessionLabel: 'panels test' });
     expect(panel.definition).toMatchObject({ definitionRevision: 1, spec: { root: 'main' } });
     expect(panel.summary.stage).toBe('Preparing');
   });

@@ -17,9 +17,11 @@ public struct PanelListPage: Codable, Equatable, Sendable {
 public struct PanelMetadata: Codable, Equatable, Sendable, Identifiable {
     public let panelId: String
     public let agentId: String
+    public let agentName: String
     public let targetBossId: String
     public let taskKey: String
     public let sessionId: String
+    public let sessionLabel: String?
     public let title: String
     public let catalogId: String
     public let catalogVersion: Int
@@ -41,9 +43,11 @@ public struct PanelDetail: Decodable, Equatable, Sendable {
         metadata = try PanelMetadata(
             panelId: container.decode(String.self, forKey: .panelId),
             agentId: container.decode(String.self, forKey: .agentId),
+            agentName: container.decode(String.self, forKey: .agentName),
             targetBossId: container.decode(String.self, forKey: .targetBossId),
             taskKey: container.decode(String.self, forKey: .taskKey),
             sessionId: container.decode(String.self, forKey: .sessionId),
+            sessionLabel: container.decodeIfPresent(String.self, forKey: .sessionLabel),
             title: container.decode(String.self, forKey: .title),
             catalogId: container.decode(String.self, forKey: .catalogId),
             catalogVersion: container.decode(Int.self, forKey: .catalogVersion),
@@ -55,7 +59,7 @@ public struct PanelDetail: Decodable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case panelId, agentId, targetBossId, taskKey, sessionId, title
+        case panelId, agentId, agentName, targetBossId, taskKey, sessionId, sessionLabel, title
         case catalogId, catalogVersion, definitionRevision, metadataVersion, summary, createdAt
         case definition
     }

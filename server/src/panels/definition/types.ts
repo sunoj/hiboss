@@ -9,9 +9,11 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | { reado
 export interface PanelMetadataRow {
   readonly panel_id: string;
   readonly agent_id: string;
+  readonly agent_name: string;
   readonly target_boss_id: string;
   readonly task_key: string;
   readonly session_id: string;
+  readonly session_label: string | null;
   readonly title: string;
   readonly catalog_id: string;
   readonly catalog_version: number;
@@ -37,9 +39,11 @@ export interface PanelDefinitionRow {
 export interface PanelMetadata {
   readonly panelId: string;
   readonly agentId: string;
+  readonly agentName: string;
   readonly targetBossId: string;
   readonly taskKey: string;
   readonly sessionId: string;
+  readonly sessionLabel: string | null;
   readonly title: string;
   readonly catalogId: string;
   readonly catalogVersion: number;

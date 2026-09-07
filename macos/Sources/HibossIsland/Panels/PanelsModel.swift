@@ -44,7 +44,7 @@ final class PanelsModel: ObservableObject {
             self.fixtures = fixtures
             tiles = fixtures.all.enumerated().map { index, fixture in
                 let producer = PanelDemoProducer.catalog[index]
-                return PanelTile(id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture), producer: producer, agentID: nil, definitionRevision: nil, order: index)
+                return PanelTile(id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture), producer: producer, agentID: nil, agentName: nil, sessionLabel: nil, definitionRevision: nil, order: index)
             }
             lastUpdated = Dictionary(uniqueKeysWithValues: tiles.map { ($0.id, Date()) })
             loadState = .loaded
@@ -81,6 +81,8 @@ final class PanelsModel: ObservableObject {
                     store: PanelStore(fixture: fixture),
                     producer: nil,
                     agentID: detail.metadata.agentId,
+                    agentName: detail.metadata.agentName,
+                    sessionLabel: detail.metadata.sessionLabel,
                     definitionRevision: detail.definition.definitionRevision,
                     order: index
                 ))
@@ -230,12 +232,14 @@ struct PanelTile: Identifiable {
     let store: PanelStore
     let producer: PanelDemoProducer?
     let agentID: String?
+    let agentName: String?
+    let sessionLabel: String?
     let definitionRevision: Int?
     let order: Int
 
     var sourceLabel: String {
         if let producer { return producer.name }
-        return "Agent ID: \(agentID ?? "not supplied")"
+        return "\(agentName ?? "Unknown agent") · \(sessionLabel ?? "Unlabeled project")"
     }
 }
 
