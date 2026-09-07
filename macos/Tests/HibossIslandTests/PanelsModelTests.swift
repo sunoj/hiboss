@@ -27,23 +27,37 @@ final class PanelsModelTests: XCTestCase {
         XCTAssertEqual(model.failureMessage, "The panel service is unavailable.")
     }
 
-    func testServerBackedTilesNeverClaimToBeLive() async throws {
-        // The invariant this whole change rests on: there is no relay yet, so nothing
-        // fetched over HTTP is entitled to a live badge. A wall of green would tell the
-        // boss their agents are running when all it means is that a fetch succeeded.
+    func testServerBackedTilesNeedAReceivingSubscriptionForLive() async throws {
         let model = PanelsModel(api: try StubPanelsService(populated: true), demoMode: false, autoload: false)
 
         await model.load()
 
         XCTAssertFalse(model.tiles.isEmpty, "the populated stub should produce a tile")
-        for tile in model.tiles {
-            switch model.freshness(for: tile) {
-            case .fetched, .cachedFailure:
-                continue
-            case .live, .stale, .offline:
-                XCTFail("a server-backed tile reported \(model.freshness(for: tile).title) instead of its fetch time")
-            }
+        let tile = try XCTUnwrap(model.tiles.first)
+        assertNotLive(model.freshness(for: tile))
+
+        model.receive(.snapshot(PanelRelaySnapshot(
+            panelID: tile.id, definitionRevision: 1, epoch: "epoch-1", sequence: 0,
+            task: .object(["done": .number(4)])
+        )), for: tile.id)
+        if case .live = model.freshness(for: tile) {} else {
+            XCTFail("a receiving subscription should claim live")
         }
+
+        // A subscription that silently stops delivering must degrade on its own. Only the
+        // revoked path was covered, and revocation is the rarer failure — a socket that
+        // goes quiet keeps its badge unless age is what decides.
+        let stalled = Date().addingTimeInterval(PanelRelayConnection.expectedInterval * 2)
+        assertNotLive(model.freshness(for: tile, at: stalled))
+        let abandoned = Date().addingTimeInterval(PanelRelayConnection.expectedInterval * 10)
+        assertNotLive(model.freshness(for: tile, at: abandoned))
+
+        model.receive(.subscriptionRevoked, for: tile.id)
+        assertNotLive(model.freshness(for: tile))
+    }
+
+    private func assertNotLive(_ freshness: PanelFreshness, file: StaticString = #filePath, line: UInt = #line) {
+        if case .live = freshness { XCTFail("a tile without a receiving subscription claimed live", file: file, line: line) }
     }
 }
 

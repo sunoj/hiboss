@@ -39,6 +39,8 @@ final class PanelStore: ObservableObject {
         state = advancedValue(state, seed: seed)
     }
 
+    func replaceTask(_ task: PanelJSONValue) { write(task, at: "/task") }
+
     func perform(_ action: PanelAction?) {
         guard action?.action == "submitRequest" else { return }
         let answer = panelValue(at: "/form", in: state) ?? state

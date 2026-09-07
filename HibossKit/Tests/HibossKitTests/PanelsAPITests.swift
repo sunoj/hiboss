@@ -38,6 +38,21 @@ final class PanelsAPITests: XCTestCase {
         XCTAssertEqual(detail.definition.initialState, .object(["task": .object(["completed": .number(4)])]))
     }
 
+    func testIssuesSingleUseSubscriberTicket() async throws {
+        PanelsURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/api/panel-connections")
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+            return try Self.response(for: request, json: #"{"ticket":"ticket-1","roomId":"boss-1","panelId":"panel-1","expiresAt":1788782400000}"#)
+        }
+
+        let ticket = try await HibossAPI(config: config(), session: session()).issuePanelConnectionTicket(panelID: "panel-1")
+
+        XCTAssertEqual(ticket.ticket, "ticket-1")
+        XCTAssertEqual(ticket.roomID, "boss-1")
+        XCTAssertEqual(ticket.panelID, "panel-1")
+    }
+
     private func config() throws -> ConnectionConfig {
         ConnectionConfig(serverURL: try XCTUnwrap(URL(string: "https://hiboss.example")), bossToken: "test-token")
     }
