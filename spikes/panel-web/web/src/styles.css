@@ -1,0 +1,24 @@
+/**
+ * Small system-adaptive stylesheet for the panel fixtures.
+ * Exports: semantic layout, focus, dark-mode, and chart styles.
+ * Dependencies: system colors and the markup in registry.tsx.
+ */
+:root { color-scheme: light dark; font: -apple-system-body; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: Canvas; color: CanvasText; }
+.panel-root { box-sizing: border-box; max-width: 42rem; padding: 1rem; font: inherit; }
+.panel-stack { display: flex; gap: .85rem; }
+.panel-stack-vertical { flex-direction: column; }
+.panel-stack-horizontal { flex-direction: row; flex-wrap: wrap; }
+.panel-section { border: 1px solid color-mix(in srgb, CanvasText 20%, transparent); border-radius: .6rem; padding: .8rem; }
+.panel-section h2 { font-size: 1rem; margin: 0 0 .6rem; }
+.panel-metric { display: grid; gap: .25rem; }
+.panel-metric strong { font-size: 2rem; }
+.panel-field { display: grid; gap: .3rem; font-weight: 600; }
+input, select, button { font: inherit; min-height: 2.25rem; border: 1px solid color-mix(in srgb, CanvasText 45%, transparent); border-radius: .35rem; padding: .35rem .5rem; background: Canvas; color: CanvasText; }
+button { cursor: pointer; background: ButtonFace; color: ButtonText; }
+*:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+.panel-chart { margin: 0; }
+.chart-bars { display: flex; align-items: end; gap: .3rem; height: 8rem; border-bottom: 1px solid CanvasText; }
+.chart-bars i { display: block; width: 1rem; background: Highlight; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (prefers-color-scheme: dark) { .panel-section { border-color: color-mix(in srgb, CanvasText 35%, transparent); } }
