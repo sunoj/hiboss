@@ -1,0 +1,11 @@
+# Generated local build products for the throwaway renderer spike.
+# Exports: no tracked files; keeps npm, Vite, SwiftPM, and app output local.
+# Dependencies: macos/scripts/build-app.sh.
+/web/node_modules/
+/web/dist/
+/macos/.build/
+/macos/dist/*
+!/macos/dist/
+!/macos/dist/.gitkeep
+/macos/Resources/Web/
+/macos/Resources/Fixtures/

@@ -1,0 +1,3 @@
+# Placeholder keeps the SwiftPM-excluded app output directory present.
+# Generated app bundles are ignored and recreated by macos/scripts/build-app.sh.
+# Dependencies: the spike build script only.
