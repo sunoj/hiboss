@@ -18,7 +18,7 @@ struct PanelsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Panels").font(.largeTitle.bold())
-                    Text(model.isDemoMode ? "Seven producers, one living wall." : "Server-backed panels, fetched on demand.")
+                    Text(model.isDemoMode ? "Eight producers, one living wall." : "Server-backed panels, fetched on demand.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 if model.isDemoMode { sampleNotice }
@@ -191,7 +191,7 @@ private struct PanelKeyData: View {
                 Text(stage).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             if let chart = chartDefinition {
-                PanelWebLeafSlot(definition: chart).frame(height: 54).clipped().allowsHitTesting(false)
+                PanelWebLeafSlot(definition: chart, store: tile.store).frame(height: 54).clipped().allowsHitTesting(false)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

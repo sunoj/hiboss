@@ -21,5 +21,6 @@ public struct PanelDemoProducer: Identifiable, Sendable {
         PanelDemoProducer(id: "research-desk", name: "Research Desk", intervalNanoseconds: 1_600_000_000, startDelayNanoseconds: 1_000_000_000, pushLimit: 3),
         PanelDemoProducer(id: "rollout-control", name: "Rollout Control", intervalNanoseconds: 2_400_000_000, startDelayNanoseconds: 1_250_000_000, pushLimit: nil),
         PanelDemoProducer(id: "task-metrics", name: "Task Metrics", intervalNanoseconds: 2_000_000_000, startDelayNanoseconds: 1_500_000_000, pushLimit: nil),
+        PanelDemoProducer(id: "chart-watch", name: "Chart Watch", intervalNanoseconds: 2_000_000_000, startDelayNanoseconds: 1_750_000_000, pushLimit: nil),
     ]
 }

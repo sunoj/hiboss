@@ -41,13 +41,18 @@ public final class PanelWebModel: ObservableObject {
 
 public struct PanelWebLeafSlot: View {
     public let definition: [String: PanelValue]
+    @ObservedObject private var store: PanelStore
     @StateObject private var model = PanelWebModel()
 
-    public init(definition: [String: PanelValue]) { self.definition = definition }
+    public init(definition: [String: PanelValue], store: PanelStore) {
+        self.definition = definition
+        _store = ObservedObject(wrappedValue: store)
+    }
 
     public var body: some View {
+        let resolvedDefinition = resolvedWebLeafDefinition(definition, state: store.state)
         ZStack {
-            PanelWebView(model: model, definition: definition)
+            PanelWebView(model: model, definition: resolvedDefinition)
             if let failure = model.failureMessage {
                 Text(failure).foregroundStyle(.secondary).padding()
                     .frame(maxWidth: .infinity, minHeight: 96)
@@ -56,7 +61,25 @@ public struct PanelWebLeafSlot: View {
         }
         .frame(maxWidth: .infinity, minHeight: 48, idealHeight: model.contentHeight, maxHeight: 800)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(definition["type"]?.string == "Table" ? "Display table" : "Display chart")
+        .accessibilityLabel(resolvedDefinition["type"]?.string == "Table" ? "Display table" : "Display chart")
+    }
+}
+
+func resolvedWebLeafDefinition(_ definition: [String: PanelValue], state: PanelValue) -> [String: PanelValue] {
+    definition.mapValues { resolveWebLeafValue($0, state: state) }
+}
+
+private func resolveWebLeafValue(_ value: PanelValue, state: PanelValue) -> PanelValue {
+    switch value {
+    case let .object(object):
+        if object.count == 1, let path = object["$state"]?.string {
+            return panelValue(at: path, in: state) ?? .null
+        }
+        return .object(object.mapValues { resolveWebLeafValue($0, state: state) })
+    case let .array(values):
+        return .array(values.map { resolveWebLeafValue($0, state: state) })
+    default:
+        return value
     }
 }
 

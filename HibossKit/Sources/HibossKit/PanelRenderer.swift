@@ -227,7 +227,7 @@ public struct PanelRenderer {
     private func renderWebLeaf(_ element: PanelElement) -> AnyView {
         var definition = element.props
         definition["type"] = .string(element.type)
-        return AnyView(PanelWebLeafSlot(definition: definition))
+        return AnyView(PanelWebLeafSlot(definition: definition, store: store))
     }
 
     private func renderPreviewControl(_ element: PanelElement) -> AnyView {

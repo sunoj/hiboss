@@ -1,4 +1,4 @@
-// Source-owned copies of the five reference panel-runtime examples.
+// Source-owned copies of the six reference panel-runtime examples.
 // Exports: PanelExampleFixtures.load().
 // Dependencies: Foundation and PanelFixture.
 
@@ -12,6 +12,7 @@ public enum PanelExampleFixtures {
             PanelFixture(name: "benchmark-sweep.json", data: Data(benchmarkSweepJSON.utf8)),
             PanelFixture(name: "service-monitor.json", data: Data(serviceMonitorJSON.utf8)),
             PanelFixture(name: "research-intake.json", data: Data(researchIntakeJSON.utf8)),
+            PanelFixture(name: "bound-chart.json", data: Data(boundChartJSON.utf8)),
         ]
     }
 
@@ -59,6 +60,42 @@ public enum PanelExampleFixtures {
           "submit": { "type": "Button", "props": { "label": "Submit research brief", "variant": "primary" }, "on": { "press": { "action": "submitRequest" } }, "children": [] }
         }
       }
+    }
+    """#
+
+    private static let boundChartJSON = #"""
+    {
+      "protocolVersion": 1,
+      "targetBossId": "boss_chart",
+      "taskKey": "chart-task",
+      "sessionId": "chart-session",
+      "title": "Live chart",
+      "catalogId": "hiboss.panel",
+      "catalogVersion": 1,
+      "spec": {
+        "root": "main",
+        "elements": {
+          "main": {
+            "type": "LineChart",
+            "props": { "label": "Observed values", "values": { "$state": "/task/series" } },
+            "children": []
+          }
+        }
+      },
+      "stateSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "object",
+            "properties": { "series": { "type": "array", "items": { "type": ["number", "null"] } } },
+            "required": ["series"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["task"],
+        "additionalProperties": false
+      },
+      "initialState": { "task": { "series": [12, null, 18] } }
     }
     """#
 }
