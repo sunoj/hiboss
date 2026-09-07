@@ -17,9 +17,13 @@ struct PanelRenderer {
         case "Grid": return renderGrid(element)
         case "Section": return renderSection(element)
         case "Text": return renderText(element)
+        case "TextInput": return renderTextInput(element)
+        case "TextArea": return renderTextArea(element)
         case "Select": return renderSelect(element)
+        case "MultiSelect": return renderMultiSelect(element)
         case "NumberInput": return renderNumberInput(element)
         case "Toggle": return renderToggle(element)
+        case "Slider": return renderSlider(element)
         case "Button": return renderButton(element)
         case "Metric": return renderMetric(element)
         case "Progress": return renderProgress(element)
@@ -58,6 +62,34 @@ struct PanelRenderer {
         return AnyView(Text(value).foregroundStyle(toneColor(element.props["tone"]?.string)))
     }
 
+    private func renderTextInput(_ element: PanelElement) -> AnyView {
+        let label = element.props["label"]?.string ?? "Text"
+        let placeholder = element.props["placeholder"]?.string ?? ""
+        let path = bindingPath(element)
+        let binding = Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })
+        return AnyView(LabeledContent(label) {
+            TextField(placeholder, text: binding).textFieldStyle(.roundedBorder)
+        }.accessibilityLabel(label))
+    }
+
+    private func renderTextArea(_ element: PanelElement) -> AnyView {
+        let label = element.props["label"]?.string ?? "Details"
+        let placeholder = element.props["placeholder"]?.string
+        let rows = max(3, Int(element.props["rows"]?.number ?? 4))
+        let path = bindingPath(element)
+        let binding = Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })
+        return AnyView(VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.headline)
+            TextEditor(text: binding)
+                .frame(minHeight: CGFloat(rows * 24))
+                .overlay(alignment: .topLeading) {
+                    if let placeholder, panelValue(at: path, in: store.state)?.string?.isEmpty == true {
+                        Text(placeholder).foregroundStyle(.secondary).padding(6)
+                    }
+                }
+        }.accessibilityElement(children: .contain).accessibilityLabel(label))
+    }
+
     @ViewBuilder
     private func children(of element: PanelElement) -> some View {
         ForEach(element.children, id: \.self) { render($0) }
@@ -75,6 +107,24 @@ struct PanelRenderer {
         }.accessibilityLabel(label))
     }
 
+    private func renderMultiSelect(_ element: PanelElement) -> AnyView {
+        let label = element.props["label"]?.string ?? "Select options"
+        let options = panelOptions(element)
+        let optionIDs = Set(options.map(\.id))
+        let path = bindingPath(element)
+        return AnyView(VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.headline)
+            List(options) { option in
+                Toggle(option.label, isOn: Binding(
+                    get: { selectedOptionIDs(at: path, allowed: optionIDs).contains(option.id) },
+                    set: { updateOption(option.id, selected: $0, at: path, allowed: optionIDs) }
+                )).toggleStyle(.checkbox)
+            }
+            .frame(minHeight: CGFloat(max(2, min(options.count, 5)) * 28))
+            .listStyle(.bordered)
+        }.accessibilityElement(children: .contain).accessibilityLabel(label))
+    }
+
     private func renderNumberInput(_ element: PanelElement) -> AnyView {
         let label = element.props["label"]?.string ?? "Number"
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
@@ -82,6 +132,22 @@ struct PanelRenderer {
             TextField(label, text: Binding(get: { panelValue(at: path, in: store.state)?.displayText ?? "" }, set: { store.setText($0, at: path) }))
                 .textFieldStyle(.roundedBorder).frame(width: 120)
         }.accessibilityLabel(label))
+    }
+
+    private func renderSlider(_ element: PanelElement) -> AnyView {
+        let label = element.props["label"]?.string ?? "Value"
+        let minimum = element.props["min"]?.number ?? 0
+        let maximum = element.props["max"]?.number ?? 1
+        let step = element.props["step"]?.number
+        let path = bindingPath(element)
+        let value = Binding(get: { panelValue(at: path, in: store.state)?.number ?? minimum }, set: { store.setNumber($0, at: path) })
+        return AnyView(GroupBox(label) {
+            if let step {
+                Slider(value: value, in: minimum...maximum, step: step)
+            } else {
+                Slider(value: value, in: minimum...maximum)
+            }
+        }.accessibilityValue(PanelJSONValue.number(value.wrappedValue).displayText))
     }
 
     private func renderToggle(_ element: PanelElement) -> AnyView {
@@ -133,6 +199,27 @@ struct PanelRenderer {
         var definition = element.props
         definition["type"] = .string(element.type)
         return AnyView(PanelWebLeafSlot(model: webModel, definition: definition))
+    }
+
+    private func bindingPath(_ element: PanelElement) -> String {
+        element.props["value"]?.object?["$bindState"]?.string ?? ""
+    }
+
+    private func panelOptions(_ element: PanelElement) -> [PanelOption] {
+        element.props["options"]?.array?.compactMap { option -> PanelOption? in
+            guard let object = option.object, let id = object["id"]?.string, let label = object["label"]?.string else { return nil }
+            return PanelOption(id: id, label: label)
+        } ?? []
+    }
+
+    private func selectedOptionIDs(at path: String, allowed: Set<String>) -> Set<String> {
+        Set(panelValue(at: path, in: store.state)?.array?.compactMap(\.string).filter { allowed.contains($0) } ?? [])
+    }
+
+    private func updateOption(_ id: String, selected: Bool, at path: String, allowed: Set<String>) {
+        var selectedIDs = selectedOptionIDs(at: path, allowed: allowed)
+        if selected { selectedIDs.insert(id) } else { selectedIDs.remove(id) }
+        store.setStrings(selectedIDs.sorted(), at: path)
     }
 
     private func valueText(_ value: PanelJSONValue?) -> String {

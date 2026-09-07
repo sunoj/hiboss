@@ -18,6 +18,7 @@ import downloadProgress from '../fixtures/examples/download-progress.json' with 
 import e2eTestRun from '../fixtures/examples/e2e-test-run.json' with { type: 'json' };
 import benchmarkSweep from '../fixtures/examples/benchmark-sweep.json' with { type: 'json' };
 import serviceMonitor from '../fixtures/examples/service-monitor.json' with { type: 'json' };
+import researchIntake from '../fixtures/examples/research-intake.json' with { type: 'json' };
 import {
   ACTION_NAMES,
   CATALOG_ID,
@@ -67,6 +68,21 @@ describe('hiboss.panel catalog', () => {
     expect(validateAnswers(schema.value, { strategy: 'canary', trafficPercent: 10 })).toMatchObject({ ok: true });
     expect(validateAnswers(schema.value, { strategy: 'full', trafficPercent: 10 })).toMatchObject({ ok: false, error: { code: 'invalid_answers', path: '/trafficPercent' } });
     expect(validateAnswers(schema.value, { strategy: 'full', trafficPercent: 100 })).toMatchObject({ ok: true });
+  });
+
+  it('accepts the research intake form and validates its array answer', () => {
+    const paths = ['/form/researchQuestion', '/form/background', '/form/evidenceTypes', '/form/confidence'];
+    expect(validatePanelSpec(researchIntake.formSpec, { declaredPaths: paths })).toMatchObject({ ok: true });
+    const schema = validateAnswerSchema(researchIntake.answerSchema);
+    expect(schema).toMatchObject({ ok: true });
+    if (!schema.ok) return;
+    expect(validateAnswers(schema.value, researchIntake.defaults)).toMatchObject({ ok: true });
+    expect(validateAnswers(schema.value, {
+      researchQuestion: 'Which workflow reduces review time?',
+      background: 'The team needs evidence for a focused tooling decision.',
+      evidenceTypes: ['literature-review', 'benchmarks'],
+      confidence: 0.75,
+    })).toMatchObject({ ok: true });
   });
 
   it('omits inactive conditional answer paths', () => {

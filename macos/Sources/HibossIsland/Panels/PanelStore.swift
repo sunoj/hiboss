@@ -25,6 +25,14 @@ final class PanelStore: ObservableObject {
         write(Double(text).map(PanelJSONValue.number) ?? .string(text), at: path)
     }
 
+    func setString(_ value: String, at path: String) { write(.string(value), at: path) }
+
+    func setNumber(_ value: Double, at path: String) { write(.number(value), at: path) }
+
+    func setStrings(_ values: [String], at path: String) {
+        write(.array(values.map(PanelJSONValue.string)), at: path)
+    }
+
     func setBool(_ value: Bool, at path: String) { write(.bool(value), at: path) }
 
     func perform(_ action: PanelAction?) {
