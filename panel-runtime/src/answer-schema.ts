@@ -5,6 +5,7 @@
 import { failure, type ValidationResult } from './errors.js';
 
 export type SchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'null' | 'object' | 'array';
+type SchemaTypeValue = SchemaType | readonly SchemaType[];
 export type AnswerSchema = Readonly<Record<string, unknown>>;
 
 const SUPPORTED_KEYWORDS = new Set([
@@ -43,11 +44,17 @@ function schemaError(path: string, message: string, keyword?: string): Validatio
   return failure('invalid_answers', path, message, keyword);
 }
 
+function schemaTypeValue(value: unknown): SchemaTypeValue | undefined {
+  if (typeof value === 'string' && SCHEMA_TYPES.has(value as SchemaType)) return value as SchemaType;
+  if (Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'string' && SCHEMA_TYPES.has(item as SchemaType))) return value as SchemaType[];
+  return undefined;
+}
+
 function validateSchemaNode(value: unknown, path: string): ValidationResult<SchemaRecord> {
   if (!isRecord(value)) return schemaError(path, 'Schema must be an object');
   const unsupported = Object.keys(value).find((key) => !SUPPORTED_KEYWORDS.has(key));
   if (unsupported !== undefined) return schemaError(pathKey(path, unsupported), `Unsupported answer-schema keyword "${unsupported}"`, unsupported);
-  if (value.type !== undefined && (typeof value.type !== 'string' || !SCHEMA_TYPES.has(value.type as SchemaType))) return schemaError(pathKey(path, 'type'), 'Schema type is outside the supported subset', 'type');
+  if (value.type !== undefined && schemaTypeValue(value.type) === undefined) return schemaError(pathKey(path, 'type'), 'Schema type is outside the supported subset', 'type');
   if (value.$ref !== undefined && (typeof value.$ref !== 'string' || !/^#\/\$defs\/[^/]+$/.test(value.$ref))) return schemaError(pathKey(path, '$ref'), 'Only local #/$defs references are supported', '$ref');
   if (value.properties !== undefined) {
     if (!isRecord(value.properties)) return schemaError(pathKey(path, 'properties'), 'properties must be an object', 'properties');
@@ -139,7 +146,8 @@ function sameJson(left: unknown, right: unknown): boolean {
   return false;
 }
 
-function typeMatches(type: SchemaType, value: unknown): boolean {
+function typeMatches(type: SchemaTypeValue, value: unknown): boolean {
+  if (Array.isArray(type)) return type.some((item) => typeMatches(item, value));
   if (type === 'null') return value === null;
   if (type === 'array') return Array.isArray(value);
   if (type === 'object') return isRecord(value);
@@ -201,7 +209,8 @@ function validateNode(rawSchema: unknown, value: unknown, path: string, context:
   if (isSchemaFailure(resolved)) return resolved;
   const schema = resolved;
   if (Array.isArray(schema.enum) && !schema.enum.some((item) => sameJson(item, value))) return failure('invalid_answers', path, 'Value is not one of the allowed enum values');
-  if (typeof schema.type === 'string' && !typeMatches(schema.type as SchemaType, value)) return failure('invalid_answers', path, `Expected ${schema.type}`);
+  const schemaType = schemaTypeValue(schema.type);
+  if (schemaType !== undefined && !typeMatches(schemaType, value)) return failure('invalid_answers', path, `Expected ${String(schema.type)}`);
   if (typeof value === 'number') {
     for (const [key, pass] of [['minimum', value >= Number(schema.minimum)], ['maximum', value <= Number(schema.maximum)], ['exclusiveMinimum', value > Number(schema.exclusiveMinimum)], ['exclusiveMaximum', value < Number(schema.exclusiveMaximum)] ] as const) if (schema[key] !== undefined && !pass) return failure('invalid_answers', path, `Value violates ${key}`);
   }
@@ -215,7 +224,7 @@ function validateNode(rawSchema: unknown, value: unknown, path: string, context:
     if (schema.uniqueItems === true && value.some((item, index) => value.slice(0, index).some((previous) => sameJson(previous, item)))) return failure('invalid_answers', path, 'Array items must be unique');
     if (schema.items !== undefined) for (let index = 0; index < value.length; index += 1) { const result = validateNode(schema.items, value[index], `${path}/${index}`, context); if (!result.ok) return result; }
   }
-  if (isRecord(value) && (schema.type === 'object' || schema.properties !== undefined || schema.additionalProperties !== undefined)) { const result = validateObject(schema, value, path, context); if (!result.ok) return result; }
+  if (isRecord(value) && (schemaType !== undefined && typeMatches(schemaType, value) && isRecord(value) || schema.properties !== undefined || schema.additionalProperties !== undefined)) { const result = validateObject(schema, value, path, context); if (!result.ok) return result; }
   if (Array.isArray(schema.allOf)) for (const item of schema.allOf) { if (isRecord(item) && isRecord(item.if)) { const branch = conditionMatches(item.if, value, context) ? item.then : item.else; if (branch !== undefined) { const result = validateNode(branch, value, path, context); if (!result.ok) return result; } } else { const result = validateNode(item, value, path, context); if (!result.ok) return result; } }
   if (isRecord(schema.if)) { const branch = conditionMatches(schema.if, value, context) ? schema.then : schema.else; if (branch !== undefined) { const result = validateNode(branch, value, path, context); if (!result.ok) return result; } }
   return { ok: true, value: true };

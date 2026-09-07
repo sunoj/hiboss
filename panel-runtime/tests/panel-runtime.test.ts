@@ -19,6 +19,7 @@ import e2eTestRun from '../fixtures/examples/e2e-test-run.json' with { type: 'js
 import benchmarkSweep from '../fixtures/examples/benchmark-sweep.json' with { type: 'json' };
 import serviceMonitor from '../fixtures/examples/service-monitor.json' with { type: 'json' };
 import researchIntake from '../fixtures/examples/research-intake.json' with { type: 'json' };
+import boundChart from '../fixtures/bound-chart.json' with { type: 'json' };
 import {
   ACTION_NAMES,
   CATALOG_ID,
@@ -89,6 +90,34 @@ describe('hiboss.panel catalog', () => {
 
   it('accepts a panel without a summary', () => {
     expect(validatePanelPublication({ ...metricPanel, summary: undefined })).toMatchObject({ ok: true });
+  });
+
+  it('accepts live line and bar chart series with nullable gaps', () => {
+    expect(validatePanelPublication(boundChart)).toMatchObject({ ok: true });
+    expect(validateAnswers(boundChart.stateSchema, boundChart.initialState)).toMatchObject({ ok: true });
+    expect(validatePanelSpec({
+      root: 'main',
+      elements: { main: { type: 'BarChart', props: { values: { $state: '/task/series' } }, children: [] } },
+    }, { stateSchema: boundChart.stateSchema })).toMatchObject({ ok: true });
+  });
+
+  it('rejects a chart binding to a scalar at the binding path', () => {
+    const stateSchema = {
+      type: 'object',
+      properties: { task: { type: 'object', properties: { series: { type: 'number' } } } },
+    };
+    expect(validatePanelSpec(boundChart.spec, { stateSchema })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid_spec', path: '/elements/main/props/values/$state' },
+    });
+  });
+
+  it('rejects a chart binding to an undeclared path at the binding path', () => {
+    const stateSchema = { type: 'object', properties: { task: { type: 'object', properties: {} } } };
+    expect(validatePanelSpec(boundChart.spec, { stateSchema })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid_spec', path: '/elements/main/props/values/$state' },
+    });
   });
 
   it('accepts the rollout form and validates dependent full-rollout answers', () => {
