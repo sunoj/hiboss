@@ -37,6 +37,7 @@ export interface PanelSpec {
 export interface SpecValidationOptions {
   readonly declaredPaths?: readonly string[];
   readonly stateSchema?: unknown;
+  readonly pathPrefix?: string;
 }
 
 export interface PanelSummaryValue {
@@ -263,7 +264,7 @@ function validateElement(value: unknown, path: string, declaredPaths: ReadonlySe
     : { ok: true, value: { type: value.type, props: value.props, children: value.children, on: actions } };
 }
 
-function checkTree(spec: PanelSpec): ValidationResult<PanelSpec> {
+function checkTree(spec: PanelSpec, pathPrefix = ''): ValidationResult<PanelSpec> {
   const colors = new Map<string, 'visiting' | 'done'>();
   const visit = (id: string, depth: number, parentPath: string): ValidationResult<PanelSpec> => {
     if (depth > MAX_SPEC_DEPTH) return failure('invalid_spec', parentPath, `Tree depth exceeds ${MAX_SPEC_DEPTH}`);
@@ -275,37 +276,39 @@ function checkTree(spec: PanelSpec): ValidationResult<PanelSpec> {
     colors.set(id, 'visiting');
     for (let index = 0; index < element.children.length; index += 1) {
       const child = element.children[index];
-      if (child === undefined) return failure('invalid_spec', `${parentPath}/children/${index}`, 'Child ID is missing');
-      const result = visit(child, depth + 1, `/elements/${id}/children/${index}`);
+      if (child === undefined) return failure('invalid_spec', pathPrefix ? `${pathPrefix}/elements/${id}/children/${index}` : `${parentPath}/children/${index}`, 'Child ID is missing');
+      const childPath = pathPrefix ? `${pathPrefix}/elements/${child}/children` : `/elements/${id}/children/${index}`;
+      const result = visit(child, depth + 1, childPath);
       if (!result.ok) return result;
     }
     colors.set(id, 'done');
     return { ok: true, value: spec };
   };
-  return visit(spec.root, 1, '/root');
+  return visit(spec.root, 1, pathPrefix ? `${pathPrefix}/elements/${spec.root}/children` : '/root');
 }
 
 export function validatePanelSpec(value: unknown, options: SpecValidationOptions = {}): ValidationResult<PanelSpec> {
-  if (!isRecord(value)) return failure('invalid_spec', '', 'Panel spec must be an object');
-  if (typeof value.root !== 'string' || value.root.length === 0) return failure('invalid_spec', '/root', 'Panel root must be a non-empty ID');
-  if (!isRecord(value.elements)) return failure('invalid_spec', '/elements', 'Panel elements must be an object');
+  const pathPrefix = options.pathPrefix ?? '';
+  if (!isRecord(value)) return failure('invalid_spec', pathPrefix, 'Panel spec must be an object');
+  if (typeof value.root !== 'string' || value.root.length === 0) return failure('invalid_spec', `${pathPrefix}/root`, 'Panel root must be a non-empty ID');
+  if (!isRecord(value.elements)) return failure('invalid_spec', `${pathPrefix}/elements`, 'Panel elements must be an object');
   const elementIds = Object.keys(value.elements);
-  if (elementIds.length > MAX_SPEC_ELEMENTS) return failure('invalid_spec', '/elements', `Panel exceeds ${MAX_SPEC_ELEMENTS} elements`);
+  if (elementIds.length > MAX_SPEC_ELEMENTS) return failure('invalid_spec', `${pathPrefix}/elements`, `Panel exceeds ${MAX_SPEC_ELEMENTS} elements`);
   const declaredPaths = new Set([...schemaPaths(options.stateSchema), ...(options.declaredPaths ?? [])]);
   const elements: Record<string, PanelElement> = Object.create(null) as Record<string, PanelElement>;
   for (const id of elementIds) {
-    const result = validateElement(value.elements[id], `/elements/${id}`, declaredPaths, options.stateSchema);
+    const result = validateElement(value.elements[id], `${pathPrefix}/elements/${id}`, declaredPaths, options.stateSchema);
     if (!result.ok) return result;
     elements[id] = result.value;
   }
   const spec: PanelSpec = { root: value.root, elements };
-  if (elements[spec.root] === undefined) return failure('invalid_spec', '/root', `Root element "${spec.root}" does not exist`);
-  return checkTree(spec);
+  if (elements[spec.root] === undefined) return failure('invalid_spec', pathPrefix ? `${pathPrefix}/elements/${spec.root}/children` : '/root', `Root element "${spec.root}" does not exist`);
+  return checkTree(spec, pathPrefix);
 }
 
 export function validatePanelPublication(value: unknown): ValidationResult<PanelSpec> {
   if (!isRecord(value)) return failure('invalid_spec', '', 'Panel publication must be an object');
   const summary = validatePanelSummary(value.summary, value.stateSchema);
   if (!summary.ok) return summary;
-  return validatePanelSpec(value.spec, { stateSchema: value.stateSchema });
+  return validatePanelSpec(value.spec, { stateSchema: value.stateSchema, pathPrefix: '/spec' });
 }
