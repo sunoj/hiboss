@@ -6,6 +6,8 @@
 mod validation;
 #[path = "panel_json.rs"]
 mod json;
+#[path = "panel_stream.rs"]
+mod stream;
 
 use crate::client::{HiBossClient, PanelPublishResponse};
 use clap::{Args, Subcommand};
@@ -30,6 +32,8 @@ pub enum PanelCommand {
     List(PanelListArgs),
     #[command(about = "Show a panel and its current definition")]
     Show(PanelShowArgs),
+    #[command(about = "Stream partial task state from stdin to a live panel")]
+    Stream(stream::PanelStreamArgs),
 }
 
 #[derive(Debug, Args)]
@@ -63,6 +67,7 @@ pub async fn run(args: &PanelArgs, client: &HiBossClient) -> Result<(), Box<dyn 
         PanelCommand::Publish(arguments) => run_publish(arguments, client).await,
         PanelCommand::List(arguments) => run_list(arguments, client).await,
         PanelCommand::Show(arguments) => run_show(arguments, client).await,
+        PanelCommand::Stream(arguments) => stream::run(arguments, client).await,
     }
 }
 

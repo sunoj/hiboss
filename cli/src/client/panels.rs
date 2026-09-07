@@ -19,6 +19,11 @@ pub struct PanelPublishResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct PanelConnectionTicket {
+    pub ticket: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct ErrorEnvelope { error: PanelError }
 
 #[derive(Debug, Deserialize)]
@@ -45,6 +50,20 @@ impl HiBossClient {
     pub async fn get_panel(&self, id: &str) -> Result<Value, Box<dyn Error>> {
         let response = self.http.get(format!("{}/api/panels/{}", self.base_url, id)).bearer_auth(&self.api_key).send().await?;
         parse_panel_response(response, "panel lookup").await
+    }
+
+    pub async fn issue_panel_connection_ticket(&self, id: &str) -> Result<PanelConnectionTicket, Box<dyn Error>> {
+        let response = self.http.post(format!("{}/api/panel-connections", self.base_url))
+            .bearer_auth(&self.api_key).json(&serde_json::json!({"panelId": id, "role": "producer"})).send().await?;
+        parse_panel_response(response, "panel connection ticket").await
+    }
+
+    pub fn panel_relay_url(&self) -> String {
+        let base = self.base_url.strip_prefix("https://").map_or_else(
+            || format!("ws://{}", self.base_url.trim_start_matches("http://")),
+            |host| format!("wss://{host}"),
+        );
+        format!("{base}/api/panel-relay")
     }
 }
 
@@ -99,4 +118,10 @@ mod tests {
 
     #[test]
     fn deserializes_machine_readable_publish_response() { let response: PanelPublishResponse = serde_json::from_str(r#"{"panelId":"panel_1","definitionRevision":1,"metadataVersion":1}"#).expect("response"); assert_eq!((response.panel_id, response.definition_revision), ("panel_1".into(), 1)); }
+
+    #[test]
+    fn panel_relay_url_uses_websocket_scheme() {
+        let client = HiBossClient::new("https://example.test/", "key");
+        assert_eq!(client.panel_relay_url(), "wss://example.test/api/panel-relay");
+    }
 }
