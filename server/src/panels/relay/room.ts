@@ -67,8 +67,8 @@ export class PanelRoom extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  getSnapshot() {
-    const rows = [...this.ctx.storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', 'default')];
+  getSnapshot(panelId: string) {
+    const rows = [...this.ctx.storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', panelId)];
     const row = rows[0];
     if (row) {
       return { 
@@ -81,12 +81,12 @@ export class PanelRoom extends DurableObject<Env> {
     return null;
   }
 
-  setLease(epoch: string) {
-    this.ctx.storage.sql.exec('INSERT OR REPLACE INTO leases (id, epoch) VALUES (?, ?)', 'default', epoch);
+  setLease(panelId: string, epoch: string) {
+    this.ctx.storage.sql.exec('INSERT OR REPLACE INTO leases (id, epoch) VALUES (?, ?)', panelId, epoch);
   }
 
-  getLease() {
-    const rows = [...this.ctx.storage.sql.exec('SELECT * FROM leases WHERE id = ?', 'default')];
+  getLease(panelId: string) {
+    const rows = [...this.ctx.storage.sql.exec('SELECT * FROM leases WHERE id = ?', panelId)];
     const row = rows[0];
     return row ? (row.epoch as string) : null;
   }
@@ -123,8 +123,8 @@ export class PanelRoom extends DurableObject<Env> {
     return row !== null;
   }
 
-  private sendSnapshot(ws: WebSocket): void {
-    const snap = this.getSnapshot();
+  private sendSnapshot(ws: WebSocket, panelId: string): void {
+    const snap = this.getSnapshot(panelId);
     ws.send(JSON.stringify(snap
       ? { kind: 'state.snapshot', epoch: snap.epoch, sequence: snap.sequence, task: snap.task, persistedAt: snap.persistedAt }
       : { kind: 'state.snapshot', sequence: 0, task: {} }));
@@ -136,7 +136,7 @@ export class PanelRoom extends DurableObject<Env> {
       return;
     }
     ws.serializeAttachment({ ...ticket, subscribedPanelId: panelId });
-    this.sendSnapshot(ws);
+    this.sendSnapshot(ws, panelId);
   }
 
   private async handleLeaseClaim(ws: WebSocket, ticket: ConnectionAttachment, msg: Record<string, unknown>): Promise<void> {
@@ -150,7 +150,7 @@ export class PanelRoom extends DurableObject<Env> {
       this.sendError(ws, 'invalid_lease');
       return;
     }
-    this.setLease(msg.epoch);
+    this.setLease(panelId, msg.epoch);
     ws.send(JSON.stringify({ kind: 'lease.ack', epoch: msg.epoch }));
   }
 
@@ -160,12 +160,12 @@ export class PanelRoom extends DurableObject<Env> {
       this.sendError(ws, 'permission_denied');
       return;
     }
-    const currentEpoch = this.getLease();
+    const currentEpoch = this.getLease(msg.panelId);
     if (currentEpoch && currentEpoch !== msg.epoch) {
       this.sendError(ws, 'lease_conflict');
       return;
     }
-    const snap = this.getSnapshot() || { epoch: msg.epoch, sequence: 0, task: {} };
+    const snap = this.getSnapshot(msg.panelId) || { epoch: msg.epoch, sequence: 0, task: {} };
     if (snap.sequence !== msg.baseSequence) {
       this.sendError(ws, 'resync_required');
       return;
@@ -196,7 +196,7 @@ export class PanelRoom extends DurableObject<Env> {
     }
     const newSeq = snap.sequence + 1;
     this.ctx.storage.sql.exec('INSERT OR REPLACE INTO snapshots (id, epoch, sequence, task, persisted_at) VALUES (?, ?, ?, ?, ?)',
-      'default', msg.epoch, newSeq, JSON.stringify(taskCopy), Date.now());
+      msg.panelId, msg.epoch, newSeq, JSON.stringify(taskCopy), Date.now());
     ws.send(JSON.stringify({ kind: 'state.ack', sequence: newSeq }));
     this.broadcastPatch(msg.panelId, { kind: 'state.patch', sequence: newSeq, ops: msg.ops });
   }

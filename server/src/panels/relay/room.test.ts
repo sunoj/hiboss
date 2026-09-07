@@ -119,7 +119,7 @@ describe('PanelRoom', () => {
     
     // Read directly from SQL, simulating no observer logic
     await runInDurableObject(stub as unknown as DurableObjectStub<import('./room').PanelRoom>, (instance: import('./room').PanelRoom) => {
-      const rows = [...instance['ctx'].storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', 'default')];
+      const rows = [...instance['ctx'].storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', 'test-1-5-panel')];
       expect(rows.length).toBe(1);
       const row = rows[0];
       expect(row.sequence).toBe(1);
