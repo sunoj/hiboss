@@ -17,7 +17,7 @@ public struct PanelListPage: Codable, Equatable, Sendable {
 public struct PanelMetadata: Codable, Equatable, Sendable, Identifiable {
     public let panelId: String
     public let agentId: String
-    public let agentName: String
+    public let agentName: String?
     public let targetBossId: String
     public let taskKey: String
     public let sessionId: String
@@ -43,7 +43,7 @@ public struct PanelDetail: Decodable, Equatable, Sendable {
         metadata = try PanelMetadata(
             panelId: container.decode(String.self, forKey: .panelId),
             agentId: container.decode(String.self, forKey: .agentId),
-            agentName: container.decode(String.self, forKey: .agentName),
+            agentName: container.decodeIfPresent(String.self, forKey: .agentName),
             targetBossId: container.decode(String.self, forKey: .targetBossId),
             taskKey: container.decode(String.self, forKey: .taskKey),
             sessionId: container.decode(String.self, forKey: .sessionId),

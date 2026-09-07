@@ -111,3 +111,21 @@ extension PanelsAPITests {
         XCTAssertFalse(url.contains("/api/boss/"), "panels must not be requested under the boss scope: \(url)")
     }
 }
+
+extension PanelsAPITests {
+    /// A client must not fail a whole list because one display field is absent. The server
+    /// gained agentName after the deployed worker was built; requiring it turned every
+    /// panel into "Couldn't read panel list".
+    func testPanelListDecodesFromAServerThatSendsNoAgentName() throws {
+        let json = """
+        {"panels":[{"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1",
+        "taskKey":"t","sessionId":"s","title":"Older server","catalogId":"hiboss.panel",
+        "catalogVersion":1,"definitionRevision":1,"metadataVersion":1,
+        "summary":{"stage":"Running"},"createdAt":"2026-09-07T12:00:00Z"}]}
+        """
+        let page = try JSONDecoder().decode(PanelListPage.self, from: Data(json.utf8))
+        XCTAssertEqual(page.panels.count, 1)
+        XCTAssertNil(page.panels[0].agentName)
+        XCTAssertEqual(page.panels[0].agentId, "agent_1")
+    }
+}

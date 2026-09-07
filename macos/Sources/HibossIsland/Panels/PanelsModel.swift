@@ -237,9 +237,14 @@ struct PanelTile: Identifiable {
     let definitionRevision: Int?
     let order: Int
 
+    /// A server one version behind sends no name. Falling back to "Unknown agent" would
+    /// be untrue — the agent is known, only its name is missing — so show a short form of
+    /// the id, which is real, and let the project half fall away rather than inventing one.
     var sourceLabel: String {
         if let producer { return producer.name }
-        return "\(agentName ?? "Unknown agent") · \(sessionLabel ?? "Unlabeled project")"
+        let who = agentName ?? agentID.map { "agent \($0.prefix(8))" } ?? "Unattributed"
+        guard let sessionLabel, !sessionLabel.isEmpty else { return who }
+        return "\(who) · \(sessionLabel)"
     }
 }
 
