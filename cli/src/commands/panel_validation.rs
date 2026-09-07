@@ -55,11 +55,76 @@ pub fn validate_publication(value: &Value) -> Result<(), ValidationError> {
         return Err(error("unsupported_catalog", "/catalogVersion", "catalogVersion must be 1"));
     }
     let schema = object_value(object, "stateSchema", "")?;
+    if let Some(summary) = object.get("summary") {
+        validate_summary(summary, schema)?;
+    }
     validate_schema(schema, "/stateSchema")?;
     let initial = object_value(object, "initialState", "")?;
     validate_value(schema, initial, "/initialState")?;
     let spec = object_value(object, "spec", "")?;
     validate_spec(spec, schema)
+}
+
+fn validate_summary(value: &Value, schema: &Value) -> Result<(), ValidationError> {
+    let summary = object(value, "/summary", "Summary")?;
+    if !summary.get("stage").and_then(Value::as_str).is_some_and(|stage| !stage.trim().is_empty()) {
+        return Err(error("invalid_spec", "/summary/stage", "Summary stage must be a non-empty string"));
+    }
+    if let Some(headline) = summary.get("headline") {
+        validate_summary_value(headline, "/summary/headline", schema, false)?;
+    }
+    if let Some(secondary) = summary.get("secondary") {
+        validate_summary_value(secondary, "/summary/secondary", schema, false)?;
+    }
+    if let Some(series) = summary.get("series") {
+        let pointer = series.as_str().filter(|value| value.starts_with('/')).ok_or_else(|| {
+            error("invalid_spec", "/summary/series", "Summary series must be a JSON Pointer")
+        })?;
+        validate_summary_path(pointer, schema, "/summary/series", true)?;
+    }
+    Ok(())
+}
+
+fn validate_summary_value(value: &Value, path: &str, schema: &Value, require_array: bool) -> Result<(), ValidationError> {
+    let Some(object) = value.as_object() else {
+        return Err(error("invalid_spec", path, "Summary value must have a JSON Pointer path and label"));
+    };
+    if !object.get("path").and_then(Value::as_str).is_some_and(|value| value.starts_with('/'))
+        || !object.get("label").and_then(Value::as_str).is_some_and(|value| !value.trim().is_empty())
+    {
+        return Err(error("invalid_spec", path, "Summary value must have a JSON Pointer path and label"));
+    }
+    if object.get("unit").is_some_and(|value| !value.is_string()) {
+        return Err(error("invalid_spec", &format!("{path}/unit"), "Summary unit must be a string"));
+    }
+    let Some(pointer) = object.get("path").and_then(Value::as_str) else {
+        return Err(error("invalid_spec", path, "Summary value must have a JSON Pointer path and label"));
+    };
+    validate_summary_path(pointer, schema, path, require_array)
+}
+
+fn validate_summary_path(pointer: &str, schema: &Value, summary_path: &str, require_array: bool) -> Result<(), ValidationError> {
+    let Some(node) = schema_node_at_path(schema, pointer) else {
+        return Err(error("invalid_spec", &format!("{summary_path}/path"), "Summary path is not declared in stateSchema"));
+    };
+    if !schema_paths(schema, "").iter().any(|path| path == pointer) {
+        return Err(error("invalid_spec", &format!("{summary_path}/path"), "Summary path is not declared in stateSchema"));
+    }
+    let is_array = node.get("type").and_then(Value::as_str) == Some("array");
+    let is_object = node.get("type").and_then(Value::as_str) == Some("object") || node.get("properties").is_some();
+    if (require_array && !is_array) || (!require_array && (is_array || is_object)) {
+        let message = if require_array { "Summary series path must resolve to an array" } else { "Summary value path must resolve to a scalar" };
+        return Err(error("invalid_spec", &format!("{summary_path}/path"), message));
+    }
+    Ok(())
+}
+
+fn schema_node_at_path<'a>(schema: &'a Value, pointer: &str) -> Option<&'a Value> {
+    let mut current = schema;
+    for segment in pointer[1..].split('/').map(|segment| segment.replace("~1", "/").replace("~0", "~")) {
+        current = current.get("properties")?.as_object()?.get(&segment)?;
+    }
+    current.is_object().then_some(current)
 }
 
 fn validate_spec(value: &Value, schema: &Value) -> Result<(), ValidationError> {
@@ -378,5 +443,60 @@ mod conformance_tests {
                 error.path
             );
         }
+    }
+
+    #[test]
+    fn validates_summary_against_the_shared_runtime_fixture() {
+        for (name, summary, expected_path) in [
+            (
+                "missing stage",
+                serde_json::json!({"stage": "  ", "headline": {"path": "/task/completed", "label": "Done"}}),
+                "/summary/stage",
+            ),
+            (
+                "undeclared headline path",
+                serde_json::json!({"stage": "Running", "headline": {"path": "/task/missing", "label": "Missing"}}),
+                "/summary/headline/path",
+            ),
+            (
+                "headline object path",
+                serde_json::json!({"stage": "Running", "headline": {"path": "/task", "label": "Task"}}),
+                "/summary/headline/path",
+            ),
+            (
+                "secondary unit",
+                serde_json::json!({"stage": "Running", "secondary": {"path": "/task/label", "label": "Name", "unit": 1}}),
+                "/summary/secondary/unit",
+            ),
+            (
+                "non-pointer series",
+                serde_json::json!({"stage": "Running", "series": "task/completed"}),
+                "/summary/series",
+            ),
+            (
+                "scalar series path",
+                serde_json::json!({"stage": "Running", "series": "/task/completed"}),
+                "/summary/series/path",
+            ),
+        ] {
+            let mut publication = load("metric-panel.json");
+            publication["summary"] = summary;
+            let error = validate_publication(&publication)
+                .expect_err(&format!("{name} summary must be rejected"));
+            assert_eq!(error.path, expected_path, "{name} summary was rejected at the wrong path");
+        }
+
+        let mut valid = load("metric-panel.json");
+        valid["stateSchema"]["properties"]["task"]["properties"]["trend"] =
+            serde_json::json!({"type": "array", "items": {"type": "number"}});
+        valid["initialState"]["task"]["trend"] = serde_json::json!([0.1, 0.2]);
+        valid["summary"] = serde_json::json!({
+            "stage": "Running",
+            "metricPath": "/task/completed",
+            "headline": {"path": "/task/completed", "label": "Done"},
+            "secondary": {"path": "/task/label", "label": "Name", "unit": "text"},
+            "series": "/task/trend"
+        });
+        assert_eq!(validate_publication(&valid), Ok(()));
     }
 }
