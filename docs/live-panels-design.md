@@ -249,3 +249,34 @@ behavior, dependencies, and acceptance gates are reviewable. Feature completion
 requires the later work packages and evidence in the [delivery plan](live-panels/rollout.md).
 No production implementation, tests, migrations, or release are performed as part
 of this documentation task.
+
+## 11. Multiple producers on one surface — the tile wall
+
+Decided 2026-09-07. Several agents publish to the same recipient at once, and the macOS
+Panels destination presents them together as a wall of independently living tiles rather
+than one panel at a time. The reference feel is a Live Tile wall: each tile is driven by
+its own source, updates on its own schedule, and animates in place.
+
+The transport already supports this. A PanelRoom is keyed by recipient, subscriptions
+name individual panels, and fan-out to several device sockets was proven in the Phase 0
+relay spike. What changes is presentation, plus the rules below, which are not decoration.
+
+**Tiles do not reorder themselves.** Position comes from user pinning and a stable
+ordering; only content animates. A wall that reshuffles whenever any producer pushes is
+unreadable, and this repeats the ordering rule already stated for the panel section.
+
+**Every tile names its producer.** With one panel the owner is implicit. With several,
+attribution is a correctness property: a metric whose agent is unidentifiable is a
+misleading number, not a compact one.
+
+**Freshness is per tile.** Producers update at different rates and some stop. A tile
+nobody has pushed to in twenty minutes must look stale on its own, using the existing
+live/stale/offline distinction. A Live Tile can afford to look identical when idle
+because a local app backs it; a tile backed by a possibly disconnected agent cannot.
+
+Two existing rules extend unchanged. Tile updates never open the interrupt island, which
+stays reserved for things needing a decision. Staggered animation respects the reduced
+motion setting, and the wall must remain legible with all animation disabled.
+
+Tile size follows content rather than importance: a single scalar earns a small tile, a
+series earns a wide one. Importance belongs to attention, which is a separate surface.
