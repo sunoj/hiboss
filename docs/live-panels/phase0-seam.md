@@ -38,13 +38,22 @@ enough that the native `ScrollView` owns a taller document.
    order. A person must press Tab and Shift-Tab while watching focus rings; the
    focus rings were not observed.
 
-4. **Appearance — stayed stranded/light in this run.** The probe executed
-   `defaults write -g AppleInterfaceStyle Dark` while mounted and then restored
-   the setting. The native initial appearance reported `NSAppearanceNameAqua).
-   Both captured states looked light/system-light; the dark command did not reach
-   the mounted app or leaf during this run. Evidence:
-   [light state](../../spikes/panel-seam/evidence/light.png) and
-   [dark-command state](../../spikes/panel-seam/evidence/dark.png).
+4. **Appearance — the leaf follows the system, corrected by the orchestrator.**
+   The probe reported this as "stranded light". That finding was wrong, and the
+   cause was the method, not the app: `defaults write -g AppleInterfaceStyle Dark`
+   changes the stored value without telling running or newly launched apps to
+   re-resolve their appearance, so nothing switched and the probe honestly reported
+   that nothing reached the app.
+
+   Re-tested with `osascript -e 'tell app "System Events" to tell appearance
+   preferences to set dark mode to true'`. Both the spike and the shipped
+   HiBoss Island window turned dark, and **the web leaf turned dark with them** —
+   dark chart background, adjusted series colour, no stranded light rectangle.
+   Evidence: `dark-osascript.png` captured by the orchestrator.
+
+   A control run mattered here. Under the wrong method the *shipped* app also stayed
+   light, which is what showed the defect was in the measurement rather than in
+   either app. Use the System Events route for any future appearance check.
 
 5. **VoiceOver — not observed.** VoiceOver was not run. No claim is made about
    the accessibility tree across the boundary. A person needs to enable VoiceOver
