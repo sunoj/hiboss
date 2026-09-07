@@ -11,7 +11,7 @@ struct MainView: View {
     @ObservedObject var flow: OptionFlowStore
     @StateObject private var reply = AttentionReplyState()
     @StateObject private var overviewStore = OverviewStore()
-    @State private var destination: OverviewDestination = .category(.needsYou)
+    @State private var destination: OverviewDestination = ProcessInfo.processInfo.environment["HIBOSS_PANELS_DEMO"] == "1" ? .panels : .category(.needsYou)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showsCompactOverview = false
     @State private var previewHistory = AttentionPreview.historyIfRequested()
@@ -83,13 +83,18 @@ struct MainView: View {
 
     private func destinationContent(_ snapshot: OverviewSnapshot) -> some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                OverviewContentHeader(destination: destination, snapshot: snapshot,
-                    countsAvailable: previewHistory != nil || flow.historyState == .loaded || !snapshot.history.isEmpty)
-                Divider()
-                messageSurface(snapshot)
+            if destination == .panels {
+                PanelsView()
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            } else {
+                VStack(spacing: 0) {
+                    OverviewContentHeader(destination: destination, snapshot: snapshot,
+                        countsAvailable: previewHistory != nil || flow.historyState == .loaded || !snapshot.history.isEmpty)
+                    Divider()
+                    messageSurface(snapshot)
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
         }
     }
 

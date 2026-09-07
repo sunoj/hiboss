@@ -30,6 +30,12 @@ struct OverviewSidebar: View {
                 .listRowInsets(EdgeInsets(top: 12, leading: 8, bottom: 16, trailing: 8))
                 .selectionDisabled()
             }
+            if panelsDemoEnabled {
+                Section {
+                    Label(L("Panels"), systemImage: "rectangle.3.group")
+                        .tag(OverviewDestination.panels)
+                }
+            }
             if let notice { connectionNotice(notice).selectionDisabled() }
             Section(L("Sessions")) {
                 if snapshot.sessions.isEmpty {
@@ -50,6 +56,10 @@ struct OverviewSidebar: View {
 
     private var countsAvailable: Bool {
         historyState == .loaded || !snapshot.history.isEmpty
+    }
+
+    private var panelsDemoEnabled: Bool {
+        ProcessInfo.processInfo.environment["HIBOSS_PANELS_DEMO"] == "1"
     }
 
     private var notice: String? {

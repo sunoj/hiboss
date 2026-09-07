@@ -46,6 +46,7 @@ enum OverviewCategory: String, CaseIterable, Identifiable, Sendable {
 enum OverviewDestination: Hashable {
     case category(OverviewCategory)
     case session(String)
+    case panels
 }
 
 struct OverviewSnapshot {
@@ -85,6 +86,7 @@ struct OverviewSnapshot {
         switch destination {
         case let .category(category): category.title
         case let .session(id): sessions.first { $0.id == id }?.label ?? L("Session")
+        case .panels: L("Panels")
         }
     }
 
