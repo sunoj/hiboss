@@ -40,6 +40,7 @@ import { bossTokensRouter } from './routes/boss-tokens';
 import { bossMessageReplyRouter } from './routes/boss-message-reply';
 import { bossGroupBroadcastRouter } from './routes/boss-group-broadcast';
 import { panelsRouter } from './panels/definition';
+import { panelRelayRouter } from './panels/relay';
 
 const app = new Hono<{ Bindings: Env; Variables: { reqId: string } }>({});
 const manifest = {
@@ -75,7 +76,7 @@ app.use(
       if (/^http:\/\/localhost:\d+$/.test(origin)) return origin;
       return undefined;
     },
-    allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key'],
+    allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Panel-Connection-Ticket'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     maxAge: 86400,
   }),
@@ -105,6 +106,7 @@ app.route('/api/sessions', sessionEventsRouter);
 app.route('/api/progress/teams', progressTeamsRouter);
 app.route('/api/progress', progressRouter);
 app.route('/api/panels', panelsRouter);
+app.route('/api', panelRelayRouter);
 app.route('/api/join', joinRouter);
 app.route('/api/bootstrap', bootstrapRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
