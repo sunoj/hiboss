@@ -20,6 +20,28 @@ Every one of those was missing from the first pass.
 If you believe a native control genuinely cannot express something, say so in your final
 report and explain why. Do not silently reimplement it.
 
+### 0.1 The one recorded exception — agent-authored display leaves (2026-09-07)
+
+Rule 0 holds everywhere except three components of the `hiboss.panel` catalog:
+**LineChart, BarChart and Table, when rendering an agent-authored panel**, may be drawn
+by a bundled web renderer inside a `WKWebView`. Nothing else may.
+
+The boundary is interactivity, not convenience. Every control the user types into or
+activates — TextInput, TextArea, NumberInput, Select, MultiSelect, Toggle, Slider,
+Button — and every layout and text component stays native, as does all navigation,
+attribution, settings, error presentation and submission review. A web leaf is display
+only: it receives state and reports its content height, and it cannot reach a draft, an
+answer, or a submission.
+
+This exception was granted on measured evidence, not preference. SwiftUI's statically
+typed `Table` column builder cannot express a generic catalog table, and charts carry a
+per-component native cost that recurs for every future catalog addition. The evidence and
+the reasoning are in the [renderer gate decision](live-panels/phase0-renderer-decision.md).
+
+Do not widen this. If a fourth component seems to need it, that is a new gate with new
+evidence, recorded here the same way. A web leaf that acquires a text field or a button
+has broken the exception, not extended it.
+
 ## 1. Colour
 
 **Never write a hex value in a view.** Use the semantic system colours:
