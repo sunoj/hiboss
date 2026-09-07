@@ -14,6 +14,7 @@ export type Env = {
   DISCORD_WEBHOOK_SECRET?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
   DISCORD_GATEWAY?: DurableObjectNamespace;
+  PANEL_ROOM?: DurableObjectNamespace;
   APNS_KEY_ID?: string;
   APNS_TEAM_ID?: string;
   APNS_AUTH_KEY?: string;

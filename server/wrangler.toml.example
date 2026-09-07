@@ -17,12 +17,17 @@ globs = ["**/*.html"]
 
 [durable_objects]
 bindings = [
-  { name = "DISCORD_GATEWAY", class_name = "DiscordGateway" }
+  { name = "DISCORD_GATEWAY", class_name = "DiscordGateway" },
+  { name = "PANEL_ROOM", class_name = "PanelRoom" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_classes = ["DiscordGateway"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["PanelRoom"]
 
 [triggers]
 crons = ["*/5 * * * *"]
