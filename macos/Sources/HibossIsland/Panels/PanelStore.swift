@@ -35,6 +35,10 @@ final class PanelStore: ObservableObject {
 
     func setBool(_ value: Bool, at path: String) { write(.bool(value), at: path) }
 
+    func advanceDemoData(seed: Int) {
+        state = advancedValue(state, seed: seed)
+    }
+
     func perform(_ action: PanelAction?) {
         guard action?.action == "submitRequest" else { return }
         let answer = panelValue(at: "/form", in: state) ?? state
@@ -55,6 +59,15 @@ final class PanelStore: ObservableObject {
     private func write(_ value: PanelJSONValue, at path: String) {
         guard let updated = panelSetValue(value, at: path, in: state) else { return }
         state = updated
+    }
+
+    private func advancedValue(_ value: PanelJSONValue, seed: Int) -> PanelJSONValue {
+        switch value {
+        case let .number(number): return .number(number + Double(seed % 3 + 1))
+        case let .array(values): return .array(values.map { advancedValue($0, seed: seed) })
+        case let .object(values): return .object(values.mapValues { advancedValue($0, seed: seed) })
+        default: return value
+        }
     }
 }
 
