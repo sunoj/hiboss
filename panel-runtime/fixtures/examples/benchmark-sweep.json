@@ -1,0 +1,25 @@
+{
+  "protocolVersion": 1,
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "title": "Image pipeline benchmark",
+  "spec": {
+    "root": "main",
+    "elements": {
+      "main": { "type": "Stack", "props": { "direction": "vertical", "gap": 16 }, "children": ["stage", "summary", "comparison"] },
+      "stage": { "type": "Status", "props": { "label": "Stage", "status": "active", "message": "Sweeping worker counts for the image pipeline" }, "children": [] },
+      "summary": { "type": "Grid", "props": { "columns": 3, "gap": 12 }, "children": ["best", "latency", "completed"] },
+      "best": { "type": "Metric", "props": { "label": "Best configuration", "value": { "$state": "/task/bestConfiguration" } }, "children": [] },
+      "latency": { "type": "Metric", "props": { "label": "Best median latency", "value": { "$state": "/task/bestLatencyMs" }, "unit": "ms" }, "children": [] },
+      "completed": { "type": "Metric", "props": { "label": "Configurations tested", "value": { "$state": "/task/completed" }, "unit": "of 4" }, "children": [] },
+      "comparison": { "type": "BarChart", "props": { "label": "Images processed per second — 1, 2, 4, and 8 workers", "values": [1320, 1485, 1710, 1642], "unit": "images/s" }, "children": [] }
+    }
+  },
+  "stateSchema": {
+    "type": "object",
+    "properties": { "task": { "type": "object", "properties": { "stage": { "type": "string" }, "bestConfiguration": { "type": "string" }, "bestLatencyMs": { "type": "number", "minimum": 0 }, "completed": { "type": "integer", "minimum": 0, "maximum": 4 } }, "required": ["stage", "bestConfiguration", "bestLatencyMs", "completed"], "additionalProperties": false } },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "initialState": { "task": { "stage": "Sweeping worker counts for the image pipeline", "bestConfiguration": "4 workers", "bestLatencyMs": 58.4, "completed": 4 } }
+}

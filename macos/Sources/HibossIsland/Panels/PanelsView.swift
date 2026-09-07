@@ -12,16 +12,12 @@ struct PanelsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Panels").font(.largeTitle.bold())
-                    Text("A native form with a display-only chart leaf.").font(.callout).foregroundStyle(.secondary)
+                    Text("Reference panels for real task shapes.").font(.callout).foregroundStyle(.secondary)
                 }
                 sampleNotice
-                if let fixtures = model.fixtures, let mixedStore = model.mixedStore, let metricStore = model.metricStore {
-                    MixedPanelCard(fixture: fixtures.mixed, store: mixedStore, webModel: model.webModel)
-                    GroupBox("Metric fixture") {
-                        PanelRenderer(spec: fixtures.metric.spec, store: metricStore, webModel: model.webModel)
-                            .render(fixtures.metric.spec.root)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                if let fixture = model.currentFixture, let store = model.currentStore {
+                    pager
+                    PanelCard(fixture: fixture, store: store, webModel: model.webModel)
                 } else {
                     ContentUnavailableView("Fixtures unavailable", systemImage: "doc.questionmark")
                 }
@@ -37,9 +33,17 @@ struct PanelsView: View {
             .font(.callout).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
     }
+
+    private var pager: some View {
+        HStack {
+            Button("Previous") { model.showPrevious() }.disabled(!model.canShowPrevious)
+            Text("Example \(model.selectedIndex + 1) of \(model.fixtureCount)").font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+            Button("Next") { model.showNext() }.disabled(!model.canShowNext)
+        }
+    }
 }
 
-private struct MixedPanelCard: View {
+private struct PanelCard: View {
     let fixture: PanelFixture
     @ObservedObject var store: PanelStore
     @ObservedObject var webModel: PanelWebModel
@@ -50,7 +54,11 @@ private struct MixedPanelCard: View {
                 .render(fixture.spec.root)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let answer = store.submittedAnswerText {
-                Text("Answer this would send").font(.headline).padding(.top, 10)
+                Text("Captured submission").font(.headline).padding(.top, 10)
+                if store.submissionWasEdited {
+                    Text("Form edited since submission; this is the previous answer, not the current draft.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
                 Text(answer).font(.body.monospaced()).textSelection(.enabled)
                     .foregroundStyle(.secondary)
             }
@@ -61,19 +69,39 @@ private struct MixedPanelCard: View {
 @MainActor
 final class PanelsModel: ObservableObject {
     let fixtures: PanelFixtureSet?
-    let mixedStore: PanelStore?
-    let metricStore: PanelStore?
+    private let stores: [PanelStore]
+    @Published private(set) var selectedIndex = 0
     let webModel = PanelWebModel()
 
     init() {
         guard let fixtures = try? PanelFixtures.load() else {
             self.fixtures = nil
-            mixedStore = nil
-            metricStore = nil
+            stores = []
             return
         }
         self.fixtures = fixtures
-        mixedStore = PanelStore(fixture: fixtures.mixed)
-        metricStore = PanelStore(fixture: fixtures.metric)
+        stores = fixtures.all.map(PanelStore.init)
+    }
+
+    var currentFixture: PanelFixture? { fixtures?.all[safe: selectedIndex] }
+    var currentStore: PanelStore? { stores[safe: selectedIndex] }
+    var fixtureCount: Int { fixtures?.all.count ?? 0 }
+    var canShowPrevious: Bool { selectedIndex > 0 }
+    var canShowNext: Bool { selectedIndex + 1 < fixtureCount }
+
+    func showPrevious() {
+        guard canShowPrevious else { return }
+        selectedIndex -= 1
+    }
+
+    func showNext() {
+        guard canShowNext else { return }
+        selectedIndex += 1
+    }
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

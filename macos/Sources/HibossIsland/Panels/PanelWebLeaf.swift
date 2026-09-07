@@ -49,7 +49,7 @@ struct PanelWebLeafSlot: View {
         }
         .frame(maxWidth: .infinity, minHeight: 48, idealHeight: model.contentHeight, maxHeight: 800)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Display chart")
+        .accessibilityLabel(definition["type"]?.string == "Table" ? "Display table" : "Display chart")
     }
 }
 

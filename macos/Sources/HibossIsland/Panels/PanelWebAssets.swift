@@ -16,9 +16,10 @@ enum PanelWebAssets {
       .plot .series { fill: none; stroke: Highlight; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; vector-effect: non-scaling-stroke; }
       .plot .bar { fill: Highlight; }
       .plot .baseline { stroke: color-mix(in srgb, CanvasText 45%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+      table { border-collapse: collapse; width: 100%; font-size: .9rem; } th, td { padding: .45rem .6rem; border-bottom: 1px solid color-mix(in srgb, CanvasText 18%, transparent); text-align: left; } th { font-weight: 600; }
       .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     </style>
-    <main class="root"><p id="waiting">Waiting for a display mount.</p><figure hidden id="chart"><figcaption id="label"></figcaption><svg id="plot" class="plot" viewBox="0 0 100 100" preserveAspectRatio="none" aria-labelledby="label values"></svg><p class="sr-only" id="values"></p></figure></main>
+    <main class="root"><p id="waiting">Waiting for a display mount.</p><figure hidden id="chart"><figcaption id="label"></figcaption><svg id="plot" class="plot" viewBox="0 0 100 100" preserveAspectRatio="none" aria-labelledby="label values"></svg><p class="sr-only" id="values"></p></figure><section hidden id="table"><h2 id="table-label"></h2><table><thead id="table-head"></thead><tbody id="table-body"></tbody></table></section></main>
     <script>
       const bridge = (message) => window.webkit?.messageHandlers?.hiboss?.postMessage(message);
       const prop = (definition, key, fallback) => definition[key] ?? fallback;
@@ -66,15 +67,24 @@ enum PanelWebAssets {
           path.setAttribute('class', 'series'); path.setAttribute('d', points.map((point, index) => `${index ? 'L' : 'M'}${point}`).join(' ')); plot.append(path);
         });
       }
+      function renderTable(definition) {
+        const columns = Array.isArray(definition.columns) ? definition.columns : [];
+        const rows = Array.isArray(definition.rows) ? definition.rows : [];
+        document.getElementById('table-label').textContent = prop(definition, 'label', 'Table');
+        document.getElementById('table-head').replaceChildren(Object.assign(document.createElement('tr'), { innerHTML: columns.map((column) => `<th scope="col">${String(column.label || column.id)}</th>`).join('') }));
+        const body = document.getElementById('table-body');
+        body.replaceChildren(...rows.map((row) => { const tr = document.createElement('tr'); tr.innerHTML = columns.map((column) => `<td>${String(row[column.id] ?? '—')}</td>`).join(''); return tr; }));
+      }
       function render(message) {
         const definition = message.definition || {};
         const values = validValues(definition);
         const type = definition.type === 'BarChart' ? 'BarChart' : 'LineChart';
         document.getElementById('waiting').hidden = true;
-        document.getElementById('chart').hidden = false;
-        document.getElementById('label').textContent = prop(definition, 'label', 'Line chart');
-        document.getElementById('values').textContent = `${type === 'BarChart' ? 'Bar' : 'Line'} chart values: ${values.map((value) => value === null ? 'gap' : value).join(', ') || 'No values'}`;
-        drawPlot(type, values);
+        const isTable = definition.type === 'Table';
+        document.getElementById('chart').hidden = isTable;
+        document.getElementById('table').hidden = !isTable;
+        if (isTable) renderTable(definition);
+        else { document.getElementById('label').textContent = prop(definition, 'label', 'Line chart'); document.getElementById('values').textContent = `${type === 'BarChart' ? 'Bar' : 'Line'} chart values: ${values.map((value) => value === null ? 'gap' : value).join(', ') || 'No values'}`; drawPlot(type, values); }
         requestAnimationFrame(() => bridge({ kind: 'contentSizeChanged', panelId: message.panelId, contentHeight: Math.ceil(document.querySelector('.root').getBoundingClientRect().height) }));
       }
       window.__hibossBridge = { receive: (message) => message?.kind === 'mount' ? render(message) : bridge({ kind: 'renderFailed', panelId: message?.panelId || 'unknown', message: 'Malformed host message' }) };

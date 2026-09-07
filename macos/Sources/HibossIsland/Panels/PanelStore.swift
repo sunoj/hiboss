@@ -39,6 +39,11 @@ final class PanelStore: ObservableObject {
         return String(data: data, encoding: .utf8)
     }
 
+    var submissionWasEdited: Bool {
+        guard case let .submitted(answer) = actionResult else { return false }
+        return answer != (panelValue(at: "/form", in: state) ?? state)
+    }
+
     private func write(_ value: PanelJSONValue, at path: String) {
         guard let updated = panelSetValue(value, at: path, in: state) else { return }
         state = updated
