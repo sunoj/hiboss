@@ -14,6 +14,10 @@ import unsafePointer from '../fixtures/unsafe-pointer.json' with { type: 'json' 
 import unknownProp from '../fixtures/unknown-prop.json' with { type: 'json' };
 import unsupportedSchemaKeyword from '../fixtures/unsupported-schema-keyword.json' with { type: 'json' };
 import giantArray from '../fixtures/giant-array.json' with { type: 'json' };
+import downloadProgress from '../fixtures/examples/download-progress.json' with { type: 'json' };
+import e2eTestRun from '../fixtures/examples/e2e-test-run.json' with { type: 'json' };
+import benchmarkSweep from '../fixtures/examples/benchmark-sweep.json' with { type: 'json' };
+import serviceMonitor from '../fixtures/examples/service-monitor.json' with { type: 'json' };
 import {
   ACTION_NAMES,
   CATALOG_ID,
@@ -33,6 +37,17 @@ describe('hiboss.panel catalog', () => {
     expect(ACTION_NAMES).toEqual(['submitRequest', 'openPanel']);
     expect(validateCatalogIdentity(CATALOG_ID, CATALOG_VERSION).ok).toBe(true);
     expect(validateCatalogIdentity('other.catalog', 1)).toMatchObject({ ok: false, error: { code: 'unsupported_catalog', path: '/catalogId' } });
+  });
+
+  it.each([
+    ['download progress', downloadProgress],
+    ['end-to-end test run', e2eTestRun],
+    ['benchmark sweep', benchmarkSweep],
+    ['service monitor', serviceMonitor],
+  ] as const)('accepts the %s reference panel and its task state', (_name, fixture) => {
+    expect(validatePanelPublication(fixture)).toMatchObject({ ok: true });
+    const state = validateAnswers(fixture.stateSchema, fixture.initialState);
+    expect(state).toMatchObject({ ok: true });
   });
 
   it('accepts the metric panel and keeps its element map prototype-free', () => {

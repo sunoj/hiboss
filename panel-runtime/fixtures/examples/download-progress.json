@@ -1,0 +1,26 @@
+{
+  "protocolVersion": 1,
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "title": "Nightly artifact transfer",
+  "spec": {
+    "root": "main",
+    "elements": {
+      "main": { "type": "Stack", "props": { "direction": "vertical", "gap": 16 }, "children": ["stage", "progress", "throughput", "details"] },
+      "stage": { "type": "Status", "props": { "label": "Stage", "status": "active", "message": "Downloading signed release artifacts" }, "children": [] },
+      "progress": { "type": "Progress", "props": { "label": "Artifact transfer", "value": { "$state": "/task/fraction" }, "min": 0, "max": 1 }, "children": [] },
+      "throughput": { "type": "LineChart", "props": { "label": "Transfer throughput over the last 10 minutes", "values": [142, 156, 171, null, 184, 179, 191, 188, 196, 202], "unit": "MB/s" }, "children": [] },
+      "details": { "type": "Grid", "props": { "columns": 3, "gap": 12 }, "children": ["downloaded", "remaining", "eta"] },
+      "downloaded": { "type": "Metric", "props": { "label": "Downloaded", "value": { "$state": "/task/downloadedGiB" }, "unit": "GiB" }, "children": [] },
+      "remaining": { "type": "Metric", "props": { "label": "Remaining", "value": { "$state": "/task/remainingGiB" }, "unit": "GiB" }, "children": [] },
+      "eta": { "type": "Metric", "props": { "label": "Estimated time left", "value": { "$state": "/task/etaMinutes" }, "unit": "min" }, "children": [] }
+    }
+  },
+  "stateSchema": {
+    "type": "object",
+    "properties": { "task": { "type": "object", "properties": { "stage": { "type": "string" }, "fraction": { "type": "number", "minimum": 0, "maximum": 1 }, "downloadedGiB": { "type": "number", "minimum": 0 }, "remainingGiB": { "type": "number", "minimum": 0 }, "etaMinutes": { "type": "number", "minimum": 0 } }, "required": ["stage", "fraction", "downloadedGiB", "remainingGiB", "etaMinutes"], "additionalProperties": false } },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "initialState": { "task": { "stage": "Downloading signed release artifacts", "fraction": 0.68, "downloadedGiB": 6.8, "remainingGiB": 3.2, "etaMinutes": 4.5 } }
+}

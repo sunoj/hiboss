@@ -1,0 +1,26 @@
+{
+  "protocolVersion": 1,
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "title": "Production image API monitor",
+  "spec": {
+    "root": "main",
+    "elements": {
+      "main": { "type": "Stack", "props": { "direction": "vertical", "gap": 16 }, "children": ["stage", "freshness", "observed", "trend"] },
+      "stage": { "type": "Status", "props": { "label": "Stage", "status": "active", "message": "Watching production image API" }, "children": [] },
+      "freshness": { "type": "Status", "props": { "label": "Freshness", "status": "success", "message": "Updated 12 seconds ago" }, "children": [] },
+      "observed": { "type": "Grid", "props": { "columns": 3, "gap": 12 }, "children": ["duration", "throughput", "errors"] },
+      "duration": { "type": "Metric", "props": { "label": "Monitoring duration", "value": { "$state": "/task/durationHours" }, "unit": "hours" }, "children": [] },
+      "throughput": { "type": "Metric", "props": { "label": "Requests observed", "value": { "$state": "/task/requestsPerMinute" }, "unit": "req/min" }, "children": [] },
+      "errors": { "type": "Metric", "props": { "label": "Error rate", "value": { "$state": "/task/errorRatePercent" }, "unit": "%" }, "children": [] },
+      "trend": { "type": "LineChart", "props": { "label": "Observed p95 latency over the last hour", "values": [184, 191, 188, null, 203, 197, 201, 196, 189, 193], "unit": "ms" }, "children": [] }
+    }
+  },
+  "stateSchema": {
+    "type": "object",
+    "properties": { "task": { "type": "object", "properties": { "stage": { "type": "string" }, "durationHours": { "type": "number", "minimum": 0 }, "requestsPerMinute": { "type": "number", "minimum": 0 }, "errorRatePercent": { "type": "number", "minimum": 0, "maximum": 100 } }, "required": ["stage", "durationHours", "requestsPerMinute", "errorRatePercent"], "additionalProperties": false } },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "initialState": { "task": { "stage": "Watching production image API", "durationHours": 19.4, "requestsPerMinute": 842.0, "errorRatePercent": 0.18 } }
+}

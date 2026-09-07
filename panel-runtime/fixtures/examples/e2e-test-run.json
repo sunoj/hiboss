@@ -1,0 +1,26 @@
+{
+  "protocolVersion": 1,
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "title": "Checkout journey tests",
+  "spec": {
+    "root": "main",
+    "elements": {
+      "main": { "type": "Stack", "props": { "direction": "vertical", "gap": 16 }, "children": ["stage", "counts", "tests"] },
+      "stage": { "type": "Status", "props": { "label": "Stage", "status": "active", "message": "Running checkout and recovery journeys" }, "children": [] },
+      "counts": { "type": "Grid", "props": { "columns": 4, "gap": 10 }, "children": ["passed", "failed", "running", "total"] },
+      "passed": { "type": "Metric", "props": { "label": "Passed", "value": { "$state": "/task/passed" } }, "children": [] },
+      "failed": { "type": "Metric", "props": { "label": "Failed", "value": { "$state": "/task/failed" } }, "children": [] },
+      "running": { "type": "Metric", "props": { "label": "Running", "value": { "$state": "/task/running" } }, "children": [] },
+      "total": { "type": "Metric", "props": { "label": "Total", "value": { "$state": "/task/total" } }, "children": [] },
+      "tests": { "type": "Table", "props": { "label": "End-to-end test status", "columns": [{ "id": "test", "label": "Test" }, { "id": "status", "label": "Status" }, { "id": "duration", "label": "Duration" }], "rows": [{ "test": "Guest checkout", "status": "passed", "duration": "42s" }, { "test": "Saved payment method", "status": "passed", "duration": "38s" }, { "test": "Declined card recovery", "status": "failed", "duration": "19s" }, { "test": "Refund confirmation", "status": "running", "duration": "—" }] }, "children": [] }
+    }
+  },
+  "stateSchema": {
+    "type": "object",
+    "properties": { "task": { "type": "object", "properties": { "stage": { "type": "string" }, "passed": { "type": "integer", "minimum": 0 }, "failed": { "type": "integer", "minimum": 0 }, "running": { "type": "integer", "minimum": 0 }, "total": { "type": "integer", "minimum": 1 } }, "required": ["stage", "passed", "failed", "running", "total"], "additionalProperties": false } },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "initialState": { "task": { "stage": "Running checkout and recovery journeys", "passed": 2, "failed": 1, "running": 1, "total": 4 } }
+}

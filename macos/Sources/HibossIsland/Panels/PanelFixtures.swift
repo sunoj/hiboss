@@ -7,13 +7,17 @@ import Foundation
 struct PanelFixtureSet: Sendable {
     let mixed: PanelFixture
     let metric: PanelFixture
+    let examples: [PanelFixture]
+
+    var all: [PanelFixture] { [mixed, metric] + examples }
 }
 
 enum PanelFixtures {
     static func load() throws -> PanelFixtureSet {
         PanelFixtureSet(
             mixed: try PanelFixture(name: "mixed-panel.json", data: Data(mixedJSON.utf8)),
-            metric: try PanelFixture(name: "metric-panel.json", data: Data(metricJSON.utf8))
+            metric: try PanelFixture(name: "metric-panel.json", data: Data(metricJSON.utf8)),
+            examples: try PanelExampleFixtures.load()
         )
     }
 

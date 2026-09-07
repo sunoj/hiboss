@@ -55,11 +55,21 @@ struct PanelFixture: Sendable {
         let raw = try JSONDecoder().decode(RawFixture.self, from: data)
         guard let spec = raw.formSpec ?? raw.spec else { throw PanelFixtureError.missingSpec }
         self.name = name
-        self.title = raw.title ?? "Metric fixture"
+        self.title = raw.title ?? Self.defaultTitle(for: name)
         self.spec = spec
         self.initialState = raw.formSpec == nil
             ? raw.initialState ?? .object([:])
             : .object(["form": raw.defaults ?? .object([:])])
+    }
+
+    private static func defaultTitle(for name: String) -> String {
+        switch name {
+        case "download-progress.json": return "Nightly artifact transfer"
+        case "e2e-test-run.json": return "Checkout journey tests"
+        case "benchmark-sweep.json": return "Image pipeline benchmark"
+        case "service-monitor.json": return "Production image API monitor"
+        default: return "Metric fixture"
+        }
     }
 
     private struct RawFixture: Decodable {
