@@ -1,29 +1,29 @@
-// Bounded native renderer for interactive panel components and the chart display seam.
-// Exports: PanelRenderer.
-// Dependencies: SwiftUI, PanelStore, PanelSpec, PanelWebLeafSlot, and semantic system styles.
+// Shared native renderer for interactive panels and the chart display seam.
+// Exports: PanelRenderer and PanelRenderMode.
+// Dependencies: SwiftUI, shared panel contracts, PanelStore, and PanelWebLeafSlot.
 
 import SwiftUI
 
-enum PanelRenderMode: Sendable {
+public enum PanelRenderMode: Sendable {
     case interactive
     case preview
 }
 
 @MainActor
-struct PanelRenderer {
+public struct PanelRenderer {
     let spec: PanelSpec
     @ObservedObject var store: PanelStore
     @ObservedObject var webModel: PanelWebModel
     let mode: PanelRenderMode
 
-    init(spec: PanelSpec, store: PanelStore, webModel: PanelWebModel, mode: PanelRenderMode = .interactive) {
+    public init(spec: PanelSpec, store: PanelStore, webModel: PanelWebModel, mode: PanelRenderMode = .interactive) {
         self.spec = spec
         self.store = store
         self.webModel = webModel
         self.mode = mode
     }
 
-    func render(_ id: String) -> AnyView {
+    public func render(_ id: String) -> AnyView {
         guard let element = spec.elements[id] else { return AnyView(EmptyView()) }
         switch element.type {
         case "Stack": return renderStack(element)
@@ -135,10 +135,18 @@ struct PanelRenderer {
                 Toggle(option.label, isOn: Binding(
                     get: { selectedOptionIDs(at: path, allowed: optionIDs).contains(option.id) },
                     set: { updateOption(option.id, selected: $0, at: path, allowed: optionIDs) }
-                )).toggleStyle(.checkbox)
+                )
+                )
+#if os(macOS)
+                .toggleStyle(.checkbox)
+#endif
             }
             .frame(minHeight: CGFloat(max(2, min(options.count, 5)) * 28))
+#if os(macOS)
             .listStyle(.bordered)
+#else
+            .listStyle(.inset)
+#endif
         }.accessibilityElement(children: .contain).accessibilityLabel(label))
     }
 
@@ -166,7 +174,7 @@ struct PanelRenderer {
             } else {
                 Slider(value: value, in: minimum...maximum)
             }
-        }.accessibilityValue(PanelJSONValue.number(value.wrappedValue).displayText))
+        }.accessibilityValue(PanelValue.number(value.wrappedValue).displayText))
     }
 
     private func renderToggle(_ element: PanelElement) -> AnyView {
@@ -249,7 +257,7 @@ struct PanelRenderer {
         store.setStrings(selectedIDs.sorted(), at: path)
     }
 
-    private func valueText(_ value: PanelJSONValue?) -> String {
+    private func valueText(_ value: PanelValue?) -> String {
         guard let value else { return "—" }
         if let path = value.object?["$state"]?.string { return panelValue(at: path, in: store.state)?.displayText ?? "—" }
         return value.displayText.isEmpty ? "—" : value.displayText

@@ -2,6 +2,7 @@
 // Exports: PanelInputBindingTests for text, multiple selection, and slider bindings.
 // Dependencies: XCTest, PanelStore, PanelExampleFixtures.
 
+import HibossKit
 import XCTest
 @testable import HibossIsland
 

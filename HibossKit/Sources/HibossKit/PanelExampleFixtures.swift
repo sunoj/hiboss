@@ -4,8 +4,8 @@
 
 import Foundation
 
-enum PanelExampleFixtures {
-    static func load() throws -> [PanelFixture] {
+public enum PanelExampleFixtures {
+    public static func load() throws -> [PanelFixture] {
         try [
             PanelFixture(name: "download-progress.json", data: Data(downloadProgressJSON.utf8)),
             PanelFixture(name: "e2e-test-run.json", data: Data(e2eTestRunJSON.utf8)),

@@ -1,22 +1,27 @@
-// Display-only WKWebView leaf for chart catalog components and the seam bridge.
+// Display-only WKWebView leaf shared by the macOS and iOS panel renderers.
 // Exports: PanelWebModel, PanelWebLeafSlot, and PanelWebView.
-// Dependencies: WebKit, SwiftUI, PanelJSONValue, and PanelWebAssets.
+// Dependencies: WebKit, SwiftUI, PanelValue, and the package web resource.
 
 import Foundation
 import SwiftUI
 import WebKit
+#if os(iOS)
+import UIKit
+#endif
 
 private final class DisplayWebView: WKWebView {
+#if os(macOS)
     override var acceptsFirstResponder: Bool { false }
+#endif
 }
 
 @MainActor
-final class PanelWebModel: ObservableObject {
+public final class PanelWebModel: ObservableObject {
     @Published private(set) var contentHeight: CGFloat = 48
     @Published private(set) var failureMessage: String?
     fileprivate var sendMessage: ((PanelHostMessage) -> Void)?
 
-    func mount(definition: [String: PanelJSONValue]) {
+    public func mount(definition: [String: PanelValue]) {
         sendMessage?(PanelHostMessage(kind: .mount, panelId: "panels-demo", definition: definition, state: nil, sequence: 0))
     }
 
@@ -31,20 +36,22 @@ final class PanelWebModel: ObservableObject {
         }
     }
 
-    func markTerminated() { failureMessage = "Web content process terminated" }
+    public func markTerminated() { failureMessage = "Web content process terminated" }
 }
 
-struct PanelWebLeafSlot: View {
-    let definition: [String: PanelJSONValue]
+public struct PanelWebLeafSlot: View {
+    public let definition: [String: PanelValue]
     @StateObject private var model = PanelWebModel()
 
-    var body: some View {
+    public init(definition: [String: PanelValue]) { self.definition = definition }
+
+    public var body: some View {
         ZStack {
             PanelWebView(model: model, definition: definition)
             if let failure = model.failureMessage {
                 Text(failure).foregroundStyle(.secondary).padding()
                     .frame(maxWidth: .infinity, minHeight: 96)
-                    .background(Color(nsColor: .controlBackgroundColor))
+                    .background(.regularMaterial)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 48, idealHeight: model.contentHeight, maxHeight: 800)
@@ -53,13 +60,19 @@ struct PanelWebLeafSlot: View {
     }
 }
 
-struct PanelWebView: NSViewRepresentable {
+#if os(macOS)
+public struct PanelWebView: NSViewRepresentable {
     @ObservedObject var model: PanelWebModel
-    let definition: [String: PanelJSONValue]
+    let definition: [String: PanelValue]
 
-    func makeCoordinator() -> Coordinator { Coordinator(model: model, definition: definition) }
+    public init(model: PanelWebModel, definition: [String: PanelValue]) {
+        self.model = model
+        self.definition = definition
+    }
 
-    func makeNSView(context: Context) -> WKWebView {
+    public func makeCoordinator() -> PanelWebCoordinator { PanelWebCoordinator(model: model, definition: definition) }
+
+    public func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.setURLSchemeHandler(PanelSchemeHandler(), forURLScheme: "hiboss-panel")
@@ -73,27 +86,54 @@ struct PanelWebView: NSViewRepresentable {
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
+    public func updateNSView(_ webView: WKWebView, context: Context) {
         if context.coordinator.definition != definition { context.coordinator.mountSent = false }
         context.coordinator.definition = definition
         webView.setValue(false, forKey: "drawsBackground")
         context.coordinator.scheduleMount()
     }
+}
+#else
+public struct PanelWebView: UIViewRepresentable {
+    @ObservedObject var model: PanelWebModel
+    let definition: [String: PanelValue]
 
-    @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    public init(model: PanelWebModel, definition: [String: PanelValue]) {
+        self.model = model
+        self.definition = definition
+    }
+
+    public func makeCoordinator() -> PanelWebCoordinator { PanelWebCoordinator(model: model, definition: definition) }
+
+    public func makeUIView(context: Context) -> WKWebView {
+        let webView = makeWebView(context: context)
+        guard let url = URL(string: "hiboss-panel://panel/index.html") else { return webView }
+        webView.load(URLRequest(url: url))
+        return webView
+    }
+
+    public func updateUIView(_ webView: WKWebView, context: Context) {
+        if context.coordinator.definition != definition { context.coordinator.mountSent = false }
+        context.coordinator.definition = definition
+        context.coordinator.scheduleMount()
+    }
+}
+#endif
+
+@MainActor
+public final class PanelWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let model: PanelWebModel
-        var definition: [String: PanelJSONValue]
+        var definition: [String: PanelValue]
         weak var webView: WKWebView?
         private var didLoad = false
         fileprivate var mountSent = false
 
-        init(model: PanelWebModel, definition: [String: PanelJSONValue]) {
+    public init(model: PanelWebModel, definition: [String: PanelValue]) {
             self.model = model
             self.definition = definition
         }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             didLoad = true
             scheduleMount()
         }
@@ -107,24 +147,42 @@ struct PanelWebView: NSViewRepresentable {
             }
         }
 
-        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { model.markTerminated() }
+    public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { model.markTerminated() }
 
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+    public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
             let url = navigationAction.request.url
             decisionHandler(url?.scheme == "hiboss-panel" && url?.host == "panel" ? .allow : .cancel)
         }
 
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+    public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "hiboss", JSONSerialization.isValidJSONObject(message.body), let data = try? JSONSerialization.data(withJSONObject: message.body), let decoded = try? JSONDecoder().decode(PanelViewMessage.self, from: data) else { return }
             Task { @MainActor [weak self] in self?.model.handle(decoded) }
         }
 
-        fileprivate func send(_ message: PanelHostMessage) {
+    fileprivate func send(_ message: PanelHostMessage) {
             guard let webView, let data = try? JSONEncoder().encode(message), let object = try? JSONSerialization.jsonObject(with: data) else { return }
             webView.callAsyncJavaScript("window.__hibossBridge.receive(message)", arguments: ["message": object], in: nil, in: WKContentWorld.page) { _ in }
-        }
     }
 }
+
+#if os(iOS)
+private extension PanelWebView {
+    func makeWebView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.setURLSchemeHandler(PanelSchemeHandler(), forURLScheme: "hiboss-panel")
+        configuration.userContentController.add(context.coordinator, name: "hiboss")
+        let webView = DisplayWebView(frame: .zero, configuration: configuration)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.navigationDelegate = context.coordinator
+        context.coordinator.webView = webView
+        model.sendMessage = { [weak coordinator = context.coordinator] message in coordinator?.send(message) }
+        return webView
+    }
+}
+#endif
 
 private enum PanelHostMessageKind: String, Encodable { case mount }
 private enum PanelViewMessageKind: String, Decodable { case contentSizeChanged, renderFailed }
@@ -132,8 +190,8 @@ private enum PanelViewMessageKind: String, Decodable { case contentSizeChanged, 
 private struct PanelHostMessage: Encodable {
     let kind: PanelHostMessageKind
     let panelId: String
-    let definition: [String: PanelJSONValue]?
-    let state: [String: PanelJSONValue]?
+    let definition: [String: PanelValue]?
+    let state: [String: PanelValue]?
     let sequence: Int
 }
 

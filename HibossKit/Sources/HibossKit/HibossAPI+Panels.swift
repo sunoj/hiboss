@@ -91,6 +91,11 @@ public struct PanelElement: Codable, Equatable, Sendable {
 public struct PanelAction: Codable, Equatable, Sendable {
     public let action: String
     public let params: [String: PanelValue]?
+
+    public init(action: String, params: [String: PanelValue]?) {
+        self.action = action
+        self.params = params
+    }
 }
 
 public enum PanelValue: Codable, Equatable, Sendable {

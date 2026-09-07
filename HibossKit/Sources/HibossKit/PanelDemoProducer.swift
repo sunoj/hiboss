@@ -4,16 +4,16 @@
 
 import Foundation
 
-struct PanelDemoProducer: Identifiable, Sendable {
-    static let clockIntervalNanoseconds: UInt64 = 1_000_000_000
+public struct PanelDemoProducer: Identifiable, Sendable {
+    public static let clockIntervalNanoseconds: UInt64 = 1_000_000_000
 
-    let id: String
-    let name: String
-    let intervalNanoseconds: UInt64
-    let startDelayNanoseconds: UInt64
-    let pushLimit: Int?
+    public let id: String
+    public let name: String
+    public let intervalNanoseconds: UInt64
+    public let startDelayNanoseconds: UInt64
+    public let pushLimit: Int?
 
-    static let catalog: [PanelDemoProducer] = [
+    public static let catalog: [PanelDemoProducer] = [
         PanelDemoProducer(id: "release-bot", name: "Release Bot", intervalNanoseconds: 1_400_000_000, startDelayNanoseconds: 0, pushLimit: nil),
         PanelDemoProducer(id: "checkout-runner", name: "Checkout Runner", intervalNanoseconds: 1_800_000_000, startDelayNanoseconds: 250_000_000, pushLimit: nil),
         PanelDemoProducer(id: "benchmark-lab", name: "Benchmark Lab", intervalNanoseconds: 2_200_000_000, startDelayNanoseconds: 500_000_000, pushLimit: nil),

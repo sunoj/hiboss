@@ -4,11 +4,11 @@
 
 import CoreGraphics
 
-enum PanelTileSize: Equatable, Sendable {
+public enum PanelTileSize: Equatable, Sendable {
     case compact
     case wide
 
-    var dimensions: CGSize {
+    public var dimensions: CGSize {
         switch self {
         // A tile has to be tall enough to carry a chart, which is most of why a panel is
         // worth watching. At 176 the content was cropped just below the metric labels, so
@@ -19,22 +19,29 @@ enum PanelTileSize: Equatable, Sendable {
     }
 }
 
-struct PanelLayoutPanel: Equatable, Sendable {
-    let id: String
-    let size: PanelTileSize
-    let order: Int
-    let isPinned: Bool
+public struct PanelLayoutPanel: Equatable, Sendable {
+    public let id: String
+    public let size: PanelTileSize
+    public let order: Int
+    public let isPinned: Bool
+
+    public init(id: String, size: PanelTileSize, order: Int, isPinned: Bool) {
+        self.id = id
+        self.size = size
+        self.order = order
+        self.isPinned = isPinned
+    }
 }
 
-struct PanelTilePosition: Equatable, Identifiable, Sendable {
-    let id: String
-    let frame: CGRect
+public struct PanelTilePosition: Equatable, Identifiable, Sendable {
+    public let id: String
+    public let frame: CGRect
 }
 
-enum PanelWallLayout {
-    static let gap: CGFloat = 16
+public enum PanelWallLayout {
+    public static let gap: CGFloat = 16
 
-    static func arrange(_ panels: [PanelLayoutPanel], width: CGFloat) -> [PanelTilePosition] {
+    public static func arrange(_ panels: [PanelLayoutPanel], width: CGFloat) -> [PanelTilePosition] {
         let availableWidth = max(1, width)
         let ordered = panels.sorted {
             if $0.isPinned != $1.isPinned { return $0.isPinned }
@@ -61,7 +68,7 @@ enum PanelWallLayout {
 }
 
 extension PanelSpec {
-    var tileSize: PanelTileSize {
+    public var tileSize: PanelTileSize {
         specContainsSeries ? .wide : .compact
     }
 

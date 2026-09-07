@@ -3,10 +3,15 @@
 // Dependencies: SwiftUI, PanelsModel, PanelStore, PanelRenderer, and PanelWallLayout.
 
 import SwiftUI
+import HibossKit
 
 struct PanelsView: View {
-    @StateObject private var model = PanelsModel()
+    @StateObject private var model: PanelsModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(configurationProvider: @escaping @MainActor () async throws -> ConnectionConfig) {
+        _model = StateObject(wrappedValue: PanelsModel(configurationProvider: configurationProvider))
+    }
 
     var body: some View {
         ScrollView {
@@ -196,7 +201,7 @@ private struct PanelKeyData: View {
         headline.displayValue(in: tile.store.state)
     }
 
-    private var chartDefinition: [String: PanelJSONValue]? {
+    private var chartDefinition: [String: PanelValue]? {
         guard let path = tile.fixture.summary?.seriesPath, let values = panelValue(at: path, in: tile.store.state)?.array else { return nil }
         return ["type": .string("LineChart"), "label": .string("Trend"), "values": .array(values)]
     }
