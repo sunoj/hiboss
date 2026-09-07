@@ -202,8 +202,11 @@ private struct PanelKeyData: View {
     }
 
     private var chartDefinition: [String: PanelValue]? {
-        guard let path = tile.fixture.summary?.seriesPath, let values = panelValue(at: path, in: tile.store.state)?.array else { return nil }
-        return ["type": .string("LineChart"), "label": .string("Trend"), "values": .array(values)]
+        if let path = tile.fixture.summary?.seriesPath {
+            guard let values = panelValue(at: path, in: tile.store.state)?.array else { return nil }
+            return ["type": .string("LineChart"), "label": .string("Trend"), "values": .array(values)]
+        }
+        return tile.fixture.wallDisplayDefinition
     }
 }
 

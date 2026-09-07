@@ -30,4 +30,18 @@ final class PanelWebLeafTests: XCTestCase {
 
         XCTAssertEqual(rendered, definition)
     }
+
+    func testWallDisplayDefinitionFindsChartWithoutSummaryMetadata() throws {
+        let fixture = try XCTUnwrap(
+            PanelExampleFixtures.load().first { $0.name == "download-progress.json" }
+        )
+
+        XCTAssertNil(fixture.summary)
+        XCTAssertEqual(fixture.wallDisplayDefinition?["type"], .string("LineChart"))
+        XCTAssertEqual(
+            fixture.wallDisplayDefinition?["values"],
+            .array([.number(142), .number(156), .number(171), .null, .number(184),
+                    .number(179), .number(191), .number(188), .number(196), .number(202)])
+        )
+    }
 }

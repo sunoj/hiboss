@@ -84,6 +84,13 @@ public struct PanelSummary: Equatable, Sendable {
 }
 
 extension PanelFixture {
+    public var wallDisplayDefinition: [String: PanelValue]? {
+        guard let element = firstDisplayElement(from: spec.root) else { return nil }
+        var definition = element.props
+        definition["type"] = .string(element.type)
+        return definition
+    }
+
     public var firstMetricHeadline: PanelHeadline? {
         for element in spec.elements.values where element.type == "Metric" {
             let label = element.props["label"]?.string ?? "Metric"
@@ -92,6 +99,15 @@ extension PanelFixture {
                 return PanelHeadline(path: path, literal: nil, label: label, unit: unit)
             }
             if let literal = element.props["value"] { return PanelHeadline(path: nil, literal: literal, label: label, unit: unit) }
+        }
+        return nil
+    }
+
+    private func firstDisplayElement(from id: String) -> PanelElement? {
+        guard let element = spec.elements[id] else { return nil }
+        if ["Table", "LineChart", "BarChart"].contains(element.type) { return element }
+        for child in element.children {
+            if let match = firstDisplayElement(from: child) { return match }
         }
         return nil
     }
