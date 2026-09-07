@@ -2,6 +2,7 @@
 // Uses @cloudflare/vitest-pool-workers for real D1 + workerd runtime.
 // Depends on wrangler.toml for D1 binding definition.
 
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { cloudflarePool, cloudflareTest } from '@cloudflare/vitest-pool-workers';
 
@@ -11,6 +12,7 @@ const workerOptions = {
 };
 
 export default defineConfig({
+  resolve: { alias: { '@hiboss/panel-runtime': fileURLToPath(new URL('../panel-runtime/src/index.ts', import.meta.url)) } },
   plugins: [cloudflareTest(workerOptions)],
   test: {
     globals: true,

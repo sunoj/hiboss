@@ -59,6 +59,38 @@ describe('hiboss.panel catalog', () => {
     expect(state).toMatchObject({ ok: true });
   });
 
+  it('accepts a declared headline, secondary value, and nullable series path', () => {
+    const publication = {
+      ...metricPanel,
+      stateSchema: {
+        ...metricPanel.stateSchema,
+        properties: { task: { type: 'object', properties: { completed: { type: 'integer' }, rate: { type: 'number' }, trend: { type: 'array' } }, required: ['completed', 'rate', 'trend'], additionalProperties: false } },
+      },
+      initialState: { task: { completed: 4, rate: 0.88, trend: [0.7, null, 0.88] } },
+      summary: {
+        stage: 'Running',
+        headline: { path: '/task/completed', label: 'Open' },
+        secondary: { path: '/task/rate', label: 'Today', unit: '%' },
+        series: '/task/trend',
+      },
+    };
+    expect(validatePanelPublication(publication)).toMatchObject({ ok: true });
+  });
+
+  it('rejects a headline on an undeclared path with the summary pointer', () => {
+    const publication = { ...metricPanel, summary: { stage: 'Running', headline: { path: '/task/missing', label: 'Missing' } } };
+    expect(validatePanelPublication(publication)).toMatchObject({ ok: false, error: { path: '/summary/headline/path' } });
+  });
+
+  it('rejects a headline pointing at an object', () => {
+    const publication = { ...metricPanel, summary: { stage: 'Running', headline: { path: '/task', label: 'Task' } } };
+    expect(validatePanelPublication(publication)).toMatchObject({ ok: false, error: { path: '/summary/headline/path' } });
+  });
+
+  it('accepts a panel without a summary', () => {
+    expect(validatePanelPublication({ ...metricPanel, summary: undefined })).toMatchObject({ ok: true });
+  });
+
   it('accepts the rollout form and validates dependent full-rollout answers', () => {
     const spec = validatePanelSpec(rollout.formSpec, { declaredPaths: ['/form/strategy', '/form/trafficPercent'] });
     expect(spec).toMatchObject({ ok: true });

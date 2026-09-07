@@ -100,9 +100,28 @@ Proposed request to `POST /api/panels`:
     "additionalProperties": false
   },
   "initialState": { "completed": 0 },
-  "summary": { "stage": "Preparing", "metricPath": "/task/completed" }
+  "summary": {
+    "stage": "Preparing",
+    "headline": { "path": "/task/completed", "label": "Completed" },
+    "secondary": { "path": "/task/failed", "label": "Failed", "unit": "tests" },
+    "series": "/task/throughput"
+  }
 }
 ```
+
+`summary` is optional. When present, `stage` is required. `headline` and `secondary`
+are value declarations with a `$state`-compatible JSON Pointer `path`, a required
+`label`, and an optional `unit`; `headline` is the number the wall card leads with.
+`series` is an optional JSON Pointer to an array of finite numbers or `null` samples
+for a sparkline. A `null` is a gap and is never converted to zero. Every summary path
+must resolve to a path declared by `stateSchema`; headline and secondary paths must
+resolve to scalars, while series must resolve to an array. Invalid declarations are
+rejected at publication with the failing summary JSON Pointer.
+
+The wall uses the declared headline, with the label below it, and may show the
+secondary value and declared series. A panel without a summary falls back to its first
+declared `Metric`; if there is no metric, the wall shows the title and attribution only.
+The full spec remains available from `Open panel`.
 
 Creation requires an `Idempotency-Key` header. The server derives `agentId` from
 credentials, checks the target boss relationship and session ownership, and assigns

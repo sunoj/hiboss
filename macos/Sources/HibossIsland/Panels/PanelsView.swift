@@ -127,7 +127,7 @@ private struct PanelTileCard: View {
                 }
                 Text(tile.sourceLabel).font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     .lineLimit(1)
-                PanelTilePreview(tile: tile)
+                PanelKeyData(tile: tile)
                 Spacer(minLength: 0)
                 Label("Open panel", systemImage: "arrow.up.right")
                     .font(.caption.weight(.semibold)).foregroundStyle(.tint)
@@ -157,6 +157,49 @@ private struct PanelTileCard: View {
             .fixedSize()
     }
 
+}
+
+private struct PanelKeyData: View {
+    let tile: PanelTile
+
+    private var headline: PanelHeadline? {
+        tile.fixture.summary?.headline ?? tile.fixture.firstMetricHeadline
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            if let headline {
+                HStack(alignment: .lastTextBaseline, spacing: 5) {
+                    Text(value(for: headline)).font(.system(size: 34, weight: .bold, design: .rounded)).monospacedDigit().lineLimit(1)
+                    if let unit = headline.unit { Text(unit).font(.callout).foregroundStyle(.secondary) }
+                }
+                Text(headline.label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            if let secondary = tile.fixture.summary?.secondary {
+                HStack(spacing: 5) {
+                    Text(value(for: secondary)).font(.subheadline.weight(.semibold)).monospacedDigit()
+                    if let unit = secondary.unit { Text(unit).font(.caption).foregroundStyle(.secondary) }
+                    Text(secondary.label).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if let stage = tile.fixture.summary?.stage {
+                Text(stage).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            if let chart = chartDefinition {
+                PanelWebLeafSlot(definition: chart).frame(height: 54).clipped().allowsHitTesting(false)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func value(for headline: PanelHeadline) -> String {
+        headline.displayValue(in: tile.store.state)
+    }
+
+    private var chartDefinition: [String: PanelJSONValue]? {
+        guard let path = tile.fixture.summary?.seriesPath, let values = panelValue(at: path, in: tile.store.state)?.array else { return nil }
+        return ["type": .string("LineChart"), "label": .string("Trend"), "values": .array(values)]
+    }
 }
 
 private struct PanelDetail: View {

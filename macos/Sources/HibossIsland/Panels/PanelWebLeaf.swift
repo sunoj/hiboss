@@ -35,8 +35,8 @@ final class PanelWebModel: ObservableObject {
 }
 
 struct PanelWebLeafSlot: View {
-    @ObservedObject var model: PanelWebModel
     let definition: [String: PanelJSONValue]
+    @StateObject private var model = PanelWebModel()
 
     var body: some View {
         ZStack {
@@ -74,6 +74,7 @@ struct PanelWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        if context.coordinator.definition != definition { context.coordinator.mountSent = false }
         context.coordinator.definition = definition
         webView.setValue(false, forKey: "drawsBackground")
         context.coordinator.scheduleMount()
@@ -85,7 +86,7 @@ struct PanelWebView: NSViewRepresentable {
         var definition: [String: PanelJSONValue]
         weak var webView: WKWebView?
         private var didLoad = false
-        private var mountSent = false
+        fileprivate var mountSent = false
 
         init(model: PanelWebModel, definition: [String: PanelJSONValue]) {
             self.model = model
