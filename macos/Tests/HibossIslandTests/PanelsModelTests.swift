@@ -34,6 +34,7 @@ final class PanelsModelTests: XCTestCase {
 
         XCTAssertFalse(model.tiles.isEmpty, "the populated stub should produce a tile")
         let tile = try XCTUnwrap(model.tiles.first)
+        XCTAssertEqual(tile.sourceLabel, "Build Agent · checkout/main")
         assertNotLive(model.freshness(for: tile))
 
         model.receive(.snapshot(PanelRelaySnapshot(
@@ -96,10 +97,10 @@ private actor StubPanelsService: PanelsServing {
     }
 
     private static let listJSON = """
-    {"panels":[{"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T12:00:00Z"}]}
+    {"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","sessionLabel":"checkout/main","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T12:00:00Z"}]}
     """
 
     private static let detailJSON = """
-    {"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T12:00:00Z","definition":{"definitionRevision":1,"protocolVersion":1,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Metric","props":{"label":"Done","value":{"$state":"/task/done"}},"children":[]}}},"stateSchema":{"type":"object","properties":{"task":{"type":"object","properties":{"done":{"type":"integer"}},"required":["done"],"additionalProperties":false}},"required":["task"],"additionalProperties":false},"initialState":{"task":{"done":3}},"createdAt":"2026-09-07T12:00:00Z"}}
+    {"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","sessionLabel":"checkout/main","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T12:00:00Z","definition":{"definitionRevision":1,"protocolVersion":1,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Metric","props":{"label":"Done","value":{"$state":"/task/done"}},"children":[]}}},"stateSchema":{"type":"object","properties":{"task":{"type":"object","properties":{"done":{"type":"integer"}},"required":["done"],"additionalProperties":false}},"required":["task"],"additionalProperties":false},"initialState":{"task":{"done":3}},"createdAt":"2026-09-07T12:00:00Z"}}
     """
 }

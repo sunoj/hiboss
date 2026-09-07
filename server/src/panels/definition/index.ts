@@ -43,7 +43,7 @@ async function requestPayload(c: PanelContext): Promise<PanelRequest> {
 }
 
 async function findByKey(c: PanelContext, agentId: string, key: string): Promise<PanelMetadataRow | null> {
-  return c.env.DB.prepare('SELECT panel_id, agent_id, target_boss_id, task_key, session_id, title, catalog_id, catalog_version, definition_revision, metadata_version, summary_json, request_hash, created_at FROM panels WHERE agent_id = ? AND idempotency_key = ?')
+  return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.agent_id = ? AND p.idempotency_key = ?')
     .bind(agentId, key).first<PanelMetadataRow>();
 }
 
@@ -135,7 +135,7 @@ routes.get('/', async (c) => {
   const cursorClause = cursor.value.panelId ? ' AND (p.created_at < ? OR (p.created_at = ? AND p.panel_id < ?))' : '';
   if (cursor.value.panelId) binds.push(cursor.value.createdAt, cursor.value.createdAt, cursor.value.panelId);
   binds.push(limit + 1);
-  const rows = await c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, p.target_boss_id, p.task_key, p.session_id, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p WHERE ${scope}${cursorClause} ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?`)
+  const rows = await c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE ${scope}${cursorClause} ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?`)
     .bind(...binds).all<PanelMetadataRow>();
   const results = rows.results ?? [];
   const page = results.slice(0, limit);
@@ -144,9 +144,9 @@ routes.get('/', async (c) => {
 });
 
 async function visiblePanel(c: PanelContext, panelId: string): Promise<PanelMetadataRow | null> {
-  if (isBossAuth(c)) return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, p.target_boss_id, p.task_key, p.session_id, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p WHERE p.panel_id = ? AND p.target_boss_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = ? AND ba.agent_id = p.agent_id)')
+  if (isBossAuth(c)) return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.target_boss_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = ? AND ba.agent_id = p.agent_id)')
     .bind(panelId, getBossId(c), getBossId(c)).first<PanelMetadataRow>();
-  return c.env.DB.prepare('SELECT panel_id, agent_id, target_boss_id, task_key, session_id, title, catalog_id, catalog_version, definition_revision, metadata_version, summary_json, request_hash, created_at FROM panels WHERE panel_id = ? AND agent_id = ?')
+  return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.agent_id = ?')
     .bind(panelId, getAgentId(c)).first<PanelMetadataRow>();
 }
 

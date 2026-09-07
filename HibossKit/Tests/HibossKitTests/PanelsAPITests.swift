@@ -16,23 +16,27 @@ final class PanelsAPITests: XCTestCase {
         PanelsURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/api/panels")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            return try Self.response(for: request, json: #"{"panels":[{"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z"}],"nextCursor":null}"#)
+            return try Self.response(for: request, json: #"{"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z"}],"nextCursor":null}"#)
         }
         let panels = try await HibossAPI(config: config(), session: session()).fetchPanels()
 
         XCTAssertEqual(panels.count, 1)
         XCTAssertEqual(panels[0].id, "panel_1")
+        XCTAssertEqual(panels[0].agentName, "Build Agent")
+        XCTAssertEqual(panels[0].sessionLabel, "checkout/main")
         XCTAssertEqual(panels[0].summary, .object(["stage": .string("Running")]))
     }
 
     func testFetchPanelDecodesFlattenedMetadataAndDefinition() async throws {
         PanelsURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/api/panels/panel_1")
-            return try Self.response(for: request, json: #"{"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z","definition":{"definitionRevision":1,"protocolVersion":1,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Stack","props":{"direction":"vertical"},"children":["metric"]},"metric":{"type":"Metric","props":{"label":"Completed","value":{"$state":"/task/completed"}},"children":[]}}},"stateSchema":{"type":"object"},"initialState":{"task":{"completed":4}},"createdAt":"2026-09-07T10:00:00Z"}}"#)
+            return try Self.response(for: request, json: #"{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z","definition":{"definitionRevision":1,"protocolVersion":1,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Stack","props":{"direction":"vertical"},"children":["metric"]},"metric":{"type":"Metric","props":{"label":"Completed","value":{"$state":"/task/completed"}},"children":[]}}},"stateSchema":{"type":"object"},"initialState":{"task":{"completed":4}},"createdAt":"2026-09-07T10:00:00Z"}}"#)
         }
         let detail = try await HibossAPI(config: config(), session: session()).fetchPanel("panel_1")
 
         XCTAssertEqual(detail.metadata.title, "Build")
+        XCTAssertEqual(detail.metadata.agentName, "Build Agent")
+        XCTAssertEqual(detail.metadata.sessionLabel, "checkout/main")
         XCTAssertEqual(detail.definition.spec.root, "main")
         XCTAssertEqual(detail.definition.spec.elements["metric"]?.type, "Metric")
         XCTAssertEqual(detail.definition.initialState, .object(["task": .object(["completed": .number(4)])]))

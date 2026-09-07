@@ -103,9 +103,11 @@ export function metadataFromRow(row: PanelMetadataRow): PanelMetadata {
   return {
     panelId: row.panel_id,
     agentId: row.agent_id,
+    agentName: row.agent_name,
     targetBossId: row.target_boss_id,
     taskKey: row.task_key,
     sessionId: row.session_id,
+    sessionLabel: row.session_label,
     title: row.title,
     catalogId: row.catalog_id,
     catalogVersion: row.catalog_version,

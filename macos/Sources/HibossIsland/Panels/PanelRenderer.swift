@@ -4,11 +4,24 @@
 
 import SwiftUI
 
+enum PanelRenderMode: Sendable {
+    case interactive
+    case preview
+}
+
 @MainActor
 struct PanelRenderer {
     let spec: PanelSpec
     @ObservedObject var store: PanelStore
     @ObservedObject var webModel: PanelWebModel
+    let mode: PanelRenderMode
+
+    init(spec: PanelSpec, store: PanelStore, webModel: PanelWebModel, mode: PanelRenderMode = .interactive) {
+        self.spec = spec
+        self.store = store
+        self.webModel = webModel
+        self.mode = mode
+    }
 
     func render(_ id: String) -> AnyView {
         guard let element = spec.elements[id] else { return AnyView(EmptyView()) }
@@ -63,6 +76,7 @@ struct PanelRenderer {
     }
 
     private func renderTextInput(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Text"
         let placeholder = element.props["placeholder"]?.string ?? ""
         let path = bindingPath(element)
@@ -73,6 +87,7 @@ struct PanelRenderer {
     }
 
     private func renderTextArea(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Details"
         let placeholder = element.props["placeholder"]?.string
         let rows = max(3, Int(element.props["rows"]?.number ?? 4))
@@ -96,6 +111,7 @@ struct PanelRenderer {
     }
 
     private func renderSelect(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Select"
         let options = element.props["options"]?.array?.compactMap { option -> PanelOption? in
             guard let object = option.object, let id = object["id"]?.string, let text = object["label"]?.string else { return nil }
@@ -108,6 +124,7 @@ struct PanelRenderer {
     }
 
     private func renderMultiSelect(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Select options"
         let options = panelOptions(element)
         let optionIDs = Set(options.map(\.id))
@@ -126,6 +143,7 @@ struct PanelRenderer {
     }
 
     private func renderNumberInput(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Number"
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
         return AnyView(LabeledContent(label) {
@@ -135,6 +153,7 @@ struct PanelRenderer {
     }
 
     private func renderSlider(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Value"
         let minimum = element.props["min"]?.number ?? 0
         let maximum = element.props["max"]?.number ?? 1
@@ -151,12 +170,14 @@ struct PanelRenderer {
     }
 
     private func renderToggle(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Toggle"
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
         return AnyView(Toggle(label, isOn: Binding(get: { panelValue(at: path, in: store.state)?.bool ?? false }, set: { store.setBool($0, at: path) })))
     }
 
     private func renderButton(_ element: PanelElement) -> AnyView {
+        guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Submit"
         return AnyView(Button(label) { store.perform(element.on?["press"]) }.buttonStyle(.borderedProminent))
     }
@@ -199,6 +220,12 @@ struct PanelRenderer {
         var definition = element.props
         definition["type"] = .string(element.type)
         return AnyView(PanelWebLeafSlot(model: webModel, definition: definition))
+    }
+
+    private func renderPreviewControl(_ element: PanelElement) -> AnyView {
+        let label = element.props["label"]?.string ?? element.type
+        return AnyView(Label(label, systemImage: "rectangle.and.pencil.and.ellipsis")
+            .font(.caption).foregroundStyle(.secondary))
     }
 
     private func bindingPath(_ element: PanelElement) -> String {

@@ -121,12 +121,13 @@ private struct PanelTileCard: View {
         Button { model.open(tile.id) } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 8) {
-                    Text(tile.fixture.title).font(.headline).lineLimit(2)
+                    Text(tile.fixture.title).font(.headline).lineLimit(1)
                     Spacer(minLength: 4)
                     freshnessBadge
                 }
                 Text(tile.sourceLabel).font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                summary
+                    .lineLimit(1)
+                PanelTilePreview(tile: tile)
                 Spacer(minLength: 0)
                 Label("Open panel", systemImage: "arrow.up.right")
                     .font(.caption.weight(.semibold)).foregroundStyle(.tint)
@@ -156,43 +157,6 @@ private struct PanelTileCard: View {
             .fixedSize()
     }
 
-    private var summary: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            ForEach(Array(summaryLines.prefix(3).enumerated()), id: \.offset) { _, line in
-                HStack(alignment: .firstTextBaseline) {
-                    Text(line.label).font(.caption).foregroundStyle(.secondary)
-                    Spacer(minLength: 8)
-                    Text(line.value).font(.caption.monospacedDigit()).lineLimit(1)
-                }
-            }
-        }
-    }
-
-    private var summaryLines: [PanelSummaryLine] {
-        tile.fixture.spec.elements.values
-            .filter { ["Metric", "Progress", "Status"].contains($0.type) }
-            .sorted { $0.props["label"]?.string ?? "" < $1.props["label"]?.string ?? "" }
-            .map { element in
-                let label = element.props["label"]?.string ?? element.type
-                let value = element.type == "Status"
-                    ? element.props["message"]?.string ?? element.props["status"]?.string ?? "—"
-                    : summaryValue(element.props["value"])
-                return PanelSummaryLine(label: label, value: value)
-            }
-    }
-
-    private func summaryValue(_ value: PanelJSONValue?) -> String {
-        guard let value else { return "—" }
-        if let path = value.object?["$state"]?.string {
-            return panelValue(at: path, in: tile.store.state)?.displayText ?? "—"
-        }
-        return value.displayText.isEmpty ? "—" : value.displayText
-    }
-}
-
-private struct PanelSummaryLine {
-    let label: String
-    let value: String
 }
 
 private struct PanelDetail: View {
