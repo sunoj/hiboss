@@ -1,0 +1,69 @@
+{
+  "kind": "decision",
+  "title": "Choose the test rollout",
+  "blocking": true,
+  "priority": "normal",
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "defaults": {
+    "strategy": "canary",
+    "trafficPercent": 10
+  },
+  "answerSchema": {
+    "type": "object",
+    "properties": {
+      "strategy": { "type": "string", "enum": ["canary", "full"] },
+      "trafficPercent": { "type": "integer", "minimum": 1, "maximum": 100 }
+    },
+    "required": ["strategy", "trafficPercent"],
+    "additionalProperties": false
+  },
+  "formSpec": {
+    "root": "form",
+    "elements": {
+      "form": {
+        "type": "Stack",
+        "props": { "direction": "vertical", "gap": 18 },
+        "children": ["strategy", "chart", "traffic", "submit"]
+      },
+      "strategy": {
+        "type": "Select",
+        "props": {
+          "label": "Strategy",
+          "value": { "$bindState": "/form/strategy" },
+          "options": [
+            { "id": "canary", "label": "Canary" },
+            { "id": "full", "label": "Full rollout" }
+          ]
+        },
+        "children": []
+      },
+      "chart": {
+        "type": "LineChart",
+        "props": {
+          "label": "Observed rollout health",
+          "values": [28, 42, 36, null, 54, 66, 61, 74, 82, 78],
+          "unit": "%"
+        },
+        "children": []
+      },
+      "traffic": {
+        "type": "NumberInput",
+        "props": {
+          "label": "Traffic percentage",
+          "value": { "$bindState": "/form/trafficPercent" },
+          "min": 1,
+          "max": 100,
+          "step": 1
+        },
+        "children": []
+      },
+      "submit": {
+        "type": "Button",
+        "props": { "label": "Submit selection", "variant": "primary" },
+        "on": { "press": { "action": "submitRequest" } },
+        "children": []
+      }
+    }
+  }
+}

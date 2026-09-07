@@ -1,0 +1,17 @@
+/**
+ * Vite configuration for the offline panel bundle.
+ * Exports: the production build configuration.
+ * Dependencies: Vite and the React plugin.
+ */
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  base: "./",
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    sourcemap: false,
+  },
+});
