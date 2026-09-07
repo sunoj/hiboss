@@ -19,13 +19,20 @@ final class PanelWallLayoutTests: XCTestCase {
         XCTAssertEqual(first, second)
     }
 
-    func testDataUpdateLeavesEveryPositionIdentical() {
-        let before = PanelWallLayout.arrange(panels, width: 760)
-        let updatedData = ["alpha": 42, "bravo": 99, "charlie": 7]
-        let after = PanelWallLayout.arrange(panels, width: 760)
+    @MainActor func testDataUpdateLeavesEveryPositionIdentical() {
+        // Driving the real model, because arrange() cannot see data by construction and
+        // calling it twice with identical arguments would assert f(x) == f(x).
+        let model = PanelsModel()
+        try? XCTSkipIf(model.tiles.isEmpty, "fixtures unavailable")
+        let before = model.positions(for: 760)
+        XCTAssertFalse(before.isEmpty)
 
-        XCTAssertEqual(updatedData.count, panels.count)
-        XCTAssertEqual(before, after)
+        for (index, tile) in model.tiles.enumerated() {
+            tile.store.setNumber(Double(index * 37 + 5), at: "/task/completed")
+            tile.store.setString("pushed-\(index)", at: "/task/stage")
+        }
+
+        XCTAssertEqual(model.positions(for: 760), before, "a producer push must not move any tile")
     }
 
     func testLaterTileChangingSizeDoesNotMoveEarlierTiles() {

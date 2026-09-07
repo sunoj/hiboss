@@ -25,7 +25,10 @@ struct PanelsView: View {
                 }
             }
             .padding(24)
-            .frame(maxWidth: 720, alignment: .leading)
+            // A single panel is a reading surface and keeps a column width. The wall is
+            // not: capping it at 720 leaves room for exactly one wide tile, so it could
+            // never actually become a wall however large the window got.
+            .frame(maxWidth: model.selectedTile == nil ? .infinity : 720, alignment: .leading)
         }
         .background(Color(nsColor: .windowBackgroundColor))
     }
@@ -41,6 +44,7 @@ struct PanelsView: View {
 private struct PanelWall: View {
     @ObservedObject var model: PanelsModel
     let reduceMotion: Bool
+    @State private var measuredWidth: CGFloat = 640
 
     var body: some View {
         GeometryReader { proxy in
@@ -54,8 +58,11 @@ private struct PanelWall: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .onAppear { measuredWidth = proxy.size.width }
+            .onChange(of: proxy.size.width) { measuredWidth = $0 }
         }
-        .frame(height: model.wallHeight(for: 640))
+        .frame(height: model.wallHeight(of: model.positions(for: measuredWidth)))
     }
 }
 
@@ -207,8 +214,10 @@ final class PanelsModel: ObservableObject {
         PanelWallLayout.arrange(tiles.map { PanelLayoutPanel(id: $0.id, size: $0.fixture.spec.tileSize, order: $0.order, isPinned: false) }, width: width)
     }
 
-    func wallHeight(for width: CGFloat) -> CGFloat {
-        (positions(for: width).map { $0.frame.maxY }.max() ?? 0) + 8
+    // Takes the placed positions rather than a width, so the container height cannot
+    // be computed from a different width than the tiles were laid out with.
+    nonisolated func wallHeight(of positions: [PanelTilePosition]) -> CGFloat {
+        (positions.map { $0.frame.maxY }.max() ?? 0) + 8
     }
 
     func open(_ tileID: String) { selectedTileID = tileID }
