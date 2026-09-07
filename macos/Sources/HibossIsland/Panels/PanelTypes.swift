@@ -3,6 +3,7 @@
 // Dependencies: Foundation Codable and the shared panel-runtime fixture shape.
 
 import Foundation
+import HibossKit
 
 enum PanelJSONValue: Codable, Equatable, Sendable {
     case null, bool(Bool), number(Double), string(String), array([PanelJSONValue]), object([String: PanelJSONValue])
@@ -62,6 +63,13 @@ struct PanelFixture: Sendable {
             : .object(["form": raw.defaults ?? .object([:])])
     }
 
+    init(remote panel: PanelDetail) {
+        name = panel.metadata.panelId
+        title = panel.metadata.title
+        spec = PanelSpec(remote: panel.definition.spec)
+        initialState = PanelJSONValue(remote: panel.definition.initialState)
+    }
+
     private static func defaultTitle(for name: String) -> String {
         switch name {
         case "download-progress.json": return "Nightly artifact transfer"
@@ -78,6 +86,42 @@ struct PanelFixture: Sendable {
         let initialState: PanelJSONValue?
         let formSpec: PanelSpec?
         let spec: PanelSpec?
+    }
+}
+
+private extension PanelSpec {
+    init(remote spec: HibossKit.PanelSpec) {
+        root = spec.root
+        elements = spec.elements.mapValues(PanelElement.init(remote:))
+    }
+}
+
+private extension PanelElement {
+    init(remote element: HibossKit.PanelElement) {
+        type = element.type
+        props = element.props.mapValues(PanelJSONValue.init(remote:))
+        children = element.children
+        on = element.on?.mapValues(PanelAction.init(remote:))
+    }
+}
+
+private extension PanelAction {
+    init(remote action: HibossKit.PanelAction) {
+        self.action = action.action
+        params = action.params?.mapValues(PanelJSONValue.init(remote:))
+    }
+}
+
+private extension PanelJSONValue {
+    init(remote value: HibossKit.PanelValue) {
+        switch value {
+        case .null: self = .null
+        case let .bool(value): self = .bool(value)
+        case let .number(value): self = .number(value)
+        case let .string(value): self = .string(value)
+        case let .array(value): self = .array(value.map(PanelJSONValue.init(remote:)))
+        case let .object(value): self = .object(value.mapValues(PanelJSONValue.init(remote:)))
+        }
     }
 }
 

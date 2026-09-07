@@ -22,7 +22,7 @@ final class PanelWallLayoutTests: XCTestCase {
     @MainActor func testDataUpdateLeavesEveryPositionIdentical() {
         // Driving the real model, because arrange() cannot see data by construction and
         // calling it twice with identical arguments would assert f(x) == f(x).
-        let model = PanelsModel()
+        let model = PanelsModel(demoMode: true)
         try? XCTSkipIf(model.tiles.isEmpty, "fixtures unavailable")
         let before = model.positions(for: 760)
         XCTAssertFalse(before.isEmpty)

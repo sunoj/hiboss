@@ -1,6 +1,6 @@
 // Live Tile-style Panels wall with drill-in rendering for the full panel surface.
-// Exports: PanelsView, PanelsModel, PanelTile, and PanelFreshness.
-// Dependencies: SwiftUI, PanelFixtures, PanelStore, PanelRenderer, and PanelWallLayout.
+// Exports: PanelsView and the Panels wall/detail views.
+// Dependencies: SwiftUI, PanelsModel, PanelStore, PanelRenderer, and PanelWallLayout.
 
 import SwiftUI
 
@@ -13,15 +13,34 @@ struct PanelsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Panels").font(.largeTitle.bold())
-                    Text("Seven producers, one living wall.").font(.callout).foregroundStyle(.secondary)
+                    Text(model.isDemoMode ? "Seven producers, one living wall." : "Server-backed panels, fetched on demand.")
+                        .font(.callout).foregroundStyle(.secondary)
                 }
-                sampleNotice
+                if model.isDemoMode { sampleNotice }
+                if let failure = model.failureMessage {
+                    fetchFailure(failure)
+                }
                 if let tile = model.selectedTile {
                     PanelDetail(tile: tile, model: model)
                 } else if !model.tiles.isEmpty {
                     PanelWall(model: model, reduceMotion: reduceMotion)
+                } else if model.isLoading {
+                    ProgressView("Loading panels…")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if model.failureMessage != nil {
+                    unavailableState(
+                        title: "Panels unavailable",
+                        systemImage: "wifi.exclamationmark",
+                        message: "The last fetch failed. Try again when the server is reachable.",
+                        actionTitle: "Retry"
+                    )
                 } else {
-                    ContentUnavailableView("Fixtures unavailable", systemImage: "doc.questionmark")
+                    unavailableState(
+                        title: "No panels published",
+                        systemImage: "rectangle.stack",
+                        message: "This Boss has no panels yet.",
+                        actionTitle: "Refresh"
+                    )
                 }
             }
             .padding(24)
@@ -31,12 +50,31 @@ struct PanelsView: View {
             .frame(maxWidth: model.selectedTile == nil ? .infinity : 720, alignment: .leading)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .task { await model.loadIfNeeded() }
     }
 
     private var sampleNotice: some View {
         Label("Sample data — fixture preview only; no live agent panel is connected.", systemImage: "info.circle")
             .font(.callout).foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func fetchFailure(_ message: String) -> some View {
+        Label("Panel fetch failed: \(message). Cached panels are shown as cached.", systemImage: "exclamationmark.triangle")
+            .font(.callout).foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func unavailableState(
+        title: String,
+        systemImage: String,
+        message: String,
+        actionTitle: String
+    ) -> some View {
+        VStack(spacing: 12) {
+            ContentUnavailableView(title, systemImage: systemImage, description: Text(message))
+            Button(actionTitle) { Task { await model.load() } }
+        }
     }
 
 }
@@ -80,7 +118,7 @@ private struct PanelTileCard: View {
                     Spacer(minLength: 4)
                     freshnessBadge
                 }
-                Text(tile.producer.name).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Text(tile.sourceLabel).font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 summary
                 Spacer(minLength: 0)
                 Label("Open panel", systemImage: "arrow.up.right")
@@ -93,7 +131,7 @@ private struct PanelTileCard: View {
             .scaleEffect(pulse ? 1.015 : 1)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(tile.fixture.title), producer \(tile.producer.name), \(model.freshness(for: tile).title)")
+        .accessibilityLabel("\(tile.fixture.title), \(tile.sourceLabel), \(model.freshness(for: tile).title)")
         .onChange(of: tile.store.state) { _, _ in
             guard !reduceMotion else { return }
             pulse = true
@@ -164,7 +202,7 @@ private struct PanelDetail: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(tile.fixture.title).font(.title.bold())
-                Text("Produced by \(tile.producer.name)").font(.callout).foregroundStyle(.secondary)
+                Text(tile.sourceLabel).font(.callout).foregroundStyle(.secondary)
             }
             PanelRenderer(spec: tile.fixture.spec, store: tile.store, webModel: model.webModel)
                 .render(tile.fixture.spec.root)
@@ -178,120 +216,5 @@ private struct PanelDetail: View {
                 Text(answer).font(.body.monospaced()).textSelection(.enabled).foregroundStyle(.secondary)
             }
         }
-    }
-}
-
-@MainActor
-final class PanelsModel: ObservableObject {
-    let fixtures: PanelFixtureSet?
-    let tiles: [PanelTile]
-    let webModel = PanelWebModel()
-    @Published private(set) var selectedTileID: String?
-    @Published private(set) var now = Date()
-    private var lastUpdated: [String: Date] = [:]
-    private var producerTasks: [Task<Void, Never>] = []
-    private var clockTask: Task<Void, Never>?
-
-    init() {
-        guard let fixtures = try? PanelFixtures.load() else {
-            self.fixtures = nil
-            tiles = []
-            return
-        }
-        self.fixtures = fixtures
-        let fixtureList = fixtures.all
-        tiles = fixtureList.enumerated().map { index, fixture in
-            let producer = PanelDemoProducer.catalog[index]
-            return PanelTile(id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture), producer: producer, order: index)
-        }
-        lastUpdated = Dictionary(uniqueKeysWithValues: tiles.map { ($0.id, Date()) })
-        startSimulation()
-    }
-
-    var selectedTile: PanelTile? { tiles.first { $0.id == selectedTileID } }
-
-    func positions(for width: CGFloat) -> [PanelTilePosition] {
-        PanelWallLayout.arrange(tiles.map { PanelLayoutPanel(id: $0.id, size: $0.fixture.spec.tileSize, order: $0.order, isPinned: false) }, width: width)
-    }
-
-    // Takes the placed positions rather than a width, so the container height cannot
-    // be computed from a different width than the tiles were laid out with.
-    nonisolated func wallHeight(of positions: [PanelTilePosition]) -> CGFloat {
-        (positions.map { $0.frame.maxY }.max() ?? 0) + 8
-    }
-
-    func open(_ tileID: String) { selectedTileID = tileID }
-
-    func closeDetail() { selectedTileID = nil }
-
-    func freshness(for tile: PanelTile) -> PanelFreshness {
-        guard let updated = lastUpdated[tile.id] else { return .offline }
-        let age = now.timeIntervalSince(updated)
-        if age < 5 { return .live }
-        if age < 15 { return .stale }
-        return .offline
-    }
-
-    func animationDelay(for tile: PanelTile) -> Double {
-        Double(tile.order) * 0.045
-    }
-
-    private func startSimulation() {
-        clockTask = Task { [weak self] in await self?.runClock() }
-        producerTasks = tiles.indices.map { index in
-            Task { [weak self] in await self?.runProducer(at: index) }
-        }
-    }
-
-    private func runClock() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: PanelDemoProducer.clockIntervalNanoseconds)
-            guard !Task.isCancelled else { return }
-            now = Date()
-        }
-    }
-
-    private func runProducer(at index: Int) async {
-        let producer = tiles[index].producer
-        if producer.startDelayNanoseconds > 0 {
-            try? await Task.sleep(nanoseconds: producer.startDelayNanoseconds)
-        }
-        var pushes = 0
-        while !Task.isCancelled, producer.pushLimit.map({ pushes < $0 }) ?? true {
-            try? await Task.sleep(nanoseconds: producer.intervalNanoseconds)
-            guard !Task.isCancelled else { return }
-            tiles[index].store.advanceDemoData(seed: pushes)
-            lastUpdated[tiles[index].id] = Date()
-            pushes += 1
-        }
-    }
-
-    deinit {
-        clockTask?.cancel()
-        producerTasks.forEach { $0.cancel() }
-    }
-}
-
-struct PanelTile: Identifiable {
-    let id: String
-    let fixture: PanelFixture
-    let store: PanelStore
-    let producer: PanelDemoProducer
-    let order: Int
-}
-
-enum PanelFreshness {
-    case live, stale, offline
-
-    var title: String {
-        switch self { case .live: "Live"; case .stale: "Stale"; case .offline: "Offline" }
-    }
-
-    var symbol: String {
-        switch self { case .live: "dot.radiowaves.left.and.right"; case .stale: "clock.badge.exclamationmark"; case .offline: "wifi.slash" }
-    }
-
-    var color: Color {
-        switch self { case .live: .green; case .stale: .orange; case .offline: .secondary }
     }
 }
