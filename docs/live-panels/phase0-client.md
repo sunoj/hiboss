@@ -78,3 +78,12 @@ already documents — an ad-hoc signature has no stable designated requirement, 
 cdhash changes every build and the stored item's ACL never matches. It is unrelated to
 this work. Denying the prompt is safe here because the panels surface is fixture-driven
 and needs no boss token; the screenshots above were captured that way.
+
+## Chart leaf defect fix — 2026-09-07
+
+Rebuilt the bundle and inspected the live `Panels` destination after launching with
+`HIBOSS_PANELS_DEMO=1`. The new capture is `screenshots/panels-line-chart-fixed.png`.
+The chart now draws a line, with the fixture's middle `null` visible as a break between
+two line segments. The leaf height settles to the measured document content, so the
+heading is followed by the plot without the former empty band above it. The keychain
+prompt was denied without entering a password; the fixture surface remained usable.
