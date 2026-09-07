@@ -39,6 +39,19 @@ export interface SpecValidationOptions {
   readonly stateSchema?: unknown;
 }
 
+export interface PanelSummaryValue {
+  readonly path: string;
+  readonly label: string;
+  readonly unit?: string;
+}
+
+export interface PanelSummary {
+  readonly stage: string;
+  readonly headline?: PanelSummaryValue;
+  readonly secondary?: PanelSummaryValue;
+  readonly series?: string;
+}
+
 const elementKeys = new Set(['type', 'props', 'children', 'on']);
 const actionKeys = new Set(['action', 'params']);
 const dangerousSegments = new Set(['__proto__', 'prototype', 'constructor']);
@@ -112,6 +125,66 @@ function schemaPaths(value: unknown, path = ''): string[] {
     paths.push(childPath, ...schemaPaths(child, childPath));
   }
   return paths;
+}
+
+function schemaNodeAtPath(value: unknown, pointer: string): Record<string, unknown> | null {
+  if (!isRecord(value)) return null;
+  let current: unknown = value;
+  for (const segment of pointer.slice(1).split('/').map((part) => part.replaceAll('~1', '/').replaceAll('~0', '~'))) {
+    if (!isRecord(current) || !isRecord(current.properties)) return null;
+    current = current.properties[segment];
+  }
+  return isRecord(current) ? current : null;
+}
+
+function summaryValueSchema(value: unknown, path: string): ValidationResult<PanelSummaryValue> {
+  if (!isRecord(value) || typeof value.path !== 'string' || !value.path.startsWith('/') || typeof value.label !== 'string' || !value.label.trim()) {
+    return failure('invalid_spec', path, 'Summary value must have a JSON Pointer path and label');
+  }
+  if (value.unit !== undefined && typeof value.unit !== 'string') return failure('invalid_spec', `${path}/unit`, 'Summary unit must be a string');
+  return { ok: true, value: { path: value.path, label: value.label, ...(value.unit === undefined ? {} : { unit: value.unit }) } };
+}
+
+function validateSummaryPath(path: string, stateSchema: unknown, summaryPath: string, requireArray: boolean): ValidationResult<true> {
+  const node = schemaNodeAtPath(stateSchema, path);
+  if (node === null || !schemaPaths(stateSchema).includes(path)) return failure('invalid_spec', `${summaryPath}/path`, 'Summary path is not declared in stateSchema');
+  const isArray = node.type === 'array';
+  if (requireArray ? !isArray : isArray || node.type === 'object' || node.properties !== undefined) {
+    return failure('invalid_spec', `${summaryPath}/path`, requireArray ? 'Summary series path must resolve to an array' : 'Summary value path must resolve to a scalar');
+  }
+  return { ok: true, value: true };
+}
+
+export function validatePanelSummary(value: unknown, stateSchema: unknown): ValidationResult<PanelSummary | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!isRecord(value)) return failure('invalid_spec', '/summary', 'Summary must be an object');
+  if (typeof value.stage !== 'string' || !value.stage.trim()) return failure('invalid_spec', '/summary/stage', 'Summary stage must be a non-empty string');
+  const headline = value.headline === undefined ? undefined : summaryValueSchema(value.headline, '/summary/headline');
+  if (headline !== undefined && !headline.ok) return headline;
+  const secondary = value.secondary === undefined ? undefined : summaryValueSchema(value.secondary, '/summary/secondary');
+  if (secondary !== undefined && !secondary.ok) return secondary;
+  if (headline?.ok) {
+    const path = validateSummaryPath(headline.value.path, stateSchema, '/summary/headline', false);
+    if (!path.ok) return path;
+  }
+  if (secondary?.ok) {
+    const path = validateSummaryPath(secondary.value.path, stateSchema, '/summary/secondary', false);
+    if (!path.ok) return path;
+  }
+  if (value.series !== undefined) {
+    if (typeof value.series !== 'string' || !value.series.startsWith('/')) return failure('invalid_spec', '/summary/series', 'Summary series must be a JSON Pointer');
+    const path = validateSummaryPath(value.series, stateSchema, '/summary/series', true);
+    if (!path.ok) return path;
+  }
+  return {
+    ok: true,
+    value: {
+      stage: value.stage,
+      ...(headline?.ok ? { headline: headline.value } : {}),
+      ...(secondary?.ok ? { secondary: secondary.value } : {}),
+      ...(typeof value.series === 'string' ? { series: value.series } : {}),
+    },
+  };
 }
 
 function validateAction(value: unknown, path: string): ValidationResult<PanelAction> {
@@ -199,5 +272,7 @@ export function validatePanelSpec(value: unknown, options: SpecValidationOptions
 
 export function validatePanelPublication(value: unknown): ValidationResult<PanelSpec> {
   if (!isRecord(value)) return failure('invalid_spec', '', 'Panel publication must be an object');
+  const summary = validatePanelSummary(value.summary, value.stateSchema);
+  if (!summary.ok) return summary;
   return validatePanelSpec(value.spec, { stateSchema: value.stateSchema });
 }

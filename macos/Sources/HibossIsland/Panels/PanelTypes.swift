@@ -49,6 +49,7 @@ enum PanelJSONValue: Codable, Equatable, Sendable {
 struct PanelFixture: Sendable {
     let name: String
     let title: String
+    let summary: PanelSummary?
     let spec: PanelSpec
     let initialState: PanelJSONValue
 
@@ -57,6 +58,7 @@ struct PanelFixture: Sendable {
         guard let spec = raw.formSpec ?? raw.spec else { throw PanelFixtureError.missingSpec }
         self.name = name
         self.title = raw.title ?? Self.defaultTitle(for: name)
+        self.summary = raw.summary.flatMap(PanelSummary.init(value:))
         self.spec = spec
         self.initialState = raw.formSpec == nil
             ? raw.initialState ?? .object([:])
@@ -66,6 +68,7 @@ struct PanelFixture: Sendable {
     init(remote panel: PanelDetail) {
         name = panel.metadata.panelId
         title = panel.metadata.title
+        summary = PanelSummary(value: PanelJSONValue(remote: panel.metadata.summary))
         spec = PanelSpec(remote: panel.definition.spec)
         initialState = PanelJSONValue(remote: panel.definition.initialState)
     }
@@ -84,8 +87,55 @@ struct PanelFixture: Sendable {
         let title: String?
         let defaults: PanelJSONValue?
         let initialState: PanelJSONValue?
+        let summary: PanelJSONValue?
         let formSpec: PanelSpec?
         let spec: PanelSpec?
+    }
+}
+
+struct PanelHeadline: Equatable, Sendable {
+    let path: String?
+    let literal: PanelJSONValue?
+    let label: String
+    let unit: String?
+
+    func displayValue(in state: PanelJSONValue) -> String {
+        if let path { return panelValue(at: path, in: state)?.displayText ?? "—" }
+        return literal?.displayText ?? "—"
+    }
+}
+
+struct PanelSummary: Equatable, Sendable {
+    let stage: String
+    let headline: PanelHeadline?
+    let secondary: PanelHeadline?
+    let seriesPath: String?
+
+    init?(value: PanelJSONValue) {
+        guard let object = value.object, let stage = object["stage"]?.string else { return nil }
+        self.stage = stage
+        headline = Self.headline(object["headline"])
+        secondary = Self.headline(object["secondary"])
+        seriesPath = object["series"]?.string
+    }
+
+    private static func headline(_ value: PanelJSONValue?) -> PanelHeadline? {
+        guard let object = value?.object, let path = object["path"]?.string, let label = object["label"]?.string else { return nil }
+        return PanelHeadline(path: path, literal: nil, label: label, unit: object["unit"]?.string)
+    }
+}
+
+extension PanelFixture {
+    var firstMetricHeadline: PanelHeadline? {
+        for element in spec.elements.values where element.type == "Metric" {
+            let label = element.props["label"]?.string ?? "Metric"
+            let unit = element.props["unit"]?.string
+            if let path = element.props["value"]?.object?["$state"]?.string {
+                return PanelHeadline(path: path, literal: nil, label: label, unit: unit)
+            }
+            if let literal = element.props["value"] { return PanelHeadline(path: nil, literal: literal, label: label, unit: unit) }
+        }
+        return nil
     }
 }
 

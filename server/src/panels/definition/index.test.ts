@@ -91,6 +91,14 @@ describe('panel publication and reads', () => {
     expect(await unknown.json()).toMatchObject({ error: { code: 'unsupported_catalog', path: '/catalogId' } });
   });
 
+  it('accepts a declared summary headline and rejects an undeclared headline path', async () => {
+    const accepted = await publish('panel-summary-valid', panelBody({ summary: { stage: 'Running', headline: { path: '/task/completed', label: 'Open' } } }));
+    expect(accepted.status).toBe(201);
+    const rejected = await publish('panel-summary-invalid', panelBody({ summary: { stage: 'Running', headline: { path: '/task/missing', label: 'Missing' } } }));
+    expect(rejected.status).toBe(422);
+    expect(await rejected.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/summary/headline/path' } });
+  });
+
   it('returns one receipt for an idempotent retry and conflicts on a changed body', async () => {
     const first = await publish('panel-idempotent');
     const firstBody = await first.json() as { panelId: string };
