@@ -83,19 +83,19 @@ export function decodeCursor(value: string | undefined): CursorResult | CursorFa
   }
 }
 
-export function validationError(issue: ValidationIssue): { code: PanelErrorCode; message: string; path: string } {
-  return { code: issue.code === 'unsupported_catalog' ? 'unsupported_catalog' : 'invalid_spec', message: issue.message, path: issue.path };
+export function validationError(issue: ValidationIssue, pathPrefix = ''): { code: PanelErrorCode; message: string; path: string } {
+  return { code: issue.code === 'unsupported_catalog' ? 'unsupported_catalog' : 'invalid_spec', message: issue.message, path: `${pathPrefix}${issue.path}` };
 }
 
 export function validatePublication(payload: PanelRequest): { ok: true } | { ok: false; error: ReturnType<typeof validationError> } {
   const catalog = validateCatalogIdentity(payload.catalogId, payload.catalogVersion);
   if (!catalog.ok) return { ok: false, error: validationError(catalog.error) };
   const schema = validateAnswerSchema(payload.stateSchema);
-  if (!schema.ok) return { ok: false, error: validationError(schema.error) };
+  if (!schema.ok) return { ok: false, error: validationError(schema.error, '/stateSchema') };
   const publication = validatePanelPublication(payload);
   if (!publication.ok) return { ok: false, error: validationError(publication.error) };
   const initialState = validateAnswers(schema.value, payload.initialState);
-  if (!initialState.ok) return { ok: false, error: validationError(initialState.error) };
+  if (!initialState.ok) return { ok: false, error: validationError(initialState.error, '/initialState') };
   return { ok: true };
 }
 

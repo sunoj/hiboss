@@ -85,7 +85,17 @@ describe('panel publication and reads', () => {
   it('rejects invalid specs with a path and rejects unknown catalogs', async () => {
     const invalid = await publish('panel-invalid-spec', panelBody({ spec: { root: 'main', elements: { main: { type: 'Unknown', props: {}, children: [] } } } }));
     expect(invalid.status).toBe(422);
-    expect(await invalid.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/elements/main/type' } });
+    expect(await invalid.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/spec/elements/main/type' } });
+    const missingChild = await publish('panel-missing-child', panelBody({
+      spec: { root: 'main', elements: { main: { type: 'Stack', props: { direction: 'vertical' }, children: ['missing'] } } },
+    }));
+    expect(await missingChild.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/spec/elements/missing/children' } });
+    const invalidInitialState = await publish('panel-invalid-initial-state', panelBody({
+      spec: { root: 'main', elements: { main: { type: 'LineChart', props: { values: { $state: '/task/series' } }, children: [] } } },
+      stateSchema: { type: 'object', properties: { task: { type: 'object', properties: { series: { type: 'array', items: { type: 'number' } } }, required: ['series'], additionalProperties: false } }, required: ['task'], additionalProperties: false },
+      initialState: { task: { series: [12, null, 18] } },
+    }));
+    expect(await invalidInitialState.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/initialState/task/series/1' } });
     const unknown = await publish('panel-unknown-catalog', panelBody({ catalogId: 'other.catalog' }));
     expect(unknown.status).toBe(400);
     expect(await unknown.json()).toMatchObject({ error: { code: 'unsupported_catalog', path: '/catalogId' } });
