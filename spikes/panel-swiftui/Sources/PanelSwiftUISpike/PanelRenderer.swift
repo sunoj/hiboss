@@ -7,8 +7,6 @@ import SwiftUI
 struct PanelRootView: View {
     let spec: PanelSpec
     @ObservedObject var store: PanelStore
-    var onInteractive: (() -> Void)?
-    var onRevisionApplied: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -17,9 +15,6 @@ struct PanelRootView: View {
             ActionStatusView(result: store.actionResult)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear { onInteractive?() }
-        // The host starts timing before write(); this transaction observer is the view-apply boundary.
-        .onChange(of: store.revision, initial: false) { _, _ in onRevisionApplied?() }
     }
 }
 
@@ -29,9 +24,11 @@ struct PanelRenderer {
     let store: PanelStore
     let onAction: (PanelAction) -> Void
 
-    func render(_ id: String, context: ExpressionContext = .init(state: .null, item: nil, index: nil)) -> AnyView {
+    func render(_ id: String, context: ExpressionContext = .init(state: .null, item: nil, index: nil), expandRepeat: Bool = true) -> AnyView {
         guard let element = spec.elements[id], isVisible(element.visible, context: context) else { return AnyView(EmptyView()) }
-        if let repeatSpec = element.repeatSpec { return renderRepeat(id: id, element: element, repeatSpec: repeatSpec, context: context) }
+        if expandRepeat, let repeatSpec = element.repeatSpec {
+            return renderRepeat(id: id, element: element, repeatSpec: repeatSpec, context: context)
+        }
         guard let kind = ComponentKind(rawValue: element.type) else {
             return AnyView(Text("Unsupported component: \(element.type)").foregroundStyle(.secondary))
         }
@@ -45,8 +42,8 @@ struct PanelRenderer {
         case .progress: return AnyView(ProgressComponent(label: string(props, "label"), value: resolvedNumber(props["value"], context), min: props["min"]?.number ?? 0, max: props["max"]?.number ?? 1))
         case .status: return AnyView(StatusComponent(label: string(props, "label"), status: string(props, "status"), message: props["message"]?.string))
         case .table: return renderTable(props, context: context)
-        case .lineChart: return AnyView(LineChartComponent(label: props["label"]?.string ?? "", values: props["values"]?.array ?? [], unit: props["unit"]?.string))
-        case .barChart: return AnyView(BarChartComponent(label: props["label"]?.string ?? "", values: props["values"]?.array ?? [], unit: props["unit"]?.string))
+        case .lineChart: return AnyView(LineChartComponent(label: props["label"]?.string ?? "", values: chartValues(props["values"], context: context), unit: props["unit"]?.string))
+        case .barChart: return AnyView(BarChartComponent(label: props["label"]?.string ?? "", values: chartValues(props["values"], context: context), unit: props["unit"]?.string))
         case .textInput, .textArea: return renderTextInput(kind, props, context: context)
         case .numberInput: return renderNumberInput(props, context: context)
         case .select: return renderSelect(props, context: context)
@@ -82,7 +79,11 @@ struct PanelRenderer {
         }
         return AnyView(VStack(alignment: .leading, spacing: 12) {
             ForEach(items) { item in
-                render(id, context: .init(state: .null, item: item.value, index: item.index, itemPath: repeatSpec.path + "/" + String(item.index)))
+                render(
+                    id,
+                    context: .init(state: .null, item: item.value, index: item.index, itemPath: repeatSpec.path + "/" + String(item.index)),
+                    expandRepeat: false
+                )
             }
         })
     }
@@ -140,6 +141,10 @@ struct PanelRenderer {
     private func string(_ props: [String: JSONValue], _ key: String) -> String { props[key]?.string ?? "" }
     private func resolvedText(_ value: JSONValue?, _ context: ExpressionContext) -> String { value.flatMap { store.resolve($0, context: context) }?.displayText ?? "" }
     private func resolvedNumber(_ value: JSONValue?, _ context: ExpressionContext) -> Double { value.flatMap { store.resolve($0, context: context) }?.number ?? 0 }
+    private func chartValues(_ value: JSONValue?, context: ExpressionContext) -> [JSONValue] {
+        if let array = value?.array { return array }
+        return store.resolve(value ?? .null, context: context)?.array ?? []
+    }
     private func textColor(_ tone: String?) -> Color { switch tone { case "muted": return .secondary; case "positive": return Color(nsColor: .systemGreen); case "warning": return Color(nsColor: .systemOrange); case "danger": return Color(nsColor: .systemRed); default: return .primary } }
 
     private func isVisible(_ expression: JSONValue?, context: ExpressionContext) -> Bool {

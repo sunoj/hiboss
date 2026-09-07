@@ -83,7 +83,7 @@ struct TextInputComponent: View {
     let multiline: Bool
 
     var body: some View {
-        Group {
+        LabeledContent(label) {
             if multiline {
                 TextEditor(text: stringBinding)
                     .frame(minHeight: 72)
@@ -91,7 +91,6 @@ struct TextInputComponent: View {
                 TextField(placeholder ?? label, text: stringBinding)
             }
         }
-        .labeledContentStyle(.automatic)
         .accessibilityLabel(label)
     }
 
@@ -107,10 +106,13 @@ struct NumberInputComponent: View {
     let max: Double?
 
     var body: some View {
-        TextField(label, text: numberBinding)
-            .textFieldStyle(.roundedBorder)
-            .accessibilityLabel(label)
-            .help([min.map { "Minimum \($0)" }, max.map { "Maximum \($0)" }].compactMap { $0 }.joined(separator: ", "))
+        LabeledContent(label) {
+            TextField(label, text: numberBinding)
+                .textFieldStyle(.roundedBorder)
+                .labelsHidden()
+        }
+        .accessibilityLabel(label)
+        .help([min.map { "Minimum \($0)" }, max.map { "Maximum \($0)" }].compactMap { $0 }.joined(separator: ", "))
     }
 
     private var numberBinding: Binding<String> {

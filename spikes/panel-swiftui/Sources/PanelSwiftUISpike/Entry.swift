@@ -1,6 +1,6 @@
 // Application shell for interactive fixture browsing and --measure mode.
-// Exports: PanelSwiftUISpikeApp and AppDelegate.
-// Dependencies: SwiftUI, AppKit, FixtureLoader, PanelStore, PanelRootView, and MeasurementRunner.
+// Exports: PanelSwiftUISpikeApp and the @main launcher.
+// Dependencies: SwiftUI, AppKit, FixtureLoader, PanelStore, PanelRootView, MeasurementRunner.
 
 import AppKit
 import Darwin
@@ -17,9 +17,10 @@ struct PanelSwiftUISpikeApp: App {
 
 @MainActor
 final class MeasurementAppDelegate: NSObject, NSApplicationDelegate {
-    private let runner = MeasurementRunner()
+    static var retained: MeasurementAppDelegate?
+    let runner = MeasurementRunner()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
         runner.run()
     }
 }
@@ -29,14 +30,22 @@ struct PanelSwiftUISpikeLauncher {
     @MainActor
     static func main() {
         if CommandLine.arguments.contains("--measure") {
-            DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
-                MeasurementRunner.printNotMeasured(reason: "AppKit window did not become interactive within 5 seconds")
+            let app = NSApplication.shared
+            app.setActivationPolicy(.accessory)
+            let delegate = MeasurementAppDelegate()
+            MeasurementAppDelegate.retained = delegate
+            app.delegate = delegate
+            // Fallback if didFinishLaunching is skipped in this process environment.
+            DispatchQueue.main.async {
+                if !delegate.runner.hasStarted { delegate.runner.run() }
+            }
+            // Overall watchdog: only fires if the harness never finished printing.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+                guard !delegate.runner.hasFinished else { return }
+                MeasurementRunner.printNotMeasured(reason: "measurement harness did not finish within 60 seconds")
                 fflush(stdout)
                 exit(EXIT_SUCCESS)
             }
-            let app = NSApplication.shared
-            let delegate = MeasurementAppDelegate()
-            app.delegate = delegate
             app.run()
         } else {
             PanelSwiftUISpikeApp.main()
