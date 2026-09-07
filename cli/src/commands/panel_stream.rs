@@ -24,7 +24,7 @@ pub struct PanelStreamArgs {
     pub panel_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct RelayFrame {
     kind: String,
     code: Option<String>,
@@ -192,18 +192,45 @@ async fn reconnect(client: &HiBossClient, panel_id: &str) -> Result<(Connection,
 async fn handle_message(connection: &mut Connection, state: &mut StreamState, message: Message, panel_id: &str) -> Result<(), Box<dyn Error>> {
     if let Message::Ping(payload) = message { connection.writer.send(Message::Pong(payload)).await?; return Ok(()); }
     let frame = parse_frame(message)?;
-    match frame.kind.as_str() {
-        "state.ack" => if let Some(sequence) = frame.accepted_sequence.or(frame.sequence) { if state.acknowledge(sequence) { println!("ack {sequence}"); } },
-        "error" => match frame.code.as_deref() {
-            Some("resync_required") => { connection.writer.send(Message::Text(json!({"kind":"subscribe","panelId":panel_id}).to_string().into())).await?; let snapshot = receive_snapshot(&mut connection.reader).await?; state.resync(snapshot)?; }
-            Some("lease_conflict") | Some("fenced_epoch") => return Err(relay_error(frame.code.as_deref()).into()),
-            Some(code) => return Err(relay_error(Some(code)).into()),
-            None => return Err("relay returned an unspecified error".into()),
-        },
-        "resync" => { connection.writer.send(Message::Text(json!({"kind":"subscribe","panelId":panel_id}).to_string().into())).await?; let snapshot = receive_snapshot(&mut connection.reader).await?; state.resync(snapshot)?; }
-        _ => {}
+    match frame_action(&frame) {
+        FrameAction::Acknowledge(sequence) => if state.acknowledge(sequence) { println!("ack {sequence}"); },
+        FrameAction::Resync => {
+            connection.writer.send(Message::Text(json!({"kind":"subscribe","panelId":panel_id}).to_string().into())).await?;
+            let snapshot = receive_snapshot(&mut connection.reader).await?;
+            state.resync(snapshot)?;
+        }
+        FrameAction::Stop(reason) => return Err(reason.into()),
+        FrameAction::Ignore => {}
     }
     Ok(())
+}
+
+/// What a frame means, decided without touching the socket so the decision can be tested.
+/// Keeping this separate is the point: a fenced producer that keeps fighting for the lease
+/// makes two agents thrash and the panel flicker between them, and that is a property of
+/// the decision rather than of the I/O around it.
+#[derive(Debug, PartialEq, Eq)]
+enum FrameAction {
+    Acknowledge(u64),
+    Resync,
+    Stop(String),
+    Ignore,
+}
+
+fn frame_action(frame: &RelayFrame) -> FrameAction {
+    match frame.kind.as_str() {
+        "state.ack" => frame
+            .accepted_sequence
+            .or(frame.sequence)
+            .map_or(FrameAction::Ignore, FrameAction::Acknowledge),
+        "resync" => FrameAction::Resync,
+        "error" => match frame.code.as_deref() {
+            Some("resync_required") => FrameAction::Resync,
+            Some(code) => FrameAction::Stop(relay_error(Some(code))),
+            None => FrameAction::Stop("relay returned an unspecified error".to_owned()),
+        },
+        _ => FrameAction::Ignore,
+    }
 }
 
 async fn receive_snapshot(reader: &mut futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>) -> Result<Snapshot, Box<dyn Error>> {
@@ -289,6 +316,25 @@ mod tests {
         assert_eq!(state.sequence, 7);
         assert!(state.in_flight.is_none());
         assert_eq!(diff_values(&state.acknowledged, &state.desired, "/task").len(), 1);
+    }
+
+    #[test]
+    fn fenced_epoch_stops_the_producer_rather_than_retrying() {
+        // The earlier test asserted only how relay_error formats a string, so deleting the
+        // stop entirely left all 179 tests green.
+        for code in ["lease_conflict", "fenced_epoch"] {
+            let frame = RelayFrame { kind: "error".into(), code: Some(code.into()), ..RelayFrame::default() };
+            match frame_action(&frame) {
+                FrameAction::Stop(reason) => assert!(reason.contains(code), "{reason}"),
+                other => panic!("{code} produced {other:?} instead of a stop"),
+            }
+        }
+    }
+
+    #[test]
+    fn a_resync_error_recovers_instead_of_stopping() {
+        let frame = RelayFrame { kind: "error".into(), code: Some("resync_required".into()), ..RelayFrame::default() };
+        assert_eq!(frame_action(&frame), FrameAction::Resync);
     }
 
     #[test]
