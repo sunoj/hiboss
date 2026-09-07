@@ -1,0 +1,18 @@
+<!--
+  App metadata for the isolated panel renderer spike.
+  Exports: the PanelSeamSpike bundle identity and macOS launch metadata.
+  Dependencies: the executable produced by SwiftPM.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key><string>PanelSeamSpike</string>
+	<key>CFBundleIdentifier</key><string>ai.hiboss.panel-seam-spike</string>
+	<key>CFBundleName</key><string>HiBoss Panel Seam Spike</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.0.1</string>
+	<key>CFBundleVersion</key><string>1</string>
+	<key>LSMinimumSystemVersion</key><string>14.0</string>
+	<key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
