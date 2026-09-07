@@ -261,9 +261,22 @@ The transport already supports this. A PanelRoom is keyed by recipient, subscrip
 name individual panels, and fan-out to several device sockets was proven in the Phase 0
 relay spike. What changes is presentation, plus the rules below, which are not decoration.
 
-**Tiles do not reorder themselves.** Position comes from user pinning and a stable
-ordering; only content animates. A wall that reshuffles whenever any producer pushes is
-unreadable, and this repeats the ordering rule already stated for the panel section.
+**The wall lays itself out, and the layout is stable.** The boss does not place tiles.
+The arrangement is computed from the set of panels, their content-derived sizes, the
+available width, and any user pins — and from nothing else. It is emphatically **not** a
+function of the data, the values, or which producer pushed most recently.
+
+That distinction is the whole rule. The obvious implementation sorts by recent activity
+and repacks on every update, which makes the wall churn continuously and puts a tile
+somewhere different each time the boss looks away. A producer pushing new numbers must
+never move anything. Only three things may change the arrangement: a panel appearing, a
+panel leaving, or the window changing width.
+
+New panels append rather than insert, so existing tiles keep their slots. When packing
+mixed sizes, prefer a deterministic fill: the same set of panels at the same width must
+always produce the same arrangement, and a later tile changing size must not pull an
+earlier tile into a gap it previously left open. Reflow on resize is expected and fine;
+reflow on data is a defect.
 
 **Every tile names its producer.** With one panel the owner is implicit. With several,
 attribution is a correctness property: a metric whose agent is unidentifiable is a
