@@ -112,6 +112,7 @@
 		ECDDEAAF8A6C6AD7DB23E425 /* ConnectionDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03191B27AD071D51213D17C1 /* ConnectionDot.swift */; };
 		F2A955D7979A57ED705CFB78 /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E7782E6F85B6837B7AA3E88 /* MessagesView.swift */; };
 		F3DA72E26461EDBB50251B9A /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C50796B18EE77AC58212D46 /* Typography.swift */; };
+		F91C244F0EF372AEDA4B424F /* HomePanelWall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE1C8259B39600A8E58A4CD /* HomePanelWall.swift */; };
 		F9206BC91FCBEF650BFD18E5 /* SessionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92707467B3C96A837DD1FC5E /* SessionCard.swift */; };
 /* End PBXBuildFile section */
 
@@ -188,6 +189,7 @@
 		449F5737D1DEA9D470795E5C /* BrandAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = BrandAssets.xcassets; sourceTree = "<group>"; };
 		46FA2F3CE4E1DF009A4BC5A2 /* PushMessageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushMessageSnapshot.swift; sourceTree = "<group>"; };
 		4AF11BA88743C4696BE600E0 /* ResolvedDecisionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedDecisionsView.swift; sourceTree = "<group>"; };
+		4BE1C8259B39600A8E58A4CD /* HomePanelWall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePanelWall.swift; sourceTree = "<group>"; };
 		4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionLiveActivity.swift; sourceTree = "<group>"; };
 		4F038DB693219FA633FDAACC /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxStore.swift; sourceTree = "<group>"; };
 		5276F4AAC028EDB51E9BE783 /* ResolvedDayGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedDayGroupingTests.swift; sourceTree = "<group>"; };
@@ -338,6 +340,7 @@
 				B33251D7A4A8D2E057EF77A1 /* HomeActivityGrid.swift */,
 				37A11D83C902A7BC3B219759 /* HomeAttentionModel.swift */,
 				5F2F46477424936975B4B9B2 /* HomeAttentionRow.swift */,
+				4BE1C8259B39600A8E58A4CD /* HomePanelWall.swift */,
 				A33384F0932EF0B2476CE16A /* HomeProjectCard.swift */,
 				02617CAF3D92EA727FB1F5AA /* HomeStore.swift */,
 				131996B137584EA3A948402B /* HomeView.swift */,
@@ -801,6 +804,7 @@
 				92B10BFDB942AD2D93696AE7 /* HomeActivityGrid.swift in Sources */,
 				3DE96A602F86EB16504B8F54 /* HomeAttentionModel.swift in Sources */,
 				A0B54C22CED8FBC2143C8D24 /* HomeAttentionRow.swift in Sources */,
+				F91C244F0EF372AEDA4B424F /* HomePanelWall.swift in Sources */,
 				98B50B58935D2B172504B3BB /* HomeProjectCard.swift in Sources */,
 				594483ECDB731E41D107E15E /* HomeStore.swift in Sources */,
 				067821CD5AB2246A173E22C6 /* HomeView.swift in Sources */,

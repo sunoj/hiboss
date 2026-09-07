@@ -1,4 +1,4 @@
-// Scaled, display-only panel preview used by wall tiles.
+// Scaled, display-only panel preview used by panel wall tiles.
 // Exports: PanelTilePreview.
 // Dependencies: SwiftUI, PanelRenderer, PanelTile, and PanelWebModel.
 
@@ -12,15 +12,17 @@ private struct PanelPreviewSizeKey: PreferenceKey {
     }
 }
 
-struct PanelTilePreview: View {
-    let tile: PanelTile
+public struct PanelTilePreview: View {
+    public let tile: PanelTile
     @StateObject private var webModel = PanelWebModel()
     @State private var contentSize = CGSize.zero
 
     private let viewportHeight: CGFloat = 196
     private let minimumScale: CGFloat = 0.62
 
-    var body: some View {
+    public init(tile: PanelTile) { self.tile = tile }
+
+    public var body: some View {
         GeometryReader { proxy in
             let fitScale = scaleToFit(contentSize, in: proxy.size)
             let scale = max(minimumScale, fitScale)
@@ -55,10 +57,11 @@ struct PanelTilePreview: View {
 
     private var moreOverlay: some View {
         LinearGradient(
-            colors: [.clear, Color(nsColor: .controlBackgroundColor).opacity(0.96)],
+            colors: [.clear, .primary.opacity(0.14)],
             startPoint: .top,
             endPoint: .bottom
         )
+        .background(.regularMaterial)
         .frame(height: 28)
         .overlay(alignment: .bottomLeading) {
             Label("More in Open panel", systemImage: "ellipsis")

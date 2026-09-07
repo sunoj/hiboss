@@ -1,13 +1,12 @@
 // Maintains one ticket-scoped WebSocket subscription for a native panel tile.
 // Exports: PanelRelayConnection with fresh-ticket reconnect and snapshot requests.
-// Dependencies: Foundation URLSessionWebSocketTask, HibossKit, and ConnectionConfig.
+// Dependencies: Foundation URLSessionWebSocketTask and ConnectionConfig.
 
 import Foundation
-import HibossKit
 
 @MainActor
-final class PanelRelayConnection {
-    static let expectedInterval: TimeInterval = 5
+public final class PanelRelayConnection {
+    public static let expectedInterval: TimeInterval = 5
 
     private let config: ConnectionConfig
     private let panelID: String
@@ -17,7 +16,7 @@ final class PanelRelayConnection {
     private var connectionTask: Task<Void, Never>?
     private var stopped = false
 
-    init(
+    public init(
         config: ConnectionConfig,
         panelID: String,
         onFrame: @escaping (PanelRelayFrame) -> Void,
@@ -29,13 +28,13 @@ final class PanelRelayConnection {
         self.onDisconnect = onDisconnect
     }
 
-    func start() {
+    public func start() {
         guard connectionTask == nil else { return }
         stopped = false
         connectionTask = Task { [weak self] in await self?.run() }
     }
 
-    func stop() {
+    public func stop() {
         stopped = true
         socket?.cancel(with: .goingAway, reason: nil)
         socket = nil
@@ -43,7 +42,7 @@ final class PanelRelayConnection {
         connectionTask = nil
     }
 
-    func requestSnapshot() {
+    public func requestSnapshot() {
         guard let socket else { return }
         Task { try? await socket.send(.string(Self.subscribeMessage(panelID: panelID))) }
     }

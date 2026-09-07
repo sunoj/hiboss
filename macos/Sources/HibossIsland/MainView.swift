@@ -84,7 +84,13 @@ struct MainView: View {
     private func destinationContent(_ snapshot: OverviewSnapshot) -> some View {
         GeometryReader { geometry in
             if destination == .panels {
-                PanelsView()
+                PanelsView(configurationProvider: {
+                    await settings.loadToken()
+                    guard case let .success(config) = settings.connectionConfig() else {
+                        throw PanelClientError.notConfigured
+                    }
+                    return config
+                })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else {
                 VStack(spacing: 0) {

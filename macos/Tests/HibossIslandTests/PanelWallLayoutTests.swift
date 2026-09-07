@@ -2,6 +2,7 @@
 // Exports: PanelWallLayoutTests for stable packing, append-only slots, and reflow.
 // Dependencies: XCTest and the pure PanelWallLayout module.
 
+import HibossKit
 import XCTest
 @testable import HibossIsland
 

@@ -1,69 +1,69 @@
-// Host-owned state and answer assembly for the native controls in a panel.
+// Host-owned state and answer assembly for native panel controls.
 // Exports: PanelStore and PanelActionResult.
-// Dependencies: Combine, SwiftUI Binding, PanelJSONValue, and JSON Pointer helpers.
+// Dependencies: Combine, SwiftUI Binding, and shared PanelValue helpers.
 
 import Combine
 import SwiftUI
 
-enum PanelActionResult: Sendable { case idle, submitted(PanelJSONValue) }
+public enum PanelActionResult: Sendable { case idle, submitted(PanelValue) }
 
 @MainActor
-final class PanelStore: ObservableObject {
-    @Published private(set) var state: PanelJSONValue
-    @Published private(set) var actionResult: PanelActionResult = .idle
+public final class PanelStore: ObservableObject {
+    @Published public private(set) var state: PanelValue
+    @Published public private(set) var actionResult: PanelActionResult = .idle
 
-    init(fixture: PanelFixture) { state = fixture.initialState }
+    public init(fixture: PanelFixture) { state = fixture.initialState }
 
-    func binding(for path: String) -> Binding<PanelJSONValue> {
+    public func binding(for path: String) -> Binding<PanelValue> {
         Binding(
             get: { [weak self] in self.flatMap { panelValue(at: path, in: $0.state) } ?? .null },
             set: { [weak self] value in self?.write(value, at: path) }
         )
     }
 
-    func setText(_ text: String, at path: String) {
-        write(Double(text).map(PanelJSONValue.number) ?? .string(text), at: path)
+    public func setText(_ text: String, at path: String) {
+        write(Double(text).map(PanelValue.number) ?? .string(text), at: path)
     }
 
-    func setString(_ value: String, at path: String) { write(.string(value), at: path) }
+    public func setString(_ value: String, at path: String) { write(.string(value), at: path) }
 
-    func setNumber(_ value: Double, at path: String) { write(.number(value), at: path) }
+    public func setNumber(_ value: Double, at path: String) { write(.number(value), at: path) }
 
-    func setStrings(_ values: [String], at path: String) {
-        write(.array(values.map(PanelJSONValue.string)), at: path)
+    public func setStrings(_ values: [String], at path: String) {
+        write(.array(values.map(PanelValue.string)), at: path)
     }
 
-    func setBool(_ value: Bool, at path: String) { write(.bool(value), at: path) }
+    public func setBool(_ value: Bool, at path: String) { write(.bool(value), at: path) }
 
-    func advanceDemoData(seed: Int) {
+    public func advanceDemoData(seed: Int) {
         state = advancedValue(state, seed: seed)
     }
 
-    func replaceTask(_ task: PanelJSONValue) { write(task, at: "/task") }
+    public func replaceTask(_ task: PanelValue) { write(task, at: "/task") }
 
-    func perform(_ action: PanelAction?) {
+    public func perform(_ action: PanelAction?) {
         guard action?.action == "submitRequest" else { return }
         let answer = panelValue(at: "/form", in: state) ?? state
         actionResult = .submitted(answer)
     }
 
-    var submittedAnswerText: String? {
+    public var submittedAnswerText: String? {
         guard case let .submitted(answer) = actionResult,
               let data = try? JSONEncoder.pretty.encode(answer) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
-    var submissionWasEdited: Bool {
+    public var submissionWasEdited: Bool {
         guard case let .submitted(answer) = actionResult else { return false }
         return answer != (panelValue(at: "/form", in: state) ?? state)
     }
 
-    private func write(_ value: PanelJSONValue, at path: String) {
+    private func write(_ value: PanelValue, at path: String) {
         guard let updated = panelSetValue(value, at: path, in: state) else { return }
         state = updated
     }
 
-    private func advancedValue(_ value: PanelJSONValue, seed: Int) -> PanelJSONValue {
+    private func advancedValue(_ value: PanelValue, seed: Int) -> PanelValue {
         switch value {
         case let .number(number): return .number(number + Double(seed % 3 + 1))
         case let .array(values): return .array(values.map { advancedValue($0, seed: seed) })
@@ -81,25 +81,13 @@ private extension JSONEncoder {
     }()
 }
 
-func panelValue(at pointer: String, in root: PanelJSONValue) -> PanelJSONValue? {
-    guard pointer.isEmpty || pointer.first == "/" else { return nil }
-    var current = root
-    for rawSegment in pointer.split(separator: "/", omittingEmptySubsequences: false).dropFirst() {
-        let segment = rawSegment.replacingOccurrences(of: "~1", with: "/").replacingOccurrences(of: "~0", with: "~")
-        if let object = current.object, let next = object[segment] { current = next; continue }
-        if let array = current.array, let index = Int(segment), array.indices.contains(index) { current = array[index]; continue }
-        return nil
-    }
-    return current
-}
-
-func panelSetValue(_ value: PanelJSONValue, at pointer: String, in root: PanelJSONValue) -> PanelJSONValue? {
+private func panelSetValue(_ value: PanelValue, at pointer: String, in root: PanelValue) -> PanelValue? {
     guard pointer.isEmpty || pointer.first == "/" else { return nil }
     let segments = pointer.split(separator: "/", omittingEmptySubsequences: false).dropFirst().map(String.init)
     return panelSetValue(value, segments: segments[...], in: root)
 }
 
-private func panelSetValue(_ value: PanelJSONValue, segments: ArraySlice<String>, in root: PanelJSONValue) -> PanelJSONValue? {
+private func panelSetValue(_ value: PanelValue, segments: ArraySlice<String>, in root: PanelValue) -> PanelValue? {
     guard let segment = segments.first else { return value }
     let rest = segments.dropFirst()
     switch root {

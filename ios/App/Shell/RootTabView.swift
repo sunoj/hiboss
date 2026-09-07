@@ -56,7 +56,14 @@ struct RootTabView: View {
 
     private var homeTabView: some View {
         NavigationStack(path: $homePath) {
-            HomeView(inbox: inbox, sessionAPI: sessionStreamAPI)
+            HomeView(
+                inbox: inbox,
+                sessionAPI: sessionStreamAPI,
+                panelConfigurationProvider: {
+                    guard let config = connection.config else { throw PanelClientError.notConfigured }
+                    return config
+                }
+            )
         }
         .tabItem { Label("Home", systemImage: "house") }
         .tag(Self.homeTab)

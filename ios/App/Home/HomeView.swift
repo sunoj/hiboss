@@ -1,6 +1,6 @@
 // Home tab: a glanceable, actionable attention surface.
 // Exports: HomeView bound to InboxStore and message/session detail destinations.
-// Dependencies: SwiftUI, InboxStore, AttentionModel, HomeAttentionSection.
+// Dependencies: SwiftUI, InboxStore, AttentionModel, HomeAttentionSection, and PanelsModel.
 
 import HibossKit
 import SwiftUI
@@ -9,8 +9,19 @@ import UIKit
 struct HomeView: View {
     @ObservedObject var inbox: InboxStore
     let sessionAPI: (any SessionStreamServing)?
+    @StateObject private var panels: PanelsModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var actionNote: String?
+
+    init(
+        inbox: InboxStore,
+        sessionAPI: (any SessionStreamServing)?,
+        panelConfigurationProvider: @escaping @MainActor () async throws -> ConnectionConfig
+    ) {
+        self.inbox = inbox
+        self.sessionAPI = sessionAPI
+        _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: panelConfigurationProvider))
+    }
 
     var body: some View {
         content
@@ -35,6 +46,19 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            ScrollView {
+                VStack(spacing: 22) {
+                    attentionContent(now: context.date)
+                    HomePanelWall(model: panels)
+                }
+                .padding(.vertical, 12)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func attentionContent(now: Date) -> some View {
         if !inbox.didLoad && inbox.history.isEmpty {
             if inbox.connectionState == .disconnected {
                 ContentUnavailableView(
@@ -45,7 +69,7 @@ struct HomeView: View {
             } else {
                 ProgressView()
                     .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 180)
             }
         } else if inbox.history.isEmpty, let error = inbox.loadError {
             ContentUnavailableView {
@@ -56,19 +80,14 @@ struct HomeView: View {
                 Button("Retry") { Task { await inbox.refresh() } }
             }
         } else {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                ScrollView {
-                    HomeAttentionSection(
-                        groups: AttentionModel.grouped(
-                            from: inbox.history.filter { !inbox.withdrawn.contains($0.id) },
-                            now: context.date
-                        ),
-                        onChoose: handleReply,
-                        onOpen: { AppRouter.shared.open(messageID: $0.rawValue) }
-                    )
-                    .padding(.vertical, 12)
-                }
-            }
+            HomeAttentionSection(
+                groups: AttentionModel.grouped(
+                    from: inbox.history.filter { !inbox.withdrawn.contains($0.id) },
+                    now: now
+                ),
+                onChoose: handleReply,
+                onOpen: { AppRouter.shared.open(messageID: $0.rawValue) }
+            )
         }
     }
 
