@@ -26,13 +26,22 @@ The initial catalog is `hiboss.panel`, version `1`. This is a proposed product
 version, not a json-render package version. Pin an upstream package version and
 commit during Phase 0; never load `latest` from a CDN at runtime.
 
-| Component family | Initial components | Planned extension |
-| --- | --- | --- |
-| Layout | Stack, Grid, Section | Tabs and bounded step navigation |
-| Display | Text, Metric, Progress, Status, Table | Timeline and richer report sections |
-| Charts | LineChart, BarChart | Catalog-owned VegaChart or graph component |
-| Input | TextInput, TextArea, NumberInput, Select, MultiSelect, Toggle, Slider | DateTime, ranked choice, item review |
-| Actions | Button | Always bound to a registered action |
+| Component family | Initial components | Renderer | Planned extension |
+| --- | --- | --- | --- |
+| Layout | Stack, Grid, Section | native | Tabs and bounded step navigation |
+| Display | Text, Metric, Progress, Status | native | Timeline and richer report sections |
+| Display | Table | web leaf | Column semantics beyond a single collapsed column |
+| Charts | LineChart, BarChart | web leaf | Catalog-owned VegaChart or graph component |
+| Input | TextInput, TextArea, NumberInput, Select, MultiSelect, Toggle, Slider | native | DateTime, ranked choice, item review |
+| Actions | Button | native | Always bound to a registered action |
+
+The renderer column is a contract, not an implementation note. A component marked
+`web leaf` is display only: it receives state and reports content height, and it never
+carries an input, an action, or any part of an answer. A component marked `native` is
+never rendered as web content. Adding a component requires choosing its column under the
+same rule, and moving one across is a gate with its own evidence — see the
+[renderer decision](phase0-renderer-decision.md) and the recorded exception in the
+[macOS native contract](../macos-design-v2.md).
 
 Every custom name and prop above needs a HiBoss implementation; they are not a
 claim that json-render ships this exact catalog. The catalog defines field labels,
