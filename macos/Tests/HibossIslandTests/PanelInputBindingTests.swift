@@ -51,4 +51,13 @@ final class PanelInputBindingTests: XCTestCase {
         let filled = try XCTUnwrap(store.submittedAnswerText)
         for id in ["a", "b", "c"] { XCTAssertTrue(filled.contains(id), filled) }
     }
+
+    func testTaskReplacementLeavesFormDraftUntouched() throws {
+        let store = try intakeStore()
+        let before = store.state
+
+        store.replaceTask(.object(["status": .string("running")]))
+
+        XCTAssertEqual(panelValue(at: "/form", in: store.state), panelValue(at: "/form", in: before))
+    }
 }

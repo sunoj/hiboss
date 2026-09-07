@@ -31,6 +31,11 @@ final class PanelsModel: ObservableObject {
     private var fetchedAt: Date?
     private var producerTasks: [Task<Void, Never>] = []
     private var clockTask: Task<Void, Never>?
+    private var relayStates: [String: PanelRelayState] = [:]
+    private var relayConnections: [String: PanelRelayConnection] = [:]
+    private var liveSubscriptions: Set<String> = []
+    private var lastRelayActivity: [String: Date] = [:]
+    private var relayConfig: ConnectionConfig?
 
     init(api: (any PanelsServing)? = nil, demoMode: Bool? = nil, autoload: Bool = true) {
         self.api = api
@@ -39,13 +44,14 @@ final class PanelsModel: ObservableObject {
             self.fixtures = fixtures
             tiles = fixtures.all.enumerated().map { index, fixture in
                 let producer = PanelDemoProducer.catalog[index]
-                return PanelTile(id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture), producer: producer, agentID: nil, order: index)
+                return PanelTile(id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture), producer: producer, agentID: nil, definitionRevision: nil, order: index)
             }
             lastUpdated = Dictionary(uniqueKeysWithValues: tiles.map { ($0.id, Date()) })
             loadState = .loaded
             startSimulation()
         } else {
             fixtures = nil
+            startClock()
             if autoload { Task { await load() } }
         }
     }
@@ -75,13 +81,20 @@ final class PanelsModel: ObservableObject {
                     store: PanelStore(fixture: fixture),
                     producer: nil,
                     agentID: detail.metadata.agentId,
+                    definitionRevision: detail.definition.definitionRevision,
                     order: index
                 ))
             }
+            relayConnections.values.forEach { $0.stop() }
+            relayConnections.removeAll()
+            relayStates.removeAll()
+            liveSubscriptions.removeAll()
+            lastRelayActivity.removeAll()
             tiles = fetchedTiles
             selectedTileID = nil
             fetchedAt = Date()
             loadState = .loaded
+            if let relayConfig { startSubscriptions(config: relayConfig) }
         } catch {
             loadState = .failed(error.localizedDescription)
         }
@@ -100,6 +113,12 @@ final class PanelsModel: ObservableObject {
 
     func freshness(for tile: PanelTile) -> PanelFreshness {
         if tile.agentID != nil {
+            if liveSubscriptions.contains(tile.id), let updated = lastRelayActivity[tile.id] {
+                let age = now.timeIntervalSince(updated)
+                if age < PanelRelayConnection.expectedInterval { return .live }
+                if age < PanelRelayConnection.expectedInterval * 3 { return .stale }
+                return .offline
+            }
             return failureMessage == nil ? .fetched(fetchedAt ?? now) : .cachedFailure
         }
         guard let updated = lastUpdated[tile.id] else { return .offline }
@@ -116,12 +135,60 @@ final class PanelsModel: ObservableObject {
         let settings = AppSettings()
         await settings.loadToken()
         guard case let .success(config) = settings.connectionConfig() else { throw PanelClientError.notConfigured }
+        relayConfig = config
         return HibossAPI(config: config)
     }
 
+    private func startSubscriptions(config: ConnectionConfig) {
+        for tile in tiles where tile.agentID != nil {
+            guard let revision = tile.definitionRevision else { continue }
+            relayStates[tile.id] = PanelRelayState(panelID: tile.id, definitionRevision: revision)
+            let connection = PanelRelayConnection(config: config, panelID: tile.id) { [weak self] frame in
+                self?.receive(frame, for: tile.id)
+            } onDisconnect: { [weak self] in
+                self?.subscriptionLost(for: tile.id)
+            }
+            relayConnections[tile.id] = connection
+            connection.start()
+        }
+    }
+
+    func receive(_ frame: PanelRelayFrame, for tileID: String) {
+        let connection = relayConnections[tileID]
+        if case .subscriptionRevoked = frame {
+            liveSubscriptions.remove(tileID)
+            lastRelayActivity.removeValue(forKey: tileID)
+            connection?.stop()
+            return
+        }
+        guard let tile = tiles.first(where: { $0.id == tileID }), let revision = tile.definitionRevision else { return }
+        var state = relayStates[tileID] ?? PanelRelayState(panelID: tileID, definitionRevision: revision)
+        let result = state.apply(frame)
+        relayStates[tileID] = state
+        guard case .ignored = frame else {
+            guard result != .rejected else { return }
+            liveSubscriptions.insert(tileID)
+            lastRelayActivity[tileID] = Date()
+            if result == .resyncRequired { connection?.requestSnapshot() }
+            if result == .installed || result == .applied, let index = tiles.firstIndex(where: { $0.id == tileID }) {
+                tiles[index].store.replaceTask(PanelJSONValue(remote: state.task))
+            }
+            return
+        }
+    }
+
+    private func subscriptionLost(for tileID: String) {
+        liveSubscriptions.remove(tileID)
+        lastRelayActivity.removeValue(forKey: tileID)
+    }
+
     private func startSimulation() {
-        clockTask = Task { [weak self] in await self?.runClock() }
+        startClock()
         producerTasks = tiles.indices.map { index in Task { [weak self] in await self?.runProducer(at: index) } }
+    }
+
+    private func startClock() {
+        clockTask = Task { [weak self] in await self?.runClock() }
     }
 
     private func runClock() async {
@@ -148,6 +215,8 @@ final class PanelsModel: ObservableObject {
     deinit {
         clockTask?.cancel()
         producerTasks.forEach { $0.cancel() }
+        let connections = Array(relayConnections.values)
+        Task { @MainActor in connections.forEach { $0.stop() } }
     }
 }
 
@@ -157,6 +226,7 @@ struct PanelTile: Identifiable {
     let store: PanelStore
     let producer: PanelDemoProducer?
     let agentID: String?
+    let definitionRevision: Int?
     let order: Int
 
     var sourceLabel: String {

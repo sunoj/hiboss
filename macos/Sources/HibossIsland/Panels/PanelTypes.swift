@@ -112,7 +112,7 @@ private extension PanelAction {
     }
 }
 
-private extension PanelJSONValue {
+extension PanelJSONValue {
     init(remote value: HibossKit.PanelValue) {
         switch value {
         case .null: self = .null
