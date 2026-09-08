@@ -177,8 +177,9 @@ Before relying on the channel, run:
 hiboss panel doctor
 ```
 
-It checks authentication, protocol v2, the resolved session and boss, a producer
-relay ticket, and the subscribe handshake without claiming a lease. A non-zero
+It checks authentication, the resolved session and boss, and confirms a v2 relay
+ticket advertises `lease.release` before testing the subscribe handshake without
+claiming a lease. A non-zero
 result includes the corrective action.
 
 Other actions are `pause`, `resume`, `fail`, and `cancel`. Failure needs a result

@@ -171,11 +171,14 @@ async fn run_doctor(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let panel_id = panel.get("panelId").and_then(Value::as_str).ok_or("panel list returned no panelId")?;
     let details = client.get_panel(panel_id).await?;
     if details.get("targetBossId").and_then(Value::as_str) != Some(boss.as_str()) { return Err("panel target does not match the agent's single resolved boss".into()); }
-    if details.get("definition").and_then(|definition| definition.get("protocolVersion")).and_then(Value::as_u64) != Some(2) { return Err("server does not support panel protocol v2; upgrade the server and CLI together".into()); }
-    transport::subscribe(client, panel_id).await?;
-    println!("auth: ok\nprotocol: v2\nsession: {session_id}\nboss: {boss}\nrelay: ticket and subscribe ok");
+    let ticket = client.issue_panel_connection_ticket(panel_id).await?;
+    if !supports_lease_release(&ticket.operations) { return Err("server relay does not support lease.release; deploy the worker before installing this CLI".into()); }
+    transport::subscribe(client, panel_id, &ticket).await?;
+    println!("auth: ok\nprotocol: v2 (lease.release)\nsession: {session_id}\nboss: {boss}\nrelay: ticket and subscribe ok");
     Ok(())
 }
+
+fn supports_lease_release(operations: &[String]) -> bool { operations.iter().any(|operation| operation == "lease.release") }
 
 fn resolved_boss(value: &Value) -> Result<String, Box<dyn Error>> {
     let bosses = value.get("bosses").and_then(Value::as_array).ok_or("boss API response has no bosses")?;
@@ -230,5 +233,11 @@ mod tests {
         assert_eq!(resolved_boss(&json!({"bosses":[{"id":"boss_1"}]})).expect("boss"), "boss_1");
         assert!(resolved_boss(&json!({"bosses":[]})).is_err());
         assert!(resolved_boss(&json!({"bosses":[{"id":"a"},{"id":"b"}]})).is_err());
+    }
+
+    #[test]
+    fn checks_for_lease_release_capability() {
+        assert!(supports_lease_release(&["subscribe".into(), "lease.release".into()]));
+        assert!(!supports_lease_release(&["subscribe".into()]));
     }
 }

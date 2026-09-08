@@ -21,6 +21,8 @@ pub struct PanelPublishResponse {
 #[derive(Debug, Deserialize)]
 pub struct PanelConnectionTicket {
     pub ticket: String,
+    #[serde(default)]
+    pub operations: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -135,6 +137,18 @@ mod tests {
 
     #[test]
     fn deserializes_machine_readable_publish_response() { let response: PanelPublishResponse = serde_json::from_str(r#"{"panelId":"panel_1","definitionRevision":1,"metadataVersion":1}"#).expect("response"); assert_eq!((response.panel_id, response.definition_revision), ("panel_1".into(), 1)); }
+
+    #[test]
+    fn deserializes_connection_ticket_with_operations() {
+        let ticket: PanelConnectionTicket = serde_json::from_str(r#"{"ticket":"ticket_1","operations":["lease.release"]}"#).expect("ticket");
+        assert_eq!(ticket.operations, vec!["lease.release"]);
+    }
+
+    #[test]
+    fn defaults_connection_ticket_operations_when_omitted() {
+        let ticket: PanelConnectionTicket = serde_json::from_str(r#"{"ticket":"ticket_1"}"#).expect("ticket");
+        assert!(ticket.operations.is_empty());
+    }
 
     #[test]
     fn panel_relay_url_uses_websocket_scheme() {

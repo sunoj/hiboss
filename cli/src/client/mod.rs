@@ -393,4 +393,4 @@ mod panels;
 mod progress;
 mod routing;
 
-pub use panels::PanelPublishResponse;
+pub use panels::{PanelConnectionTicket, PanelPublishResponse};
