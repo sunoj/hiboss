@@ -2,11 +2,11 @@
 // Exports: PanelArgs, PanelCommand, and run.
 // Dependencies: clap, ring, serde_json, panel validation, client, and config.
 
-#[path = "panel_validation.rs"]
+#[path = "panel/validation.rs"]
 mod validation;
-#[path = "panel_json.rs"]
+#[path = "panel/json.rs"]
 mod json;
-#[path = "panel_stream.rs"]
+#[path = "panel/stream.rs"]
 mod stream;
 
 use crate::client::{HiBossClient, PanelPublishResponse};
@@ -24,6 +24,8 @@ pub struct PanelArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum PanelCommand {
+    #[command(about = "Read the built-in dynamic notification and test report delivery guide")]
+    Guide,
     #[command(about = "Validate a panel publication document locally")]
     Validate(PanelFileArgs),
     #[command(about = "Publish a panel publication document")]
@@ -34,6 +36,20 @@ pub enum PanelCommand {
     Show(PanelShowArgs),
     #[command(about = "Stream partial task state from stdin to a live panel")]
     Stream(stream::PanelStreamArgs),
+    #[command(about = "Read the authoritative producer checkpoint")]
+    State(PanelShowArgs),
+    #[command(about = "Apply a v2 pause/resume/complete/fail/cancel command from a JSON file")]
+    Lifecycle(PanelControlArgs),
+    #[command(about = "Replace the definition with a version-checked v2 command file")]
+    Definition(PanelControlArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct PanelControlArgs {
+    pub id: String,
+    pub file: PathBuf,
+    #[arg(long, help = "Stable key for this exact command; reuse when retrying")]
+    pub idempotency_key: String,
 }
 
 #[derive(Debug, Args)]
@@ -63,12 +79,27 @@ pub struct PanelShowArgs {
 
 pub async fn run(args: &PanelArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     match &args.command {
+        PanelCommand::Guide => { println!("{}", crate::commands::setup_agents::PANEL_GUIDE); Ok(()) },
         PanelCommand::Validate(arguments) => run_validate(arguments),
         PanelCommand::Publish(arguments) => run_publish(arguments, client).await,
         PanelCommand::List(arguments) => run_list(arguments, client).await,
         PanelCommand::Show(arguments) => run_show(arguments, client).await,
         PanelCommand::Stream(arguments) => stream::run(arguments, client).await,
+        PanelCommand::State(arguments) => { println!("{}", serde_json::to_string_pretty(&client.panel_state(&arguments.id).await?)?); Ok(()) },
+        PanelCommand::Lifecycle(arguments) => run_control(arguments, client, "lifecycle").await,
+        PanelCommand::Definition(arguments) => run_control(arguments, client, "definition").await,
     }
+}
+
+async fn run_control(args: &PanelControlArgs, client: &HiBossClient, action: &str) -> Result<(), Box<dyn Error>> {
+    let body: Value = serde_json::from_slice(&std::fs::read(&args.file)?)?;
+    if body.get("protocolVersion").and_then(Value::as_u64) != Some(2) { return Err("control requires protocolVersion 2".into()); }
+    let result = client.panel_command(&args.id, action, &body, &args.idempotency_key).await?;
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    if result.get("status").and_then(Value::as_str) == Some("pending") {
+        return Err("result is still saving; retry the same file and idempotency key".into());
+    }
+    Ok(())
 }
 
 pub fn run_validate(args: &PanelFileArgs) -> Result<(), Box<dyn Error>> {
@@ -92,7 +123,7 @@ async fn run_list(args: &PanelListArgs, client: &HiBossClient) -> Result<(), Box
     let Some(panels) = panels else { println!("{}", serde_json::to_string_pretty(&response)?); return Ok(()); };
     if panels.is_empty() { eprintln!("No panels found"); return Ok(()); }
     println!("{:<24} {:<28} {:<10} {}", "ID", "TITLE", "REVISION", "STATUS");
-    for panel in panels { println!("{:<24} {:<28} {:<10} {}", field(panel, &["panelId", "id"]), field(panel, &["title"]), field(panel, &["definitionRevision"]), field(panel, &["status"])); }
+    for panel in panels { println!("{:<24} {:<28} {:<10} {}", field(panel, &["panelId", "id"]), field(panel, &["title"]), field(panel, &["definitionRevision"]), field(&panel["lifecycle"], &["taskState"])); }
     Ok(())
 }
 

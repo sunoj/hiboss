@@ -14,7 +14,7 @@ const OTHER_AGENT_KEY = 'hb_panels_other_agent_0000000000000001';
 
 function panelBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    protocolVersion: 1,
+    protocolVersion: 2,
     targetBossId: BOSS_ID,
     taskKey: 'panel-publication-test',
     sessionId: 'panels-test-session',

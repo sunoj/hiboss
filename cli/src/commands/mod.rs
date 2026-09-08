@@ -27,6 +27,7 @@ pub mod progress;
 pub mod panel;
 pub mod send;
 pub mod setup;
+pub mod setup_agents;
 pub mod setup_hooks;
 pub mod ss;
 pub mod status;

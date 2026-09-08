@@ -16,7 +16,7 @@ final class PanelsAPITests: XCTestCase {
         PanelsURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/api/panels")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
-            return try Self.response(for: request, json: #"{"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z"}],"nextCursor":null}"#)
+            return try Self.response(for: request, json: #"{"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z"}],"nextCursor":null}"#)
         }
         let panels = try await HibossAPI(config: config(), session: session()).fetchPanels()
 
@@ -30,7 +30,7 @@ final class PanelsAPITests: XCTestCase {
     func testFetchPanelDecodesFlattenedMetadataAndDefinition() async throws {
         PanelsURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/api/panels/panel_1")
-            return try Self.response(for: request, json: #"{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z","definition":{"definitionRevision":1,"protocolVersion":1,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Stack","props":{"direction":"vertical"},"children":["metric"]},"metric":{"type":"Metric","props":{"label":"Completed","value":{"$state":"/task/completed"}},"children":[]}}},"stateSchema":{"type":"object"},"initialState":{"task":{"completed":4}},"createdAt":"2026-09-07T10:00:00Z"}}"#)
+            return try Self.response(for: request, json: #"{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"build","sessionId":"session_1","sessionLabel":"checkout/main","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{"stage":"Running"},"createdAt":"2026-09-07T10:00:00Z","definition":{"definitionRevision":1,"protocolVersion":2,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Stack","props":{"direction":"vertical"},"children":["metric"]},"metric":{"type":"Metric","props":{"label":"Completed","value":{"$state":"/task/completed"}},"children":[]}}},"stateSchema":{"type":"object"},"initialState":{"task":{"completed":4}},"createdAt":"2026-09-07T10:00:00Z"}}"#)
         }
         let detail = try await HibossAPI(config: config(), session: session()).fetchPanel("panel_1")
 
@@ -120,7 +120,7 @@ extension PanelsAPITests {
         let json = """
         {"panels":[{"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1",
         "taskKey":"t","sessionId":"s","title":"Older server","catalogId":"hiboss.panel",
-        "catalogVersion":1,"definitionRevision":1,"metadataVersion":1,
+        "catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,
         "summary":{"stage":"Running"},"createdAt":"2026-09-07T12:00:00Z"}]}
         """
         let page = try JSONDecoder().decode(PanelListPage.self, from: Data(json.utf8))

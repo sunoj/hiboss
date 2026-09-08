@@ -10,6 +10,11 @@ message lands in your chat app, and your reply flows back to the agent.
 Agents can also act as bosses for other agents, enabling autonomous multi-agent
 workflows where a human can still step in at any time.
 
+Dynamic notifications and persistent task/report cards use `hiboss panel`.
+Install the agent entry point with `hiboss setup agents`, then read
+`hiboss panel guide`. See the [agent delivery guide](cli/resources/panel-agent-guide.md)
+and [v2 implementation / rollout status](docs/live-panels/implementation.md).
+
 ## Architecture
 
 ```
@@ -51,6 +56,7 @@ npx wrangler deploy
 cd cli
 cargo build --release
 cp target/release/hiboss ~/.cargo/bin/
+hiboss setup agents    # install/refresh Codex and Claude global Panels guidance
 ```
 
 ### 3. Initialize

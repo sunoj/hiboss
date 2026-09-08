@@ -1,6 +1,6 @@
-// Main window: category overview and sessions beside the selected message surface.
-// Exports: MainView with adaptive overview navigation and shared attention drafts.
-// Dependencies: SwiftUI, HibossKit, OverviewSnapshot, AttentionView, HistoryView.
+// Main window: unified Dashboard home with decision categories and session drill-down.
+// Exports: MainView with persistent Panels state and shared attention drafts.
+// Dependencies: SwiftUI, HibossKit, DashboardView, AttentionView, and HistoryView.
 
 import HibossKit
 import SwiftUI
@@ -11,12 +11,25 @@ struct MainView: View {
     @ObservedObject var flow: OptionFlowStore
     @StateObject private var reply = AttentionReplyState()
     @StateObject private var overviewStore = OverviewStore()
-    @State private var destination: OverviewDestination = ProcessInfo.processInfo.environment["HIBOSS_PANELS_DEMO"] == "1" ? .panels : .category(.needsYou)
+    @StateObject private var panels: PanelsModel
+    @State private var destination: OverviewDestination = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showsCompactOverview = false
     @State private var previewHistory = AttentionPreview.historyIfRequested()
 
     private static let sidebarMinimumWidth: CGFloat = 760
+
+    init(settings: AppSettings, flow: OptionFlowStore) {
+        self.settings = settings
+        self.flow = flow
+        _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
+            await settings.loadToken()
+            guard case let .success(config) = settings.connectionConfig() else {
+                throw PanelClientError.notConfigured
+            }
+            return config
+        }))
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -64,10 +77,11 @@ struct MainView: View {
                     ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
                     .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : .secondary)
                     .help(flow.connectionState.label)
-                Button { Task { await flow.refreshHistory() } } label: {
+                Button(action: refresh) {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help(L("Refresh messages")).disabled(flow.historyState == .loading)
+                .help(destination == .dashboard ? L("Refresh dashboard") : L("Refresh messages"))
+                .disabled(flow.historyState == .loading || (destination == .dashboard && panels.isLoading))
             }
         }
     }
@@ -78,19 +92,16 @@ struct MainView: View {
             connectionState: previewHistory == nil ? flow.connectionState : .connected,
             onSelect: { destination = $0; showsCompactOverview = false },
             onSettings: { openWindow(id: "settings") },
-            onRefresh: { Task { await flow.refreshHistory() } })
+            onRefresh: refresh)
     }
 
     private func destinationContent(_ snapshot: OverviewSnapshot) -> some View {
         GeometryReader { geometry in
-            if destination == .panels {
-                PanelsView(configurationProvider: {
-                    await settings.loadToken()
-                    guard case let .success(config) = settings.connectionConfig() else {
-                        throw PanelClientError.notConfigured
-                    }
-                    return config
-                })
+            if destination == .dashboard {
+                DashboardView(flow: flow, reply: reply, panels: panels, snapshot: snapshot,
+                    isPreview: previewHistory != nil,
+                    onAllDecisions: { destination = .category(.needsYou) },
+                    onSettings: { openWindow(id: "settings") })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else {
                 VStack(spacing: 0) {
@@ -124,5 +135,10 @@ struct MainView: View {
 
     private func adaptSidebar(to width: CGFloat) {
         columnVisibility = width < Self.sidebarMinimumWidth ? .detailOnly : .all
+    }
+
+    private func refresh() {
+        Task { await flow.refreshHistory() }
+        if destination == .dashboard { Task { await panels.load() } }
     }
 }

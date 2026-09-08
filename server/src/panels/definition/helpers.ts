@@ -88,6 +88,9 @@ export function validationError(issue: ValidationIssue, pathPrefix = ''): { code
 }
 
 export function validatePublication(payload: PanelRequest): { ok: true } | { ok: false; error: ReturnType<typeof validationError> } {
+  if (!isRecord(payload.initialState) || !isJsonValue(payload.initialState.task) || Object.keys(payload.initialState).some(key => key !== 'task')) {
+    return { ok: false, error: { code: 'invalid_spec', message: 'Initial state must contain only the task namespace', path: '/initialState' } };
+  }
   const catalog = validateCatalogIdentity(payload.catalogId, payload.catalogVersion);
   if (!catalog.ok) return { ok: false, error: validationError(catalog.error) };
   const schema = validateAnswerSchema(payload.stateSchema);
@@ -101,7 +104,11 @@ export function validatePublication(payload: PanelRequest): { ok: true } | { ok:
 
 export function metadataFromRow(row: PanelMetadataRow): PanelMetadata {
   return {
+    serverTime: Date.now(),
     panelId: row.panel_id,
+    lifecycle: JSON.parse(row.lifecycle_json),
+    finalSnapshot: row.final_snapshot_json ? JSON.parse(row.final_snapshot_json) : null,
+    supersedesPanelId: row.supersedes_panel_id,
     agentId: row.agent_id,
     agentName: row.agent_name,
     targetBossId: row.target_boss_id,

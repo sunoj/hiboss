@@ -68,7 +68,7 @@ enum Commands {
     Daemon(daemon::DaemonArgs),
     #[command(about = "Post and browse project progress updates")]
     Progress(progress::ProgressArgs),
-    #[command(about = "Publish and read live panels")]
+    #[command(about = "Deliver dynamic notifications and task reports with live panels")]
     Panel(panel::PanelArgs),
 }
 
@@ -97,38 +97,7 @@ async fn main() {
 async fn run() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let mut config = config::load_config()?;
-    match &cli.command {
-        Commands::Config(command) => {
-            config_cmd::run(&command.command, &mut config).await?;
-            return Ok(());
-        }
-        Commands::Init(command) => {
-            init::run(command, &mut config).await?;
-            return Ok(());
-        }
-        Commands::Hook(args) => {
-            hook::run(args).await?;
-            return Ok(());
-        }
-        Commands::Setup(args) if !setup::needs_client(args) => {
-            setup::run(args)?;
-            return Ok(());
-        }
-        Commands::Doctor(args) => {
-            doctor::run(args, &config).await?;
-            return Ok(());
-        }
-        Commands::Daemon(args) => {
-            daemon::run(args).await?;
-            return Ok(());
-        }
-        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Validate(_)) => {
-            panel::run_validate(match &args.command { panel::PanelCommand::Validate(arguments) => arguments, _ => unreachable!() })?;
-            return Ok(());
-        }
-        Commands::Progress(_) => {}
-        _ => {}
-    }
+    if run_local(&cli.command, &mut config).await? { return Ok(()); }
     let server = config.require_server()?;
     let key = config.require_key()?;
     let client = client::HiBossClient::new(&server, &key);
@@ -160,4 +129,44 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Daemon(_) => unreachable!(),
     }
     Ok(())
+}
+
+async fn run_local(command: &Commands, config: &mut config::Config) -> Result<bool, Box<dyn Error>> {
+    match command {
+        Commands::Config(command) => {
+            config_cmd::run(&command.command, config).await?;
+            return Ok(true);
+        }
+        Commands::Init(command) => {
+            init::run(command, config).await?;
+            return Ok(true);
+        }
+        Commands::Hook(args) => {
+            hook::run(args).await?;
+            return Ok(true);
+        }
+        Commands::Setup(args) if !setup::needs_client(args) => {
+            setup::run(args)?;
+            return Ok(true);
+        }
+        Commands::Doctor(args) => {
+            doctor::run(args, &config).await?;
+            return Ok(true);
+        }
+        Commands::Daemon(args) => {
+            daemon::run(args).await?;
+            return Ok(true);
+        }
+        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Guide) => {
+            println!("{}", hiboss::commands::setup_agents::PANEL_GUIDE);
+            return Ok(true);
+        }
+        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Validate(_)) => {
+            panel::run_validate(match &args.command { panel::PanelCommand::Validate(arguments) => arguments, _ => unreachable!() })?;
+            return Ok(true);
+        }
+        Commands::Progress(_) => {}
+        _ => {}
+    }
+    Ok(false)
 }

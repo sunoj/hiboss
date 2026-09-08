@@ -2,6 +2,7 @@
 // Exports typed JSON, rows, metadata, and definition contracts.
 // Dependencies: panel-runtime validation types.
 
+import type { Lifecycle, Checkpoint } from '../lifecycle/types';
 import type { AnswerSchema, PanelSpec } from '@hiboss/panel-runtime';
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { readonly [key: string]: JsonValue };
@@ -21,6 +22,9 @@ export interface PanelMetadataRow {
   readonly metadata_version: number;
   readonly summary_json: string;
   readonly request_hash: string;
+  readonly lifecycle_json: string;
+  readonly final_snapshot_json: string | null;
+  readonly supersedes_panel_id: string | null;
   readonly created_at: string;
 }
 
@@ -37,6 +41,10 @@ export interface PanelDefinitionRow {
 }
 
 export interface PanelMetadata {
+  readonly serverTime: number;
+  readonly lifecycle: Lifecycle;
+  readonly finalSnapshot: Checkpoint | null;
+  readonly supersedesPanelId: string | null;
   readonly panelId: string;
   readonly agentId: string;
   readonly agentName: string;

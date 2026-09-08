@@ -39,7 +39,8 @@ final class PanelsModelTests: XCTestCase {
 
         model.receive(.snapshot(PanelRelaySnapshot(
             panelID: tile.id, definitionRevision: 1, epoch: "epoch-1", sequence: 0,
-            task: .object(["done": .number(4)])
+            task: .object(["done": .number(4)]), observationVersion: 1, lastObservedAt: Date().ISO8601Format(),
+            staleAt: Date().addingTimeInterval(30).ISO8601Format(), leaseExpiresAt: Date().addingTimeInterval(45).ISO8601Format()
         )), for: tile.id)
         if case .live = model.freshness(for: tile) {} else {
             XCTFail("a receiving subscription should claim live")
@@ -48,9 +49,9 @@ final class PanelsModelTests: XCTestCase {
         // A subscription that silently stops delivering must degrade on its own. Only the
         // revoked path was covered, and revocation is the rarer failure — a socket that
         // goes quiet keeps its badge unless age is what decides.
-        let stalled = Date().addingTimeInterval(PanelRelayConnection.expectedInterval * 2)
+        let stalled = Date().addingTimeInterval(15 * 2)
         assertNotLive(model.freshness(for: tile, at: stalled))
-        let abandoned = Date().addingTimeInterval(PanelRelayConnection.expectedInterval * 10)
+        let abandoned = Date().addingTimeInterval(15 * 10)
         assertNotLive(model.freshness(for: tile, at: abandoned))
 
         model.receive(.subscriptionRevoked, for: tile.id)
@@ -113,11 +114,19 @@ actor StubPanelsService: PanelsServing {
         return detail
     }
 
+    func fetchPanelState(_ panelID: String) async throws -> PanelRelaySnapshot {
+        guard let detail else { throw Failure.unavailable }
+        return PanelRelaySnapshot(panelID: panelID, definitionRevision: 1, epoch: nil, sequence: 0,
+            task: panelValue(at: "/task", in: detail.definition.initialState) ?? .null)
+    }
+
+    func updatePanelPreference(_ panelID: String, command: PanelPreferenceCommand) async throws -> PanelPreference { throw Failure.unavailable }
+
     private static let listJSON = """
-    {"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","sessionLabel":"checkout/main","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running","headline":{"path":"/task/done","label":"Done"}},"createdAt":"2026-09-07T12:00:00Z"}]}
+    {"panels":[{"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","sessionLabel":"checkout/main","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{"stage":"Running","headline":{"path":"/task/done","label":"Done"}},"createdAt":"2026-09-07T12:00:00Z"}]}
     """
 
     private static let detailJSON = """
-    {"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","sessionLabel":"checkout/main","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{"stage":"Running","headline":{"path":"/task/done","label":"Done"}},"createdAt":"2026-09-07T12:00:00Z","definition":{"definitionRevision":1,"protocolVersion":1,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Metric","props":{"label":"Done","value":{"$state":"/task/done"}},"children":[]}}},"stateSchema":{"type":"object","properties":{"task":{"type":"object","properties":{"done":{"type":"integer"}},"required":["done"],"additionalProperties":false}},"required":["task"],"additionalProperties":false},"initialState":{"task":{"done":3}},"createdAt":"2026-09-07T12:00:00Z"}}
+    {"panelId":"panel_1","agentId":"agent_1","agentName":"Build Agent","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","sessionLabel":"checkout/main","title":"Nightly transfer","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{"stage":"Running","headline":{"path":"/task/done","label":"Done"}},"createdAt":"2026-09-07T12:00:00Z","definition":{"definitionRevision":1,"protocolVersion":2,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Metric","props":{"label":"Done","value":{"$state":"/task/done"}},"children":[]}}},"stateSchema":{"type":"object","properties":{"task":{"type":"object","properties":{"done":{"type":"integer"}},"required":["done"],"additionalProperties":false}},"required":["task"],"additionalProperties":false},"initialState":{"task":{"done":3}},"createdAt":"2026-09-07T12:00:00Z"}}
     """
 }

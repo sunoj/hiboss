@@ -1,5 +1,5 @@
 {
-  "protocolVersion": 1,
+  "protocolVersion": 2,
   "catalogId": "hiboss.panel",
   "catalogVersion": 1,
   "title": "Image pipeline benchmark",

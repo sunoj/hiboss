@@ -15,7 +15,7 @@ struct HibossIslandApp: App {
         Window("HiBoss", id: "main") {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow)
         }
-        .defaultSize(width: 960, height: 640)
+        .defaultSize(width: 1320, height: 820)
         .commands { SettingsWindowCommands() }
 
         Window(L("Settings"), id: "settings") {

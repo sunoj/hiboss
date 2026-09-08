@@ -52,6 +52,18 @@ impl HiBossClient {
         parse_panel_response(response, "panel lookup").await
     }
 
+    pub async fn panel_state(&self, id: &str) -> Result<Value, Box<dyn Error>> {
+        let response = self.http.get(format!("{}/api/panels/{id}/state", self.base_url)).bearer_auth(&self.api_key).send().await?;
+        parse_panel_response(response, "panel checkpoint").await
+    }
+
+    pub async fn panel_command(&self, id: &str, action: &str, body: &Value, key: &str) -> Result<Value, Box<dyn Error>> {
+        let url = format!("{}/api/panels/{id}/{action}", self.base_url);
+        let request = if action == "definition" { self.http.put(url) } else { self.http.post(url) };
+        let response = request.bearer_auth(&self.api_key).header("Idempotency-Key", key).json(body).send().await?;
+        parse_panel_response(response, "panel control").await
+    }
+
     pub async fn issue_panel_connection_ticket(&self, id: &str) -> Result<PanelConnectionTicket, Box<dyn Error>> {
         let response = self.http.post(format!("{}/api/panel-connections", self.base_url))
             .bearer_auth(&self.api_key).json(&serde_json::json!({"panelId": id, "role": "producer"})).send().await?;

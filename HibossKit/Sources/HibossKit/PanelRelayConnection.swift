@@ -6,7 +6,6 @@ import Foundation
 
 @MainActor
 public final class PanelRelayConnection {
-    public static let expectedInterval: TimeInterval = 5
 
     private let config: ConnectionConfig
     private let panelID: String
@@ -91,6 +90,6 @@ public final class PanelRelayConnection {
     }
 
     private static func subscribeMessage(panelID: String) -> String {
-        "{\"kind\":\"subscribe\",\"panelId\":\"\(panelID)\"}"
+        "{\"protocolVersion\":2,\"kind\":\"subscribe\",\"panelId\":\"\(panelID)\"}"
     }
 }

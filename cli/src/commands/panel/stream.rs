@@ -22,6 +22,8 @@ const MAX_RECONNECTS: usize = 5;
 pub struct PanelStreamArgs {
     #[arg(value_name = "PANEL_ID")]
     pub panel_id: String,
+    #[arg(long, help = "Explicitly replace this currently active producer epoch")]
+    pub takeover_epoch: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -32,8 +34,10 @@ struct RelayFrame {
     #[serde(rename = "acceptedSequence")]
     accepted_sequence: Option<u64>,
     task: Option<Value>,
+    epoch: Option<String>,
+    snapshot: Option<Snapshot>,
 }
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 struct Snapshot { sequence: u64, task: Value }
 
 struct Connection {
@@ -41,73 +45,21 @@ struct Connection {
     reader: futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
     epoch: String,
 }
-struct Batcher {
-    pending: bool,
-    deadline: Option<Instant>,
-    window: Duration,
-}
-impl Batcher {
-    fn new(window: Duration) -> Self { Self { pending: false, deadline: None, window } }
-    fn push(&mut self, now: Instant) { self.pending = true; self.deadline.get_or_insert(now + self.window); }
-    fn due(&self, now: Instant) -> bool { self.pending && self.deadline.is_some_and(|deadline| now >= deadline) }
-    fn force(&mut self) { self.pending = true; self.deadline = Some(Instant::now()); }
-    fn clear(&mut self) { self.pending = false; self.deadline = None; }
-}
-
-struct StreamState {
-    acknowledged: Value,
-    desired: Value,
-    sequence: u64,
-    in_flight: Option<Value>,
-    ambiguous: bool,
-    batch: Batcher,
-}
-impl StreamState {
-    fn from_snapshot(snapshot: Snapshot) -> Result<Self, Box<dyn Error>> {
-        if !snapshot.task.is_object() { return Err("panel snapshot task must be an object".into()); }
-        Ok(Self { acknowledged: snapshot.task.clone(), desired: snapshot.task, sequence: snapshot.sequence, in_flight: None, ambiguous: false, batch: Batcher::new(BATCH_WINDOW) })
-    }
-
-    fn add_partial(&mut self, partial: Value) -> Result<(), Box<dyn Error>> {
-        let partial = partial.as_object().ok_or("each stream line must be a JSON object")?;
-        merge_object(self.desired.as_object_mut().ok_or("panel task must be an object")?, partial);
-        self.batch.push(Instant::now());
-        Ok(())
-    }
-
-    fn ready(&self, now: Instant) -> bool { self.in_flight.is_none() && self.batch.due(now) && self.desired != self.acknowledged }
-
-    fn acknowledge(&mut self, sequence: u64) -> bool {
-        let Some(target) = self.in_flight.take() else { return false; };
-        self.acknowledged = target;
-        self.sequence = sequence;
-        true
-    }
-
-    fn resync(&mut self, snapshot: Snapshot) -> Result<(), Box<dyn Error>> {
-        if !snapshot.task.is_object() { return Err("panel resync task must be an object".into()); }
-        self.acknowledged = snapshot.task;
-        self.sequence = snapshot.sequence;
-        self.in_flight = None;
-        if self.desired != self.acknowledged { self.batch.force(); }
-        Ok(())
-    }
-
-    fn reconnect(&mut self, snapshot: Snapshot) -> Result<(), Box<dyn Error>> {
-        if self.in_flight.is_some() { self.ambiguous = true; }
-        self.resync(snapshot)
-    }
-
-    fn finished(&self) -> bool { self.in_flight.is_none() && !self.batch.pending && !self.ambiguous }
-}
+#[path = "stream_state.rs"]
+mod state;
+use state::StreamState;
+#[cfg(test)]
+use state::Batcher;
 
 pub async fn run(args: &PanelStreamArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let panel = client.get_panel(&args.panel_id).await?;
     let revision = panel.get("definitionRevision").and_then(Value::as_u64).unwrap_or(1);
-    let (mut connection, snapshot) = connect(client, &args.panel_id).await?;
+    let (mut connection, snapshot) = connect(client, &args.panel_id, revision, args.takeover_epoch.as_deref()).await?;
     let mut state = StreamState::from_snapshot(snapshot)?;
     let (tx, mut rx) = mpsc::channel::<Result<String, String>>(32);
     tokio::spawn(read_stdin(tx));
+    let mut renewal = tokio::time::interval(Duration::from_secs(15));
+    renewal.tick().await;
     let mut input_closed = false;
     let mut drain_deadline = None;
 
@@ -118,6 +70,7 @@ pub async fn run(args: &PanelStreamArgs, client: &HiBossClient) -> Result<(), Bo
         let wake_at = deadline.map_or_else(Instant::now, |value| value);
         let drain_at = drain_deadline.map_or_else(Instant::now, |value| value);
         tokio::select! {
+            _ = renewal.tick() => connection.writer.send(Message::Text(json!({"protocolVersion":2,"kind":"lease.renew","panelId":args.panel_id,"definitionRevision":revision,"epoch":connection.epoch}).to_string().into())).await?,
             line = rx.recv(), if !input_closed => match line {
                 Some(Ok(line)) => if !line.trim().is_empty() { state.add_partial(serde_json::from_str(&line)?)?; },
                 Some(Err(error)) => return Err(error.into()),
@@ -125,7 +78,7 @@ pub async fn run(args: &PanelStreamArgs, client: &HiBossClient) -> Result<(), Bo
             },
             frame = connection.reader.next() => match frame {
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => {
-                    let (next, snapshot) = reconnect(client, &args.panel_id).await?;
+                    let (next, snapshot) = reconnect(client, &args.panel_id, revision, &connection.epoch).await?;
                     state.reconnect(snapshot)?;
                     connection = next;
                 }
@@ -154,33 +107,34 @@ async fn read_stdin(tx: mpsc::Sender<Result<String, String>>) {
     }
 }
 
-async fn connect(client: &HiBossClient, panel_id: &str) -> Result<(Connection, Snapshot), Box<dyn Error>> {
+async fn connect(client: &HiBossClient, panel_id: &str, revision: u64, takeover: Option<&str>) -> Result<(Connection, Snapshot), Box<dyn Error>> {
     let ticket = client.issue_panel_connection_ticket(panel_id).await?;
     let mut request = client.panel_relay_url().into_client_request()?;
     request.headers_mut().insert("X-Panel-Connection-Ticket", ticket.ticket.parse()?);
     let (socket, _) = connect_async(request).await?;
-    let epoch = new_epoch();
     let (mut writer, mut reader) = socket.split();
-    writer.send(Message::Text(json!({"kind":"subscribe","panelId":panel_id}).to_string().into())).await?;
-    writer.send(Message::Text(json!({"kind":"lease.claim","panelId":panel_id,"epoch":epoch}).to_string().into())).await?;
-    let mut snapshot = None;
-    let mut lease_ack = false;
-    while snapshot.is_none() || !lease_ack {
+    writer.send(Message::Text(json!({"protocolVersion":2,"kind":"subscribe","panelId":panel_id}).to_string().into())).await?;
+    let mut claim = json!({"protocolVersion":2,"kind":"lease.claim","panelId":panel_id,"definitionRevision":revision,"requestId":new_epoch()});
+    if let Some(epoch) = takeover { claim["takeoverEpoch"] = json!(epoch); }
+    writer.send(Message::Text(claim.to_string().into())).await?;
+    loop {
         let message = timeout(HANDSHAKE_TIMEOUT, reader.next()).await?.ok_or("relay closed during handshake")??;
         let frame = parse_frame(message)?;
         match frame.kind.as_str() {
-            "state.snapshot" => snapshot = Some(snapshot_from(frame)?),
-            "lease.ack" => lease_ack = true,
+            "lease.ack" => {
+                let epoch = frame.epoch.ok_or("lease ack has no server epoch")?;
+                let snapshot = frame.snapshot.ok_or("lease ack has no baseline")?;
+                return Ok((Connection { writer, reader, epoch }, snapshot));
+            },
             "error" => return Err(relay_error(frame.code.as_deref()).into()),
             _ => {}
         }
     }
-    Ok((Connection { writer, reader, epoch }, snapshot.ok_or("relay sent no snapshot")?))
 }
 
-async fn reconnect(client: &HiBossClient, panel_id: &str) -> Result<(Connection, Snapshot), Box<dyn Error>> {
+async fn reconnect(client: &HiBossClient, panel_id: &str, revision: u64, epoch: &str) -> Result<(Connection, Snapshot), Box<dyn Error>> {
     for attempt in 0..MAX_RECONNECTS {
-        match connect(client, panel_id).await {
+        match connect(client, panel_id, revision, Some(epoch)).await {
             Ok(value) => return Ok(value),
             Err(error) if attempt + 1 < MAX_RECONNECTS => { sleep(Duration::from_millis(100 * 2u64.pow(attempt as u32))).await; let _ = error; }
             Err(error) => return Err(format!("relay reconnect failed: {error}").into()),
@@ -195,7 +149,7 @@ async fn handle_message(connection: &mut Connection, state: &mut StreamState, me
     match frame_action(&frame) {
         FrameAction::Acknowledge(sequence) => if state.acknowledge(sequence) { println!("ack {sequence}"); },
         FrameAction::Resync => {
-            connection.writer.send(Message::Text(json!({"kind":"subscribe","panelId":panel_id}).to_string().into())).await?;
+            connection.writer.send(Message::Text(json!({"protocolVersion":2,"kind":"subscribe","panelId":panel_id}).to_string().into())).await?;
             let snapshot = receive_snapshot(&mut connection.reader).await?;
             state.resync(snapshot)?;
         }
@@ -244,10 +198,10 @@ async fn receive_snapshot(reader: &mut futures_util::stream::SplitStream<tokio_t
 
 async fn send_update(writer: &mut futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, Message>, state: &mut StreamState, panel_id: &str, revision: u64, epoch: &str) -> Result<(), Box<dyn Error>> {
     let ops = diff_values(&state.acknowledged, &state.desired, "/task");
-    if ops.is_empty() { state.batch.clear(); return Ok(()); }
+    let kind = if ops.is_empty() { "state.unchanged" } else { "state.update" };
     state.in_flight = Some(state.desired.clone());
     state.batch.clear();
-    let update = json!({"protocolVersion":1,"kind":"state.update","panelId":panel_id,"definitionRevision":revision,"epoch":epoch,"updateId":new_epoch(),"baseSequence":state.sequence,"ops":ops});
+    let update = json!({"protocolVersion":2,"kind":kind,"panelId":panel_id,"definitionRevision":revision,"epoch":epoch,"updateId":new_epoch(),"baseSequence":state.sequence,"ops":ops});
     writer.send(Message::Text(serde_json::to_string(&update)?.into())).await?;
     Ok(())
 }
@@ -279,67 +233,22 @@ fn diff_values(old: &Value, new: &Value, path: &str) -> Vec<Value> {
     let mut ops = Vec::new();
     for (key, value) in new {
         let child = format!("{path}/{}", escape_pointer(key));
-        match old.get(key) { Some(previous) if previous == value => {}, Some(previous) => ops.extend(diff_values(previous, value, &child)), None => ops.push(json!({"op":"add","path":child,"value":value})) }
+        match old.get(key) { Some(previous) if same_value(previous, value) => {}, Some(previous) => ops.extend(diff_values(previous, value, &child)), None => ops.push(json!({"op":"add","path":child,"value":value})) }
     }
     ops
+}
+
+fn same_value(old: &Value, new: &Value) -> bool {
+    match (old, new) {
+        (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
+        (Value::Array(a), Value::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same_value(a, b)),
+        (Value::Object(a), Value::Object(b)) => a.len() == b.len() && a.iter().all(|(key, a)| b.get(key).is_some_and(|b| same_value(a, b))),
+        _ => old == new,
+    }
 }
 
 fn escape_pointer(value: &str) -> String { value.replace('~', "~0").replace('/', "~1") }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn batching_waits_for_window_and_coalesces() {
-        let start = Instant::now();
-        let mut batch = Batcher::new(Duration::from_millis(20));
-        batch.push(start);
-        assert!(!batch.due(start + Duration::from_millis(19)));
-        assert!(batch.due(start + Duration::from_millis(20)));
-        batch.push(start + Duration::from_millis(1));
-        assert_eq!(batch.deadline, Some(start + Duration::from_millis(20)));
-        let mut state = StreamState::from_snapshot(Snapshot { sequence: 0, task: json!({}) }).expect("snapshot");
-        state.add_partial(json!({"metrics":{"a":1}})).expect("partial");
-        state.add_partial(json!({"metrics":{"b":2}})).expect("partial");
-        assert_eq!(state.desired, json!({"metrics":{"a":1,"b":2}}));
-    }
-
-    #[test]
-    fn resync_rebases_to_snapshot_without_losing_desired_state() {
-        let mut state = StreamState::from_snapshot(Snapshot { sequence: 4, task: json!({"done": 1}) }).expect("snapshot");
-        state.add_partial(json!({"done": 2})).expect("partial");
-        state.batch.force();
-        state.in_flight = Some(state.desired.clone());
-        state.batch.clear();
-        state.resync(Snapshot { sequence: 7, task: json!({"done": 1, "note":"server"}) }).expect("resync");
-        assert_eq!(state.sequence, 7);
-        assert!(state.in_flight.is_none());
-        assert_eq!(diff_values(&state.acknowledged, &state.desired, "/task").len(), 1);
-    }
-
-    #[test]
-    fn fenced_epoch_stops_the_producer_rather_than_retrying() {
-        // The earlier test asserted only how relay_error formats a string, so deleting the
-        // stop entirely left all 179 tests green.
-        for code in ["lease_conflict", "fenced_epoch"] {
-            let frame = RelayFrame { kind: "error".into(), code: Some(code.into()), ..RelayFrame::default() };
-            match frame_action(&frame) {
-                FrameAction::Stop(reason) => assert!(reason.contains(code), "{reason}"),
-                other => panic!("{code} produced {other:?} instead of a stop"),
-            }
-        }
-    }
-
-    #[test]
-    fn a_resync_error_recovers_instead_of_stopping() {
-        let frame = RelayFrame { kind: "error".into(), code: Some("resync_required".into()), ..RelayFrame::default() };
-        assert_eq!(frame_action(&frame), FrameAction::Resync);
-    }
-
-    #[test]
-    fn fenced_epoch_is_a_stop_signal() {
-        assert_eq!(relay_error(Some("lease_conflict")), "panel relay stopped: lease_conflict");
-        assert_eq!(relay_error(Some("fenced_epoch")), "panel relay stopped: fenced_epoch");
-    }
-}
+#[path = "stream_tests.rs"]
+mod tests;

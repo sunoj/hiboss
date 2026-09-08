@@ -6,6 +6,9 @@ import SwiftUI
 
 @MainActor
 public struct PanelTile: Identifiable {
+    public var metadata: PanelMetadata?
+    public var lifecycle: PanelLifecycle { metadata?.lifecycle ?? .running }
+    public var preference: PanelPreference { metadata?.preference ?? .automatic }
     public let id: String
     public let fixture: PanelFixture
     public let store: PanelStore
@@ -25,8 +28,10 @@ public struct PanelTile: Identifiable {
         agentName: String?,
         sessionLabel: String?,
         definitionRevision: Int?,
-        order: Int
+        order: Int,
+        metadata: PanelMetadata? = nil
     ) {
+        self.metadata = metadata
         self.id = id
         self.fixture = fixture
         self.store = store
@@ -47,33 +52,35 @@ public struct PanelTile: Identifiable {
 }
 
 public enum PanelFreshness {
-    case live, stale, offline, fetched(Date), cachedFailure
+    case live, stale, offline, awaitingData, task(PanelTaskState)
 
     public var title: String {
         switch self {
+        case .awaitingData: "Awaiting data"
+        case let .task(state): state.title
         case .live: "Live"
         case .stale: "Stale"
         case .offline: "Offline"
-        case let .fetched(date): "Fetched \(date.formatted(date: .omitted, time: .shortened))"
-        case .cachedFailure: "Cached — fetch failed"
         }
     }
 
     public var symbol: String {
         switch self {
+        case .awaitingData: "hourglass"
+        case let .task(state): state.symbol
         case .live: "dot.radiowaves.left.and.right"
         case .stale: "clock.badge.exclamationmark"
         case .offline: "wifi.slash"
-        case .fetched: "clock"
-        case .cachedFailure: "exclamationmark.triangle"
         }
     }
 
     public var color: Color {
         switch self {
+        case .awaitingData: .secondary
+        case let .task(state): state == .failed ? .red : state == .completed ? .green : .secondary
         case .live: .green
-        case .stale, .cachedFailure: .orange
-        case .offline, .fetched: .secondary
+        case .stale: .orange
+        case .offline: .secondary
         }
     }
 }

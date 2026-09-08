@@ -19,6 +19,12 @@ struct OverviewSidebar: View {
     var body: some View {
         List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
             Section {
+                Label(L("Dashboard"), systemImage: "square.grid.2x2")
+                    .font(.headline)
+                    .tag(OverviewDestination.dashboard)
+                    .accessibilityIdentifier("overview.dashboard")
+            }
+            Section {
                 LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(OverviewCategory.allCases) { category in
                         OverviewTile(category: category, count: snapshot.count(category),
@@ -29,12 +35,6 @@ struct OverviewSidebar: View {
                 }
                 .listRowInsets(EdgeInsets(top: 12, leading: 8, bottom: 16, trailing: 8))
                 .selectionDisabled()
-            }
-            if panelsDemoEnabled {
-                Section {
-                    Label(L("Panels"), systemImage: "rectangle.3.group")
-                        .tag(OverviewDestination.panels)
-                }
             }
             if let notice { connectionNotice(notice).selectionDisabled() }
             Section(L("Sessions")) {
@@ -57,12 +57,6 @@ struct OverviewSidebar: View {
     private var countsAvailable: Bool {
         historyState == .loaded || !snapshot.history.isEmpty
     }
-
-    // The destination is always reachable. The demo flag chooses where panels come from,
-    // not whether the surface exists — gating the entry on it left server-backed panels
-    // with no way in at all. An empty destination is consistent with the categories
-    // above, which show a zero rather than disappearing.
-    private var panelsDemoEnabled: Bool { true }
 
     private var notice: String? {
         if case let .failed(error) = historyState { return error }

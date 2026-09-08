@@ -6,9 +6,8 @@
 mod setup_support;
 
 use crate::client::HiBossClient;
-use crate::commands::setup_hooks::{self, SetupHooksArgs};
+use crate::commands::setup_hooks;
 use crate::config::Config;
-use clap::{Args, Subcommand};
 use serde_json::{Value, json};
 use std::error::Error;
 use std::io::{self, Write};
@@ -19,61 +18,20 @@ use self::setup_support::{
     telegram_webhook_secret_reminder, tg_api,
 };
 
-#[derive(Debug, Args)]
-pub struct SetupArgs {
-    #[command(subcommand)]
-    pub command: SetupCommand,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum SetupCommand {
-    #[command(about = "Configure Claude Code hooks for hiboss")]
-    Hooks(SetupHooksArgs),
-    #[command(about = "Guided Telegram bot setup")]
-    Telegram(SetupTelegramArgs),
-    #[command(
-        name = "telegram-commands",
-        about = "Register Telegram bot commands from saved channel config"
-    )]
-    TelegramCommands,
-    #[command(about = "Guided Discord bot setup")]
-    Discord(SetupDiscordArgs),
-}
-
-#[derive(Debug, Args)]
-pub struct SetupTelegramArgs {
-    #[arg(long, help = "Bot token from @BotFather (skip interactive prompt)")]
-    pub bot_token: Option<String>,
-    #[arg(long, help = "Chat ID (skip auto-detection)")]
-    pub chat_id: Option<String>,
-    #[arg(
-        long,
-        help = "Secret token sent by Telegram and verified by the server webhook"
-    )]
-    pub webhook_secret: Option<String>,
-    #[arg(long, help = "Enable per-agent topic threads in a Telegram group")]
-    pub use_topics: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct SetupDiscordArgs {
-    #[arg(long, help = "Discord Bot Token (skip interactive prompt)")]
-    pub bot_token: Option<String>,
-    #[arg(long, help = "Channel ID (skip interactive selection)")]
-    pub channel_id: Option<String>,
-    #[arg(long, help = "Webhook URL for rich message formatting")]
-    pub webhook_url: Option<String>,
-}
+#[path = "setup_args.rs"]
+mod arguments;
+pub use arguments::{SetupArgs, SetupCommand, SetupTelegramArgs, SetupDiscordArgs};
 
 pub fn run(args: &SetupArgs) -> Result<(), Box<dyn Error>> {
     match &args.command {
         SetupCommand::Hooks(a) => setup_hooks::run_setup_hooks(a),
+        SetupCommand::Agents(a) => crate::commands::setup_agents::run(a),
         _ => Err("This setup command requires server access.".into()),
     }
 }
 
 pub fn needs_client(args: &SetupArgs) -> bool {
-    !matches!(&args.command, SetupCommand::Hooks(_))
+    !matches!(&args.command, SetupCommand::Hooks(_) | SetupCommand::Agents(_))
 }
 
 pub async fn run_with_client(
@@ -85,7 +43,7 @@ pub async fn run_with_client(
         SetupCommand::Telegram(tg) => run_telegram_setup(tg, config, client).await,
         SetupCommand::TelegramCommands => run_telegram_commands_setup(client).await,
         SetupCommand::Discord(dc) => run_discord_setup(dc, config, client).await,
-        SetupCommand::Hooks(_) => unreachable!(),
+        SetupCommand::Hooks(_) | SetupCommand::Agents(_) => unreachable!(),
     }
 }
 

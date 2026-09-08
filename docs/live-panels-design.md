@@ -1,8 +1,12 @@
 # Live Panels and Interactive Requests
 
-Status: design proposal; implementation has not started.
+Status: original design baseline; publication, relay, and native UI now partially implemented.
 Date: 2026-09-07.
 Scope: agent-authored dashboards, questionnaires, and interactive decisions in HiBoss.
+
+The [dynamic card lifecycle draft](live-panels/lifecycle.md) dated 2026-09-08
+specializes task transitions, freshness, result retirement, and recovery. Core lifecycle operations are now implemented; see [implementation status](live-panels/implementation.md).
+The original baseline below is not a shipment checklist.
 
 ## 1. Purpose and document map
 
@@ -19,6 +23,7 @@ database changes, deployment, or a release.
 | --- | --- |
 | [This design](live-panels-design.md) | Product model, scope, user experience, decisions |
 | [Protocol](live-panels/protocol.md) | Publication, state, forms, submissions, API contracts |
+| [Lifecycle](live-panels/lifecycle.md) | Task state, producer leases, terminal results, and wall visibility |
 | [Runtime and transport](live-panels/runtime.md) | Renderers, relay, P2P, persistence, trust boundaries |
 | [Delivery plan](live-panels/rollout.md) | Work packages, verification, budgets, gates, open decisions |
 

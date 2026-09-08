@@ -1,8 +1,11 @@
 # Live Panel Protocol Proposal
 
-Status: proposed, unimplemented. Date: 2026-09-07.
+Status: original proposal, partially implemented. Date: 2026-09-07.
 Parent: [Live Panels design](../live-panels-design.md).
 This document owns wire semantics; transport mechanics are in [runtime](runtime.md).
+The [lifecycle contract](lifecycle.md) and [implementation status](implementation.md) specify the v2
+control/relay contract, with explicit implementation gaps. Its lifecycle-specific
+rules supersede the less detailed provisions below; it has not been deployed.
 
 ## 1. Protocol principles
 
@@ -95,11 +98,22 @@ Proposed request to `POST /api/panels`:
   },
   "stateSchema": {
     "type": "object",
-    "properties": { "completed": { "type": "integer", "minimum": 0 } },
-    "required": ["completed"],
+    "properties": {
+      "task": {
+        "type": "object",
+        "properties": {
+          "completed": { "type": "integer", "minimum": 0 },
+          "failed": { "type": "integer", "minimum": 0 },
+          "throughput": { "type": "array", "items": { "type": ["number", "null"] } }
+        },
+        "required": ["completed", "failed", "throughput"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["task"],
     "additionalProperties": false
   },
-  "initialState": { "completed": 0 },
+  "initialState": { "task": { "completed": 0, "failed": 0, "throughput": [] } },
   "summary": {
     "stage": "Preparing",
     "headline": { "path": "/task/completed", "label": "Completed" },
@@ -158,7 +172,9 @@ it is not itself our durable publication protocol.
 | `/ui` | Local renderer interactions | Optional device-local view state | Tabs, filters, expansion |
 | `/host` | Native host/server projection | Derived from authoritative records | Identity, freshness, request status |
 
-`stateSchema` validates the object mounted at `/task`. Form answer schemas validate
+`stateSchema` validates the full producer root `{ "task": ... }`, matching
+`initialState` and current validators. Wire snapshot `task` fields carry the subtree
+that is mounted at `/task`. Form answer schemas validate
 the submitted object, without a `/form` wrapper. An agent cannot publish writes to
 `/form`, `/context`, `/ui`, or `/host`; the renderer cannot write producer/host namespaces.
 

@@ -92,10 +92,10 @@ leaf_slot=Web content process terminated
 The same run printed the screenshot paths before that block:
 
 ```text
-/Users/example/.aid/worktrees/hiboss-1834ea17/feat/panels-seam-spike/spikes/panel-seam/evidence/light.png
-appearance_state=light screenshot=/Users/example/.aid/worktrees/hiboss-1834ea17/feat/panels-seam-spike/spikes/panel-seam/evidence/light.png
-/Users/example/.aid/worktrees/hiboss-1834ea17/feat/panels-seam-spike/spikes/panel-seam/evidence/dark.png
-appearance_state=dark screenshot=/Users/example/.aid/worktrees/hiboss-1834ea17/feat/panels-seam-spike/spikes/panel-seam/evidence/dark.png
+<worktree>/feat/panels-seam-spike/spikes/panel-seam/evidence/light.png
+appearance_state=light screenshot=<worktree>/feat/panels-seam-spike/spikes/panel-seam/evidence/light.png
+<worktree>/feat/panels-seam-spike/spikes/panel-seam/evidence/dark.png
+appearance_state=dark screenshot=<worktree>/feat/panels-seam-spike/spikes/panel-seam/evidence/dark.png
 ```
 
 Build and probe commands:

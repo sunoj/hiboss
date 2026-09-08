@@ -1,238 +1,100 @@
-// Purpose: Authorized SQLite-backed PanelRoom DO for scoped live panel relay.
-// Exports: PanelRoom
-// Dependencies: Cloudflare Durable Objects, D1 panel visibility, and ticket types.
+// Authorized hibernating WebSocket relay and internal lifecycle gateway.
+// Exports PanelRoom; per-panel serialization lives in PanelEngine.
+// Dependencies: Cloudflare Durable Objects, ticket store, and lifecycle engine.
 
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from '../../types';
-import {
-  type PanelOperation,
-} from './ticket';
+import { isRecord } from '../definition/helpers';
+import { faultResponse, PanelFault } from '../lifecycle/types';
 import { consumeTicket, issueTicket, type ConnectionAttachment } from './ticket-store';
-
-interface UpdateCommand {
-  kind: 'state.update';
-  panelId: string;
-  epoch: string;
-  baseSequence: number;
-  ops: { op: 'replace' | 'add' | 'remove'; path: string; value?: unknown }[];
-}
+import { PanelEngine } from './runtime/engine';
 
 export class PanelRoom extends DurableObject<Env> {
+  private engine: PanelEngine;
+  private queues = new WeakMap<WebSocket, Promise<void>>();
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.ctx.storage.sql.exec(`
-      CREATE TABLE IF NOT EXISTS snapshots (
-        id TEXT PRIMARY KEY,
-        epoch TEXT,
-        sequence INTEGER,
-        task TEXT,
-        persisted_at INTEGER
-      )
-    `);
-    this.ctx.storage.sql.exec(`
-      CREATE TABLE IF NOT EXISTS leases (
-        id TEXT PRIMARY KEY,
-        epoch TEXT
-      )
-    `);
-    this.ctx.storage.sql.exec(`
-      CREATE TABLE IF NOT EXISTS connection_tickets (
-        ticket_id TEXT PRIMARY KEY,
-        secret TEXT NOT NULL,
-        room_id TEXT NOT NULL,
-        identity TEXT NOT NULL,
-        role TEXT NOT NULL,
-        panel_id TEXT NOT NULL,
-        operations TEXT NOT NULL,
-        expires_at INTEGER NOT NULL,
-        consumed_at INTEGER
-      )
-    `);
+    ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS connection_tickets (
+      ticket_id TEXT PRIMARY KEY, secret TEXT NOT NULL, room_id TEXT NOT NULL,
+      identity TEXT NOT NULL, role TEXT NOT NULL, panel_id TEXT NOT NULL,
+      operations TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)`);
+    this.engine = new PanelEngine(ctx.storage, env.DB, (id, frame) => this.broadcast(id, frame));
   }
 
   async fetch(req: Request): Promise<Response> {
-    if (new URL(req.url).pathname === '/__issue-ticket' && req.method === 'POST') return issueTicket(this.ctx, req);
-    if (req.headers.get('Upgrade') !== 'websocket') {
-      return new Response('Expected Upgrade: websocket', { status: 426 });
-    }
-
+    const path = new URL(req.url).pathname;
+    if (path === '/__issue-ticket' && req.method === 'POST') return issueTicket(this.ctx, req);
+    if (path === '/__repair' && req.method === 'POST') { await this.engine.repair(); return new Response(null, { status: 204 }); }
+    if (path === '/__command' && req.method === 'POST') return this.command(req);
+    if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected Upgrade: websocket', { status: 426 });
     const consumed = consumeTicket(this.ctx, req.headers.get('X-Panel-Connection-Ticket'));
-    if (!consumed.ok) return new Response(consumed.status === 410 ? 'Expired ticket' : 'Invalid ticket', { status: consumed.status });
-    const ticket = consumed.ticket;
-
+    if (!consumed.ok) return new Response('Invalid ticket', { status: consumed.status });
     const { 0: client, 1: server } = new WebSocketPair();
-    this.ctx.acceptWebSocket(server, [ticket.ticketId]);
-    server.serializeAttachment(ticket);
-
+    this.ctx.acceptWebSocket(server, [consumed.ticket.ticketId]);
+    server.serializeAttachment(consumed.ticket);
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  getSnapshot(panelId: string) {
-    const rows = [...this.ctx.storage.sql.exec('SELECT * FROM snapshots WHERE id = ?', panelId)];
-    const row = rows[0];
-    if (row) {
-      return { 
-        epoch: row.epoch as string, 
-        sequence: row.sequence as number, 
-        task: JSON.parse(row.task as string),
-        persistedAt: row.persisted_at as number
-      };
-    }
-    return null;
-  }
-
-  setLease(panelId: string, epoch: string) {
-    this.ctx.storage.sql.exec('INSERT OR REPLACE INTO leases (id, epoch) VALUES (?, ?)', panelId, epoch);
-  }
-
-  getLease(panelId: string) {
-    const rows = [...this.ctx.storage.sql.exec('SELECT * FROM leases WHERE id = ?', panelId)];
-    const row = rows[0];
-    return row ? (row.epoch as string) : null;
+  private async command(req: Request): Promise<Response> {
+    try {
+      const input = await req.json<unknown>();
+      if (!isRecord(input) || typeof input.panelId !== 'string' || typeof input.identity !== 'string'
+        || !['producer', 'subscriber'].includes(String(input.role)) || typeof input.action !== 'string') throw new PanelFault('invalid_command', 400);
+      const result = await this.engine.execute(input.panelId, input.identity, input.role as 'producer' | 'subscriber', input.action, input.body, typeof input.key === 'string' ? input.key : '');
+      return Response.json(result, { status: isRecord(result) && result.status === 'pending' ? 202 : 200 });
+    } catch (error) { return faultResponse(error); }
   }
 
   private attachment(ws: WebSocket): ConnectionAttachment | null {
-    const value = ws.deserializeAttachment() as unknown;
-    if (!value || typeof value !== 'object') return null;
-    const attachment = value as Partial<ConnectionAttachment>;
-    return typeof attachment.ticketId === 'string' && typeof attachment.roomId === 'string'
-      && typeof attachment.identity === 'string' && (attachment.role === 'producer' || attachment.role === 'subscriber')
-      && typeof attachment.panelId === 'string' && Array.isArray(attachment.operations)
-      ? attachment as ConnectionAttachment
-      : null;
+    const value: unknown = ws.deserializeAttachment();
+    if (!isRecord(value) || typeof value.panelId !== 'string' || typeof value.identity !== 'string'
+      || !['producer', 'subscriber'].includes(String(value.role)) || !Array.isArray(value.operations)) return null;
+    return value as unknown as ConnectionAttachment;
   }
 
-  private hasOperation(ticket: ConnectionAttachment, operation: PanelOperation): boolean {
-    return ticket.operations.includes(operation);
-  }
-
-  private sendError(ws: WebSocket, code: string): void {
-    ws.send(JSON.stringify({ kind: 'error', code }));
-  }
-
-  private async canAccessPanel(ticket: ConnectionAttachment, panelId: string): Promise<boolean> {
-    if (ticket.panelId !== panelId) return false;
-    if (ticket.role === 'producer') {
-      const row = await this.env.DB.prepare('SELECT 1 AS allowed FROM panels WHERE panel_id = ? AND agent_id = ? AND target_boss_id = ? LIMIT 1')
-        .bind(panelId, ticket.identity, ticket.roomId).first<{ allowed: number }>();
-      return row !== null;
-    }
-    const row = await this.env.DB.prepare(
-      'SELECT 1 AS allowed FROM panels p JOIN boss_agent_access ba ON ba.agent_id = p.agent_id AND ba.boss_id = ? WHERE p.panel_id = ? AND p.target_boss_id = ? LIMIT 1',
-    ).bind(ticket.identity, panelId, ticket.roomId).first<{ allowed: number }>();
-    return row !== null;
-  }
-
-  private sendSnapshot(ws: WebSocket, panelId: string): void {
-    const snap = this.getSnapshot(panelId);
-    ws.send(JSON.stringify(snap
-      ? { kind: 'state.snapshot', epoch: snap.epoch, sequence: snap.sequence, task: snap.task, persistedAt: snap.persistedAt }
-      : { kind: 'state.snapshot', sequence: 0, task: {} }));
-  }
-
-  private async handleSubscribe(ws: WebSocket, ticket: ConnectionAttachment, panelId: unknown): Promise<void> {
-    if (!this.hasOperation(ticket, 'subscribe') || typeof panelId !== 'string' || !await this.canAccessPanel(ticket, panelId)) {
-      this.sendError(ws, 'permission_denied');
-      return;
-    }
-    ws.serializeAttachment({ ...ticket, subscribedPanelId: panelId });
-    this.sendSnapshot(ws, panelId);
-  }
-
-  private async handleLeaseClaim(ws: WebSocket, ticket: ConnectionAttachment, msg: Record<string, unknown>): Promise<void> {
-    const panelId = msg.panelId;
-    if (ticket.role !== 'producer' || !this.hasOperation(ticket, 'lease.claim') || typeof panelId !== 'string'
-      || ticket.subscribedPanelId !== panelId || !await this.canAccessPanel(ticket, panelId)) {
-      this.sendError(ws, 'permission_denied');
-      return;
-    }
-    if (typeof msg.epoch !== 'string' || !msg.epoch) {
-      this.sendError(ws, 'invalid_lease');
-      return;
-    }
-    this.setLease(panelId, msg.epoch);
-    ws.send(JSON.stringify({ kind: 'lease.ack', epoch: msg.epoch }));
-  }
-
-  private async handleStateUpdate(ws: WebSocket, ticket: ConnectionAttachment, msg: UpdateCommand): Promise<void> {
-    if (ticket.role !== 'producer' || !this.hasOperation(ticket, 'state.update') || ticket.subscribedPanelId !== msg.panelId
-      || !await this.canAccessPanel(ticket, msg.panelId)) {
-      this.sendError(ws, 'permission_denied');
-      return;
-    }
-    const currentEpoch = this.getLease(msg.panelId);
-    if (currentEpoch && currentEpoch !== msg.epoch) {
-      this.sendError(ws, 'lease_conflict');
-      return;
-    }
-    const snap = this.getSnapshot(msg.panelId) || { epoch: msg.epoch, sequence: 0, task: {} };
-    if (snap.sequence !== msg.baseSequence) {
-      this.sendError(ws, 'resync_required');
-      return;
-    }
-    let taskCopy = JSON.parse(JSON.stringify(snap.task));
-    try {
-      for (const op of msg.ops) {
-        if (op.path === '/task') {
-          if (op.op === 'replace' || op.op === 'add') taskCopy = op.value;
-          else if (op.op === 'remove') taskCopy = {};
-          continue;
-        }
-        if (!op.path.startsWith('/task/')) throw new Error('Confined to /task');
-        const parts = op.path.slice('/task/'.length).split('/');
-        let target = taskCopy;
-        for (let i = 0; i < parts.length - 1; i++) {
-          if (!target[parts[i]]) target[parts[i]] = {};
-          target = target[parts[i]];
-        }
-        const last = parts[parts.length - 1];
-        if (op.op === 'replace' || op.op === 'add') target[last] = op.value;
-        else if (op.op === 'remove') delete target[last];
-        else throw new Error('Invalid operation');
-      }
-    } catch (error) {
-      this.sendError(ws, 'invalid_state');
-      return;
-    }
-    const newSeq = snap.sequence + 1;
-    this.ctx.storage.sql.exec('INSERT OR REPLACE INTO snapshots (id, epoch, sequence, task, persisted_at) VALUES (?, ?, ?, ?, ?)',
-      msg.panelId, msg.epoch, newSeq, JSON.stringify(taskCopy), Date.now());
-    ws.send(JSON.stringify({ kind: 'state.ack', sequence: newSeq }));
-    this.broadcastPatch(msg.panelId, { kind: 'state.patch', sequence: newSeq, ops: msg.ops });
-  }
-
-  private broadcastPatch(panelId: string, patch: object): void {
-    for (const sock of this.ctx.getWebSockets()) {
-      if (this.attachment(sock)?.subscribedPanelId === panelId) sock.send(JSON.stringify(patch));
+  private broadcast(panelId: string, frame: unknown): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      if (this.attachment(socket)?.subscribedPanelId !== panelId) continue;
+      try { socket.send(JSON.stringify(frame)); } catch { /* Closed projections recover from a fresh snapshot. */ }
     }
   }
-
-  // Handlers await storage, and a real client sends subscribe and lease.claim back to
-  // back rather than pausing between them. Without this chain the second frame reads the
-  // attachment the first has not written yet and is refused, which no test caught because
-  // they all slept between sends. A server must not depend on clients pacing themselves.
-  private queues = new WeakMap<WebSocket, Promise<void>>();
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    const previous = this.queues.get(ws) ?? Promise.resolve();
-    const next = previous.then(() => this.dispatch(ws, message)).catch(() => {});
+    const next = (this.queues.get(ws) ?? Promise.resolve()).then(() => this.dispatch(ws, message));
     this.queues.set(ws, next);
-    return next;
+    await next;
   }
 
   private async dispatch(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     try {
-      const msg = JSON.parse(message as string) as Record<string, unknown>;
+      if (typeof message !== 'string' || message.length > 65_536) throw new PanelFault('invalid_frame', 422);
+      let input: unknown;
+      try { input = JSON.parse(message); } catch { throw new PanelFault('invalid_json', 400); }
+      if (!isRecord(input) || input.protocolVersion !== 2) throw new PanelFault('unsupported_protocol', 400);
       const ticket = this.attachment(ws);
-      if (!ticket) return this.sendError(ws, 'invalid_connection');
-      if (msg.kind === 'subscribe') return await this.handleSubscribe(ws, ticket, msg.panelId);
-      if (msg.kind === 'lease.claim') return await this.handleLeaseClaim(ws, ticket, msg);
-      if (msg.kind === 'state.update') return await this.handleStateUpdate(ws, ticket, msg as unknown as UpdateCommand);
-    } catch {
-      this.sendError(ws, 'invalid_json');
+      if (!ticket || input.panelId !== ticket.panelId) throw new PanelFault('permission_denied', 403);
+      if (input.kind === 'subscribe' && ticket.operations.includes('subscribe')) {
+        const state = await this.engine.execute(ticket.panelId, ticket.identity, ticket.role, 'state', input);
+        ws.serializeAttachment({ ...ticket, subscribedPanelId: ticket.panelId });
+        ws.send(JSON.stringify({ ...(state as object), kind: 'state.snapshot' }));
+        return;
+      }
+      if (ticket.subscribedPanelId !== ticket.panelId || ticket.role !== 'producer') throw new PanelFault('permission_denied', 403);
+      const lease = input.kind === 'lease.claim' || input.kind === 'lease.renew';
+      const update = input.kind === 'state.update' || input.kind === 'state.unchanged';
+      if ((!lease && !update) || !ticket.operations.includes(lease ? 'lease.claim' : 'state.update')) throw new PanelFault('invalid_command', 422);
+      const body = lease ? { ...input, action: input.kind === 'lease.claim' ? 'claim' : 'renew' } : input;
+      const result = await this.engine.execute(ticket.panelId, ticket.identity, ticket.role, lease ? 'lease' : 'update', body);
+      ws.send(JSON.stringify(result));
+    } catch (error) {
+      const fault = error instanceof PanelFault ? error : new PanelFault('service_unavailable', 503);
+      try { ws.send(JSON.stringify({ kind: 'error', code: fault.code, retryable: fault.status === 503 })); } catch { /* Socket closed. */ }
     }
   }
 
-  webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {}
-  webSocketError(ws: WebSocket, error: unknown) {}
+  webSocketClose(socket: WebSocket): void { try { socket.close(1000); } catch { /* Already closed. */ } }
+  webSocketError(socket: WebSocket): void { socket.close(1011, 'Relay connection failed'); }
+
+  async alarm(): Promise<void> { await this.engine.repair(); }
 }

@@ -121,17 +121,17 @@ describe('panel connection authorization', () => {
   it('keeps subscriber tickets from claiming leases and producer tickets from writing another panel', async () => {
     const subscriberTicket = await (await requestTicket(BOSS_TOKEN, PANEL_A, 'subscriber')).json() as TicketResponse;
     const subscriber = await connect(subscriberTicket.ticket);
-    subscriber.ws.send(JSON.stringify({ kind: 'subscribe', panelId: PANEL_A }));
+    subscriber.ws.send(JSON.stringify({ protocolVersion: 2, kind: 'subscribe', panelId: PANEL_A }));
     await waitForMessage();
-    subscriber.ws.send(JSON.stringify({ kind: 'lease.claim', panelId: PANEL_A, epoch: 'boss-must-not-claim' }));
+    subscriber.ws.send(JSON.stringify({ protocolVersion: 2, kind: 'lease.claim', panelId: PANEL_A, epoch: 'boss-must-not-claim' }));
     await waitForMessage();
     expect(subscriber.messages.some((message) => message.code === 'permission_denied')).toBe(true);
 
     const producerTicket = await (await requestTicket(OWNER_KEY, PANEL_A, 'producer')).json() as TicketResponse;
     const producer = await connect(producerTicket.ticket);
-    producer.ws.send(JSON.stringify({ kind: 'subscribe', panelId: PANEL_A }));
+    producer.ws.send(JSON.stringify({ protocolVersion: 2, kind: 'subscribe', panelId: PANEL_A }));
     await waitForMessage();
-    producer.ws.send(JSON.stringify({ kind: 'state.update', panelId: PANEL_B, epoch: 'wrong-panel', baseSequence: 0, ops: [] }));
+    producer.ws.send(JSON.stringify({ protocolVersion: 2, kind: 'state.update', panelId: PANEL_B, epoch: 'wrong-panel', baseSequence: 0, ops: [] }));
     await waitForMessage();
     expect(producer.messages.some((message) => message.code === 'permission_denied')).toBe(true);
     subscriber.ws.close();

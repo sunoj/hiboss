@@ -39,6 +39,8 @@ import { bossPairingRouter, pairingRouter } from './routes/pairing';
 import { bossTokensRouter } from './routes/boss-tokens';
 import { bossMessageReplyRouter } from './routes/boss-message-reply';
 import { bossGroupBroadcastRouter } from './routes/boss-group-broadcast';
+import { repairPanelRooms } from './panels/lifecycle/repair';
+import { panelLifecycleRouter } from './panels/lifecycle';
 import { panelsRouter } from './panels/definition';
 import { panelRelayRouter } from './panels/relay';
 
@@ -105,6 +107,7 @@ app.route('/api/sessions', sessionsRouter);
 app.route('/api/sessions', sessionEventsRouter);
 app.route('/api/progress/teams', progressTeamsRouter);
 app.route('/api/progress', progressRouter);
+app.route('/api/panels', panelLifecycleRouter);
 app.route('/api/panels', panelsRouter);
 app.route('/api', panelRelayRouter);
 app.route('/api/join', joinRouter);
@@ -150,5 +153,6 @@ export default {
   fetch: app.fetch,
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(handleScheduled(env));
+    ctx.waitUntil(repairPanelRooms(env));
   },
 };

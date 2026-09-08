@@ -7,6 +7,8 @@ import Foundation
 public protocol PanelsServing: Sendable {
     func fetchPanels() async throws -> [PanelMetadata]
     func fetchPanel(_ panelID: String) async throws -> PanelDetail
+    func fetchPanelState(_ panelID: String) async throws -> PanelRelaySnapshot
+    func updatePanelPreference(_ panelID: String, command: PanelPreferenceCommand) async throws -> PanelPreference
 }
 
 public struct PanelListPage: Codable, Equatable, Sendable {
@@ -15,6 +17,11 @@ public struct PanelListPage: Codable, Equatable, Sendable {
 }
 
 public struct PanelMetadata: Codable, Equatable, Sendable, Identifiable {
+    public let serverTime: Int64
+    public let lifecycle: PanelLifecycle
+    public var preference: PanelPreference
+    public let finalSnapshot: PanelRelaySnapshot?
+    public let supersedesPanelId: String?
     public let panelId: String
     public let agentId: String
     public let agentName: String?
@@ -40,22 +47,7 @@ public struct PanelDetail: Decodable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         definition = try container.decode(PanelDefinition.self, forKey: .definition)
-        metadata = try PanelMetadata(
-            panelId: container.decode(String.self, forKey: .panelId),
-            agentId: container.decode(String.self, forKey: .agentId),
-            agentName: container.decodeIfPresent(String.self, forKey: .agentName),
-            targetBossId: container.decode(String.self, forKey: .targetBossId),
-            taskKey: container.decode(String.self, forKey: .taskKey),
-            sessionId: container.decode(String.self, forKey: .sessionId),
-            sessionLabel: container.decodeIfPresent(String.self, forKey: .sessionLabel),
-            title: container.decode(String.self, forKey: .title),
-            catalogId: container.decode(String.self, forKey: .catalogId),
-            catalogVersion: container.decode(Int.self, forKey: .catalogVersion),
-            definitionRevision: container.decode(Int.self, forKey: .definitionRevision),
-            metadataVersion: container.decode(Int.self, forKey: .metadataVersion),
-            summary: container.decode(PanelValue.self, forKey: .summary),
-            createdAt: container.decode(String.self, forKey: .createdAt)
-        )
+        metadata = try PanelMetadata(from: decoder)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -137,7 +129,27 @@ extension HibossAPI: PanelsServing {
     var panelsURL: URL { config.serverURL.appendingPathComponent("api").appendingPathComponent("panels") }
 
     public func fetchPanels() async throws -> [PanelMetadata] {
-        try await decode(PanelListPage.self, from: panelsURL, context: "panel list").panels
+        var panels: [PanelMetadata] = []
+        var cursor: String?
+        repeat {
+            let url = cursor.map { panelsURL.appending(queryItems: [URLQueryItem(name: "cursor", value: $0)]) } ?? panelsURL
+            let page = try await decode(PanelListPage.self, from: url, context: "panel list")
+            panels.append(contentsOf: page.panels)
+            cursor = page.nextCursor
+        } while cursor != nil
+        return panels
+    }
+
+    public func fetchPanelState(_ panelID: String) async throws -> PanelRelaySnapshot {
+        try await decode(PanelRelaySnapshot.self, from: panelsURL.appendingPathComponent(panelID).appendingPathComponent("state"), context: "panel checkpoint")
+    }
+
+    public func updatePanelPreference(_ panelID: String, command: PanelPreferenceCommand) async throws -> PanelPreference {
+        var request = authorizedRequest(url: panelsURL.appendingPathComponent(panelID).appendingPathComponent("preferences"), method: "PUT")
+        request.httpBody = try JSONEncoder().encode(command)
+        let (data, response) = try await session.data(for: request)
+        try validate(response)
+        return try decoder.decode(PanelPreference.self, from: data)
     }
 
     public func fetchPanel(_ panelID: String) async throws -> PanelDetail {
@@ -146,15 +158,5 @@ extension HibossAPI: PanelsServing {
             from: panelsURL.appendingPathComponent(panelID),
             context: "panel detail"
         )
-    }
-}
-
-extension PanelValue {
-    /// True when the value is an object with no members. A snapshot carrying one at
-    /// sequence zero means the producer has not written yet, which is not the same as a
-    /// task whose state is genuinely empty.
-    public var isEmptyObject: Bool {
-        if case let .object(members) = self { return members.isEmpty }
-        return false
     }
 }

@@ -46,7 +46,7 @@ enum OverviewCategory: String, CaseIterable, Identifiable, Sendable {
 enum OverviewDestination: Hashable {
     case category(OverviewCategory)
     case session(String)
-    case panels
+    case dashboard
 }
 
 struct OverviewSnapshot {
@@ -68,6 +68,8 @@ struct OverviewSnapshot {
 
     func messages(for destination: OverviewDestination) -> [HistoryMessage] {
         switch destination {
+        case .dashboard:
+            return attention.map(\.message)
         case let .session(id):
             return history.filter { SessionGrouping.sessionKey(for: $0) == id }
         case let .category(category) where category.isAttention:
@@ -86,7 +88,7 @@ struct OverviewSnapshot {
         switch destination {
         case let .category(category): category.title
         case let .session(id): sessions.first { $0.id == id }?.label ?? L("Session")
-        case .panels: L("Panels")
+        case .dashboard: L("Dashboard")
         }
     }
 

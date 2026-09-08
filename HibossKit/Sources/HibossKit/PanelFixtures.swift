@@ -54,7 +54,7 @@ public enum PanelFixtures {
 
     private static let metricJSON = #"""
     {
-      "protocolVersion": 1,
+      "protocolVersion": 2,
       "catalogId": "hiboss.panel",
       "catalogVersion": 1,
       "spec": {

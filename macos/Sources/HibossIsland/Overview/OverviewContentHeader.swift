@@ -36,7 +36,7 @@ struct OverviewContentHeader: View {
         case .category(.all): L("Recent messages across your sessions.")
         case .category(.completed): L("Answered and expired questions.")
         case .session: L("Recent messages in this session.")
-        case .panels: L("Fixture-driven panel preview.")
+        case .dashboard: L("Decisions and live panels.")
         }
     }
 }

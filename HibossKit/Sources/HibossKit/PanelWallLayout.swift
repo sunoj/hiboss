@@ -10,11 +10,8 @@ public enum PanelTileSize: Equatable, Sendable {
 
     public var dimensions: CGSize {
         switch self {
-        // A tile has to be tall enough to carry a chart, which is most of why a panel is
-        // worth watching. At 176 the content was cropped just below the metric labels, so
-        // a card showed headings with nothing under them.
-        case .compact: CGSize(width: 236, height: 300)
-        case .wide: CGSize(width: 488, height: 300)
+        case .compact: CGSize(width: 236, height: 320)
+        case .wide: CGSize(width: 488, height: 320)
         }
     }
 }
@@ -43,6 +40,9 @@ public enum PanelWallLayout {
 
     public static func arrange(_ panels: [PanelLayoutPanel], width: CGFloat) -> [PanelTilePosition] {
         let availableWidth = max(1, width)
+        let minimumColumn: CGFloat = availableWidth < 488 ? 160 : 236
+        let columns = max(1, Int((availableWidth + gap) / (minimumColumn + gap)))
+        let columnWidth = (availableWidth - CGFloat(columns - 1) * gap) / CGFloat(columns)
         let ordered = panels.sorted {
             if $0.isPinned != $1.isPinned { return $0.isPinned }
             if $0.order != $1.order { return $0.order < $1.order }
@@ -54,8 +54,9 @@ public enum PanelWallLayout {
 
         for panel in ordered {
             let dimensions = panel.size.dimensions
-            let tileWidth = min(dimensions.width, availableWidth)
-            if cursor.x > 0, cursor.x + tileWidth > availableWidth {
+            let span = panel.size == .wide ? min(2, columns) : 1
+            let tileWidth = columnWidth * CGFloat(span) + gap * CGFloat(span - 1)
+            if cursor.x > 0, cursor.x + tileWidth > availableWidth + 0.01 {
                 cursor = CGPoint(x: 0, y: cursor.y + rowHeight + gap)
                 rowHeight = 0
             }

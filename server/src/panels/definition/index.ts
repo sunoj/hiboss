@@ -2,6 +2,8 @@
 // Exports panelsRouter for metadata, immutable definitions, and scoped cursors.
 // Dependencies: Hono, D1, auth middleware, and panel-runtime helpers.
 
+import { publicationLifecycle, readPreference } from '../lifecycle/repository';
+import { faultResponse, type Lifecycle } from '../lifecycle/types';
 import { Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../middleware/auth';
 import type { Env } from '../../types';
@@ -25,7 +27,7 @@ const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', dualAuth);
 
 function requiredBodyFields(payload: PanelRequest): { ok: true } | { ok: false; path: string; message: string } {
-  if (payload.protocolVersion !== 1) return { ok: false, path: '/protocolVersion', message: 'protocolVersion must be 1' };
+  if (payload.protocolVersion !== 2) return { ok: false, path: '/protocolVersion', message: 'protocolVersion must be 2' };
   for (const key of ['targetBossId', 'taskKey', 'sessionId', 'title', 'catalogId'] as const) {
     if (stringField(payload, key) === null) return { ok: false, path: `/${key}`, message: `${key} is required` };
   }
@@ -43,7 +45,7 @@ async function requestPayload(c: PanelContext): Promise<PanelRequest> {
 }
 
 async function findByKey(c: PanelContext, agentId: string, key: string): Promise<PanelMetadataRow | null> {
-  return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.agent_id = ? AND p.idempotency_key = ?')
+  return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.agent_id = ? AND p.idempotency_key = ?')
     .bind(agentId, key).first<PanelMetadataRow>();
 }
 
@@ -88,6 +90,18 @@ routes.post('/', async (c) => {
   const sessionId = stringField(payload, 'sessionId');
   if (targetBossId === null || sessionId === null) return errorResponse(c, 400, 'invalid_spec', 'Target and session are required');
   if (!await hasPublicationScope(c, agentId, targetBossId, sessionId)) return errorResponse(c, 404, 'not_found', 'Publication target was not found');
+  let lifecycle: Lifecycle;
+  try { lifecycle = publicationLifecycle(payload.lifecycle); } catch (error) { return faultResponse(error); }
+  if (payload.supersedesPanelId !== undefined) {
+    if (typeof payload.supersedesPanelId !== 'string') return errorResponse(c, 422, 'invalid_spec', 'Invalid predecessor');
+    const predecessor = await visiblePanel(c, payload.supersedesPanelId);
+    if (!predecessor || predecessor.target_boss_id !== targetBossId || !['completed', 'failed', 'cancelled'].includes(JSON.parse(predecessor.lifecycle_json).taskState)) return errorResponse(c, 422, 'invalid_spec', 'Predecessor must be an ended panel for the same boss');
+  }
+  return persistPublication(c, payload, agentId, idempotencyKey, hash, targetBossId, sessionId, lifecycle);
+});
+
+async function persistPublication(c: PanelContext, payload: PanelRequest, agentId: string, idempotencyKey: string,
+  hash: string, targetBossId: string, sessionId: string, lifecycle: Lifecycle): Promise<Response> {
   const now = new Date().toISOString();
   const panelId = `panel_${crypto.randomUUID()}`;
   const metadata = {
@@ -106,10 +120,10 @@ routes.post('/', async (c) => {
   };
   try {
     await c.env.DB.batch([
-      c.env.DB.prepare('INSERT INTO panels (panel_id, agent_id, target_boss_id, task_key, session_id, title, catalog_id, catalog_version, definition_revision, metadata_version, summary_json, idempotency_key, request_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(panelId, agentId, targetBossId, metadata.taskKey, sessionId, metadata.title, metadata.catalogId, metadata.catalogVersion, 1, 1, JSON.stringify(metadata.summary), idempotencyKey, hash, now),
+      c.env.DB.prepare('INSERT INTO panels (panel_id, agent_id, target_boss_id, task_key, session_id, title, catalog_id, catalog_version, definition_revision, metadata_version, summary_json, idempotency_key, request_hash, created_at, lifecycle_json, supersedes_panel_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(panelId, agentId, targetBossId, metadata.taskKey, sessionId, metadata.title, metadata.catalogId, metadata.catalogVersion, 1, 1, JSON.stringify(metadata.summary), idempotencyKey, hash, now, JSON.stringify(lifecycle), payload.supersedesPanelId ?? null),
       c.env.DB.prepare('INSERT INTO panel_definitions (panel_id, definition_revision, protocol_version, catalog_id, catalog_version, spec_json, state_schema_json, initial_state_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(panelId, 1, 1, metadata.catalogId, metadata.catalogVersion, JSON.stringify(payload.spec), JSON.stringify(payload.stateSchema), JSON.stringify(payload.initialState), now),
+        .bind(panelId, 1, 2, metadata.catalogId, metadata.catalogVersion, JSON.stringify(payload.spec), JSON.stringify(payload.stateSchema), JSON.stringify(payload.initialState), now),
     ]);
   } catch {
     const raced = await findByKey(c, agentId, idempotencyKey);
@@ -119,7 +133,7 @@ routes.post('/', async (c) => {
     return errorResponse(c, 500, 'not_found', 'Panel could not be persisted');
   }
   return c.json({ panelId, definitionRevision: 1, metadataVersion: 1, catalogVersion: metadata.catalogVersion, createdAt: now }, 201);
-});
+}
 
 routes.get('/', async (c) => {
   const cursor = decodeCursor(c.req.query('cursor'));
@@ -135,18 +149,18 @@ routes.get('/', async (c) => {
   const cursorClause = cursor.value.panelId ? ' AND (p.created_at < ? OR (p.created_at = ? AND p.panel_id < ?))' : '';
   if (cursor.value.panelId) binds.push(cursor.value.createdAt, cursor.value.createdAt, cursor.value.panelId);
   binds.push(limit + 1);
-  const rows = await c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE ${scope}${cursorClause} ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?`)
+  const rows = await c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE ${scope}${cursorClause} ORDER BY p.created_at DESC, p.panel_id DESC LIMIT ?`)
     .bind(...binds).all<PanelMetadataRow>();
   const results = rows.results ?? [];
   const page = results.slice(0, limit);
   const last = page.at(-1);
-  return c.json({ panels: page.map(metadataFromRow), nextCursor: results.length > limit && last ? encodeCursor({ createdAt: last.created_at, panelId: last.panel_id }) : null });
+  return c.json({ panels: await Promise.all(page.map(async row => ({ ...metadataFromRow(row), preference: await readPreference(c.env.DB, row.panel_id, row.target_boss_id) }))), nextCursor: results.length > limit && last ? encodeCursor({ createdAt: last.created_at, panelId: last.panel_id }) : null });
 });
 
 async function visiblePanel(c: PanelContext, panelId: string): Promise<PanelMetadataRow | null> {
-  if (isBossAuth(c)) return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.target_boss_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = ? AND ba.agent_id = p.agent_id)')
+  if (isBossAuth(c)) return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.target_boss_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = ? AND ba.agent_id = p.agent_id)')
     .bind(panelId, getBossId(c), getBossId(c)).first<PanelMetadataRow>();
-  return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.agent_id = ?')
+  return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.agent_id = ?')
     .bind(panelId, getAgentId(c)).first<PanelMetadataRow>();
 }
 
@@ -156,7 +170,7 @@ routes.get('/:id', async (c) => {
   const definition = await c.env.DB.prepare('SELECT panel_id, definition_revision, protocol_version, catalog_id, catalog_version, spec_json, state_schema_json, initial_state_json, created_at FROM panel_definitions WHERE panel_id = ? AND definition_revision = ?')
     .bind(metadata.panel_id, metadata.definition_revision).first<PanelDefinitionRow>();
   if (!definition) return errorResponse(c, 404, 'not_found', 'Panel was not found');
-  return c.json({ ...metadataFromRow(metadata), definition: definitionFromRow(definition) });
+  return c.json({ ...metadataFromRow(metadata), preference: await readPreference(c.env.DB, metadata.panel_id, metadata.target_boss_id), definition: definitionFromRow(definition) });
 });
 
 export const panelsRouter = routes;
