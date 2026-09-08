@@ -26,7 +26,7 @@ function errorResponse(c: RelayContext, status: 400 | 403 | 404 | 503, code: str
 }
 
 function operationsFor(role: PanelRole): readonly PanelOperation[] {
-  return role === 'producer' ? ['subscribe', 'lease.claim', 'state.update'] : ['subscribe'];
+  return role === 'producer' ? ['subscribe', 'lease.claim', 'lease.release', 'state.update'] : ['subscribe'];
 }
 
 async function requestBody(c: RelayContext): Promise<Record<string, unknown> | null> {

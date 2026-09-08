@@ -45,6 +45,7 @@ export async function connect(panelId: string, subscriber = false) {
     throw new Error(`Missing ${kind}: ${JSON.stringify(frames)}`);
   }
   send({ kind: 'subscribe' });
+  await next('state.snapshot');
   return { socket, frames, send, next };
 }
 export async function claim(connection: Awaited<ReturnType<typeof connect>>, takeoverEpoch?: string): Promise<string> {

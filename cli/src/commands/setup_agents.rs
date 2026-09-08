@@ -15,7 +15,8 @@ const PROMPT: &str = r#"<!-- hiboss:panels:begin -->
 - When asked to deliver task progress or a test report via HiBoss, read
   `~/.config/hiboss/panel-agent-guide.md`, then inspect `hiboss panel --help`.
 - The guide contains the publication schema, recipient/session discovery,
-  streaming, exact terminal commands, idempotency, and delivery verification.
+  one-shot updates, streaming, lease recovery, lifecycle shortcuts, doctor,
+  idempotency, and delivery verification.
 - Use actual test counts, fixes, artifact location, and untested scope. Publishing
   a card does not upload a report file. Never invent accessible artifact URLs.
 - `hiboss send` is a one-shot message; `hiboss ask` is for a required human decision.

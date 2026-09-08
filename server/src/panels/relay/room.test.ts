@@ -56,6 +56,18 @@ describe('v2 live relay', () => {
     first.socket.close(); second.socket.close();
   });
 
+  it('releases the current producer lease without changing the checkpoint', async () => {
+    const id = await publish(); const producer = await connect(id); const epoch = await claim(producer);
+    const before = await state(id);
+    producer.send({ kind: 'lease.release', epoch: 'foreign-epoch' });
+    expect(await producer.next('error')).toMatchObject({ code: 'fenced_epoch' });
+    expect((await state(id)).epoch).toBe(epoch);
+    producer.send({ kind: 'lease.release', epoch });
+    expect(await producer.next('lease.release.ack')).toMatchObject({ epoch });
+    expect((await state(id)).sequence).toBe(before.sequence);
+    producer.socket.close();
+  });
+
   it('pauses a live producer, resumes with new ownership, and freezes the completed result', async () => {
     const id = await publish(); const producer = await connect(id); const epoch = await claim(producer);
     expect((await control(id, 'pause', 1, await state(id))).status).toBe(200);

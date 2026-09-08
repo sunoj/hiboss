@@ -359,6 +359,36 @@ pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
     write_private(&session_file_path(), id)
 }
 
+/// Path to the session-local producer epoch held for one panel.
+pub fn panel_epoch_file_path(panel_id: &str) -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-session-{}-panel-{panel_id}-epoch", project_hash()))
+}
+
+/// Read the epoch last claimed by this session for one panel.
+pub fn read_panel_epoch(panel_id: &str) -> Option<String> {
+    let path = panel_epoch_file_path(panel_id);
+    if !is_own_regular_file(&path) {
+        return None;
+    }
+    fs::read_to_string(path).ok().map(|body| body.trim().to_owned()).filter(|body| !body.is_empty())
+}
+
+/// Record or clear a panel epoch in the same private temporary area as session state.
+pub fn write_panel_epoch(panel_id: &str, epoch: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    let path = panel_epoch_file_path(panel_id);
+    match epoch {
+        Some(epoch) => write_private(&path, epoch)?,
+        None => {
+            if let Err(error) = fs::remove_file(path) {
+                if error.kind() != std::io::ErrorKind::NotFound {
+                    return Err(error.into());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,6 +403,27 @@ mod tests {
         let name = project_name();
         assert!(!name.contains('/'));
         assert!(!name.contains('\\'));
+    }
+
+    #[test]
+    fn panel_epoch_round_trip_is_session_local() {
+        let panel_id = format!("session-test-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("clock").as_nanos());
+        write_panel_epoch(&panel_id, Some("epoch-test")).expect("write epoch");
+        assert_eq!(read_panel_epoch(&panel_id).as_deref(), Some("epoch-test"));
+        write_panel_epoch(&panel_id, None).expect("clear epoch");
+        assert_eq!(read_panel_epoch(&panel_id), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn panel_epoch_rejects_non_private_files() {
+        use std::os::unix::fs::PermissionsExt;
+        let panel_id = format!("session-permission-{}", std::process::id());
+        let path = panel_epoch_file_path(&panel_id);
+        write_private(&path, "foreign").expect("write epoch");
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("chmod epoch");
+        assert_eq!(read_panel_epoch(&panel_id), None);
+        let _ = fs::remove_file(path);
     }
 
 }

@@ -7,6 +7,16 @@ use serde_json::Value;
 use std::error::Error;
 
 impl HiBossClient {
+    pub async fn list_agent_bosses(&self) -> Result<Value, Box<dyn Error>> {
+        let resp = self
+            .http
+            .get(format!("{}/api/agents/me/bosses", self.base_url))
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        Self::parse_response(resp).await
+    }
+
     pub async fn list_bosses(&self) -> Result<Value, Box<dyn Error>> {
         let resp = self
             .http

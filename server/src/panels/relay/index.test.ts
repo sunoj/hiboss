@@ -86,7 +86,7 @@ describe('panel connection authorization', () => {
     const ticket = await response.json() as TicketResponse;
     expect(ticket.roomId).toBe(BOSS_ID);
     expect(ticket.role).toBe('producer');
-    expect(ticket.operations).toEqual(['subscribe', 'lease.claim', 'state.update']);
+    expect(ticket.operations).toEqual(['subscribe', 'lease.claim', 'lease.release', 'state.update']);
     expect(ticket.expiresAt).toBeGreaterThan(Date.now() + 59_000);
     const first = await connect(ticket.ticket);
     const second = await SELF.fetch('https://test.local/api/panel-relay', {

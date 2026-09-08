@@ -81,10 +81,12 @@ export class PanelRoom extends DurableObject<Env> {
         return;
       }
       if (ticket.subscribedPanelId !== ticket.panelId || ticket.role !== 'producer') throw new PanelFault('permission_denied', 403);
-      const lease = input.kind === 'lease.claim' || input.kind === 'lease.renew';
+      const lease = ['lease.claim', 'lease.renew', 'lease.release'].includes(String(input.kind));
       const update = input.kind === 'state.update' || input.kind === 'state.unchanged';
-      if ((!lease && !update) || !ticket.operations.includes(lease ? 'lease.claim' : 'state.update')) throw new PanelFault('invalid_command', 422);
-      const body = lease ? { ...input, action: input.kind === 'lease.claim' ? 'claim' : 'renew' } : input;
+      const operation = input.kind === 'lease.renew' ? 'lease.claim' : lease ? String(input.kind) : 'state.update';
+      if ((!lease && !update) || !ticket.operations.includes(operation as 'lease.claim' | 'lease.release' | 'state.update')) throw new PanelFault('invalid_command', 422);
+      const action = input.kind === 'lease.claim' ? 'claim' : input.kind === 'lease.release' ? 'release' : 'renew';
+      const body = lease ? { ...input, action } : input;
       const result = await this.engine.execute(ticket.panelId, ticket.identity, ticket.role, lease ? 'lease' : 'update', body);
       ws.send(JSON.stringify(result));
     } catch (error) {
