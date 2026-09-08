@@ -8,7 +8,8 @@ required. A completed report does not require a blocking question.
 ## Discover the installed interface
 
 Run `hiboss panel --help` once. This guide describes protocol v2. The required
-commands are `validate`, `publish`, `stream`, `state`, `lifecycle`, and `show`.
+commands are `validate`, `publish`, `update`, `stream`, `state`, `complete`,
+`fail`, `cancel`, `pause`, `resume`, `doctor`, and `show`.
 If the installed CLI lacks one, report the version mismatch. Do not invent flags,
 search unrelated repositories, or repeatedly scan the user's configuration.
 Never display API keys or notification credentials.
@@ -76,7 +77,7 @@ card so the result remains useful without opening the artifact.
 
 ```bash
 hiboss panel validate report-panel.json
-hiboss panel publish report-panel.json --idempotency-key remote-e2e-RUN_ID
+hiboss panel publish report-panel.json --run-id RUN_ID
 ```
 
 Keep the returned `panelId`. The key identifies this execution: reuse it with the
@@ -85,30 +86,65 @@ new card for every progress update.
 
 ## Update the same card
 
+`update` applies one partial task object and exits after the accepted sequence:
+
+```bash
+hiboss panel update PANEL_ID '{"passed":14,"skipped":1,"failed":0}'
+hiboss panel update PANEL_ID --file progress.json
+```
+
+If neither JSON nor `--file` is supplied, `update` reads one JSON object from stdin.
+It claims the lease, merges the object exactly like a stream line, sends one
+`state.update` (or `state.unchanged`), waits for the acknowledgement, releases the
+lease, and prints the accepted sequence. Repeat it as often as needed; no version
+numbers are hand-written.
+
 `stream` consumes newline-delimited partial task objects, without a `task` wrapper:
 
 ```bash
 printf '%s\n' '{"passed":14,"skipped":1,"failed":0}' | hiboss panel stream PANEL_ID
 ```
 
-A long-running stdin stream renews its lease every 15 seconds. A repeated input
-observation with unchanged values uses `state.unchanged`. Only submit observations
-that were actually checked. Lease renewal alone cannot keep old data fresh.
+A long-running stdin stream renews its lease every 15 seconds. On clean stdin EOF,
+it releases the lease after the last acknowledgement. A repeated input observation
+with unchanged values uses `state.unchanged`. Only submit observations that were
+actually checked. Lease renewal alone cannot keep old data fresh.
 
-A new stream must not steal a live producer's lease. If explicitly replacing your
-own stopped producer, inspect `hiboss panel state PANEL_ID` and use
-`hiboss panel stream PANEL_ID --takeover-epoch EXACT_EPOCH`. A conflict requires
-inspection; do not fight another executor in a retry loop.
+A new producer must not steal another executor's live lease. The CLI records the
+epoch it claimed for this session. After a crash, a `lease_conflict` is taken over
+automatically only when the live epoch equals that recorded epoch. Otherwise inspect
+the state and use the exact command named by the error:
+
+```bash
+hiboss panel state PANEL_ID
+hiboss panel stream PANEL_ID --takeover-epoch EXACT_EPOCH
+```
+
+Do not fight another executor in a retry loop.
 
 ## Finish and verify
 
-Read both `hiboss panel show PANEL_ID --json` and `hiboss panel state PANEL_ID`.
-Create an exact command file using the returned metadata version, definition
-revision, and state cursor. `expectedEpoch` is the current unexpired lease epoch,
-or null when there is no live lease. `expectedState` is the returned
-`{"epoch": ..., "sequence": ...}` cursor, including a null epoch before any lease.
+The normal finish commands read `show` and `state` themselves and fill every
+metadata, definition, epoch, and state cursor field. Use the same command and its
+default idempotency key when retrying:
 
-For a just-published card with no stream, the command is:
+```bash
+hiboss panel complete PANEL_ID --title "13 passed · 1 platform skip · 0 failed" \
+  --message "Remote UI E2E completed. On-chain settlement was not tested." \
+  --final-task '{"passed":13,"skipped":1,"failed":0}'
+hiboss panel fail PANEL_ID --title "Remote UI E2E failed" --code test_failure \
+  --message "See the captured report"
+hiboss panel cancel PANEL_ID --title "Cancelled by operator"
+```
+
+`pause` and `resume` take only the panel ID. `--final-task` accepts inline JSON or
+`@path/to/task.json`; `--title`, `--message`, and `--code` are result fields, with
+`--code` valid only for `fail`. `--idempotency-key` overrides the retry-safe key.
+Use `lifecycle <file>` only when the full versioned command is intentionally needed.
+
+If the full `lifecycle <file>` escape hatch is intentional, a just-published card
+with no stream uses the following versioned command; normal agents should use
+`complete` instead:
 
 ```json
 {
@@ -134,6 +170,16 @@ Report delivery only after the server confirms a terminal lifecycle and the fina
 snapshot matches the evidence. A pending/saving response is not completion: retry
 the exact same file and key. A revision conflict requires reading the new state;
 never overwrite newer work blindly.
+
+Before relying on the channel, run:
+
+```bash
+hiboss panel doctor
+```
+
+It checks authentication, protocol v2, the resolved session and boss, a producer
+relay ticket, and the subscribe handshake without claiming a lease. A non-zero
+result includes the corrective action.
 
 Other actions are `pause`, `resume`, `fail`, and `cancel`. Failure needs a result
 with a stable `code` and `title`; cancellation needs a reason in `title`.

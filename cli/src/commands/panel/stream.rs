@@ -2,7 +2,8 @@
 // Exports: PanelStreamArgs and run.
 // Dependencies: clap, futures-util, tokio-tungstenite, serde_json, and HiBossClient.
 
-use crate::client::HiBossClient;
+use crate::{client::HiBossClient, session};
+use super::relay_helpers::{live_epoch, relay_error, RelayFailure};
 use clap::Args;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
@@ -54,7 +55,8 @@ use state::Batcher;
 pub async fn run(args: &PanelStreamArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let panel = client.get_panel(&args.panel_id).await?;
     let revision = panel.get("definitionRevision").and_then(Value::as_u64).unwrap_or(1);
-    let (mut connection, snapshot) = connect(client, &args.panel_id, revision, args.takeover_epoch.as_deref()).await?;
+    let (mut connection, snapshot) = connect_with_recovery(client, &args.panel_id, revision, args.takeover_epoch.as_deref()).await?;
+    session::write_panel_epoch(&args.panel_id, Some(&connection.epoch))?;
     let mut state = StreamState::from_snapshot(snapshot)?;
     let (tx, mut rx) = mpsc::channel::<Result<String, String>>(32);
     tokio::spawn(read_stdin(tx));
@@ -65,7 +67,11 @@ pub async fn run(args: &PanelStreamArgs, client: &HiBossClient) -> Result<(), Bo
 
     loop {
         if input_closed && state.ambiguous && state.in_flight.is_none() { return Err("stream ended with unacknowledged work".into()); }
-        if input_closed && state.finished() { return Ok(()); }
+        if input_closed && state.finished() {
+            release(&mut connection, &args.panel_id, revision).await?;
+            session::write_panel_epoch(&args.panel_id, None)?;
+            return Ok(());
+        }
         let deadline = state.batch.deadline;
         let wake_at = deadline.map_or_else(Instant::now, |value| value);
         let drain_at = drain_deadline.map_or_else(Instant::now, |value| value);
@@ -79,6 +85,7 @@ pub async fn run(args: &PanelStreamArgs, client: &HiBossClient) -> Result<(), Bo
             frame = connection.reader.next() => match frame {
                 Some(Ok(Message::Close(_))) | Some(Err(_)) | None => {
                     let (next, snapshot) = reconnect(client, &args.panel_id, revision, &connection.epoch).await?;
+                    session::write_panel_epoch(&args.panel_id, Some(&next.epoch))?;
                     state.reconnect(snapshot)?;
                     connection = next;
                 }
@@ -126,9 +133,26 @@ async fn connect(client: &HiBossClient, panel_id: &str, revision: u64, takeover:
                 let snapshot = frame.snapshot.ok_or("lease ack has no baseline")?;
                 return Ok((Connection { writer, reader, epoch }, snapshot));
             },
-            "error" => return Err(relay_error(frame.code.as_deref()).into()),
+            "error" => return Err(Box::new(RelayFailure { code: frame.code.unwrap_or_else(|| "unknown_error".to_owned()) })),
             _ => {}
         }
+    }
+}
+
+async fn connect_with_recovery(client: &HiBossClient, panel_id: &str, revision: u64, takeover: Option<&str>) -> Result<(Connection, Snapshot), Box<dyn Error>> {
+    match connect(client, panel_id, revision, takeover).await {
+        Ok(value) => Ok(value),
+        Err(error) if error.downcast_ref::<RelayFailure>().is_some_and(|failure| failure.code == "lease_conflict") => {
+            let state = client.panel_state(panel_id).await?;
+            let recorded = session::read_panel_epoch(panel_id);
+            let live = live_epoch(&state);
+            if live.is_some() && live == recorded {
+                return connect(client, panel_id, revision, live.as_deref()).await;
+            }
+            let exact = live.map_or_else(|| "<live-epoch>".to_owned(), |epoch| epoch.to_owned());
+            Err(format!("panel lease_conflict: live epoch is {exact}; inspect it and retry with `hiboss panel stream {panel_id} --takeover-epoch {exact}`").into())
+        }
+        Err(error) => Err(error),
     }
 }
 
@@ -159,10 +183,6 @@ async fn handle_message(connection: &mut Connection, state: &mut StreamState, me
     Ok(())
 }
 
-/// What a frame means, decided without touching the socket so the decision can be tested.
-/// Keeping this separate is the point: a fenced producer that keeps fighting for the lease
-/// makes two agents thrash and the panel flicker between them, and that is a property of
-/// the decision rather than of the I/O around it.
 #[derive(Debug, PartialEq, Eq)]
 enum FrameAction {
     Acknowledge(u64),
@@ -196,6 +216,23 @@ async fn receive_snapshot(reader: &mut futures_util::stream::SplitStream<tokio_t
     }
 }
 
+async fn release(connection: &mut Connection, panel_id: &str, revision: u64) -> Result<(), Box<dyn Error>> {
+    let frame = json!({"protocolVersion":2,"kind":"lease.release","panelId":panel_id,"definitionRevision":revision,"epoch":connection.epoch});
+    connection.writer.send(Message::Text(frame.to_string().into())).await?;
+    loop {
+        let message = timeout(HANDSHAKE_TIMEOUT, connection.reader.next()).await?.ok_or("relay closed while releasing lease")??;
+        let frame = parse_frame(message)?;
+        if frame.kind == "lease.release.ack" { return Ok(()); }
+        if frame.kind == "error" {
+            let code = frame.code.as_deref().unwrap_or("unknown_error");
+            if code == "invalid_command" || code == "unsupported_protocol" {
+                return Err("panel relay version mismatch: server does not support lease.release; upgrade the server and CLI together".into());
+            }
+            return Err(relay_error(Some(code)).into());
+        }
+    }
+}
+
 async fn send_update(writer: &mut futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, Message>, state: &mut StreamState, panel_id: &str, revision: u64, epoch: &str) -> Result<(), Box<dyn Error>> {
     let ops = diff_values(&state.acknowledged, &state.desired, "/task");
     let kind = if ops.is_empty() { "state.unchanged" } else { "state.update" };
@@ -214,8 +251,6 @@ fn parse_frame(message: Message) -> Result<RelayFrame, Box<dyn Error>> {
 fn snapshot_from(frame: RelayFrame) -> Result<Snapshot, Box<dyn Error>> {
     Ok(Snapshot { sequence: frame.sequence.unwrap_or(0), task: frame.task.ok_or("snapshot has no task")? })
 }
-
-fn relay_error(code: Option<&str>) -> String { format!("panel relay stopped: {}", code.unwrap_or("unknown error")) }
 
 fn new_epoch() -> String {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |duration| duration.as_nanos());

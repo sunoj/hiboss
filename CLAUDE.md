@@ -39,10 +39,15 @@ something worth **watching** while the task runs.
 
 ```bash
 hiboss panel validate <file>            # local pre-check; prints the JSON Pointer path on failure
-hiboss panel publish <file>             # prints panelId; re-running the same file does not duplicate
-hiboss panel stream <panel-id>          # NDJSON on stdin, one partial task state per line
+hiboss panel publish <file> [--run-id]  # prints panelId; stable retry key includes the run
+hiboss panel update <panel-id> [JSON]   # one merge/ack/release; stdin or --file also work
+hiboss panel stream <panel-id>          # NDJSON on stdin; releases after final ack
+hiboss panel complete|fail|cancel <id>  # finish with live CAS fields and retry-safe key
+hiboss panel pause|resume <id>          # lifecycle shortcuts with live CAS fields
+hiboss panel doctor                     # auth, v2, session/boss, ticket, subscribe
 hiboss panel list [--json] [--cursor]
 hiboss panel show <id> [--json]
+hiboss panel state <id>
 ```
 
 Start from a reference in `panel-runtime/fixtures/examples/` — download progress, an

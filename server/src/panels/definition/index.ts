@@ -28,7 +28,7 @@ routes.use('*', dualAuth);
 
 function requiredBodyFields(payload: PanelRequest): { ok: true } | { ok: false; path: string; message: string } {
   if (payload.protocolVersion !== 2) return { ok: false, path: '/protocolVersion', message: 'protocolVersion must be 2' };
-  for (const key of ['targetBossId', 'taskKey', 'sessionId', 'title', 'catalogId'] as const) {
+  for (const key of ['taskKey', 'title', 'catalogId'] as const) {
     if (stringField(payload, key) === null) return { ok: false, path: `/${key}`, message: `${key} is required` };
   }
   if (!Number.isInteger(payload.catalogVersion)) return { ok: false, path: '/catalogVersion', message: 'catalogVersion must be an integer' };
@@ -54,6 +54,16 @@ async function hasPublicationScope(c: PanelContext, agentId: string, bossId: str
     'SELECT 1 AS allowed FROM sessions s JOIN boss_agent_access ba ON ba.agent_id = s.agent_id WHERE s.id = ? AND s.agent_id = ? AND ba.boss_id = ? LIMIT 1',
   ).bind(sessionId, agentId, bossId).first<{ allowed: number }>();
   return row !== null;
+}
+
+async function resolveSession(c: PanelContext, agentId: string): Promise<string | null> {
+  const row = await c.env.DB.prepare("SELECT id FROM sessions WHERE agent_id = ? ORDER BY last_seen_at DESC LIMIT 1").bind(agentId).first<{ id: string }>();
+  return row?.id ?? null;
+}
+
+async function resolveBoss(c: PanelContext, agentId: string): Promise<string | null> {
+  const row = await c.env.DB.prepare('SELECT boss_id FROM boss_agent_access WHERE agent_id = ? ORDER BY boss_id LIMIT 1').bind(agentId).first<{ boss_id: string }>();
+  return row?.boss_id ?? null;
 }
 
 function publicationResponse(row: PanelMetadataRow): { panelId: string; definitionRevision: number; metadataVersion: number; catalogVersion: number; createdAt: string } {
@@ -86,8 +96,8 @@ routes.post('/', async (c) => {
   if (!fields.ok) return errorResponse(c, 400, 'invalid_spec', fields.message, fields.path);
   const validation = validatePublication(payload);
   if (!validation.ok) return errorResponse(c, validation.error.code === 'unsupported_catalog' ? 400 : 422, validation.error.code, validation.error.message, validation.error.path);
-  const targetBossId = stringField(payload, 'targetBossId');
-  const sessionId = stringField(payload, 'sessionId');
+  const targetBossId = stringField(payload, 'targetBossId') ?? await resolveBoss(c, agentId);
+  const sessionId = stringField(payload, 'sessionId') ?? await resolveSession(c, agentId);
   if (targetBossId === null || sessionId === null) return errorResponse(c, 400, 'invalid_spec', 'Target and session are required');
   if (!await hasPublicationScope(c, agentId, targetBossId, sessionId)) return errorResponse(c, 404, 'not_found', 'Publication target was not found');
   let lifecycle: Lifecycle;

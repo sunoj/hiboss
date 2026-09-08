@@ -82,6 +82,15 @@ describe('panel publication and reads', () => {
     expect(panel.summary.stage).toBe('Preparing');
   });
 
+  it('resolves omitted target and session for the authenticated agent', async () => {
+    const body = panelBody({ targetBossId: undefined, sessionId: undefined, taskKey: 'panel-resolved-defaults' });
+    const published = await publish('panel-resolved-defaults', body);
+    expect(published.status).toBe(201);
+    const receipt = await published.json() as { panelId: string };
+    const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
+    expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID, sessionId: 'panels-test-session' });
+  });
+
   it('rejects invalid specs with a path and rejects unknown catalogs', async () => {
     const invalid = await publish('panel-invalid-spec', panelBody({ spec: { root: 'main', elements: { main: { type: 'Unknown', props: {}, children: [] } } } }));
     expect(invalid.status).toBe(422);

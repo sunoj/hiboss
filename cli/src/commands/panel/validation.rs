@@ -50,9 +50,7 @@ pub fn validate_publication(value: &Value) -> Result<(), ValidationError> {
     require_u64(object, "protocolVersion", "", 2)?;
     if let Some(value) = object.get("lifecycle") { validate_lifecycle(value)?; }
     if object.contains_key("supersedesPanelId") { require_string(object, "supersedesPanelId", "")?; }
-    require_string(object, "targetBossId", "")?;
     require_string(object, "taskKey", "")?;
-    require_string(object, "sessionId", "")?;
     require_string(object, "title", "")?;
     if object.get("catalogId") != Some(&Value::String(CATALOG_ID.to_owned())) {
         return Err(error("unsupported_catalog", "/catalogId", "catalogId must be \"hiboss.panel\""));

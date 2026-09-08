@@ -5,6 +5,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use serde_json::Value;
+use std::collections::BTreeMap;
 
 /// Write a file owner-only (0600), refusing to follow a symlink planted at the
 /// (predictable) /tmp path. On multi-user hosts a co-resident user could otherwise
@@ -359,6 +361,32 @@ pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
     write_private(&session_file_path(), id)
 }
 
+/// Path to the session-local map of producer epochs held by this agent.
+pub fn panel_epoch_file_path() -> PathBuf {
+    PathBuf::from(format!("/tmp/hiboss-session-{}-panel-epochs", project_hash()))
+}
+
+/// Read the epoch last claimed by this session for one panel.
+pub fn read_panel_epoch(panel_id: &str) -> Option<String> {
+    let body = fs::read_to_string(panel_epoch_file_path()).ok()?;
+    let epochs = serde_json::from_str::<BTreeMap<String, Value>>(&body).ok()?;
+    epochs.get(panel_id).and_then(Value::as_str).map(str::to_owned)
+}
+
+/// Record or clear a panel epoch in the same private temporary area as session state.
+pub fn write_panel_epoch(panel_id: &str, epoch: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    let mut epochs = fs::read_to_string(panel_epoch_file_path())
+        .ok()
+        .and_then(|body| serde_json::from_str::<BTreeMap<String, String>>(&body).ok())
+        .unwrap_or_default();
+    match epoch {
+        Some(epoch) => { epochs.insert(panel_id.to_owned(), epoch.to_owned()); }
+        None => { epochs.remove(panel_id); }
+    }
+    write_private(&panel_epoch_file_path(), &serde_json::to_string(&epochs)?)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -373,6 +401,15 @@ mod tests {
         let name = project_name();
         assert!(!name.contains('/'));
         assert!(!name.contains('\\'));
+    }
+
+    #[test]
+    fn panel_epoch_round_trip_is_session_local() {
+        let panel_id = format!("session-test-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("clock").as_nanos());
+        write_panel_epoch(&panel_id, Some("epoch-test")).expect("write epoch");
+        assert_eq!(read_panel_epoch(&panel_id).as_deref(), Some("epoch-test"));
+        write_panel_epoch(&panel_id, None).expect("clear epoch");
+        assert_eq!(read_panel_epoch(&panel_id), None);
     }
 
 }

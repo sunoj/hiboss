@@ -8,6 +8,12 @@ mod validation;
 mod json;
 #[path = "panel/stream.rs"]
 mod stream;
+#[path = "panel/update.rs"]
+mod update;
+#[path = "panel/control.rs"]
+mod control;
+#[path = "panel/relay_helpers.rs"]
+mod relay_helpers;
 
 use crate::client::{HiBossClient, PanelPublishResponse};
 use clap::{Args, Subcommand};
@@ -36,12 +42,26 @@ pub enum PanelCommand {
     Show(PanelShowArgs),
     #[command(about = "Stream partial task state from stdin to a live panel")]
     Stream(stream::PanelStreamArgs),
+    #[command(about = "Apply one merged task observation and release the producer lease")]
+    Update(update::PanelUpdateArgs),
     #[command(about = "Read the authoritative producer checkpoint")]
     State(PanelShowArgs),
+    #[command(about = "Check panel protocol, session, boss, ticket, and relay subscription")]
+    Doctor,
     #[command(about = "Apply a v2 pause/resume/complete/fail/cancel command from a JSON file")]
     Lifecycle(PanelControlArgs),
     #[command(about = "Replace the definition with a version-checked v2 command file")]
     Definition(PanelControlArgs),
+    #[command(about = "Complete a panel using current server CAS values")]
+    Complete(control::PanelLifecycleArgs),
+    #[command(about = "Fail a panel using current server CAS values")]
+    Fail(control::PanelLifecycleArgs),
+    #[command(about = "Cancel a panel using current server CAS values")]
+    Cancel(control::PanelLifecycleArgs),
+    #[command(about = "Pause a panel using current server CAS values")]
+    Pause(control::PanelLifecycleArgs),
+    #[command(about = "Resume a panel using current server CAS values")]
+    Resume(control::PanelLifecycleArgs),
 }
 
 #[derive(Debug, Args)]
@@ -61,6 +81,8 @@ pub struct PanelPublishArgs {
     pub file: PathBuf,
     #[arg(long, value_name = "KEY", help = "Idempotency key; defaults to a stable key derived from the file")]
     pub idempotency_key: Option<String>,
+    #[arg(long, help = "Execution identifier included in the default idempotency key")]
+    pub run_id: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -85,9 +107,16 @@ pub async fn run(args: &PanelArgs, client: &HiBossClient) -> Result<(), Box<dyn 
         PanelCommand::List(arguments) => run_list(arguments, client).await,
         PanelCommand::Show(arguments) => run_show(arguments, client).await,
         PanelCommand::Stream(arguments) => stream::run(arguments, client).await,
+        PanelCommand::Update(arguments) => update::run(arguments, client).await,
         PanelCommand::State(arguments) => { println!("{}", serde_json::to_string_pretty(&client.panel_state(&arguments.id).await?)?); Ok(()) },
+        PanelCommand::Doctor => run_doctor(client).await,
         PanelCommand::Lifecycle(arguments) => run_control(arguments, client, "lifecycle").await,
         PanelCommand::Definition(arguments) => run_control(arguments, client, "definition").await,
+        PanelCommand::Complete(arguments) => control::run_shortcut("complete", arguments, client).await,
+        PanelCommand::Fail(arguments) => control::run_shortcut("fail", arguments, client).await,
+        PanelCommand::Cancel(arguments) => control::run_shortcut("cancel", arguments, client).await,
+        PanelCommand::Pause(arguments) => control::run_shortcut("pause", arguments, client).await,
+        PanelCommand::Resume(arguments) => control::run_shortcut("resume", arguments, client).await,
     }
 }
 
@@ -109,10 +138,34 @@ pub fn run_validate(args: &PanelFileArgs) -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_publish(args: &PanelPublishArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let body = validation::validate_file(&args.file)?;
-    let key = args.idempotency_key.clone().unwrap_or_else(|| stable_key(&body));
+    let mut body = validation::validate_file(&args.file)?;
+    if body.get("sessionId").is_none() {
+        let session_id = crate::session::read_session_id().ok_or("sessionId is missing; run `hiboss hook session-start` or add sessionId to the publication")?;
+        body["sessionId"] = Value::String(session_id);
+    }
+    let key = args.idempotency_key.clone().unwrap_or_else(|| stable_key(&body, args.run_id.as_deref()));
     let response = client.publish_panel(&body, &key).await?;
+    let panel = client.get_panel(&response.panel_id).await?;
+    if panel.get("lifecycle").and_then(|value| value.get("taskState")).and_then(Value::as_str).is_some_and(|state| ["completed", "failed", "cancelled"].contains(&state)) {
+        let run_id = args.run_id.as_deref().unwrap_or("<run-id>");
+        return Err(format!("publication returned ended panel {}; use a new --run-id (current: {run_id})", response.panel_id).into());
+    }
     println!("{}", serde_json::to_string(&publish_output(&response))?);
+    Ok(())
+}
+
+async fn run_doctor(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    let session_id = crate::session::read_session_id().ok_or("No resolved session; run `hiboss hook session-start` and retry")?;
+    let sessions = client.list_sessions().await?;
+    if !sessions.sessions.iter().any(|session| session.id == session_id) { return Err(format!("session {session_id} is not visible; run `hiboss hook session-start` to refresh it").into()); }
+    let panels = client.list_panels(None).await?;
+    let panel = panels.get("panels").and_then(Value::as_array).and_then(|items| items.iter().find(|panel| panel.get("sessionId").and_then(Value::as_str) == Some(session_id.as_str()))).ok_or("No panel is associated with the resolved session; publish a panel first")?;
+    let panel_id = panel.get("panelId").and_then(Value::as_str).ok_or("panel list returned no panelId")?;
+    let details = client.get_panel(panel_id).await?;
+    let boss = details.get("targetBossId").and_then(Value::as_str).ok_or("panel has no resolved boss")?;
+    if details.get("definition").and_then(|definition| definition.get("protocolVersion")).and_then(Value::as_u64) != Some(2) { return Err("server does not support panel protocol v2; upgrade the server and CLI together".into()); }
+    update::doctor(client, panel_id).await?;
+    println!("auth: ok\nprotocol: v2\nsession: {session_id}\nboss: {boss}\nrelay: ticket and subscribe ok");
     Ok(())
 }
 
@@ -140,14 +193,14 @@ async fn run_show(args: &PanelShowArgs, client: &HiBossClient) -> Result<(), Box
 fn publish_output(response: &PanelPublishResponse) -> Value { json!({"panelId": response.panel_id, "definitionRevision": response.definition_revision}) }
 fn field(value: &Value, keys: &[&str]) -> String { keys.iter().find_map(|key| value.get(*key).map(display_value)).unwrap_or_else(|| "-".into()) }
 fn display_value(value: &Value) -> String { value.as_str().map(str::to_owned).unwrap_or_else(|| value.to_string()) }
-fn stable_key(value: &Value) -> String { let bytes = serde_json::to_vec(value).unwrap_or_default(); let hash = digest(&SHA256, &bytes); let hex = hash.as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>(); format!("hiboss-panel-{hex}") }
+fn stable_key(value: &Value, run_id: Option<&str>) -> String { let input = json!({"document":value,"sessionId":value.get("sessionId"),"runId":run_id}); let bytes = serde_json::to_vec(&input).unwrap_or_default(); let hash = digest(&SHA256, &bytes); let hex = hash.as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>(); format!("hiboss-panel-{hex}") }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn stable_key_is_repeatable_for_same_document() { let value = json!({"title":"panel"}); assert_eq!(stable_key(&value), stable_key(&value)); }
+    fn stable_key_is_repeatable_for_same_document() { let value = json!({"title":"panel"}); assert_eq!(stable_key(&value, None), stable_key(&value, None)); }
 
     #[test]
     fn publish_output_contains_only_resume_ids() { let response = PanelPublishResponse { panel_id: "panel_1".into(), definition_revision: 3, extra: Default::default() }; assert_eq!(publish_output(&response), json!({"panelId":"panel_1","definitionRevision":3})); }

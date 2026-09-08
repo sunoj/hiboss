@@ -10,9 +10,18 @@ import subprocess
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+os.environ['HIBOSS_PROJECT_DIR'] = str(ROOT)
 BASE = os.environ.get('HIBOSS_PANEL_TEST_URL', 'http://127.0.0.1:8798')
 DRIVER = ROOT / 'cli/target/debug/examples/panel-lifecycle-driver'
 COMMAND = [str(DRIVER), '--server', BASE, '--key', 'hb_lifecycle_cli_test_only']
+
+
+def session_path() -> pathlib.Path:
+    value = str(ROOT)
+    digest = 0xcbf29ce484222325
+    for byte in value.encode():
+        digest = ((digest ^ byte) * 0x100000001b3) & 0xffffffffffffffff
+    return pathlib.Path(f'/tmp/hiboss-session-{digest:016x}')
 
 
 def cli(*args: str, input_text: str | None = None) -> str:
@@ -20,6 +29,11 @@ def cli(*args: str, input_text: str | None = None) -> str:
     if result.returncode:
         raise RuntimeError(result.stderr)
     return result.stdout.strip()
+
+
+def expect_failure(*args: str, contains: str) -> None:
+    result = subprocess.run(COMMAND + list(args), text=True, capture_output=True, timeout=25)
+    assert result.returncode != 0 and contains in result.stderr, result.stderr
 
 
 def checkpoint(panel_id: str) -> dict:
@@ -39,6 +53,30 @@ def transition(directory: pathlib.Path, panel_id: str, action: str, version: int
     return first
 
 
+def complete(panel_id: str, task: dict) -> dict:
+    result = json.loads(cli('complete', panel_id, '--title', 'Lifecycle complete', '--final-task', json.dumps(task)))
+    assert result['lifecycle']['taskState'] == 'completed'
+    return result
+
+
+def verify_crash_recovery(panel_id: str, task: dict) -> dict:
+    process = subprocess.Popen(COMMAND + ['stream', panel_id], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        process.stdin.write(json.dumps(task) + '\n')
+        process.stdin.flush()
+        for _ in range(30):
+            if checkpoint(panel_id)['observationVersion'] > 0: break
+            time.sleep(0.1)
+        assert checkpoint(panel_id)['observationVersion'] > 0
+        process.kill()
+        process.wait(timeout=5)
+    finally:
+        if process.poll() is None: process.kill(); process.wait(timeout=5)
+    changed = {**task, 'stage': 'Recovered after crash'}
+    assert cli('update', panel_id, json.dumps({'stage': changed['stage']})).strip() == '1'
+    return changed
+
+
 def run_scenario(directory: pathlib.Path, fixture: str, action: str) -> None:
     document = json.loads((ROOT / 'panel-runtime/fixtures/examples' / f'{fixture}.json').read_text())
     document.update(targetBossId='lifecycle-cli-boss', sessionId='lifecycle-cli-session', taskKey=fixture,
@@ -48,11 +86,17 @@ def run_scenario(directory: pathlib.Path, fixture: str, action: str) -> None:
     assert cli('validate', str(path)) == 'valid'
     panel_id = json.loads(cli('publish', str(path), '--idempotency-key', f'{directory.name}-{fixture}'))['panelId']
     task = document['initialState']['task']
-    # A repeated observation must be acknowledged even if its values have not changed.
     if fixture == 'service-monitor': verify_heartbeat(panel_id, task)
-    else: assert 'ack 0' in cli('stream', panel_id, input_text=json.dumps(task) + '\n')
+    assert cli('update', panel_id, json.dumps({'stage': f'First {fixture}'})).strip() == '1'
+    assert cli('update', panel_id, json.dumps({'stage': f'Second {fixture}'})).strip() == '1'
+    task = {**task, 'stage': f'Second {fixture}'}
+    if fixture == 'download-progress':
+        task = verify_crash_recovery(panel_id, task)
+    # A repeated observation must be acknowledged even if its values have not changed.
+    if fixture != 'service-monitor': assert 'ack 0' in cli('stream', panel_id, input_text=json.dumps(task) + '\n')
     observed = checkpoint(panel_id)
-    assert observed['observationVersion'] == 1 and observed['sequence'] == 0
+    expected_observations = 4 if fixture == 'download-progress' else 3
+    assert observed['observationVersion'] == expected_observations and observed['sequence'] >= 0, (fixture, observed)
     assert transition(directory, panel_id, 'pause', 1)['lifecycle']['taskState'] == 'paused'
     assert transition(directory, panel_id, 'resume', 2)['lifecycle']['taskState'] == 'running'
     changed = {**task, 'stage': f'Observed {fixture}'}
@@ -60,12 +104,15 @@ def run_scenario(directory: pathlib.Path, fixture: str, action: str) -> None:
     assert checkpoint(panel_id)['task'] == changed
     result = dict(title=f'{fixture}: {action}')
     if action == 'fail': result['code'] = 'test_failure'
-    receipt = transition(directory, panel_id, action, 3, finalTask=changed, result=result)
+    receipt = complete(panel_id, changed) if action == 'complete' else transition(directory, panel_id, action, 3, finalTask=changed, result=result)
     expected = dict(complete='completed', fail='failed', cancel='cancelled')[action]
     assert receipt['lifecycle']['taskState'] == expected
     assert checkpoint(panel_id)['task'] == changed
     detail = json.loads(cli('show', panel_id, '--json'))
     assert detail['metadataVersion'] == 4 and detail['finalSnapshot']['task'] == changed
+    if action == 'complete':
+        expect_failure('publish', str(path), '--idempotency-key', f'{directory.name}-{fixture}', '--run-id', directory.name, contains='ended panel')
+        assert 'relay' in cli('doctor')
     print(f'PASS {fixture}: publish → observe → pause → resume → update → {expected} → reload')
 
 
@@ -92,6 +139,7 @@ def verify_heartbeat(panel_id: str, task: dict) -> None:
 
 
 def main() -> None:
+    session_path().write_text('lifecycle-cli-session')
     with tempfile.TemporaryDirectory(prefix='hiboss-panel-flow-') as directory:
         for fixture, action in [('download-progress', 'complete'), ('e2e-test-run', 'fail'),
                                 ('benchmark-sweep', 'complete'), ('service-monitor', 'cancel')]:

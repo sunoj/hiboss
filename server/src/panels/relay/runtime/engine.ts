@@ -65,6 +65,11 @@ export class PanelEngine {
     if (body.definitionRevision !== row.definition_revision) throw new PanelFault('revision_conflict');
     const existing = await this.storage.get<Lease>(`lease:${row.panel_id}`);
     const now = Date.now();
+    if (body.action === 'release') {
+      if (!existing || body.epoch !== existing.epoch) throw new PanelFault('fenced_epoch');
+      await this.storage.delete(`lease:${row.panel_id}`);
+      return { kind: 'lease.release.ack', epoch: existing.epoch };
+    }
     if (body.action === 'renew') {
       if (!existing || existing.expiresAt <= now || body.epoch !== existing.epoch) throw new PanelFault('fenced_epoch');
       const renewed = { ...existing, expiresAt: now + LEASE_MS };

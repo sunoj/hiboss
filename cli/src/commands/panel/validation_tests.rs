@@ -10,6 +10,14 @@ use super::*;
     fn accepts_valid_publication() { assert_eq!(validate_publication(&publication()), Ok(())); }
 
     #[test]
+    fn accepts_server_resolved_target_and_session() {
+        let mut value = publication();
+        value.as_object_mut().expect("publication object").remove("targetBossId");
+        value.as_object_mut().expect("publication object").remove("sessionId");
+        assert_eq!(validate_publication(&value), Ok(()));
+    }
+
+    #[test]
     fn reports_unknown_component_with_pointer() { let mut value = publication(); value["spec"]["elements"]["main"]["type"] = Value::String("Unknown".into()); let issue = validate_publication(&value).expect_err("invalid component"); assert_eq!(issue.path, "/spec/elements/main/type"); }
 
     #[test]

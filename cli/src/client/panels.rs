@@ -108,6 +108,11 @@ fn error_path(field_errors: Option<&Value>) -> Option<String> {
 
 fn next_action(code: &str, retryable: bool) -> &'static str {
     match code {
+        "lease_conflict" => "Read `hiboss panel state <id>`; if this is your recorded epoch, retry with `--takeover-epoch <epoch>`, otherwise wait for the other producer",
+        "fenced_epoch" => "Read `hiboss panel state <id>` and use the live epoch only when replacing your own stopped producer",
+        "lease_expired" => "Claim a fresh lease and retry the operation",
+        "revision_conflict" => "Read `hiboss panel show <id> --json` and `hiboss panel state <id>`, then rebuild the command with current versions",
+        "unsupported_protocol" => "Upgrade the server and CLI together to the Live Panels protocol v2 rollout",
         "invalid_spec" => "Fix the publication document at the reported path and run `hiboss panel validate` again",
         "unsupported_catalog" => "Choose a catalog/version supported by the server",
         "idempotency_conflict" => "Reuse the original file with the original key, or choose a new key for a different publication",

@@ -32,8 +32,10 @@ See [the rollout record](rollout-2026-09-08.md) for exact scope and verification
   Newly discovered panels append without sorting by observation time.
 - Server clock anchors and monotonic progression for native freshness/retirement.
   A terminal or paused task never degrades into an Offline task status.
-- CLI commands `panel state`, `panel lifecycle`, `panel definition`, and
-  `panel guide`, plus `setup agents` for refreshable Codex/Claude instructions.
+- CLI commands `panel publish`, `panel stream`, `panel state`, `panel update`,
+  `panel complete|fail|cancel|pause|resume`, `panel doctor`, `panel lifecycle`,
+  `panel definition`, and `panel guide`, plus `setup agents` for refreshable
+  Codex/Claude instructions.
 
 ## HTTP and relay contract
 
@@ -51,7 +53,10 @@ See [the rollout record](rollout-2026-09-08.md) for exact scope and verification
 
 Connection tickets remain scoped to one recipient, panel, role, and identity.
 Every subscription/update rechecks access. Send `protocolVersion: 2` on relay
-commands. `lease.claim` takes a unique `requestId`, `definitionRevision`, and an
+commands. Producer tickets include `lease.release`; a clean producer EOF sends
+`lease.release` with its epoch and receives an acknowledgement. A server without
+that frame reports a protocol version mismatch rather than a delivery failure.
+`lease.claim` takes a unique `requestId`, `definitionRevision`, and an
 optional exact `takeoverEpoch`. Its acknowledgement includes the server epoch and
 full baseline. `lease.renew` uses that epoch and revision.
 
