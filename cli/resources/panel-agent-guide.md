@@ -181,6 +181,8 @@ It checks authentication, the resolved session and boss, and confirms a v2 relay
 ticket advertises `lease.release` before testing the subscribe handshake without
 claiming a lease. A non-zero
 result includes the corrective action.
+When several bosses are resolved, doctor reports all of them; publication still
+requires an explicit `targetBossId`.
 
 Other actions are `pause`, `resume`, `fail`, and `cancel`. Failure needs a result
 with a stable `code` and `title`; cancellation needs a reason in `title`.

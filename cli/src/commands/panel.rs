@@ -134,17 +134,13 @@ async fn run_control(args: &PanelControlArgs, client: &HiBossClient, action: &st
 }
 
 pub fn run_validate(args: &PanelFileArgs) -> Result<(), Box<dyn Error>> {
-    validation::validate_file(&args.file)?;
+    validate_file_with_session(&args.file)?;
     println!("valid");
     Ok(())
 }
 
 async fn run_publish(args: &PanelPublishArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let mut body = validation::validate_file(&args.file)?;
-    if body.get("sessionId").is_none() {
-        let session_id = crate::session::read_session_id().ok_or("sessionId is missing; run `hiboss hook session-start` or add sessionId to the publication")?;
-        body["sessionId"] = Value::String(session_id);
-    }
+    let body = validate_file_with_session(&args.file)?;
     let key = args.idempotency_key.clone().unwrap_or_else(|| stable_key(&body, args.run_id.as_deref()));
     let response = client.publish_panel(&body, &key).await?;
     let panel = client.get_panel(&response.panel_id).await?;
@@ -160,33 +156,59 @@ async fn run_doctor(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let session_id = crate::session::read_session_id().ok_or("No resolved session; run `hiboss hook session-start` and retry")?;
     let sessions = client.list_sessions().await?;
     if !sessions.sessions.iter().any(|session| session.id == session_id) { return Err(format!("session {session_id} is not visible; run `hiboss hook session-start` to refresh it").into()); }
-    let boss = resolved_boss(&client.list_agent_bosses().await?)?;
+    let boss_ids = resolved_bosses(&client.list_agent_bosses().await?)?;
+    let boss_status = format_boss_status(&boss_ids);
     let panels = client.list_panels(None).await?;
     let items = panels.get("panels").and_then(Value::as_array).or_else(|| panels.as_array());
     let Some(items) = items else { return Err("panel list response has no panels".into()); };
     let Some(panel) = items.iter().find(|panel| panel.get("sessionId").and_then(Value::as_str) == Some(session_id.as_str())).or_else(|| items.first()) else {
-        println!("auth: ok\nprotocol: v2\nsession: {session_id}\nboss: {boss}\nrelay: not checked (no panel yet)");
+        println!("auth: ok\nprotocol: v2\nsession: {session_id}\n{boss_status}\nrelay: not checked (no panel yet)");
         return Ok(());
     };
     let panel_id = panel.get("panelId").and_then(Value::as_str).ok_or("panel list returned no panelId")?;
     let details = client.get_panel(panel_id).await?;
-    if details.get("targetBossId").and_then(Value::as_str) != Some(boss.as_str()) { return Err("panel target does not match the agent's single resolved boss".into()); }
+    if !panel_matches_bosses(details.get("targetBossId").and_then(Value::as_str), &boss_ids) { return Err("panel target does not match any resolved agent boss".into()); }
     let ticket = client.issue_panel_connection_ticket(panel_id).await?;
     if !supports_lease_release(&ticket.operations) { return Err("server relay does not support lease.release; deploy the worker before installing this CLI".into()); }
     transport::subscribe(client, panel_id, &ticket).await?;
-    println!("auth: ok\nprotocol: v2 (lease.release)\nsession: {session_id}\nboss: {boss}\nrelay: ticket and subscribe ok");
+    println!("auth: ok\nprotocol: v2 (lease.release)\nsession: {session_id}\n{boss_status}\nrelay: ticket and subscribe ok");
     Ok(())
 }
 
 fn supports_lease_release(operations: &[String]) -> bool { operations.iter().any(|operation| operation == "lease.release") }
 
-fn resolved_boss(value: &Value) -> Result<String, Box<dyn Error>> {
-    let bosses = value.get("bosses").and_then(Value::as_array).ok_or("boss API response has no bosses")?;
-    match bosses.as_slice() {
-        [boss] => boss.get("id").and_then(Value::as_str).map(str::to_owned).ok_or_else(|| "boss API response has no boss id".into()),
-        [] => Err("No boss is resolved for this agent; grant access to one boss and retry".into()),
-        _ => Err("Multiple bosses are resolved for this agent; set targetBossId explicitly and retry".into()),
+fn validate_file_with_session(path: &std::path::Path) -> Result<Value, Box<dyn Error>> {
+    let session_id = crate::session::read_session_id();
+    validate_file_with_session_id(path, session_id.as_deref())
+}
+
+fn validate_file_with_session_id(path: &std::path::Path, session_id: Option<&str>) -> Result<Value, Box<dyn Error>> {
+    let mut body = validation::read_file(path)?;
+    if body.get("sessionId").is_none() {
+        let session_id = session_id.ok_or("sessionId is missing; run `hiboss hook session-start` or add sessionId to the publication")?;
+        body["sessionId"] = Value::String(session_id.to_owned());
     }
+    validation::validate_publication(&body).map_err(|error| Box::new(error) as Box<dyn Error>)?;
+    Ok(body)
+}
+
+fn resolved_bosses(value: &Value) -> Result<Vec<String>, Box<dyn Error>> {
+    let bosses = value.get("bosses").and_then(Value::as_array).ok_or("boss API response has no bosses")?;
+    if bosses.is_empty() {
+        return Err("No boss is resolved for this agent; grant access to one boss and retry".into());
+    }
+    bosses.iter().map(|boss| boss.get("id").and_then(Value::as_str).map(str::to_owned).ok_or_else(|| "boss API response has no boss id".into())).collect()
+}
+
+fn format_boss_status(bosses: &[String]) -> String {
+    match bosses {
+        [boss] => format!("boss: {boss}"),
+        _ => format!("boss: {} resolved (publication needs an explicit targetBossId)\nbosses: {}", bosses.len(), bosses.join(", ")),
+    }
+}
+
+fn panel_matches_bosses(target_boss_id: Option<&str>, bosses: &[String]) -> bool {
+    target_boss_id.is_some_and(|target| bosses.iter().any(|boss| boss == target))
 }
 
 async fn run_list(args: &PanelListArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -229,10 +251,43 @@ mod tests {
     fn field_uses_first_available_alias() { assert_eq!(field(&json!({"id":"panel_1"}), &["panelId", "id"]), "panel_1"); }
 
     #[test]
-    fn resolves_only_one_accessible_boss() {
-        assert_eq!(resolved_boss(&json!({"bosses":[{"id":"boss_1"}]})).expect("boss"), "boss_1");
-        assert!(resolved_boss(&json!({"bosses":[]})).is_err());
-        assert!(resolved_boss(&json!({"bosses":[{"id":"a"},{"id":"b"}]})).is_err());
+    fn formats_one_several_and_no_resolved_bosses() {
+        assert_eq!(resolved_bosses(&json!({"bosses":[{"id":"boss_1"}]})).expect("bosses"), vec!["boss_1"]);
+        assert_eq!(format_boss_status(&["boss_1".into()]), "boss: boss_1");
+        let bosses = resolved_bosses(&json!({"bosses":[{"id":"a"},{"id":"b"}]})).expect("bosses");
+        assert_eq!(format_boss_status(&bosses), "boss: 2 resolved (publication needs an explicit targetBossId)\nbosses: a, b");
+        assert!(resolved_bosses(&json!({"bosses":[]})).is_err());
+    }
+
+    #[test]
+    fn panel_target_matches_any_resolved_boss() {
+        let bosses = vec!["boss_a".into(), "boss_b".into()];
+        assert!(panel_matches_bosses(Some("boss_b"), &bosses));
+        assert!(!panel_matches_bosses(Some("boss_c"), &bosses));
+    }
+
+    #[test]
+    fn sessionless_document_uses_session_before_validation() {
+        let document = json!({
+            "protocolVersion": 2,
+            "targetBossId": "boss_1",
+            "taskKey": "task_1",
+            "title": "Panel",
+            "catalogId": "hiboss.panel",
+            "catalogVersion": 1,
+            "spec": {"root": "main", "elements": {"main": {"type": "Metric", "props": {"label": "Done", "value": {"$state": "/task/done"}}, "children": []}}},
+            "stateSchema": {"type": "object", "properties": {"task": {"type": "object", "properties": {"done": {"type": "integer"}}, "required": ["done"], "additionalProperties": false}}, "required": ["task"], "additionalProperties": false},
+            "initialState": {"task": {"done": 0}}
+        });
+        let path = std::env::temp_dir().join(format!("hiboss-panel-session-test-{}.json", std::process::id()));
+        std::fs::write(&path, serde_json::to_vec(&document).expect("document JSON")).expect("write document");
+        let validated = validate_file_with_session_id(&path, Some("session_1")).expect("session autofill");
+        assert_eq!(validated.get("sessionId").and_then(Value::as_str), Some("session_1"));
+        let validate_error = validate_file_with_session_id(&path, None).expect_err("validate should require a session");
+        let publish_error = validate_file_with_session_id(&path, None).expect_err("publish should require a session");
+        assert_eq!(validate_error.to_string(), publish_error.to_string());
+        assert!(validate_error.to_string().contains("hiboss hook session-start"));
+        std::fs::remove_file(path).expect("remove document");
     }
 
     #[test]

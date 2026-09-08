@@ -33,12 +33,9 @@ impl Display for ValidationError {
 
 impl Error for ValidationError {}
 
-pub fn validate_file(path: &Path) -> Result<Value, Box<dyn Error>> {
+pub fn read_file(path: &Path) -> Result<Value, Box<dyn Error>> {
     let body = std::fs::read_to_string(path)?;
-    let value = parse_unique_json(&body)
-        .map_err(|error| format!("invalid_spec at /: invalid JSON: {error}"))?;
-    validate_publication(&value).map_err(|error| Box::new(error) as Box<dyn Error>)?;
-    Ok(value)
+    parse_unique_json(&body).map_err(|error| format!("invalid_spec at /: invalid JSON: {error}").into())
 }
 
 pub fn validate_publication(value: &Value) -> Result<(), ValidationError> {
