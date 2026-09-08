@@ -137,7 +137,9 @@ and an APNs update/end path. Panels do not yet render on Dynamic Island.
 ## Coordinated rollout
 
 The production Worker, database, local CLI, and macOS client were upgraded on
-2026-09-08. The iOS source builds but has not been installed on a device. Retained
+2026-09-08, and the agent channel followed on 2026-09-09 ([record](rollout-2026-09-09.md)):
+Worker first, then the local and primary remote CLI, with one agent host left on its
+older binary because it was offline. The iOS source builds but has not been installed on a device. Retained
 panels were adopted through versioned definition replacement, preserving their
 IDs and captured data. Producers must reconnect using the v2 CLI. This is a breaking
 protocol change; do not install a v2 producer against the old production relay
