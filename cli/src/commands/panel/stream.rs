@@ -3,20 +3,19 @@
 // Dependencies: clap, futures-util, tokio-tungstenite, serde_json, and HiBossClient.
 
 use crate::{client::HiBossClient, session};
-use super::relay_helpers::{live_epoch, relay_error, RelayFailure};
+use super::relay_helpers::{live_epoch, relay_error};
+use super::transport::{connect, diff_values, merge_object, new_id, parse_frame, receive_frame, release, same_value, snapshot_from, Connection, Reader, RelayFailure, RelayFrame, Snapshot, Writer};
 use clap::Args;
 use futures_util::{SinkExt, StreamExt};
-use serde::Deserialize;
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use std::error::Error;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tokio::io::{self, AsyncBufReadExt};
 use tokio::sync::mpsc;
-use tokio::time::{sleep, sleep_until, timeout};
-use tokio_tungstenite::{connect_async, tungstenite::{client::IntoClientRequest, Message}};
+use tokio::time::{sleep, sleep_until};
+use tokio_tungstenite::tungstenite::Message;
 
 const BATCH_WINDOW: Duration = Duration::from_millis(20);
-const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(15);
 const ACK_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_RECONNECTS: usize = 5;
 #[derive(Debug, Args)]
@@ -27,25 +26,6 @@ pub struct PanelStreamArgs {
     pub takeover_epoch: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
-struct RelayFrame {
-    kind: String,
-    code: Option<String>,
-    sequence: Option<u64>,
-    #[serde(rename = "acceptedSequence")]
-    accepted_sequence: Option<u64>,
-    task: Option<Value>,
-    epoch: Option<String>,
-    snapshot: Option<Snapshot>,
-}
-#[derive(Debug, Deserialize)]
-struct Snapshot { sequence: u64, task: Value }
-
-struct Connection {
-    writer: futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, Message>,
-    reader: futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>,
-    epoch: String,
-}
 #[path = "stream_state.rs"]
 mod state;
 use state::StreamState;
@@ -114,31 +94,6 @@ async fn read_stdin(tx: mpsc::Sender<Result<String, String>>) {
     }
 }
 
-async fn connect(client: &HiBossClient, panel_id: &str, revision: u64, takeover: Option<&str>) -> Result<(Connection, Snapshot), Box<dyn Error>> {
-    let ticket = client.issue_panel_connection_ticket(panel_id).await?;
-    let mut request = client.panel_relay_url().into_client_request()?;
-    request.headers_mut().insert("X-Panel-Connection-Ticket", ticket.ticket.parse()?);
-    let (socket, _) = connect_async(request).await?;
-    let (mut writer, mut reader) = socket.split();
-    writer.send(Message::Text(json!({"protocolVersion":2,"kind":"subscribe","panelId":panel_id}).to_string().into())).await?;
-    let mut claim = json!({"protocolVersion":2,"kind":"lease.claim","panelId":panel_id,"definitionRevision":revision,"requestId":new_epoch()});
-    if let Some(epoch) = takeover { claim["takeoverEpoch"] = json!(epoch); }
-    writer.send(Message::Text(claim.to_string().into())).await?;
-    loop {
-        let message = timeout(HANDSHAKE_TIMEOUT, reader.next()).await?.ok_or("relay closed during handshake")??;
-        let frame = parse_frame(message)?;
-        match frame.kind.as_str() {
-            "lease.ack" => {
-                let epoch = frame.epoch.ok_or("lease ack has no server epoch")?;
-                let snapshot = frame.snapshot.ok_or("lease ack has no baseline")?;
-                return Ok((Connection { writer, reader, epoch }, snapshot));
-            },
-            "error" => return Err(Box::new(RelayFailure { code: frame.code.unwrap_or_else(|| "unknown_error".to_owned()) })),
-            _ => {}
-        }
-    }
-}
-
 async fn connect_with_recovery(client: &HiBossClient, panel_id: &str, revision: u64, takeover: Option<&str>) -> Result<(Connection, Snapshot), Box<dyn Error>> {
     match connect(client, panel_id, revision, takeover).await {
         Ok(value) => Ok(value),
@@ -183,6 +138,9 @@ async fn handle_message(connection: &mut Connection, state: &mut StreamState, me
     Ok(())
 }
 
+/// What a frame means, decided without touching the socket so the decision can be tested.
+/// Keeping this separate is the point: a fenced producer that keeps fighting for the lease
+/// makes two agents thrash and the panel flicker between them, which is a decision property.
 #[derive(Debug, PartialEq, Eq)]
 enum FrameAction {
     Acknowledge(u64),
@@ -207,82 +165,23 @@ fn frame_action(frame: &RelayFrame) -> FrameAction {
     }
 }
 
-async fn receive_snapshot(reader: &mut futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>>) -> Result<Snapshot, Box<dyn Error>> {
+async fn receive_snapshot(reader: &mut Reader) -> Result<Snapshot, Box<dyn Error>> {
     loop {
-        let message = timeout(HANDSHAKE_TIMEOUT, reader.next()).await?.ok_or("relay closed during resync")??;
-        let frame = parse_frame(message)?;
+        let frame = receive_frame(reader, "resync").await?;
         if frame.kind == "state.snapshot" { return snapshot_from(frame); }
         if frame.kind == "error" { return Err(relay_error(frame.code.as_deref()).into()); }
     }
 }
-
-async fn release(connection: &mut Connection, panel_id: &str, revision: u64) -> Result<(), Box<dyn Error>> {
-    let frame = json!({"protocolVersion":2,"kind":"lease.release","panelId":panel_id,"definitionRevision":revision,"epoch":connection.epoch});
-    connection.writer.send(Message::Text(frame.to_string().into())).await?;
-    loop {
-        let message = timeout(HANDSHAKE_TIMEOUT, connection.reader.next()).await?.ok_or("relay closed while releasing lease")??;
-        let frame = parse_frame(message)?;
-        if frame.kind == "lease.release.ack" { return Ok(()); }
-        if frame.kind == "error" {
-            let code = frame.code.as_deref().unwrap_or("unknown_error");
-            if code == "invalid_command" || code == "unsupported_protocol" {
-                return Err("panel relay version mismatch: server does not support lease.release; upgrade the server and CLI together".into());
-            }
-            return Err(relay_error(Some(code)).into());
-        }
-    }
-}
-
-async fn send_update(writer: &mut futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, Message>, state: &mut StreamState, panel_id: &str, revision: u64, epoch: &str) -> Result<(), Box<dyn Error>> {
+async fn send_update(writer: &mut Writer, state: &mut StreamState, panel_id: &str, revision: u64, epoch: &str) -> Result<(), Box<dyn Error>> {
     let ops = diff_values(&state.acknowledged, &state.desired, "/task");
     let kind = if ops.is_empty() { "state.unchanged" } else { "state.update" };
     state.in_flight = Some(state.desired.clone());
     state.batch.clear();
-    let update = json!({"protocolVersion":2,"kind":kind,"panelId":panel_id,"definitionRevision":revision,"epoch":epoch,"updateId":new_epoch(),"baseSequence":state.sequence,"ops":ops});
+    let update = json!({"protocolVersion":2,"kind":kind,"panelId":panel_id,"definitionRevision":revision,"epoch":epoch,"updateId":new_id(),"baseSequence":state.sequence,"ops":ops});
     writer.send(Message::Text(serde_json::to_string(&update)?.into())).await?;
     Ok(())
 }
 
-fn parse_frame(message: Message) -> Result<RelayFrame, Box<dyn Error>> {
-    let Message::Text(text) = message else { return Err("relay sent a non-text message".into()); };
-    Ok(serde_json::from_str(text.as_ref())?)
-}
-
-fn snapshot_from(frame: RelayFrame) -> Result<Snapshot, Box<dyn Error>> {
-    Ok(Snapshot { sequence: frame.sequence.unwrap_or(0), task: frame.task.ok_or("snapshot has no task")? })
-}
-
-fn new_epoch() -> String {
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |duration| duration.as_nanos());
-    format!("hiboss-{}-{nanos}", std::process::id())
-}
-
-fn merge_object(target: &mut Map<String, Value>, partial: &Map<String, Value>) {
-    for (key, value) in partial {
-        if let (Some(Value::Object(existing)), Value::Object(incoming)) = (target.get_mut(key), value) { merge_object(existing, incoming); } else { target.insert(key.clone(), value.clone()); }
-    }
-}
-
-fn diff_values(old: &Value, new: &Value, path: &str) -> Vec<Value> {
-    let (Some(old), Some(new)) = (old.as_object(), new.as_object()) else { return vec![json!({"op":"replace","path":path,"value":new})]; };
-    let mut ops = Vec::new();
-    for (key, value) in new {
-        let child = format!("{path}/{}", escape_pointer(key));
-        match old.get(key) { Some(previous) if same_value(previous, value) => {}, Some(previous) => ops.extend(diff_values(previous, value, &child)), None => ops.push(json!({"op":"add","path":child,"value":value})) }
-    }
-    ops
-}
-
-fn same_value(old: &Value, new: &Value) -> bool {
-    match (old, new) {
-        (Value::Number(a), Value::Number(b)) => a.as_f64() == b.as_f64(),
-        (Value::Array(a), Value::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same_value(a, b)),
-        (Value::Object(a), Value::Object(b)) => a.len() == b.len() && a.iter().all(|(key, a)| b.get(key).is_some_and(|b| same_value(a, b))),
-        _ => old == new,
-    }
-}
-
-fn escape_pointer(value: &str) -> String { value.replace('~', "~0").replace('/', "~1") }
 
 #[cfg(test)]
 #[path = "stream_tests.rs"]

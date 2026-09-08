@@ -14,6 +14,8 @@ mod update;
 mod control;
 #[path = "panel/relay_helpers.rs"]
 mod relay_helpers;
+#[path = "panel/transport.rs"]
+mod transport;
 
 use crate::client::{HiBossClient, PanelPublishResponse};
 use clap::{Args, Subcommand};
@@ -158,15 +160,30 @@ async fn run_doctor(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let session_id = crate::session::read_session_id().ok_or("No resolved session; run `hiboss hook session-start` and retry")?;
     let sessions = client.list_sessions().await?;
     if !sessions.sessions.iter().any(|session| session.id == session_id) { return Err(format!("session {session_id} is not visible; run `hiboss hook session-start` to refresh it").into()); }
+    let boss = resolved_boss(&client.list_agent_bosses().await?)?;
     let panels = client.list_panels(None).await?;
-    let panel = panels.get("panels").and_then(Value::as_array).and_then(|items| items.iter().find(|panel| panel.get("sessionId").and_then(Value::as_str) == Some(session_id.as_str()))).ok_or("No panel is associated with the resolved session; publish a panel first")?;
+    let items = panels.get("panels").and_then(Value::as_array).or_else(|| panels.as_array());
+    let Some(items) = items else { return Err("panel list response has no panels".into()); };
+    let Some(panel) = items.iter().find(|panel| panel.get("sessionId").and_then(Value::as_str) == Some(session_id.as_str())).or_else(|| items.first()) else {
+        println!("auth: ok\nprotocol: v2\nsession: {session_id}\nboss: {boss}\nrelay: not checked (no panel yet)");
+        return Ok(());
+    };
     let panel_id = panel.get("panelId").and_then(Value::as_str).ok_or("panel list returned no panelId")?;
     let details = client.get_panel(panel_id).await?;
-    let boss = details.get("targetBossId").and_then(Value::as_str).ok_or("panel has no resolved boss")?;
+    if details.get("targetBossId").and_then(Value::as_str) != Some(boss.as_str()) { return Err("panel target does not match the agent's single resolved boss".into()); }
     if details.get("definition").and_then(|definition| definition.get("protocolVersion")).and_then(Value::as_u64) != Some(2) { return Err("server does not support panel protocol v2; upgrade the server and CLI together".into()); }
-    update::doctor(client, panel_id).await?;
+    transport::subscribe(client, panel_id).await?;
     println!("auth: ok\nprotocol: v2\nsession: {session_id}\nboss: {boss}\nrelay: ticket and subscribe ok");
     Ok(())
+}
+
+fn resolved_boss(value: &Value) -> Result<String, Box<dyn Error>> {
+    let bosses = value.get("bosses").and_then(Value::as_array).ok_or("boss API response has no bosses")?;
+    match bosses.as_slice() {
+        [boss] => boss.get("id").and_then(Value::as_str).map(str::to_owned).ok_or_else(|| "boss API response has no boss id".into()),
+        [] => Err("No boss is resolved for this agent; grant access to one boss and retry".into()),
+        _ => Err("Multiple bosses are resolved for this agent; set targetBossId explicitly and retry".into()),
+    }
 }
 
 async fn run_list(args: &PanelListArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -207,4 +224,11 @@ mod tests {
 
     #[test]
     fn field_uses_first_available_alias() { assert_eq!(field(&json!({"id":"panel_1"}), &["panelId", "id"]), "panel_1"); }
+
+    #[test]
+    fn resolves_only_one_accessible_boss() {
+        assert_eq!(resolved_boss(&json!({"bosses":[{"id":"boss_1"}]})).expect("boss"), "boss_1");
+        assert!(resolved_boss(&json!({"bosses":[]})).is_err());
+        assert!(resolved_boss(&json!({"bosses":[{"id":"a"},{"id":"b"}]})).is_err());
+    }
 }

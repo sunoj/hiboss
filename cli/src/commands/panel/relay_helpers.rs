@@ -1,16 +1,8 @@
 // Purpose: Define shared stream relay errors and live-lease interpretation.
-// Exports: RelayFailure, relay_error, and live_epoch for panel transports.
+// Exports: relay_error and live_epoch for panel transports.
 // Dependencies: serde_json and the time crate.
 
 use serde_json::Value;
-use std::error::Error;
-
-#[derive(Debug)]
-pub(crate) struct RelayFailure { pub(crate) code: String }
-impl std::fmt::Display for RelayFailure {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(formatter, "{}", relay_error(Some(&self.code))) }
-}
-impl Error for RelayFailure {}
 
 pub(crate) fn relay_error(code: Option<&str>) -> String {
     let code = code.unwrap_or("unknown error");

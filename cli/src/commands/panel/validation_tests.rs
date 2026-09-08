@@ -13,7 +13,6 @@ use super::*;
     fn accepts_server_resolved_target_and_session() {
         let mut value = publication();
         value.as_object_mut().expect("publication object").remove("targetBossId");
-        value.as_object_mut().expect("publication object").remove("sessionId");
         assert_eq!(validate_publication(&value), Ok(()));
     }
 

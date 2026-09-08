@@ -24,6 +24,10 @@ def session_path() -> pathlib.Path:
     return pathlib.Path(f'/tmp/hiboss-session-{digest:016x}')
 
 
+def epoch_path(panel_id: str) -> pathlib.Path:
+    return pathlib.Path(f'{session_path()}-panel-{panel_id}-epoch')
+
+
 def cli(*args: str, input_text: str | None = None) -> str:
     result = subprocess.run(COMMAND + list(args), input=input_text, text=True, capture_output=True, timeout=25)
     if result.returncode:
@@ -65,9 +69,9 @@ def verify_crash_recovery(panel_id: str, task: dict) -> dict:
         process.stdin.write(json.dumps(task) + '\n')
         process.stdin.flush()
         for _ in range(30):
-            if checkpoint(panel_id)['observationVersion'] > 0: break
+            if checkpoint(panel_id)['observationVersion'] > 0 and epoch_path(panel_id).is_file(): break
             time.sleep(0.1)
-        assert checkpoint(panel_id)['observationVersion'] > 0
+        assert checkpoint(panel_id)['observationVersion'] > 0 and epoch_path(panel_id).is_file()
         process.kill()
         process.wait(timeout=5)
     finally:
@@ -95,7 +99,7 @@ def run_scenario(directory: pathlib.Path, fixture: str, action: str) -> None:
     # A repeated observation must be acknowledged even if its values have not changed.
     if fixture != 'service-monitor': assert 'ack 0' in cli('stream', panel_id, input_text=json.dumps(task) + '\n')
     observed = checkpoint(panel_id)
-    expected_observations = 4 if fixture == 'download-progress' else 3
+    expected_observations = 5 if fixture == 'download-progress' else 3
     assert observed['observationVersion'] == expected_observations and observed['sequence'] >= 0, (fixture, observed)
     assert transition(directory, panel_id, 'pause', 1)['lifecycle']['taskState'] == 'paused'
     assert transition(directory, panel_id, 'resume', 2)['lifecycle']['taskState'] == 'running'
@@ -140,6 +144,7 @@ def verify_heartbeat(panel_id: str, task: dict) -> None:
 
 def main() -> None:
     session_path().write_text('lifecycle-cli-session')
+    assert 'relay: not checked (no panel yet)' in cli('doctor')
     with tempfile.TemporaryDirectory(prefix='hiboss-panel-flow-') as directory:
         for fixture, action in [('download-progress', 'complete'), ('e2e-test-run', 'fail'),
                                 ('benchmark-sweep', 'complete'), ('service-monitor', 'cancel')]:

@@ -82,13 +82,27 @@ describe('panel publication and reads', () => {
     expect(panel.summary.stage).toBe('Preparing');
   });
 
-  it('resolves omitted target and session for the authenticated agent', async () => {
-    const body = panelBody({ targetBossId: undefined, sessionId: undefined, taskKey: 'panel-resolved-defaults' });
+  it('resolves an omitted target for an agent with one boss', async () => {
+    const body = panelBody({ targetBossId: undefined, taskKey: 'panel-resolved-defaults' });
     const published = await publish('panel-resolved-defaults', body);
     expect(published.status).toBe(201);
     const receipt = await published.json() as { panelId: string };
     const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
     expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID, sessionId: 'panels-test-session' });
+  });
+
+  it('requires an explicit target when an agent has several bosses', async () => {
+    const secondBoss = 'panels-second-boss';
+    await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role) VALUES (?, ?, ?)').bind(secondBoss, 'Second panels boss', 'manager').run();
+    await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(secondBoss, getTestAgentId()).run();
+    try {
+      const response = await publish('panel-ambiguous-default', panelBody({ targetBossId: undefined, taskKey: 'panel-ambiguous-default' }));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/targetBossId', message: 'targetBossId is required' } });
+    } finally {
+      await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ?').bind(secondBoss).run();
+      await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(secondBoss).run();
+    }
   });
 
   it('rejects invalid specs with a path and rejects unknown catalogs', async () => {

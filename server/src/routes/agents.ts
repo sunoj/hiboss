@@ -10,6 +10,13 @@ import { logAudit } from '../audit';
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
 
+routes.get('/me/bosses', async (c) => {
+  const rows = await c.env.DB.prepare(
+    'SELECT b.id, b.name, b.role FROM bosses b JOIN boss_agent_access ba ON ba.boss_id = b.id WHERE ba.agent_id = ? ORDER BY b.id',
+  ).bind(getAgentId(c)).all<{ id: string; name: string; role: string }>();
+  return c.json({ bosses: rows.results ?? [] });
+});
+
 routes.get('/me', async (c) => {
   const agentId = getAgentId(c);
   const row = await c.env.DB

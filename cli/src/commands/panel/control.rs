@@ -8,6 +8,8 @@ use ring::digest::{digest, SHA256};
 use serde_json::{json, Value};
 use std::error::Error;
 
+use super::relay_helpers::live_epoch;
+
 #[derive(Debug, Args)]
 pub struct PanelLifecycleArgs {
     pub id: String,
@@ -57,12 +59,6 @@ fn shortcut_key(panel_id: &str, action: &str, session_id: &str, version: u64) ->
     let value = json!({"panelId":panel_id,"action":action,"sessionId":session_id,"expectedMetadataVersion":version});
     let hash = digest(&SHA256, serde_json::to_string(&value).unwrap_or_default().as_bytes());
     format!("hiboss-panel-{action}-{}", hash.as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>())
-}
-
-fn live_epoch(state: &Value) -> Option<String> {
-    let expires = state.get("leaseExpiresAt").and_then(Value::as_str)?;
-    let expires_at = time::OffsetDateTime::parse(expires, &time::format_description::well_known::Rfc3339).ok()?.unix_timestamp();
-    (expires_at > time::OffsetDateTime::now_utc().unix_timestamp()).then(|| state.get("epoch").and_then(Value::as_str).map(str::to_owned)).flatten()
 }
 
 #[cfg(test)]

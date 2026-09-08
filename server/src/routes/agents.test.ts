@@ -33,6 +33,19 @@ describe('GET /api/agents/me', () => {
   });
 });
 
+describe('GET /api/agents/me/bosses', () => {
+  it('lists only bosses accessible to the authenticated agent', async () => {
+    const bossId = 'agent-boss-list-test';
+    await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role) VALUES (?, ?, ?)').bind(bossId, 'Agent boss list test', 'manager').run();
+    await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(bossId, getTestAgentId()).run();
+    const res = await SELF.fetch('https://test.local/api/agents/me/bosses', { headers: authHeaders() });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ bosses: [{ id: bossId, name: 'Agent boss list test', role: 'manager' }] });
+    await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ?').bind(bossId).run();
+    await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(bossId).run();
+  });
+});
+
 describe('GET /api/agents', () => {
   it('lists agents with status info', async () => {
     const agentId = getTestAgentId();
