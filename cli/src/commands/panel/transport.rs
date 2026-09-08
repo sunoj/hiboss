@@ -2,7 +2,7 @@
 // Exports: Connection, relay frames, connect/release, subscribe, merge, and diff helpers.
 // Dependencies: HiBossClient, relay errors, tokio-tungstenite, and serde_json.
 
-use crate::client::HiBossClient;
+use crate::client::{HiBossClient, PanelConnectionTicket};
 use super::relay_helpers::relay_error;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
@@ -78,8 +78,7 @@ pub(crate) async fn connect(
     }
 }
 
-pub(crate) async fn subscribe(client: &HiBossClient, panel_id: &str) -> Result<(), Box<dyn Error>> {
-    let ticket = client.issue_panel_connection_ticket(panel_id).await?;
+pub(crate) async fn subscribe(client: &HiBossClient, panel_id: &str, ticket: &PanelConnectionTicket) -> Result<(), Box<dyn Error>> {
     let mut request = client.panel_relay_url().into_client_request()?;
     request.headers_mut().insert("X-Panel-Connection-Ticket", ticket.ticket.parse()?);
     let (socket, _) = connect_async(request).await?;
