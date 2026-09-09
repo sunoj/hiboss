@@ -7,7 +7,6 @@ import SwiftUI
 
 struct HomePanelWall: View {
     @ObservedObject var model: PanelsModel
-    @State private var measuredWidth: CGFloat = 320
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -56,23 +55,14 @@ struct HomePanelWall: View {
     }
 
     private var wall: some View {
-        GeometryReader { proxy in
-            let positions = model.positions(for: proxy.size.width)
-            ZStack(alignment: .topLeading) {
-                ForEach(model.visibleTiles) { tile in
-                    if let position = positions.first(where: { $0.id == tile.id }) {
-                        PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) { model.open(tile.id) }
-                            .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
-                            .frame(width: position.frame.width, height: position.frame.height)
-                            .offset(x: position.frame.minX, y: position.frame.minY)
-                    }
+        PanelWallLayout {
+            ForEach(model.visibleTiles) { tile in
+                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) { model.open(tile.id) }
+                    .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
+                    .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .onAppear { measuredWidth = proxy.size.width }
-            .onChange(of: proxy.size.width) { measuredWidth = $0 }
-        }
-        .frame(height: model.wallHeight(of: model.positions(for: measuredWidth)))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -89,20 +89,16 @@ final class PanelDashboardFlowTests: XCTestCase {
     }
 
     private func dashboard(_ tiles: [PanelTile], scheme: ColorScheme) -> some View {
-        let positions = PanelWallLayout.arrange(tiles.map {
-            PanelLayoutPanel(id: $0.id, size: $0.fixture.spec.tileSize, order: $0.order, isPinned: false)
-        }, width: 1100)
         return VStack(alignment: .leading, spacing: 20) {
             Text("Panels").font(.largeTitle.bold())
             Text("Sample data · 8 panels").foregroundStyle(.secondary)
-            ZStack(alignment: .topLeading) {
-                ForEach(Array(zip(tiles, positions)), id: \.0.id) { tile, position in
+            PanelWallLayout {
+                ForEach(tiles) { tile in
                     PanelDashboardCard(tile: tile, freshness: .live) {}
-                        .frame(width: position.frame.width, height: position.frame.height)
-                        .offset(x: position.frame.minX, y: position.frame.minY)
+                        .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
             }
-            .frame(width: 1100, height: positions.map { $0.frame.maxY }.max() ?? 0, alignment: .topLeading)
+            .frame(width: 1100, alignment: .topLeading)
         }
         .padding(24)
         .background(scheme == .dark ? Color.black : Color(nsColor: .windowBackgroundColor))

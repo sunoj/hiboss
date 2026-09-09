@@ -49,6 +49,8 @@ struct PanelDashboardChart: View {
                 LineMark(x: .value("Sample", sample.id + 1), y: .value(series.unit ?? "Value", sample.value),
                          series: .value("Segment", sample.segment))
                     .foregroundStyle(accent).lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                PointMark(x: .value("Sample", sample.id + 1), y: .value(series.unit ?? "Value", sample.value))
+                    .foregroundStyle(accent).symbolSize(14)
             }
         }
         .chartXScale(domain: 0.5...Double(max(1, series.values.count)) + 0.5)
