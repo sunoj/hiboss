@@ -11,7 +11,8 @@ extension PanelsModel {
             case .archived: return tile.preference.placement == .archived
             case .results: return tile.lifecycle.taskState.isTerminal
             case .active:
-                if tile.preference.placement == .archived { return false }
+                guard panelIsVisibleInActiveWall(taskState: tile.lifecycle.taskState,
+                    placement: tile.preference.placement, expiresAt: expiry(for: tile), serverTime: serverNow(for: tile.id)) else { return false }
                 if tile.preference.placement == .pinned || !tile.lifecycle.taskState.isTerminal { return true }
                 if tile.preference.acknowledgedTerminalVersion == tile.metadata?.metadataVersion { return false }
                 return panelDate(tile.lifecycle.dismissAt).map { $0 > serverNow(for: tile.id) } ?? true
@@ -24,6 +25,10 @@ extension PanelsModel {
 
     private func serverNow(for id: String) -> Date {
         serverClocks[id].map { $0.server.addingTimeInterval(ProcessInfo.processInfo.systemUptime - $0.uptime) } ?? now
+    }
+
+    private func expiry(for tile: PanelTile) -> Date? {
+        [panelDate(tile.lifecycle.expiresAt), panelDate(relayStates[tile.id]?.checkpoint?.expiresAt)].compactMap { $0 }.max()
     }
 
     public func freshness(for tile: PanelTile, at reference: Date? = nil) -> PanelFreshness {
