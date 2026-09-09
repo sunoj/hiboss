@@ -27,12 +27,13 @@ public struct PanelLifecycle: Codable, Equatable, Sendable {
     public let taskState: PanelTaskState
     public let mode: String
     public let expectedUpdateIntervalSeconds: Int
+    public let expiresAt: String?
     public let terminalAt: String?
     public let dismissAt: String?
     public let dismissalPolicy: String?
     public let result: PanelResult?
     public static let running = PanelLifecycle(taskState: .running, mode: "run", expectedUpdateIntervalSeconds: 15,
-        terminalAt: nil, dismissAt: nil, dismissalPolicy: nil, result: nil)
+        expiresAt: nil, terminalAt: nil, dismissAt: nil, dismissalPolicy: nil, result: nil)
 }
 public enum PanelPlacement: String, Codable, Sendable { case automatic, pinned, archived }
 public struct PanelPreference: Codable, Equatable, Sendable {

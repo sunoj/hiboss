@@ -4,6 +4,19 @@
 
 import SwiftUI
 
+public func panelIsVisibleInActiveWall(
+    taskState: PanelTaskState,
+    placement: PanelPlacement,
+    expiresAt: Date?,
+    serverTime: Date
+) -> Bool {
+    guard placement != .archived else { return false }
+    guard placement == .pinned || taskState.isTerminal else {
+        return expiresAt.map { $0 > serverTime } ?? true
+    }
+    return true
+}
+
 @MainActor
 public struct PanelTile: Identifiable {
     public var metadata: PanelMetadata?

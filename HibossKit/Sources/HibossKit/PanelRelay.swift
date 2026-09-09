@@ -16,21 +16,23 @@ public struct PanelRelaySnapshot: Codable, Equatable, Sendable {
     public let observationVersion: Int
     public let lastObservedAt: String?
     public let staleAt: String?
+    public let expiresAt: String?
     public let leaseExpiresAt: String?
 
     public init(panelID: String, definitionRevision: Int, epoch: String?, sequence: Int, task: PanelValue,
                 persistedAt: Int64 = 0, observationVersion: Int = 0, lastObservedAt: String? = nil,
-                staleAt: String? = nil, leaseExpiresAt: String? = nil, serverTime: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) {
+                staleAt: String? = nil, expiresAt: String? = nil, leaseExpiresAt: String? = nil,
+                serverTime: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) {
         self.serverTime = serverTime
         protocolVersion = 2
         self.panelID = panelID; self.definitionRevision = definitionRevision; self.epoch = epoch
         self.sequence = sequence; self.task = task; self.persistedAt = persistedAt
         self.observationVersion = observationVersion; self.lastObservedAt = lastObservedAt
-        self.staleAt = staleAt; self.leaseExpiresAt = leaseExpiresAt
+        self.staleAt = staleAt; self.expiresAt = expiresAt; self.leaseExpiresAt = leaseExpiresAt
     }
     enum CodingKeys: String, CodingKey {
         case serverTime, protocolVersion, panelID = "panelId", definitionRevision, epoch, sequence, task, persistedAt
-        case observationVersion, lastObservedAt, staleAt, leaseExpiresAt
+        case observationVersion, lastObservedAt, staleAt, expiresAt, leaseExpiresAt
     }
 }
 public struct PanelRelayPatch: Decodable, Equatable, Sendable {

@@ -36,6 +36,28 @@ final class PanelRelayTests: XCTestCase {
         let wrong = PanelRelaySnapshot(panelID: "other", definitionRevision: 1, epoch: nil, sequence: 0, task: .null)
         XCTAssertEqual(state.apply(.snapshot(wrong)), .rejected)
     }
+    func testLapsedRunningOrPausedCardLeavesActiveWall() {
+        let expired = Date(timeIntervalSince1970: 100)
+        let serverTime = Date(timeIntervalSince1970: 101)
+        XCTAssertFalse(panelIsVisibleInActiveWall(taskState: .running, placement: .automatic, expiresAt: expired, serverTime: serverTime))
+        XCTAssertFalse(panelIsVisibleInActiveWall(taskState: .paused, placement: .automatic, expiresAt: expired, serverTime: serverTime))
+    }
+    func testPinnedCardSurvivesExpiry() {
+        XCTAssertTrue(panelIsVisibleInActiveWall(taskState: .running, placement: .pinned,
+            expiresAt: Date(timeIntervalSince1970: 100), serverTime: Date(timeIntervalSince1970: 101)))
+    }
+    func testTerminalCardIsUnaffectedByExpiry() {
+        XCTAssertTrue(panelIsVisibleInActiveWall(taskState: .completed, placement: .automatic,
+            expiresAt: Date(timeIntervalSince1970: 100), serverTime: Date(timeIntervalSince1970: 101)))
+    }
+    func testRenewedExpiryMakesCardVisibleAgain() {
+        XCTAssertTrue(panelIsVisibleInActiveWall(taskState: .running, placement: .automatic,
+            expiresAt: Date(timeIntervalSince1970: 102), serverTime: Date(timeIntervalSince1970: 101)))
+    }
+    func testMissingExpiryNeverHidesCard() {
+        XCTAssertTrue(panelIsVisibleInActiveWall(taskState: .running, placement: .automatic, expiresAt: nil,
+            serverTime: Date(timeIntervalSince1970: 101)))
+    }
     @MainActor
     func testTaskSnapshotDoesNotReplaceLocalFormDraft() throws {
         let fixture = try XCTUnwrap(PanelFixtures.load().all.first)
