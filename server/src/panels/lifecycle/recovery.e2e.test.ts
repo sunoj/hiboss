@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId } from '../../test-helpers';
 import { repairPanelRooms } from './repair';
 import { PanelEngine } from '../relay/runtime/engine';
-import { bossId, claim, connect, publish, seed, state, url } from '../relay/runtime/test-support';
+import { bossId, claim, connect, control, publish, seed, state, url } from '../relay/runtime/test-support';
 import type { PanelRoom } from '../relay/room';
 
 beforeAll(seed);
@@ -43,6 +43,9 @@ describe('durable lifecycle recovery', () => {
 
   it('rejects writes after lease expiry and issues a fresh server epoch', async () => {
     const id = await publish(); const producer = await connect(id); const epoch = await claim(producer);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'before-expiry', baseSequence: 0 });
+    await producer.next('state.ack');
+    const prior = await state(id);
     await runInDurableObject(stub(), async (_instance, context) => {
       const lease = await context.storage.get<Record<string, unknown>>(`lease:${id}`);
       await context.storage.put(`lease:${id}`, { ...lease, expiresAt: Date.now() - 1 });
@@ -50,6 +53,99 @@ describe('durable lifecycle recovery', () => {
     producer.send({ kind: 'state.unchanged', epoch, updateId: 'expired', baseSequence: 0 });
     expect(await producer.next('error')).toMatchObject({ code: 'fenced_epoch' });
     expect(await claim(producer)).not.toBe(epoch);
+    expect(await state(id)).toMatchObject({ lastObservedAt: prior.lastObservedAt, expiresAt: prior.expiresAt, observationVersion: prior.observationVersion });
+    producer.socket.close();
+  });
+
+  it('keeps an expired running panel readable without changing stored state', async () => {
+    const id = await publish({ mode: 'monitor', expectedUpdateIntervalSeconds: 5, ttlSeconds: 60 });
+    const producer = await connect(id); const epoch = await claim(producer);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'expiry-observation', baseSequence: 0 });
+    await producer.next('state.ack');
+    const before = await runInDurableObject(stub(), async (_instance, context) => context.storage.get<Record<string, unknown>>(`snapshot:${id}`));
+    await runInDurableObject(stub(), async (_instance, context) => {
+      const snapshot = await context.storage.get<Record<string, unknown>>(`snapshot:${id}`);
+      await context.storage.put(`snapshot:${id}`, { ...snapshot, lastObservedAt: new Date(Date.now() - 61_000).toISOString() });
+    });
+    const checkpoint = await state(id);
+    expect(Date.parse(checkpoint.expiresAt)).toBeLessThan(Date.now());
+    const metadata = await (await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).json<{ lifecycle: { taskState: string } }>();
+    expect(metadata.lifecycle.taskState).toBe('running');
+    const after = await runInDurableObject(stub(), async (_instance, context) => context.storage.get(`snapshot:${id}`));
+    expect(after).toEqual({ ...before, lastObservedAt: expect.any(String) });
+    producer.socket.close();
+  });
+
+  it('coalesces rapid observation mirrors and persists after the floor', async () => {
+    const id = await publish({ mode: 'monitor', expectedUpdateIntervalSeconds: 5, ttlSeconds: 60 });
+    let writes = 0;
+    const db = new Proxy(env.DB, { get(target, key) {
+      if (key === 'prepare') return (query: string) => {
+        if (query.startsWith('UPDATE panels SET lifecycle_json')) writes += 1;
+        return target.prepare(query);
+      };
+      const value: unknown = Reflect.get(target, key);
+      return typeof value === 'function' ? value.bind(target) : value;
+    } });
+    await runInDurableObject(stub(), async (_instance, context) => {
+      const engine = new PanelEngine(context.storage, db, () => {});
+      const claimed = await engine.execute(id, getTestAgentId(), 'producer', 'lease', { protocolVersion: 2, action: 'claim', definitionRevision: 1, requestId: 'coalesce-claim' });
+      const epoch = (claimed as { epoch?: unknown }).epoch;
+      if (typeof epoch !== 'string') throw new Error('Missing server epoch');
+      const update = { protocolVersion: 2, kind: 'state.unchanged', epoch, definitionRevision: 1, baseSequence: 0 };
+      await engine.execute(id, getTestAgentId(), 'producer', 'update', { ...update, updateId: 'one' });
+      await engine.execute(id, getTestAgentId(), 'producer', 'update', { ...update, updateId: 'two' });
+    });
+    expect(writes).toBe(1);
+    const row = await env.DB.prepare('SELECT lifecycle_json FROM panels WHERE panel_id = ?').bind(id).first<{ lifecycle_json: string }>();
+    if (!row) throw new Error('Missing panel lifecycle');
+    const lifecycle = JSON.parse(row.lifecycle_json) as Record<string, unknown>;
+    lifecycle.lastObservedAt = new Date(Date.now() - 31_000).toISOString();
+    await env.DB.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?').bind(JSON.stringify(lifecycle), id).run();
+    await runInDurableObject(stub(), async (_instance, context) => {
+      const engine = new PanelEngine(context.storage, db, () => {});
+      const checkpoint = await context.storage.get<{ epoch: string }>(`lease:${id}`);
+      if (!checkpoint) throw new Error('Missing lease');
+      await engine.execute(id, getTestAgentId(), 'producer', 'update', { protocolVersion: 2, kind: 'state.unchanged', epoch: checkpoint.epoch, definitionRevision: 1, updateId: 'three', baseSequence: 0 });
+    });
+    expect(writes).toBe(2);
+  });
+
+  it('does not fail an accepted observation when its mirror fails', async () => {
+    const id = await publish();
+    await runInDurableObject(stub(), async (_instance, context) => {
+      const db = new Proxy(env.DB, { get(target, key) {
+        if (key === 'prepare') return (query: string) => {
+          if (query.startsWith('UPDATE panels SET lifecycle_json')) throw new Error('Mirror unavailable');
+          return target.prepare(query);
+        };
+        const value: unknown = Reflect.get(target, key);
+        return typeof value === 'function' ? value.bind(target) : value;
+      } });
+      const engine = new PanelEngine(context.storage, db, () => {});
+      const claimed = await engine.execute(id, getTestAgentId(), 'producer', 'lease', { protocolVersion: 2, action: 'claim', definitionRevision: 1, requestId: 'failing-mirror-claim' });
+      const epoch = (claimed as { epoch?: unknown }).epoch;
+      if (typeof epoch !== 'string') throw new Error('Missing server epoch');
+      const result = await engine.execute(id, getTestAgentId(), 'producer', 'update', { protocolVersion: 2, kind: 'state.unchanged', epoch, definitionRevision: 1, updateId: 'failing-mirror-update', baseSequence: 0 });
+      expect(result).toMatchObject({ kind: 'state.ack', observationVersion: 1 });
+    });
+    expect((await state(id)).observationVersion).toBe(1);
+  });
+
+  it('persists the exact final observation during terminal commit', async () => {
+    const id = await publish(); const producer = await connect(id); const epoch = await claim(producer);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'terminal-observation', baseSequence: 0 });
+    await producer.next('state.ack');
+    const current = await state(id);
+    const row = await env.DB.prepare('SELECT lifecycle_json FROM panels WHERE panel_id = ?').bind(id).first<{ lifecycle_json: string }>();
+    if (!row) throw new Error('Missing panel lifecycle');
+    const lifecycle = JSON.parse(row.lifecycle_json) as Record<string, unknown>;
+    lifecycle.lastObservedAt = new Date(Date.now() - 31_000).toISOString();
+    await env.DB.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?').bind(JSON.stringify(lifecycle), id).run();
+    expect((await control(id, 'complete', 1, current)).status).toBe(200);
+    const completed = await env.DB.prepare('SELECT lifecycle_json FROM panels WHERE panel_id = ?').bind(id).first<{ lifecycle_json: string }>();
+    if (!completed) throw new Error('Missing completed lifecycle');
+    expect((JSON.parse(completed.lifecycle_json) as Record<string, unknown>).lastObservedAt).toBe(current.lastObservedAt);
     producer.socket.close();
   });
 

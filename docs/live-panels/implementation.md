@@ -16,6 +16,8 @@ See [the rollout record](rollout-2026-09-08.md) for exact scope and verification
   task namespace confinement, duplicate-update receipts, and sequence conflicts.
 - Actual observations through `state.update` and `state.unchanged`. Heartbeats
   renew ownership without moving the observation or stale deadline.
+- Configurable observation TTLs from 60 seconds to 7 days, defaulting to 3600 seconds;
+  accepted observations renew the derived `expiresAt` without changing task state.
 - Final state and metadata CAS, permanent terminal outcomes, idempotent command
   receipts, D1/DO prepare-commit recovery, recovery alarms, and a periodic repair
   sweep for lost or exhausted alarms.
@@ -67,10 +69,14 @@ Control receipts are durable with the panel. A new epoch resets sequence to zero
 and preserves the last observation until a genuine new observation arrives.
 
 Checkpoints contain task, epoch, sequence, observationVersion, lastObservedAt,
-staleAt, leaseExpiresAt, persistedAt, and serverTime. `serverTime` is response clock
+staleAt, expiresAt, leaseExpiresAt, persistedAt, and serverTime. `serverTime` is response clock
 context, not a change to the retained terminal task or its observation history.
 The stale deadline is lastObservedAt plus max(15, 2 × expected cadence) seconds.
 Publication cadence is an integer from 5 to 3600 seconds, defaulting to 15.
+Publication `ttlSeconds` is an integer from 60 to 604800 seconds, defaulting to 3600.
+`expiresAt` is derived from the last observation, falling back to creation time before
+the first observation. A lapsed running or paused card is hidden from Active but stays
+running or paused; pins keep it visible. No expiry sweep writes task state or archives records.
 
 A lifecycle command requires expectedMetadataVersion, expectedDefinitionRevision,
 expectedEpoch, expectedState, and `openRequests: "reject"`. Terminal commands can

@@ -15,12 +15,12 @@ export async function seed(): Promise<void> {
   await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(bossId, getTestAgentId()).run();
   await env.DB.prepare('INSERT OR IGNORE INTO sessions (id, agent_id, label) VALUES (?, ?, ?)').bind('relay-v2-session', getTestAgentId(), 'relay tests').run();
 }
-export async function publish(): Promise<string> {
+export async function publish(lifecycle: Record<string, unknown> = { mode: 'monitor', expectedUpdateIntervalSeconds: 5 }): Promise<string> {
   const response = await SELF.fetch(url, { method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({
     protocolVersion: 2, targetBossId: bossId, sessionId: 'relay-v2-session', taskKey: 'relay', title: 'Relay test', catalogId: 'hiboss.panel', catalogVersion: 1,
     spec: { root: 'm', elements: { m: { type: 'Metric', props: { label: 'Done', value: { $state: '/task/done' } }, children: [] } } },
     stateSchema: { type: 'object', properties: { task: { type: 'object', properties: { done: { type: 'integer', minimum: 0 }, items: { type: 'array', items: { type: 'string' }, maxItems: 20 } }, required: ['done', 'items'], additionalProperties: false } }, required: ['task'], additionalProperties: false },
-    initialState: { task: { done: 0, items: [] } }, lifecycle: { mode: 'monitor', expectedUpdateIntervalSeconds: 5 },
+    initialState: { task: { done: 0, items: [] } }, lifecycle,
   }) });
   if (response.status !== 201) throw new Error(await response.text());
   return (await response.json<{ panelId: string }>()).panelId;

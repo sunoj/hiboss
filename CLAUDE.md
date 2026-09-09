@@ -37,6 +37,11 @@ It is not a message and not a timeline post: use `hiboss send` for something the
 should read, `hiboss progress` for something worth showing once, and a panel for
 something worth **watching** while the task runs.
 
+Publication may set `lifecycle.ttlSeconds` from 60 to 604800 seconds; it defaults to
+3600. Accepted observations renew the derived `expiresAt`, while lease renewal alone
+does not. A lapsed running or paused card is hidden, not ended, and a boss pin keeps
+it visible. `hiboss panel show <id>` prints the effective expiry.
+
 ```bash
 hiboss panel validate <file>            # local pre-check; prints the JSON Pointer path on failure
 hiboss panel publish <file> [--run-id]  # prints panelId; stable retry key includes the run

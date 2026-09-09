@@ -263,7 +263,7 @@ mod tests;
 
 fn validate_lifecycle(value: &Value) -> Result<(), ValidationError> {
     let policy = object(value, "/lifecycle", "Lifecycle")?;
-    if policy.keys().any(|key| !["mode", "expectedUpdateIntervalSeconds"].contains(&key.as_str())) {
+    if policy.keys().any(|key| !["mode", "expectedUpdateIntervalSeconds", "ttlSeconds"].contains(&key.as_str())) {
         return Err(error("invalid_spec", "/lifecycle", "unsupported lifecycle property"));
     }
     if policy.get("mode").is_some_and(|value| ![Some("run"), Some("monitor")].contains(&value.as_str())) {
@@ -271,6 +271,9 @@ fn validate_lifecycle(value: &Value) -> Result<(), ValidationError> {
     }
     if policy.get("expectedUpdateIntervalSeconds").is_some_and(|value| !value.as_u64().is_some_and(|value| (5..=3600).contains(&value))) {
         return Err(error("invalid_spec", "/lifecycle/expectedUpdateIntervalSeconds", "must be an integer from 5 to 3600"));
+    }
+    if policy.get("ttlSeconds").is_some_and(|value| !value.as_u64().is_some_and(|value| (60..=604800).contains(&value))) {
+        return Err(error("invalid_spec", "/lifecycle/ttlSeconds", "must be an integer from 60 to 604800"));
     }
     Ok(())
 }

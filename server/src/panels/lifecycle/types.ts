@@ -6,10 +6,16 @@ import type { JsonValue } from '../definition/types';
 
 export type PanelId = string & { readonly __panelId: unique symbol };
 export type TaskState = 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export const DEFAULT_TTL_SECONDS = 3600;
+export const MIN_TTL_SECONDS = 60;
+export const MAX_TTL_SECONDS = 604800;
 export interface Lifecycle {
   taskState: TaskState;
   mode: 'run' | 'monitor';
   expectedUpdateIntervalSeconds: number;
+  ttlSeconds: number;
+  lastObservedAt: string | null;
+  expiresAt?: string;
   terminalAt: string | null;
   dismissAt: string | null;
   dismissalPolicy: 'after' | 'immediate' | 'manual' | null;
@@ -32,6 +38,7 @@ export interface Checkpoint {
   observationVersion: number;
   lastObservedAt: string | null;
   staleAt: string | null;
+  expiresAt: string;
   leaseExpiresAt: string | null;
   persistedAt: number;
 }
@@ -47,10 +54,13 @@ export interface ControlCommand {
   finalTask?: JsonValue;
   result?: { title: string; message?: string; code?: string };
 }
-export const defaultLifecycle = (): Lifecycle => ({ taskState: 'running', mode: 'run', expectedUpdateIntervalSeconds: 15, terminalAt: null, dismissAt: null, dismissalPolicy: null, result: null });
+export const defaultLifecycle = (): Lifecycle => ({ taskState: 'running', mode: 'run', expectedUpdateIntervalSeconds: 15, ttlSeconds: DEFAULT_TTL_SECONDS, lastObservedAt: null, terminalAt: null, dismissAt: null, dismissalPolicy: null, result: null });
 export const defaultPreference = (): Preference => ({ preferenceVersion: 0, placement: 'automatic', seenTerminalVersion: null, acknowledgedTerminalVersion: null });
 export const terminal = (state: TaskState): boolean => ['completed', 'failed', 'cancelled'].includes(state);
 export const LEASE_MS = 45_000;
+export function deriveExpiresAt(createdAt: string, lastObservedAt: string | null, ttlSeconds: number): string {
+  return new Date(Date.parse(lastObservedAt ?? createdAt) + ttlSeconds * 1000).toISOString();
+}
 export class PanelFault extends Error {
   constructor(readonly code: string, readonly status: 400 | 403 | 404 | 409 | 422 | 503 = 409, message = code) { super(message); }
 }

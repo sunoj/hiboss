@@ -48,9 +48,11 @@ Creation durably records the definition, initial state, task state `running`, an
 with "Waiting for producer" until an observation is accepted. A publish receipt is
 not a producer connection or proof the task's external process started.
 
-Publication declares `mode: run | monitor` and `expectedUpdateIntervalSeconds`.
-The default expected observation interval is 15 seconds; accepted range is 5–3600.
-The interval describes freshness, not a rate limit. A monitor has no automatic task
+Publication declares `mode: run | monitor`, `expectedUpdateIntervalSeconds`, and an
+optional `ttlSeconds` visibility window. The default expected observation interval is
+15 seconds; accepted range is 5–3600. `ttlSeconds` defaults to 3600 and accepts
+60–604800. The interval describes freshness, not a rate limit; the TTL describes
+visibility after the last accepted observation. A monitor has no automatic task
 completion deadline and no inferred progress denominator.
 
 The full producer document is `{ "task": ... }`: `stateSchema` and `initialState`
@@ -132,6 +134,12 @@ validity deadline, independent of `leaseExpiresAt` and terminal `dismissAt`.
 A new accepted observation replaces it; a duplicate receipt, heartbeat, or refetch
 preserves it. Clients can mark cached data stale without another server message.
 
+Each panel also includes the derived `expiresAt`: `lastObservedAt + ttlSeconds`, or
+creation time plus `ttlSeconds` before the first observation. Accepted `state.update`
+and `state.unchanged` observations renew it; lease renewal and refetch do not.
+Checkpoints and panel metadata return the server-derived value so clients do not
+reimplement this policy.
+
 Both observation commands use an `updateId`, exact revision/epoch, and base sequence.
 An idempotent retry returns the original observation time; it cannot manufacture
 freshness. A socket ping, client refetch, reconnect, or lease renewal is never a data
@@ -149,9 +157,11 @@ even if its cached lease would otherwise imply live. Server timestamps are UTC;
 clients estimate server time using response time plus monotonic elapsed time and
 refresh that estimate on foreground. A device wall-clock change cannot revive a lease.
 
-Task state never changes on lease expiry. An abandoned run remains running/offline
-until its owner reports a terminal outcome or the boss archives its card. Automatic
-failure on timeout would misclassify a healthy task during a network partition.
+Task state never changes on lease or visibility expiry. An abandoned run remains
+running/offline until its owner reports a terminal outcome or the boss archives its
+card. A lapsed running or paused card is hidden from the Active wall, not ended;
+if its producer returns and observes, it becomes visible again. Automatic failure on
+timeout would misclassify a healthy task during a network partition.
 
 ## 5. Visibility, results, and retention
 
@@ -159,7 +169,7 @@ Proposed defaults keep the live wall useful without deleting results:
 
 | Condition | Automatic wall behavior |
 | --- | --- |
-| Running or paused | Remain visible, including stale/offline |
+| Running or paused | Remain visible, including stale/offline, until `expiresAt` lapses |
 | Completed | Show result for 10 minutes after `terminalAt`, then move to Results |
 | Cancelled | Show outcome for 1 minute, then move to Results |
 | Failed | Remain until the boss acknowledges or archives it |
@@ -189,7 +199,9 @@ The lifecycle command's `result` contains final content, not visibility controls
 The effective policy and deadline are fixed at terminal commit. Producer traffic and
 device activity cannot extend them. Pins and explicit boss archive/acknowledgement
 remain independent overrides. Timed retirement is derived visibility, not a write
-that archives a record. No per-card server timer is needed just to remove UI.
+that archives a record. For running and paused cards, a lapsed `expiresAt` hides the
+card without ending it; a pin overrides that hiding. No per-card server timer is
+needed just to remove UI.
 
 Unseen terminal results retain an unread marker in Results after leaving the wall.
 Fetching a page never marks results read. Explicitly opening the final result records
