@@ -85,6 +85,7 @@ struct HomeView: View {
                     from: inbox.history.filter { !inbox.withdrawn.contains($0.id) },
                     now: now
                 ),
+                hasPanels: !panels.visibleTiles.isEmpty,
                 onChoose: handleReply,
                 onOpen: { AppRouter.shared.open(messageID: $0.rawValue) }
             )

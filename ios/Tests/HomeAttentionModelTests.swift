@@ -10,6 +10,11 @@ import XCTest
 final class HomeAttentionModelTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_000_000)
 
+    func testAllClearCompactsWhenPanelsExistAndStaysFullWithoutThem() {
+        XCTAssertEqual(HomeAttentionLayout.allClearStyle(hasPanels: true), .compact)
+        XCTAssertEqual(HomeAttentionLayout.allClearStyle(hasPanels: false), .full)
+    }
+
     func testRanksAutoDecisionThenBlockedThenDeclaredPriority() {
         let messages = [
             message("priority", priority: "high", createdOffset: -500),

@@ -5,8 +5,20 @@
 import HibossKit
 import SwiftUI
 
+enum HomeAttentionAllClearStyle: Equatable {
+    case compact
+    case full
+}
+
+enum HomeAttentionLayout {
+    static func allClearStyle(hasPanels: Bool) -> HomeAttentionAllClearStyle {
+        hasPanels ? .compact : .full
+    }
+}
+
 struct HomeAttentionSection: View {
     let groups: [AttentionGroupItems]
+    let hasPanels: Bool
     let onChoose: (String, MessageID) -> Void
     let onOpen: (MessageID) -> Void
 
@@ -33,6 +45,7 @@ struct HomeAttentionSection: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
     }
 
@@ -54,18 +67,27 @@ struct HomeAttentionSection: View {
     }
 
     private var allClear: some View {
-        VStack(spacing: 14) {
-            AllClearIslandView()
-            Text("Nothing needs you")
-                .font(.hbH2)
-                .foregroundStyle(Theme.ink)
-            Text("Everything is settled. This is where an agent's next question will appear.")
-                .font(.hbCallout)
-                .foregroundStyle(Theme.ink2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 300)
+        Group {
+            switch HomeAttentionLayout.allClearStyle(hasPanels: hasPanels) {
+            case .compact:
+                // The section subtitle already says nothing is waiting; repeating it
+                // here only pushes the panels the boss came to see further down.
+                EmptyView()
+            case .full:
+                VStack(spacing: 14) {
+                    AllClearIslandView()
+                    Text("Nothing needs you")
+                        .font(.hbH2)
+                        .foregroundStyle(Theme.ink)
+                    Text("Everything is settled. This is where an agent's next question will appear.")
+                        .font(.hbCallout)
+                        .foregroundStyle(Theme.ink2)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 300)
+                }
+                .frame(maxWidth: .infinity, minHeight: 360)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 360)
         .accessibilityElement(children: .combine)
     }
 }
