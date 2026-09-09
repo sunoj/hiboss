@@ -6,14 +6,18 @@ import CoreGraphics
 
 public enum PanelTileSize: Equatable, Sendable {
     case compact
+    case wideCompact
     case wide
 
     public var dimensions: CGSize {
         switch self {
-        case .compact: CGSize(width: 236, height: 320)
-        case .wide: CGSize(width: 488, height: 320)
+        case .compact: CGSize(width: 236, height: 204)
+        case .wideCompact: CGSize(width: 488, height: 204)
+        case .wide: CGSize(width: 488, height: 288)
         }
     }
+
+    var isWide: Bool { self != .compact }
 }
 
 public struct PanelLayoutPanel: Equatable, Sendable {
@@ -54,7 +58,7 @@ public enum PanelWallLayout {
 
         for panel in ordered {
             let dimensions = panel.size.dimensions
-            let span = panel.size == .wide ? min(2, columns) : 1
+            let span = panel.size.isWide ? min(2, columns) : 1
             let tileWidth = columnWidth * CGFloat(span) + gap * CGFloat(span - 1)
             if cursor.x > 0, cursor.x + tileWidth > availableWidth + 0.01 {
                 cursor = CGPoint(x: 0, y: cursor.y + rowHeight + gap)
@@ -70,12 +74,19 @@ public enum PanelWallLayout {
 
 extension PanelSpec {
     public var tileSize: PanelTileSize {
-        specContainsSeries ? .wide : .compact
+        guard specContainsSeries else { return .compact }
+        return specContainsSummary ? .wide : .wideCompact
     }
 
     private var specContainsSeries: Bool {
         elements.values.contains { element in
             element.type == "Table" || element.type == "LineChart" || element.type == "BarChart"
+        }
+    }
+
+    private var specContainsSummary: Bool {
+        elements.values.contains { element in
+            element.type == "Table" || element.type == "Metric" || element.type == "Progress"
         }
     }
 }

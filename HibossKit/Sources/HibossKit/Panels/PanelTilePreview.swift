@@ -27,7 +27,6 @@ public struct PanelTilePreview: View {
             }
             if let series = content.series {
                 PanelDashboardChart(series: series, accent: accent)
-                    .frame(maxHeight: .infinity)
             } else if let table = content.table {
                 PanelDashboardTable(definition: table)
             } else if !content.fields.isEmpty {
@@ -35,20 +34,22 @@ public struct PanelTilePreview: View {
             } else if let stage = content.stage {
                 Text(stage).font(.callout).foregroundStyle(.secondary).lineLimit(3)
             }
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private var tableMetrics: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 24) {
+        HStack(alignment: .top, spacing: 24) {
             ForEach(Array(content.metrics.enumerated()), id: \.offset) { index, metric in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(metric.displayValue(in: store.state))
+                    Text(metric.label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(metric.displayValue(in: store.state))
                         .font(index == 0 ? .largeTitle.bold() : .title2.weight(.semibold))
                         .foregroundStyle(index == 0 ? accent : .primary).monospacedDigit()
                         .contentTransition(.numericText())
-                    Text(metric.label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        if let unit = metric.unit { Text(unit).font(.caption).foregroundStyle(.secondary) }
+                    }
                 }
             }
         }
@@ -59,6 +60,7 @@ public struct PanelTilePreview: View {
         VStack(alignment: .leading, spacing: 8) {
             if let headline = content.metrics.first {
                 VStack(alignment: .leading, spacing: 2) {
+                    Text(headline.label).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(headline.displayValue(in: store.state))
                             .font(.system(.largeTitle, design: .rounded, weight: .semibold))
@@ -67,16 +69,15 @@ public struct PanelTilePreview: View {
                         if let unit = headline.unit { Text(unit).font(.headline) }
                     }
                     .foregroundStyle(accent).lineLimit(1).minimumScaleFactor(0.7)
-                    Text(headline.label).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             if content.metrics.count > 1 {
                 HStack(alignment: .firstTextBaseline, spacing: 16) {
                     ForEach(Array(content.metrics.dropFirst().enumerated()), id: \.offset) { _, metric in
                         VStack(alignment: .leading, spacing: 2) {
+                            Text(metric.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                             Text(metric.displayValue(in: store.state) + (metric.unit.map { " \($0)" } ?? ""))
                                 .font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1)
-                            Text(metric.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                         }
                     }
                 }
