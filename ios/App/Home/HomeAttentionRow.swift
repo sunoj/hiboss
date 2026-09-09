@@ -5,8 +5,20 @@
 import HibossKit
 import SwiftUI
 
+enum HomeAttentionAllClearStyle: Equatable {
+    case compact
+    case full
+}
+
+enum HomeAttentionLayout {
+    static func allClearStyle(hasPanels: Bool) -> HomeAttentionAllClearStyle {
+        hasPanels ? .compact : .full
+    }
+}
+
 struct HomeAttentionSection: View {
     let groups: [AttentionGroupItems]
+    let hasPanels: Bool
     let onChoose: (String, MessageID) -> Void
     let onOpen: (MessageID) -> Void
 
@@ -54,18 +66,28 @@ struct HomeAttentionSection: View {
     }
 
     private var allClear: some View {
-        VStack(spacing: 14) {
-            AllClearIslandView()
-            Text("Nothing needs you")
-                .font(.hbH2)
-                .foregroundStyle(Theme.ink)
-            Text("Everything is settled. This is where an agent's next question will appear.")
-                .font(.hbCallout)
-                .foregroundStyle(Theme.ink2)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 300)
+        Group {
+            switch HomeAttentionLayout.allClearStyle(hasPanels: hasPanels) {
+            case .compact:
+                Text("Nothing needs you right now.")
+                    .font(.hbCallout)
+                    .foregroundStyle(Theme.ink2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            case .full:
+                VStack(spacing: 14) {
+                    AllClearIslandView()
+                    Text("Nothing needs you")
+                        .font(.hbH2)
+                        .foregroundStyle(Theme.ink)
+                    Text("Everything is settled. This is where an agent's next question will appear.")
+                        .font(.hbCallout)
+                        .foregroundStyle(Theme.ink2)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 300)
+                }
+                .frame(maxWidth: .infinity, minHeight: 360)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 360)
         .accessibilityElement(children: .combine)
     }
 }
