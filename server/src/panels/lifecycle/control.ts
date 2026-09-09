@@ -4,7 +4,7 @@
 
 import { bodyHash, isRecord } from '../definition/helpers';
 import { authorize, operationReceipt, readRecord, validateTask, type PanelRecord } from './repository';
-import { DEFAULT_TTL_SECONDS, deriveExpiresAt, PanelFault, terminal, type Checkpoint, type ControlCommand, type Lifecycle } from './types';
+import { DEFAULT_TTL_SECONDS, PanelFault, terminal, type Checkpoint, type ControlCommand, type Lifecycle } from './types';
 
 export interface PendingControl {
   definition?: { catalogId: string; catalogVersion: number; spec: string; schema: string; initial: string; summary: string };
@@ -70,8 +70,7 @@ export async function commitControl(db: D1Database, pending: PendingControl): Pr
   await authorize(db, row, pending.agentId, 'producer');
   const ttlSeconds = pending.lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
   const persistedLifecycle = { ...pending.lifecycle, ttlSeconds, lastObservedAt: pending.snapshot.lastObservedAt };
-  const receiptLifecycle = { ...persistedLifecycle,
-    expiresAt: deriveExpiresAt(row.created_at, pending.snapshot.lastObservedAt, ttlSeconds) };
+  const receiptLifecycle = persistedLifecycle;
   const receipt = { operationId: pending.operationId, metadataVersion: pending.expectedVersion + 1, definitionRevision: pending.snapshot.definitionRevision, lifecycle: receiptLifecycle,
     finalSnapshot: terminal(pending.lifecycle.taskState) ? pending.snapshot : null };
   const final = terminal(pending.lifecycle.taskState) ? JSON.stringify(pending.snapshot) : null;

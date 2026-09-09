@@ -3,14 +3,11 @@
 // Dependencies: lifecycle deadline helper and Vitest.
 
 import { describe, expect, it } from 'vitest';
-import { deriveExpiresAt } from './types';
+import { DEFAULT_TTL_SECONDS, MAX_TTL_SECONDS, MIN_TTL_SECONDS } from './types';
 
-describe('panel expiry derivation', () => {
-  it('uses creation time before the first observation', () => {
-    expect(deriveExpiresAt('2026-09-09T00:00:00.000Z', null, 3600)).toBe('2026-09-09T01:00:00.000Z');
-  });
-
-  it('uses the last observation time after an observation', () => {
-    expect(deriveExpiresAt('2026-09-09T00:00:00.000Z', '2026-09-09T02:00:00.000Z', 60)).toBe('2026-09-09T02:01:00.000Z');
+describe('panel expiry policy', () => {
+  it('keeps the declared ttl bounds and default', () => {
+    expect(DEFAULT_TTL_SECONDS).toBe(3600);
+    expect([MIN_TTL_SECONDS, MAX_TTL_SECONDS]).toEqual([60, 604800]);
   });
 });

@@ -5,7 +5,7 @@
 import { bodyHash, isJsonValue, isRecord, validatePublication } from '../definition/helpers';
 import type { PendingControl } from './control';
 import type { PanelRecord } from './repository';
-import { DEFAULT_TTL_SECONDS, deriveExpiresAt, PanelFault, terminal, type Checkpoint, type Lifecycle } from './types';
+import { PanelFault, terminal, type Checkpoint, type Lifecycle } from './types';
 
 export async function prepareDefinition(row: PanelRecord, snapshot: Checkpoint, agentId: string, key: string, value: unknown, epoch: string | null): Promise<PendingControl> {
   if (!isRecord(value) || value.protocolVersion !== 2) throw new PanelFault('unsupported_protocol', 400);
@@ -22,7 +22,7 @@ export async function prepareDefinition(row: PanelRecord, snapshot: Checkpoint, 
   return { operationId: crypto.randomUUID(), panelId: row.panel_id, agentId, key, hash: await bodyHash(value), expectedVersion: row.metadata_version,
     definitionRevision: row.definition_revision, lifecycle, createdAt: now,
     snapshot: { ...snapshot, definitionRevision: row.definition_revision + 1, epoch: null, sequence: 0, task: value.initialState.task,
-      observationVersion: 0, lastObservedAt: null, staleAt: null, expiresAt: deriveExpiresAt(row.created_at, null, lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS), leaseExpiresAt: null, persistedAt: Date.now() },
+      observationVersion: 0, lastObservedAt: null, staleAt: null, expiresAt: snapshot.expiresAt, leaseExpiresAt: null, persistedAt: Date.now() },
     definition: { catalogId: String(value.catalogId), catalogVersion: Number(value.catalogVersion), spec: JSON.stringify(value.spec), schema: JSON.stringify(value.stateSchema), initial: JSON.stringify(value.initialState), summary: JSON.stringify(value.summary ?? {}) },
   };
 }

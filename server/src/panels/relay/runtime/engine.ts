@@ -5,11 +5,10 @@
 import { bodyHash, isRecord } from '../../definition/helpers';
 import { commitControl, parseControl, prepareControl, type PendingControl } from '../../lifecycle/control';
 import { authorize, initialCheckpoint, operationReceipt, readRecord, validateTask, type PanelRecord } from '../../lifecycle/repository';
-import { DEFAULT_TTL_SECONDS, deriveExpiresAt, LEASE_MS, PanelFault, terminal, type Checkpoint, type Lifecycle } from '../../lifecycle/types';
+import { DEFAULT_TTL_SECONDS, LEASE_MS, MAX_TTL_SECONDS, MIN_TTL_SECONDS, PanelFault, terminal, type Checkpoint, type Lifecycle } from '../../lifecycle/types';
 import { prepareDefinition } from '../../lifecycle/definition';
 import { applyTaskPatch } from './patch';
 
-const OBSERVATION_METADATA_FLOOR_MS = 30_000;
 interface Lease { epoch: string; expiresAt: number; requestId: string; hash: string; }
 interface UpdateReceipt { id: string; hash: string; expiresAt: number; frame: Checkpoint & { kind: string }; }
 export class PanelEngine {
@@ -23,6 +22,10 @@ export class PanelEngine {
       await authorize(this.db, row, identity, role);
       if (action === 'operation') return await this.operation(row, body);
       if (action === 'state') return await this.snapshot(row);
+      if (action === 'renew') {
+        if (role !== 'producer') throw new PanelFault('permission_denied', 403);
+        return await this.renew(row, body, key);
+      }
       if (role !== 'producer') throw new PanelFault('permission_denied', 403);
       if (action === 'lifecycle' || action === 'definition') return await this.control(row, identity, body, key, action);
       await this.recover(panelId);
@@ -48,15 +51,43 @@ export class PanelEngine {
 
   private async snapshot(row: PanelRecord): Promise<Checkpoint> {
     const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
-    const ttlSeconds = lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+    if (!lifecycle.expiresAt) throw new PanelFault('invalid_lifecycle', 422);
     if (row.final_snapshot_json) {
       const final = JSON.parse(row.final_snapshot_json) as Checkpoint;
-      return { ...final, serverTime: Date.now(), expiresAt: deriveExpiresAt(row.created_at, final.lastObservedAt, ttlSeconds) };
+      return { ...final, serverTime: Date.now(), expiresAt: lifecycle.expiresAt };
     }
     const snapshot = await this.storage.get<Checkpoint>(`snapshot:${row.panel_id}`);
     const checkpoint = snapshot?.definitionRevision === row.definition_revision ? snapshot : initialCheckpoint(row);
     const lease = await this.storage.get<Lease>(`lease:${row.panel_id}`);
-    return { ...checkpoint, serverTime: Date.now(), expiresAt: deriveExpiresAt(row.created_at, checkpoint.lastObservedAt, ttlSeconds), leaseExpiresAt: lease ? new Date(lease.expiresAt).toISOString() : null };
+    return { ...checkpoint, serverTime: Date.now(), expiresAt: lifecycle.expiresAt, leaseExpiresAt: lease ? new Date(lease.expiresAt).toISOString() : null };
+  }
+
+  private async renew(row: PanelRecord, body: unknown, key: string): Promise<unknown> {
+    if (!key) throw new PanelFault('idempotency_key_required', 400);
+    if (!isRecord(body) || body.protocolVersion !== 2 || Object.keys(body).some(k => !['protocolVersion', 'expectedMetadataVersion', 'expectedDefinitionRevision', 'ttlSeconds'].includes(k))) throw new PanelFault('invalid_command', 422);
+    if (!Number.isInteger(body.expectedMetadataVersion) || Number(body.expectedMetadataVersion) < 1 || !Number.isInteger(body.expectedDefinitionRevision) || Number(body.expectedDefinitionRevision) < 1) throw new PanelFault('invalid_command', 422);
+    const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
+    const ttlSeconds = body.ttlSeconds ?? lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+    if (typeof ttlSeconds !== 'number' || !Number.isInteger(ttlSeconds) || ttlSeconds < MIN_TTL_SECONDS || ttlSeconds > MAX_TTL_SECONDS) throw new PanelFault('invalid_lifecycle', 422);
+    const hash = await bodyHash(body);
+    const existing = await operationReceipt(this.db, row.panel_id, row.agent_id, key, hash);
+    if (existing !== null) return existing;
+    if (terminal(lifecycle.taskState)) throw new PanelFault('panel_ended');
+    if (row.metadata_version !== body.expectedMetadataVersion || row.definition_revision !== body.expectedDefinitionRevision) throw new PanelFault('revision_conflict');
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    const receipt = { operationId: crypto.randomUUID(), metadataVersion: row.metadata_version + 1, definitionRevision: row.definition_revision, ttlSeconds, expiresAt };
+    const updatedLifecycle = { ...lifecycle, ttlSeconds, expiresAt };
+    const guard = 'SELECT 1 FROM panels WHERE panel_id = ? AND last_operation_id = ?';
+    const result = await this.db.batch([
+      this.db.prepare('UPDATE panels SET lifecycle_json = ?, metadata_version = metadata_version + 1, last_operation_id = ? WHERE panel_id = ? AND metadata_version = ? AND definition_revision = ? AND agent_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = panels.target_boss_id AND ba.agent_id = panels.agent_id)').bind(JSON.stringify(updatedLifecycle), receipt.operationId, row.panel_id, row.metadata_version, row.definition_revision, row.agent_id),
+      this.db.prepare(`INSERT INTO panel_operations SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (${guard})`).bind(receipt.operationId, row.panel_id, row.agent_id, key, hash, JSON.stringify(receipt), row.panel_id, receipt.operationId),
+      this.db.prepare(`INSERT INTO panel_outbox SELECT ?, ?, ?, ?, NULL WHERE EXISTS (${guard})`).bind(receipt.operationId, row.panel_id, row.metadata_version + 1, new Date().toISOString(), row.panel_id, receipt.operationId),
+    ]);
+    if (result[0].meta.changes !== 1) throw new PanelFault('revision_conflict');
+    const snapshot = await this.storage.get<Checkpoint>(`snapshot:${row.panel_id}`);
+    if (snapshot?.definitionRevision === row.definition_revision) await this.storage.put(`snapshot:${row.panel_id}`, { ...snapshot, expiresAt });
+    this.broadcast(row.panel_id, { kind: 'panel.changed', panelId: row.panel_id, metadataVersion: receipt.metadataVersion });
+    return receipt;
   }
 
   private requireRunning(row: PanelRecord): Lifecycle {
@@ -112,7 +143,6 @@ export class PanelEngine {
     const previous = receipts.find(r => r.id === body.updateId);
     if (previous) {
       if (previous.hash !== hash) throw new PanelFault('idempotency_conflict');
-      await this.recordObservation(row, previous.frame.lastObservedAt);
       return previous.frame;
     }
     const snapshot = await this.snapshot(row);
@@ -123,25 +153,12 @@ export class PanelEngine {
     const task = changed ? applyTaskPatch(snapshot.task, body.ops) : snapshot.task;
     validateTask(row, task);
     const next: Checkpoint = { ...snapshot, serverTime: now, task, sequence: snapshot.sequence + (changed ? 1 : 0), observationVersion: snapshot.observationVersion + 1,
-      lastObservedAt: new Date(now).toISOString(), staleAt: new Date(now + Math.max(15, 2 * lifecycle.expectedUpdateIntervalSeconds) * 1000).toISOString(), expiresAt: deriveExpiresAt(row.created_at, new Date(now).toISOString(), lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS), persistedAt: now };
+      lastObservedAt: new Date(now).toISOString(), staleAt: new Date(now + Math.max(15, 2 * lifecycle.expectedUpdateIntervalSeconds) * 1000).toISOString(), expiresAt: snapshot.expiresAt, persistedAt: now };
     const frame = { ...next, kind: 'state.ack' };
     receipts.push({ id: body.updateId, hash, expiresAt: now + 600_000, frame });
     await this.storage.put({ [`snapshot:${row.panel_id}`]: next, [`receipts:${row.panel_id}`]: receipts.slice(-256) });
-    await this.recordObservation(row, next.lastObservedAt);
     this.broadcast(row.panel_id, { ...next, kind: changed ? 'state.patch' : 'state.observation', baseSequence: snapshot.sequence, ops: changed ? body.ops : undefined });
     return frame;
-  }
-
-  private async recordObservation(row: PanelRecord, observedAt: string | null): Promise<void> {
-    const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
-    const previous = lifecycle.lastObservedAt ?? null;
-    if (observedAt === null || (previous !== null && Date.parse(observedAt) - Date.parse(previous) < OBSERVATION_METADATA_FLOOR_MS)) return;
-    try {
-      await this.db.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?')
-        .bind(JSON.stringify({ ...lifecycle, lastObservedAt: observedAt }), row.panel_id).run();
-    } catch {
-      // The durable checkpoint already accepted this observation.
-    }
   }
 
   private async control(row: PanelRecord, agentId: string, value: unknown, key: string, action: 'lifecycle' | 'definition'): Promise<unknown> {

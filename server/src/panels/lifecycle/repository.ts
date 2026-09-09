@@ -5,7 +5,7 @@
 import { validateAnswers, validateAnswerSchema } from '@hiboss/panel-runtime';
 import { isRecord, isJsonValue } from '../definition/helpers';
 import type { JsonValue } from '../definition/types';
-import { defaultLifecycle, defaultPreference, DEFAULT_TTL_SECONDS, deriveExpiresAt, MAX_TTL_SECONDS, MIN_TTL_SECONDS, PanelFault, type Lifecycle, type Preference, type Checkpoint, type PanelId } from './types';
+import { defaultLifecycle, defaultPreference, DEFAULT_TTL_SECONDS, MAX_TTL_SECONDS, MIN_TTL_SECONDS, PanelFault, type Lifecycle, type Preference, type Checkpoint, type PanelId } from './types';
 
 export interface PanelRecord {
   panel_id: PanelId; agent_id: string; target_boss_id: string; definition_revision: number; metadata_version: number;
@@ -26,9 +26,9 @@ export async function authorize(db: D1Database, row: PanelRecord, identity: stri
 export function initialCheckpoint(row: PanelRecord): Checkpoint {
   const root = JSON.parse(row.initial_state_json) as Record<string, JsonValue>;
   const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
-  const ttlSeconds = lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+  if (!lifecycle.expiresAt) throw new PanelFault('invalid_lifecycle', 422);
   return { protocolVersion: 2, serverTime: Date.now(), panelId: row.panel_id, definitionRevision: row.definition_revision, epoch: null, sequence: 0,
-    task: root.task, observationVersion: 0, lastObservedAt: null, staleAt: null, expiresAt: deriveExpiresAt(row.created_at, null, ttlSeconds), leaseExpiresAt: null, persistedAt: 0 };
+    task: root.task, observationVersion: 0, lastObservedAt: null, staleAt: null, expiresAt: lifecycle.expiresAt, leaseExpiresAt: null, persistedAt: 0 };
 }
 export function validateTask(row: PanelRecord, task: unknown): asserts task is JsonValue {
   const schema = validateAnswerSchema(JSON.parse(row.state_schema_json));

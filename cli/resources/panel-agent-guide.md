@@ -9,7 +9,7 @@ required. A completed report does not require a blocking question.
 
 Run `hiboss panel --help` once. This guide describes protocol v2. The required
 commands are `validate`, `publish`, `update`, `stream`, `state`, `complete`,
-`fail`, `cancel`, `pause`, `resume`, `doctor`, and `show`.
+`fail`, `cancel`, `pause`, `resume`, `renew`, `doctor`, and `show`.
 If the installed CLI lacks one, report the version mismatch. Do not invent flags,
 search unrelated repositories, or repeatedly scan the user's configuration.
 Never display API keys or notification credentials.
@@ -108,11 +108,20 @@ printf '%s\n' '{"passed":14,"skipped":1,"failed":0}' | hiboss panel stream PANEL
 A long-running stdin stream renews its lease every 15 seconds. On clean stdin EOF,
 it releases the lease after the last acknowledgement. A repeated input observation
 with unchanged values uses `state.unchanged`. Only submit observations that were
-actually checked. Lease renewal alone cannot keep old data fresh. Each accepted
-observation also renews the panel's visibility window. `ttlSeconds` is optional at
-publication, defaults to 3600 seconds, and must be an integer from 60 to 604800.
-`hiboss panel show <id>` prints the server-derived `expiresAt`; a lapsed running or
-paused card is hidden from Active without ending the task. A boss pin keeps it visible.
+actually checked. Lease renewal alone cannot keep old data fresh, and streaming
+data does not keep a card alive. A long-running producer must deliberately renew
+the visibility window:
+
+```bash
+hiboss panel renew PANEL_ID
+hiboss panel renew PANEL_ID --ttl 7200
+```
+
+`ttlSeconds` is optional at publication, defaults to 3600 seconds, and must be an
+integer from 60 to 604800. Renewal prints the new expiry. `hiboss panel show <id>`
+also prints the stored `expiresAt`. When it lapses, the card leaves the wall but the
+task state is untouched; an explicit renewal brings the card back. A boss pin keeps
+it visible while lapsed.
 
 A new producer must not steal another executor's live lease. The CLI records the
 epoch it claimed for this session. After a crash, a `lease_conflict` is taken over

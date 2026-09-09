@@ -16,8 +16,10 @@ See [the rollout record](rollout-2026-09-08.md) for exact scope and verification
   task namespace confinement, duplicate-update receipts, and sequence conflicts.
 - Actual observations through `state.update` and `state.unchanged`. Heartbeats
   renew ownership without moving the observation or stale deadline.
-- Configurable observation TTLs from 60 seconds to 7 days, defaulting to 3600 seconds;
-  accepted observations renew the derived `expiresAt` without changing task state.
+- Configurable visibility windows from 60 seconds to 7 days, defaulting to 3600 seconds;
+  publication stores `expiresAt`, and only an explicit owner renewal moves it. Streaming
+  data alone does not keep a card alive; a lapse hides the card without changing task
+  state, and renewal brings it back.
 - Final state and metadata CAS, permanent terminal outcomes, idempotent command
   receipts, D1/DO prepare-commit recovery, recovery alarms, and a periodic repair
   sweep for lost or exhausted alarms.
@@ -35,7 +37,7 @@ See [the rollout record](rollout-2026-09-08.md) for exact scope and verification
 - Server clock anchors and monotonic progression for native freshness/retirement.
   A terminal or paused task never degrades into an Offline task status.
 - CLI commands `panel publish`, `panel stream`, `panel state`, `panel update`,
-  `panel complete|fail|cancel|pause|resume`, `panel doctor`, `panel lifecycle`,
+  `panel complete|fail|cancel|pause|resume|renew`, `panel doctor`, `panel lifecycle`,
   `panel definition`, and `panel guide`, plus `setup agents` for refreshable
   Codex/Claude instructions.
 
@@ -74,15 +76,19 @@ context, not a change to the retained terminal task or its observation history.
 The stale deadline is lastObservedAt plus max(15, 2 × expected cadence) seconds.
 Publication cadence is an integer from 5 to 3600 seconds, defaulting to 15.
 Publication `ttlSeconds` is an integer from 60 to 604800 seconds, defaulting to 3600.
-`expiresAt` is derived from the last observation, falling back to creation time before
-the first observation. A lapsed running or paused card is hidden from Active but stays
-running or paused; pins keep it visible. No expiry sweep writes task state or archives records.
+`expiresAt` is stored at publication and changes only through the explicit owner renewal
+operation. A lapsed running or paused card leaves Active but stays running or paused;
+pins keep it visible. No expiry sweep writes task state or archives records.
 
 A lifecycle command requires expectedMetadataVersion, expectedDefinitionRevision,
 expectedEpoch, expectedState, and `openRequests: "reject"`. Terminal commands can
 provide a schema-valid finalTask. Failure needs a result title and code;
 cancellation needs a result title explaining the reason. D1 uncertainty returns
 202 with an operation ID, never an uncommitted completed result.
+
+Renewal is a separate owner operation at `POST /api/panels/:id/renew`. It uses
+Idempotency-Key, expectedMetadataVersion, and expectedDefinitionRevision; it does not
+need a live producer lease, returns the new `expiresAt`, and can replace `ttlSeconds`.
 
 Success defaults to ten-minute retention; cancellation defaults to one minute;
 failure defaults to manual acknowledgement. A producer can request `dismissal`

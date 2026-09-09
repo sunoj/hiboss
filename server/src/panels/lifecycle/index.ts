@@ -27,6 +27,7 @@ async function proxy(c: PanelContext, action: string): Promise<Response> {
 }
 routes.get('/:id/state', c => proxy(c, 'state'));
 routes.post('/:id/lifecycle', c => proxy(c, 'lifecycle'));
+routes.post('/:id/renew', c => proxy(c, 'renew'));
 routes.put('/:id/definition', c => proxy(c, 'definition'));
 routes.get('/:id/operations/:operationId', c => proxy(c, 'operation'));
 routes.post('/:id/producer-lease', c => proxy(c, 'lease'));

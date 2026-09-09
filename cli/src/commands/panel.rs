@@ -16,14 +16,12 @@ mod control;
 mod relay_helpers;
 #[path = "panel/transport.rs"]
 mod transport;
-
 use crate::client::{HiBossClient, PanelPublishResponse};
 use clap::{Args, Subcommand};
 use ring::digest::{digest, SHA256};
 use serde_json::{json, Value};
 use std::error::Error;
 use std::path::PathBuf;
-
 #[derive(Debug, Args)]
 pub struct PanelArgs {
     #[command(subcommand)]
@@ -64,6 +62,8 @@ pub enum PanelCommand {
     Pause(control::PanelLifecycleArgs),
     #[command(about = "Resume a panel using current server CAS values")]
     Resume(control::PanelLifecycleArgs),
+    #[command(about = "Renew a panel's visibility window")]
+    Renew(control::PanelRenewArgs),
 }
 
 #[derive(Debug, Args)]
@@ -119,6 +119,7 @@ pub async fn run(args: &PanelArgs, client: &HiBossClient) -> Result<(), Box<dyn 
         PanelCommand::Cancel(arguments) => control::run_shortcut("cancel", arguments, client).await,
         PanelCommand::Pause(arguments) => control::run_shortcut("pause", arguments, client).await,
         PanelCommand::Resume(arguments) => control::run_shortcut("resume", arguments, client).await,
+        PanelCommand::Renew(arguments) => control::run_renew(arguments, client).await,
     }
 }
 

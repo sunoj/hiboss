@@ -21,6 +21,9 @@ const PROMPT: &str = r#"<!-- hiboss:panels:begin -->
   a card does not upload a report file. Never invent accessible artifact URLs.
 - `hiboss send` is a one-shot message; `hiboss ask` is for a required human decision.
   Report delivery itself does not require a blocking question.
+- A long-running panel producer must renew deliberately; streaming data does not keep
+  the card alive. When its expiry lapses the card leaves the wall, task state is
+  untouched, and `hiboss panel renew <id> [--ttl <seconds>]` brings it back.
 - Check the installed interface and server protocol before using lifecycle
   commands. Report a version mismatch; never claim an unconfirmed delivery.
 - Keep one panel per execution and update it. Retry the same command/key after an

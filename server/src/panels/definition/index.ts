@@ -3,7 +3,7 @@
 // Dependencies: Hono, D1, auth middleware, and panel-runtime helpers.
 
 import { publicationLifecycle, readPreference } from '../lifecycle/repository';
-import { faultResponse, type Lifecycle } from '../lifecycle/types';
+import { DEFAULT_TTL_SECONDS, faultResponse, type Lifecycle } from '../lifecycle/types';
 import { Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../middleware/auth';
 import type { Env } from '../../types';
@@ -109,6 +109,8 @@ routes.post('/', async (c) => {
 async function persistPublication(c: PanelContext, payload: PanelRequest, agentId: string, idempotencyKey: string,
   hash: string, targetBossId: string, sessionId: string, lifecycle: Lifecycle): Promise<Response> {
   const now = new Date().toISOString();
+  const ttlSeconds = lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+  const persistedLifecycle = { ...lifecycle, expiresAt: new Date(Date.parse(now) + ttlSeconds * 1000).toISOString() };
   const panelId = `panel_${crypto.randomUUID()}`;
   const metadata = {
     panelId,
@@ -127,7 +129,7 @@ async function persistPublication(c: PanelContext, payload: PanelRequest, agentI
   try {
     await c.env.DB.batch([
       c.env.DB.prepare('INSERT INTO panels (panel_id, agent_id, target_boss_id, task_key, session_id, title, catalog_id, catalog_version, definition_revision, metadata_version, summary_json, idempotency_key, request_hash, created_at, lifecycle_json, supersedes_panel_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(panelId, agentId, targetBossId, metadata.taskKey, sessionId, metadata.title, metadata.catalogId, metadata.catalogVersion, 1, 1, JSON.stringify(metadata.summary), idempotencyKey, hash, now, JSON.stringify(lifecycle), payload.supersedesPanelId ?? null),
+        .bind(panelId, agentId, targetBossId, metadata.taskKey, sessionId, metadata.title, metadata.catalogId, metadata.catalogVersion, 1, 1, JSON.stringify(metadata.summary), idempotencyKey, hash, now, JSON.stringify(persistedLifecycle), payload.supersedesPanelId ?? null),
       c.env.DB.prepare('INSERT INTO panel_definitions (panel_id, definition_revision, protocol_version, catalog_id, catalog_version, spec_json, state_schema_json, initial_state_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(panelId, 1, 2, metadata.catalogId, metadata.catalogVersion, JSON.stringify(payload.spec), JSON.stringify(payload.stateSchema), JSON.stringify(payload.initialState), now),
     ]);
