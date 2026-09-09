@@ -1,4 +1,4 @@
-// Native, accessible chart summaries for the dashboard; null samples split lines.
+// Native, accessible sparkline summaries for the dashboard; null samples split lines.
 // Exports: PanelDashboardChart and PanelDashboardTable inside HibossKit.
 // Dependencies: SwiftUI, Charts, and PanelDashboardSeries.
 
@@ -24,7 +24,7 @@ struct PanelDashboardChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(series.label).lineLimit(2)
                 Spacer(minLength: 4)
@@ -33,9 +33,9 @@ struct PanelDashboardChart: View {
             .font(.caption).foregroundStyle(.secondary)
             if samples.isEmpty {
                 Text("No samples yet").font(.callout).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             } else {
-                plot
+                plot.frame(height: 44)
             }
         }
     }
@@ -55,12 +55,7 @@ struct PanelDashboardChart: View {
         }
         .chartXScale(domain: 0.5...Double(max(1, series.values.count)) + 0.5)
         .chartXAxis(.hidden)
-        .chartYAxis {
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
-                AxisGridLine().foregroundStyle(Color.primary.opacity(0.08))
-                AxisValueLabel().foregroundStyle(Color.secondary)
-            }
-        }
+        .chartYAxis(.hidden)
         .accessibilityLabel(series.label)
         .accessibilityValue(series.values.map { $0.map { String($0) } ?? "gap" }.joined(separator: ", "))
     }

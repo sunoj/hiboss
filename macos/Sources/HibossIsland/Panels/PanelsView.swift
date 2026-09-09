@@ -45,26 +45,16 @@ struct DashboardPanelsSection: View {
 
 struct PanelWall: View {
     @ObservedObject var model: PanelsModel
-    @State private var measuredWidth: CGFloat = 640
 
     var body: some View {
-        GeometryReader { proxy in
-            let positions = model.positions(for: proxy.size.width)
-            ZStack(alignment: .topLeading) {
-                ForEach(model.visibleTiles) { tile in
-                    if let position = positions.first(where: { $0.id == tile.id }) {
-                        PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) { model.open(tile.id) }
-                            .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
-                            .frame(width: position.frame.width, height: position.frame.height)
-                            .offset(x: position.frame.minX, y: position.frame.minY)
-                    }
+        PanelWallLayout {
+            ForEach(model.visibleTiles) { tile in
+                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) { model.open(tile.id) }
+                    .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
+                    .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .onAppear { measuredWidth = proxy.size.width }
-            .onChange(of: proxy.size.width) { _, width in measuredWidth = width }
-        }
-        .frame(height: model.wallHeight(of: model.positions(for: measuredWidth)))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
