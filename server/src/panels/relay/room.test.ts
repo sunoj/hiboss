@@ -50,7 +50,7 @@ describe('v2 live relay', () => {
     expect(second.observationVersion).toBe(2);
     expect(Date.parse(second.expiresAt!)).toBeGreaterThan(Date.parse(first.expiresAt!));
     const metadata = await (await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).json<{ lifecycle: { expiresAt: string } }>();
-    expect(metadata.lifecycle.expiresAt).toBe(second.expiresAt);
+    expect(metadata.lifecycle.expiresAt).toBe(first.expiresAt);
     producer.socket.close();
   });
 

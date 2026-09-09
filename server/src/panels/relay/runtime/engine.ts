@@ -9,6 +9,7 @@ import { DEFAULT_TTL_SECONDS, deriveExpiresAt, LEASE_MS, PanelFault, terminal, t
 import { prepareDefinition } from '../../lifecycle/definition';
 import { applyTaskPatch } from './patch';
 
+const OBSERVATION_METADATA_FLOOR_MS = 30_000;
 interface Lease { epoch: string; expiresAt: number; requestId: string; hash: string; }
 interface UpdateReceipt { id: string; hash: string; expiresAt: number; frame: Checkpoint & { kind: string }; }
 export class PanelEngine {
@@ -133,8 +134,14 @@ export class PanelEngine {
 
   private async recordObservation(row: PanelRecord, observedAt: string | null): Promise<void> {
     const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
-    await this.db.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?')
-      .bind(JSON.stringify({ ...lifecycle, lastObservedAt: observedAt }), row.panel_id).run();
+    const previous = lifecycle.lastObservedAt ?? null;
+    if (observedAt === null || (previous !== null && Date.parse(observedAt) - Date.parse(previous) < OBSERVATION_METADATA_FLOOR_MS)) return;
+    try {
+      await this.db.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?')
+        .bind(JSON.stringify({ ...lifecycle, lastObservedAt: observedAt }), row.panel_id).run();
+    } catch {
+      // The durable checkpoint already accepted this observation.
+    }
   }
 
   private async control(row: PanelRecord, agentId: string, value: unknown, key: string, action: 'lifecycle' | 'definition'): Promise<unknown> {

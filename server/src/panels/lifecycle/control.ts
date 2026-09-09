@@ -69,7 +69,8 @@ export async function commitControl(db: D1Database, pending: PendingControl): Pr
   const row = await readRecord(db, pending.panelId);
   await authorize(db, row, pending.agentId, 'producer');
   const ttlSeconds = pending.lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
-  const receiptLifecycle = { ...pending.lifecycle, ttlSeconds, lastObservedAt: pending.lifecycle.lastObservedAt ?? pending.snapshot.lastObservedAt,
+  const persistedLifecycle = { ...pending.lifecycle, ttlSeconds, lastObservedAt: pending.snapshot.lastObservedAt };
+  const receiptLifecycle = { ...persistedLifecycle,
     expiresAt: deriveExpiresAt(row.created_at, pending.snapshot.lastObservedAt, ttlSeconds) };
   const receipt = { operationId: pending.operationId, metadataVersion: pending.expectedVersion + 1, definitionRevision: pending.snapshot.definitionRevision, lifecycle: receiptLifecycle,
     finalSnapshot: terminal(pending.lifecycle.taskState) ? pending.snapshot : null };
@@ -77,7 +78,7 @@ export async function commitControl(db: D1Database, pending: PendingControl): Pr
   const guard = 'SELECT 1 FROM panels WHERE panel_id = ? AND last_operation_id = ?';
   const result = await db.batch([
     db.prepare('UPDATE panels SET lifecycle_json = ?, final_snapshot_json = ?, metadata_version = metadata_version + 1, last_operation_id = ?, definition_revision = ?, catalog_id = COALESCE(?, catalog_id), catalog_version = COALESCE(?, catalog_version), summary_json = COALESCE(?, summary_json) WHERE panel_id = ? AND metadata_version = ? AND definition_revision = ? AND agent_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = panels.target_boss_id AND ba.agent_id = panels.agent_id)')
-      .bind(JSON.stringify(pending.lifecycle), final, pending.operationId, pending.snapshot.definitionRevision, pending.definition?.catalogId ?? null, pending.definition?.catalogVersion ?? null, pending.definition?.summary ?? null, pending.panelId, pending.expectedVersion, pending.definitionRevision, pending.agentId),
+      .bind(JSON.stringify(persistedLifecycle), final, pending.operationId, pending.snapshot.definitionRevision, pending.definition?.catalogId ?? null, pending.definition?.catalogVersion ?? null, pending.definition?.summary ?? null, pending.panelId, pending.expectedVersion, pending.definitionRevision, pending.agentId),
     ...(pending.definition ? [db.prepare(`INSERT INTO panel_definitions SELECT ?, ?, 2, ?, ?, ?, ?, ?, ? WHERE EXISTS (${guard})`)
       .bind(pending.panelId, pending.snapshot.definitionRevision, pending.definition.catalogId, pending.definition.catalogVersion, pending.definition.spec, pending.definition.schema, pending.definition.initial, pending.createdAt, pending.panelId, pending.operationId)] : []),
     db.prepare(`INSERT INTO panel_operations SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (${guard})`).bind(pending.operationId, pending.panelId, pending.agentId, pending.key, pending.hash, JSON.stringify(receipt), pending.panelId, pending.operationId),
