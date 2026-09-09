@@ -45,6 +45,7 @@ struct HomeAttentionSection: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
     }
 
@@ -69,10 +70,9 @@ struct HomeAttentionSection: View {
         Group {
             switch HomeAttentionLayout.allClearStyle(hasPanels: hasPanels) {
             case .compact:
-                Text("Nothing needs you right now.")
-                    .font(.hbCallout)
-                    .foregroundStyle(Theme.ink2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // The section subtitle already says nothing is waiting; repeating it
+                // here only pushes the panels the boss came to see further down.
+                EmptyView()
             case .full:
                 VStack(spacing: 14) {
                     AllClearIslandView()
