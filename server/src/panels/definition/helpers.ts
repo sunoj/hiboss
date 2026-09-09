@@ -11,6 +11,7 @@ import {
   type ValidationIssue,
 } from '@hiboss/panel-runtime';
 import type { Env } from '../../types';
+import { DEFAULT_TTL_SECONDS, deriveExpiresAt, type Lifecycle } from '../lifecycle/types';
 import type { JsonValue, PanelDefinition, PanelDefinitionRow, PanelMetadata, PanelMetadataRow } from './types';
 
 export type PanelRequest = Record<string, unknown>;
@@ -103,10 +104,13 @@ export function validatePublication(payload: PanelRequest): { ok: true } | { ok:
 }
 
 export function metadataFromRow(row: PanelMetadataRow): PanelMetadata {
+  const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
+  const ttlSeconds = lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+  const lastObservedAt = lifecycle.lastObservedAt ?? null;
   return {
     serverTime: Date.now(),
     panelId: row.panel_id,
-    lifecycle: JSON.parse(row.lifecycle_json),
+    lifecycle: { ...lifecycle, ttlSeconds, lastObservedAt, expiresAt: deriveExpiresAt(row.created_at, lastObservedAt, ttlSeconds) },
     finalSnapshot: row.final_snapshot_json ? JSON.parse(row.final_snapshot_json) : null,
     supersedesPanelId: row.supersedes_panel_id,
     agentId: row.agent_id,

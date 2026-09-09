@@ -38,7 +38,7 @@ Create `report-panel.json` with a stable task key and the actual boss/session ID
   "title": "Remote E2E report",
   "catalogId": "hiboss.panel",
   "catalogVersion": 1,
-  "lifecycle": { "mode": "run", "expectedUpdateIntervalSeconds": 15 },
+  "lifecycle": { "mode": "run", "expectedUpdateIntervalSeconds": 15, "ttlSeconds": 3600 },
   "spec": {
     "root": "report",
     "elements": {
@@ -108,7 +108,11 @@ printf '%s\n' '{"passed":14,"skipped":1,"failed":0}' | hiboss panel stream PANEL
 A long-running stdin stream renews its lease every 15 seconds. On clean stdin EOF,
 it releases the lease after the last acknowledgement. A repeated input observation
 with unchanged values uses `state.unchanged`. Only submit observations that were
-actually checked. Lease renewal alone cannot keep old data fresh.
+actually checked. Lease renewal alone cannot keep old data fresh. Each accepted
+observation also renews the panel's visibility window. `ttlSeconds` is optional at
+publication, defaults to 3600 seconds, and must be an integer from 60 to 604800.
+`hiboss panel show <id>` prints the server-derived `expiresAt`; a lapsed running or
+paused card is hidden from Active without ending the task. A boss pin keeps it visible.
 
 A new producer must not steal another executor's live lease. The CLI records the
 epoch it claimed for this session. After a crash, a `lease_conflict` is taken over

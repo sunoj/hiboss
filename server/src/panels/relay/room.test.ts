@@ -2,8 +2,10 @@
 // Covers real ticket issuance, WebSockets, and authenticated finalization.
 // Dependencies: Cloudflare runtime, Vitest, and relay test harness.
 
+import { SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { claim, connect, control, publish, seed, state } from './runtime/test-support';
+import { authHeaders } from '../../test-helpers';
+import { claim, connect, control, publish, seed, state, url } from './runtime/test-support';
 
 beforeAll(seed);
 describe('v2 live relay', () => {
@@ -30,6 +32,25 @@ describe('v2 live relay', () => {
     const ack = await producer.next('state.ack');
     expect(ack).toMatchObject({ sequence: 0, observationVersion: 1 });
     expect(Date.parse(ack.staleAt!) - Date.parse(ack.lastObservedAt!)).toBe(15_000);
+    expect(Date.parse(ack.expiresAt!) - Date.parse(ack.lastObservedAt!)).toBe(3_600_000);
+    producer.socket.close();
+  });
+
+  it('renews an explicit expiry window on unchanged observations', async () => {
+    const id = await publish({ mode: 'monitor', expectedUpdateIntervalSeconds: 5, ttlSeconds: 60 });
+    const producer = await connect(id); const epoch = await claim(producer);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'first', baseSequence: 0 });
+    const first = await producer.next('state.ack');
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const start = producer.frames.length;
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'second', baseSequence: 0 });
+    const second = await producer.next('state.ack', start);
+    expect(Date.parse(first.expiresAt!) - Date.parse(first.lastObservedAt!)).toBe(60_000);
+    expect(first.observationVersion).toBe(1);
+    expect(second.observationVersion).toBe(2);
+    expect(Date.parse(second.expiresAt!)).toBeGreaterThan(Date.parse(first.expiresAt!));
+    const metadata = await (await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).json<{ lifecycle: { expiresAt: string } }>();
+    expect(metadata.lifecycle.expiresAt).toBe(second.expiresAt);
     producer.socket.close();
   });
 

@@ -5,7 +5,7 @@
 import { bodyHash, isRecord } from '../../definition/helpers';
 import { commitControl, parseControl, prepareControl, type PendingControl } from '../../lifecycle/control';
 import { authorize, initialCheckpoint, operationReceipt, readRecord, validateTask, type PanelRecord } from '../../lifecycle/repository';
-import { LEASE_MS, PanelFault, terminal, type Checkpoint, type Lifecycle } from '../../lifecycle/types';
+import { DEFAULT_TTL_SECONDS, deriveExpiresAt, LEASE_MS, PanelFault, terminal, type Checkpoint, type Lifecycle } from '../../lifecycle/types';
 import { prepareDefinition } from '../../lifecycle/definition';
 import { applyTaskPatch } from './patch';
 
@@ -46,11 +46,16 @@ export class PanelEngine {
   }
 
   private async snapshot(row: PanelRecord): Promise<Checkpoint> {
-    if (row.final_snapshot_json) return { ...JSON.parse(row.final_snapshot_json) as Checkpoint, serverTime: Date.now() };
+    const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
+    const ttlSeconds = lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+    if (row.final_snapshot_json) {
+      const final = JSON.parse(row.final_snapshot_json) as Checkpoint;
+      return { ...final, serverTime: Date.now(), expiresAt: deriveExpiresAt(row.created_at, final.lastObservedAt, ttlSeconds) };
+    }
     const snapshot = await this.storage.get<Checkpoint>(`snapshot:${row.panel_id}`);
     const checkpoint = snapshot?.definitionRevision === row.definition_revision ? snapshot : initialCheckpoint(row);
     const lease = await this.storage.get<Lease>(`lease:${row.panel_id}`);
-    return { ...checkpoint, serverTime: Date.now(), leaseExpiresAt: lease ? new Date(lease.expiresAt).toISOString() : null };
+    return { ...checkpoint, serverTime: Date.now(), expiresAt: deriveExpiresAt(row.created_at, checkpoint.lastObservedAt, ttlSeconds), leaseExpiresAt: lease ? new Date(lease.expiresAt).toISOString() : null };
   }
 
   private requireRunning(row: PanelRecord): Lifecycle {
@@ -104,7 +109,11 @@ export class PanelEngine {
     const hash = await bodyHash(body);
     const receipts = (await this.storage.get<UpdateReceipt[]>(`receipts:${row.panel_id}`) ?? []).filter(r => r.expiresAt > now);
     const previous = receipts.find(r => r.id === body.updateId);
-    if (previous) { if (previous.hash !== hash) throw new PanelFault('idempotency_conflict'); return previous.frame; }
+    if (previous) {
+      if (previous.hash !== hash) throw new PanelFault('idempotency_conflict');
+      await this.recordObservation(row, previous.frame.lastObservedAt);
+      return previous.frame;
+    }
     const snapshot = await this.snapshot(row);
     if (body.baseSequence !== snapshot.sequence) throw new PanelFault('resync_required');
     if (!['state.update', 'state.unchanged'].includes(String(body.kind))) throw new PanelFault('invalid_update', 422);
@@ -113,12 +122,19 @@ export class PanelEngine {
     const task = changed ? applyTaskPatch(snapshot.task, body.ops) : snapshot.task;
     validateTask(row, task);
     const next: Checkpoint = { ...snapshot, serverTime: now, task, sequence: snapshot.sequence + (changed ? 1 : 0), observationVersion: snapshot.observationVersion + 1,
-      lastObservedAt: new Date(now).toISOString(), staleAt: new Date(now + Math.max(15, 2 * lifecycle.expectedUpdateIntervalSeconds) * 1000).toISOString(), persistedAt: now };
+      lastObservedAt: new Date(now).toISOString(), staleAt: new Date(now + Math.max(15, 2 * lifecycle.expectedUpdateIntervalSeconds) * 1000).toISOString(), expiresAt: deriveExpiresAt(row.created_at, new Date(now).toISOString(), lifecycle.ttlSeconds ?? DEFAULT_TTL_SECONDS), persistedAt: now };
     const frame = { ...next, kind: 'state.ack' };
     receipts.push({ id: body.updateId, hash, expiresAt: now + 600_000, frame });
     await this.storage.put({ [`snapshot:${row.panel_id}`]: next, [`receipts:${row.panel_id}`]: receipts.slice(-256) });
+    await this.recordObservation(row, next.lastObservedAt);
     this.broadcast(row.panel_id, { ...next, kind: changed ? 'state.patch' : 'state.observation', baseSequence: snapshot.sequence, ops: changed ? body.ops : undefined });
     return frame;
+  }
+
+  private async recordObservation(row: PanelRecord, observedAt: string | null): Promise<void> {
+    const lifecycle = JSON.parse(row.lifecycle_json) as Lifecycle;
+    await this.db.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?')
+      .bind(JSON.stringify({ ...lifecycle, lastObservedAt: observedAt }), row.panel_id).run();
   }
 
   private async control(row: PanelRecord, agentId: string, value: unknown, key: string, action: 'lifecycle' | 'definition'): Promise<unknown> {

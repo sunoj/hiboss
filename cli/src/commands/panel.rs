@@ -227,6 +227,7 @@ async fn run_show(args: &PanelShowArgs, client: &HiBossClient) -> Result<(), Box
     if args.json { println!("{}", serde_json::to_string_pretty(&response)?); return Ok(()); }
     let Some(object) = response.as_object() else { println!("{}", serde_json::to_string_pretty(&response)?); return Ok(()); };
     for (key, label) in [("panelId", "Panel ID"), ("title", "Title"), ("definitionRevision", "Definition revision"), ("metadataVersion", "Metadata version"), ("status", "Status"), ("createdAt", "Created at")] { if let Some(value) = object.get(key) { println!("{label}: {}", display_value(value)); } }
+    if let Some(value) = object.get("lifecycle").and_then(|lifecycle| lifecycle.get("expiresAt")) { println!("Expires at: {}", display_value(value)); }
     println!("Definition:");
     println!("{}", serde_json::to_string_pretty(&response)?);
     Ok(())

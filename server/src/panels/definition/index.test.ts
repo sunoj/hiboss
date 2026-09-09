@@ -68,6 +68,22 @@ beforeEach(async () => {
 });
 
 describe('panel publication and reads', () => {
+  it('uses the default lifecycle expiry and returns it in metadata', async () => {
+    const published = await publish('panel-default-expiry');
+    const receipt = await published.json() as { panelId: string; createdAt: string };
+    const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
+    const panel = await read.json() as { createdAt: string; lifecycle: { ttlSeconds: number; expiresAt: string } };
+    expect(panel.lifecycle.ttlSeconds).toBe(3600);
+    expect(Date.parse(panel.lifecycle.expiresAt) - Date.parse(panel.createdAt)).toBe(3_600_000);
+  });
+
+  it('accepts an explicit lifecycle expiry window', async () => {
+    const published = await publish('panel-explicit-expiry', panelBody({ lifecycle: { mode: 'run', ttlSeconds: 120 } }));
+    const receipt = await published.json() as { panelId: string };
+    const read = await SELF.fetch(`https://test.local/api/panels/${receipt.panelId}`, { headers: authHeaders() });
+    expect(await read.json()).toMatchObject({ lifecycle: { ttlSeconds: 120 } });
+  });
+
   it('publishes and reads its own immutable definition', async () => {
     const published = await publish('panel-own-read');
     expect(published.status).toBe(201);

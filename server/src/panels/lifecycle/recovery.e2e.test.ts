@@ -43,6 +43,9 @@ describe('durable lifecycle recovery', () => {
 
   it('rejects writes after lease expiry and issues a fresh server epoch', async () => {
     const id = await publish(); const producer = await connect(id); const epoch = await claim(producer);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'before-expiry', baseSequence: 0 });
+    await producer.next('state.ack');
+    const prior = await state(id);
     await runInDurableObject(stub(), async (_instance, context) => {
       const lease = await context.storage.get<Record<string, unknown>>(`lease:${id}`);
       await context.storage.put(`lease:${id}`, { ...lease, expiresAt: Date.now() - 1 });
@@ -50,6 +53,26 @@ describe('durable lifecycle recovery', () => {
     producer.send({ kind: 'state.unchanged', epoch, updateId: 'expired', baseSequence: 0 });
     expect(await producer.next('error')).toMatchObject({ code: 'fenced_epoch' });
     expect(await claim(producer)).not.toBe(epoch);
+    expect(await state(id)).toMatchObject({ lastObservedAt: prior.lastObservedAt, expiresAt: prior.expiresAt, observationVersion: prior.observationVersion });
+    producer.socket.close();
+  });
+
+  it('keeps an expired running panel readable without changing stored state', async () => {
+    const id = await publish({ mode: 'monitor', expectedUpdateIntervalSeconds: 5, ttlSeconds: 60 });
+    const producer = await connect(id); const epoch = await claim(producer);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'expiry-observation', baseSequence: 0 });
+    await producer.next('state.ack');
+    const before = await runInDurableObject(stub(), async (_instance, context) => context.storage.get<Record<string, unknown>>(`snapshot:${id}`));
+    await runInDurableObject(stub(), async (_instance, context) => {
+      const snapshot = await context.storage.get<Record<string, unknown>>(`snapshot:${id}`);
+      await context.storage.put(`snapshot:${id}`, { ...snapshot, lastObservedAt: new Date(Date.now() - 61_000).toISOString() });
+    });
+    const checkpoint = await state(id);
+    expect(Date.parse(checkpoint.expiresAt)).toBeLessThan(Date.now());
+    const metadata = await (await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).json<{ lifecycle: { taskState: string } }>();
+    expect(metadata.lifecycle.taskState).toBe('running');
+    const after = await runInDurableObject(stub(), async (_instance, context) => context.storage.get(`snapshot:${id}`));
+    expect(after).toEqual({ ...before, lastObservedAt: expect.any(String) });
     producer.socket.close();
   });
 

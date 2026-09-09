@@ -10,6 +10,21 @@ use super::*;
     fn accepts_valid_publication() { assert_eq!(validate_publication(&publication()), Ok(())); }
 
     #[test]
+    fn accepts_explicit_expiry_window() {
+        let mut value = publication();
+        value["lifecycle"] = serde_json::json!({"mode":"monitor","ttlSeconds":604800});
+        assert_eq!(validate_publication(&value), Ok(()));
+    }
+
+    #[test]
+    fn rejects_expiry_window_outside_shared_range() {
+        let mut value = publication();
+        value["lifecycle"] = serde_json::json!({"ttlSeconds":59});
+        let issue = validate_publication(&value).expect_err("short expiry");
+        assert_eq!(issue.path, "/lifecycle/ttlSeconds");
+    }
+
+    #[test]
     fn accepts_server_resolved_target_and_session() {
         let mut value = publication();
         value.as_object_mut().expect("publication object").remove("targetBossId");
