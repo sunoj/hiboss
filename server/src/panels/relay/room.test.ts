@@ -21,7 +21,7 @@ describe('v2 live relay', () => {
     subscriber.socket.close();
   });
 
-  it('renews ownership without refreshing data, while a genuine unchanged observation refreshes it', async () => {
+  it('does not renew the visibility window when data is observed', async () => {
     const id = await publish(); const producer = await connect(id); const epoch = await claim(producer);
     const baseline = await state(id);
     expect(baseline.lastObservedAt).toBeNull();
@@ -32,25 +32,44 @@ describe('v2 live relay', () => {
     const ack = await producer.next('state.ack');
     expect(ack).toMatchObject({ sequence: 0, observationVersion: 1 });
     expect(Date.parse(ack.staleAt!) - Date.parse(ack.lastObservedAt!)).toBe(15_000);
-    expect(Date.parse(ack.expiresAt!) - Date.parse(ack.lastObservedAt!)).toBe(3_600_000);
+    expect(ack.expiresAt).toBe(baseline.expiresAt);
+    expect((await state(id)).expiresAt).toBe(baseline.expiresAt);
     producer.socket.close();
   });
 
-  it('renews an explicit expiry window on unchanged observations', async () => {
+  it('moves expiry only on explicit renewal and accepts a replacement ttl', async () => {
     const id = await publish({ mode: 'monitor', expectedUpdateIntervalSeconds: 5, ttlSeconds: 60 });
     const producer = await connect(id); const epoch = await claim(producer);
-    producer.send({ kind: 'state.unchanged', epoch, updateId: 'first', baseSequence: 0 });
-    const first = await producer.next('state.ack');
-    await new Promise(resolve => setTimeout(resolve, 50));
-    const start = producer.frames.length;
-    producer.send({ kind: 'state.unchanged', epoch, updateId: 'second', baseSequence: 0 });
-    const second = await producer.next('state.ack', start);
-    expect(Date.parse(first.expiresAt!) - Date.parse(first.lastObservedAt!)).toBe(60_000);
-    expect(first.observationVersion).toBe(1);
-    expect(second.observationVersion).toBe(2);
-    expect(Date.parse(second.expiresAt!)).toBeGreaterThan(Date.parse(first.expiresAt!));
-    const metadata = await (await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).json<{ lifecycle: { expiresAt: string } }>();
-    expect(metadata.lifecycle.expiresAt).toBe(first.expiresAt);
+    const before = await state(id);
+    producer.send({ kind: 'state.unchanged', epoch, updateId: 'observed', baseSequence: 0 });
+    expect((await producer.next('state.ack')).expiresAt).toBe(before.expiresAt);
+    const first = await (await SELF.fetch(`${url}/${id}/renew`, { method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': 'renew-1' }, body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 1, expectedDefinitionRevision: 1 }) })).json<{ expiresAt: string; ttlSeconds: number }>();
+    expect(Date.parse(first.expiresAt)).toBeGreaterThan(Date.parse(before.expiresAt!));
+    expect(first.ttlSeconds).toBe(60);
+    const secondResponse = await SELF.fetch(`${url}/${id}/renew`, { method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': 'renew-2' }, body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 2, expectedDefinitionRevision: 1, ttlSeconds: 120 }) });
+    const second = await secondResponse.json<{ expiresAt: string; ttlSeconds: number }>();
+    expect(second.ttlSeconds).toBe(120);
+    expect(Date.parse(second.expiresAt) - Date.now()).toBeGreaterThan(119_000);
+    expect((await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).status).toBe(200);
+    producer.socket.close();
+  });
+
+  it('refuses renewal from a boss and from a terminal panel', async () => {
+    const id = await publish();
+    const foreign = await SELF.fetch(`${url}/${id}/renew`, { method: 'POST', headers: { Authorization: 'Bearer hb_relay_v2_boss_00000000000000000001', 'Content-Type': 'application/json', 'Idempotency-Key': 'foreign-renew' }, body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 1, expectedDefinitionRevision: 1 }) });
+    expect(foreign.status).toBe(403);
+    expect((await control(id, 'complete', 1, await state(id))).status).toBe(200);
+    const ended = await SELF.fetch(`${url}/${id}/renew`, { method: 'POST', headers: { ...authHeaders(), 'Idempotency-Key': 'ended-renew' }, body: JSON.stringify({ protocolVersion: 2, expectedMetadataVersion: 2, expectedDefinitionRevision: 1 }) });
+    expect(ended.status).toBe(409);
+  });
+
+  it('preserves expiry across a producer epoch change', async () => {
+    const id = await publish({ ttlSeconds: 60 }); const producer = await connect(id); const epoch = await claim(producer);
+    const before = await state(id);
+    producer.send({ kind: 'lease.release', epoch });
+    await producer.next('lease.release.ack');
+    expect(await claim(producer)).not.toBe(epoch);
+    expect((await state(id)).expiresAt).toBe(before.expiresAt);
     producer.socket.close();
   });
 

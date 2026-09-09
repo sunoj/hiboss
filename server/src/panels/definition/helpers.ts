@@ -11,7 +11,7 @@ import {
   type ValidationIssue,
 } from '@hiboss/panel-runtime';
 import type { Env } from '../../types';
-import { DEFAULT_TTL_SECONDS, deriveExpiresAt, type Lifecycle } from '../lifecycle/types';
+import { DEFAULT_TTL_SECONDS, type Lifecycle } from '../lifecycle/types';
 import type { JsonValue, PanelDefinition, PanelDefinitionRow, PanelMetadata, PanelMetadataRow } from './types';
 
 export type PanelRequest = Record<string, unknown>;
@@ -110,7 +110,7 @@ export function metadataFromRow(row: PanelMetadataRow): PanelMetadata {
   return {
     serverTime: Date.now(),
     panelId: row.panel_id,
-    lifecycle: { ...lifecycle, ttlSeconds, lastObservedAt, expiresAt: deriveExpiresAt(row.created_at, lastObservedAt, ttlSeconds) },
+    lifecycle: { ...lifecycle, ttlSeconds, lastObservedAt },
     finalSnapshot: row.final_snapshot_json ? JSON.parse(row.final_snapshot_json) : null,
     supersedesPanelId: row.supersedes_panel_id,
     agentId: row.agent_id,

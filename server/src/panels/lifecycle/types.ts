@@ -58,9 +58,6 @@ export const defaultLifecycle = (): Lifecycle => ({ taskState: 'running', mode: 
 export const defaultPreference = (): Preference => ({ preferenceVersion: 0, placement: 'automatic', seenTerminalVersion: null, acknowledgedTerminalVersion: null });
 export const terminal = (state: TaskState): boolean => ['completed', 'failed', 'cancelled'].includes(state);
 export const LEASE_MS = 45_000;
-export function deriveExpiresAt(createdAt: string, lastObservedAt: string | null, ttlSeconds: number): string {
-  return new Date(Date.parse(lastObservedAt ?? createdAt) + ttlSeconds * 1000).toISOString();
-}
 export class PanelFault extends Error {
   constructor(readonly code: string, readonly status: 400 | 403 | 404 | 409 | 422 | 503 = 409, message = code) { super(message); }
 }

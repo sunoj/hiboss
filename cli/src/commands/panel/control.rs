@@ -21,6 +21,30 @@ pub struct PanelLifecycleArgs {
     pub idempotency_key: Option<String>,
 }
 
+#[derive(Debug, Args)]
+pub struct PanelRenewArgs {
+    pub id: String,
+    #[arg(long, value_name = "SECONDS", help = "Replace the visibility window in seconds (60..604800)")]
+    pub ttl: Option<u64>,
+    #[arg(long, help = "Override the retry-safe default idempotency key")]
+    pub idempotency_key: Option<String>,
+}
+
+pub async fn run_renew(args: &PanelRenewArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+    if args.ttl.is_some_and(|ttl| !(60..=604800).contains(&ttl)) { return Err("--ttl must be an integer from 60 to 604800".into()); }
+    let panel = client.get_panel(&args.id).await?;
+    let metadata_version = panel.get("metadataVersion").and_then(Value::as_u64).ok_or("panel response has no metadataVersion")?;
+    let definition_revision = panel.get("definitionRevision").and_then(Value::as_u64).ok_or("panel response has no definitionRevision")?;
+    let session_id = panel.get("sessionId").and_then(Value::as_str).ok_or("panel response has no sessionId")?;
+    let mut body = json!({"protocolVersion":2,"expectedMetadataVersion":metadata_version,"expectedDefinitionRevision":definition_revision});
+    if let Some(ttl) = args.ttl { body["ttlSeconds"] = json!(ttl); }
+    let key = args.idempotency_key.clone().unwrap_or_else(|| renew_key(&args.id, args.ttl, session_id, metadata_version));
+    let result = client.panel_command(&args.id, "renew", &body, &key).await?;
+    let expires_at = result.get("expiresAt").and_then(Value::as_str).ok_or("panel renewal response has no expiresAt")?;
+    println!("Expires at: {expires_at}");
+    Ok(())
+}
+
 pub async fn run_shortcut(action: &str, args: &PanelLifecycleArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     let panel = client.get_panel(&args.id).await?;
     let state = client.panel_state(&args.id).await?;
@@ -61,6 +85,12 @@ fn shortcut_key(panel_id: &str, action: &str, session_id: &str, version: u64) ->
     format!("hiboss-panel-{action}-{}", hash.as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>())
 }
 
+fn renew_key(panel_id: &str, ttl: Option<u64>, session_id: &str, version: u64) -> String {
+    let value = json!({"panelId":panel_id,"action":"renew","ttlSeconds":ttl,"sessionId":session_id,"expectedMetadataVersion":version});
+    let hash = digest(&SHA256, serde_json::to_string(&value).unwrap_or_default().as_bytes());
+    format!("hiboss-panel-renew-{}", hash.as_ref().iter().map(|byte| format!("{byte:02x}")).collect::<String>())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,6 +98,11 @@ mod tests {
     #[test]
     fn shortcut_key_includes_panel_action_session_and_version() {
         assert_ne!(shortcut_key("p", "complete", "s", 1), shortcut_key("p", "complete", "s", 2));
+    }
+
+    #[test]
+    fn renew_key_includes_the_requested_ttl() {
+        assert_ne!(renew_key("p", None, "s", 1), renew_key("p", Some(120), "s", 1));
     }
 
     #[test]

@@ -67,6 +67,9 @@ describe('durable lifecycle recovery', () => {
       const snapshot = await context.storage.get<Record<string, unknown>>(`snapshot:${id}`);
       await context.storage.put(`snapshot:${id}`, { ...snapshot, lastObservedAt: new Date(Date.now() - 61_000).toISOString() });
     });
+    const lifecycle = JSON.parse((await env.DB.prepare('SELECT lifecycle_json FROM panels WHERE panel_id = ?').bind(id).first<{ lifecycle_json: string }>())?.lifecycle_json ?? '{}') as Record<string, unknown>;
+    lifecycle.expiresAt = new Date(Date.now() - 1).toISOString();
+    await env.DB.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?').bind(JSON.stringify(lifecycle), id).run();
     const checkpoint = await state(id);
     expect(Date.parse(checkpoint.expiresAt)).toBeLessThan(Date.now());
     const metadata = await (await SELF.fetch(`${url}/${id}`, { headers: authHeaders() })).json<{ lifecycle: { taskState: string } }>();
@@ -76,7 +79,7 @@ describe('durable lifecycle recovery', () => {
     producer.socket.close();
   });
 
-  it('coalesces rapid observation mirrors and persists after the floor', async () => {
+  it('does not mirror observations into lifecycle metadata', async () => {
     const id = await publish({ mode: 'monitor', expectedUpdateIntervalSeconds: 5, ttlSeconds: 60 });
     let writes = 0;
     const db = new Proxy(env.DB, { get(target, key) {
@@ -96,19 +99,7 @@ describe('durable lifecycle recovery', () => {
       await engine.execute(id, getTestAgentId(), 'producer', 'update', { ...update, updateId: 'one' });
       await engine.execute(id, getTestAgentId(), 'producer', 'update', { ...update, updateId: 'two' });
     });
-    expect(writes).toBe(1);
-    const row = await env.DB.prepare('SELECT lifecycle_json FROM panels WHERE panel_id = ?').bind(id).first<{ lifecycle_json: string }>();
-    if (!row) throw new Error('Missing panel lifecycle');
-    const lifecycle = JSON.parse(row.lifecycle_json) as Record<string, unknown>;
-    lifecycle.lastObservedAt = new Date(Date.now() - 31_000).toISOString();
-    await env.DB.prepare('UPDATE panels SET lifecycle_json = ? WHERE panel_id = ?').bind(JSON.stringify(lifecycle), id).run();
-    await runInDurableObject(stub(), async (_instance, context) => {
-      const engine = new PanelEngine(context.storage, db, () => {});
-      const checkpoint = await context.storage.get<{ epoch: string }>(`lease:${id}`);
-      if (!checkpoint) throw new Error('Missing lease');
-      await engine.execute(id, getTestAgentId(), 'producer', 'update', { protocolVersion: 2, kind: 'state.unchanged', epoch: checkpoint.epoch, definitionRevision: 1, updateId: 'three', baseSequence: 0 });
-    });
-    expect(writes).toBe(2);
+    expect(writes).toBe(0);
   });
 
   it('does not fail an accepted observation when its mirror fails', async () => {

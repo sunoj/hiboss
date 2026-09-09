@@ -51,9 +51,10 @@ not a producer connection or proof the task's external process started.
 Publication declares `mode: run | monitor`, `expectedUpdateIntervalSeconds`, and an
 optional `ttlSeconds` visibility window. The default expected observation interval is
 15 seconds; accepted range is 5–3600. `ttlSeconds` defaults to 3600 and accepts
-60–604800. The interval describes freshness, not a rate limit; the TTL describes
-visibility after the last accepted observation. A monitor has no automatic task
-completion deadline and no inferred progress denominator.
+60–604800. Publication stores `expiresAt` as now plus that TTL. The interval
+describes freshness, not a rate limit; the TTL describes the explicit visibility
+window. A monitor has no automatic task completion deadline and no inferred progress
+denominator.
 
 The full producer document is `{ "task": ... }`: `stateSchema` and `initialState`
 validate that root, while wire snapshots carry only the subtree as `task`. Patches
@@ -134,11 +135,13 @@ validity deadline, independent of `leaseExpiresAt` and terminal `dismissAt`.
 A new accepted observation replaces it; a duplicate receipt, heartbeat, or refetch
 preserves it. Clients can mark cached data stale without another server message.
 
-Each panel also includes the derived `expiresAt`: `lastObservedAt + ttlSeconds`, or
-creation time plus `ttlSeconds` before the first observation. Accepted `state.update`
-and `state.unchanged` observations renew it; lease renewal and refetch do not.
-Checkpoints and panel metadata return the server-derived value so clients do not
-reimplement this policy.
+Each panel also includes its stored `expiresAt`. Observations, lease renewal, and
+refetch do not move it. Only the owning agent's explicit renewal operation moves the
+window, optionally replacing `ttlSeconds`. A long-running producer must renew
+deliberately; streaming data alone cannot keep a card alive. When the deadline lapses,
+the card leaves the wall, task state is untouched, and a later renewal brings it back.
+Checkpoints and panel metadata return the stored value so clients do not reimplement
+this policy.
 
 Both observation commands use an `updateId`, exact revision/epoch, and base sequence.
 An idempotent retry returns the original observation time; it cannot manufacture
@@ -233,7 +236,9 @@ do not run a legacy relay path with weaker lifecycle guarantees.
 All control writes require `Idempotency-Key`, `expectedMetadataVersion`, and
 `expectedDefinitionRevision`. Commands from a running producer also name
 `expectedEpoch` (null only when no current lease exists). Terminal commands require
-`expectedState: { epoch, sequence }`, or null if only initial state exists.
+`expectedState: { epoch, sequence }`, or null if only initial state exists. Renewal
+does not require a lease epoch and can restore a lapsed panel; it may include a new
+`ttlSeconds` in the 60–604800 range.
 
 ```http
 POST /api/panels/panel_123/lifecycle
@@ -267,6 +272,7 @@ outcome even after the task becomes terminal. Conflicting bodies return 409.
 | POST /api/panels | v2 lifecycle policy and optional supersedesPanelId |
 | POST /api/panels/:id/producer-lease | claim, renew, or explicit takeover |
 | POST /api/panels/:id/lifecycle | pause, resume, complete, fail, cancel |
+| POST /api/panels/:id/renew | Owner-only visibility renewal with optional ttlSeconds |
 | PUT /api/panels/:id/definition | full revision replacement and epoch fence |
 | PUT /api/panels/:id/preferences | placement plus expectedPreferenceVersion |
 | POST /api/panels/:id/result-receipt | seen/acknowledged terminal version; idempotent |

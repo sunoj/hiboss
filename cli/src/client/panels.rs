@@ -1,4 +1,4 @@
-// Purpose: Implement panel publication and read HTTP calls.
+// Purpose: Implement panel publication, renewal, and read HTTP calls.
 // Exports: PanelPublishResponse and panel methods on HiBossClient.
 // Dependencies: reqwest, serde, serde_json, and HiBossClient.
 
@@ -63,7 +63,7 @@ impl HiBossClient {
         let url = format!("{}/api/panels/{id}/{action}", self.base_url);
         let request = if action == "definition" { self.http.put(url) } else { self.http.post(url) };
         let response = request.bearer_auth(&self.api_key).header("Idempotency-Key", key).json(body).send().await?;
-        parse_panel_response(response, "panel control").await
+        parse_panel_response(response, if action == "renew" { "panel renewal" } else { "panel control" }).await
     }
 
     pub async fn issue_panel_connection_ticket(&self, id: &str) -> Result<PanelConnectionTicket, Box<dyn Error>> {

@@ -38,15 +38,18 @@ should read, `hiboss progress` for something worth showing once, and a panel for
 something worth **watching** while the task runs.
 
 Publication may set `lifecycle.ttlSeconds` from 60 to 604800 seconds; it defaults to
-3600. Accepted observations renew the derived `expiresAt`, while lease renewal alone
-does not. A lapsed running or paused card is hidden, not ended, and a boss pin keeps
-it visible. `hiboss panel show <id>` prints the effective expiry.
+3600. Publication stores `expiresAt`; observations and lease renewal do not move it.
+A long-running producer must renew deliberately with `hiboss panel renew <id> [--ttl
+<seconds>]`. Streaming data alone does not keep a card alive. A lapsed running or
+paused card leaves the wall, not the task: task state is untouched, and renewal brings
+it back. A boss pin keeps it visible. `hiboss panel show <id>` prints the stored expiry.
 
 ```bash
 hiboss panel validate <file>            # local pre-check; prints the JSON Pointer path on failure
 hiboss panel publish <file> [--run-id]  # prints panelId; stable retry key includes the run
 hiboss panel update <panel-id> [JSON]   # one merge/ack/release; stdin or --file also work
 hiboss panel stream <panel-id>          # NDJSON on stdin; releases after final ack
+hiboss panel renew <id> [--ttl <seconds>] # explicitly renew visibility; prints expiry
 hiboss panel complete|fail|cancel <id>  # finish with live CAS fields and retry-safe key
 hiboss panel pause|resume <id>          # lifecycle shortcuts with live CAS fields
 hiboss panel doctor                     # auth, v2, session/boss, ticket, subscribe
