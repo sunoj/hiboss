@@ -8,7 +8,14 @@ import SwiftUI
 struct OptionMediaComparison: View {
     let options: [String]
     let media: [OptionMedia]
+    let contentWidth: CGFloat?
     @State private var selectedMedia: OptionMedia?
+
+    init(options: [String], media: [OptionMedia], contentWidth: CGFloat? = nil) {
+        self.options = options
+        self.media = media
+        self.contentWidth = contentWidth
+    }
 
     private var orderedMedia: [OptionMedia] {
         options.compactMap { option in
@@ -25,13 +32,19 @@ struct OptionMediaComparison: View {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(orderedMedia) { media in
                     OptionMediaTile(media: media) { selectedMedia = media }
+                        .frame(width: tileWidth, alignment: .leading)
                 }
             }
+            .frame(width: contentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
             .fullScreenCover(item: $selectedMedia) { media in
                 OptionMediaZoom(media: media)
             }
         }
+    }
+
+    private var tileWidth: CGFloat? {
+        contentWidth.map { max(0, ($0 - 8) / 2) }
     }
 }
 

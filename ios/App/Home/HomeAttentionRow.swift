@@ -19,6 +19,7 @@ enum HomeAttentionLayout {
 struct HomeAttentionSection: View {
     let groups: [AttentionGroupItems]
     let hasPanels: Bool
+    let contentWidth: CGFloat
     let onChoose: (String, MessageID) -> Void
     let onOpen: (MessageID) -> Void
 
@@ -37,6 +38,7 @@ struct HomeAttentionSection: View {
                         ForEach(group.items) { item in
                             HomeAttentionRow(
                                 item: item,
+                                contentWidth: contentWidth,
                                 onChoose: { onChoose($0, item.id) },
                                 onOpen: { onOpen(item.id) }
                             )
@@ -45,7 +47,7 @@ struct HomeAttentionSection: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(width: contentWidth, alignment: .leading)
         .padding(.horizontal, 16)
     }
 
@@ -94,20 +96,26 @@ struct HomeAttentionSection: View {
 
 struct HomeAttentionRow: View {
     let item: AttentionItem
+    let contentWidth: CGFloat
     let onChoose: (String) -> Void
     let onOpen: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button(action: onOpen) { info }
+            Button(action: onOpen) {
+                info.frame(width: innerWidth, alignment: .leading)
+            }
                 .buttonStyle(.plain)
-            timing
+            timing.frame(width: innerWidth, alignment: .leading)
             OptionMediaComparison(
                 options: item.options,
-                media: item.message.metadata?.optionMedia ?? []
+                media: item.message.metadata?.optionMedia ?? [],
+                contentWidth: innerWidth
             )
-            choices
+            .frame(width: innerWidth, alignment: .leading)
+            choices.frame(width: innerWidth, alignment: .leading)
         }
+        .frame(width: innerWidth, alignment: .leading)
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(alignment: .leading) {
@@ -116,7 +124,10 @@ struct HomeAttentionRow: View {
                 .frame(width: 4)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var innerWidth: CGFloat { max(0, contentWidth - 24) }
 
     private var info: some View {
         VStack(alignment: .leading, spacing: 6) {
