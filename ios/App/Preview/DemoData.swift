@@ -125,6 +125,31 @@ private enum DemoFixtures {
 
     private static let deploy: [HistoryMessage] = [
         HistoryMessage(
+            id: "c5", body: "Two takes on the release banner — which one ships?",
+            agentName: "worker-design", direction: "agent_to_boss", status: "delivered",
+            priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
+            metadata: MessageMetadata(
+                options: ["Coarse grid", "Fine grid"],
+                optionMedia: [
+                    OptionMedia(
+                        label: "Coarse grid",
+                        url: "https://hiboss-server.example.workers.dev/api/attachments/f6ea7769-1f48-4de7-a887-21304252cf42.png",
+                        caption: "wider blocks"
+                    ),
+                    OptionMedia(
+                        label: "Fine grid",
+                        url: "https://hiboss-server.example.workers.dev/api/attachments/28eba3a2-330a-4cb6-90a0-30ba14dc51d5.png",
+                        caption: "tighter weave"
+                    ),
+                ],
+                defaultOption: "Coarse grid",
+                content: "The agent is waiting on a visual pick."
+            ),
+            expiresAt: iso(90), createdAt: iso(-60),
+            sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
+            sessionStatus: "blocked"
+        ),
+        HistoryMessage(
             id: "c0", body: "Ship the changelog to TestFlight tonight?",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "high", channel: "discord", mode: "blocking", type: "approval_request",
