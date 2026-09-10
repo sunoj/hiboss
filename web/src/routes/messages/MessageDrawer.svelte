@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import StatusBadges from '$lib/components/StatusBadges.svelte';
-	import { extractOptions } from '$lib/api/mappers';
+	import { extractOptions, extractOptionMedia } from '$lib/api/mappers';
 	import type { MessageResponse } from '$lib/api/types';
 	import { formatAbsoluteTime, sessionTitle } from './message-helpers';
 	import MessageDrawerActions from './MessageDrawerActions.svelte';
@@ -16,6 +16,7 @@
 	let { message, onClose, onUpdated }: Props = $props();
 
 	const options = $derived(extractOptions(message.metadata));
+	const optionMedia = $derived(extractOptionMedia(message.metadata));
 	const expired = $derived(Boolean(message.metadata?.options_expired));
 
 	function onKeydown(e: KeyboardEvent) {
@@ -68,6 +69,7 @@
 		<MessageDrawerActions
 			messageId={message.id}
 			{options}
+			{optionMedia}
 			optionsExpired={expired}
 			{onUpdated}
 		/>

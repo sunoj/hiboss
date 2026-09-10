@@ -34,8 +34,15 @@ export interface ChannelHealth {
 	configured: boolean;
 }
 
+export interface OptionMedia {
+	label: string;
+	url: string;
+	caption?: string;
+}
+
 export interface MessageMetadata {
 	options?: unknown;
+	option_media?: OptionMedia[];
 	options_expired?: boolean;
 	[key: string]: unknown;
 }

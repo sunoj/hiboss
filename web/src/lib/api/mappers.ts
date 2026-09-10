@@ -3,7 +3,7 @@
 import { coercePriority, isDirection, isMessageStatus } from '$lib/design/semantics';
 export { formatRelativeTime } from '$lib/i18n';
 import type { Direction, MessageStatus, Priority } from '$lib/design/semantics';
-import type { MessageMetadata, MessageResponse } from './types';
+import type { MessageMetadata, MessageResponse, OptionMedia } from './types';
 
 /** Extract structured options array — never split on commas. */
 export function extractOptions(metadata: MessageMetadata | null | undefined): string[] {
@@ -20,6 +20,19 @@ export function extractOptions(metadata: MessageMetadata | null | undefined): st
 			return '';
 		})
 		.filter((s) => s.length > 0);
+}
+
+/** Extract option media array, ordered by the options array order. */
+export function extractOptionMedia(metadata: MessageMetadata | null | undefined): OptionMedia[] {
+	if (!metadata || !metadata.option_media || !Array.isArray(metadata.option_media)) return [];
+	const options = extractOptions(metadata);
+	const mediaByLabel = new Map<string, OptionMedia>();
+	for (const m of metadata.option_media) {
+		if (m && typeof m.label === 'string' && typeof m.url === 'string') {
+			mediaByLabel.set(m.label.trim(), { label: m.label.trim(), url: m.url, caption: m.caption?.trim() });
+		}
+	}
+	return options.map((opt) => mediaByLabel.get(opt)).filter((m): m is OptionMedia => m !== undefined);
 }
 
 export function truncateBody(body: string, max = 120): string {
