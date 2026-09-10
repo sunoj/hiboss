@@ -25,7 +25,6 @@ struct HomeView: View {
 
     var body: some View {
         content
-            .frame(maxWidth: .infinity)
             .background(Theme.paper)
             .refreshable { await inbox.refresh() }
             .task { await inbox.refresh() }
@@ -47,25 +46,19 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        GeometryReader { proxy in
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                ScrollView {
-                    VStack(spacing: 22) {
-                        attentionContent(now: context.date, contentWidth: max(0, proxy.size.width - 32))
-                            .frame(width: proxy.size.width, alignment: .leading)
-                        HomePanelWall(model: panels)
-                            .frame(width: proxy.size.width, alignment: .leading)
-                    }
-                    .frame(width: proxy.size.width)
-                    .padding(.vertical, 12)
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            ScrollView {
+                VStack(spacing: 22) {
+                    attentionContent(now: context.date)
+                    HomePanelWall(model: panels)
                 }
-                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
         }
     }
 
     @ViewBuilder
-    private func attentionContent(now: Date, contentWidth: CGFloat) -> some View {
+    private func attentionContent(now: Date) -> some View {
         if !inbox.didLoad && inbox.history.isEmpty {
             if inbox.connectionState == .disconnected {
                 ContentUnavailableView(
@@ -93,7 +86,6 @@ struct HomeView: View {
                     now: now
                 ),
                 hasPanels: !panels.visibleTiles.isEmpty,
-                contentWidth: contentWidth,
                 onChoose: handleReply,
                 onOpen: { AppRouter.shared.open(messageID: $0.rawValue) }
             )

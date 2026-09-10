@@ -8,14 +8,7 @@ import SwiftUI
 struct OptionMediaComparison: View {
     let options: [String]
     let media: [OptionMedia]
-    let contentWidth: CGFloat?
     @State private var selectedMedia: OptionMedia?
-
-    init(options: [String], media: [OptionMedia], contentWidth: CGFloat? = nil) {
-        self.options = options
-        self.media = media
-        self.contentWidth = contentWidth
-    }
 
     private var orderedMedia: [OptionMedia] {
         options.compactMap { option in
@@ -32,19 +25,13 @@ struct OptionMediaComparison: View {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(orderedMedia) { media in
                     OptionMediaTile(media: media) { selectedMedia = media }
-                        .frame(width: tileWidth, alignment: .leading)
                 }
             }
-            .frame(width: contentWidth, alignment: .leading)
             .frame(maxWidth: .infinity)
             .fullScreenCover(item: $selectedMedia) { media in
                 OptionMediaZoom(media: media)
             }
         }
-    }
-
-    private var tileWidth: CGFloat? {
-        contentWidth.map { max(0, ($0 - 8) / 2) }
     }
 }
 
@@ -59,23 +46,28 @@ private struct OptionMediaTile: View {
                 .foregroundStyle(.primary)
                 .lineLimit(2)
             Button(action: open) {
-                AsyncImage(url: URL(string: media.url)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    case .failure:
-                        placeholder(systemImage: "photo.badge.exclamationmark")
-                    case .empty:
-                        ProgressView()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    @unknown default:
-                        placeholder(systemImage: "photo")
+                // The aspect ratio hangs off Color.clear, which has no size of its
+                // own, so the tile takes the width it is offered. Put it on the
+                // AsyncImage instead and a loaded 480pt-wide screenshot becomes the
+                // tile's ideal width, which pushes the whole card past the screen.
+                Color.clear
+                    .aspectRatio(1.35, contentMode: .fit)
+                    .overlay {
+                        AsyncImage(url: URL(string: media.url)) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                            case .failure:
+                                placeholder(systemImage: "photo.badge.exclamationmark")
+                            case .empty:
+                                ProgressView()
+                            @unknown default:
+                                placeholder(systemImage: "photo")
+                            }
+                        }
                     }
-                }
-                .frame(maxWidth: .infinity)
-                .aspectRatio(1.35, contentMode: .fit)
-                .background(Theme.surface2)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(Theme.surface2)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open image for \(media.label)")
