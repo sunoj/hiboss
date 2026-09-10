@@ -183,9 +183,9 @@ async function updateCallbackMessage(
 ): Promise<void> {
   const chatId = asString(message?.chat?.['id']);
   const messageId = message?.message_id;
-  if (botToken && chatId && messageId) {
-    await editMessageReplyMarkup(botToken, chatId, messageId, `${(message.text as string) ?? ''}\n\n${resultText}`);
-  }
+  const text = message?.text;
+  if (!botToken || !chatId || !messageId || typeof text !== 'string') return;
+  await editMessageReplyMarkup(botToken, chatId, messageId, `${text}\n\n${resultText}`);
 }
 
 function buildCallbackReplyMetadata(

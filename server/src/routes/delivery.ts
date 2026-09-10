@@ -144,23 +144,26 @@ async function deliverTelegramWithOptions(
   const tgConfig = requireTelegramConfig(config);
   const tgBody = formatTelegramAgentMessage(agentName, body);
   const messageThreadId = await fetchSessionTelegramTopicId(env, sessionId);
-  const images = buildTelegramImages(fileUrl, optionMedia, optionLabels, agentName, body);
-  if (fileUrl && !isImageUrl(fileUrl) && images.length > 0) {
-    await sendTelegramDocument(tgConfig, fileUrl, formatTelegramAttachmentCaption(agentName, body), { messageThreadId });
+  if (!inlineKeyboard?.length) {
+    const telegramMessageId = fileUrl && isImageUrl(fileUrl)
+      ? await sendTelegramPhoto(tgConfig, fileUrl, formatTelegramAttachmentCaption(agentName, body), { messageThreadId })
+      : fileUrl
+        ? await sendTelegramDocument(tgConfig, fileUrl, formatTelegramAttachmentCaption(agentName, body), { messageThreadId })
+        : await sendTelegramMessage(tgConfig, tgBody, { messageThreadId });
+    return { delivered: true, telegramMessageId };
   }
-  let telegramMessageId: number | undefined;
+
+  const images = buildTelegramImages(fileUrl, optionMedia, optionLabels);
+  if (fileUrl && !isImageUrl(fileUrl)) {
+    await sendTelegramDocument(tgConfig, fileUrl, undefined, { messageThreadId });
+  }
   if (images.length >= 2) {
     await sendTelegramMediaGroup(tgConfig, images, { messageThreadId });
-    telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
   } else if (images.length === 1) {
     const image = images[0];
-    if (!image) return { delivered: false };
-    telegramMessageId = await sendTelegramPhoto(tgConfig, image.url, image.caption, { inlineKeyboard, messageThreadId });
-  } else if (fileUrl) {
-    telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, formatTelegramAttachmentCaption(agentName, body), { inlineKeyboard, messageThreadId });
-  } else {
-    telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
+    if (image) await sendTelegramPhoto(tgConfig, image.url, image.caption, { messageThreadId });
   }
+  const telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
   return { delivered: true, telegramMessageId };
 }
 
@@ -224,11 +227,9 @@ function buildTelegramImages(
   fileUrl: string | undefined,
   optionMedia: OptionMedia[] | undefined,
   optionLabels: string[] | undefined,
-  agentName: string,
-  body: string,
 ): { url: string; caption: string }[] {
   const images: { url: string; caption: string }[] = [];
-  if (fileUrl && isImageUrl(fileUrl)) images.push({ url: fileUrl, caption: formatTelegramAttachmentCaption(agentName, body) });
+  if (fileUrl && isImageUrl(fileUrl)) images.push({ url: fileUrl, caption: '' });
   const orderedMedia = orderOptionMedia(optionMedia, optionLabels);
   for (const media of orderedMedia) {
     const optionIndex = optionLabels?.indexOf(media.label) ?? orderedMedia.indexOf(media);

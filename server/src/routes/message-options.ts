@@ -4,12 +4,12 @@
  */
 
 import type { Channel, Env, MessageRow } from '../types';
-import { createForumTopic, editMessageReplyMarkup, removeInlineKeyboard } from '../channels/telegram';
+import { createForumTopic, editTelegramCaption, editMessageReplyMarkup, formatTelegramAttachmentCaption, removeInlineKeyboard } from '../channels/telegram';
 import { createDiscordThread, addDiscordThreadMember, editDiscordMessage } from '../channels/discord';
 import { 
   requireTelegramConfig as _requireTelegramConfig, 
   requireDiscordConfig as _requireDiscordConfig, 
-  formatAgentMessage as _formatAgentMessage 
+  formatAgentMessage as _formatAgentMessage,
 } from './delivery';
 import { selectChannelConfig, fetchAgentName } from './message-queries';
 import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
@@ -120,7 +120,11 @@ async function editExpiredChannelMessage(
       const cc = await selectChannelConfig(env, agentId, 'telegram');
       const tgConfig = _requireTelegramConfig(cc.config);
       const expiredText = _formatAgentMessage(agentName, message.body) + `\n\n${notice}`;
-      await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
+      if (hasOptionKeyboard(meta)) {
+        await editMessageReplyMarkup(tgConfig.bot_token, tgConfig.chat_id, tgMsgId, expiredText);
+      } else {
+        await editTelegramCaption(tgConfig, tgMsgId, formatTelegramAttachmentCaption(agentName, `${message.body}\n\n${notice}`));
+      }
     }
   } else if (message.channel === 'discord') {
     const dcMsgId = meta['discord_message_id'] as string | undefined;
@@ -131,6 +135,11 @@ async function editExpiredChannelMessage(
       await editDiscordMessage(dcConfig, dcMsgId, expiredText, []);
     }
   }
+}
+
+function hasOptionKeyboard(metadata: Record<string, unknown>): boolean {
+  const options = metadata['options'];
+  return Array.isArray(options) && options.length > 0;
 }
 
 export async function withdrawResolvedOptions(

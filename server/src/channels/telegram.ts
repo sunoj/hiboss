@@ -189,6 +189,7 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
+  if (options?.inlineKeyboard) payload.reply_markup = { inline_keyboard: options.inlineKeyboard };
   let response = await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendDocument`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }

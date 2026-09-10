@@ -40,6 +40,10 @@ async function editTelegramMirror(env: Env, message: MessageRow): Promise<void> 
   const channelConfig = await selectChannelConfig(env, message.agent_id, 'telegram');
   const telegramConfig = requireTelegramConfig(channelConfig.config);
   const displayName = await fetchDisplayName(env, message);
+  if (messageHasOptions(message.metadata)) {
+    await editTelegramMessageText(telegramConfig, telegramMessageId, formatTelegramAgentMessage(displayName, message.body));
+    return;
+  }
   if (messageHasFileUrl(message.metadata)) {
     await editTelegramCaption(telegramConfig, telegramMessageId, formatTelegramAttachmentCaption(displayName, message.body));
     return;
@@ -95,6 +99,16 @@ function messageHasFileUrl(metadata: string | null): boolean {
   try {
     const parsed = JSON.parse(metadata) as Record<string, unknown>;
     return typeof parsed['file_url'] === 'string' && parsed['file_url'].trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function messageHasOptions(metadata: string | null): boolean {
+  if (!metadata) return false;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    return Array.isArray(parsed['options']) && parsed['options'].length > 0;
   } catch {
     return false;
   }

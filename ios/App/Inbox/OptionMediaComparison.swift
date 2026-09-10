@@ -65,7 +65,7 @@ private struct OptionMediaTile: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open image for (media.label)")
+            .accessibilityLabel("Open image for \(media.label)")
             if let caption = media.caption, !caption.isEmpty {
                 Text(caption)
                     .font(.caption)
