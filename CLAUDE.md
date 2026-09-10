@@ -122,6 +122,11 @@ check them with `hiboss status <id>` before claiming coordination happened.
    hiboss ask --option "Short A" --option "Short B" --option "Short C" "Summary.\n\nNext options:\n1. Short A — details\n2. Short B — details\n3. Short C — details" --timeout 300
    ```
    Never use the removed plural `--options` / `--actions` flags or comma-join choices.
+   To ask the boss to compare two renderings, give a choice its own image with
+   `--option-image "<LABEL>=<path or http(s) URL>"`, repeated per option (at most 5, and the
+   label must match an `--option`/`--action` label). It combines with `--file`, which stays
+   the one message-level attachment. The label — never the image — is the answer;
+   `docs/option-media-spec.md` is the contract each surface implements.
    Optionally add `--default <LABEL>` (equal to one of your option/action labels) to mark a fallback: the boss sees it flagged, and on timeout with no reply it is auto-selected on the server and returned to you, so you can proceed safely instead of stalling.
 4. Run it using your tool call's own `run_in_background: true` parameter (NOT shell `&`/`nohup`/`disown` — those detach the process from harness tracking, so a reply can never be delivered back to you) and **wait for the boss's reply**
 5. Only stop if: boss says stop, OR ask times out
