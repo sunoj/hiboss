@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ApiError, type MessageResponse } from '$lib/api/types';
+	import { ApiError, type MessageResponse, type OptionMedia } from '$lib/api/types';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { toasts } from '$lib/stores/toast.svelte';
 	import { t } from '$lib/i18n';
@@ -7,11 +7,12 @@
 	interface Props {
 		messageId: string;
 		options: string[];
+		optionMedia: OptionMedia[];
 		optionsExpired: boolean;
 		onUpdated?: (message: MessageResponse) => void;
 	}
 
-	let { messageId, options, optionsExpired, onUpdated }: Props = $props();
+	let { messageId, options, optionMedia, optionsExpired, onUpdated }: Props = $props();
 
 	let replyText = $state('');
 	let busy = $state(false);
@@ -72,18 +73,36 @@
 		{#if optionsExpired}
 			<p class="hint">{t('form.optionsExpired')}</p>
 		{/if}
-		<div class="row">
-			{#each options as option (option)}
-				<button
-					type="button"
-					class="btn"
-					disabled={busy || optionsExpired}
-					onclick={() => sendReply(option)}
-				>
-					{option}
-				</button>
-			{/each}
-		</div>
+<div class="options-list">
+		{#each options as option (option)}
+			{@const media = optionMedia.find((m) => m.label === option)}
+			<button
+				type="button"
+				class="option-btn"
+				disabled={busy || optionsExpired}
+				onclick={() => sendReply(option)}
+			>
+				{#if media}
+					<div class="option-with-media">
+						<img
+							class="option-media-img"
+							src={media.url}
+							alt={media.caption ? `${option}: ${media.caption}` : option}
+							onerror={(e: Event) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
+						/>
+						<div class="option-content">
+							<span class="option-label">{option}</span>
+							{#if media.caption}
+								<span class="option-caption">{media.caption}</span>
+							{/if}
+						</div>
+					</div>
+				{:else}
+					<span class="option-label">{option}</span>
+				{/if}
+			</button>
+		{/each}
+	</div>
 	</section>
 {/if}
 
@@ -186,5 +205,67 @@
 	.forward select {
 		margin: 0;
 		flex: 1;
+	}
+	.options-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+	.option-btn {
+		border: 1px solid var(--hb-border);
+		background: var(--hb-bg-elevated);
+		border-radius: var(--hb-radius-sm);
+		padding: 0.5rem 0.65rem;
+		cursor: pointer;
+		color: var(--hb-text);
+		font: inherit;
+		font-size: 12px;
+		text-align: left;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	.option-btn:hover:not(:disabled) {
+		background: var(--hb-bg-hover);
+	}
+	.option-btn:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
+	}
+	.option-with-media {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+	}
+	.option-media-img {
+		flex: 0 0 80px;
+		height: 60px;
+		object-fit: cover;
+		border-radius: var(--hb-radius-sm);
+		background: var(--hb-bg-input);
+		border: 1px solid var(--hb-border-subtle);
+	}
+	.option-content {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		flex: 1;
+		min-width: 0;
+	}
+	.option-label {
+		font-weight: 500;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.option-caption {
+		font-size: 10px;
+		color: var(--hb-text-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 </style>

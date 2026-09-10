@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	extractOptionMedia,
 	extractOptions,
 	formatRelativeTime,
 	normalizeMessage,
@@ -27,6 +28,79 @@ describe('extractOptions', () => {
 		expect(extractOptions(null)).toEqual([]);
 		expect(extractOptions({})).toEqual([]);
 		expect(extractOptions({ options: 'A,B' as unknown as string[] })).toEqual([]);
+	});
+});
+
+describe('extractOptionMedia', () => {
+	it('returns empty array when metadata or option_media is missing', () => {
+		expect(extractOptionMedia(null)).toEqual([]);
+		expect(extractOptionMedia({})).toEqual([]);
+		expect(extractOptionMedia({ options: ['A', 'B'] })).toEqual([]);
+		expect(extractOptionMedia({ options: ['A', 'B'], option_media: undefined })).toEqual([]);
+	});
+
+	it('matches media to options by label and preserves options order', () => {
+		const media = extractOptionMedia({
+			options: ['Option A', 'Option B'],
+			option_media: [
+				{ label: 'Option B', url: 'https://example.com/b.png', caption: 'caption B' },
+				{ label: 'Option A', url: 'https://example.com/a.png', caption: 'caption A' }
+			]
+		});
+		expect(media).toEqual([
+			{ label: 'Option A', url: 'https://example.com/a.png', caption: 'caption A' },
+			{ label: 'Option B', url: 'https://example.com/b.png', caption: 'caption B' }
+		]);
+	});
+
+	it('handles partial coverage (some options have media, others do not)', () => {
+		const media = extractOptionMedia({
+			options: ['Option A', 'Option B', 'Option C'],
+			option_media: [
+				{ label: 'Option A', url: 'https://example.com/a.png' },
+				{ label: 'Option C', url: 'https://example.com/c.png', caption: 'caption C' }
+			]
+		});
+		expect(media).toEqual([
+			{ label: 'Option A', url: 'https://example.com/a.png', caption: undefined },
+			{ label: 'Option C', url: 'https://example.com/c.png', caption: 'caption C' }
+		]);
+	});
+
+	it('filters out media entries with invalid label or url', () => {
+		const media = extractOptionMedia({
+			options: ['Option A', 'Option B'],
+			option_media: [
+				{ label: 'Option A', url: 'https://example.com/a.png' },
+				{ label: '', url: 'https://example.com/invalid.png' },
+				{ label: 'Option B', url: 123 as unknown as string },
+				{ label: 'Option C', url: 'https://example.com/c.png' }
+			]
+		});
+		expect(media).toEqual([
+			{ label: 'Option A', url: 'https://example.com/a.png', caption: undefined }
+		]);
+	});
+
+	it('ignores media for labels not in options', () => {
+		const media = extractOptionMedia({
+			options: ['Option A'],
+			option_media: [
+				{ label: 'Option A', url: 'https://example.com/a.png' },
+				{ label: 'Unknown Option', url: 'https://example.com/unknown.png' }
+			]
+		});
+		expect(media).toEqual([{ label: 'Option A', url: 'https://example.com/a.png', caption: undefined }]);
+	});
+
+	it('trims label and caption whitespace', () => {
+		const media = extractOptionMedia({
+			options: ['  Option A  '],
+			option_media: [
+				{ label: '  Option A  ', url: 'https://example.com/a.png', caption: '  caption  ' }
+			]
+		});
+		expect(media).toEqual([{ label: 'Option A', url: 'https://example.com/a.png', caption: 'caption' }]);
 	});
 });
 
