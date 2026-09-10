@@ -30,6 +30,12 @@ export type ResolutionSource = 'ios' | 'macos' | 'telegram' | 'discord' | 'api';
 
 export type Metadata = Record<string, unknown> | null;
 
+export interface OptionMedia {
+  label: string;
+  url: string;
+  caption?: string;
+}
+
 export interface MessageRow {
   id: string;
   agent_id: string;

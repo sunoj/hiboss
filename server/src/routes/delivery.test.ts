@@ -168,6 +168,21 @@ describe('deliverToChannelWithOptions — api channel', () => {
     );
     expect(mockedSendDiscordTyping.mock.invocationCallOrder[0]).toBeLessThan(mockedSendDiscordMessage.mock.invocationCallOrder[0]);
   });
+
+  it('adds option embeds after the message-level image in option order', async () => {
+    await deliverToChannelWithOptions('discord', { webhook_url: 'https://discord.test/webhook' }, 'agent', 'body', undefined, 'https://files.test/context.png', undefined, undefined, undefined, [
+      { label: 'B', url: 'https://files.test/b.png' },
+      { label: 'A', url: 'https://files.test/a.png', caption: 'after' },
+    ], ['A', 'B']);
+
+    expect(mockedSendDiscordMessage.mock.calls[0]?.[2]).toMatchObject({
+      embeds: [
+        { image: { url: 'https://files.test/context.png' } },
+        { title: 'A · A', description: 'after', image: { url: 'https://files.test/a.png' } },
+        { title: 'B · B', image: { url: 'https://files.test/b.png' } },
+      ],
+    });
+  });
 });
 
 describe('telegram session topics', () => {

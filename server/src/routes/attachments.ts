@@ -16,6 +16,18 @@ interface AttachmentMetadata {
   customMetadata: Record<string, string>;
 }
 
+function contentTypeExtension(contentType: string): string | undefined {
+  const normalized = contentType.toLowerCase().split(';', 1)[0];
+  const extensions: Record<string, string> = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'video/mp4': 'mp4',
+  };
+  return extensions[normalized];
+}
+
 function parseContentLength(value: string | undefined): number | null {
   if (!value) return null;
   const parsed = Number(value);
@@ -78,7 +90,8 @@ routes.post('/upload', apiAuth, async (c) => {
     }
   }
 
-  const key = crypto.randomUUID();
+  const extension = contentTypeExtension(mimeType);
+  const key = `${crypto.randomUUID()}${extension ? `.${extension}` : ''}`;
   const maxBytes = isMultipart ? TEN_MB : mimeType.startsWith('video/') ? FIFTY_MB : TEN_MB;
   const metadata: AttachmentMetadata = {
     httpMetadata: { contentType: mimeType },

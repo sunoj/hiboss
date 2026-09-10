@@ -3,6 +3,7 @@
 // Depends on vitest and the global fetch/FormData implementations.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { R2Bucket } from '@cloudflare/workers-types';
 import { sendDiscordMessage, sendDiscordTyping } from './discord';
 
 afterEach(() => {
@@ -92,5 +93,30 @@ describe('sendDiscordMessage', () => {
       headers: { 'Content-Type': 'application/json' },
       body: '{"content":"Body","username":"agent","embeds":[{"image":{"url":"https://files.test/photo.png"}}]}',
     });
+  });
+
+  it('reads local attachments from R2 instead of fetching the worker URL', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ id: 'msg-3' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    const get = vi.fn(async (key: string) => key === 'legacy.pdf'
+      ? {
+        arrayBuffer: async () => new TextEncoder().encode('report-body').buffer,
+        httpMetadata: { contentType: 'application/pdf' },
+        customMetadata: { filename: 'report.pdf' },
+      }
+      : null);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sendDiscordMessage(
+      { channel_id: 'chan-1', bot_token: 'bot-1' },
+      'Body',
+      { fileUrl: 'https://test.local/api/attachments/legacy.pdf', attachmentBucket: { get } as unknown as R2Bucket },
+    );
+
+    expect(get).toHaveBeenCalledWith('legacy.pdf');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('discord.com/api/v10/channels/chan-1/messages');
   });
 });

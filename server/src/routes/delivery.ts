@@ -2,13 +2,15 @@
 // Exports delivery helpers used by messages router.
 // Depends on channel adapters, types, and delay from message-helpers.
 
-import type { Channel, DiscordChannelConfig, Env, TelegramChannelConfig } from '../types';
+import type { Channel, DiscordChannelConfig, Env, OptionMedia, TelegramChannelConfig } from '../types';
 import { sendDiscordMessage, sendDiscordTyping, type DiscordSendOptions } from '../channels/discord';
 import {
   formatTelegramAttachmentCaption,
   formatTelegramAgentMessage,
+  escapeHtml,
   isImageUrl,
   sendTelegramDocument,
+  sendTelegramMediaGroup,
   sendTelegramMessage,
   sendTelegramPhoto,
 } from '../channels/telegram';
@@ -105,6 +107,8 @@ export async function deliverToChannelWithOptions(
   agentAvatarUrl?: string,
   env?: Env,
   sessionId?: string | null,
+  optionMedia?: OptionMedia[],
+  optionLabels?: string[],
 ): Promise<DeliveryResult> {
   if (channel === 'api') {
     return { delivered: true };
@@ -115,29 +119,49 @@ export async function deliverToChannelWithOptions(
     const baseText = opts ? body : formatAgentMessage(agentName, body);
     const components = inlineKeyboard ? inlineKeyboardToDiscordComponents(inlineKeyboard) : undefined;
     const content = formatDiscordContent(baseText, fileUrl);
-    const sendOptions = buildDiscordSendOptions(opts, components, fileUrl);
+    const sendOptions = buildDiscordSendOptions(opts, components, fileUrl, env, optionMedia, optionLabels);
     await sendDiscordTyping(dc);
     const result = await sendDiscordMessage(dc, content, sendOptions);
     return { delivered: true, discordMessageId: result.messageId };
   }
   if (channel === 'telegram') {
-    const tgConfig = requireTelegramConfig(config);
-    const tgBody = formatTelegramAgentMessage(agentName, body);
-    const messageThreadId = await fetchSessionTelegramTopicId(env, sessionId);
-    let telegramMessageId: number | undefined;
-    if (fileUrl) {
-      const caption = formatTelegramAttachmentCaption(agentName, body);
-      if (isImageUrl(fileUrl)) {
-        telegramMessageId = await sendTelegramPhoto(tgConfig, fileUrl, caption, { messageThreadId });
-      } else {
-        telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, caption, { messageThreadId });
-      }
-    } else {
-      telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
-    }
-    return { delivered: true, telegramMessageId };
+    return deliverTelegramWithOptions(config, agentName, body, inlineKeyboard, fileUrl, env, sessionId, optionMedia, optionLabels);
   }
   return { delivered: false };
+}
+
+async function deliverTelegramWithOptions(
+  config: Record<string, unknown>,
+  agentName: string,
+  body: string,
+  inlineKeyboard: { text: string; callback_data: string }[][] | undefined,
+  fileUrl: string | undefined,
+  env: Env | undefined,
+  sessionId: string | null | undefined,
+  optionMedia: OptionMedia[] | undefined,
+  optionLabels: string[] | undefined,
+): Promise<DeliveryResult> {
+  const tgConfig = requireTelegramConfig(config);
+  const tgBody = formatTelegramAgentMessage(agentName, body);
+  const messageThreadId = await fetchSessionTelegramTopicId(env, sessionId);
+  const images = buildTelegramImages(fileUrl, optionMedia, optionLabels, agentName, body);
+  if (fileUrl && !isImageUrl(fileUrl) && images.length > 0) {
+    await sendTelegramDocument(tgConfig, fileUrl, formatTelegramAttachmentCaption(agentName, body), { messageThreadId });
+  }
+  let telegramMessageId: number | undefined;
+  if (images.length >= 2) {
+    await sendTelegramMediaGroup(tgConfig, images, { messageThreadId });
+    telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
+  } else if (images.length === 1) {
+    const image = images[0];
+    if (!image) return { delivered: false };
+    telegramMessageId = await sendTelegramPhoto(tgConfig, image.url, image.caption, { inlineKeyboard, messageThreadId });
+  } else if (fileUrl) {
+    telegramMessageId = await sendTelegramDocument(tgConfig, fileUrl, formatTelegramAttachmentCaption(agentName, body), { inlineKeyboard, messageThreadId });
+  } else {
+    telegramMessageId = await sendTelegramMessage(tgConfig, tgBody, { inlineKeyboard, messageThreadId });
+  }
+  return { delivered: true, telegramMessageId };
 }
 
 function inlineKeyboardToDiscordComponents(keyboard: { text: string; callback_data: string }[][]): unknown[] {
@@ -166,17 +190,66 @@ function buildDiscordSendOptions(
   baseOptions: DiscordSendOptions | undefined,
   components?: unknown[],
   fileUrl?: string,
+  env?: Env,
+  optionMedia?: OptionMedia[],
+  optionLabels?: string[],
 ): DiscordSendOptions | undefined {
   const options: DiscordSendOptions = baseOptions ? { ...baseOptions } : {};
   if (components) options.components = components;
-  if (fileUrl) {
-    if (isImageUrl(fileUrl)) {
-      options.embeds = [{ image: { url: fileUrl } }];
-    } else {
-      options.fileUrl = fileUrl;
-    }
+  const embeds = buildDiscordEmbeds(fileUrl, optionMedia, optionLabels);
+  if (embeds.length > 0) options.embeds = embeds;
+  if (fileUrl && !isImageUrl(fileUrl)) {
+    options.fileUrl = fileUrl;
+    if (env && isLocalAttachmentUrl(fileUrl)) options.attachmentBucket = env.ATTACHMENTS;
   }
   return Object.keys(options).length > 0 ? options : undefined;
+}
+
+function buildDiscordEmbeds(fileUrl: string | undefined, optionMedia: OptionMedia[] | undefined, optionLabels: string[] | undefined): NonNullable<DiscordSendOptions['embeds']> {
+  const embeds: NonNullable<DiscordSendOptions['embeds']> = [];
+  if (fileUrl && isImageUrl(fileUrl)) embeds.push({ image: { url: fileUrl } });
+  const orderedMedia = orderOptionMedia(optionMedia, optionLabels);
+  for (const media of orderedMedia) {
+    const optionIndex = optionLabels?.indexOf(media.label) ?? orderedMedia.indexOf(media);
+    embeds.push({
+      title: `${String.fromCharCode(65 + optionIndex)} · ${media.label}`,
+      ...(media.caption === undefined ? {} : { description: media.caption }),
+      image: { url: media.url },
+    });
+  }
+  return embeds;
+}
+
+function buildTelegramImages(
+  fileUrl: string | undefined,
+  optionMedia: OptionMedia[] | undefined,
+  optionLabels: string[] | undefined,
+  agentName: string,
+  body: string,
+): { url: string; caption: string }[] {
+  const images: { url: string; caption: string }[] = [];
+  if (fileUrl && isImageUrl(fileUrl)) images.push({ url: fileUrl, caption: formatTelegramAttachmentCaption(agentName, body) });
+  const orderedMedia = orderOptionMedia(optionMedia, optionLabels);
+  for (const media of orderedMedia) {
+    const optionIndex = optionLabels?.indexOf(media.label) ?? orderedMedia.indexOf(media);
+    const label = `${String.fromCharCode(65 + optionIndex)} · ${escapeHtml(media.label)}`;
+    images.push({ url: media.url, caption: media.caption ? `${label}\n${escapeHtml(media.caption)}` : label });
+  }
+  return images;
+}
+
+function orderOptionMedia(media: OptionMedia[] | undefined, optionLabels: string[] | undefined): OptionMedia[] {
+  if (!optionLabels) return media ?? [];
+  return optionLabels.flatMap((label) => (media ?? []).filter((item) => item.label === label));
+}
+
+function isLocalAttachmentUrl(fileUrl: string): boolean {
+  try {
+    const segments = new URL(fileUrl).pathname.split('/').filter(Boolean);
+    return segments.length >= 3 && segments.at(-3) === 'api' && segments.at(-2) === 'attachments';
+  } catch {
+    return false;
+  }
 }
 
 function formatDiscordContent(text: string, fileUrl?: string): string {

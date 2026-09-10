@@ -4,6 +4,8 @@
 
 import type { TelegramChannelConfig } from '../types';
 
+export { sendTelegramMediaGroup } from './telegram-media';
+
 type SendOptions = {
   replyToMessageId?: number;
   inlineKeyboard?: { text: string; callback_data: string }[][];
@@ -37,9 +39,7 @@ export async function sendTelegramMessage(config: TelegramChannelConfig, content
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
-  if (options?.inlineKeyboard) {
-    payload.reply_markup = { inline_keyboard: options.inlineKeyboard };
-  }
+  if (options?.inlineKeyboard) payload.reply_markup = { inline_keyboard: options.inlineKeyboard };
   let response = await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`,
     {
@@ -157,6 +157,7 @@ export async function sendTelegramPhoto(config: TelegramChannelConfig, photoUrl:
   if (options?.replyToMessageId) {
     payload.reply_parameters = { message_id: options.replyToMessageId };
   }
+  if (options?.inlineKeyboard) payload.reply_markup = { inline_keyboard: options.inlineKeyboard };
   const response = await fetch(
     `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendPhoto`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
@@ -203,6 +204,7 @@ export async function sendTelegramDocument(config: TelegramChannelConfig, docUrl
     if (options?.replyToMessageId) {
       fallbackPayload.reply_parameters = { message_id: options.replyToMessageId };
     }
+    if (options?.inlineKeyboard) fallbackPayload.reply_markup = { inline_keyboard: options.inlineKeyboard };
     response = await fetch(
       `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fallbackPayload) }

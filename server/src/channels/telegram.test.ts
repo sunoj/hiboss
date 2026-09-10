@@ -9,6 +9,8 @@ import {
   formatTelegramAgentMessage,
   formatTelegramAttachmentCaption,
   isImageUrl,
+  sendTelegramMediaGroup,
+  sendTelegramPhoto,
 } from './telegram';
 
 afterEach(() => {
@@ -133,5 +135,39 @@ describe('editTelegramCaption', () => {
       caption: '[agent] update',
       parse_mode: 'HTML',
     });
+  });
+});
+
+describe('option media delivery', () => {
+  it('keeps the inline keyboard on a single photo', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { message_id: 17 } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sendTelegramPhoto(
+      { bot_token: 'tg-token', chat_id: 'chat-1' },
+      'https://files.test/a.png',
+      'A · before',
+      { inlineKeyboard: [[{ text: 'before', callback_data: 'pick-before' }]] },
+    )).resolves.toBe(17);
+
+    const payload = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as Record<string, unknown>;
+    expect(payload.reply_markup).toEqual({ inline_keyboard: [[{ text: 'before', callback_data: 'pick-before' }]] });
+  });
+
+  it('sends option images as a media group', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: [{ message_id: 18 }, { message_id: 19 }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sendTelegramMediaGroup(
+      { bot_token: 'tg-token', chat_id: 'chat-1' },
+      [{ url: 'https://files.test/a.png', caption: 'A · before' }, { url: 'https://files.test/b.png', caption: 'B · after' }],
+    )).resolves.toEqual([18, 19]);
+
+    const payload = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { media: { caption: string }[] };
+    expect(payload.media.map((item) => item.caption)).toEqual(['A · before', 'B · after']);
   });
 });
