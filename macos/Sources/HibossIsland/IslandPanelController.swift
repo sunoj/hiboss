@@ -14,6 +14,7 @@ enum OptionPanelLayout {
     private static let optionVerticalPadding: CGFloat = 18
     private static let optionSpacing: CGFloat = 7
     private static let minimumOptionHeight: CGFloat = 35
+    private static let optionMediaHeight: CGFloat = 128
     private static let minimumBodyViewportHeight: CGFloat = 56
     /// Reply input row plus the stack spacing above it.
     private static let replyFieldHeight: CGFloat = 45
@@ -35,9 +36,13 @@ enum OptionPanelLayout {
         )
         let optionWidth = contentWidth - optionTextChrome
         let optionHeights = message.options.map { option in
-            max(
+            let mediaHeight = hasMedia(for: option, in: message) ? optionMediaHeight : 0
+            return max(
                 minimumOptionHeight,
-                textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: optionWidth)
+                max(
+                    mediaHeight,
+                    textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: optionWidth)
+                )
                     + optionVerticalPadding
             )
         }
@@ -54,6 +59,13 @@ enum OptionPanelLayout {
             attributes: [.font: font]
         )
         return ceil(bounds.height)
+    }
+
+    private static func hasMedia(for option: String, in message: OptionMessage) -> Bool {
+        let normalizedOption = option.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.metadata?.optionMedia.contains {
+            $0.label.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedOption
+        } == true
     }
 }
 

@@ -162,14 +162,13 @@ struct IslandView: View {
     }
 
     private func optionList(_ message: OptionMessage) -> some View {
-        VStack(spacing: 7) {
-            ForEach(message.options, id: \.self) { option in
-                OptionButton(title: option, isDefault: option == message.defaultOption) {
-                    chooseOption(option, for: message.id)
-                }
-                .disabled(isSubmitting)
-            }
-        }
+        OptionMediaPicker(
+            options: message.options,
+            media: message.metadata?.optionMedia ?? [],
+            defaultOption: message.defaultOption,
+            choose: { chooseOption($0, for: message.id) }
+        )
+        .disabled(isSubmitting)
     }
 
     private func fixedActions(_ message: OptionMessage) -> some View {

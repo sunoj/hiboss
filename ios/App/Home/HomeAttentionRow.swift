@@ -102,6 +102,10 @@ struct HomeAttentionRow: View {
             Button(action: onOpen) { info }
                 .buttonStyle(.plain)
             timing
+            OptionMediaComparison(
+                options: item.options,
+                media: item.message.metadata?.optionMedia ?? []
+            )
             choices
         }
         .padding(12)

@@ -4,8 +4,23 @@
 
 import Foundation
 
+public struct OptionMedia: Codable, Equatable, Identifiable, Sendable {
+    public let label: String
+    public let url: String
+    public let caption: String?
+
+    public var id: String { label }
+
+    public init(label: String, url: String, caption: String? = nil) {
+        self.label = label
+        self.url = url
+        self.caption = caption
+    }
+}
+
 public struct MessageMetadata: Codable, Equatable, Sendable {
     public let options: [String]
+    public let optionMedia: [OptionMedia]
     public let isExpired: Bool
     /// Label of the option auto-selected on timeout, if the asker marked one.
     public let defaultOption: String?
@@ -17,6 +32,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case options
+        case optionMedia = "option_media"
         case isExpired = "options_expired"
         case defaultOption = "default_option"
         case source
@@ -27,6 +43,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
 
     public init(
         options: [String],
+        optionMedia: [OptionMedia] = [],
         isExpired: Bool = false,
         defaultOption: String? = nil,
         source: String? = nil,
@@ -34,6 +51,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         files: [String] = []
     ) {
         self.options = options
+        self.optionMedia = optionMedia
         self.isExpired = isExpired
         self.defaultOption = defaultOption
         self.source = source
@@ -44,6 +62,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         options = try values.decodeIfPresent([String].self, forKey: .options) ?? []
+        optionMedia = try values.decodeIfPresent([OptionMedia].self, forKey: .optionMedia) ?? []
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
         source = try values.decodeIfPresent(String.self, forKey: .source)
@@ -56,6 +75,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(options, forKey: .options)
+        if !optionMedia.isEmpty { try values.encode(optionMedia, forKey: .optionMedia) }
         try values.encode(isExpired, forKey: .isExpired)
         try values.encodeIfPresent(defaultOption, forKey: .defaultOption)
         try values.encodeIfPresent(source, forKey: .source)
