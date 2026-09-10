@@ -89,7 +89,7 @@ private struct OptionMediaPreview: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(L("Open image for (media.label)"))
+            .accessibilityLabel(L("Open image for \(media.label)"))
 
             if let caption = media.caption, !caption.isEmpty {
                 Text(caption)

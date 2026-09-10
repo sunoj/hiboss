@@ -241,9 +241,11 @@
 		width: 100%;
 	}
 	.option-media-img {
-		flex: 0 0 80px;
-		height: 60px;
-		object-fit: cover;
+		/* Wide enough to compare two screenshots side by side in the drawer, and
+		   `contain` because a cropped screenshot answers a different question. */
+		flex: 0 0 176px;
+		max-height: 132px;
+		object-fit: contain;
 		border-radius: var(--hb-radius-sm);
 		background: var(--hb-bg-input);
 		border: 1px solid var(--hb-border-subtle);
