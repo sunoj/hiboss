@@ -3,6 +3,7 @@
 // Depends on DiscordChannelConfig from types.
 
 import type { DiscordChannelConfig } from '../types';
+import type { R2Bucket } from '@cloudflare/workers-types';
 
 interface DiscordAttachment {
   blob: Blob;
@@ -15,6 +16,8 @@ interface DiscordAttachmentMetadata {
 }
 
 export interface DiscordEmbed {
+  title?: string;
+  description?: string;
   image?: { url: string };
 }
 
@@ -24,6 +27,7 @@ export interface DiscordSendOptions {
   components?: unknown[];
   embeds?: DiscordEmbed[];
   fileUrl?: string;
+  attachmentBucket?: R2Bucket;
 }
 
 export interface DiscordSendResult {
@@ -103,7 +107,7 @@ export async function addDiscordThreadMember(botToken: string, threadId: string,
 }
 
 async function sendViaWebhook(webhookUrl: string, content: string, options?: DiscordSendOptions, threadId?: string): Promise<DiscordSendResult> {
-  const attachment = options?.fileUrl ? await downloadDiscordAttachment(options.fileUrl) : undefined;
+  const attachment = options?.fileUrl ? await downloadDiscordAttachment(options.fileUrl, options.attachmentBucket) : undefined;
   const payload = buildDiscordPayload(content, options, attachment ? [toAttachmentMetadata(attachment)] : undefined);
   // ?wait=true makes Discord return the created message with its ID
   // thread_id routes the webhook message into a thread
@@ -153,7 +157,7 @@ export async function editDiscordMessage(config: DiscordChannelConfig, messageId
 }
 
 async function sendViaBot(botToken: string, channelId: string, content: string, options?: DiscordSendOptions): Promise<DiscordSendResult> {
-  const attachment = options?.fileUrl ? await downloadDiscordAttachment(options.fileUrl) : undefined;
+  const attachment = options?.fileUrl ? await downloadDiscordAttachment(options.fileUrl, options.attachmentBucket) : undefined;
   const payload = buildDiscordPayload(content, options, attachment ? [toAttachmentMetadata(attachment)] : undefined);
   const response = await fetch(
     `https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages`,
@@ -198,15 +202,33 @@ function buildDiscordRequest(
   return { method: 'POST', headers, body: form };
 }
 
-async function downloadDiscordAttachment(fileUrl: string): Promise<DiscordAttachment> {
-  const response = await fetch(fileUrl);
-  if (!response.ok) {
-    throw new Error(`discord attachment download failed ${response.status}`);
+async function downloadDiscordAttachment(fileUrl: string, bucket?: R2Bucket): Promise<DiscordAttachment> {
+  const key = getLocalAttachmentKey(fileUrl);
+  if (key) {
+    if (!bucket) throw new Error('discord attachment binding unavailable');
+    const object = await bucket.get(key);
+    if (!object) throw new Error('discord attachment download failed 404');
+    return {
+      blob: new Blob([await object.arrayBuffer()], { type: object.httpMetadata?.contentType }),
+      filename: object.customMetadata?.['filename'] ?? getDiscordAttachmentFilename(fileUrl, null),
+    };
   }
+  const response = await fetch(fileUrl);
+  if (!response.ok) throw new Error(`discord attachment download failed ${response.status}`);
   return {
     blob: await response.blob(),
     filename: getDiscordAttachmentFilename(fileUrl, response.headers.get('content-disposition')),
   };
+}
+
+function getLocalAttachmentKey(fileUrl: string): string | undefined {
+  try {
+    const segments = new URL(fileUrl).pathname.split('/').filter(Boolean);
+    if (segments.length < 3 || segments.at(-3) !== 'api' || segments.at(-2) !== 'attachments') return undefined;
+    return segments.at(-1);
+  } catch {
+    return undefined;
+  }
 }
 
 function toAttachmentMetadata(attachment: DiscordAttachment): DiscordAttachmentMetadata {

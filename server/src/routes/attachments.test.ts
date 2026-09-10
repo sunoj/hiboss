@@ -2,7 +2,7 @@
 // Covers upload (multipart + raw) and download flows.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
@@ -25,6 +25,7 @@ describe('POST /api/attachments/upload', () => {
     expect(res.status).toBe(201);
     const json = (await res.json()) as { key: string; url: string; filename: string; content_type: string; size: number };
     expect(json.key).toBeTruthy();
+    expect(json.key).toMatch(/\.png$/);
     expect(json.url).toContain('/api/attachments/');
     expect(json.filename).toBe('test.txt');
     expect(json.content_type).toBe('image/png');
@@ -42,7 +43,8 @@ describe('POST /api/attachments/upload', () => {
       body: new Uint8Array([0, 1, 2]),
     });
     expect(res.status).toBe(201);
-    const json = (await res.json()) as { content_type: string; size: number };
+    const json = (await res.json()) as { key: string; content_type: string; size: number };
+    expect(json.key).toMatch(/\.mp4$/);
     expect(json.content_type).toBe('video/mp4');
     expect(json.size).toBe(3);
   });
@@ -83,6 +85,16 @@ describe('POST /api/attachments/upload', () => {
 });
 
 describe('GET /api/attachments/:key', () => {
+  it('continues serving legacy extension-less objects', async () => {
+    await env.ATTACHMENTS.put('legacy-object', 'legacy bytes', {
+      httpMetadata: { contentType: 'image/png' },
+    });
+
+    const res = await SELF.fetch('https://test.local/api/attachments/legacy-object');
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('legacy bytes');
+  });
+
   it('serves uploaded file', async () => {
     const content = 'file content here';
     const data = new TextEncoder().encode(content);

@@ -6,7 +6,7 @@ import { env } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env, MessageRow } from '../types';
 import { seedDatabase, getTestAgentId } from '../test-helpers';
-import { expireMessageOptions } from './message-options';
+import { expireMessageOptions, parseOptionMedia, parseOptions } from './message-options';
 import { notifyAgentCallback } from '../notify';
 
 vi.mock('../notify', () => ({
@@ -78,6 +78,33 @@ describe('expireMessageOptions default option handling', () => {
     expect(original?.status).toBe('expired');
     expect(await fetchReply(message.id)).toBeNull();
     expect(mockedNotifyAgentCallback).not.toHaveBeenCalled();
+  });
+});
+
+describe('parseOptionMedia', () => {
+  it('requires options and returns media in option order', () => {
+    expect(parseOptionMedia([{ label: 'A', url: 'https://files.test/a.png' }], undefined)).toMatchObject({
+      ok: false,
+      error: 'option_media requires options',
+    });
+    const options = parseOptions(['A', 'B']);
+    if (!options.ok || !options.value) throw new Error('options did not parse');
+    expect(parseOptionMedia([
+      { label: ' B ', url: 'https://files.test/b.png' },
+      { label: 'A', url: 'https://files.test/a.png', caption: 'after' },
+    ], options.value)).toEqual({
+      ok: true,
+      value: [
+        { label: 'A', url: 'https://files.test/a.png', caption: 'after' },
+        { label: 'B', url: 'https://files.test/b.png' },
+      ],
+    });
+  });
+
+  it('names malformed labels, URLs, and captions in 400-ready errors', () => {
+    expect(parseOptionMedia([{ label: 'C', url: 'https://files.test/c.png' }], ['A'])).toMatchObject({ ok: false, error: expect.stringContaining('not an option') });
+    expect(parseOptionMedia([{ label: 'A', url: 'ftp://files.test/a.png' }], ['A'])).toMatchObject({ ok: false, error: expect.stringContaining('http(s) URL') });
+    expect(parseOptionMedia([{ label: 'A', url: 'https://files.test/a.png', caption: 'x'.repeat(201) }], ['A'])).toMatchObject({ ok: false, error: expect.stringContaining('caption') });
   });
 });
 

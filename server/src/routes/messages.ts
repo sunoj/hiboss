@@ -28,6 +28,7 @@ import {
   inferSessionStatus,
   mapMessageRow,
   normalizeMetadata,
+  parseOptionMedia,
   parseOptions,
   parsePriorityFilter,
   priorityOptions,
@@ -151,8 +152,11 @@ routes.post('/', async (c) => {
   if (!optionsResult.ok) return c.text(optionsResult.error, 400);
   const options = optionsResult.value;
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
+  const optionMediaResult = parseOptionMedia(rawMetadata['option_media'], options);
+  if (!optionMediaResult.ok) return c.text(optionMediaResult.error, 400);
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;
   if (options) (rawMetadata as Record<string, unknown>)['options'] = options;
+  if (optionMediaResult.value) (rawMetadata as Record<string, unknown>)['option_media'] = optionMediaResult.value;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
   const isUrgent = priority === 'critical' || priority === 'high';
   let channelConfigs: { channel: Channel; config: Record<string, unknown> }[] = [];
@@ -309,6 +313,8 @@ routes.post('/', async (c) => {
             sessionId,
             inlineKeyboard,
             fileUrl,
+            optionMedia: optionMediaResult.value,
+            optionLabels: options,
             avatarUrl: agentConfig?.avatar_url ?? undefined,
           })
         )

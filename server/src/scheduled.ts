@@ -6,6 +6,7 @@ import type { Env, MessageRow } from './types';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
+import { parseOptionMedia } from './routes/option-media';
 
 const BATCH_SIZE = 50;
 const MAX_QUEUE_ATTEMPTS = 3;
@@ -90,6 +91,7 @@ async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow): Promise<vo
 
   const metadata = parseMetadata(message.metadata);
   const options = parseOptions(metadata?.['options']);
+  const optionMediaResult = parseOptionMedia(metadata?.['option_media'], options ?? undefined);
   const result = await deliverAgentMessage(
     env,
     { channel: row.channel, config: JSON.parse(row.config) as Record<string, unknown> },
@@ -101,6 +103,8 @@ async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow): Promise<vo
       avatarUrl: message.avatar_url ?? undefined,
       fileUrl: typeof metadata?.['file_url'] === 'string' ? metadata['file_url'] : undefined,
       inlineKeyboard: options ? buildInlineKeyboard(message.id, options) : undefined,
+      optionMedia: optionMediaResult.ok ? optionMediaResult.value : undefined,
+      optionLabels: options ?? undefined,
     },
   );
   if (!result.delivered) {

@@ -19,6 +19,7 @@ import { systemMetadata } from '../message-security';
 
 const MAX_MESSAGE_OPTIONS = 5;
 const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
+export { parseOptionMedia, type OptionMediaParseResult } from './option-media';
 
 export type OptionsParseResult =
   | { ok: true; value: string[] | undefined }
@@ -57,7 +58,6 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
     .prepare("UPDATE messages SET status = 'expired', metadata = ?, updated_at = datetime('now') WHERE id = ?")
     .bind(JSON.stringify(meta), message.id)
     .run();
-  
   // 2. Clean up channel inline keyboards
   await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
 }

@@ -2,7 +2,7 @@
 // Exports one helper that prepares session routing and invokes the channel adapter.
 // Depends on delivery primitives plus message/session channel helpers.
 
-import type { Channel, Env } from '../types';
+import type { Channel, Env, OptionMedia } from '../types';
 import { deliverToChannelWithOptions, deliverWithRetry, type DeliveryResult, requireTelegramConfig } from './delivery';
 import { ensureThreadForSession, ensureTopicForAgent } from './message-options';
 import { ensureTopicForSession } from './session-channels';
@@ -15,6 +15,8 @@ export interface AgentDeliveryRequest {
   avatarUrl?: string;
   fileUrl?: string;
   inlineKeyboard?: { text: string; callback_data: string }[][];
+  optionMedia?: OptionMedia[];
+  optionLabels?: string[];
 }
 
 export async function deliverAgentMessage(
@@ -49,6 +51,8 @@ export async function deliverAgentMessage(
       request.avatarUrl,
       env,
       request.sessionId,
+      request.optionMedia,
+      request.optionLabels,
     )
   );
 
