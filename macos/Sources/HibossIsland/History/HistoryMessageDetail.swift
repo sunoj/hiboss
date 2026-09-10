@@ -67,7 +67,16 @@ struct HistoryMessageDetail: View {
         case .choices:
             VStack(alignment: .leading, spacing: 8) {
                 Text(L("Choices")).font(.headline)
-                ForEach(message.options, id: \.self) { option in choice(option) }
+                if message.isBlockingHistoryMessage, let media = message.metadata?.optionMedia, !media.isEmpty {
+                    OptionMediaPicker(
+                        options: message.options,
+                        media: media,
+                        defaultOption: message.defaultOption,
+                        choose: { send($0) }
+                    )
+                } else {
+                    ForEach(message.options, id: \.self) { option in choice(option) }
+                }
             }
         case .metadata:
             DisclosureGroup(L("Details"), isExpanded: $showsMetadata) {

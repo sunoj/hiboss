@@ -45,19 +45,28 @@ struct AttentionDetail: View {
     private var choices: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Choices")).font(.headline)
-            ForEach(item.options, id: \.self) { option in
-                Button { onChoose(option) } label: {
-                    HStack(alignment: .top) {
-                        Text(option)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 8)
-                        if option == item.defaultOption, item.isRunningAutoDecision(at: now) {
-                            Text(L("default")).foregroundStyle(.secondary)
+            if let media = item.message.metadata?.optionMedia, !media.isEmpty {
+                OptionMediaPicker(
+                    options: item.options,
+                    media: media,
+                    defaultOption: item.defaultOption,
+                    choose: onChoose
+                )
+            } else {
+                ForEach(item.options, id: \.self) { option in
+                    Button { onChoose(option) } label: {
+                        HStack(alignment: .top) {
+                            Text(option)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 8)
+                            if option == item.defaultOption, item.isRunningAutoDecision(at: now) {
+                                Text(L("default")).foregroundStyle(.secondary)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
         }
     }

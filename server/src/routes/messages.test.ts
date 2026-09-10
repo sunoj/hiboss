@@ -823,6 +823,21 @@ describe('POST /api/messages with metadata', () => {
     expect(stringResult.status).toBe(400);
     expect(overflowResult.status).toBe(400);
   });
+
+  it('rejects option_media with a label that is not an offered option', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        body: 'Choose one',
+        options: ['A', 'B'],
+        metadata: { option_media: [{ label: 'C', url: 'https://files.test/c.png' }] },
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain('not an option');
+  });
 });
 
 describe('POST /api/messages with type', () => {
