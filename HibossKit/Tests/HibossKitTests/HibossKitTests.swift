@@ -93,6 +93,41 @@ final class HistoryMessageDecodingTests: XCTestCase {
     }
 }
 
+final class MessageMetadataDecodingTests: XCTestCase {
+    func testDecodesAndRoundTripsOptionMedia() throws {
+        let json = """
+        {
+          "options": ["After", "Before"],
+          "option_media": [
+            { "label": "After", "url": "https://example.com/after.png", "caption": "new copy" },
+            { "label": "Before", "url": "https://example.com/before.png" }
+          ]
+        }
+        """
+
+        let metadata = try JSONDecoder().decode(MessageMetadata.self, from: Data(json.utf8))
+        XCTAssertEqual(metadata.optionMedia, [
+            OptionMedia(label: "After", url: "https://example.com/after.png", caption: "new copy"),
+            OptionMedia(label: "Before", url: "https://example.com/before.png")
+        ])
+
+        let encoded = try JSONEncoder().encode(metadata)
+        let roundTripped = try JSONDecoder().decode(MessageMetadata.self, from: encoded)
+        XCTAssertEqual(roundTripped, metadata)
+    }
+
+    func testAbsentOptionMediaDefaultsToEmptyAndDoesNotEncode() throws {
+        let metadata = try JSONDecoder().decode(
+            MessageMetadata.self,
+            from: Data(#"{"options":["Keep"]}"#.utf8)
+        )
+
+        XCTAssertTrue(metadata.optionMedia.isEmpty)
+        let encoded = try JSONEncoder().encode(metadata)
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("option_media"))
+    }
+}
+
 final class SSEDecodingTests: XCTestCase {
     func testDecodesOptionMessageEvent() {
         var decoder = SSEEventDecoder(decoder: JSONDecoder())

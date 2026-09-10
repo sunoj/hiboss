@@ -21,6 +21,7 @@ struct MessageCard: View {
             if let settlement {
                 settledChoice(settlement)
             } else {
+                OptionMediaComparison(options: options, media: message.metadata?.optionMedia ?? [])
                 actions
             }
             if settlement == nil, let defaultOption {

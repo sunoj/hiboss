@@ -167,6 +167,10 @@ struct MessageDetailView: View {
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
         if message.isPendingDecision {
             Section("Respond") {
+                OptionMediaComparison(
+                    options: message.options,
+                    media: message.metadata?.optionMedia ?? []
+                )
                 ForEach(message.options, id: \.self) { option in
                     Button {
                         submit(option, for: message.id)

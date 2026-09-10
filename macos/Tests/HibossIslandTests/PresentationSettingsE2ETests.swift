@@ -91,6 +91,26 @@ final class PresentationSettingsE2ETests: XCTestCase {
         XCTAssertGreaterThan(longHeight, compactHeight + 50)
     }
 
+    func testOptionMediaReservesThumbnailHeight() {
+        let plain = message(body: "Choose", option: "After")
+        let withMedia = OptionMessage(
+            id: "presentation-media-message",
+            body: "Choose",
+            metadata: MessageMetadata(
+                options: ["After", "Before"],
+                optionMedia: [
+                    OptionMedia(label: "After", url: "https://example.com/after.png"),
+                    OptionMedia(label: "Before", url: "https://example.com/before.png")
+                ]
+            )
+        )
+
+        XCTAssertGreaterThan(
+            OptionPanelLayout.expandedHeight(for: withMedia),
+            OptionPanelLayout.expandedHeight(for: plain) + 100
+        )
+    }
+
     func testShortQuestionSizingHonorsBodyViewportMinimum() {
         let oneLine = message(body: "Choose a path", option: "Continue")
         let twoLines = message(body: "Choose a path\nThen confirm", option: "Continue")
