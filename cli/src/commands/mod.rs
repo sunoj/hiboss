@@ -4,6 +4,7 @@
 
 pub mod agent;
 pub mod ask;
+pub(crate) mod ask_media;
 mod ask_support;
 pub mod boss;
 pub mod bot;

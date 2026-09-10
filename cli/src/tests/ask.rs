@@ -3,6 +3,7 @@
 // Dependencies: clap and AskArgs choice payload validation.
 
 use crate::commands::ask::AskArgs;
+use crate::commands::ask_media::{is_remote_url, parse_option_images, validate_option_image_labels};
 use clap::Parser;
 
 #[derive(Debug, Parser)]
@@ -134,6 +135,82 @@ fn default_matches_action_label() {
     ]);
     let payload = command.args.choice_payload().expect("valid action default");
     assert_eq!(payload.default_option, Some("Approve".to_owned()));
+}
+
+#[test]
+fn option_image_flag_matches_an_option_label() {
+    let command = parse(&[
+        "--option",
+        "压缩文案",
+        "--option-image",
+        "压缩文案=./after.png",
+        "--option",
+        "保持不动",
+        "Choose",
+    ]);
+    assert_eq!(command.args.option_images, vec!["压缩文案=./after.png"]);
+    let choices = command.args.choice_payload().expect("valid options");
+    let images = parse_option_images(&command.args.option_images).expect("valid option image");
+    assert!(validate_option_image_labels(&images, &choices).is_ok());
+}
+
+#[test]
+fn option_image_flag_matches_an_action_label() {
+    let command = parse(&[
+        "--action",
+        "Approve=deploy",
+        "--option-image",
+        "Approve=./ok.png",
+        "Choose",
+    ]);
+    let choices = command.args.choice_payload().expect("valid action");
+    let images = parse_option_images(&command.args.option_images).expect("valid option image");
+    assert!(validate_option_image_labels(&images, &choices).is_ok());
+}
+
+#[test]
+fn option_image_with_unknown_label_is_rejected() {
+    let command = parse(&[
+        "--option",
+        "A",
+        "--option-image",
+        "Z=./z.png",
+        "Choose",
+    ]);
+    let choices = command.args.choice_payload().expect("valid options");
+    let images = parse_option_images(&command.args.option_images).expect("valid option image");
+    let error = validate_option_image_labels(&images, &choices).expect_err("unknown label fails");
+    assert!(error.to_string().contains("'Z'"));
+}
+
+#[test]
+fn option_image_without_any_choice_is_rejected() {
+    let command = parse(&["--option-image", "A=./a.png", "Choose"]);
+    let choices = command.args.choice_payload().expect("no choices");
+    let images = parse_option_images(&command.args.option_images).expect("valid option image");
+    assert!(validate_option_image_labels(&images, &choices).is_err());
+}
+
+#[test]
+fn option_image_splits_at_the_first_equals_sign() {
+    let command = parse(&[
+        "--option",
+        "A",
+        "--option-image",
+        "A=https://x/api/attachments/a.png?token=abc=def",
+        "Choose",
+    ]);
+    let images = parse_option_images(&command.args.option_images).expect("valid option image");
+    assert_eq!(images[0].label, "A");
+    assert_eq!(images[0].source, "https://x/api/attachments/a.png?token=abc=def");
+}
+
+#[test]
+fn option_image_urls_pass_through_and_paths_do_not() {
+    assert!(is_remote_url("https://x/api/attachments/a.png"));
+    assert!(is_remote_url("http://x/api/attachments/a.png"));
+    assert!(!is_remote_url("./after.png"));
+    assert!(!is_remote_url("/tmp/after.png"));
 }
 
 fn parse(arguments: &[&str]) -> AskCommand {

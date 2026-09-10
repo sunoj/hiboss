@@ -40,6 +40,7 @@ hiboss ask --option "Ship" --option "Wait" --default "Ship" "Deploy now?"  # Shi
 hiboss ask --action "Approve=aid merge t-123" --action "Reject=echo rejected" "Deploy?"
 hiboss ask --to reviewer "Review feat/oauth branch"
 hiboss ask --content "payments · retry policy" --option "Approve" --option "Reject" "Retry?"  # subtitle context
+hiboss ask --option "压缩文案" --option-image "压缩文案=./after.png" --option "保持不动" --option-image "保持不动=./before.png" "A/B 选一个"
 ```
 
 `--content <TEXT>` adds a context line rendered as the boss notification subtitle
@@ -52,6 +53,13 @@ must not be used, and choices must not be joined with commas.
 `--default <LABEL>` marks one option/action label as the default. It is flagged in
 the boss UI, and if the ask times out with no reply the server auto-selects it and
 returns it to the asker, so the agent can proceed instead of stalling.
+
+`--option-image LABEL=PATH_OR_URL` attaches an image to a choice so the boss can
+compare two renderings ("A or B?"). It is repeatable (at most 5), splits at the
+first `=`, and the label must match a `--option`/`--action` label — a mismatch fails
+before any upload. A local path is uploaded; an `http(s)` URL is passed through
+untouched. It combines with `--file` (message-level context image). Each upload
+prints `attached: <label> -> <url>` to stderr.
 
 ## Inbox
 ```bash

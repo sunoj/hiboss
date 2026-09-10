@@ -2,6 +2,7 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
+use super::ask_media::{resolve_option_media, upload_attachment};
 use super::ask_support::{
     action_metadata, resolve_default_reply, validate_default_option, warn_unread_messages,
 };
@@ -58,6 +59,13 @@ pub struct AskArgs {
         help = "Mark one option/action LABEL as the default; executed on timeout"
     )]
     pub default_option: Option<String>,
+    #[arg(
+        long = "option-image",
+        action = ArgAction::Append,
+        value_name = "LABEL=PATH_OR_URL",
+        help = "Image for a choice label; repeat per option (local path or http(s) URL)"
+    )]
+    pub option_images: Vec<String>,
     #[arg(long, help = "Local file to upload and attach")]
     pub file: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
@@ -204,6 +212,7 @@ pub async fn run(
         warn_unread_messages(client).await;
     }
     let choices = args.choice_payload()?;
+    let option_media = resolve_option_media(client, &args.option_images, &choices).await?;
     let file_url = upload_attachment(client, args.file.as_deref()).await?;
     let request = SendRequest {
         body: unescape_body(&args.body),
@@ -215,6 +224,7 @@ pub async fn run(
             choices.default_option.as_deref(),
             args.summary.as_deref(),
             args.content.as_deref(),
+            option_media,
         )?,
         options: choices.options.clone(),
         file_url,
@@ -237,16 +247,6 @@ pub async fn run(
         client,
     )
     .await
-}
-
-async fn upload_attachment(
-    client: &HiBossClient,
-    path: Option<&str>,
-) -> Result<Option<String>, Box<dyn Error>> {
-    let Some(path) = path else { return Ok(None) };
-    let upload = client.upload_file(path).await?;
-    eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
-    Ok(Some(upload.url))
 }
 
 async fn print_poll_result(
