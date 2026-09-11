@@ -157,3 +157,21 @@ private actor WallPanelsService: PanelsServing {
     {"panelId":"panel_1","agentId":"agent_1","targetBossId":"boss_1","taskKey":"task","sessionId":"session_1","title":"Build","catalogId":"hiboss.panel","catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"serverTime":1788828000000,"lifecycle":{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null},"preference":{"preferenceVersion":0,"placement":"automatic","seenTerminalVersion":null,"acknowledgedTerminalVersion":null},"finalSnapshot":null,"supersedesPanelId":null,"summary":{},"createdAt":"2026-09-07T12:00:00Z","definition":{"definitionRevision":1,"protocolVersion":2,"catalogId":"hiboss.panel","catalogVersion":1,"spec":{"root":"main","elements":{"main":{"type":"Metric","props":{"label":"Done","value":{"$state":"/task/done"}},"children":[]}}},"stateSchema":{"type":"object"},"initialState":{"task":{"done":3},"form":{"answer":""}},"createdAt":"2026-09-07T12:00:00Z"}}
     """#
 }
+
+final class PanelWallLayoutWidthTests: XCTestCase {
+    private let panels = [
+        PanelLayoutPanel(id: "a", size: .compact, order: 0, isPinned: false, height: 120),
+        PanelLayoutPanel(id: "b", size: .wide, order: 1, isPinned: false, height: 160),
+    ]
+
+    func testInfiniteNaNAndZeroWidthsFallBackInsteadOfTrapping() {
+        for width in [CGFloat.infinity, -.infinity, .nan, 0, -50] {
+            let positions = PanelWallLayout.arrange(panels, width: width)
+            XCTAssertEqual(positions.count, 2, "width \(width)")
+            XCTAssertTrue(positions.allSatisfy { $0.frame.width.isFinite && $0.frame.width > 0 }, "width \(width)")
+        }
+        XCTAssertEqual(PanelWallLayout.usableWidth(nil), 320)
+        XCTAssertEqual(PanelWallLayout.usableWidth(.infinity), 320)
+        XCTAssertEqual(PanelWallLayout.usableWidth(900), 900)
+    }
+}

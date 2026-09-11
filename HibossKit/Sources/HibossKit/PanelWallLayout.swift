@@ -45,7 +45,7 @@ public struct PanelWallLayout: Layout {
     public func sizeThatFits(
         proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
     ) -> CGSize {
-        let width = proposal.width ?? 320
+        let width = Self.usableWidth(proposal.width)
         return CGSize(width: width, height: placements(for: subviews, width: width).map { $0.frame.maxY }.max() ?? 0)
     }
 
@@ -61,8 +61,15 @@ public struct PanelWallLayout: Layout {
         }
     }
 
+    /// SwiftUI probes layouts with nil, zero and infinite widths; only a finite positive width can
+    /// size columns, so anything else falls back to a compact single-column wall.
+    static func usableWidth(_ width: CGFloat?) -> CGFloat {
+        guard let width, width.isFinite, width >= 1 else { return 320 }
+        return width
+    }
+
     public static func arrange(_ panels: [PanelLayoutPanel], width: CGFloat) -> [PanelTilePosition] {
-        let availableWidth = max(1, width)
+        let availableWidth = usableWidth(width)
         let minimumColumn: CGFloat = availableWidth < 488 ? 160 : 236
         let columns = max(1, Int((availableWidth + gap) / (minimumColumn + gap)))
         let columnWidth = (availableWidth - CGFloat(columns - 1) * gap) / CGFloat(columns)
@@ -95,7 +102,7 @@ public struct PanelWallLayout: Layout {
     }
 
     private func placements(for subviews: Subviews, width: CGFloat) -> [Placement] {
-        let availableWidth = max(1, width)
+        let availableWidth = Self.usableWidth(width)
         let minimumColumn: CGFloat = availableWidth < 488 ? 160 : 236
         let columns = max(1, Int((availableWidth + Self.gap) / (minimumColumn + Self.gap)))
         let columnWidth = (availableWidth - CGFloat(columns - 1) * Self.gap) / CGFloat(columns)
