@@ -2,7 +2,7 @@
 // Exports progressTeamsRouter mounted at /api/progress/teams.
 // Depends on Hono, D1/R2, and shared progress identity helpers.
 
-import { resolveProject } from '../projects';
+import { parseProject, resolveProject } from '../projects';
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -47,7 +47,7 @@ function parseTeamInput(value: unknown): TeamInput | string {
     input.handle = value.handle;
   }
   if (value.display_name !== undefined) {
-    if (typeof value.display_name !== 'string' || !value.display_name.trim()) return 'display_name must be a non-empty string';
+    if (typeof value.display_name !== 'string' || !value.display_name.trim() || value.display_name.length > 256) return 'display_name must be a non-empty string (max 256 characters)';
     input.display_name = value.display_name.trim();
   }
   if (value.bio !== undefined && value.bio !== null && typeof value.bio !== 'string') return 'bio must be a string or null';
@@ -204,6 +204,9 @@ routes.get('/:handle/avatar.png', async (c) => {
 routes.put('/:project', apiAuth, async (c) => {
   const project = c.req.param('project');
   if (!project) return c.text('project is required', 400);
+  const identity = parseProject(project);
+  if (typeof identity === 'string') return c.text(identity, 400);
+  if (!identity) return c.text('project is required', 400);
   let body: unknown;
   try { body = await c.req.json<unknown>(); } catch { return c.text('invalid JSON body', 400); }
   const input = parseTeamInput(body);
@@ -212,7 +215,7 @@ routes.put('/:project', apiAuth, async (c) => {
   const avatarError = await validateAvatar(c.env, input.avatar_url ?? null, new URL(c.req.url), agentId);
   if (avatarError) return c.text(avatarError, 400);
   try {
-    const resolved = await resolveProject(c.env.DB, { slug: project, aliases: [project] }, agentId);
+    const resolved = await resolveProject(c.env.DB, identity, agentId);
     if (!resolved.ok) return c.text(resolved.error, 409);
     const team = await saveTeam(c.env, resolved.project.slug, input);
     if (!team) return c.text('handle is already in use', 409);

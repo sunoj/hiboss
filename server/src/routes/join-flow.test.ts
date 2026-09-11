@@ -4,7 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { getTestAgentId, seedDatabase } from '../test-helpers';
+import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 const JOIN_BASE = 'https://test.local/api/join';
@@ -139,6 +139,26 @@ describe('Join flow', () => {
     const duplicateRes = await postTelegramCallback(`join:approve:${join.request_id}`, '9003');
     expect(duplicateRes.status).toBe(409);
     expect(await duplicateRes.text()).toBe('join request already approved');
+  });
+
+  it('returns 409 text for duplicate names through boss, Telegram and Discord approval', async () => {
+    const join = await createJoinRequest('test-agent');
+    await seedBossToken('join-flow-api-admin', 'admin', 'join-duplicate-token');
+    await createBoss('join-flow-telegram-admin', 'telegram', '9001');
+    await createBoss('join-flow-discord-admin', 'discord', '777');
+    const responses = [
+      await SELF.fetch(`https://test.local/api/boss/join-requests/${join.request_id}/approve`, {
+        method: 'POST', headers: { Authorization: 'Bearer join-duplicate-token' },
+      }),
+      await postTelegramCallback(`join:approve:${join.request_id}`, '9001'),
+      await signedDiscordFetch({ type: 3, channel_id: DISCORD_CHANNEL_ID,
+        data: { custom_id: `join:approve:${join.request_id}` }, member: { user: { id: '777' } } }),
+    ];
+    for (const response of responses) {
+      expect(response.status).toBe(409);
+      expect(await response.text()).toBe('agent name already exists');
+    }
+    expect(await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(join.request_id).first('status')).toBe('pending');
   });
 
   it('auto-approves the first agent bootstrap request when no API keys exist', async () => {

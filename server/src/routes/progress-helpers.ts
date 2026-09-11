@@ -139,7 +139,7 @@ export async function parseCreatePayload(c: Context<{ Bindings: Env }>): Promise
   if (!isRecord(input) || typeof input.body !== 'string') return 'body is required';
   if (!input.body.trim()) return 'body must not be empty';
   if (input.body.length > 2000) return 'body is too long (max 2000 characters)';
-  const project = parseProject(input.project);
+  const project = parseProject(input.project_identity ?? input.project);
   if (typeof project === 'string') return project;
   const agentLabel = input.agent_label === undefined ? null : input.agent_label;
   if (agentLabel !== null && typeof agentLabel !== 'string') return 'agent_label must be a string';

@@ -3,6 +3,7 @@
 // Depends on Hono, auth middleware, and Env types.
 
 import { parseProject, resolveProject } from '../projects';
+import { SESSION_LABEL_SQL } from '../projects/session-label';
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -43,14 +44,14 @@ routes.post('/', async (c) => {
   const rawStatus = typeof payload.status === 'string' ? payload.status.trim() : '';
   const status: SessionStatus = SESSION_STATUSES.includes(rawStatus as SessionStatus) ? (rawStatus as SessionStatus) : 'working';
   const statusText = typeof payload.status_text === 'string' ? payload.status_text.trim() || null : null;
-  const input = parseProject(payload.project ?? (label?.split('/')[0] || null));
+  const input = parseProject(payload.project_identity ?? payload.project ?? (label?.split('/')[0] || null));
   if (typeof input === 'string') return c.text(input, 400);
   const owner = await c.env.DB.prepare('SELECT agent_id FROM sessions WHERE id = ?').bind(id).first<{ agent_id: string }>();
   if (owner && owner.agent_id !== agentId) return c.text('session belongs to another agent', 409);
-  const resolved = input ? await resolveProject(c.env.DB, input, agentId, payload.project ? 'explicit' : 'label') : null;
+  const resolved = input ? await resolveProject(c.env.DB, input, agentId, payload.project_identity || payload.project ? 'explicit' : 'label') : null;
   if (resolved && !resolved.ok) return c.text(resolved.error, 409);
   const project = resolved?.ok ? resolved.project : null;
-  if (project && (payload.project !== undefined || !label)) label = branch ? `${project.slug}/${branch}` : (label?.includes('/') ? `${project.slug}/${label.split('/').slice(1).join('/')}` : project.slug);
+  if (project && (payload.project_identity !== undefined || payload.project !== undefined || !label)) label = branch ? `${project.slug}/${branch}` : (label?.includes('/') ? `${project.slug}/${label.split('/').slice(1).join('/')}` : project.slug);
   // Upsert: insert or update on conflict
   const result = await c.env.DB
     .prepare(
@@ -79,19 +80,13 @@ routes.get('/', async (c) => {
     : [getAgentId(c)];
   if (agentIds.length === 0) return c.json({ sessions: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
-  const where = `sessions.agent_id IN (${placeholders}) AND last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`;
+  const where = `s.agent_id IN (${placeholders}) AND last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`;
   const rows = await c.env.DB
-    .prepare(`SELECT sessions.*, api_keys.name AS agent_name, projects.slug AS project_slug FROM sessions LEFT JOIN api_keys ON api_keys.id = sessions.agent_id LEFT JOIN projects ON projects.id = sessions.project_id WHERE ${where} ORDER BY last_seen_at DESC`)
+    .prepare(`SELECT s.*, api_keys.name AS agent_name, p.slug AS project_slug, ${SESSION_LABEL_SQL} AS display_label FROM sessions s LEFT JOIN api_keys ON api_keys.id = s.agent_id LEFT JOIN projects p ON p.id = s.project_id WHERE ${where} ORDER BY last_seen_at DESC`)
     .bind(...agentIds)
-    .all<SessionRow & { agent_name: string; project_slug: string | null }>();
-  return c.json({ sessions: (rows.results ?? []).map(row => ({ ...row, label: displayLabel(row) })) });
+    .all<SessionRow & { agent_name: string; project_slug: string | null; display_label: string | null }>();
+  return c.json({ sessions: (rows.results ?? []).map(({ display_label, ...row }) => ({ ...row, label: display_label })) });
 });
-
-function displayLabel(row: SessionRow & { project_slug: string | null }): string | null {
-  if (!row.project_slug) return row.label;
-  const branch = row.branch ?? (row.label?.includes('/') ? row.label.split('/').slice(1).join('/') : null);
-  return branch ? `${row.project_slug}/${branch}` : row.project_slug;
-}
 
 // PATCH /api/sessions/:id — heartbeat with optional status update
 routes.patch('/:id', async (c) => {

@@ -51,11 +51,13 @@ it('rejects foreign and missing sessions before creating projects, posts or mess
   expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM projects WHERE slug = 'should-not-exist'").first('n')).toBe(0);
 });
 
-it('rejects aliases joining two existing projects and leaves them intact', async () => {
+it('merges aliases joining two existing projects into the presented slug', async () => {
   await post('progress', { body: 'a', project: 'identity-a' });
   await post('progress', { body: 'b', project: 'identity-b' });
   const response = await post('progress', { body: 'conflict', project: { slug: 'identity-a', aliases: ['identity-b'] } });
-  expect(response.status).toBe(409);
+  expect(response.status).toBe(201);
+  expect((await response.json() as { project: string }).project).toBe('identity-a');
+  expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM projects WHERE slug = 'identity-b'").first('n')).toBe(0);
 });
 
 it('enforces unique agent names in D1', async () => {

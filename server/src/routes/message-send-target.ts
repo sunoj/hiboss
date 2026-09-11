@@ -2,6 +2,7 @@
 // Exports resolveSendTarget; depends on Hono context and D1 sessions.
 import type { Context } from 'hono';
 import type { Env, Direction } from '../types';
+import { SESSION_LABEL_SQL } from '../projects/session-label';
 const MAX_TARGET_CANDIDATES = 10;
 const TARGET_ACTIVITY_WINDOW_MS = 15 * 60 * 1000;
 const REACHABLE_TARGET_MAX_AGE_HOURS = 24;
@@ -44,15 +45,12 @@ export async function resolveSendTarget(c: Context<{ Bindings: Env }>, toAgent: 
       direction = 'agent_to_agent';
     } else {
       // Exclude the sender's own session so a colliding label can never self-target
-      const excludeSelf = sessionId ? ' AND id != ?' : '';
-      const sessionTargets = await c.env.DB
-        .prepare(`SELECT id, agent_id, label, status, last_seen_at FROM sessions WHERE (label = ? OR label LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\')${excludeSelf} ORDER BY last_seen_at DESC`)
-        .bind(...(sessionId ? [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`, sessionId] : [toAgent, `${escapeLike(toAgent)}/%`, `${escapeLike(toAgent)}%`]))
-        .all<{ id: string; agent_id: string; label: string | null; status: string | null; last_seen_at: string | null }>();
+      const sessionTargets = await findSessionTargets(c.env.DB, toAgent, sessionId);
       const matchedTargets = sessionTargets.results ?? [];
       const liveTargets = matchedTargets.filter((target) => isSessionActive(target.last_seen_at));
-      const exactTarget = matchedTargets.find((target) => target.label === toAgent && isSessionActive(target.last_seen_at))
-        ?? matchedTargets.find((target) => target.label === toAgent);
+      const exact = (target: SessionTarget): boolean => target.label === toAgent || target.stored_label === toAgent;
+      const exactTarget = matchedTargets.find((target) => exact(target) && isSessionActive(target.last_seen_at))
+        ?? matchedTargets.find(exact);
       const resolvedTargets = exactTarget ? [exactTarget] : liveTargets;
       if (resolvedTargets.length > 1) {
         const candidates = resolvedTargets
@@ -74,6 +72,21 @@ export async function resolveSendTarget(c: Context<{ Bindings: Env }>, toAgent: 
     }
   }
   return { targetAgentId, targetSessionId, direction, targetWarning, targetSession };
+}
+
+interface SessionTarget {
+  id: string; agent_id: string; label: string | null; stored_label: string | null;
+  status: string | null; last_seen_at: string | null;
+}
+
+function findSessionTargets(db: D1Database, target: string, self: string | null): Promise<D1Result<SessionTarget>> {
+  const prefix = `${escapeLike(target)}/%`;
+  return db.prepare(`WITH targets AS (
+    SELECT s.id, s.agent_id, s.label AS stored_label, ${SESSION_LABEL_SQL} AS label, s.status, s.last_seen_at
+    FROM sessions s LEFT JOIN projects p ON p.id = s.project_id)
+    SELECT * FROM targets WHERE (label = ? OR label LIKE ? ESCAPE '\\' OR stored_label = ? OR stored_label LIKE ? ESCAPE '\\' OR id LIKE ? ESCAPE '\\')
+    AND (? IS NULL OR id != ?) ORDER BY last_seen_at DESC`)
+    .bind(target, prefix, target, prefix, `${escapeLike(target)}%`, self, self).all<SessionTarget>();
 }
 
 async function missingTarget(c: Context<{ Bindings: Env }>, toAgent: string, sessionId: string | null): Promise<Response> {

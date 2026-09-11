@@ -14,7 +14,8 @@ impl HiBossClient {
         status: Option<&str>,
         status_text: Option<&str>,
     ) -> Result<(), Box<dyn Error>> {
-        let mut body = serde_json::json!({ "id": id, "project": crate::session::resolve_project(None) });
+        let project = crate::session::resolve_project(None);
+        let mut body = session_body(id, project);
         if let Some(b) = branch {
             body["branch"] = serde_json::Value::String(b.to_owned());
         }
@@ -95,4 +96,8 @@ impl HiBossClient {
         let data: Value = Self::parse_response(resp).await?;
         Ok(data["marked"].as_u64().unwrap_or(0) as u32)
     }
+}
+
+pub(super) fn session_body(id: &str, project: crate::session::ProjectIdentity) -> Value {
+    serde_json::json!({ "id": id, "project": project.slug, "project_identity": project })
 }

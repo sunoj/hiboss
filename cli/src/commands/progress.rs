@@ -117,7 +117,8 @@ async fn run_post(
     let media = collect_media(args, client).await?;
     let req = ProgressPostRequest {
         body: args.body.clone(),
-        project: Some(project),
+        project: Some(project.slug.clone()),
+        project_identity: Some(project),
         session_id,
         media: if media.is_empty() { None } else { Some(media) },
         tags: if args.tag.is_empty() { None } else { Some(args.tag.clone()) },

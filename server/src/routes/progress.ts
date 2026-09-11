@@ -2,7 +2,7 @@
 // Exports progressRouter mounted at /api/progress.
 // Depends on Hono, D1, dual authentication, and boss access control.
 
-import { ownsSession, resolveProject } from '../projects';
+import { ownsSession, parseProject, resolveProject } from '../projects';
 import { Context, Hono } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -71,7 +71,9 @@ routes.post('/', async (c) => {
   if (!await ownsSession(c.env.DB, payload.session_id, agentId)) return c.text('session does not belong to calling agent', 400);
   const mediaError = await verifyMediaOwnership(c, payload.media ?? [], agentId);
   if (mediaError) return c.text(mediaError, 400);
-  const resolved = await resolveProject(c.env.DB, payload.project ?? { slug: agent.name, aliases: [agent.name] }, agentId);
+  const identity = payload.project ?? parseProject(agent.name);
+  if (!identity || typeof identity === 'string') return c.text(identity ?? 'project is required', 400);
+  const resolved = await resolveProject(c.env.DB, identity, agentId);
   if (!resolved.ok) return c.text(resolved.error, 409);
   const project = resolved.project;
   const row = await c.env.DB.prepare(
