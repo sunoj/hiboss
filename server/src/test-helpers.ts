@@ -4,6 +4,7 @@
 
 import { env } from 'cloudflare:test';
 import { hashApiKey } from './middleware/auth';
+import clientMigration from '../migrations/0039_boss_clients.sql?raw';
 import interactionMigration from '../migrations/0038_interaction_requests.sql?raw';
 
 const TEST_API_KEY = 'hb_test_key_0000000000000000';
@@ -68,6 +69,9 @@ export async function seedDatabase(): Promise<void> {
   }
   for (const sql of interactionMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
     await env.DB.prepare(sql.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ').replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS ')).run();
+  }
+  for (const sql of clientMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
+    await env.DB.prepare(sql).run();
   }
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')

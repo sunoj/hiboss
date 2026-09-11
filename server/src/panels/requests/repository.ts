@@ -2,6 +2,7 @@
 // Exports scoped request queries and response builders; no writes or synthetic answers.
 // Dependencies: D1, panel access checks, and request domain contracts.
 
+import { panelTargetAccessSql } from '../access';
 import { authorize, readRecord } from '../lifecycle/repository';
 import { PanelFault } from '../lifecycle/types';
 import type { Questionnaire, RequestRow, SubmissionRow } from './types';
@@ -41,4 +42,4 @@ export async function requestResponse(db: D1Database, row: RequestRow, revision 
 // Every mutation rechecks current panel access and task state inside its D1 statement.
 export const ACTIVE_PANEL = `SELECT 1 FROM panels p WHERE p.panel_id = interaction_requests.panel_id
   AND json_extract(p.lifecycle_json, '$.taskState') IN ('running', 'paused')
-  AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = p.target_boss_id AND ba.agent_id = p.agent_id)`;
+  AND ${panelTargetAccessSql('p')}`;

@@ -2,6 +2,7 @@
 // Exports panelsRouter for metadata, immutable definitions, and scoped cursors.
 // Dependencies: Hono, D1, auth middleware, and panel-runtime helpers.
 
+import { bossCanAccessAgent, bossPanelScope } from '../access';
 import { publicationLifecycle, readPreference } from '../lifecycle/repository';
 import { notifyWall } from '../relay/wall';
 import { DEFAULT_TTL_SECONDS, faultResponse, type Lifecycle } from '../lifecycle/types';
@@ -52,13 +53,13 @@ async function findByKey(c: PanelContext, agentId: string, key: string): Promise
 
 async function hasPublicationScope(c: PanelContext, agentId: string, bossId: string, sessionId: string): Promise<boolean> {
   const row = await c.env.DB.prepare(
-    'SELECT 1 AS allowed FROM sessions s JOIN boss_agent_access ba ON ba.agent_id = s.agent_id WHERE s.id = ? AND s.agent_id = ? AND ba.boss_id = ? LIMIT 1',
-  ).bind(sessionId, agentId, bossId).first<{ allowed: number }>();
-  return row !== null;
+    'SELECT 1 AS allowed FROM sessions WHERE id = ? AND agent_id = ? LIMIT 1',
+  ).bind(sessionId, agentId).first<{ allowed: number }>();
+  return row !== null && await bossCanAccessAgent(c.env.DB, bossId, agentId);
 }
 
 async function resolveBoss(c: PanelContext, agentId: string): Promise<string | null> {
-  const rows = await c.env.DB.prepare('SELECT boss_id FROM boss_agent_access WHERE agent_id = ? ORDER BY boss_id LIMIT 2').bind(agentId).all<{ boss_id: string }>();
+  const rows = await c.env.DB.prepare("SELECT b.id AS boss_id FROM bosses b WHERE b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?) ORDER BY b.id LIMIT 2").bind(agentId).all<{ boss_id: string }>();
   return rows.results?.length === 1 ? rows.results[0]?.boss_id ?? null : null;
 }
 
@@ -153,10 +154,9 @@ routes.get('/', async (c) => {
   const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
   const bossRequest = isBossAuth(c);
   const identity = bossRequest ? getBossId(c) : getAgentId(c);
-  const scope = bossRequest
-    ? 'p.target_boss_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = ? AND ba.agent_id = p.agent_id)'
-    : 'p.agent_id = ?';
-  const binds: (string | number)[] = bossRequest ? [identity, identity] : [identity];
+  const access = bossRequest ? bossPanelScope(c) : { sql: 'p.agent_id = ?', binds: [identity] };
+  const scope = access.sql;
+  const binds: (string | number)[] = [...access.binds];
   const cursorClause = cursor.value.panelId ? ' AND (p.created_at < ? OR (p.created_at = ? AND p.panel_id < ?))' : '';
   if (cursor.value.panelId) binds.push(cursor.value.createdAt, cursor.value.createdAt, cursor.value.panelId);
   binds.push(limit + 1);
@@ -169,8 +169,9 @@ routes.get('/', async (c) => {
 });
 
 async function visiblePanel(c: PanelContext, panelId: string): Promise<PanelMetadataRow | null> {
-  if (isBossAuth(c)) return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.target_boss_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = ? AND ba.agent_id = p.agent_id)')
-    .bind(panelId, getBossId(c), getBossId(c)).first<PanelMetadataRow>();
+  const scope = isBossAuth(c) ? bossPanelScope(c) : { sql: '', binds: [] };
+  if (isBossAuth(c)) return c.env.DB.prepare(`SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND ${scope.sql}`)
+    .bind(panelId, ...scope.binds).first<PanelMetadataRow>();
   return c.env.DB.prepare('SELECT p.panel_id, p.agent_id, k.name AS agent_name, p.target_boss_id, p.task_key, p.session_id, s.label AS session_label, p.title, p.catalog_id, p.catalog_version, p.definition_revision, p.metadata_version, p.summary_json, p.request_hash, p.created_at, p.lifecycle_json, p.final_snapshot_json, p.supersedes_panel_id FROM panels p JOIN api_keys k ON k.id = p.agent_id LEFT JOIN sessions s ON s.id = p.session_id WHERE p.panel_id = ? AND p.agent_id = ?')
     .bind(panelId, getAgentId(c)).first<PanelMetadataRow>();
 }

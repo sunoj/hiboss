@@ -3,11 +3,12 @@
  * Exports: jaMessages, checked against the English message key set.
  * Deps: plural helper and the shared locale contracts.
  */
+import { jaDevices } from './devices';
 import { plural } from './plural';
 import type { LocaleDictionary, MessageParams } from './types';
 import type { MessageKey } from './en';
 const n = (p: MessageParams): number => Number(p.count ?? 0);
-export const jaMessages = {
+export const jaMessages = { ...jaDevices,
  'channel.toggle':(p:MessageParams)=>`${p.agent} の ${p.channel} 通知`,'channel.updateFailed':'チャンネルを更新できませんでした','channel.noEnabledWarning':'有効なチャンネルがありません。hiboss send は失敗します',
  'form.noDescription':'説明なし','form.copy':'コピー','form.copied':'コピー済み',
  'app.title':'hiboss コンソール','app.loading':'コンソールを読み込み中…','brand.console':'コンソール','brand.subtitle':'boss サーバーに接続','language.label':'言語','language.en':'English','language.zh':'簡体字中国語','language.ja':'日本語','language.ko':'韓国語',

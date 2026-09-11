@@ -2,6 +2,7 @@
 // Exports panelRelayRouter for authenticated ticket creation and ticket handoff.
 // Dependencies: Hono, existing API-key auth, D1 panels, and PanelRoom.
 
+import { bossPanelScope } from '../access';
 import { Context, Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../middleware/auth';
 import type { Env } from '../../types';
@@ -44,9 +45,10 @@ async function panelScope(c: RelayContext, panelId: string, role: PanelRole, ide
     return c.env.DB.prepare('SELECT target_boss_id FROM panels WHERE panel_id = ? AND agent_id = ? LIMIT 1')
       .bind(panelId, identity).first<PanelScopeRow>();
   }
+  const scope = bossPanelScope(c);
   return c.env.DB.prepare(
-    'SELECT p.target_boss_id FROM panels p JOIN boss_agent_access ba ON ba.agent_id = p.agent_id AND ba.boss_id = ? WHERE p.panel_id = ? AND p.target_boss_id = ? LIMIT 1',
-  ).bind(identity, panelId, identity).first<PanelScopeRow>();
+    `SELECT p.target_boss_id FROM panels p WHERE p.panel_id = ? AND ${scope.sql} LIMIT 1`,
+  ).bind(panelId, ...scope.binds).first<PanelScopeRow>();
 }
 
 async function issueConnectionTicket(c: RelayContext): Promise<Response> {

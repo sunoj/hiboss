@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId } from '../middleware/auth';
+import { bossAuth, getBossId, getClientId } from '../middleware/auth';
 import type { ApnsEnvironment } from '../apns';
 
 type BossDevicePlatform = 'ios';
@@ -34,17 +34,18 @@ routes.post('/', async (c) => {
   ).bind(bossId, payload.token, bossId);
   const upsert = c.env.DB
     .prepare(
-      `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform, client_id)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(device_token) DO UPDATE SET
          boss_id = excluded.boss_id,
+         client_id = excluded.client_id,
          bundle_id = excluded.bundle_id,
          environment = excluded.environment,
          platform = excluded.platform,
          updated_at = datetime('now'),
          last_seen_at = datetime('now')`
     )
-    .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform);
+    .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform, getClientId(c));
   const [auditResult] = await c.env.DB.batch([audit, upsert]);
   return c.json({ ok: true, ...(auditResult.meta.changes > 0 ? { reparented: true } : {}) });
 });

@@ -63,11 +63,11 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 | --- | --- | --- |
 | `api_keys` | Keep as-is until phase 4; conceptually "agent + its one key" | — |
 | `bosses` | Keep; drop `telegram_user_id`/`discord_user_id` after `boss_external_accounts` is read everywhere; drop `preferences.preferred_channel`/`notify_priorities` (never read) | Copy the two provider ids into external accounts |
-| `boss_tokens` | Keep; add `client_id` | One client per existing token; kind from signing key `client_kind` else `web`; label from token label |
-| `boss_signing_keys` | Keep; point at client | Via token → client |
-| `boss_pairing_codes` | Keep; redemption creates the client, then token | — |
-| `boss_devices` | Rename `boss_push_devices`; add `client_id` | Attach to the boss's most recent ios client; ambiguity flagged for manual fix (3 rows) |
-| `boss_agent_access` | Keep — the access boundary (decision A) | — |
+| `boss_tokens` | **phase 1a: done** — nullable `client_id`; existing bearer hashes remain valid | One client per non-revoked token; kind from bound signing key `client_kind` else `web`; token label and usage timestamps retained |
+| `boss_signing_keys` | **phase 1a: done** — nullable `client_id`; **phase 1a: deferred** — removing `boss_token_id` until native follow-up | Via token → client; keys of revoked tokens remain unbound |
+| `boss_pairing_codes` | **phase 1a: done** — redemption atomically creates client, token, and optional signing key | Kind from signing registration, otherwise `web`; label from `device_label` |
+| `boss_devices` | **phase 1a: done** — nullable `client_id`, stamped from bearer; delete on client revoke. **phase 1a: deferred** — rename to `boss_push_devices` (churn for 3 rows) | Attach to newest ios client by creation time, then ID; create one `migrated-push` ios client per boss if absent |
+| `boss_agent_access` | **phase 1a: done** — panels adopt admin-sees-all; manager/viewer retain explicit grants and target ownership (decision A) | No grant backfill needed |
 | `channel_configs` | **Split** into `channel_providers` + `boss_destinations` + `destination_routes`; then drop | One provider per distinct bot token; one destination per (boss with access, chat id); the agent's channel becomes a route for that agent's projects |
 | `routing_rules` | Becomes `inbound_routes` | 0 rows |
 | `delivery_queue` | Becomes `message_deliveries` with `next_attempt_at` | Drain then drop |
@@ -79,8 +79,8 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 | `progress_teams` | Merge into `projects` (profile fields) and drop | 1 row |
 | `progress_likes` | Keep (boss-owned is right) | — |
 | `join_requests` | Keep; rename in docs from "device onboarding" to "agent enrolment" | — |
-| `audit_log` | Keep | — |
-| `panels` + 4 panel tables + 4 interaction tables | Keep; only add them to `schema.sql` (phase 0); `target_boss_id` unchanged | — |
+| `audit_log` | **phase 1a: done** — `client.revoke` recorded in the same batch as cascade revocation | — |
+| `panels` + 4 panel tables + 4 interaction tables | **phase 1a: done** — admin access across panels, lifecycle, and relay; stored `target_boss_id` unchanged; schema remains truthful | — |
 | `interaction_submissions.boss_id` | Add `client_id` alongside for provenance | — |
 
 ## 3. Acceptance scenarios
@@ -155,6 +155,16 @@ that has not been upgraded. D1 rule: additive migrations only on `messages`; che
 | **2** Destinations | `channel_providers`, `boss_destinations`, `destination_routes`, `inbound_routes`, `message_deliveries`; delivery reads destinations behind a flag, dual-write both paths, compare for a week, then drop `channel_configs` + `delivery_queue`; console/iOS/macOS "Notifications" page per boss replaces the Channels page and the unread preferences; native `native_live` destinations make Mac/iOS banners a server-known choice | medium — this is the payoff and the largest change | `hiboss channel set` becomes a boss-side action; CLI keeps a shim that prints where to do it |
 | **3** Projects | `projects`, `project_aliases`, `sessions.project_id`, `progress_posts.project_id`; CLI sends slug + aliases; Home and progress read projects; `api_keys.name` UNIQUE; session-owner validation on messages/progress | low-medium | old CLIs keep sending text; server resolves via aliases |
 | **4** Agent split (deferred) | `agents` + `agent_keys`, multiple revocable keys, admin role separated from workflow role | high | every CLI re-enrols |
+
+Phase 1a delivers the server and console Devices inventory. Any authenticated boss can
+mint and revoke their own other clients; even admins cannot revoke another boss's client
+through this route, matching the individual token routes' ownership boundary. The current
+client uses the existing token self-revoke endpoint. Connect validates the pasted bearer,
+mints a web client labelled with browser/platform, and stores only the fresh token. Native
+request formats and existing tokens remain unchanged; native adoption is phase 1b.
+Client activity is refreshed at most once per minute with a database-guarded update.
+The additive nullable links also allow tokens issued by existing admin rotation to remain
+unbound until exchanged. Revoked clients stay visible as inventory history.
 
 Immediate items, independent of the redesign (this week): the unscoped
 `/api/sessions?all=true`, and the APNs upsert that can re-parent a device token.

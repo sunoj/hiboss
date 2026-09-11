@@ -2,6 +2,7 @@
 // Exports command validation, preparation, and idempotent D1 commit.
 // Dependencies: lifecycle repository, D1, and validated panel state.
 
+import { panelTargetAccessSql } from '../access';
 import { bodyHash, isRecord } from '../definition/helpers';
 import { authorize, operationReceipt, readRecord, validateTask, type PanelRecord } from './repository';
 import { DEFAULT_TTL_SECONDS, PanelFault, terminal, type Checkpoint, type ControlCommand, type Lifecycle } from './types';
@@ -80,7 +81,7 @@ export async function commitControl(db: D1Database, pending: PendingControl): Pr
   const final = terminal(pending.lifecycle.taskState) ? JSON.stringify(pending.snapshot) : null;
   const guard = 'SELECT 1 FROM panels WHERE panel_id = ? AND last_operation_id = ?';
   const result = await db.batch([
-    db.prepare(`UPDATE panels SET lifecycle_json = ?, final_snapshot_json = ?, metadata_version = metadata_version + 1, last_operation_id = ?, definition_revision = ?, catalog_id = COALESCE(?, catalog_id), catalog_version = COALESCE(?, catalog_version), summary_json = COALESCE(?, summary_json) WHERE panel_id = ? AND metadata_version = ? AND definition_revision = ? AND agent_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = panels.target_boss_id AND ba.agent_id = panels.agent_id)
+    db.prepare(`UPDATE panels SET lifecycle_json = ?, final_snapshot_json = ?, metadata_version = metadata_version + 1, last_operation_id = ?, definition_revision = ?, catalog_id = COALESCE(?, catalog_id), catalog_version = COALESCE(?, catalog_version), summary_json = COALESCE(?, summary_json) WHERE panel_id = ? AND metadata_version = ? AND definition_revision = ? AND agent_id = ? AND ${panelTargetAccessSql('panels')}
       AND (? = 0 OR NOT EXISTS (SELECT 1 FROM interaction_requests r WHERE r.panel_id = panels.panel_id AND r.state = 'open' AND (r.expires_at IS NULL OR julianday(r.expires_at) > julianday('now'))))`)
       .bind(JSON.stringify(persistedLifecycle), final, pending.operationId, pending.snapshot.definitionRevision, pending.definition?.catalogId ?? null, pending.definition?.catalogVersion ?? null, pending.definition?.summary ?? null, pending.panelId, pending.expectedVersion, pending.definitionRevision, pending.agentId, Number(terminal(pending.lifecycle.taskState) && !pending.withdrawalReason)),
     ...(pending.withdrawalReason ? [db.prepare(`UPDATE interaction_requests SET state = 'withdrawn', withdrawal_reason = ? WHERE panel_id = ? AND state = 'open' AND EXISTS (${guard})`)

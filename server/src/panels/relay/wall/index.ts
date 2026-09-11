@@ -1,6 +1,7 @@
 // Issues identity-scoped wall tickets and forwards committed publication signals.
 // Exports wall routes and notifyWall; dependencies: existing auth and PanelRoom.
 
+import { bossCanAccessAgent } from '../../access';
 import { Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../../middleware/auth';
 import type { Env } from '../../../types';
@@ -17,8 +18,7 @@ panelWallRouter.post('/panel-wall-connections', dualAuth, async c => {
   if (typeof roomId !== 'string' || !roomId) return c.json({ error: 'invalid_request' }, 400);
   if (boss && body.targetBossId !== undefined && body.targetBossId !== identity) return c.json({ error: 'permission_denied' }, 403);
   if (!boss) {
-    const access = await c.env.DB.prepare('SELECT 1 FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?')
-      .bind(roomId, identity).first();
+    const access = await bossCanAccessAgent(c.env.DB, roomId, identity);
     if (!access) return c.json({ error: 'permission_denied' }, 403);
   }
   if (!c.env.PANEL_ROOM) return c.json({ error: 'service_unavailable' }, 503);

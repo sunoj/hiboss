@@ -2,6 +2,7 @@
 // Exports record, checkpoint, preference, and publication policy helpers.
 // Dependencies: D1, definition validation, and lifecycle contracts.
 
+import { bossCanAccessAgent } from '../access';
 import { validateAnswers, validateAnswerSchema } from '@hiboss/panel-runtime';
 import { isRecord, isJsonValue } from '../definition/helpers';
 import type { JsonValue } from '../definition/types';
@@ -19,8 +20,12 @@ export async function readRecord(db: D1Database, panelId: string): Promise<Panel
 export async function authorize(db: D1Database, row: PanelRecord, identity: string, role: 'producer' | 'subscriber'): Promise<void> {
   const agent = role === 'producer' ? identity : row.agent_id;
   const boss = role === 'producer' ? row.target_boss_id : identity;
-  if (agent !== row.agent_id || boss !== row.target_boss_id) throw new PanelFault('not_found', 404);
-  const access = await db.prepare('SELECT 1 AS ok FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?').bind(boss, agent).first();
+  if (agent !== row.agent_id) throw new PanelFault('not_found', 404);
+  if (boss !== row.target_boss_id) {
+    const admin = await db.prepare("SELECT 1 FROM bosses WHERE id = ? AND role = 'admin'").bind(boss).first();
+    if (!admin) throw new PanelFault('not_found', 404);
+  }
+  const access = await bossCanAccessAgent(db, boss, agent);
   if (!access) throw new PanelFault('not_found', 404);
 }
 export function initialCheckpoint(row: PanelRecord): Checkpoint {
