@@ -4,7 +4,8 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { dualAuth, getAgentId, isBossAuth } from '../middleware/auth';
+import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
+import { getAccessibleAgentIds } from './boss-api';
 
 const STALE_MINUTES = 15;
 
@@ -63,16 +64,16 @@ routes.post('/', async (c) => {
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
 routes.get('/', async (c) => {
-  const bossRequest = isBossAuth(c);
-  const agentId = bossRequest ? null : getAgentId(c);
-  const allAgents = bossRequest && c.req.query('all') === 'true';
-  const where = allAgents
-    ? `last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`
-    : `agent_id = ? AND last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`;
-  const binds = allAgents ? [] : [agentId];
+  // The legacy all parameter is accepted but never expands the caller's scope.
+  const agentIds = isBossAuth(c)
+    ? await getAccessibleAgentIds(c.env, getBossId(c), getBossRole(c))
+    : [getAgentId(c)];
+  if (agentIds.length === 0) return c.json({ sessions: [] });
+  const placeholders = agentIds.map(() => '?').join(', ');
+  const where = `sessions.agent_id IN (${placeholders}) AND last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`;
   const rows = await c.env.DB
     .prepare(`SELECT sessions.*, api_keys.name AS agent_name FROM sessions LEFT JOIN api_keys ON api_keys.id = sessions.agent_id WHERE ${where} ORDER BY last_seen_at DESC`)
-    .bind(...binds)
+    .bind(...agentIds)
     .all<SessionRow & { agent_name: string }>();
   return c.json({ sessions: rows.results ?? [] });
 });

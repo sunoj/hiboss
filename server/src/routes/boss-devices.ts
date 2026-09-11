@@ -1,6 +1,6 @@
 // Boss device registration API for iOS APNs tokens.
 // Exports bossDevicesRouter mounted at /api/boss/devices.
-// Depends on boss bearer auth and D1 boss_devices storage.
+// Depends on boss bearer auth and D1 boss_devices/audit_log storage.
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
@@ -25,7 +25,14 @@ routes.post('/', async (c) => {
   if (!payload) {
     return c.text('invalid device registration', 400);
   }
-  await c.env.DB
+  const bossId = getBossId(c);
+  // Capture the prior owner and move the row atomically, including concurrent registrations.
+  const audit = c.env.DB.prepare(
+    `INSERT INTO audit_log (actor_type, actor_id, action, resource_type, resource_id, details)
+     SELECT 'boss', ?, 'device.reparent', 'device', id, json_object('old_boss_id', boss_id)
+     FROM boss_devices WHERE device_token = ? AND boss_id != ?`
+  ).bind(bossId, payload.token, bossId);
+  const upsert = c.env.DB
     .prepare(
       `INSERT INTO boss_devices (boss_id, device_token, bundle_id, environment, platform)
        VALUES (?, ?, ?, ?, ?)
@@ -37,9 +44,9 @@ routes.post('/', async (c) => {
          updated_at = datetime('now'),
          last_seen_at = datetime('now')`
     )
-    .bind(getBossId(c), payload.token, payload.bundleId, payload.environment, payload.platform)
-    .run();
-  return c.json({ ok: true });
+    .bind(bossId, payload.token, payload.bundleId, payload.environment, payload.platform);
+  const [auditResult] = await c.env.DB.batch([audit, upsert]);
+  return c.json({ ok: true, ...(auditResult.meta.changes > 0 ? { reparented: true } : {}) });
 });
 
 routes.delete('/:token', async (c) => {
