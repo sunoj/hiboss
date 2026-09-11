@@ -30,6 +30,7 @@ struct HiBossApp: App {
 }
 
 struct RootView: View {
+    @State private var showsClientNotice = false
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var home: HomeStore
     @ObservedObject var inbox: InboxStore
@@ -55,6 +56,7 @@ struct RootView: View {
             }
         }
         .onChange(of: connection.config) { _, config in
+            showsClientNotice = config != nil && connection.clientExchangeNotice != nil
             guard !isDemoMode else { return }
             if config != nil, let api = connection.makeAPI() {
                 startConnectedServices(api)
@@ -63,6 +65,11 @@ struct RootView: View {
                 progress.stop()
                 home.stop()
             }
+        }
+        .alert("Device token notice", isPresented: $showsClientNotice) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(connection.clientExchangeNotice ?? "")
         }
         .onAppear {
             if isDemoMode {

@@ -69,6 +69,8 @@ struct SettingsScene: View {
                 isConnecting: isConnecting,
                 reconnect: connect
             )
+        case .devices:
+            DevicesSettingsPane(settings: settings)
         case .notifications:
             NotificationsSettingsPane(settings: settings, preferencesStore: preferencesStore,
                 notifications: notifications)
@@ -139,31 +141,23 @@ struct SettingsScene: View {
     }
 
     private func saveAndConnect() async {
+        guard !isConnecting else { return }
         if let validation = SettingsPreferencesLogic.validationMessage(for: preferencesStore.preferences) {
             statusMessage = validation
             return
         }
-        switch settings.save() {
+        isConnecting = true
+        statusMessage = L("Checking connection...")
+        defer { isConnecting = false }
+        switch await settings.connect() {
         case let .failure(error):
             statusMessage = error.localizedDescription
         case let .success(config):
-            await connect(using: config)
-        }
-    }
-
-    private func connect(using config: ConnectionConfig) async {
-        isConnecting = true
-        statusMessage = L("Checking connection...")
-        let api = HibossAPI(config: config)
-        do {
-            try await api.verifyConnection()
+            let api = HibossAPI(config: config)
             flow.connect(api: api)
             notifications.connect(api: api)
             await preferencesStore.save()
             statusMessage = preferencesStore.state == .loaded ? "" : statusMessage
-        } catch {
-            statusMessage = error.localizedDescription
         }
-        isConnecting = false
     }
 }

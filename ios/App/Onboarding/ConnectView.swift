@@ -11,41 +11,40 @@ struct ConnectView: View {
     @State private var showingScanner = false
     @FocusState private var focus: Field?
 
-    enum Field { case server, token }
+    enum Field { case server, token, deviceLabel }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer(minLength: 0)
-            logo
-            Text("Connect to HiBoss")
-                .font(.hbH2)
-                .foregroundStyle(Theme.ink)
-                .padding(.top, 22)
-            Text("Use a pairing code from your Mac, or enter a server URL and Boss Token.")
-                .font(.hbSmall)
-                .foregroundStyle(Theme.ink2)
-                .padding(.top, 4)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 0)
+                logo
+                Text("Connect to HiBoss")
+                    .font(.hbH2)
+                    .foregroundStyle(Theme.ink)
+                    .padding(.top, 22)
+                Text("Use a pairing code from your Mac, or enter a server URL and Boss Token.")
+                    .font(.hbSmall)
+                    .foregroundStyle(Theme.ink2)
+                    .padding(.top, 4)
 
-            field(title: String(localized: "SERVER URL"), text: $connection.serverAddress,
-                  placeholder: "https://hiboss.you.workers.dev", field: .server, secure: false)
-                .padding(.top, 26)
-            field(title: String(localized: "BOSS TOKEN"), text: $connection.bossToken,
-                  placeholder: "hb_…", field: .token, secure: true)
-                .padding(.top, 14)
+                credentialFields.disabled(connecting)
 
-            scanButton.padding(.top, 16)
+                scanButton.padding(.top, 16)
 
-            if let error {
-                Text(error)
-                    .font(.hbCaption)
-                    .foregroundStyle(Theme.negative)
-                    .padding(.top, 12)
+                if let error {
+                    Text(error)
+                        .font(.hbCaption)
+                        .foregroundStyle(Theme.negative)
+                        .padding(.top, 12)
+                }
+
+                connectButton.padding(.top, 22)
+                Spacer(minLength: 0)
             }
-
-            connectButton.padding(.top, 22)
-            Spacer(minLength: 0)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 24)
         }
-        .padding(.horizontal, 24)
+        .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.paper.ignoresSafeArea())
         .sheet(isPresented: $showingScanner) {
@@ -61,6 +60,18 @@ struct ConnectView: View {
         HiBossBrandIcon(size: 52)
     }
 
+    private var credentialFields: some View {
+        VStack(spacing: 14) {
+            field(title: String(localized: "SERVER URL"), text: $connection.serverAddress,
+                  placeholder: "https://hiboss.you.workers.dev", field: .server, secure: false)
+            field(title: String(localized: "BOSS TOKEN"), text: $connection.bossToken,
+                  placeholder: "hb_…", field: .token, secure: true)
+            field(title: String(localized: "Device label"), text: $connection.deviceLabel,
+                  placeholder: UIDevice.current.name, field: .deviceLabel, secure: false)
+        }
+        .padding(.top, 26)
+    }
+
     private func field(
         title: String, text: Binding<String>, placeholder: String,
         field: Field, secure: Bool
@@ -73,13 +84,13 @@ struct ConnectView: View {
                 } else {
                     TextField(placeholder, text: text)
                         .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
+                        .keyboardType(field == .server ? .URL : .default)
                         .autocorrectionDisabled()
                 }
             }
             .font(.hbBody)
             .focused($focus, equals: field)
-            .accessibilityIdentifier(field == .server ? "server-url-field" : "boss-token-field")
+            .accessibilityIdentifier(fieldIdentifier(field))
             .padding(.horizontal, 14)
             .frame(height: 48)
             .background(Theme.surface)
@@ -106,6 +117,14 @@ struct ConnectView: View {
         }
         .buttonStyle(.plain)
         .disabled(connecting)
+    }
+
+    private func fieldIdentifier(_ field: Field) -> String {
+        switch field {
+        case .server: "server-url-field"
+        case .token: "boss-token-field"
+        case .deviceLabel: "device-label-field"
+        }
     }
 
     private var scanButton: some View {

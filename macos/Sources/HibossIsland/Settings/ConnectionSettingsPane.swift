@@ -40,12 +40,18 @@ struct ConnectionSettingsPane: View {
                 TextField(L("Server URL"), text: $settings.serverAddress)
                     .font(.system(.body, design: .monospaced))
                 SecureField(L("Boss Token"), text: $settings.bossToken)
+                TextField(L("Device label"), text: $settings.deviceLabel)
             } header: {
                 Text(L("Credentials"))
             } footer: {
                 Text(L("Token is stored locally in Keychain."))
                     .foregroundStyle(.secondary)
+                if let notice = settings.clientExchangeNotice {
+                    Label(notice, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.secondary)
+                }
             }
+            .disabled(isConnecting)
 
             Section {
                 Button {
