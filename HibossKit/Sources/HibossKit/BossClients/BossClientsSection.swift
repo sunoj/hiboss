@@ -8,13 +8,27 @@ public struct BossClientsSection: View {
     @StateObject private var store: BossClientsStore
     @State private var pendingRevocation: BossClient?
     @State private var showsConfirmation = false
+    @State private var deviceLabel: String
+    private let kind: BossClientKind
+    private let activate: @MainActor (String) throws -> any BossClientsServing
 
-    public init(api: any BossClientsServing) {
+    public init(
+        api: any BossClientsServing, kind: BossClientKind, deviceLabel: String,
+        activate: @escaping @MainActor (String) throws -> any BossClientsServing
+    ) {
         _store = StateObject(wrappedValue: BossClientsStore(api: api))
+        _deviceLabel = State(initialValue: deviceLabel)
+        self.kind = kind
+        self.activate = activate
     }
 
     public var body: some View {
         Section {
+            if store.needsRegistration(kind: kind) { registrationCallout }
+            if let notice = store.registrationNotice {
+                Label(notice, systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
             if store.isBusy {
                 ProgressView(kitL("Loading devices…"))
             }
@@ -41,6 +55,19 @@ public struct BossClientsSection: View {
             }
         } message: { client in
             Text(client.label) + Text("\n") + Text(kitL("This device will lose access and stop receiving push notifications."))
+        }
+    }
+
+    private var registrationCallout: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(kitL("This device is using a shared or legacy token"), systemImage: "info.circle")
+                .font(.callout).foregroundStyle(.secondary)
+            TextField(kitL("Device name"), text: $deviceLabel)
+                .disabled(store.isBusy)
+            Button(kitL("Register this device")) {
+                Task { await store.register(kind: kind, label: deviceLabel, activate: activate) }
+            }
+            .disabled(store.isBusy || deviceLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 

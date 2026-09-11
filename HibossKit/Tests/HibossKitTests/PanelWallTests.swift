@@ -62,6 +62,36 @@ final class PanelWallTests: XCTestCase {
         XCTAssertEqual(counts.lists, 0)
     }
 
+    func testTokenChangeRestartsPanelStreamsAndPreservesDrafts() async throws {
+        let model = PanelsModel(api: try WallPanelsService(), demoMode: false, autoload: false)
+        await model.load()
+        let tile = try XCTUnwrap(model.tiles.first)
+        tile.store.setString("unsent answer", at: "/form/answer")
+        model.open(tile.id)
+        let old = try config()
+        let connection = PanelRelayConnection(config: old, panelID: tile.id, onFrame: { _ in }, onDisconnect: {})
+        model.wallConfig = old
+        model.relayConnections[tile.id] = connection
+        model.liveSubscriptions.insert(tile.id)
+        let native = ConnectionConfig(serverURL: old.serverURL, bossToken: "native-token")
+        model.startWallSubscription(config: native)
+        defer {
+            model.wallConnection?.stop()
+            for relay in model.relayConnections.values { relay.stop() }
+        }
+        XCTAssertEqual(model.wallConfig, native)
+        XCTAssertTrue(model.relayConnections.isEmpty)
+        XCTAssertTrue(model.liveSubscriptions.isEmpty)
+        model.startSubscriptions(config: native)
+        let replacement = try XCTUnwrap(model.relayConnections[tile.id])
+        XCTAssertFalse(replacement === connection)
+        model.startWallSubscription(config: native)
+        XCTAssertTrue(model.relayConnections[tile.id] === replacement)
+        XCTAssertTrue(model.tiles.first?.store === tile.store)
+        XCTAssertEqual(model.selectedTileID, tile.id)
+        XCTAssertEqual(panelValue(at: "/form/answer", in: tile.store.state), .string("unsent answer"))
+    }
+
     private func waitUntil(_ predicate: () -> Bool) async {
         for _ in 0..<150 {
             if predicate() { return }

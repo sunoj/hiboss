@@ -50,7 +50,9 @@ public struct KeychainStore: TokenStoring {
 
     public func write(_ token: String) throws {
         let data = Data(token.utf8)
-        SecItemDelete(baseQuery as CFDictionary)
+        let updated = SecItemUpdate(baseQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if updated == errSecSuccess { return }
+        guard updated == errSecItemNotFound else { throw SettingsError.keychain(updated) }
         var item = baseQuery
         item[kSecValueData as String] = data
         let status = SecItemAdd(item as CFDictionary, nil)

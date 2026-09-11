@@ -11,6 +11,7 @@ struct RootTabView: View {
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var preferences: PreferencesStore
     @ObservedObject var progress: ProgressFeedStore
+    @StateObject private var panels: PanelsModel
     @ObservedObject private var router = AppRouter.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -27,6 +28,19 @@ struct RootTabView: View {
     @State private var homePath = NavigationPath()
     @State private var messagesPath = NavigationPath()
 
+    init(home: HomeStore, inbox: InboxStore, connection: ConnectionStore,
+         preferences: PreferencesStore, progress: ProgressFeedStore) {
+        self.home = home
+        self.inbox = inbox
+        self.connection = connection
+        self.preferences = preferences
+        self.progress = progress
+        _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
+            guard let config = connection.config else { throw PanelClientError.notConfigured }
+            return config
+        }))
+    }
+
     private var sessionStreamAPI: (any SessionStreamServing)? {
         if isDemoMode { return DemoBossAPI() }
         return connection.makeAPI()
@@ -41,6 +55,7 @@ struct RootTabView: View {
             settingsTabView
         }
         .task(id: router.pendingMessageID) { await openPendingMessage() }
+        .onChange(of: connection.config) { Task { await panels.load() } }
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
@@ -59,10 +74,7 @@ struct RootTabView: View {
             HomeView(
                 inbox: inbox,
                 sessionAPI: sessionStreamAPI,
-                panelConfigurationProvider: {
-                    guard let config = connection.config else { throw PanelClientError.notConfigured }
-                    return config
-                }
+                panels: panels
             )
         }
         .tabItem { Label("Home", systemImage: "house") }

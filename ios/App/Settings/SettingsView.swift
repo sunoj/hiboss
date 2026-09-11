@@ -43,8 +43,10 @@ struct SettingsView: View {
                 }
             }
 
-            if let api = connection.makeAPI() {
-                BossClientsSection(api: api)
+            if let api = connection.makeAPI(), let config = connection.config {
+                BossClientsSection(api: api, kind: .ios, deviceLabel: connection.deviceLabel) { token in
+                    try connection.activateDeviceToken(token, replacing: config)
+                }
                     .id(connection.config?.bossToken)
             }
 
