@@ -68,18 +68,18 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 | `boss_pairing_codes` | **phase 1a: done** — redemption atomically creates client, token, and optional signing key | Kind from signing registration, otherwise `web`; label from `device_label` |
 | `boss_devices` | **phase 1a: done** — nullable `client_id`, stamped from bearer; delete on client revoke. **phase 1a: deferred** — rename to `boss_push_devices` (churn for 3 rows) | Attach to newest ios client by creation time, then ID; create one `migrated-push` ios client per boss if absent |
 | `boss_agent_access` | **phase 1a: done** — panels adopt admin-sees-all; manager/viewer retain explicit grants and target ownership (decision A) | No grant backfill needed |
-| `channel_configs` | **Split** into `channel_providers` + `boss_destinations` + `destination_routes`; then drop | One provider per distinct bot token; one destination per (boss with access, chat id); the agent's channel becomes a route for that agent's projects |
-| `routing_rules` | Becomes `inbound_routes` | 0 rows |
-| `delivery_queue` | Becomes `message_deliveries` with `next_attempt_at` | Drain then drop |
-| `sessions` | Keep; add nullable `project_id`; stop writing thread/topic columns | Project from label prefix via aliases; nullable stays for old rows |
+| `channel_configs` | **phase 2a: done** — additive providers, boss destinations, and route backfill; off/shadow retain legacy delivery. **phase 2a: deferred** — dropping configs and replacing channel management in 2b | Distinct bot token/webhook providers; destinations per accessible boss/provider/chat; mixed enabled flags collapse with OR |
+| `routing_rules` | **phase 2a: done** — `inbound_routes` take precedence with deterministic priority/ID ordering. **phase 2a: deferred** — removing legacy fallback in 2b | 0 existing rules; no arbitrary default inbound agent chosen for shared chats |
+| `delivery_queue` | **phase 2a: done** — flagged `message_deliveries` fan-out, quiet deferral, retry cron, and shadow mismatch audits. **phase 2a: deferred** — drain/drop legacy queue after parity | Shadow rows are observations, never retried; existing legacy queued work is retained |
+| `sessions` | **phase 2a: done** — backfilled session threads/topics into destination routes, plus text project lookup. **phase 2a: deferred** — removing legacy thread writes; real `project_id` remains phase 3 | Existing session routes take precedence; config topics retained under agent-name text scope |
 | `session_events` | Keep; fix `actor_agent_id` for boss-originated events (write NULL + boss in provenance) | — |
 | `agent_groups`, `agent_group_members` | Keep | — |
-| `messages` | **Additive only** (29k rows, D1 CPU limit): no column rewrite; `status` becomes "boss has seen it" only | — |
+| `messages` | **phase 2a: done** — migration leaves columns and rows untouched; on mode records external send state in `message_deliveries`. **phase 2a: deferred** — universal seen-status semantics and legacy receipt consumer removal in 2b | No message backfill |
 | `progress_posts` | Add `project_id` FK; keep `project` text one phase for old clients | Via aliases |
 | `progress_teams` | Merge into `projects` (profile fields) and drop | 1 row |
 | `progress_likes` | Keep (boss-owned is right) | — |
 | `join_requests` | Keep; rename in docs from "device onboarding" to "agent enrolment" | — |
-| `audit_log` | **phase 1a: done** — `client.revoke` recorded in the same batch as cascade revocation | — |
+| `audit_log` | **phase 1a: done** — atomic `client.revoke`. **phase 2a: done** — `destination_shadow` records external-chat set mismatches without credentials | Compare new shadow observations for one week before cutover |
 | `panels` + 4 panel tables + 4 interaction tables | **phase 1a: done** — admin access across panels, lifecycle, and relay; stored `target_boss_id` unchanged; schema remains truthful | — |
 | `interaction_submissions.boss_id` | Add `client_id` alongside for provenance | — |
 
@@ -165,6 +165,12 @@ request formats and existing tokens remain unchanged; native adoption is phase 1
 Client activity is refreshed at most once per minute with a database-guarded update.
 The additive nullable links also allow tokens issued by existing admin rotation to remain
 unbound until exchanged. Revoked clients stay visible as inventory history.
+
+Phase 2a delivers the additive server model, boss destination/provider APIs, and
+`DESTINATIONS_MODE=off|shadow|on` (default `off`). The rollout and comparison queries
+are in [destinations-rollout.md](destinations-rollout.md). Native destination inventory
+is backfilled; client notification settings/receipt adoption, removal of legacy tables,
+and CLI channel-management changes remain phase 2b. No cutover is implied by merging 2a.
 
 Immediate items, independent of the redesign (this week): the unscoped
 `/api/sessions?all=true`, and the APNs upsert that can re-parent a device token.

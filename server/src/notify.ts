@@ -8,6 +8,7 @@ import {
   type ApnsEnvironment,
 } from './apns';
 import { prepareBossPush, type BossPushSession } from './push/boss-payload';
+import { deleteBossDevice } from './push/devices';
 import type { Env, MessageRow } from './types';
 
 interface BossRecipientRow {
@@ -71,7 +72,7 @@ export async function notifyBossAgents(env: Env, subAgentId: string, message: Me
         await notifyAgentCallback(env, row.agent_id, message);
       }
     }
-    await notifyBossDevices(env, rows.results ?? [], subAgentId, message);
+    if (env.DESTINATIONS_MODE !== 'on') await notifyBossDevices(env, rows.results ?? [], subAgentId, message);
   } catch {
     // Best-effort
   }
@@ -108,7 +109,7 @@ async function notifyBossDevices(
         prepared.apnsPriority,
       );
       if (result.prune) {
-        await env.DB.prepare('DELETE FROM boss_devices WHERE device_token = ?').bind(device.device_token).run();
+        await deleteBossDevice(env, device.boss_id, device.device_token);
       }
     } catch {
       // Best-effort per device.

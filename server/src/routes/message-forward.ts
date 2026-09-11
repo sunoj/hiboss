@@ -13,6 +13,7 @@ import {
   safeParse,
 } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { destinationsMode, dispatchDestinations } from '../delivery';
 
 const FORWARD_CHANNELS = ['discord', 'telegram'] as const;
 
@@ -34,6 +35,9 @@ export async function forwardMessage(
 ): Promise<MessageRow> {
   if (original.direction === 'boss_to_agent') {
     throw new Error('cannot forward boss messages');
+  }
+  if (original.direction === 'agent_to_boss' && destinationsMode(env.DESTINATIONS_MODE) === 'on') {
+    return forwardToDestinations(env, original, targetChannel);
   }
   const channelConfig = await selectChannelConfig(env, original.agent_id, targetChannel);
   if (channelConfig.channel !== targetChannel) {
@@ -66,33 +70,25 @@ export async function forwardMessage(
   );
   if (!result.delivered) throw new Error('forward delivery failed');
 
-  const inserted = await insertMessageWithEvent(
-    env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, reply_to, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [
-      createMessageId(),
-      original.agent_id,
-      original.direction,
-      original.mode,
-      targetChannel,
-      forwardBody,
-      'delivered',
-      original.priority,
-      'forwarded',
-      original.id,
-      JSON.stringify(mergeDeliveryMetadata(metadata, result)),
-      original.session_id,
-      original.target_agent_id,
-      original.target_session_id,
-    ],
-    original.session_id ?? original.target_session_id,
-  );
-  if (!inserted) throw new Error('failed to persist');
+  const inserted = await persistForward(env, original, targetChannel, forwardBody, mergeDeliveryMetadata(metadata, result));
+  await dispatchDestinations(env, inserted, [channelConfig]);
 
   if (result.discordMessageId) {
     await ensureThreadForSession(env, original.agent_id, original.session_id, channelConfig, result.discordMessageId, forwardBody);
   }
   return await env.DB.prepare('SELECT * FROM messages WHERE id = ?').bind(inserted.id).first<MessageRow>() ?? inserted;
+}
+
+async function forwardToDestinations(env: Env, original: MessageRow, channel: ForwardChannel): Promise<MessageRow> {
+  const metadata = buildForwardMetadata(original.channel, readForwardFileUrl(original.metadata));
+  const inserted = await insertMessageWithEvent(env,
+    `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, reply_to, metadata, session_id)
+     VALUES (?, ?, 'agent_to_boss', ?, ?, ?, 'sent', ?, 'forwarded', ?, ?, ?) RETURNING *`,
+    [createMessageId(), original.agent_id, original.mode, channel, buildForwardBody(original.channel, original.body),
+      original.priority, original.id, JSON.stringify(metadata), original.session_id], original.session_id);
+  if (!inserted) throw new Error('failed to persist');
+  await dispatchDestinations(env, inserted);
+  return inserted;
 }
 
 function readForwardFileUrl(metadata: string | null): string | undefined {
@@ -163,4 +159,30 @@ async function resolveForwardConfig(
     channel_id: session.discord_thread_id,
     thread_id: session.discord_thread_id,
   };
+}
+
+async function persistForward(env: Env, original: MessageRow, targetChannel: ForwardChannel, forwardBody: string, metadata: Record<string, unknown>): Promise<MessageRow> {
+  const inserted = await insertMessageWithEvent(
+    env,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, type, reply_to, metadata, session_id, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [
+      createMessageId(),
+      original.agent_id,
+      original.direction,
+      original.mode,
+      targetChannel,
+      forwardBody,
+      'delivered',
+      original.priority,
+      'forwarded',
+      original.id,
+      JSON.stringify(metadata),
+      original.session_id,
+      original.target_agent_id,
+      original.target_session_id,
+    ],
+    original.session_id ?? original.target_session_id,
+  );
+  if (!inserted) throw new Error('failed to persist');
+  return inserted;
 }

@@ -7,6 +7,7 @@ import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delive
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
 import { parseOptionMedia } from './routes/option-media';
+import { destinationsMode, drainDestinationDeliveries } from './delivery';
 
 const BATCH_SIZE = 50;
 const MAX_QUEUE_ATTEMPTS = 3;
@@ -31,7 +32,8 @@ export async function handleScheduled(env: Env): Promise<void> {
   const now = new Date().toISOString();
   await cleanupPairingCodes(env, now);
   await expireDueOptions(env, now);
-  await drainDeliveryQueue(env, now);
+  if (destinationsMode(env.DESTINATIONS_MODE) === 'on') await drainDestinationDeliveries(env);
+  else await drainDeliveryQueue(env, now);
 }
 
 async function cleanupPairingCodes(env: Env, now: string): Promise<void> {
