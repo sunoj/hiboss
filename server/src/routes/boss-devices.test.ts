@@ -46,7 +46,9 @@ describe('POST /api/boss/devices', () => {
       platform: 'ios',
     });
   });
+});
 
+describe('POST /api/boss/devices updates and validation', () => {
   it('updates bundle and environment when the same token registers again', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/devices', {
       method: 'POST',
@@ -77,6 +79,44 @@ describe('POST /api/boss/devices', () => {
     });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/boss/devices ownership', () => {
+  it('audits a re-parent once and immediately removes the token from the old boss fan-out', async () => {
+    const token = 'abcdef9876543210';
+    const newBossToken = 'hb_boss_devices_new_owner';
+    const newBossId = await seedBossToken('New Device Boss', 'manager', newBossToken);
+    const register = (bearer: string) => SELF.fetch('http://localhost/api/boss/devices', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, bundleId: 'com.hiboss.ios', environment: 'sandbox', platform: 'ios' }),
+    });
+    const initial = await register(BOSS_TOKEN);
+    expect(initial.status).toBe(200);
+    expect(await initial.json()).toEqual({ ok: true });
+    const device = await env.DB.prepare('SELECT id FROM boss_devices WHERE device_token = ?')
+      .bind(token).first<{ id: string }>();
+    const moved = await register(newBossToken);
+    expect(moved.status).toBe(200);
+    expect(await moved.json()).toEqual({ ok: true, reparented: true });
+    // Same boss_id filter used by notifyBossDevices for push destination selection.
+    const oldFanout = await env.DB.prepare('SELECT device_token FROM boss_devices WHERE boss_id IN (?)')
+      .bind(bossId).all<{ device_token: string }>();
+    expect(oldFanout.results.map((row) => row.device_token)).not.toContain(token);
+    const newFanout = await env.DB.prepare('SELECT device_token FROM boss_devices WHERE boss_id IN (?)')
+      .bind(newBossId).all<{ device_token: string }>();
+    expect(newFanout.results).toEqual([{ device_token: token }]);
+    const repeated = await register(newBossToken);
+    expect(repeated.status).toBe(200);
+    expect(await repeated.json()).toEqual({ ok: true });
+    const audits = await env.DB.prepare(
+      "SELECT actor_type, actor_id, resource_type, resource_id, details FROM audit_log WHERE action = 'device.reparent'"
+    ).all();
+    expect(audits.results).toEqual([{
+      actor_type: 'boss', actor_id: newBossId, resource_type: 'device', resource_id: device?.id,
+      details: JSON.stringify({ old_boss_id: bossId }),
+    }]);
   });
 });
 

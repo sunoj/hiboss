@@ -65,7 +65,9 @@ describe('POST /api/sessions', () => {
     expect(data.status).toBe('idle');
     expect(data.status_text).toBe('Waiting for input');
   });
+});
 
+describe('POST /api/sessions validation', () => {
   it('defaults invalid status to working', async () => {
     const res = await SELF.fetch('http://localhost/api/sessions', {
       method: 'POST',
@@ -85,7 +87,9 @@ describe('POST /api/sessions', () => {
     });
     expect(res.status).toBe(400);
   });
+});
 
+describe('POST /api/sessions ownership and updates', () => {
   it('upserts on conflict (re-register same ID)', async () => {
     const res = await SELF.fetch('http://localhost/api/sessions', {
       method: 'POST',
@@ -141,13 +145,42 @@ describe('GET /api/sessions', () => {
     expect(data.sessions.every((session: any) => session.agent_id === getTestAgentId())).toBe(true);
   });
 
-  it('allows boss callers to list all sessions with ?all=true', async () => {
-    const res = await SELF.fetch('http://localhost/api/sessions?all=true', { headers: bossHeaders() });
+  it.each(['?all=true', '', '?all=false'])('allows admins to list all recent sessions with %s', async (query) => {
+    const res = await SELF.fetch(`http://localhost/api/sessions${query}`, { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
-    const agentIds = data.sessions.map((session: any) => session.agent_id);
+    const data = await res.json() as { sessions: { agent_id: string }[] };
+    const agentIds = data.sessions.map((session) => session.agent_id);
     expect(agentIds).toContain(getTestAgentId());
     expect(agentIds).toContain('test-agent-id-2');
+  });
+});
+
+describe('GET /api/sessions boss access', () => {
+  it.each(['?all=true', '', '?all=false'])('limits viewers to granted agents with %s', async (query) => {
+    const token = `hb_boss_viewer_sessions_${query}`;
+    const bossId = await seedBossToken('Session Viewer', 'viewer', token);
+    await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(bossId, getTestAgentId()).run();
+    await env.DB.prepare("INSERT INTO sessions (id, agent_id, last_seen_at) VALUES (?, ?, datetime('now', '-16 minutes'))")
+      .bind(`stale-viewer-${query}`, getTestAgentId()).run();
+    const res = await SELF.fetch(`http://localhost/api/sessions${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json() as { sessions: { id: string; agent_id: string }[] };
+    expect(data.sessions.length).toBeGreaterThan(0);
+    expect(data.sessions.every((session) => session.agent_id === getTestAgentId())).toBe(true);
+    expect(data.sessions.some((session) => session.id.startsWith('stale-viewer-'))).toBe(false);
+  });
+
+  it.each(['?all=true', '', '?all=false'])('returns no sessions for managers without grants with %s', async (query) => {
+    const token = `hb_boss_manager_sessions_${query}`;
+    await seedBossToken('Session Manager', 'manager', token);
+    const res = await SELF.fetch(`http://localhost/api/sessions${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ sessions: [] });
   });
 });
 
