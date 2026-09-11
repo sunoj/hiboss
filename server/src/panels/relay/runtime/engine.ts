@@ -2,6 +2,7 @@
 // Exports PanelEngine used by HTTP control and WebSocket state operations.
 // Dependencies: DO storage, D1 lifecycle repository, and safe patch application.
 
+import { panelTargetAccessSql } from '../../access';
 import { bodyHash, isRecord } from '../../definition/helpers';
 import { commitControl, parseControl, prepareControl, type PendingControl } from '../../lifecycle/control';
 import { authorize, initialCheckpoint, operationReceipt, readRecord, validateTask, type PanelRecord } from '../../lifecycle/repository';
@@ -80,7 +81,7 @@ export class PanelEngine {
     const updatedLifecycle = { ...lifecycle, ttlSeconds, expiresAt };
     const guard = 'SELECT 1 FROM panels WHERE panel_id = ? AND last_operation_id = ?';
     const result = await this.db.batch([
-      this.db.prepare('UPDATE panels SET lifecycle_json = ?, metadata_version = metadata_version + 1, last_operation_id = ? WHERE panel_id = ? AND metadata_version = ? AND definition_revision = ? AND agent_id = ? AND EXISTS (SELECT 1 FROM boss_agent_access ba WHERE ba.boss_id = panels.target_boss_id AND ba.agent_id = panels.agent_id)').bind(JSON.stringify(updatedLifecycle), receipt.operationId, row.panel_id, row.metadata_version, row.definition_revision, row.agent_id),
+      this.db.prepare(`UPDATE panels SET lifecycle_json = ?, metadata_version = metadata_version + 1, last_operation_id = ? WHERE panel_id = ? AND metadata_version = ? AND definition_revision = ? AND agent_id = ? AND ${panelTargetAccessSql('panels')}`).bind(JSON.stringify(updatedLifecycle), receipt.operationId, row.panel_id, row.metadata_version, row.definition_revision, row.agent_id),
       this.db.prepare(`INSERT INTO panel_operations SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (${guard})`).bind(receipt.operationId, row.panel_id, row.agent_id, key, hash, JSON.stringify(receipt), row.panel_id, receipt.operationId),
       this.db.prepare(`INSERT INTO panel_outbox SELECT ?, ?, ?, ?, NULL WHERE EXISTS (${guard})`).bind(receipt.operationId, row.panel_id, row.metadata_version + 1, new Date().toISOString(), row.panel_id, receipt.operationId),
     ]);

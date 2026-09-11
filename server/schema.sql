@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0038; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0039; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -138,6 +138,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_discord ON bosses(discord_user_id) WHERE discord_user_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_agent ON bosses(agent_id) WHERE agent_id IS NOT NULL;
 
+-- Installed boss clients
+CREATE TABLE boss_clients (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('ios', 'macos', 'web', 'cli')),
+  label TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at TEXT,
+  revoked_at TEXT
+);
+CREATE INDEX idx_boss_clients_boss ON boss_clients(boss_id, created_at DESC);
+
 -- Independent bearer tokens and short-lived QR pairing codes for bosses
 CREATE TABLE IF NOT EXISTS boss_tokens (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -146,8 +158,10 @@ CREATE TABLE IF NOT EXISTS boss_tokens (
   token_hash TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_used_at TEXT,
-  revoked_at TEXT
+  revoked_at TEXT,
+  client_id TEXT REFERENCES boss_clients(id)
 );
+CREATE INDEX idx_boss_tokens_client ON boss_tokens(client_id);
 
 CREATE INDEX IF NOT EXISTS idx_boss_tokens_boss ON boss_tokens(boss_id, created_at DESC);
 
@@ -160,8 +174,10 @@ CREATE TABLE IF NOT EXISTS boss_signing_keys (
   client_kind TEXT NOT NULL CHECK (client_kind IN ('ios', 'macos')),
   public_key TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  revoked_at TEXT
+  revoked_at TEXT,
+  client_id TEXT REFERENCES boss_clients(id)
 );
+CREATE INDEX idx_boss_signing_keys_client ON boss_signing_keys(client_id);
 
 CREATE INDEX IF NOT EXISTS idx_boss_signing_keys_boss
   ON boss_signing_keys(boss_id, created_at DESC);
@@ -196,8 +212,10 @@ CREATE TABLE IF NOT EXISTS boss_devices (
   platform TEXT NOT NULL DEFAULT 'ios' CHECK (platform = 'ios'),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  client_id TEXT REFERENCES boss_clients(id)
 );
+CREATE INDEX idx_boss_devices_client ON boss_devices(client_id);
 
 CREATE INDEX IF NOT EXISTS idx_boss_devices_boss ON boss_devices(boss_id, last_seen_at DESC);
 

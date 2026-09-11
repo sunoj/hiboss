@@ -6,6 +6,7 @@ import {
 	normalizeBaseUrl,
 	type StoredConnection
 } from './auth';
+import type { BossClient, ClientGrant, ClientId, ClientKind } from './clients';
 import { normalizeMessage } from './mappers';
 import {
 	ApiError,
@@ -57,6 +58,18 @@ export class BossApiClient {
 
 	async me(): Promise<BossMe> {
 		return this.request<BossMe>('GET', '/api/boss/me');
+	}
+
+	async clients(): Promise<BossClient[]> {
+		return (await this.request<{ clients: BossClient[] }>('GET', '/api/boss/clients')).clients;
+	}
+
+	async createClient(kind: ClientKind, label: string): Promise<ClientGrant> {
+		return this.request<ClientGrant>('POST', '/api/boss/clients', { kind, label });
+	}
+
+	async revokeClient(id: ClientId): Promise<OkResponse> {
+		return this.request<OkResponse>('DELETE', `/api/boss/clients/${encodeURIComponent(id)}`);
 	}
 
 	async overview(): Promise<BossOverview> {

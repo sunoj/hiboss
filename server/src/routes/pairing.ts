@@ -106,7 +106,9 @@ function createPairingRouter(): Hono<{ Bindings: Env }> {
     const boss = await c.env.DB.prepare('SELECT id, name, role FROM bosses WHERE id = ?')
       .bind(claimed.boss_id).first<BossIdentity>();
     if (!boss) return c.text('invalid or expired pairing code', 400);
-    const grant = await issueBossToken(c.env, boss.id, request.deviceLabel, signingKey ?? undefined);
+    const grant = await issueBossToken(c.env, boss.id, request.deviceLabel, signingKey ?? undefined, {
+      kind: signingKey?.clientKind ?? 'web', label: request.deviceLabel,
+    });
     await c.env.DB.prepare(
       'UPDATE boss_pairing_codes SET redeemed_token_id = ? WHERE id = ?',
     ).bind(grant.tokenId, claimed.id).run();

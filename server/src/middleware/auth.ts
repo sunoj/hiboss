@@ -4,11 +4,13 @@
 
 import { Context, Next } from 'hono';
 import type { Env } from '../types';
+import type { ClientId } from '../boss-clients/types';
 
 type AuthContext = Context<{ Bindings: Env }> & {
   agentId?: string;
   bossId?: string;
   bossTokenId?: string;
+  clientId?: ClientId | null;
   bossRole?: string;
   bossName?: string;
 };
@@ -55,6 +57,10 @@ export function getBossTokenId(c: Context<{ Bindings: Env }>): string {
   return ctx.bossTokenId;
 }
 
+export function getClientId(c: Context<{ Bindings: Env }>): ClientId | null {
+  return (c as AuthContext).clientId ?? null;
+}
+
 export function getBossRole(c: Context<{ Bindings: Env }>): string {
   return (c as AuthContext).bossRole ?? 'viewer';
 }
@@ -90,18 +96,7 @@ export async function bossAuth(c: AuthContext, next: Next): Promise<Response | v
   const token = extractToken(c);
   if (!token) return c.text('Unauthorized', 401);
   const keyHash = await hashApiKey(token);
-  const boss = await c.env.DB
-    .prepare('SELECT b.id, b.name, b.role, bt.id AS token_id FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id WHERE bt.token_hash = ? AND bt.revoked_at IS NULL')
-    .bind(keyHash)
-    .first<{ id: string; name: string; role: string; token_id: string }>();
-  if (!boss) return c.text('Unauthorized', 401);
-  c.executionCtx.waitUntil(
-    c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run(),
-  );
-  c.bossId = boss.id;
-  c.bossTokenId = boss.token_id;
-  c.bossRole = boss.role;
-  c.bossName = boss.name;
+  if (!await resolveBossAuth(c, keyHash)) return c.text('Unauthorized', 401);
   return next();
 }
 
@@ -119,25 +114,38 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
     );
     return next();
   }
-  // Try boss
-  const boss = await c.env.DB
-    .prepare('SELECT b.id, b.name, b.role, bt.id AS token_id FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id WHERE bt.token_hash = ? AND bt.revoked_at IS NULL')
-    .bind(keyHash)
-    .first<{ id: string; name: string; role: string; token_id: string }>();
-  if (boss) {
-    c.executionCtx.waitUntil(
-      c.env.DB.prepare("UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?").bind(boss.token_id).run(),
-    );
-    c.bossId = boss.id;
-    c.bossTokenId = boss.token_id;
-    c.bossRole = boss.role;
-    c.bossName = boss.name;
-    return next();
-  }
+  if (await resolveBossAuth(c, keyHash)) return next();
   return c.text('Unauthorized', 401);
 }
 
 /** Check if current context is boss-authenticated. */
 export function isBossAuth(c: Context<{ Bindings: Env }>): boolean {
   return !!(c as AuthContext).bossId;
+}
+
+// Read the client timestamp with authentication; conditional SQL also guards concurrent isolates.
+async function resolveBossAuth(c: AuthContext, keyHash: string): Promise<boolean> {
+  const boss = await c.env.DB.prepare(`SELECT b.id, b.name, b.role, bt.id AS token_id,
+    bt.client_id, bc.last_seen_at FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id
+    LEFT JOIN boss_clients bc ON bc.id = bt.client_id
+    WHERE bt.token_hash = ? AND bt.revoked_at IS NULL AND bc.revoked_at IS NULL`)
+    .bind(keyHash).first<{ id: string; name: string; role: string; token_id: string;
+      client_id: ClientId | null; last_seen_at: string | null }>();
+  if (!boss) return false;
+  c.executionCtx.waitUntil(c.env.DB.prepare(
+    "UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?",
+  ).bind(boss.token_id).run());
+  const lastSeen = boss.last_seen_at ? Date.parse(boss.last_seen_at.replace(' ', 'T') + 'Z') : 0;
+  if (boss.client_id && Date.now() - lastSeen >= 60_000) {
+    c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE boss_clients SET last_seen_at = datetime('now')
+      WHERE id = ? AND revoked_at IS NULL
+      AND (last_seen_at IS NULL OR last_seen_at <= datetime('now', '-1 minute'))`)
+      .bind(boss.client_id).run());
+  }
+  c.bossId = boss.id;
+  c.bossTokenId = boss.token_id;
+  c.clientId = boss.client_id;
+  c.bossRole = boss.role;
+  c.bossName = boss.name;
+  return true;
 }

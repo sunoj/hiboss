@@ -2,6 +2,7 @@
 // Exports owner-only D1 mutations; all predicates recheck live panel access.
 // Dependencies: definition hashing, request repository, and validated questionnaires.
 
+import { panelTargetAccessSql } from '../access';
 import { bodyHash } from '../definition/helpers';
 import { authorize, readRecord } from '../lifecycle/repository';
 import { PanelFault } from '../lifecycle/types';
@@ -21,7 +22,7 @@ export async function publishRequest(db: D1Database, panelId: string, agent: str
       db.prepare(`INSERT INTO interaction_requests (request_id, panel_id, revision, state, expires_at, blocking, idempotency_key, request_hash, created_at)
         SELECT ?, panel_id, 1, 'open', ?, ?, ?, ?, ? FROM panels WHERE panel_id = ? AND agent_id = ?
         AND json_extract(lifecycle_json, '$.taskState') IN ('running', 'paused')
-        AND EXISTS (SELECT 1 FROM boss_agent_access WHERE boss_id = panels.target_boss_id AND agent_id = panels.agent_id)`)
+        AND ${panelTargetAccessSql('panels')}`)
         .bind(id, form.expiresAt ?? null, Number(form.blocking), key, hash, now, panelId, agent),
       db.prepare('INSERT INTO interaction_revisions SELECT ?, 1, ? WHERE EXISTS (SELECT 1 FROM interaction_requests WHERE request_id = ?)').bind(id, JSON.stringify(form), id),
     ]);

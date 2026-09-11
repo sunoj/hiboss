@@ -31,6 +31,16 @@ beforeAll(async () => {
 });
 
 describe('paired-device message signing', () => {
+  it('attaches the signed pairing key and token to the same ios client', async () => {
+    const row = await env.DB.prepare(`SELECT c.kind, c.boss_id, t.client_id AS token_client, k.client_id AS key_client
+      FROM boss_signing_keys k JOIN boss_tokens t ON t.id = k.boss_token_id
+      JOIN boss_clients c ON c.id = k.client_id WHERE k.id = ?`).bind(signingKeyId)
+      .first<{ kind: string; boss_id: string; token_client: string; key_client: string }>();
+    expect(row).toMatchObject({ kind: 'ios', boss_id: bossId });
+    expect(row?.token_client).toBeTruthy();
+    expect(row?.token_client).toBe(row?.key_client);
+  });
+
   it('binds the pairing token to the supplied P-256 public key', async () => {
     const row = await env.DB.prepare(
       'SELECT id, boss_id, algorithm, client_kind FROM boss_signing_keys WHERE id = ?',

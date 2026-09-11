@@ -116,6 +116,9 @@ describe('POST /api/pairing/redeem', () => {
     const token = await env.DB.prepare('SELECT id, label, revoked_at FROM boss_tokens WHERE token_hash = ?')
       .bind(await hashApiKey(data.token)).first<{ id: string; label: string; revoked_at: string | null }>();
     expect(token).toEqual({ id: newMeData.token_id, label: 'Alice iPhone', revoked_at: null });
+    const client = await env.DB.prepare('SELECT c.kind, c.label FROM boss_clients c JOIN boss_tokens t ON t.client_id = c.id WHERE t.id = ?')
+      .bind(newMeData.token_id).first();
+    expect(client).toEqual({ kind: 'web', label: 'Alice iPhone' });
   });
 
   it('consumes a code only once', async () => {

@@ -27,9 +27,9 @@ describe('questionnaire integrity', () => {
     finally { await env.DB.prepare("UPDATE bosses SET role = 'manager' WHERE id = ?").bind(BOSS).run(); }
     expect((await submit(requestId)).status).toBe(201);
   });
-  it('hides answers from another boss and revokes reads when access is removed', async () => {
+  it('hides answers from another viewer and revokes reads when access is removed', async () => {
     const { requestId } = await publish();
-    await seedBossToken('Other', 'admin', 'hb_questionnaire_other', 'questionnaire-other');
+    await seedBossToken('Other', 'viewer', 'hb_questionnaire_other', 'questionnaire-other');
     expect((await read(requestId, '', { Authorization: 'Bearer hb_questionnaire_other' })).status).toBe(404);
     await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ?').bind(BOSS).run();
     try { expect((await read(requestId)).status).toBe(404); }
