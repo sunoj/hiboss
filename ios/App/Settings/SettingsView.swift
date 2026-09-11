@@ -35,9 +35,17 @@ struct SettingsView: View {
             } header: {
                 Text("Connection")
             } footer: {
+                if let notice = connection.clientExchangeNotice {
+                    Label(notice, systemImage: "exclamationmark.triangle")
+                }
                 if let detail = connectionState.detail {
                     Text(detail).foregroundStyle(.red)
                 }
+            }
+
+            if let api = connection.makeAPI() {
+                BossClientsSection(api: api)
+                    .id(connection.config?.bossToken)
             }
 
             NotificationsSection(push: push)

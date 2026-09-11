@@ -5,11 +5,14 @@
 import Combine
 import Foundation
 import HibossKit
+import UIKit
 
 @MainActor
 final class ConnectionStore: ObservableObject {
     @Published var serverAddress: String
     @Published var bossToken: String
+    @Published var deviceLabel = UIDevice.current.name
+    @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var config: ConnectionConfig?
     /// True until the first `restore()` completes, so the shell can show a neutral
     /// splash instead of flashing onboarding for an already-configured user.
@@ -19,13 +22,15 @@ final class ConnectionStore: ObservableObject {
     private let keychain: any TokenStoring
     private let signerStore: any MessageSignerStoring
     private let pairingRedeemer: PairingRedeemer
+    private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private var messageSigner: SecureEnclaveMessageSigner?
 
     init(
         defaults: UserDefaults = .standard,
         keychain: (any TokenStoring)? = nil,
         signerStore: (any MessageSignerStoring)? = nil,
-        pairingRedeemer: PairingRedeemer = PairingRedeemer()
+        pairingRedeemer: PairingRedeemer = PairingRedeemer(),
+        clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
     ) {
         self.defaults = defaults
         self.keychain = keychain ?? KeychainStore(
@@ -36,6 +41,7 @@ final class ConnectionStore: ObservableObject {
             account: HiBossStore.signingKeychainAccount
         )
         self.pairingRedeemer = pairingRedeemer
+        self.clientsAPI = clientsAPI
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
     }
@@ -72,9 +78,15 @@ final class ConnectionStore: ObservableObject {
         switch makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken) {
         case let .failure(error):
             return .failure(error)
-        case let .success(candidate):
+        case let .success(pasted):
+            let candidate: ConnectionConfig
+            let notice: String?
             do {
-                try await HibossAPI(config: candidate).verifyConnection()
+                let login = try await ManualClientLogin.exchange(
+                    config: pasted, kind: .ios, label: deviceLabel, api: clientsAPI(pasted)
+                )
+                candidate = login.config
+                notice = login.notice
             } catch {
                 return .failure(error)
             }
@@ -89,6 +101,8 @@ final class ConnectionStore: ObservableObject {
                 return .failure(error)
             }
             defaults.set(candidate.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+            bossToken = candidate.bossToken
+            clientExchangeNotice = notice
             config = candidate
             return .success(())
         }
@@ -129,6 +143,7 @@ final class ConnectionStore: ObservableObject {
         try? keychain.write("")
         try? signerStore.delete()
         bossToken = ""
+        clientExchangeNotice = nil
         messageSigner = nil
         config = nil
     }

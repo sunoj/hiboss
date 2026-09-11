@@ -13,6 +13,7 @@ final class SettingsLogicTests: XCTestCase {
         XCTAssertEqual(SettingsPane.allCases.map(\.title), [
             L("General"),
             L("Connection"),
+            L("Devices"),
             L("Notifications"),
             L("Channels & Routing"),
             L("Quiet Hours"),

@@ -5,7 +5,6 @@
 import Combine
 import Foundation
 import HibossKit
-import Security
 
 enum OptionPresentationMode: String, CaseIterable, Identifiable, Sendable {
     case island
@@ -58,6 +57,9 @@ extension OptionDisplayMode {
 final class AppSettings: ObservableObject {
     @Published var serverAddress: String
     @Published var bossToken: String
+    @Published var deviceLabel = Host.current().localizedName ?? "Mac"
+    @Published private(set) var clientExchangeNotice: String?
+    @Published private(set) var activeClientConfig: ConnectionConfig?
     @Published var presentationMode: OptionPresentationMode {
         didSet { defaults.set(presentationMode.rawValue, forKey: AppConstants.Storage.presentationMode) }
     }
@@ -82,15 +84,18 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
+    private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private static let optionDisplayModeKey = "hiboss.optionDisplayMode"
     private static let prioritySoundsKey = "hiboss.prioritySounds"
 
     init(
         defaults: UserDefaults = .standard,
-        keychain: any TokenStoring = KeychainStore()
+        keychain: any TokenStoring = KeychainStore(),
+        clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
     ) {
         self.defaults = defaults
         self.keychain = keychain
+        self.clientsAPI = clientsAPI
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
         let storedPresentationMode = OptionPresentationMode(
@@ -118,6 +123,7 @@ final class AppSettings: ObservableObject {
             try keychain.read()
         }.value
         bossToken = storedToken ?? ""
+        activeClientConfig = try? connectionConfig().get()
     }
 
     var isConfigured: Bool {
@@ -131,17 +137,33 @@ final class AppSettings: ObservableObject {
         makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken)
     }
 
-    func save() -> Result<ConnectionConfig, SettingsError> {
-        let result = connectionConfig()
-        guard case let .success(config) = result else { return result }
+    /// Only a changed credential/server is a manual login; routine reconnects retain the token.
+    func connect() async -> Result<ConnectionConfig, Error> {
         do {
-            try keychain.write(config.bossToken)
-            defaults.set(config.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
-            return .success(config)
-        } catch let error as SettingsError {
-            return .failure(error)
+            let candidate = try connectionConfig().get()
+            let api = clientsAPI(candidate)
+            let isStoredConnection = try keychain.read() == candidate.bossToken
+                && defaults.string(forKey: AppConstants.Storage.serverURL) == candidate.serverURL.absoluteString
+            let accepted: ConnectionConfig
+            var notice = clientExchangeNotice
+            if isStoredConnection {
+                try await api.verifyConnection()
+                accepted = candidate
+            } else {
+                let login = try await ManualClientLogin.exchange(
+                    config: candidate, kind: .macos, label: deviceLabel, api: api
+                )
+                accepted = login.config
+                notice = login.notice
+            }
+            try keychain.write(accepted.bossToken)
+            defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+            bossToken = accepted.bossToken
+            clientExchangeNotice = notice
+            activeClientConfig = accepted
+            return .success(accepted)
         } catch {
-            return .failure(.keychain(errSecIO))
+            return .failure(error)
         }
     }
 

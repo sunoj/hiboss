@@ -9,6 +9,7 @@ import SwiftUI
 enum SettingsPane: String, CaseIterable, Identifiable {
     case general
     case connection
+    case devices
     case notifications
     case routing
     case quietHours
@@ -22,6 +23,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: L("General")
         case .connection: L("Connection")
+        case .devices: L("Devices")
         case .notifications: L("Notifications")
         case .routing: L("Channels & Routing")
         case .quietHours: L("Quiet Hours")
@@ -35,6 +37,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: L("Startup behaviour for this Mac.")
         case .connection: L("Connect this Mac to the boss daemon.")
+        case .devices: L("Manage devices connected to your account.")
         case .notifications: L("Choose how questions surface on this Mac.")
         case .routing: L("Route each priority to server-backed channels.")
         case .quietHours: L("Silence lower-priority alerts on your schedule.")
@@ -48,6 +51,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .connection: "link"
+        case .devices: "desktopcomputer.and.iphone"
         case .notifications: "bell"
         case .routing: "point.3.connected.trianglepath.dotted"
         case .quietHours: "moon"

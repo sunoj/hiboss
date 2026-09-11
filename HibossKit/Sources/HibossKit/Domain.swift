@@ -269,3 +269,11 @@ public protocol BossServing: Sendable {
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome
 }
+
+/// Connection and device management, separate from the message stream contract.
+public protocol BossClientsServing: Sendable {
+    func verifyConnection() async throws
+    func createClient(kind: BossClientKind, label: String) async throws -> BossClientGrant
+    func listClients() async throws -> [BossClient]
+    func revokeClient(id: BossClientID) async throws
+}
