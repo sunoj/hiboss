@@ -174,6 +174,18 @@ The target is approximately two seconds on a healthy connection, subject to REST
 latency. No protocol migration or CLI change is needed; deploy the Worker before
 upgrading native clients. A failed publication signal is recovered by the fallback.
 
+## Schema consolidation
+
+From `server/`, run `sh scripts/check-schema.sh --regenerate | patch schema.sql`
+to repair declarations from all migrations while preserving domain order and comments.
+The generator emits a validated, targeted patch; for newly introduced objects, first
+add a documented `CREATE TABLE name ();` or index declaration in its domain section.
+Run `npm run check:schema` to compare two fresh SQLite databases. This requires
+Python 3.10+ with SQLite 3.35+; no Python packages are needed. `npm test` also runs
+the same comparison through Vitest. Run the full suite on an authorized remote grok
+box because it includes E2E tests. Migration failures stop regeneration; migrations
+are authoritative, including defaults unchanged by data-only updates 0036/0037.
+
 ## Remaining product scope
 
 Shared attention/inbox integration, background APNs discovery push, execution authorization
