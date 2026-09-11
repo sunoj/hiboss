@@ -2,6 +2,7 @@
 // Exports progress payload helpers, team mapping, and post SQL row mapping.
 // Depends on Hono request URLs and the worker Env type.
 
+import { parseProject, type ProjectInput } from '../projects';
 import type { Context } from 'hono';
 import type { Env } from '../types';
 
@@ -77,7 +78,7 @@ export interface TeamRow {
 
 export interface CreatePayload {
   body: string;
-  project: string | null;
+  project: ProjectInput | null;
   session_id: string | null;
   media: MediaItem[] | null;
   tags: string[] | null;
@@ -138,8 +139,8 @@ export async function parseCreatePayload(c: Context<{ Bindings: Env }>): Promise
   if (!isRecord(input) || typeof input.body !== 'string') return 'body is required';
   if (!input.body.trim()) return 'body must not be empty';
   if (input.body.length > 2000) return 'body is too long (max 2000 characters)';
-  const project = input.project === undefined ? null : input.project;
-  if (project !== null && (typeof project !== 'string' || !project.trim())) return 'project must be a non-empty string';
+  const project = parseProject(input.project_identity ?? input.project);
+  if (typeof project === 'string') return project;
   const agentLabel = input.agent_label === undefined ? null : input.agent_label;
   if (agentLabel !== null && typeof agentLabel !== 'string') return 'agent_label must be a string';
   if (typeof agentLabel === 'string' && agentLabel.length > 64) return 'agent_label is too long (max 64 characters)';
@@ -161,7 +162,7 @@ export async function parseCreatePayload(c: Context<{ Bindings: Env }>): Promise
   if (!Array.isArray(tagsInput) || tagsInput.length > 8 || tagsInput.some((tag) => typeof tag !== 'string')) {
     return 'tags must contain at most 8 strings';
   }
-  return { body: input.body, project: project as string | null, session_id: sessionId, media: media.length ? media : null, tags: tagsInput.length ? tagsInput as string[] : null, agent_label: agentLabel as string | null, model: model as string | null };
+  return { body: input.body, project, session_id: sessionId, media: media.length ? media : null, tags: tagsInput.length ? tagsInput as string[] : null, agent_label: agentLabel as string | null, model: model as string | null };
 }
 
 export async function verifyMediaOwnership(
@@ -248,5 +249,5 @@ export function mapProgressRow(row: ProgressRow, requestUrl: URL, bossAuthentica
 }
 
 export function progressSelect(): string {
-  return `SELECT p.*, a.name AS agent_name, t.handle AS team_handle, t.display_name AS team_display_name, t.avatar_url AS team_avatar_url, (SELECT COUNT(*) FROM progress_likes l WHERE l.post_id = p.id) AS like_count, EXISTS (SELECT 1 FROM progress_likes l WHERE l.post_id = p.id AND l.boss_id = ?) AS liked FROM progress_posts p JOIN api_keys a ON a.id = p.agent_id LEFT JOIN progress_teams t ON t.project = p.project`;
+  return `SELECT p.id, p.agent_id, p.agent_label, p.model, p.session_id, CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project, p.body, p.media, p.tags, p.created_at, a.name AS agent_name, t.handle AS team_handle, t.display_name AS team_display_name, t.avatar_url AS team_avatar_url, (SELECT COUNT(*) FROM progress_likes l WHERE l.post_id = p.id) AS like_count, EXISTS (SELECT 1 FROM progress_likes l WHERE l.post_id = p.id AND l.boss_id = ?) AS liked FROM progress_posts p JOIN api_keys a ON a.id = p.agent_id LEFT JOIN projects t ON t.id = COALESCE(p.project_id, (SELECT project_id FROM project_aliases WHERE alias = p.project))`;
 }

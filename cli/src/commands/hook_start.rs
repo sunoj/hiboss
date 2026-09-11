@@ -41,7 +41,7 @@ async fn register_session() -> String {
     let id = generate_session_id();
     let _ = session::write_session_id(&id);
     let branch = get_git_branch();
-    let cwd = std::env::current_dir().ok().and_then(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()));
+    let cwd = Some(session::project_dir());
     let label = match (get_repo_name(), &branch) {
         (Some(repo), Some(branch)) => Some(format!("{repo}/{branch}")),
         (Some(repo), None) => Some(repo),

@@ -61,7 +61,7 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 
 | Today | Disposition | Backfill |
 | --- | --- | --- |
-| `api_keys` | Keep as-is until phase 4; conceptually "agent + its one key" | — |
+| `api_keys` | **phase 3a: done** — unique agent names with a duplicate guard; exact-name addressing precedes the retained ID-prefix path. **phase 3a: deferred** — removing `session_info` and splitting keys/agents | No identity changes |
 | `bosses` | **phase 2b: done** — external accounts backfilled; inbound lookup reads them first, with legacy-column fallback until 2c. Admin identity edits synchronize both stores. Removed `preferred_channel`/`notify_priorities` validation and CLI/dashboard controls; quiet hours stay. Old stored preference keys are pruned when admin preferences are updated | Copy both provider IDs into `boss_external_accounts`; deleting an account clears its matching legacy fallback |
 | `boss_tokens` | **phase 1a: done** — nullable `client_id`; existing bearer hashes remain valid | One client per non-revoked token; kind from bound signing key `client_kind` else `web`; token label and usage timestamps retained |
 | `boss_signing_keys` | **phase 1a: done** — nullable `client_id`; **phase 1a: deferred** — removing `boss_token_id` until native follow-up | Via token → client; keys of revoked tokens remain unbound |
@@ -71,12 +71,13 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 | `channel_configs` | **phase 2a: done** — additive providers, boss destinations, and route backfill; off/shadow retain legacy delivery. **phase 2b: done** — boss Notifications replaces Channels in console navigation; the old route remains reachable. Config removal waits for the parity week | Distinct bot token/webhook providers; destinations per accessible boss/provider/chat; mixed enabled flags collapse with OR |
 | `routing_rules` | **phase 2a: done** — `inbound_routes` take precedence with deterministic priority/ID ordering. **phase 2a: deferred** — removing legacy fallback in 2b | 0 existing rules; no arbitrary default inbound agent chosen for shared chats |
 | `delivery_queue` | **phase 2a: done** — flagged `message_deliveries` fan-out, quiet deferral, retry cron, and shadow mismatch audits. **phase 2a: deferred** — drain/drop legacy queue after parity | Shadow rows are observations, never retried; existing legacy queued work is retained |
-| `sessions` | **phase 2a: done** — backfilled session threads/topics into destination routes, plus text project lookup. **phase 2a: deferred** — removing legacy thread writes; real `project_id` remains phase 3 | Existing session routes take precedence; config topics retained under agent-name text scope |
+| `sessions` | **phase 3a: done** — nullable project FK, alias resolution on registration, CLI project object/full cwd/slug labels, owner validation for messages/progress. **phase 3a: deferred** — agent-qualified local slots, removing stored labels and legacy thread writes | Label prefix (whole label when no slash) → alias → project; existing route semantics retained |
 | `session_events` | Keep; fix `actor_agent_id` for boss-originated events (write NULL + boss in provenance) | — |
 | `agent_groups`, `agent_group_members` | Keep | — |
 | `messages` | **phase 2a: done** — migration leaves columns and rows untouched; on mode records external send state in `message_deliveries`. **deferred beyond 2b** — universal seen-status semantics and legacy receipt consumer removal; messages remain untouched | No message backfill |
-| `progress_posts` | Add `project_id` FK; keep `project` text one phase for old clients | Via aliases |
-| `progress_teams` | Merge into `projects` (profile fields) and drop | 1 row |
+| `progress_posts` | **phase 3a: done** — project FK, auto-create and legacy text resolution; feeds and Home read projects. **phase 3a: deferred** — removing text column in 3b | Distinct text values become aliases |
+| `progress_teams` | **phase 3a: done** — profiles copied into projects; PUT writes projects; legacy table is an application-level read-only snapshot. **phase 3a: deferred** — drop in 3b | Preserve profile fields, creator attribution and timestamps |
+| `destination_routes` | **phase 3a: done** — nullable project FK backfill. **phase 3a: deferred** — ID-based routing and removal of text scope in 3b; flag semantics unchanged | Text alias, then session project |
 | `progress_likes` | Keep (boss-owned is right) | — |
 | `join_requests` | Keep; rename in docs from "device onboarding" to "agent enrolment" | — |
 | `audit_log` | **phase 1a: done** — atomic `client.revoke`. **phase 2a: done** — `destination_shadow` records external-chat set mismatches without credentials | Compare new shadow observations for one week before cutover |
@@ -171,6 +172,11 @@ Phase 2a delivers the additive server model, boss destination/provider APIs, and
 are in [destinations-rollout.md](destinations-rollout.md). Native destination inventory
 is backfilled; client notification settings/receipt adoption, removal of legacy tables,
 and CLI channel-management changes remain phase 2b. No cutover is implied by merging 2a.
+
+Phase 3a delivers additive project identity, aliases, server/CLI resolution, unique agent
+names, and session-owner checks. The [projects rollout guide](projects-rollout.md) records
+legacy-client behavior, collision/conflict handling, and the phase 3b cleanup boundary.
+No destination cutover or deployment is implied by this implementation.
 
 Immediate items, independent of the redesign (this week): the unscoped
 `/api/sessions?all=true`, and the APNs upsert that can re-parent a device token.

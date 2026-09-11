@@ -236,12 +236,14 @@ pub struct ProgressMediaItem {
     pub alt: Option<String>,
 }
 
-/// Request body for POST /api/progress.
+/// POST /api/progress: legacy text plus additive identity metadata.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProgressPostRequest {
     pub body: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_identity: Option<crate::session::ProjectIdentity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -276,14 +278,12 @@ pub struct ProgressPost {
     #[serde(default)]
     pub model: Option<String>,
 }
-
 /// Response from GET /api/progress.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProgressFeedResponse {
     pub posts: Vec<ProgressPost>,
     pub next_cursor: Option<ProgressCursor>,
 }
-
 /// Composite keyset cursor for GET /api/progress.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProgressCursor {

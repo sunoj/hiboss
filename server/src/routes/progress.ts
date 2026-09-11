@@ -2,6 +2,7 @@
 // Exports progressRouter mounted at /api/progress.
 // Depends on Hono, D1, dual authentication, and boss access control.
 
+import { ownsSession, parseProject, resolveProject } from '../projects';
 import { Context, Hono } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -67,12 +68,17 @@ routes.post('/', async (c) => {
   const agentId = getAgentId(c);
   const agent = await c.env.DB.prepare('SELECT name FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string }>();
   if (!agent) return c.text('agent not found', 404);
-  const project = payload.project ?? agent.name;
+  if (!await ownsSession(c.env.DB, payload.session_id, agentId)) return c.text('session does not belong to calling agent', 400);
   const mediaError = await verifyMediaOwnership(c, payload.media ?? [], agentId);
   if (mediaError) return c.text(mediaError, 400);
+  const identity = payload.project ?? parseProject(agent.name);
+  if (!identity || typeof identity === 'string') return c.text(identity ?? 'project is required', 400);
+  const resolved = await resolveProject(c.env.DB, identity, agentId);
+  if (!resolved.ok) return c.text(resolved.error, 409);
+  const project = resolved.project;
   const row = await c.env.DB.prepare(
-    `INSERT INTO progress_posts (agent_id, session_id, project, body, media, tags, agent_label, model) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
-  ).bind(agentId, payload.session_id, project, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null, payload.agent_label, payload.model).first<{ id: string }>();
+    `INSERT INTO progress_posts (agent_id, session_id, project, project_id, body, media, tags, agent_label, model) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+  ).bind(agentId, payload.session_id, project.slug, project.id, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null, payload.agent_label, payload.model).first<{ id: string }>();
   if (!row) return c.text('failed to create post', 500);
   const post = await findProgressPost(c.env, row.id, [agentId], null);
   if (!post) return c.text('failed to load post', 500);
@@ -88,7 +94,7 @@ routes.get('/', async (c) => {
   if (typeof cursor === 'string') return c.text(cursor, 400);
   const clauses = [`p.${scope.sql}`];
   const binds: (string | number)[] = [...scope.binds];
-  if (params.project) { clauses.push('p.project = ?'); binds.push(params.project); }
+  if (params.project) { clauses.push('(p.project_id IN (SELECT project_id FROM project_aliases WHERE alias = ?) OR t.slug = ? OR (p.project_id IS NULL AND p.project = ?))'); binds.push(params.project, params.project, params.project); }
   if (isBossAuth(c) && params.agent_id) { clauses.push('p.agent_id = ?'); binds.push(params.agent_id); }
   if (cursor) {
     clauses.push('(p.created_at < datetime(?) OR (p.created_at = datetime(?) AND p.id < ?))');
@@ -113,9 +119,15 @@ routes.get('/projects', async (c) => {
   if (!agentIds.length) return c.json({ projects: [] });
   const scope = scopedWhere(agentIds);
   const rows = await c.env.DB.prepare(
-    `SELECT p.project, COUNT(*) AS count, MAX(p.created_at) AS last_post_at, p.agent_id FROM progress_posts p WHERE p.${scope.sql} GROUP BY p.project, p.agent_id ORDER BY last_post_at DESC`
-  ).bind(...scope.binds).all<{ project: string; count: number; last_post_at: string; agent_id: string }>();
-  return c.json({ projects: (rows.results ?? []).map((row) => ({ ...row, last_post_at: normalizeTimestamp(row.last_post_at) })) });
+    `WITH activity AS (
+       SELECT CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project,
+         p.agent_id, p.created_at AS post_at FROM progress_posts p LEFT JOIN projects t ON t.id = p.project_id WHERE p.${scope.sql}
+       UNION ALL
+       SELECT t.slug, s.agent_id, NULL FROM sessions s JOIN projects t ON t.id = s.project_id WHERE s.${scope.sql}
+     ) SELECT project, COUNT(post_at) AS count, MAX(post_at) AS last_post_at, agent_id
+       FROM activity GROUP BY project, agent_id ORDER BY last_post_at DESC`
+  ).bind(...scope.binds, ...scope.binds).all<{ project: string; count: number; last_post_at: string | null; agent_id: string }>();
+  return c.json({ projects: (rows.results ?? []).map((row) => ({ ...row, last_post_at: row.last_post_at ? normalizeTimestamp(row.last_post_at) : null })) });
 });
 
 async function likePost(c: Context<{ Bindings: Env }>, like: boolean): Promise<Response> {

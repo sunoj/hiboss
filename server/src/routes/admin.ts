@@ -31,11 +31,11 @@ router.post('/keys', async (c) => {
   const key = `hb_${generateHex(16)}`;
   const keyHash = await hashApiKey(key);
   const inserted = await c.env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id, name')
+    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) ON CONFLICT(name) DO NOTHING RETURNING id, name')
     .bind(name, keyHash)
     .first<{ id: string; name: string }>();
   if (!inserted) {
-    return c.text('failed to create key', 500);
+    return c.text('agent name already exists', 409);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'key.create', 'api_key', inserted.id, name));
   return c.json({ id: inserted.id, name: inserted.name, key }, 201);

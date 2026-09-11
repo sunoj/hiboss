@@ -40,11 +40,11 @@ export async function approveJoinRequest(env: Env, requestId: string): Promise<J
   const key = `hb_${generateHex(16)}`;
   const keyHash = await hashApiKey(key);
   const apiKey = await env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id')
+    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) ON CONFLICT(name) DO NOTHING RETURNING id')
     .bind(joinRequest.name, keyHash)
     .first<{ id: string }>();
   if (!apiKey) {
-    return joinErrorResult('Error', 'failed to create api key', 409);
+    return joinErrorResult('Name already exists', 'agent name already exists', 409);
   }
   const update = await env.DB
     .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'")

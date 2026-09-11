@@ -144,6 +144,7 @@ async function handleDiscordJoinCallback(
     return c.text('admin required', 403);
   }
   const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);
+  if (result.error) return c.text(result.error, result.statusCode);
   if (!result.error) {
     c.executionCtx.waitUntil(logAudit(c.env, boss ? 'boss' : 'system', boss?.id ?? 'discord', result.auditAction, 'join_request', parsed.requestId, result.auditDetails));
     if (result.apiKeyId) c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', result.apiKeyId, 'join-approve'));

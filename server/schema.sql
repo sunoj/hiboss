@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0042; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0043; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -251,6 +251,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   status_text TEXT,
   discord_thread_id TEXT,
   telegram_topic_id INTEGER,
+  project_id TEXT REFERENCES projects(id),
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
 
@@ -286,7 +287,8 @@ CREATE TABLE IF NOT EXISTS progress_posts (
   tags TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   agent_label TEXT,
-  model TEXT
+  model TEXT,
+  project_id TEXT REFERENCES projects(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC, id DESC);
@@ -489,6 +491,7 @@ CREATE TABLE destination_routes (
   external_channel_id TEXT,
   external_thread_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  project_id TEXT REFERENCES projects(id),
   UNIQUE (destination_id, project, session_id)
 );
 CREATE UNIQUE INDEX idx_destination_routes_scope ON destination_routes(destination_id, COALESCE(project, ''), COALESCE(session_id, ''));
@@ -528,3 +531,29 @@ CREATE TABLE boss_external_accounts (
   UNIQUE (provider, provider_user_id)
 );
 CREATE INDEX idx_boss_external_accounts_boss ON boss_external_accounts(boss_id);
+
+-- Project identities; progress_teams remains a frozen legacy profile snapshot.
+CREATE TABLE projects (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  slug TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  repo_url TEXT,
+  handle TEXT UNIQUE,
+  bio TEXT,
+  avatar_url TEXT,
+  created_by_agent_id TEXT REFERENCES api_keys(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE project_aliases (
+  alias TEXT PRIMARY KEY NOT NULL,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  source TEXT NOT NULL CHECK (source IN ('origin', 'cwd', 'explicit', 'label')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_project_aliases_project ON project_aliases(project_id);
+
+CREATE UNIQUE INDEX idx_api_keys_name ON api_keys(name);
+CREATE INDEX idx_sessions_project ON sessions(project_id);
+CREATE INDEX idx_progress_project_id ON progress_posts(project_id, created_at DESC, id DESC);
+CREATE INDEX idx_destination_routes_project ON destination_routes(project_id);

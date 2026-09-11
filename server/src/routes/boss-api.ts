@@ -260,10 +260,10 @@ routes.post('/join-requests/:id/approve', async (c) => {
   const key = `hb_${generateHex(16)}`;
   const keyHash = await hashApiKey(key);
   const inserted = await c.env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id, name')
+    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) ON CONFLICT(name) DO NOTHING RETURNING id, name')
     .bind(request.name, keyHash)
     .first<ApiKeyRow>();
-  if (!inserted) return c.text('failed to persist', 500);
+  if (!inserted) return c.text('agent name already exists', 409);
   await c.env.DB
     .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ?")
     .bind(inserted.id, key, request.id)

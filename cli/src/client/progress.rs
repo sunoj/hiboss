@@ -128,6 +128,38 @@ impl HiBossClient {
 mod tests {
     use super::*;
 
+    // Old servers reject object-valued project fields and ignore unknown metadata.
+    #[derive(serde::Deserialize)]
+    struct OldServerProject {
+        project: String,
+    }
+
+    fn old_server_fixture(body: serde_json::Value) -> Result<OldServerProject, serde_json::Error> {
+        serde_json::from_value(body)
+    }
+
+    #[test]
+    fn progress_wire_is_accepted_by_the_old_server_fixture() {
+        let identity = crate::session::ProjectIdentity { slug: "repo".into(), aliases: vec!["checkout".into()] };
+        let request = ProgressPostRequest {
+            body: "progress".into(), project: Some(identity.slug.clone()), project_identity: Some(identity),
+            session_id: None, media: None, tags: None, agent_label: None, model: None,
+        };
+        let body = serde_json::to_value(request).unwrap();
+        assert_eq!(body["project_identity"]["aliases"][0], "checkout");
+        assert_eq!(old_server_fixture(body).unwrap().project, "repo");
+        assert!(old_server_fixture(serde_json::json!({"project": {"slug": "repo", "aliases": []}})).is_err());
+    }
+
+    #[test]
+    fn session_wire_is_accepted_by_the_old_server_fixture() {
+        let identity = crate::session::ProjectIdentity { slug: "repo".into(), aliases: vec!["checkout".into()] };
+        let body = super::super::sessions::session_body("session", identity);
+        assert_eq!(body["id"], "session");
+        assert_eq!(body["project_identity"]["slug"], "repo");
+        assert_eq!(old_server_fixture(body).unwrap().project, "repo");
+    }
+
     fn make_client() -> HiBossClient {
         HiBossClient::new("http://localhost:19999", "test-key")
     }
@@ -155,6 +187,7 @@ mod tests {
         let req = ProgressPostRequest {
             body: "test body".into(),
             project: None,
+            project_identity: None,
             session_id: None,
             media: None,
             tags: None,
