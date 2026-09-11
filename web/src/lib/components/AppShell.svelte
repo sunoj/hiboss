@@ -1,3 +1,5 @@
+<!-- Console shell arranging shared navigation, header, and routed content.
+     Depends on SideNav, TopBar, and ToastHost. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import SideNav from './SideNav.svelte';
@@ -38,5 +40,10 @@
 	.content {
 		padding: 1rem 1.15rem 2rem;
 		flex: 1;
+	}
+
+	@media (max-width: 760px) {
+		.shell { flex-direction: column; }
+		.content { padding: 0.5rem 0 1.5rem; }
 	}
 </style>

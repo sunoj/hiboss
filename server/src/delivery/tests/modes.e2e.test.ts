@@ -65,7 +65,7 @@ it('on ignores channel hints, schedules failure, and retries through cron', asyn
     .toEqual({ status: 'sent', attempts: 2, external_message_id: '123', next_attempt_at: null });
 });
 it('shadow records matching destinations without a disagreement audit', async () => {
-  await env.DB.prepare("UPDATE channel_configs SET config = json_set(config, '$.chat_id', 'new-chat') WHERE agent_id = 'test-agent-id'").run();
+  await env.DB.prepare("UPDATE channel_configs SET config = json_set(config, '$.chat_id', 'new-chat', '$.bot_token', 'test-token') WHERE agent_id = 'test-agent-id'").run();
   const spy = vi.spyOn(adapter, 'deliverToChannelWithOptions').mockResolvedValue({ delivered: true });
   const id = await send('shadow');
   expect(spy).toHaveBeenCalledTimes(1);

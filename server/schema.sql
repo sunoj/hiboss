@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0040; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0042; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -463,6 +463,10 @@ CREATE TABLE channel_providers (
   credentials TEXT NOT NULL CHECK (json_valid(credentials)),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE UNIQUE INDEX idx_channel_providers_effective_credential ON channel_providers(
+  COALESCE(NULLIF(json_extract(credentials, '$.webhook_url'), ''), json_extract(credentials, '$.bot_token'), '')
+);
 CREATE TABLE boss_destinations (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
@@ -506,7 +510,21 @@ CREATE TABLE message_deliveries (
   last_error TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  external_target TEXT,
+  merged_into TEXT REFERENCES message_deliveries(id) ON DELETE CASCADE,
   UNIQUE (message_id, destination_id)
 );
 CREATE INDEX idx_message_deliveries_message ON message_deliveries(message_id);
 CREATE INDEX idx_message_deliveries_retry ON message_deliveries(status, next_attempt_at);
+
+CREATE UNIQUE INDEX idx_message_deliveries_target ON message_deliveries(message_id, external_target);
+CREATE INDEX idx_message_deliveries_merged ON message_deliveries(merged_into);
+CREATE TABLE boss_external_accounts (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL CHECK (provider IN ('telegram', 'discord')),
+  provider_user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (provider, provider_user_id)
+);
+CREATE INDEX idx_boss_external_accounts_boss ON boss_external_accounts(boss_id);

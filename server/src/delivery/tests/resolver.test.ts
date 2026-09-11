@@ -9,7 +9,7 @@ import type { Priority } from '../../types';
 
 const now = new Date('2026-09-11T02:00:00Z');
 const base: DestinationRow = {
-  id: 'destination' as DestinationId, boss_id: 'boss', kind: 'telegram_chat', client_id: null,
+  id: 'destination' as DestinationId, boss_id: 'boss', kind: 'telegram_chat', client_id: null, provider_id: 'provider',
   target: '{}', credentials: '{}', preferences: null, min_priority: 'low', enabled: 1,
   honours_quiet_hours: 1, quiet_start: '22:00', quiet_end: '08:00', timezone: 'UTC', quiet_enabled: 1,
 };

@@ -23,7 +23,7 @@ export const NAV_MODULES: readonly NavModule[] = [
 	{ id: 'bosses', href: '/bosses', labelKey: 'nav.bosses', shortKey: 'nav.short.bosses', primary: false },
 	{ id: 'devices', href: '/devices', labelKey: 'nav.devices', shortKey: 'nav.short.devices', primary: false },
 	{ id: 'routing', href: '/routing', labelKey: 'nav.routing', shortKey: 'nav.short.routing', primary: false },
-	{ id: 'channels', href: '/channels', labelKey: 'nav.channels', shortKey: 'nav.short.channels', primary: false },
+	{ id: 'notifications', href: '/notifications', labelKey: 'nav.notifications', shortKey: 'nav.short.notifications', primary: false },
 	{ id: 'audit', href: '/audit', labelKey: 'nav.audit', shortKey: 'nav.short.audit', primary: false },
 	{ id: 'system', href: '/system', labelKey: 'nav.system', shortKey: 'nav.short.system', primary: false }
 ] as const;

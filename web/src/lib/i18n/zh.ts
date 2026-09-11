@@ -3,12 +3,13 @@
  * Exports: zhMessages, checked against the English message key set.
  * Deps: plural helper and the shared locale contracts.
  */
+import { zhNotifications } from './notifications';
 import { zhDevices } from './devices';
 import { plural } from './plural';
 import type { LocaleDictionary, MessageParams } from './types';
 import type { MessageKey } from './en';
 const n = (p: MessageParams): number => Number(p.count ?? 0);
-export const zhMessages = { ...zhDevices,
+export const zhMessages = { ...zhDevices, ...zhNotifications,
  'channel.toggle':(p:MessageParams)=>`${p.agent} 的 ${p.channel} 通知`,'channel.updateFailed':'无法更新渠道','channel.noEnabledWarning':'智能体没有已启用的渠道；hiboss send 将失败',
  'form.noDescription':'暂无描述','form.copy':'复制','form.copied':'已复制',
  'app.title':'hiboss 指挥台','app.loading':'正在加载控制台…','brand.console':'控制台','brand.subtitle':'连接到你的 boss 服务器','language.label':'语言','language.en':'English','language.zh':'简体中文','language.ja':'日本語','language.ko':'한국어',

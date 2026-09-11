@@ -1,7 +1,6 @@
 // Tests for /api/bosses CRUD, access management, preferences, and token generation.
 // Covers create, get, update, delete, grant/revoke access, token issuance.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
-
 import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedDatabase, authHeaders, seedBossToken } from '../test-helpers';
@@ -14,7 +13,6 @@ beforeAll(async () => {
 
 let createdBossId: string;
 let generatedToken: string;
-
 function adminHeaders(): Record<string, string> {
   return {
     Authorization: 'Bearer hb_boss_test_admin_token_0001',
@@ -167,54 +165,6 @@ describe('PATCH /api/bosses/:id', () => {
       body: JSON.stringify({ name: '  ' }),
     });
     expect(res.status).toBe(400);
-  });
-
-  it('sets and merges preferences', async () => {
-    const res1 = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { preferred_channel: 'telegram' } }),
-    });
-    expect(res1.status).toBe(200);
-    // Merge additional preference
-    const res2 = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { quiet_hours: { start: '22:00', end: '08:00' } } }),
-    });
-    expect(res2.status).toBe(200);
-    // Verify merge
-    const getRes = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, { headers: viewerHeaders() });
-    const data = await getRes.json() as any;
-    expect(data.preferences.preferred_channel).toBe('telegram');
-    expect(data.preferences.quiet_hours.start).toBe('22:00');
-  });
-
-  it('rejects invalid preferred_channel', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { preferred_channel: 'slack' } }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('rejects invalid notify_priorities', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: { notify_priorities: ['invalid'] } }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('clears preferences with null', async () => {
-    const res = await SELF.fetch(`http://localhost/api/bosses/${createdBossId}`, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ preferences: null }),
-    });
-    expect(res.status).toBe(200);
   });
 
   it('rejects no valid fields', async () => {

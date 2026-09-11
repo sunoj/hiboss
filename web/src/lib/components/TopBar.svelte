@@ -1,3 +1,5 @@
+<!-- Console connection status, locale selection, and sign-out controls.
+     Depends on the auth store and shared i18n. -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { i18n, LOCALES, t, type Locale } from '$lib/i18n';
@@ -131,5 +133,10 @@
 		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
+	}
+
+	@media (max-width: 760px) {
+		.top { height: auto; min-height: var(--hb-topbar-height); flex-wrap: wrap; gap: 0.5rem; }
+		.right { flex-wrap: wrap; }
 	}
 </style>

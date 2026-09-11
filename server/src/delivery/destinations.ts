@@ -64,6 +64,7 @@ function routeConfig(row: DestinationRow, route: RouteRow | null): Record<string
     if (route?.external_thread_id) config.message_thread_id = Number(route.external_thread_id);
   }
   if (row.kind === 'discord_channel') {
+    if (config.thread_id) config.channel_id = config.thread_id;
     if (route?.external_channel_id) config.channel_id = route.external_channel_id;
     if (route?.external_thread_id) {
       config.channel_id = route.external_thread_id;

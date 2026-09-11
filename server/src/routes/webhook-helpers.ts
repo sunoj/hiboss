@@ -107,6 +107,10 @@ async function identifyBoss(
   channel: 'telegram' | 'discord',
   userId: string
 ): Promise<{ id: string; name: string; role: string } | null> {
+  const account = await env.DB.prepare(`SELECT b.id, b.name, b.role FROM boss_external_accounts a
+    JOIN bosses b ON b.id = a.boss_id WHERE a.provider = ? AND a.provider_user_id = ?`)
+    .bind(channel, userId).first<{ id: string; name: string; role: string }>();
+  if (account) return account;
   const col = channel === 'telegram' ? 'telegram_user_id' : 'discord_user_id';
   const row = await env.DB
     .prepare(`SELECT id, name, role FROM bosses WHERE ${col} = ? LIMIT 1`)

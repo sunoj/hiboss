@@ -1,3 +1,5 @@
+<!-- Console module navigation with active-route and translated labels.
+     Depends on shared navigation definitions, page state, and i18n. -->
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { t, i18n } from '$lib/i18n';
@@ -104,5 +106,12 @@
 	.short {
 		font-size: 10px;
 		color: var(--hb-text-dim);
+	}
+
+	@media (max-width: 760px) {
+		.nav { width: 100%; min-height: auto; position: static; border-right: 0; border-bottom: 1px solid var(--hb-border); }
+		nav { flex-direction: row; overflow-x: auto; }
+		a { flex-shrink: 0; white-space: nowrap; }
+		.short { display: none; }
 	}
 </style>

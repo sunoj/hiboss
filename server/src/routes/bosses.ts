@@ -7,11 +7,13 @@ import type { Context } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { identityConflict } from './boss-external-accounts';
+import { buildBossUpdate } from './boss-updates';
 import { issueBossToken } from '../boss-token';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
 
-interface BossRow {
+export interface BossRow {
   id: string;
   name: string;
   role: BossRole;
@@ -28,8 +30,6 @@ interface AgentRow {
 }
 
 const VALID_ROLES: BossRole[] = ['admin', 'manager', 'viewer'];
-const VALID_CHANNELS = ['telegram', 'discord', 'email'];
-const VALID_PRIORITIES = ['critical', 'high', 'normal', 'low'];
 
 function requireAdmin(c: Context<{ Bindings: Env }>): Response | null {
   if (getBossRole(c) !== 'admin') {
@@ -45,26 +45,6 @@ export function escapeLike(value: string): string {
 function safeParse(value: string | null): Record<string, unknown> | null {
   if (!value) return null;
   try { return JSON.parse(value) as Record<string, unknown>; } catch { return null; }
-}
-
-function validatePreferences(prefs: Record<string, unknown>): string | null {
-  if ('preferred_channel' in prefs) {
-    if (prefs.preferred_channel !== null && (typeof prefs.preferred_channel !== 'string' || !VALID_CHANNELS.includes(prefs.preferred_channel))) {
-      return 'preferred_channel must be telegram, discord, email, or null';
-    }
-  }
-  if ('notify_priorities' in prefs) {
-    if (!Array.isArray(prefs.notify_priorities) || !prefs.notify_priorities.every((p: unknown) => typeof p === 'string' && VALID_PRIORITIES.includes(p as string))) {
-      return 'notify_priorities must be an array of valid priorities';
-    }
-  }
-  if ('quiet_hours' in prefs && prefs.quiet_hours !== null) {
-    const qh = prefs.quiet_hours as Record<string, unknown>;
-    if (typeof qh !== 'object' || typeof qh.start !== 'string' || typeof qh.end !== 'string') {
-      return 'quiet_hours must have start and end time strings (HH:MM)';
-    }
-  }
-  return null;
 }
 
 const routes = new Hono<{ Bindings: Env }>({});
@@ -105,10 +85,18 @@ routes.post('/', async (c) => {
   const discordUserId = discordInput === '' ? null : discordInput;
   const agentIdInput = typeof payload.agent_id === 'string' ? payload.agent_id.trim() : null;
   const bossAgentId = agentIdInput === '' ? null : agentIdInput;
-  const inserted = await c.env.DB
-    .prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id, agent_id) VALUES (?, ?, ?, ?, ?) RETURNING *')
-    .bind(name, role, telegramUserId, discordUserId, bossAgentId)
-    .first<BossRow>();
+  for (const [provider, userId] of [['telegram', telegramUserId], ['discord', discordUserId]] as const) {
+    if (userId && await identityConflict(c.env, '', provider, userId)) return c.text('external account already linked', 409);
+  }
+  const results = await c.env.DB.batch<BossRow>([
+    c.env.DB.prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id, agent_id) VALUES (?, ?, ?, ?, ?) RETURNING *')
+      .bind(name, role, telegramUserId, discordUserId, bossAgentId),
+    c.env.DB.prepare(`WITH created AS MATERIALIZED (SELECT * FROM bosses WHERE rowid = last_insert_rowid())
+      INSERT INTO boss_external_accounts (boss_id, provider, provider_user_id)
+      SELECT id, 'telegram', telegram_user_id FROM created WHERE telegram_user_id IS NOT NULL
+      UNION ALL SELECT id, 'discord', discord_user_id FROM created WHERE discord_user_id IS NOT NULL`),
+  ]);
+  const inserted = results[0].results[0];
   if (!inserted) {
     return c.text('failed to create boss', 500);
   }
@@ -138,80 +126,9 @@ routes.patch('/:id', async (c) => {
     return c.text('not found', 404);
   }
   const payload = await c.req.json<Record<string, unknown>>();
-  const updates: string[] = [];
-  const binds: (string | null)[] = [];
-  if ('name' in payload && typeof payload.name === 'string') {
-    const candidate = payload.name.trim();
-    if (!candidate) {
-      return c.text('name is required', 400);
-    }
-    updates.push('name = ?');
-    binds.push(candidate);
-  }
-  if ('role' in payload && typeof payload.role === 'string') {
-    if (!VALID_ROLES.includes(payload.role as BossRole)) {
-      return c.text('invalid role', 400);
-    }
-    updates.push('role = ?');
-    binds.push(payload.role as BossRole);
-  }
-  if ('telegram_user_id' in payload) {
-    if (payload.telegram_user_id === null) {
-      updates.push('telegram_user_id = NULL');
-    } else if (typeof payload.telegram_user_id === 'string') {
-      const candidate = payload.telegram_user_id.trim();
-      updates.push('telegram_user_id = ?');
-      binds.push(candidate === '' ? null : candidate);
-    } else {
-      return c.text('telegram_user_id must be a string or null', 400);
-    }
-  }
-  if ('discord_user_id' in payload) {
-    if (payload.discord_user_id === null) {
-      updates.push('discord_user_id = NULL');
-    } else if (typeof payload.discord_user_id === 'string') {
-      const candidate = payload.discord_user_id.trim();
-      updates.push('discord_user_id = ?');
-      binds.push(candidate === '' ? null : candidate);
-    } else {
-      return c.text('discord_user_id must be a string or null', 400);
-    }
-  }
-  if ('agent_id' in payload) {
-    if (payload.agent_id === null) {
-      updates.push('agent_id = NULL');
-    } else if (typeof payload.agent_id === 'string') {
-      const candidate = payload.agent_id.trim();
-      updates.push('agent_id = ?');
-      binds.push(candidate === '' ? null : candidate);
-    } else {
-      return c.text('agent_id must be a string or null', 400);
-    }
-  }
-  if ('preferences' in payload) {
-    if (payload.preferences === null) {
-      updates.push('preferences = NULL');
-    } else if (typeof payload.preferences === 'object' && !Array.isArray(payload.preferences)) {
-      const prefs = payload.preferences as Record<string, unknown>;
-      const err = validatePreferences(prefs);
-      if (err) return c.text(err, 400);
-      // Merge with existing preferences
-      const existing = safeParse(boss.preferences) ?? {};
-      const merged = { ...existing, ...prefs };
-      updates.push('preferences = ?');
-      binds.push(JSON.stringify(merged));
-    } else {
-      return c.text('preferences must be an object or null', 400);
-    }
-  }
-  if (updates.length === 0) {
-    return c.text('no valid fields to update', 400);
-  }
-  binds.push(boss.id);
-  await c.env.DB
-    .prepare(`UPDATE bosses SET ${updates.join(', ')} WHERE id = ?`)
-    .bind(...binds)
-    .run();
+  const result = await buildBossUpdate(c.env, boss, payload);
+  if (!result.ok) return c.text(result.error, result.status);
+  await c.env.DB.batch(result.writes);
   const updated = await findBoss(c.env, boss.id);
   if (!updated) {
     return c.text('not found', 404);

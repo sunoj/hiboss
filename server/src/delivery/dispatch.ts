@@ -3,6 +3,7 @@
 import type { Channel, Env, MessageRow } from '../types';
 import { logAudit } from '../audit';
 import { resolveDiscordChannelId } from '../routes/agent-delivery';
+import { groupTargets, recordTarget, mirrorMerged, chatKey, type DeliveryRow } from './targets';
 import { sendDestination } from './adapters';
 import { resolveDestinations } from './destinations';
 import { destinationsMode, type ResolvedDestination } from './types';
@@ -11,7 +12,6 @@ const MAX_ATTEMPTS = 3;
 const LEASE_MS = 5 * 60_000;
 const BATCH_SIZE = 50;
 type LegacyConfig = { channel: Channel; config: Record<string, unknown> };
-type DeliveryRow = { id: string; message_id: string; destination_id: string; attempts: number; next_attempt_at: string };
 
 export async function dispatchDestinations(env: Env, message: MessageRow, legacy: LegacyConfig[] = []): Promise<void> {
   const mode = destinationsMode(env.DESTINATIONS_MODE);
@@ -19,14 +19,11 @@ export async function dispatchDestinations(env: Env, message: MessageRow, legacy
   try {
     const now = new Date();
     const destinations = await resolveDestinations(env, message, now);
-    for (const destination of destinations) {
+    for (const group of await groupTargets(env, destinations)) {
+      const destination = group.destinations[0];
       const due = mode === 'on' && destination.kind !== 'native_live' ? destination.nextAttemptAt ?? now.toISOString() : null;
-      const row = await env.DB.prepare(`INSERT INTO message_deliveries (message_id, destination_id, next_attempt_at)
-        VALUES (?, ?, ?) ON CONFLICT(message_id, destination_id) DO NOTHING RETURNING id`)
-        .bind(message.id, destination.id, due).first<{ id: string }>();
-      if (row && due && due <= now.toISOString()) {
-        await attemptDelivery(env, { ...row, message_id: message.id, destination_id: destination.id, attempts: 0, next_attempt_at: due }, message, destination, now);
-      }
+      const row = await recordTarget(env, message.id, group, due);
+      if (row && due && due <= now.toISOString()) await attemptDelivery(env, row, message, destination, now);
     }
     if (mode === 'shadow') await compareShadow(env, message, legacy, destinations);
   } catch (error) {
@@ -57,30 +54,27 @@ async function chatSet(rows: { kind: string; config: Record<string, unknown> }[]
   const keys: string[] = [];
   for (const { kind, config } of rows) {
     if (kind !== 'telegram' && kind !== 'discord') continue;
-    const id = kind === 'discord'
-      ? (config.webhook_url ? config.thread_id ?? config.channel_id : config.channel_id)
-      : config.chat_id;
-    if (id) keys.push(`${kind}:${String(id)}`);
-    else if (typeof config.webhook_url === 'string') {
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(config.webhook_url));
-      keys.push(`discord:webhook:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`);
-    }
+    keys.push(await chatKey(kind, config));
   }
   return [...new Set(keys)].sort();
 }
 
 export async function drainDestinationDeliveries(env: Env, now = new Date()): Promise<void> {
   if (destinationsMode(env.DESTINATIONS_MODE) !== 'on') return;
-  const rows = await env.DB.prepare(`SELECT id, message_id, destination_id, attempts, next_attempt_at
-    FROM message_deliveries WHERE status IN ('queued', 'failed') AND next_attempt_at <= ?
+  const rows = await env.DB.prepare(`SELECT id, message_id, destination_id, attempts, next_attempt_at, external_target
+    FROM message_deliveries WHERE merged_into IS NULL AND status IN ('queued', 'failed') AND next_attempt_at <= ?
     ORDER BY next_attempt_at, id LIMIT ?`).bind(now.toISOString(), BATCH_SIZE).all<DeliveryRow>();
   for (const row of rows.results) {
     const message = await env.DB.prepare('SELECT * FROM messages WHERE id = ?').bind(row.message_id).first<MessageRow>();
     const destinations = message ? await resolveDestinations(env, message, now) : [];
-    const destination = destinations.find(item => item.id === row.destination_id);
+    const groups = await groupTargets(env, destinations);
+    const destination = row.external_target
+      ? groups.find(group => group.key === row.external_target)?.destinations[0]
+      : destinations.find(item => item.id === row.destination_id);
     if (!message || !destination || message.status === 'expired' || (message.expires_at && message.expires_at <= now.toISOString()) || row.attempts >= MAX_ATTEMPTS) {
       await env.DB.prepare("UPDATE message_deliveries SET status = 'failed', next_attempt_at = NULL, last_error = 'no longer eligible or retry limit reached', updated_at = ? WHERE id = ? AND next_attempt_at = ?")
         .bind(now.toISOString(), row.id, row.next_attempt_at).run();
+      await mirrorMerged(env, row.id);
       continue;
     }
     if (destination.nextAttemptAt) {
@@ -108,5 +102,7 @@ async function attemptDelivery(env: Env, row: DeliveryRow, message: MessageRow, 
     const retryAt = row.attempts + 1 < MAX_ATTEMPTS ? new Date(now.getTime() + 2 ** row.attempts * 60_000).toISOString() : null;
     await env.DB.prepare(`UPDATE message_deliveries SET status = 'failed', next_attempt_at = ?, last_error = 'destination send failed',
       updated_at = ? WHERE id = ? AND next_attempt_at = ?`).bind(retryAt, new Date().toISOString(), row.id, lease).run();
+  } finally {
+    await mirrorMerged(env, row.id);
   }
 }
