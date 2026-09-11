@@ -1,5 +1,7 @@
--- hiboss D1 database schema (consolidated from migrations 0001-0030)
+-- hiboss D1 schema: generated from migrations through 0038; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
+
+-- Agent authentication
 
 -- API keys for agent authentication
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -7,15 +9,17 @@ CREATE TABLE IF NOT EXISTS api_keys (
   name TEXT NOT NULL,
   key_hash TEXT NOT NULL UNIQUE,
   callback_url TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_used_at TEXT,
   default_priority TEXT NOT NULL DEFAULT 'normal' CHECK (default_priority IN ('critical', 'high', 'normal', 'low')),
   rate_limit INTEGER,
   channel_routing TEXT,
   avatar_url TEXT,
   role TEXT,
-  session_info TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_used_at TEXT
+  session_info TEXT
 );
+
+-- Messaging and channel delivery
 
 -- Messages between agents, bosses, and peer agents
 CREATE TABLE IF NOT EXISTS messages (
@@ -45,9 +49,10 @@ CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(agent_id, direction, 
 CREATE INDEX IF NOT EXISTS idx_messages_reply ON messages(reply_to);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_idempotency ON messages(agent_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id) WHERE session_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id) WHERE target_agent_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id, created_at) WHERE target_agent_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_target_session ON messages(target_session_id) WHERE target_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_expires_at ON messages(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_agent_expires ON messages(agent_id, expires_at) WHERE expires_at IS NOT NULL;
 
 -- Deferred channel deliveries blocked by boss quiet hours
 CREATE TABLE IF NOT EXISTS delivery_queue (
@@ -94,15 +99,18 @@ CREATE TABLE IF NOT EXISTS routing_rules (
 
 CREATE INDEX IF NOT EXISTS idx_routing_rules_channel ON routing_rules(channel, enabled, priority DESC);
 
+-- Agent groups
+
 -- Agent groups for broadcast messaging
 CREATE TABLE IF NOT EXISTS agent_groups (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL UNIQUE,
   description TEXT,
-  owner_id TEXT REFERENCES api_keys(id),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  owner_id TEXT REFERENCES api_keys(id)
 );
 
+-- Membership of agents in broadcast groups
 CREATE TABLE IF NOT EXISTS agent_group_members (
   group_id TEXT NOT NULL,
   agent_id TEXT NOT NULL,
@@ -112,16 +120,18 @@ CREATE TABLE IF NOT EXISTS agent_group_members (
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
 
--- Boss management
+-- Boss identity and access
+
+-- Boss identities and preferences
 CREATE TABLE IF NOT EXISTS bosses (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'manager', 'viewer')),
   telegram_user_id TEXT,
   discord_user_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   agent_id TEXT REFERENCES api_keys(id),
-  preferences TEXT DEFAULT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  preferences TEXT DEFAULT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id) WHERE telegram_user_id IS NOT NULL;
@@ -156,14 +166,15 @@ CREATE TABLE IF NOT EXISTS boss_signing_keys (
 CREATE INDEX IF NOT EXISTS idx_boss_signing_keys_boss
   ON boss_signing_keys(boss_id, created_at DESC);
 
+-- One-time codes for enrolling boss clients
 CREATE TABLE IF NOT EXISTS boss_pairing_codes (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
   code_hash TEXT NOT NULL UNIQUE,
   expires_at TEXT NOT NULL,
   consumed_at TEXT,
-  redeemed_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  redeemed_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_boss_pairing_codes_expiry ON boss_pairing_codes(expires_at);
@@ -190,6 +201,8 @@ CREATE TABLE IF NOT EXISTS boss_devices (
 
 CREATE INDEX IF NOT EXISTS idx_boss_devices_boss ON boss_devices(boss_id, last_seen_at DESC);
 
+-- Audit history
+
 -- Audit log
 CREATE TABLE IF NOT EXISTS audit_log (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -205,6 +218,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_type, actor_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action, created_at DESC);
 
+-- Session registration and onboarding
+
 -- Sessions: ephemeral workspace registrations
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
@@ -212,12 +227,12 @@ CREATE TABLE IF NOT EXISTS sessions (
   label TEXT,
   branch TEXT,
   cwd TEXT,
+  started_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
   status TEXT NOT NULL DEFAULT 'working' CHECK (status IN ('working', 'blocked', 'waiting', 'idle', 'completed')),
   status_text TEXT,
   discord_thread_id TEXT,
   telegram_topic_id INTEGER,
-  started_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
 
@@ -240,6 +255,8 @@ CREATE TABLE IF NOT EXISTS join_requests (
 CREATE INDEX IF NOT EXISTS idx_join_requests_token ON join_requests(poll_token);
 CREATE INDEX IF NOT EXISTS idx_join_requests_status ON join_requests(status, created_at DESC);
 
+-- Progress feed
+
 -- Progress feed posts: deliberately separate from messages and delivery.
 CREATE TABLE IF NOT EXISTS progress_posts (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -249,9 +266,9 @@ CREATE TABLE IF NOT EXISTS progress_posts (
   body TEXT NOT NULL,
   media TEXT,
   tags TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
   agent_label TEXT,
-  model TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  model TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC, id DESC);
@@ -271,6 +288,7 @@ CREATE TABLE IF NOT EXISTS progress_teams (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Boss likes on progress feed posts
 CREATE TABLE IF NOT EXISTS progress_likes (
   post_id TEXT NOT NULL REFERENCES progress_posts(id) ON DELETE CASCADE,
   boss_id TEXT NOT NULL REFERENCES bosses(id),
@@ -279,6 +297,8 @@ CREATE TABLE IF NOT EXISTS progress_likes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_progress_likes_post ON progress_likes(post_id);
+
+-- Session history
 
 -- Append-only per-session event log for history and resumable SSE streams.
 CREATE TABLE IF NOT EXISTS session_events (
@@ -299,8 +319,80 @@ CREATE TABLE IF NOT EXISTS session_events (
 
 CREATE INDEX IF NOT EXISTS idx_session_events_cursor ON session_events(session_id, sequence);
 
--- Durable questionnaire heads, immutable revisions, answers, and pull-delivery receipts.
--- Used by panel requests; submission and lifecycle writers update these atomically in D1.
+-- Live panels
+
+-- Panel ownership, current metadata, lifecycle defaults, and durable final state
+CREATE TABLE panels (
+  panel_id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL REFERENCES api_keys(id),
+  target_boss_id TEXT NOT NULL REFERENCES bosses(id),
+  task_key TEXT NOT NULL,
+  session_id TEXT NOT NULL REFERENCES sessions(id),
+  title TEXT NOT NULL,
+  catalog_id TEXT NOT NULL,
+  catalog_version INTEGER NOT NULL,
+  definition_revision INTEGER NOT NULL DEFAULT 1,
+  metadata_version INTEGER NOT NULL DEFAULT 1,
+  summary_json TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  request_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  lifecycle_json TEXT NOT NULL DEFAULT '{"taskState":"running","mode":"run","expectedUpdateIntervalSeconds":15,"terminalAt":null,"dismissAt":null,"dismissalPolicy":null,"result":null}',
+  final_snapshot_json TEXT,
+  last_operation_id TEXT,
+  supersedes_panel_id TEXT REFERENCES panels(panel_id),
+  UNIQUE(agent_id, idempotency_key)
+);
+
+CREATE INDEX idx_panels_agent_created ON panels(agent_id, created_at DESC, panel_id DESC);
+CREATE INDEX idx_panels_boss_created ON panels(target_boss_id, created_at DESC, panel_id DESC);
+
+-- Immutable panel definition revisions and initial state
+CREATE TABLE panel_definitions (
+  panel_id TEXT NOT NULL REFERENCES panels(panel_id) ON DELETE CASCADE,
+  definition_revision INTEGER NOT NULL,
+  protocol_version INTEGER NOT NULL,
+  catalog_id TEXT NOT NULL,
+  catalog_version INTEGER NOT NULL,
+  spec_json TEXT NOT NULL,
+  state_schema_json TEXT NOT NULL,
+  initial_state_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (panel_id, definition_revision)
+);
+
+-- Boss-owned panel placement preferences
+CREATE TABLE panel_preferences (
+  panel_id TEXT NOT NULL REFERENCES panels(panel_id) ON DELETE CASCADE,
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  preference_version INTEGER NOT NULL,
+  value_json TEXT NOT NULL,
+  PRIMARY KEY (panel_id, boss_id)
+);
+
+-- Immutable idempotency receipts for panel operations
+CREATE TABLE panel_operations (
+  operation_id TEXT PRIMARY KEY,
+  panel_id TEXT NOT NULL REFERENCES panels(panel_id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL,
+  request_hash TEXT NOT NULL,
+  receipt_json TEXT NOT NULL,
+  UNIQUE (panel_id, agent_id, idempotency_key)
+);
+
+-- Durable panel events awaiting relay delivery
+CREATE TABLE panel_outbox (
+  event_id TEXT PRIMARY KEY,
+  panel_id TEXT NOT NULL REFERENCES panels(panel_id) ON DELETE CASCADE,
+  metadata_version INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  delivered_at TEXT
+);
+
+-- Panel questionnaires
+
+-- Durable questionnaire heads and submission state
 CREATE TABLE interaction_requests (
   request_id TEXT PRIMARY KEY,
   panel_id TEXT NOT NULL REFERENCES panels(panel_id),
@@ -316,12 +408,16 @@ CREATE TABLE interaction_requests (
   UNIQUE(panel_id, idempotency_key)
 );
 CREATE INDEX idx_interaction_panel ON interaction_requests(panel_id, created_at, request_id);
+
+-- Immutable questionnaire definitions by revision
 CREATE TABLE interaction_revisions (
   request_id TEXT NOT NULL REFERENCES interaction_requests(request_id),
   revision INTEGER NOT NULL,
   definition_json TEXT NOT NULL CHECK (json_valid(definition_json)),
   PRIMARY KEY(request_id, revision)
 );
+
+-- Accepted answers and provenance bound to an exact questionnaire revision
 CREATE TABLE interaction_submissions (
   submission_id TEXT PRIMARY KEY,
   request_id TEXT NOT NULL UNIQUE REFERENCES interaction_requests(request_id),
@@ -333,6 +429,8 @@ CREATE TABLE interaction_submissions (
   accepted_at TEXT NOT NULL,
   FOREIGN KEY(request_id, revision) REFERENCES interaction_revisions(request_id, revision)
 );
+
+-- Pull-delivery acknowledgement receipts for accepted answers
 CREATE TABLE interaction_deliveries (
   submission_id TEXT PRIMARY KEY REFERENCES interaction_submissions(submission_id),
   acknowledged_at TEXT
