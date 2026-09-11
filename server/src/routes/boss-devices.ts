@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getClientId } from '../middleware/auth';
 import type { ApnsEnvironment } from '../apns';
+import { deleteBossDevice } from '../push/devices';
 
 type BossDevicePlatform = 'ios';
 
@@ -51,10 +52,7 @@ routes.post('/', async (c) => {
 });
 
 routes.delete('/:token', async (c) => {
-  await c.env.DB
-    .prepare('DELETE FROM boss_devices WHERE boss_id = ? AND device_token = ?')
-    .bind(getBossId(c), c.req.param('token').toLowerCase())
-    .run();
+  await deleteBossDevice(c.env, getBossId(c), c.req.param('token').toLowerCase());
   return c.json({ ok: true });
 });
 

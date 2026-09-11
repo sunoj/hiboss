@@ -1,6 +1,6 @@
 // Resolves boss-owned destinations, priority thresholds, quiet hours, and thread routes.
 // Exports the D1 resolver and pure eligibility helpers; depends on quiet-hours utilities.
-import type { Env } from '../types';
+import type { Env, Priority } from '../types';
 import { getQuietHoursEnd, isInQuietHours } from '../routes/quiet-hours';
 import { jsonObject, PRIORITY_RANK } from './types';
 import type { DestinationMessage, DestinationRow, ResolvedDestination, RouteRow } from './types';
@@ -10,7 +10,8 @@ export function eligibleDestination(row: DestinationRow, message: DestinationMes
     && PRIORITY_RANK[row.min_priority] <= PRIORITY_RANK[message.priority];
 }
 
-export function destinationQuietEnd(row: DestinationRow, now: Date): string | null {
+export function destinationQuietEnd(row: DestinationRow, priority: Priority, now: Date): string | null {
+  if (priority === 'high' || priority === 'critical') return null;
   if (!row.honours_quiet_hours || row.quiet_enabled === 0) return null;
   if (!row.quiet_end || !isInQuietHours(row.quiet_start, row.quiet_end, row.timezone, now)) return null;
   return getQuietHoursEnd(row.quiet_end, row.timezone ?? 'UTC', now).toISOString();
@@ -36,7 +37,7 @@ export async function resolveDestinations(env: Env, message: DestinationMessage,
   for (const row of rows.results) {
     if (!eligibleDestination(row, message)) continue;
     const route = await lookupRoute(env, row, message, scope);
-    resolved.push({ ...row, config: routeConfig(row, route), nextAttemptAt: destinationQuietEnd(row, now) });
+    resolved.push({ ...row, config: routeConfig(row, route), nextAttemptAt: destinationQuietEnd(row, message.priority, now) });
   }
   return resolved;
 }

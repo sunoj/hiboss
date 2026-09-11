@@ -5,7 +5,7 @@
 import type { Env, MessageResponse, MessageRow } from '../types';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
-import { findInboundRoute } from '../delivery';
+import { destinationsMode, findInboundRoute } from '../delivery';
 
 export function asString(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
@@ -24,8 +24,10 @@ export async function findEnabledChannelConfig(
   body?: string,
   threadId?: string,
 ): Promise<{ agent_id: string; config: string; session_id?: string | null; inbound?: true } | null> {
-  const inbound = await findInboundRoute(env, channel, externalId, body, threadId);
-  if (inbound) return inbound;
+  if (destinationsMode(env.DESTINATIONS_MODE) === 'on') {
+    const inbound = await findInboundRoute(env, channel, externalId, body, threadId);
+    if (inbound) return inbound;
+  }
   const path = channel === 'telegram' ? '$.chat_id' : '$.channel_id';
   const row = await env.DB
     .prepare(`SELECT agent_id, config FROM channel_configs WHERE channel = ? AND enabled = 1 AND json_extract(config, '${path}') = ? LIMIT 1`)

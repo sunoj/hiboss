@@ -37,10 +37,12 @@ export async function dispatchDestinations(env: Env, message: MessageRow, legacy
 }
 
 async function compareShadow(env: Env, message: MessageRow, legacy: LegacyConfig[], destinations: ResolvedDestination[]): Promise<void> {
-  const legacyRoutes = await Promise.all(legacy.map(async row => ({ kind: row.channel,
-    config: row.channel === 'discord' ? { ...row.config,
-      channel_id: await resolveDiscordChannelId(env, row.config, message.session_id) } : row.config,
-  })));
+  const legacyRoutes = await Promise.all(legacy.map(async row => {
+    const channelId = row.channel === 'discord' ? await resolveDiscordChannelId(env, row.config, message.session_id) : undefined;
+    const config = channelId && channelId !== row.config.channel_id
+      ? { ...row.config, channel_id: channelId, thread_id: channelId } : row.config;
+    return { kind: row.channel, config };
+  }));
   const oldChats = await chatSet(legacyRoutes);
   const newChats = await chatSet(destinations.map(row => ({
     kind: row.kind === 'telegram_chat' ? 'telegram' : row.kind === 'discord_channel' ? 'discord' : row.kind,
@@ -55,7 +57,9 @@ async function chatSet(rows: { kind: string; config: Record<string, unknown> }[]
   const keys: string[] = [];
   for (const { kind, config } of rows) {
     if (kind !== 'telegram' && kind !== 'discord') continue;
-    const id = config.chat_id ?? config.channel_id;
+    const id = kind === 'discord'
+      ? (config.webhook_url ? config.thread_id ?? config.channel_id : config.channel_id)
+      : config.chat_id;
     if (id) keys.push(`${kind}:${String(id)}`);
     else if (typeof config.webhook_url === 'string') {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(config.webhook_url));

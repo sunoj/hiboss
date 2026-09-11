@@ -66,7 +66,7 @@ it('defers per-destination quiet hours and allows an opt-out destination immedia
   await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label, honours_quiet_hours) VALUES ('immediate', 'retry-boss', 'discord_channel', 'retry-provider', '{\"channel_id\":\"11\"}', 'Immediate', 0)").run();
   const spy = vi.spyOn(adapters, 'sendDestination').mockResolvedValue('external-id');
   const row = await message();
-  await dispatchDestinations(on, { ...row, priority: 'high' });
+  await dispatchDestinations(on, { ...row, priority: 'normal' });
   expect(spy).toHaveBeenCalledTimes(1);
   expect(spy.mock.calls[0][1].id).toBe('immediate');
   expect(await env.DB.prepare("SELECT status, attempts FROM message_deliveries WHERE message_id = ? AND destination_id = 'retry-dest'").bind(row.id).first())
@@ -82,6 +82,19 @@ it('resolves Discord thread overrides independently of legacy session columns', 
   const row = await message();
   const result = await resolveDestinations(on, { ...row, session_id: 'retry-session' });
   expect(result[0].config).toMatchObject({ channel_id: '30', thread_id: '30' });
+});
+it.each(['high', 'critical'] as const)('delivers %s immediately during quiet hours', async priority => {
+  const now = new Date();
+  const start = new Date(now.getTime() - 60_000).toISOString().slice(11, 16);
+  const end = new Date(now.getTime() + 60_000).toISOString().slice(11, 16);
+  await env.DB.prepare("UPDATE bosses SET preferences = ? WHERE id = 'retry-boss'")
+    .bind(JSON.stringify({ quiet_hours: { enabled: true, start, end, timezone: 'UTC' } })).run();
+  const spy = vi.spyOn(adapters, 'sendDestination').mockResolvedValue('urgent-id');
+  const row = await message();
+  await dispatchDestinations(on, { ...row, priority });
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(await env.DB.prepare('SELECT status, attempts, next_attempt_at FROM message_deliveries WHERE message_id = ?').bind(row.id).first())
+    .toEqual({ status: 'sent', attempts: 1, next_attempt_at: null });
 });
 it('sends APNs only to the resolved live device and keeps native eligibility queued', async () => {
   await env.DB.prepare("UPDATE boss_destinations SET enabled = 0 WHERE id = 'retry-dest'").run();

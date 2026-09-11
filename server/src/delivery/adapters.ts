@@ -3,6 +3,8 @@
 import type { Env, MessageRow } from '../types';
 import { deliverToChannelWithOptions } from '../routes/delivery';
 import { parseOptionMedia } from '../routes/option-media';
+import { buildInlineKeyboard } from '../routes/message-options';
+import { deleteBossDevice } from '../push/devices';
 import { sendPush, type ApnsEnvironment } from '../apns';
 import { prepareBossPush } from '../push/boss-payload';
 import { jsonObject, type ResolvedDestination } from './types';
@@ -21,7 +23,7 @@ export async function sendDestination(env: Env, destination: ResolvedDestination
   const name = session?.label ? `${session.label} (${agent?.name ?? 'agent'})` : agent?.name ?? 'agent';
   const result = await deliverToChannelWithOptions(
     destination.kind === 'telegram_chat' ? 'telegram' : 'discord', destination.config, name, message.body,
-    options?.map(option => [{ text: option, callback_data: `${message.id.slice(0, 12)}:${option}` }]),
+    options ? buildInlineKeyboard(message.id, options) : undefined,
     typeof metadata.file_url === 'string' ? metadata.file_url : undefined, agent?.avatar_url ?? undefined,
     env, null, media.ok ? media.value : undefined, options,
   );
@@ -44,7 +46,7 @@ async function sendApns(env: Env, destination: ResolvedDestination, message: Mes
     JSON.stringify({ ...preferences, push: { ...push, [message.priority]: { ...tier, deliver: true } } }));
   if (!prepared) throw new Error('push payload unavailable');
   const result = await sendPush(env, device.device_token, device.environment, device.bundle_id, prepared.payload, prepared.apnsPriority);
-  if (result.prune) await env.DB.prepare('DELETE FROM boss_devices WHERE device_token = ?').bind(device.device_token).run();
+  if (result.prune) await deleteBossDevice(env, destination.boss_id, device.device_token);
   if (!result.ok) throw new Error(result.reason);
   return null;
 }

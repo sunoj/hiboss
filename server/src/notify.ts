@@ -8,6 +8,7 @@ import {
   type ApnsEnvironment,
 } from './apns';
 import { prepareBossPush, type BossPushSession } from './push/boss-payload';
+import { deleteBossDevice } from './push/devices';
 import type { Env, MessageRow } from './types';
 
 interface BossRecipientRow {
@@ -108,7 +109,7 @@ async function notifyBossDevices(
         prepared.apnsPriority,
       );
       if (result.prune) {
-        await env.DB.prepare('DELETE FROM boss_devices WHERE device_token = ?').bind(device.device_token).run();
+        await deleteBossDevice(env, device.boss_id, device.device_token);
       }
     } catch {
       // Best-effort per device.

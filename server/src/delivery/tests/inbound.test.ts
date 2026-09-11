@@ -1,10 +1,12 @@
 // Verifies destination inbound routes override legacy routes deterministically.
 // Depends on real D1 storage, webhook lookup, and destination pattern matching.
 import { env } from 'cloudflare:test';
-import { beforeAll, expect, it } from 'vitest';
+import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { seedDatabase } from '../../test-helpers';
 import { findEnabledChannelConfig } from '../../routes/webhook-helpers';
 import { findInboundRoute } from '../inbound';
+
+afterEach(() => vi.restoreAllMocks());
 
 beforeAll(async () => {
   await seedDatabase();
@@ -16,7 +18,14 @@ beforeAll(async () => {
   await env.DB.prepare("INSERT INTO inbound_routes (id, destination_id, target_agent_id, priority) VALUES ('default', 'id', 'new-agent', 0)").run();
 });
 it('consults inbound routes before legacy channel configs', async () => {
-  expect((await findEnabledChannelConfig(env, 'telegram', '123'))?.agent_id).toBe('new-agent');
+  expect((await findEnabledChannelConfig({ ...env, DESTINATIONS_MODE: 'on' }, 'telegram', '123'))?.agent_id).toBe('new-agent');
+});
+it.each([undefined, 'off', 'shadow'])('uses only legacy tables in mode %s', async mode => {
+  const prepare = vi.spyOn(env.DB, 'prepare');
+  expect((await findEnabledChannelConfig({ ...env, DESTINATIONS_MODE: mode }, 'telegram', '123'))?.agent_id)
+    .toBe('test-agent-id');
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(prepare.mock.calls[0][0]).toContain('FROM channel_configs');
 });
 it('honours pattern priority and skips invalid patterns', async () => {
   await env.DB.prepare("INSERT INTO inbound_routes (id, destination_id, pattern, target_agent_id, priority) VALUES ('pattern', 'id', '^deploy', 'test-agent-id', 10)").run();
@@ -26,5 +35,5 @@ it('honours pattern priority and skips invalid patterns', async () => {
 });
 it('falls back to channel configs if no enabled destination route matches', async () => {
   await env.DB.prepare("UPDATE boss_destinations SET enabled = 0 WHERE id = 'id'").run();
-  expect((await findEnabledChannelConfig(env, 'telegram', '123'))?.agent_id).toBe('test-agent-id');
+  expect((await findEnabledChannelConfig({ ...env, DESTINATIONS_MODE: 'on' }, 'telegram', '123'))?.agent_id).toBe('test-agent-id');
 });

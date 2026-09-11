@@ -44,7 +44,8 @@ coverage; absence of mismatch audits alone does not establish parity.
   Missing routes use the destination target. New on-mode threads are not automatically
   created; provision routes explicitly. Legacy thread creation remains in off/shadow.
 - The migration does not invent default inbound agents for shared chats. Configure
-  `inbound_routes` explicitly; priority descending then route ID selects the first
+  `inbound_routes` explicitly; only on mode consults them. Off/shadow query legacy
+  routing tables only. Priority descending then route ID selects the first
   matching pattern. A NULL pattern is a catch-all. Invalid patterns are skipped.
   Unmatched traffic retains the existing channel/session lookup.
 - Every existing iOS/macOS client has a `native_live` inventory destination; every
@@ -55,9 +56,9 @@ coverage; absence of mismatch audits alone does not establish parity.
 
 Thresholds are low < normal < high < critical. Enabled destinations remain eligible
 during quiet hours, with their own due time. The existing timezone-aware calculation
-is reused. On mode honors the destination's quiet-hours policy at every priority,
-including high/critical; set `honours_quiet_hours=false` on destinations that must
-interrupt overnight. Off/shadow external delivery retains the legacy urgent bypass.
+is reused. Quiet hours apply only to normal/low priority in every mode; high/critical
+bypass them exactly as legacy delivery does. Set `honours_quiet_hours=false` to opt
+a destination out of quiet hours entirely, including normal/low messages.
 
 Each external attempt atomically claims its row for five minutes. A failed send
 retries after one minute, then two minutes, with three total attempts maximum.

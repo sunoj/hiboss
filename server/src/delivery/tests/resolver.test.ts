@@ -25,8 +25,9 @@ for (const priority of priorities) for (const min of priorities) for (const enab
 for (const priority of priorities) for (const honours of [0, 1]) for (const quiet of [0, 1]) {
   it(`quiet hours priority ${priority}, honours ${honours}, enabled ${quiet}`, () => {
     const row = { ...base, honours_quiet_hours: honours, quiet_enabled: quiet };
-    expect(destinationQuietEnd(row, now)).toBe(honours && quiet ? '2026-09-11T08:00:00.000Z' : null);
-    expect(destinationQuietEnd(row, new Date('2026-09-11T12:00:00Z'))).toBeNull();
+    const deferred = honours && quiet && (priority === 'normal' || priority === 'low');
+    expect(destinationQuietEnd(row, priority, now)).toBe(deferred ? '2026-09-11T08:00:00.000Z' : null);
+    expect(destinationQuietEnd(row, priority, new Date('2026-09-11T12:00:00Z'))).toBeNull();
   });
 }
 

@@ -72,3 +72,29 @@ it('shadow records matching destinations without a disagreement audit', async ()
   expect(await env.DB.prepare('SELECT status FROM message_deliveries WHERE message_id = ?').bind(id).first()).toEqual({ status: 'queued' });
   expect(await env.DB.prepare("SELECT id FROM audit_log WHERE action = 'destination_shadow' AND resource_id = ?").bind(id).first()).toBeNull();
 });
+
+it.each([null, 'thread-session'])('compares effective Discord webhook threads with session %s', async sessionId => {
+  const config = { webhook_url: 'https://discord.com/api/webhooks/1/token', channel_id: '100', thread_id: '200', use_threads: true };
+  await env.DB.prepare("UPDATE channel_configs SET channel = 'discord', config = ? WHERE agent_id = 'test-agent-id'")
+    .bind(JSON.stringify(config)).run();
+  await env.DB.prepare("UPDATE channel_providers SET provider = 'discord', credentials = ? WHERE id = 'provider'")
+    .bind(JSON.stringify({ webhook_url: config.webhook_url })).run();
+  await env.DB.prepare("UPDATE boss_destinations SET kind = 'discord_channel', target = '{\"channel_id\":\"100\"}' WHERE id = 'destination'").run();
+  const thread = sessionId ? '300' : '200';
+  await env.DB.prepare("DELETE FROM destination_routes WHERE destination_id = 'destination'").run();
+  if (sessionId) await env.DB.prepare("INSERT INTO sessions (id, agent_id, discord_thread_id) VALUES (?, 'test-agent-id', ?)")
+    .bind(sessionId, thread).run();
+  await env.DB.prepare("INSERT INTO destination_routes (destination_id, external_thread_id) VALUES ('destination', ?)").bind(thread).run();
+  const spy = vi.spyOn(adapter, 'deliverToChannelWithOptions').mockResolvedValue({ delivered: true });
+  const ctx = createExecutionContext();
+  const response = await app.fetch(new Request('https://test/api/messages', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'thread parity', session_id: sessionId }),
+  }), { ...env, DESTINATIONS_MODE: 'shadow' }, ctx);
+  await waitOnExecutionContext(ctx);
+  expect(response.status).toBe(201);
+  const { id } = await response.json() as { id: string };
+  expect(spy).toHaveBeenCalledTimes(1);
+  expect(spy.mock.calls[0][1].thread_id).toBe(thread);
+  expect(await env.DB.prepare('SELECT status FROM message_deliveries WHERE message_id = ?').bind(id).first()).toEqual({ status: 'queued' });
+  expect(await env.DB.prepare("SELECT id FROM audit_log WHERE action = 'destination_shadow' AND resource_id = ?").bind(id).first()).toBeNull();
+});
