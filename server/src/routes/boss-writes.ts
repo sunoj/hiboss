@@ -148,6 +148,29 @@ routes.get('/channels', async (c) => {
   return c.json(rows.map(mapChannelRow));
 });
 
+routes.patch('/channels/:id', async (c) => {
+  const scope = await requireWriteScope(c);
+  if (!scope.ok) return scope.response;
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare('SELECT agent_id FROM channel_configs WHERE id = ?').bind(id).first<{ agent_id: string }>();
+  if (!row || !scope.agentIds.includes(row.agent_id)) return c.text('not found', 404);
+  const payload: unknown = await c.req.json().catch(() => null);
+  if (!payload || typeof payload !== 'object' || !('enabled' in payload) || typeof payload.enabled !== 'boolean') {
+    return c.text('enabled must be a boolean', 400);
+  }
+  const enabled = payload.enabled;
+  const [, remaining] = await c.env.DB.batch<{ count: number }>([
+    c.env.DB.prepare('UPDATE channel_configs SET enabled = ? WHERE id = ?').bind(Number(enabled), id),
+    c.env.DB.prepare('SELECT COUNT(*) AS count FROM channel_configs WHERE agent_id = ? AND enabled = 1').bind(row.agent_id),
+  ]);
+  const updated = (await loadChannelRows(c.env, [row.agent_id])).find((channel) => channel.id === id);
+  if (!updated) return c.text('not found', 404);
+  audit(c, scope.bossId, 'channel.update', 'channel_config', id, JSON.stringify({ enabled }));
+  const warning = !enabled && remaining.results[0]?.count === 0
+    ? { warning: 'agent has no enabled channel; hiboss send will fail' } : {};
+  return c.json({ ...mapChannelRow(updated), ...warning });
+});
+
 routes.get('/system', async (c) => {
   const agentIds = await accessibleAgents(c);
   const dbRow = await c.env.DB.prepare('SELECT 1 AS ok').first<{ ok: number }>();
@@ -244,7 +267,7 @@ async function loadChannelRows(env: Env, agentIds: string[]) {
 }
 
 function mapChannelRow(row: { id: string; agent_id: string; agent_name: string; channel: Channel; config: string; enabled: 0 | 1; created_at: string }): ChannelDisplay {
-  return { id: row.id, agent_id: row.agent_id, agent_name: row.agent_name, channel: row.channel, configured: row.enabled === 1, enabled: row.enabled, created_at: row.created_at, ...publicConfig(row.config) };
+  return { ...publicConfig(row.config), id: row.id, agent_id: row.agent_id, agent_name: row.agent_name, channel: row.channel, configured: row.enabled === 1, enabled: row.enabled, created_at: row.created_at };
 }
 
 function publicConfig(raw: string): ChannelDisplay {

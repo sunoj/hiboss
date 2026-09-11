@@ -1,16 +1,23 @@
+<!-- Channel row with enabled switch and inline request feedback.
+     Depends on channel helpers, API types, and i18n. -->
 <script lang="ts">
+	import { t } from '$lib/i18n';
 	import { formatRelativeTime } from '$lib/api/mappers';
 	import type { BossChannelConfig } from '$lib/api/types';
 	import { configuredLabel, publicFields } from './groupChannels';
 
 	interface Props {
 		channel: BossChannelConfig;
+		disabled: boolean;
+		error?: string;
+		warning?: boolean;
+		onToggle: (channel: BossChannelConfig) => Promise<void>;
 	}
 
-	let { channel }: Props = $props();
+	let { channel, disabled, error, warning, onToggle }: Props = $props();
 
 	const fields = $derived(publicFields(channel));
-	const on = $derived(Boolean(channel.configured));
+	const on = $derived(channel.enabled === 1);
 </script>
 
 <li class="row" class:ok={on} class:off={!on}>
@@ -18,7 +25,9 @@
 	<div class="main">
 		<div class="top">
 			<span class="name">{channel.channel}</span>
-			<span class="state">{configuredLabel(on)}</span>
+			<button type="button" class="state" role="switch" aria-checked={on}
+				aria-label={t('channel.toggle', { channel: channel.channel, agent: channel.agent_name })}
+				{disabled} onclick={() => onToggle(channel)}>{configuredLabel(on)}</button>
 			<span class="when" title={channel.created_at}>{formatRelativeTime(channel.created_at)}</span>
 		</div>
 		{#if fields.length > 0}
@@ -31,6 +40,8 @@
 				{/each}
 			</dl>
 		{/if}
+		{#if error}<p class="feedback error" role="alert">{error}</p>{/if}
+		{#if warning}<p class="feedback warning" role="status">{t('channel.noEnabledWarning')}</p>{/if}
 	</div>
 </li>
 
@@ -77,6 +88,11 @@
 		font-weight: 600;
 	}
 	.state {
+		border: 1px solid currentColor;
+		border-radius: var(--hb-radius-sm);
+		background: var(--hb-bg-panel);
+		padding: 0.25rem 0.55rem;
+		cursor: pointer;
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -85,6 +101,11 @@
 	.ok .state {
 		color: var(--hb-success);
 	}
+	.state:disabled { opacity: 0.6; cursor: default; }
+	.state:focus-visible { outline: 2px solid var(--hb-success); outline-offset: 2px; }
+	.feedback { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+	.error { color: var(--hb-danger); }
+	.warning { color: var(--hb-warning); }
 	.when {
 		margin-left: auto;
 		font-size: 11px;
