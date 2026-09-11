@@ -11,6 +11,7 @@ export interface DestinationRow {
   boss_id: string;
   kind: DestinationKind;
   client_id: string | null;
+  provider_id: string | null;
   target: string;
   credentials: string | null;
   preferences: string | null;

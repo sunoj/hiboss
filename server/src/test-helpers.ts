@@ -4,6 +4,7 @@
 
 import { env } from 'cloudflare:test';
 import { hashApiKey } from './middleware/auth';
+import targetMigration from '../migrations/0041_destination_targets_external_accounts.sql?raw';
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
 import interactionMigration from '../migrations/0038_interaction_requests.sql?raw';
@@ -75,6 +76,9 @@ export async function seedDatabase(): Promise<void> {
     await env.DB.prepare(sql).run();
   }
   for (const sql of destinationMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
+    await env.DB.prepare(sql).run();
+  }
+  for (const sql of targetMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
     await env.DB.prepare(sql).run();
   }
   const keyHash = await hashApiKey(TEST_API_KEY);

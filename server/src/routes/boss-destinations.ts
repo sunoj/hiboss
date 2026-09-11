@@ -3,7 +3,8 @@
 import { Hono } from 'hono';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import type { Env } from '../types';
-import { parseDestination, parseDestinationPatch, parseProvider } from '../delivery';
+import { probeDestination, type ProbeDestination } from '../delivery/probe';
+import { destinationsMode, parseDestination, parseDestinationPatch, parseProvider } from '../delivery';
 
 const destinations = new Hono<{ Bindings: Env }>();
 const providers = new Hono<{ Bindings: Env }>();
@@ -23,7 +24,8 @@ destinations.get('/', async c => {
     (SELECT COUNT(*) FROM destination_routes r WHERE r.destination_id = d.id) AS route_count
     FROM boss_destinations d LEFT JOIN channel_providers p ON p.id = d.provider_id
     WHERE d.boss_id = ? ORDER BY d.created_at, d.id`).bind(getBossId(c)).all();
-  return c.json({ destinations: rows.results });
+  const providers = await c.env.DB.prepare('SELECT id, provider, label, created_at FROM channel_providers ORDER BY created_at, id').all();
+  return c.json({ destinations: rows.results, providers: providers.results, mode: destinationsMode(c.env.DESTINATIONS_MODE) });
 });
 
 destinations.patch('/:id', async c => {
@@ -50,6 +52,19 @@ destinations.delete('/:id', async c => {
   const row = await c.env.DB.prepare('DELETE FROM boss_destinations WHERE id = ? AND boss_id = ? RETURNING id')
     .bind(c.req.param('id'), getBossId(c)).first();
   return row ? c.json({ ok: true }) : c.json({ error: 'destination not found' }, 404);
+});
+
+destinations.post('/:id/test', async c => {
+  const row = await c.env.DB.prepare(`SELECT d.*, p.credentials FROM boss_destinations d
+    LEFT JOIN channel_providers p ON p.id = d.provider_id WHERE d.id = ? AND d.boss_id = ?`)
+    .bind(c.req.param('id'), getBossId(c)).first<ProbeDestination>();
+  if (!row) return c.json({ error: 'destination not found' }, 404);
+  if (destinationsMode(c.env.DESTINATIONS_MODE) !== 'on') return c.json({ error: 'destination probes require on mode' }, 409);
+  if (row.kind === 'native_live') return c.json({ error: 'native streams do not support probes' }, 409);
+  try {
+    const external_message_id = await probeDestination(c.env, row);
+    return c.json({ ok: true, external_message_id });
+  } catch { return c.json({ error: 'destination probe failed' }, 502); }
 });
 
 providers.get('/', async c => {

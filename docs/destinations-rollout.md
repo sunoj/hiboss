@@ -1,7 +1,9 @@
-# Destination delivery rollout — phase 2a
+# Destination delivery rollout — phases 2a–2b
 
 Apply migration `0040_destinations.sql` before deploying this server. It adds five
 tables, indexes, and a backfill; it does not alter `messages` or delete legacy data.
+Apply additive migration `0041_destination_targets_external_accounts.sql` before the
+phase 2b server. It adds external identities and canonical delivery target claims.
 This change is committed locally only. Deployment and the production comparison
 week are separate operational steps.
 
@@ -60,6 +62,17 @@ is reused. Quiet hours apply only to normal/low priority in every mode; high/cri
 bypass them exactly as legacy delivery does. Set `honours_quiet_hours=false` to opt
 a destination out of quiet hours entirely, including normal/low messages.
 
+Phase 2b collapses eligible destinations across bosses by effective external target:
+provider ID plus chat/channel and thread for Telegram/Discord, device token for APNs,
+and client ID for native live. SHA-256 target keys have a unique per-message claim.
+The earliest quiet-hours due time wins (an immediate destination wins over deferral),
+then destination ID breaks ties. Only the canonical row has a retry schedule; duplicates
+reference it through `merged_into` and copy its status and external receipt. The canonical
+row carries attempt counts. Shadow uses the same grouping but never schedules sends.
+Retries re-resolve the group, so an eligible shared destination can replace a disabled
+canonical destination. Changing the effective target cancels its existing retry.
+Deleting a canonical destination also cascades its merged delivery history.
+
 Each external attempt atomically claims its row for five minutes. A failed send
 retries after one minute, then two minutes, with three total attempts maximum.
 Cron rechecks access, enabled state, client/device ownership, quiet hours, and expiry.
@@ -111,12 +124,12 @@ SELECT COUNT(*) AS pending_legacy FROM delivery_queue
 WHERE status IN ('pending', 'processing', 'failed');
 ```
 
-Audit sets contain Telegram chat IDs and Discord effective channel IDs; webhook-only
-destinations use a SHA-256 URL fingerprint. Credentials are never placed in the audit.
+Audit sets contain SHA-256 fingerprints of provider credentials plus effective chat/channel
+and thread IDs. Sets collapse shared-boss multiplicities and preserve distinct threads.
+Credentials and device tokens are never placed in the audit.
 Compare routing, expected boss fan-out, disabled configs, quiet deferrals, and APNs
-eligibility separately. Chat-set parity does not verify message text, media, Telegram
-topic IDs, duplicate sends to a chat shared by several bosses, device receipts, or
-provider availability. Review route inventory too.
+eligibility separately. Target-set parity does not verify message text, media, device receipts, or
+provider availability. Automated shared-target adapter-call tests cover duplicate sends. Review route inventory too.
 
 Drain or explicitly disposition the legacy queue before enabling on. On leaves old
 queue rows untouched. Switch to `off` to restore legacy delivery for new messages;
@@ -125,16 +138,34 @@ outstanding real retries before resuming to avoid delivering stale work.
 
 ## API and deferred work
 
-`GET /api/boss/destinations` lists only the caller's destinations with provider labels
-and route counts. Managers/admins can POST Telegram/Discord destinations using an
+`GET /api/boss/destinations` lists only the caller's destinations with provider labels,
+route counts, the effective mode, and credential-free provider choices. Managers/admins can POST Telegram/Discord destinations using an
 existing provider, PATCH enabled/min_priority/honours_quiet_hours/label, and DELETE
 their own destinations. PATCH booleans are JSON booleans. Viewers are read-only.
 Even admins cannot mutate another boss's destination through this API.
 `GET/POST /api/boss/providers` is admin-only. New APIs accept no email kind/provider.
 
+`POST /api/boss/destinations/:id/test` requires ownership and a non-viewer role, and
+returns 409 unless mode is `on`. It sends an explicit probe to the base destination,
+ignoring delivery thresholds/quiet hours, without inserting a message. Native live
+streams have no push adapter and return 409. Channel and APNs probes return a receipt
+when available; adapter failures return a sanitized 502.
+
+The console `/notifications` page replaces Channels in navigation, showing only the
+current boss's destinations. `/channels` remains reachable until 2c. Administrators
+can create providers with write-only credentials; managers use safe provider choices.
+
+`GET/POST /api/boss/me/external-accounts` and `DELETE /api/boss/me/external-accounts/:id`
+manage only the caller's identities; viewers are read-only. Admins use the same CRUD
+under `/api/bosses/:bossId/external-accounts`. Provider/user pairs are globally unique.
+Inbound Telegram and Discord interactions prefer this table, falling back to old boss
+columns only when the pair is absent. Existing admin boss identity edits synchronize
+both stores atomically. Deletion clears a matching old column to prevent fallback
+recognition. Those columns remain until phase 2c.
+
 Route CRUD UI, automatic destination provisioning for newly registered native clients,
 native banner filtering/receipts, legacy message edit/reaction receipt adoption, CLI
-channel-management changes, preferences cleanup, and removal of `channel_configs`,
+channel-management changes, and removal of `channel_configs`,
 `routing_rules`, and `delivery_queue` remain deferred. Deleting a destination cascades
 its routes and delivery rows; export any audit evidence needed before deleting it.
 

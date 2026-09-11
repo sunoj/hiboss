@@ -8,7 +8,7 @@ import { cloudflarePool, cloudflareTest } from '@cloudflare/vitest-pool-workers'
 
 const workerOptions = {
   wrangler: { configPath: './wrangler.toml' },
-  miniflare: { bindings: { STREAM_POLL_INTERVAL_MS: '25' } },
+  miniflare: { bindings: { STREAM_POLL_INTERVAL_MS: '25', DESTINATIONS_MODE: 'off' } },
 };
 
 export default defineConfig({

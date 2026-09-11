@@ -948,10 +948,7 @@ const SettingsTab = {
   props: {
     state: { type: Object, required: true }
   },
-  emits: ['field', 'priority', 'save'],
-  setup() {
-    return { CHANNEL_OPTIONS, PRIORITY_OPTIONS };
-  },
+  emits: ['field', 'save'],
   template: `
     <section class="space-y-4">
       <div v-if="state.loading" class="flex items-center justify-center gap-3 rounded-3xl border border-border bg-surface-elevated p-10 text-sm text-ink-muted">
@@ -984,13 +981,6 @@ const SettingsTab = {
           <div class="mb-4 text-xs uppercase tracking-[0.18em] text-ink-muted">Preferences</div>
           <div class="grid gap-4 md:grid-cols-2">
             <label class="space-y-2 text-sm">
-              <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Preferred Channel</span>
-              <select :value="state.draft.preferred_channel || ''" @change="$emit('field', 'preferred_channel', $event.target.value)" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft">
-                <option value="">Default</option>
-                <option v-for="channel in CHANNEL_OPTIONS" :key="channel" :value="channel">{{ channel }}</option>
-              </select>
-            </label>
-            <label class="space-y-2 text-sm">
               <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Timezone</span>
               <input :value="state.draft.timezone || ''" @input="$emit('field', 'timezone', $event.target.value)" type="text" placeholder="e.g. Asia/Bangkok" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
             </label>
@@ -1004,15 +994,6 @@ const SettingsTab = {
               <span class="block text-xs uppercase tracking-[0.18em] text-ink-muted">Quiet Hours End</span>
               <input :value="state.draft.quiet_hours.end || ''" @input="$emit('field', 'quiet_end', $event.target.value)" type="time" class="w-full rounded-2xl border border-border bg-black/20 px-4 py-3 text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent-soft" />
             </label>
-          </div>
-          <div class="mt-5">
-            <div class="mb-2 text-xs uppercase tracking-[0.18em] text-ink-muted">Notification Priorities</div>
-            <div class="grid gap-2 sm:grid-cols-2">
-              <label v-for="priority in PRIORITY_OPTIONS" :key="priority" class="inline-flex items-center gap-3 rounded-2xl border border-border bg-black/20 px-4 py-3 text-sm text-ink">
-                <input :checked="state.draft.notify_priorities.includes(priority)" @change="$emit('priority', priority, $event.target.checked)" type="checkbox" class="h-4 w-4 rounded border-border bg-black/20 text-accent focus:ring-accent-soft" />
-                <span class="capitalize">{{ priority }}</span>
-              </label>
-            </div>
           </div>
           <div class="mt-6 flex justify-end">
             <button @click="$emit('save')" :disabled="state.saving" class="rounded-full bg-gradient-to-r from-accent-strong to-accent px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">Save Preferences</button>
@@ -1105,10 +1086,8 @@ const App = {
       loading: false,
       me: {},
       draft: {
-        preferred_channel: '',
         timezone: '',
         quiet_hours: { start: '', end: '' },
-        notify_priorities: []
       },
       saving: false
     });
@@ -1536,13 +1515,11 @@ const App = {
         ]);
         settings.me = me || {};
         settings.draft = {
-          preferred_channel: prefs.preferred_channel || '',
           timezone: prefs.timezone || '',
           quiet_hours: {
             start: (prefs.quiet_hours && prefs.quiet_hours.start) || '',
             end: (prefs.quiet_hours && prefs.quiet_hours.end) || ''
           },
-          notify_priorities: Array.isArray(prefs.notify_priorities) ? prefs.notify_priorities.slice() : []
         };
       } catch {
         toast('Failed to load settings', 'error');
@@ -1555,12 +1532,6 @@ const App = {
       else if (field === 'quiet_end') settings.draft.quiet_hours.end = value;
       else settings.draft[field] = value;
     }
-    function toggleNotifyPriority(priority, checked) {
-      const next = new Set(settings.draft.notify_priorities);
-      if (checked) next.add(priority);
-      else next.delete(priority);
-      settings.draft.notify_priorities = Array.from(next);
-    }
     async function saveSettings() {
       if (settings.saving) return;
       settings.saving = true;
@@ -1569,10 +1540,8 @@ const App = {
           ? { start: settings.draft.quiet_hours.start, end: settings.draft.quiet_hours.end }
           : null;
         const payload = {
-          preferred_channel: settings.draft.preferred_channel || null,
           timezone: settings.draft.timezone || '',
           quiet_hours: quiet,
-          notify_priorities: settings.draft.notify_priorities
         };
         await apiFetch('/api/boss/me/preferences', {
           method: 'PUT',
@@ -1683,7 +1652,6 @@ const App = {
       saveAgentConfig,
       updateSettingsField,
       setShowCompleted,
-      toggleNotifyPriority,
       saveSettings
     };
   },
@@ -1776,7 +1744,6 @@ const App = {
             v-else
             :state="settings"
             @field="updateSettingsField"
-            @priority="toggleNotifyPriority"
             @save="saveSettings"
           />
         </main>
