@@ -5,7 +5,6 @@ import { beforeAll, afterEach, expect, it, vi } from 'vitest';
 import app from '../../index';
 import { seedDatabase, seedBossToken } from '../../test-helpers';
 import { dispatchDestinations } from '../dispatch';
-import { credentialHash } from '../targets';
 import * as adapters from '../adapters';
 import type { MessageRow } from '../../types';
 import migration from '../../../migrations/0042_provider_credentials.sql?raw';
@@ -17,9 +16,9 @@ beforeAll(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 async function beforeMigration(): Promise<void> {
-  await env.DB.prepare('DROP INDEX idx_channel_providers_credential_hash').run();
+  await env.DB.prepare('DELETE FROM boss_destinations').run();
+  await env.DB.prepare('DELETE FROM channel_providers').run();
   await env.DB.prepare('DROP INDEX idx_channel_providers_effective_credential').run();
-  await env.DB.prepare('ALTER TABLE channel_providers DROP COLUMN credential_hash').run();
 }
 async function migrate(): Promise<void> {
   const statements = migration.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim()).filter(Boolean);
@@ -66,23 +65,36 @@ it('two providers, same token, two bosses, chat 506099557 produce one call and c
   expect(shadowClaims.results).toHaveLength(1);
   expect(shadowClaims.results[0].external_target).toBe(claims.results.find(row => row.external_target)?.external_target);
   await migrate();
-  expect(await env.DB.prepare('SELECT id, credential_hash FROM channel_providers').all()).toMatchObject({ results: [{ id: 'one', credential_hash: await credentialHash('same-secret') }] });
+  expect(await env.DB.prepare('SELECT id FROM channel_providers').all()).toMatchObject({ results: [{ id: 'one' }] });
   expect(await env.DB.prepare('SELECT DISTINCT provider_id FROM boss_destinations').all()).toMatchObject({ results: [{ provider_id: 'one' }] });
   expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM message_deliveries').first()).toEqual({ n: 4 });
   expect(await env.DB.prepare('PRAGMA foreign_key_check').all()).toMatchObject({ results: [] });
 });
 
-it('backfills SHA-256 byte and block boundaries with webhook precedence', async () => {
+const migrationCredentials: [string, Record<string, string | null>[]][] = [
+  ['webhook precedence', [{ webhook_url: 'webhook', bot_token: 'ignored-one' }, { webhook_url: 'webhook', bot_token: 'ignored-two' }]],
+  ['empty webhook fallback', [{ webhook_url: '', bot_token: 'token' }, { bot_token: 'token' }]],
+  ['null webhook fallback', [{ webhook_url: null, bot_token: 'token' }, { bot_token: 'token' }]],
+  ['missing credentials', [{}, { bot_token: '' }, { webhook_url: '', bot_token: null }]],
+  ['Unicode credentials', [{ bot_token: 'é🙂' }, { webhook_url: 'é🙂' }]],
+];
+it.each(migrationCredentials)('consolidates %s and enforces effective credential uniqueness', async (_label, credentials) => {
   await beforeMigration();
-  const vectors = ['', 'abc', 'é🙂', ...[55, 56, 63, 64, 65, 119, 120, 200].map(n => 'x'.repeat(n))];
-  for (const [index, token] of vectors.entries()) {
+  for (const [index, value] of credentials.entries()) {
     await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'discord', 'Vector', ?)")
-      .bind(String(index), JSON.stringify({ webhook_url: token, bot_token: token ? 'ignored' : '' })).run();
+      .bind(String(index), JSON.stringify(value)).run();
+    await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, provider_id, kind, target, label)
+      VALUES (?, 'one', ?, 'discord_channel', '{"channel_id":"123"}', 'Shared')`).bind(String(index), String(index)).run();
   }
+  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES ('distinct', 'discord', 'Distinct', '{\"bot_token\":\"distinct-secret\"}')").run();
   await migrate();
-  for (const [index, token] of vectors.entries()) {
-    expect(await env.DB.prepare('SELECT credential_hash FROM channel_providers WHERE id = ?').bind(String(index)).first())
-      .toEqual({ credential_hash: await credentialHash(token) });
+  expect(await env.DB.prepare('SELECT id FROM channel_providers ORDER BY id').all()).toMatchObject({ results: [{ id: '0' }, { id: 'distinct' }] });
+  expect(await env.DB.prepare('SELECT DISTINCT provider_id FROM boss_destinations').all()).toMatchObject({ results: [{ provider_id: '0' }] });
+  expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM boss_destinations').first()).toEqual({ n: credentials.length });
+  expect(await env.DB.prepare('PRAGMA foreign_key_check').all()).toMatchObject({ results: [] });
+  for (const value of credentials) {
+    await expect(env.DB.prepare("INSERT INTO channel_providers (provider, label, credentials) VALUES ('discord', 'Duplicate', ?)")
+      .bind(JSON.stringify(value)).run()).rejects.toThrow('UNIQUE constraint failed');
   }
 });
 
@@ -95,7 +107,7 @@ it.each(duplicateCredentials)('rejects duplicate effective credentials without e
   expect(responses.map(response => response.status).sort()).toEqual([201, 409]);
   for (const response of responses) {
     const body = await response.text();
-    expect(body).not.toContain('credential_hash');
+    if (response.status === 409) expect(body).toBe('{"error":"provider credentials already registered"}');
     expect(body).not.toContain('duplicate-token');
     expect(body).not.toContain('https://discord.com');
     expect(body).not.toContain('ignored-token');

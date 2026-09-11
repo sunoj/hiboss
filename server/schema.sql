@@ -461,11 +461,9 @@ CREATE TABLE channel_providers (
   provider TEXT NOT NULL CHECK (provider IN ('telegram', 'discord')),
   label TEXT NOT NULL,
   credentials TEXT NOT NULL CHECK (json_valid(credentials)),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  credential_hash TEXT
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE UNIQUE INDEX idx_channel_providers_credential_hash ON channel_providers(credential_hash);
 CREATE UNIQUE INDEX idx_channel_providers_effective_credential ON channel_providers(
   COALESCE(NULLIF(json_extract(credentials, '$.webhook_url'), ''), json_extract(credentials, '$.bot_token'), '')
 );
