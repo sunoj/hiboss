@@ -3,6 +3,7 @@
 // Dependencies: Hono, D1, auth middleware, and panel-runtime helpers.
 
 import { publicationLifecycle, readPreference } from '../lifecycle/repository';
+import { notifyWall } from '../relay/wall';
 import { DEFAULT_TTL_SECONDS, faultResponse, type Lifecycle } from '../lifecycle/types';
 import { Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../middleware/auth';
@@ -140,6 +141,8 @@ async function persistPublication(c: PanelContext, payload: PanelRequest, agentI
       : errorResponse(c, 409, 'idempotency_conflict', 'Idempotency-Key was already used with a different body');
     return errorResponse(c, 500, 'not_found', 'Panel could not be persisted');
   }
+  await notifyWall(c.env, targetBossId, panelId, agentId, persistedLifecycle.expiresAt)
+    .catch(() => { /* Publication is committed; clients recover a lost signal on reconciliation. */ });
   return c.json({ panelId, definitionRevision: 1, metadataVersion: 1, catalogVersion: metadata.catalogVersion, createdAt: now }, 201);
 }
 

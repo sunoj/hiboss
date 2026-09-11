@@ -9,6 +9,7 @@ public final class PanelRelayConnection {
 
     private let config: ConnectionConfig
     private let panelID: String
+    private let isWall: Bool
     private let onFrame: (PanelRelayFrame) -> Void
     private let onDisconnect: () -> Void
     private var socket: URLSessionWebSocketTask?
@@ -18,11 +19,13 @@ public final class PanelRelayConnection {
     public init(
         config: ConnectionConfig,
         panelID: String,
+        isWall: Bool = false,
         onFrame: @escaping (PanelRelayFrame) -> Void,
         onDisconnect: @escaping () -> Void
     ) {
         self.config = config
         self.panelID = panelID
+        self.isWall = isWall
         self.onFrame = onFrame
         self.onDisconnect = onDisconnect
     }
@@ -43,18 +46,19 @@ public final class PanelRelayConnection {
 
     public func requestSnapshot() {
         guard let socket else { return }
-        Task { try? await socket.send(.string(Self.subscribeMessage(panelID: panelID))) }
+        Task { try? await socket.send(.string(subscribeMessage)) }
     }
 
     private func run() async {
         var delay: UInt64 = 1_000_000_000
         while !stopped && !Task.isCancelled {
             do {
-                let ticket = try await HibossAPI(config: config).issuePanelConnectionTicket(panelID: panelID)
+                let api = HibossAPI(config: config)
+                let ticket = try await (isWall ? api.issuePanelWallConnectionTicket() : api.issuePanelConnectionTicket(panelID: panelID))
                 let task = makeSocket(ticket: ticket.ticket)
                 socket = task
                 task.resume()
-                try await task.send(.string(Self.subscribeMessage(panelID: panelID)))
+                try await task.send(.string(subscribeMessage))
                 try await receive(from: task)
             } catch {
                 // A failed handshake or receive is a subscription loss; the next loop gets a new ticket.
@@ -89,7 +93,8 @@ public final class PanelRelayConnection {
         }
     }
 
-    private static func subscribeMessage(panelID: String) -> String {
-        "{\"protocolVersion\":2,\"kind\":\"subscribe\",\"panelId\":\"\(panelID)\"}"
+    private var subscribeMessage: String {
+        let kind = isWall ? "wall.subscribe" : "subscribe"
+        return "{\"protocolVersion\":2,\"kind\":\"\(kind)\",\"panelId\":\"\(panelID)\"}"
     }
 }

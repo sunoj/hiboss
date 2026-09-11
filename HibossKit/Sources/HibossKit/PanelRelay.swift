@@ -47,7 +47,7 @@ public struct PanelRelayPatch: Decodable, Equatable, Sendable {
 }
 public enum PanelRelayFrame: Decodable, Equatable, Sendable {
     case snapshot(PanelRelaySnapshot), patch(PanelRelayPatch), observation(PanelRelaySnapshot)
-    case metadataChanged, subscriptionRevoked, ignored
+    case metadataChanged, wallChanged, subscriptionRevoked, ignored
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         switch try values.decode(String.self, forKey: .kind) {
@@ -55,6 +55,7 @@ public enum PanelRelayFrame: Decodable, Equatable, Sendable {
         case "state.patch": self = .patch(try PanelRelayPatch(from: decoder))
         case "state.observation": self = .observation(try PanelRelaySnapshot(from: decoder))
         case "panel.changed": self = .metadataChanged
+        case "wall.changed": self = .wallChanged
         case "subscription.revoked": self = .subscriptionRevoked
         case "error":
             let code = try values.decode(String.self, forKey: .code)
@@ -89,7 +90,7 @@ public struct PanelRelayState: Equatable, Sendable {
             guard patch.baseSequence == sequence, patch.checkpoint.sequence == sequence + 1 else { return .resyncRequired }
             return install(patch.checkpoint, replacement: false)
         case .subscriptionRevoked: return .rejected
-        case .metadataChanged, .ignored: return .ignored
+        case .metadataChanged, .wallChanged, .ignored: return .ignored
         }
     }
 

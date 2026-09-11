@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI, HibossKit, DashboardView, AttentionView, and HistoryView.
 
 import HibossKit
+import AppKit
 import SwiftUI
 
 struct MainView: View {
@@ -39,6 +40,9 @@ struct MainView: View {
         }
         .frame(minWidth: 480, minHeight: 400)
         .onAppear { updateOverview() }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            Task { await panels.load() }
+        }
         .onChange(of: flow.historyMessages) { updateOverview() }
         .onChange(of: flow.activeMessage) { updateOverview() }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }

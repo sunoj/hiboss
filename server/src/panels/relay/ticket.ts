@@ -3,7 +3,7 @@
 // Dependencies: Web Crypto and Web Platform base64/text codecs.
 
 export type PanelRole = 'producer' | 'subscriber';
-export type PanelOperation = 'subscribe' | 'lease.claim' | 'lease.release' | 'state.update';
+export type PanelOperation = 'subscribe' | 'wall.subscribe' | 'lease.claim' | 'lease.release' | 'state.update';
 
 export interface TicketEnvelope {
   readonly roomId: string;
@@ -39,7 +39,7 @@ export function isPanelRole(value: unknown): value is PanelRole {
 }
 
 export function isPanelOperation(value: unknown): value is PanelOperation {
-  return value === 'subscribe' || value === 'lease.claim' || value === 'lease.release' || value === 'state.update';
+  return value === 'subscribe' || value === 'wall.subscribe' || value === 'lease.claim' || value === 'lease.release' || value === 'state.update';
 }
 
 function toBase64Url(value: string): string {

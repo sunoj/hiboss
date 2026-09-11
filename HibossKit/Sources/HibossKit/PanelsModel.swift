@@ -29,6 +29,10 @@ public final class PanelsModel: ObservableObject {
     let configurationProvider: (@MainActor () async throws -> ConnectionConfig)?
     var lastUpdated: [String: Date] = [:]
     var isFetching = false
+    var needsReconcile = false
+    var reconciliationTask: Task<Void, Never>?
+    var wallConnection: PanelRelayConnection?
+    var wallConfig: ConnectionConfig?
     var lastReconciled = Date.distantPast
     @Published public var section: PanelWallSection = .active
     @Published public internal(set) var preferenceError: String?
@@ -143,7 +147,8 @@ public final class PanelsModel: ObservableObject {
     deinit {
         clockTask?.cancel()
         producerTasks.forEach { $0.cancel() }
-        let connections = Array(relayConnections.values)
+        reconciliationTask?.cancel()
+        let connections = Array(relayConnections.values) + [wallConnection].compactMap { $0 }
         Task { @MainActor in connections.forEach { $0.stop() } }
     }
 }

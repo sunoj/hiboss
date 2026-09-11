@@ -13,7 +13,8 @@ interface Lease { epoch: string; expiresAt: number; requestId: string; hash: str
 interface UpdateReceipt { id: string; hash: string; expiresAt: number; frame: Checkpoint & { kind: string }; }
 export class PanelEngine {
   private queues = new Map<string, Promise<unknown>>();
-  constructor(private storage: DurableObjectStorage, private db: D1Database, private broadcast: (panelId: string, frame: unknown) => void) {}
+  constructor(private storage: DurableObjectStorage, private db: D1Database, private broadcast: (panelId: string, frame: unknown) => void,
+    private wallChanged: (panelId: string, agentId: string, expiresAt: string) => Promise<void>) {}
 
   async execute(panelId: string, identity: string, role: 'producer' | 'subscriber', action: string, body: unknown, key = ''): Promise<unknown> {
     const previous = this.queues.get(panelId) ?? Promise.resolve();
@@ -87,6 +88,7 @@ export class PanelEngine {
     const snapshot = await this.storage.get<Checkpoint>(`snapshot:${row.panel_id}`);
     if (snapshot?.definitionRevision === row.definition_revision) await this.storage.put(`snapshot:${row.panel_id}`, { ...snapshot, expiresAt });
     this.broadcast(row.panel_id, { kind: 'panel.changed', panelId: row.panel_id, metadataVersion: receipt.metadataVersion });
+    await this.wallChanged(row.panel_id, row.agent_id, expiresAt);
     return receipt;
   }
 
@@ -180,7 +182,7 @@ export class PanelEngine {
       : await prepareControl(row, snapshot, agentId, key, parseControl(command), epoch);
     await this.storage.transaction(async transaction => {
       await transaction.put(`pending:${row.panel_id}`, pending);
-      await transaction.setAlarm(Date.now() + 5000);
+      await transaction.setAlarm(Math.min(await transaction.getAlarm() ?? Infinity, Date.now() + 5000));
     });
     return this.finish(pending);
   }
@@ -191,6 +193,8 @@ export class PanelEngine {
       await this.storage.put(`snapshot:${pending.panelId}`, pending.snapshot);
       await this.storage.delete(`lease:${pending.panelId}`);
       this.broadcast(pending.panelId, { kind: 'panel.changed', panelId: pending.panelId, metadataVersion: pending.expectedVersion + 1 });
+      if (!pending.lifecycle.expiresAt) throw new PanelFault('invalid_lifecycle', 422);
+      await this.wallChanged(pending.panelId, pending.agentId, pending.lifecycle.expiresAt);
       await this.db.prepare('UPDATE panel_outbox SET delivered_at = ? WHERE event_id = ?').bind(new Date().toISOString(), pending.operationId).run();
       await this.storage.delete(`pending:${pending.panelId}`);
       return receipt;
@@ -199,7 +203,7 @@ export class PanelEngine {
         await this.storage.delete([`lease:${pending.panelId}`, `pending:${pending.panelId}`]);
         throw error;
       }
-      await this.storage.setAlarm(Date.now() + 5000);
+      await this.storage.setAlarm(Math.min(await this.storage.getAlarm() ?? Infinity, Date.now() + 5000));
       return { status: 'pending', operationId: pending.operationId };
     }
   }

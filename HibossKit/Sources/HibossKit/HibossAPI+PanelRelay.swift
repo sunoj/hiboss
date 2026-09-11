@@ -17,9 +17,17 @@ public struct PanelConnectionTicket: Decodable, Equatable, Sendable {
 
 extension HibossAPI {
     public func issuePanelConnectionTicket(panelID: String) async throws -> PanelConnectionTicket {
-        let endpoint = config.serverURL.appendingPathComponent("api/panel-connections")
+        try await issueConnectionTicket(path: "api/panel-connections", body: PanelConnectionRequest(panelID: panelID, role: "subscriber"))
+    }
+
+    public func issuePanelWallConnectionTicket() async throws -> PanelConnectionTicket {
+        try await issueConnectionTicket(path: "api/panel-wall-connections", body: [String: String]())
+    }
+
+    private func issueConnectionTicket(path: String, body: some Encodable) async throws -> PanelConnectionTicket {
+        let endpoint = config.serverURL.appendingPathComponent(path)
         var request = authorizedRequest(url: endpoint, method: "POST")
-        request.httpBody = try JSONEncoder().encode(PanelConnectionRequest(panelID: panelID, role: "subscriber"))
+        request.httpBody = try JSONEncoder().encode(body)
         let (data, response) = try await session.data(for: request)
         try validate(response)
         return try decoder.decode(PanelConnectionTicket.self, from: data)

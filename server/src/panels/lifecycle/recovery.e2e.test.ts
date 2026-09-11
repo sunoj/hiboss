@@ -26,11 +26,11 @@ describe('durable lifecycle recovery', () => {
         const value: unknown = Reflect.get(target, key);
         return typeof value === 'function' ? value.bind(target) : value;
       } });
-      const engine = new PanelEngine(context.storage, db, () => {});
+      const engine = new PanelEngine(context.storage, db, () => {}, async () => {});
       const pending = await engine.execute(id, getTestAgentId(), 'producer', 'lifecycle', command, 'finish');
       expect(pending).toMatchObject({ status: 'pending' });
       expect(await context.storage.get(`pending:${id}`)).toBeDefined();
-      const recovered = new PanelEngine(context.storage, env.DB, () => {});
+      const recovered = new PanelEngine(context.storage, env.DB, () => {}, async () => {});
       await recovered.repair();
       expect(await context.storage.get(`pending:${id}`)).toBeUndefined();
       const receipt = await recovered.execute(id, getTestAgentId(), 'producer', 'lifecycle', command, 'finish');
@@ -91,7 +91,7 @@ describe('durable lifecycle recovery', () => {
       return typeof value === 'function' ? value.bind(target) : value;
     } });
     await runInDurableObject(stub(), async (_instance, context) => {
-      const engine = new PanelEngine(context.storage, db, () => {});
+      const engine = new PanelEngine(context.storage, db, () => {}, async () => {});
       const claimed = await engine.execute(id, getTestAgentId(), 'producer', 'lease', { protocolVersion: 2, action: 'claim', definitionRevision: 1, requestId: 'coalesce-claim' });
       const epoch = (claimed as { epoch?: unknown }).epoch;
       if (typeof epoch !== 'string') throw new Error('Missing server epoch');
@@ -113,7 +113,7 @@ describe('durable lifecycle recovery', () => {
         const value: unknown = Reflect.get(target, key);
         return typeof value === 'function' ? value.bind(target) : value;
       } });
-      const engine = new PanelEngine(context.storage, db, () => {});
+      const engine = new PanelEngine(context.storage, db, () => {}, async () => {});
       const claimed = await engine.execute(id, getTestAgentId(), 'producer', 'lease', { protocolVersion: 2, action: 'claim', definitionRevision: 1, requestId: 'failing-mirror-claim' });
       const epoch = (claimed as { epoch?: unknown }).epoch;
       if (typeof epoch !== 'string') throw new Error('Missing server epoch');
@@ -180,7 +180,7 @@ describe('durable lifecycle recovery', () => {
         const value: unknown = Reflect.get(target, key);
         return typeof value === 'function' ? value.bind(target) : value;
       } });
-      const engine = new PanelEngine(context.storage, db, () => {});
+      const engine = new PanelEngine(context.storage, db, () => {}, async () => {});
       expect(await engine.execute(id, getTestAgentId(), 'producer', 'lifecycle', command, 'lost-alarm')).toMatchObject({ status: 'pending' });
       await context.storage.deleteAlarm();
     });

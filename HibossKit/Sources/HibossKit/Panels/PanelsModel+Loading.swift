@@ -6,17 +6,24 @@ import Foundation
 
 extension PanelsModel {
     public func load() async {
-        guard !isDemoMode, !isFetching else { return }
+        guard !isDemoMode else { return }
+        guard !isFetching else { needsReconcile = true; return }
         isFetching = true
         if tiles.isEmpty { loadState = .loading }
-        defer { isFetching = false; lastReconciled = Date() }
+        defer {
+            isFetching = false
+            lastReconciled = Date()
+            if needsReconcile { needsReconcile = false; reconcileSoon() }
+        }
         do {
             let service = try await panelService()
+            if let relayConfig { startWallSubscription(config: relayConfig) }
             let summaries = try await service.fetchPanels()
+            let additions = try await fetchAdditions(summaries, service: service)
             var fetched: [PanelTile] = []
             for summary in summaries {
                 serverClocks[summary.panelId] = (Date(timeIntervalSince1970: Double(summary.serverTime) / 1000), ProcessInfo.processInfo.systemUptime, Date())
-                fetched.append(try await reconcile(summary, service: service, order: (tiles.map(\.order).max().map { $0 + 1 } ?? 0) + fetched.count))
+                fetched.append(try reconcile(summary, addition: additions[summary.panelId], order: (tiles.map(\.order).max().map { $0 + 1 } ?? 0) + fetched.count))
             }
             let retained = Set(fetched.map(\.id))
             for id in relayConnections.keys where !retained.contains(id) {
@@ -32,7 +39,7 @@ extension PanelsModel {
         } catch { loadState = .failed(error.localizedDescription) }
     }
 
-    private func reconcile(_ summary: PanelMetadata, service: any PanelsServing, order: Int) async throws -> PanelTile {
+    private func reconcile(_ summary: PanelMetadata, addition: PanelAddition?, order: Int) throws -> PanelTile {
         if var existing = tiles.first(where: { $0.id == summary.panelId && $0.definitionRevision == summary.definitionRevision }) {
             guard summary.metadataVersion >= (existing.metadata?.metadataVersion ?? 0) else { return existing }
             existing.metadata = summary
@@ -43,10 +50,10 @@ extension PanelsModel {
             }
             return existing
         }
-        let detail = try await service.fetchPanel(summary.panelId)
+        guard let addition else { throw HibossAPIError.invalidResponse }
+        let (detail, checkpoint) = (addition.detail, addition.checkpoint)
         let fixture = PanelFixture(remote: detail)
         let store = PanelStore(fixture: fixture)
-        let checkpoint = try await service.fetchPanelState(summary.panelId)
         guard checkpoint.definitionRevision == detail.definition.definitionRevision else { throw HibossAPIError.invalidResponse }
         store.replaceTask(checkpoint.task)
         relayConnections.removeValue(forKey: summary.panelId)?.stop()
