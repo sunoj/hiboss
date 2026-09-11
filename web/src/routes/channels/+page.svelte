@@ -1,3 +1,5 @@
+<!-- Channels console with optimistic notification toggles.
+     Depends on boss API, auth, i18n, and grouped channel components. -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -13,10 +15,37 @@
 	let channels = $state<BossChannelConfig[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let pending = $state<Record<string, boolean>>({});
+	let errors = $state<Record<string, string>>({});
+	let warnings = $state<Record<string, boolean>>({});
 
 	const groups = $derived(groupChannelsByAgent(channels));
+	const saving = $derived(Object.values(pending).some(Boolean));
+	const readOnly = $derived(auth.connection?.boss?.role === 'viewer');
+
+	async function toggle(channel: BossChannelConfig): Promise<void> {
+		if (loading || readOnly || pending[channel.agent_id]) return;
+		const client = auth.client;
+		if (!client) { errors[channel.id] = t('top.offline'); return; }
+		pending[channel.agent_id] = true;
+		errors[channel.id] = '';
+		const enabled = channel.enabled !== 1;
+		channels = channels.map((row) => row.id === channel.id ? { ...row, enabled: Number(enabled) } : row);
+		try {
+			const { warning, ...updated } = await client.updateChannel(channel.id, enabled);
+			channels = channels.map((row) => row.id === channel.id ? updated : row);
+			for (const row of channels.filter((row) => row.agent_id === channel.agent_id)) warnings[row.id] = false;
+			warnings[channel.id] = Boolean(warning);
+		} catch (e) {
+			channels = channels.map((row) => row.id === channel.id ? channel : row);
+			errors[channel.id] = `${t('channel.updateFailed')}: ${e instanceof ApiError ? e.body || e.message : String(e)}`;
+		} finally {
+			pending[channel.agent_id] = false;
+		}
+	}
 
 	async function load() {
+		if (saving) return;
 		const client = auth.client;
 		if (!client) {
 			error = t('top.offline');
@@ -27,6 +56,8 @@
 		error = null;
 		try {
 			channels = await client.channels();
+			errors = {};
+			warnings = {};
 		} catch (e) {
 			error = e instanceof ApiError ? `${e.status}: ${e.body || e.message}` : String(e);
 		} finally {
@@ -45,7 +76,7 @@
 			<h1>{t('page.channels')}</h1>
 			<p class="sub">{t('page.channelsSub')}</p>
 		</div>
-		<button type="button" class="refresh" onclick={() => load()} disabled={loading}>
+		<button type="button" class="refresh" onclick={() => load()} disabled={loading || saving}>
 			{t('common.refresh')}
 		</button>
 	</header>
@@ -69,7 +100,7 @@
 		<div class="board" role="list">
 			{#each groups as group (group.agent_id)}
 				<div role="listitem">
-					<AgentChannelGroup {group} />
+					<AgentChannelGroup {group} {errors} {warnings} disabled={loading || readOnly || pending[group.agent_id]} onToggle={toggle} />
 				</div>
 			{/each}
 		</div>

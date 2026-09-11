@@ -8,6 +8,7 @@ import type { LocaleDictionary, MessageParams } from './types';
 import type { MessageKey } from './en';
 const n = (p: MessageParams): number => Number(p.count ?? 0);
 export const jaMessages = {
+ 'channel.toggle':(p:MessageParams)=>`${p.agent} の ${p.channel} 通知`,'channel.updateFailed':'チャンネルを更新できませんでした','channel.noEnabledWarning':'有効なチャンネルがありません。hiboss send は失敗します',
  'form.noDescription':'説明なし','form.copy':'コピー','form.copied':'コピー済み',
  'app.title':'hiboss コンソール','app.loading':'コンソールを読み込み中…','brand.console':'コンソール','brand.subtitle':'boss サーバーに接続','language.label':'言語','language.en':'English','language.zh':'簡体字中国語','language.ja':'日本語','language.ko':'韓国語',
  'nav.aria':'コンソールモジュール','nav.dashboard':'ダッシュボード','nav.messages':'メッセージ','nav.sessions':'セッション','nav.agents':'エージェント','nav.groups':'グループ','nav.bosses':'Boss とアクセス','nav.routing':'ルーティング','nav.channels':'チャンネル','nav.audit':'監査','nav.system':'システム / Doctor',

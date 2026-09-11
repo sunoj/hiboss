@@ -1,4 +1,7 @@
+<!-- Agent channel group with row toggle and feedback props.
+     Depends on AgentIdentity, ChannelRow, and i18n. -->
 <script lang="ts">
+	import type { BossChannelConfig } from '$lib/api/types';
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import type { AgentChannelGroup } from './groupChannels';
 	import ChannelRow from './ChannelRow.svelte';
@@ -6,9 +9,13 @@
 
 	interface Props {
 		group: AgentChannelGroup;
+		disabled: boolean;
+		errors: Record<string, string>;
+		warnings: Record<string, boolean>;
+		onToggle: (channel: BossChannelConfig) => Promise<void>;
 	}
 
-	let { group }: Props = $props();
+	let { group, disabled, errors, warnings, onToggle }: Props = $props();
 </script>
 
 <article class="group" aria-label={`${t('page.channels')} — ${group.agent_name}`}>
@@ -20,7 +27,7 @@
 	</header>
 	<ul class="list">
 		{#each group.channels as channel (channel.id)}
-			<ChannelRow {channel} />
+			<ChannelRow {channel} {disabled} {onToggle} error={errors[channel.id]} warning={warnings[channel.id]} />
 		{/each}
 	</ul>
 </article>

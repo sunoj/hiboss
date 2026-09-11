@@ -8,6 +8,7 @@ import type { LocaleDictionary, MessageParams } from './types';
 import type { MessageKey } from './en';
 const n = (p: MessageParams): number => Number(p.count ?? 0);
 export const koMessages = {
+ 'channel.toggle':(p:MessageParams)=>`${p.agent}의 ${p.channel} 알림`,'channel.updateFailed':'채널을 업데이트할 수 없습니다','channel.noEnabledWarning':'활성화된 채널이 없습니다. hiboss send가 실패합니다',
  'form.noDescription':'설명 없음','form.copy':'복사','form.copied':'복사됨',
  'app.title':'hiboss 콘솔','app.loading':'콘솔을 불러오는 중…','brand.console':'콘솔','brand.subtitle':'boss 서버에 연결','language.label':'언어','language.en':'English','language.zh':'중국어 간체','language.ja':'일본어','language.ko':'한국어',
  'nav.aria':'콘솔 모듈','nav.dashboard':'대시보드','nav.messages':'메시지','nav.sessions':'세션','nav.agents':'에이전트','nav.groups':'그룹','nav.bosses':'Boss 및 액세스','nav.routing':'라우팅','nav.channels':'채널','nav.audit':'감사','nav.system':'시스템 / Doctor',

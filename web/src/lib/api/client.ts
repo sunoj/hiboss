@@ -1,4 +1,5 @@
-/** Typed boss-surface HTTP client (Bearer auth). */
+// Typed boss-surface HTTP client (Bearer auth).
+// Exports BossApiClient and validateConnection; depends on API types and mappers.
 
 import {
 	DEFAULT_BASE_URL,
@@ -177,6 +178,10 @@ export class BossApiClient {
 
 	async channels(): Promise<BossChannelConfig[]> {
 		return this.request<BossChannelConfig[]>('GET', '/api/boss/channels');
+	}
+
+	async updateChannel(id: string, enabled: boolean): Promise<BossChannelConfig & { warning?: string }> {
+		return this.request('PATCH', `/api/boss/channels/${encodeURIComponent(id)}`, { enabled });
 	}
 
 	async system(): Promise<BossSystemResponse> {
