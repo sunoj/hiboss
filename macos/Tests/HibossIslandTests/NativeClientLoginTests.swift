@@ -60,6 +60,81 @@ final class NativeClientLoginTests: XCTestCase {
         XCTAssertEqual(calls, ["verify"])
     }
 
+    func testLegacyRegistrationPersistsActiveTokenDespiteUnsavedEdits() async throws {
+        let (store, tokens, api) = try fixture(stored: "existing-token")
+        await store.loadToken()
+        let current = try XCTUnwrap(store.activeClientConfig)
+        store.bossToken = "unsaved-token"
+        let inventory = BossClientsStore(api: api)
+        await inventory.load()
+        await inventory.register(kind: .macos, label: "Office Mac") { token in
+            let accepted = try store.activateDeviceToken(token, replacing: current)
+            XCTAssertEqual(accepted.serverURL, current.serverURL)
+            return api
+        }
+        XCTAssertEqual(try tokens.read(), "fresh-token")
+        XCTAssertEqual(store.activeClientConfig?.bossToken, "fresh-token")
+        XCTAssertEqual(store.bossToken, "fresh-token")
+        let calls = await api.calls
+        XCTAssertEqual(calls, ["create:macos:Office Mac"])
+    }
+
+    func testNativeRegistrationDoesNotReplaceStoredToken() async throws {
+        let (store, tokens, api) = try fixture(stored: "existing-token")
+        await store.loadToken()
+        await api.setCurrentKind(.macos)
+        let inventory = BossClientsStore(api: api)
+        await inventory.load()
+        await inventory.register(kind: .macos, label: "Mac") { _ in
+            XCTFail("Already native")
+            return api
+        }
+        XCTAssertEqual(try tokens.read(), "existing-token")
+        let calls = await api.calls
+        XCTAssertTrue(calls.isEmpty)
+    }
+
+    func testFailedLegacyRegistrationKeepsStoredAndActiveToken() async throws {
+        let (store, tokens, api) = try fixture(exchangeFails: true, stored: "existing-token")
+        await store.loadToken()
+        let current = try XCTUnwrap(store.activeClientConfig)
+        let inventory = BossClientsStore(api: api)
+        await inventory.load()
+        await inventory.register(kind: .macos, label: "Mac") { token in
+            _ = try store.activateDeviceToken(token, replacing: current)
+            return api
+        }
+        XCTAssertEqual(try tokens.read(), "existing-token")
+        XCTAssertEqual(store.activeClientConfig, current)
+        XCTAssertEqual(inventory.registrationNotice, ManualClientLogin.compatibilityNotice)
+    }
+
+    func testFailedKeychainWriteKeepsActiveTokenAndShowsCompatibilityNotice() async throws {
+        let (store, tokens, api) = try fixture(stored: "existing-token")
+        await store.loadToken()
+        let current = try XCTUnwrap(store.activeClientConfig)
+        tokens.failWrites()
+        let inventory = BossClientsStore(api: api)
+        await inventory.load()
+        await inventory.register(kind: .macos, label: "Mac") { token in
+            _ = try store.activateDeviceToken(token, replacing: current)
+            return api
+        }
+        XCTAssertEqual(try tokens.read(), "existing-token")
+        XCTAssertEqual(store.activeClientConfig, current)
+        XCTAssertEqual(store.bossToken, "existing-token")
+        XCTAssertEqual(inventory.registrationNotice, ManualClientLogin.compatibilityNotice)
+    }
+
+    func testStaleRegistrationCannotReplaceNewerConnection() async throws {
+        let (store, tokens, _) = try fixture(stored: "existing-token")
+        await store.loadToken()
+        let current = try XCTUnwrap(store.activeClientConfig)
+        _ = try store.activateDeviceToken("newer-token", replacing: current)
+        XCTAssertThrowsError(try store.activateDeviceToken("stale-token", replacing: current))
+        XCTAssertEqual(try tokens.read(), "newer-token")
+    }
+
     private func fixture(
         exchangeFails: Bool = false, verificationFails: Bool = false, stored: String? = nil
     ) throws -> (AppSettings, ClientLoginTokens, ClientLoginAPI) {
@@ -82,6 +157,9 @@ private actor ClientLoginAPI: BossClientsServing {
     let exchangeFails: Bool
     let verificationFails: Bool
     var calls: [String] = []
+    private var currentKind: BossClientKind = .web
+
+    func setCurrentKind(_ kind: BossClientKind) { currentKind = kind }
 
     init(exchangeFails: Bool, verificationFails: Bool) {
         self.exchangeFails = exchangeFails
@@ -101,14 +179,27 @@ private actor ClientLoginAPI: BossClientsServing {
         return BossClientGrant(client: client, token: "fresh-token")
     }
 
-    func listClients() async throws -> [BossClient] { [] }
+    func listClients() async throws -> [BossClient] {
+        let json = """
+        {"id":"current","kind":"\(currentKind.rawValue)","label":"migrated","created_at":"2026-09-11",
+        "has_push_device":false,"has_signing_key":false,"is_current":true}
+        """
+        return [try JSONDecoder().decode(BossClient.self, from: Data(json.utf8))]
+    }
     func revokeClient(id: BossClientID) async throws { XCTFail("Login must not revoke clients") }
 }
 
 private final class ClientLoginTokens: TokenStoring, @unchecked Sendable {
     private let lock = NSLock()
     private var token: String?
+    private var writesFail = false
     init(token: String?) { self.token = token }
     func read() throws -> String? { lock.withLock { token } }
-    func write(_ token: String) throws { lock.withLock { self.token = token } }
+    func failWrites() { lock.withLock { writesFail = true } }
+    func write(_ token: String) throws {
+        try lock.withLock {
+            if writesFail { throw SettingsError.keychain(-1) }
+            self.token = token
+        }
+    }
 }

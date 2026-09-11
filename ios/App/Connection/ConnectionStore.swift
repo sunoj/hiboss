@@ -91,12 +91,7 @@ final class ConnectionStore: ObservableObject {
                 return .failure(error)
             }
             do {
-                let replacesToken = try keychain.read() != candidate.bossToken
-                try keychain.write(candidate.bossToken)
-                if replacesToken {
-                    try signerStore.delete()
-                    messageSigner = nil
-                }
+                try persistToken(candidate.bossToken)
             } catch {
                 return .failure(error)
             }
@@ -106,6 +101,30 @@ final class ConnectionStore: ObservableObject {
             config = candidate
             return .success(())
         }
+    }
+
+    func activateDeviceToken(_ token: String, replacing current: ConnectionConfig) throws -> HibossAPI {
+        guard config == current else { throw CancellationError() }
+        try persistToken(token)
+        let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
+        bossToken = token
+        serverAddress = current.serverURL.absoluteString
+        clientExchangeNotice = nil
+        config = accepted
+        return HibossAPI(config: accepted)
+    }
+
+    private func persistToken(_ token: String) throws {
+        let previous = try keychain.read()
+        try keychain.write(token)
+        guard previous != token else { return }
+        do {
+            try signerStore.delete()
+        } catch {
+            try keychain.write(previous ?? "")
+            throw error
+        }
+        messageSigner = nil
     }
 
     /// Redeems a Mac-generated pairing code and persists the resulting connection.

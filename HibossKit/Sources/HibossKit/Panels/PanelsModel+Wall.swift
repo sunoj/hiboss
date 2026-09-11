@@ -6,6 +6,11 @@ import Foundation
 extension PanelsModel {
     func startWallSubscription(config: ConnectionConfig) {
         guard wallConnection == nil || wallConfig != config else { return }
+        if wallConfig != config {
+            for connection in relayConnections.values { connection.stop() }
+            relayConnections.removeAll()
+            liveSubscriptions.removeAll()
+        }
         wallConnection?.stop()
         wallConfig = config
         let connection = PanelRelayConnection(config: config, panelID: "wall", isWall: true) { [weak self] frame in

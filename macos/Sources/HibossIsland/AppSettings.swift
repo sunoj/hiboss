@@ -171,6 +171,17 @@ final class AppSettings: ObservableObject {
         prioritySounds[priority] ?? Self.defaultPrioritySounds[priority] ?? .fallback
     }
 
+    func activateDeviceToken(_ token: String, replacing current: ConnectionConfig) throws -> ConnectionConfig {
+        guard activeClientConfig == current else { throw CancellationError() }
+        let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
+        try keychain.write(token)
+        bossToken = token
+        serverAddress = current.serverURL.absoluteString
+        clientExchangeNotice = nil
+        activeClientConfig = accepted
+        return accepted
+    }
+
     func setSound(_ sound: OptionSound, for priority: MessagePriority) {
         var next = prioritySounds
         next[priority] = sound

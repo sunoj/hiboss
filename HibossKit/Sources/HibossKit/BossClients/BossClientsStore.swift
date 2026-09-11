@@ -10,7 +10,9 @@ public final class BossClientsStore: ObservableObject {
     @Published public private(set) var clients: [BossClient] = []
     @Published public private(set) var isBusy = false
     @Published public private(set) var error: String?
-    private let api: any BossClientsServing
+    @Published public private(set) var registrationNotice: String?
+    @Published private var hasLoaded = false
+    private var api: any BossClientsServing
 
     public init(api: any BossClientsServing) { self.api = api }
 
@@ -19,8 +21,42 @@ public final class BossClientsStore: ObservableObject {
         isBusy = true
         error = nil
         defer { isBusy = false }
-        do { clients = try await api.listClients() }
+        do {
+            clients = try await api.listClients()
+            hasLoaded = true
+        }
         catch { self.error = error.localizedDescription }
+    }
+
+    public func needsRegistration(kind: BossClientKind) -> Bool {
+        hasLoaded && !clients.contains { $0.isCurrent && $0.kind == kind }
+    }
+
+    /// Activation must persist credentials before returning the newly authenticated API.
+    public func register(
+        kind: BossClientKind, label: String,
+        activate: @MainActor (String) throws -> any BossClientsServing
+    ) async {
+        let label = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isBusy, needsRegistration(kind: kind), !label.isEmpty else { return }
+        isBusy = true
+        registrationNotice = nil
+        error = nil
+        defer { isBusy = false }
+        do {
+            let grant = try await api.createClient(kind: kind, label: label)
+            try Task.checkCancellation()
+            api = try activate(grant.token)
+        } catch {
+            registrationNotice = ManualClientLogin.compatibilityNotice
+            return
+        }
+        // A failed refresh must not offer a second registration with stale inventory.
+        hasLoaded = false
+        do {
+            clients = try await api.listClients()
+            hasLoaded = true
+        } catch { self.error = error.localizedDescription }
     }
 
     public func revoke(_ client: BossClient) async {

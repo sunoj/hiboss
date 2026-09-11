@@ -27,8 +27,7 @@ struct MainView: View {
         self.flow = flow
         self.notificationNavigation = notificationNavigation
         _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
-            await settings.loadToken()
-            guard case let .success(config) = settings.connectionConfig() else {
+            guard let config = settings.activeClientConfig else {
                 throw PanelClientError.notConfigured
             }
             return config
@@ -60,6 +59,7 @@ struct MainView: View {
         }
         .onChange(of: flow.historyMessages) { updateOverview() }
         .onChange(of: flow.activeMessage) { updateOverview() }
+        .onChange(of: settings.activeClientConfig) { Task { await panels.load() } }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
     }
 

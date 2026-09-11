@@ -70,7 +70,7 @@ struct SettingsScene: View {
                 reconnect: connect
             )
         case .devices:
-            DevicesSettingsPane(settings: settings)
+            DevicesSettingsPane(settings: settings, reconnect: reconnectStreams)
         case .notifications:
             NotificationsSettingsPane(settings: settings, preferencesStore: preferencesStore,
                 notifications: notifications)
@@ -135,6 +135,12 @@ struct SettingsScene: View {
         Task { await saveAndConnect() }
     }
 
+    private func reconnectStreams(_ config: ConnectionConfig) {
+        let api = HibossAPI(config: config)
+        flow.connect(api: api)
+        notifications.connect(api: api)
+    }
+
     private func loadPreferencesIfConfigured() async {
         guard settings.isConfigured, preferencesStore.state == .idle else { return }
         await preferencesStore.load()
@@ -153,9 +159,7 @@ struct SettingsScene: View {
         case let .failure(error):
             statusMessage = error.localizedDescription
         case let .success(config):
-            let api = HibossAPI(config: config)
-            flow.connect(api: api)
-            notifications.connect(api: api)
+            reconnectStreams(config)
             await preferencesStore.save()
             statusMessage = preferencesStore.state == .loaded ? "" : statusMessage
         }

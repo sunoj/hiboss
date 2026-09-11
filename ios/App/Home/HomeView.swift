@@ -9,19 +9,9 @@ import UIKit
 struct HomeView: View {
     @ObservedObject var inbox: InboxStore
     let sessionAPI: (any SessionStreamServing)?
-    @StateObject private var panels: PanelsModel
+    @ObservedObject var panels: PanelsModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var actionNote: String?
-
-    init(
-        inbox: InboxStore,
-        sessionAPI: (any SessionStreamServing)?,
-        panelConfigurationProvider: @escaping @MainActor () async throws -> ConnectionConfig
-    ) {
-        self.inbox = inbox
-        self.sessionAPI = sessionAPI
-        _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: panelConfigurationProvider))
-    }
 
     var body: some View {
         content

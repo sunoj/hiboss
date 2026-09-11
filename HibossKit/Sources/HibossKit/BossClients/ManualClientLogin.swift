@@ -8,6 +8,10 @@ public struct ManualClientLogin: Sendable {
     public let config: ConnectionConfig
     public let notice: String?
 
+    public static var compatibilityNotice: String {
+        kitL("Device registration failed. Connected using the pasted token; this server may not support device tokens yet.")
+    }
+
     public static func exchange(
         config: ConnectionConfig, kind: BossClientKind, label: String,
         api: any BossClientsServing
@@ -21,9 +25,7 @@ public struct ManualClientLogin: Sendable {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            return ManualClientLogin(config: config, notice: kitL(
-                "Device registration failed. Connected using the pasted token; this server may not support device tokens yet."
-            ))
+            return ManualClientLogin(config: config, notice: compatibilityNotice)
         }
     }
 }
