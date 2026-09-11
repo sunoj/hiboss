@@ -78,14 +78,20 @@ keeps serving. No migration.
 
 ### Telegram
 
-- No media → unchanged.
-- Exactly one image (message-level or a single option) → `sendPhoto` with the caption
-  **and the inline keyboard**. Dropping the keyboard is the bug being fixed.
-- Two or more images → `sendMediaGroup` (Telegram requires 2..10 items) with per-item
-  caption `A · <label>`, then one `sendMessage` carrying the body and the inline keyboard.
-- `metadata.telegram_message_id` must be the id of the **keyboard-bearing** message.
-  `message-options.ts` edits that id to strike the buttons on resolution; storing an album
-  id there breaks resolution.
+One rule, because the three special cases this replaced each lost something: the question
+text, the buttons, or the ability to edit the message afterwards.
+
+- A message **with** an inline keyboard and any media → the media goes first (photo, album
+  of 2..10, or document), captions carrying only `A · <label>` plus the per-image caption
+  and never the body, then **one text message with the body and the keyboard**.
+- A message with **no** keyboard → one message, exactly as before: photo or document
+  captioned with the body.
+
+So `metadata.telegram_message_id` is always a plain text message whenever options exist.
+That is load-bearing: `message-options.ts` (resolution and expiry), `message-edit.ts` and
+`telegram-webhook-actions.ts` all edit that id, and they choose `editMessageText` versus
+`editMessageCaption` by whether the message carries options. A photo id stored there makes
+the "Selected" annotation fail silently.
 
 ### Boss API clients
 
@@ -101,7 +107,16 @@ way out (`boss-inbox`, `boss-home`, `boss-option-stream`).
   **Live Activity and Dynamic Island render labels only**: a Live Activity cannot load a
   remote image, so the comparison lives in the app, and the activity must stay readable
   without it.
-- **Web console** — an `<img>` per option in the message options view.
+- **Web console** — an `<img>` per option in the message options view, wide enough and
+  `object-fit: contain`, because a cropped screenshot answers a different question.
+
+A comparison tile must take the width it is offered and never the width of its image. Hang
+the aspect ratio off a view with no intrinsic size (`Color.clear.aspectRatio(…).overlay { … }`),
+not off the `AsyncImage`: with the ratio on the image, the tile lays out correctly until the
+image loads and then adopts the file's natural width — 480pt for an ordinary screenshot —
+which pushes every card in the surrounding list off the screen. Both iOS list surfaces and
+the message detail page shared that defect, and it is invisible in any test that renders the
+component while the image is still loading.
 
 ## CLI
 
@@ -129,3 +144,12 @@ Not "it compiles". A real two-option ask with two images, sent from the CLI, mus
 - Discord: show two labeled embeds and working buttons.
 - macOS and iOS: show both thumbnails; the pick resolves with the right `selected_option`.
 - D1: `metadata.option_media` present, `metadata.delivery_error` absent.
+
+A shared view has more than one caller, so this list is per *surface*, not per screen: on
+iOS the decision card appears in the Home list, the Inbox list and the message detail page,
+and a layout bug can live on exactly one of them. Rendering the component on a single screen
+at three Dynamic Type sizes is one test, not three.
+
+Status as of 2026-09-11: all of the above confirmed except the Discord render, which is
+covered only by unit tests on embed composition — the bot token used here cannot read that
+channel back (403).
