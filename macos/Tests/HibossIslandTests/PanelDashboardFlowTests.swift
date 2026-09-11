@@ -94,7 +94,7 @@ final class PanelDashboardFlowTests: XCTestCase {
             Text("Sample data · 8 panels").foregroundStyle(.secondary)
             PanelWallLayout {
                 ForEach(tiles) { tile in
-                    PanelDashboardCard(tile: tile, freshness: .live) {}
+                    PanelDashboardCard(tile: tile, freshness: .live, pendingCount: 0) {}
                         .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
             }

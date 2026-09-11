@@ -5,6 +5,9 @@ and the v2 production Worker are deployed; the local macOS Dashboard and CLI
 are installed. All seven retained production panels now use v2 definitions.
 See [the rollout record](rollout-2026-09-08.md) for exact scope and verification.
 
+See the [2026-09-11 native UI record](native-ui-2026-09-11.md) for questionnaire discovery,
+form improvements, and current macOS/iOS build evidence.
+
 ## Implemented
 
 - Running, paused, completed, failed, and cancelled task states, independent of
@@ -30,7 +33,7 @@ See [the rollout record](rollout-2026-09-08.md) for exact scope and verification
 - Boss-owned automatic/pinned/archived placement and separate seen/acknowledged
   terminal versions. Archive never stops the producer. Results remain available
   after a timed card leaves Active.
-- Native Active/Results/Archived filters, result presentation, placement actions,
+- Native Active/Needs input/Results/Archived filters, result presentation, placement actions,
   version reconciliation, and preservation of selection and stores during refresh.
 - Paginated discovery polling every ten seconds, plus per-panel metadata hints.
   Newly discovered panels append without sorting by observation time.
@@ -81,7 +84,8 @@ operation. A lapsed running or paused card leaves Active but stays running or pa
 pins keep it visible. No expiry sweep writes task state or archives records.
 
 A lifecycle command requires expectedMetadataVersion, expectedDefinitionRevision,
-expectedEpoch, expectedState, and `openRequests: "reject"`. Terminal commands can
+expectedEpoch, expectedState, and an open-request policy. Use `openRequests: "reject"`
+by default; terminal commands may use `withdraw` with `withdrawalReason`. Terminal commands can
 provide a schema-valid finalTask. Failure needs a result title and code;
 cancellation needs a result title explaining the reason. D1 uncertainty returns
 202 with an operation ID, never an uncommitted completed result.
@@ -134,13 +138,20 @@ Worker process. Native builds can be checked locally. Remote Linux cannot run
 SwiftUI or ActivityKit UI automation; do not report simulator compilation as a
 physical-device Live Activity test.
 
+## Durable questionnaires
+
+The production Worker now includes versioned intake questionnaires, atomic typed answers,
+explicit terminal withdrawal, CLI request commands, and native panel-detail entry
+points. See [questionnaires](questionnaires.md) for migration order, exact scope,
+retry semantics, and verification. Migration 0038 and the Worker were deployed on
+2026-09-11; see the [rollout record](rollout-2026-09-11.md) for client distribution.
+
 ## Remaining product scope
 
-Durable structured interaction requests/submissions, atomic request withdrawal,
-boss-scoped discovery push, and system Live Activity projection remain separate
-work. Existing form previews retain local drafts/captured answers. They must not be
-presented as durable server submissions. The current request policy is reject;
-there is no automatic withdrawal or synthetic approval.
+Shared attention/inbox integration, boss-scoped discovery push, execution authorization
+forms, and system Live Activity projection remain separate work. Existing standalone
+form previews retain local drafts/captured answers. Only published questionnaires use
+durable server submissions; no defaults or withdrawals produce synthetic approval.
 
 The [Dynamic Island feasibility plan](dynamic-island.md) describes reusing the
 existing iOS ActivityKit extension, bounded summary data, per-device dismissal,

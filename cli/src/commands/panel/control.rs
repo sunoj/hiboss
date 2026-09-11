@@ -19,6 +19,8 @@ pub struct PanelLifecycleArgs {
     #[arg(long, value_name = "JSON|@FILE")] pub final_task: Option<String>,
     #[arg(long, help = "Override the retry-safe default idempotency key")]
     pub idempotency_key: Option<String>,
+    #[arg(long, value_name = "REASON", help = "Explicitly withdraw unanswered questionnaires when ending the task")]
+    pub withdraw_requests: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -56,6 +58,11 @@ pub async fn run_shortcut(action: &str, args: &PanelLifecycleArgs, client: &HiBo
     let expected_epoch = live_epoch(&state);
     let mut body = json!({"protocolVersion":2,"action":action,"expectedMetadataVersion":metadata_version,"expectedDefinitionRevision":definition_revision,"expectedEpoch":expected_epoch,"expectedState":{"epoch":state.get("epoch").cloned().unwrap_or(Value::Null),"sequence":state.get("sequence").and_then(Value::as_u64).ok_or("panel state has no sequence")?},"openRequests":"reject"});
     if let Some(final_task) = &args.final_task { body["finalTask"] = parse_json_or_file(final_task)?; }
+    if let Some(reason) = &args.withdraw_requests {
+        if !matches!(action, "complete" | "fail" | "cancel") || reason.trim().is_empty() { return Err("--withdraw-requests needs a reason and a terminal command".into()); }
+        body["openRequests"] = json!("withdraw");
+        body["withdrawalReason"] = json!(reason);
+    }
     if matches!(action, "complete" | "fail" | "cancel") {
         let title = args.title.clone().unwrap_or_else(|| default_title(action));
         let mut result = json!({"title":title});

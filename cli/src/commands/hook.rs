@@ -26,144 +26,17 @@ pub enum HookEvent {
     PostToolUse,
     #[command(about = "Background HTTP checks (heartbeat, urgent inbox)")]
     BgCheck,
-    #[command(about = "No-op (kept for backward compatibility)")]
+    #[command(about = "Mark the session waiting and stop its background listener")]
     Stop,
 }
 
 pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
     let _ = match &args.event {
-        HookEvent::SessionStart => run_session_start().await,
+        HookEvent::SessionStart => super::hook_start::run().await,
         HookEvent::PostToolUse => run_post_tool_use(),
         HookEvent::BgCheck => run_bg_check().await,
         HookEvent::Stop => run_stop().await,
     };
-    Ok(())
-}
-
-async fn run_session_start() -> Result<(), Box<dyn Error>> {
-    // Clean up stale marker files from any previous session for this project.
-    // These are per-project (keyed by project hash), so they persist across sessions
-    // unless explicitly cleaned. Stop hook does NOT clean them (Claude Code fires Stop
-    // on every exit attempt including user-cancelled ones).
-    for path in [
-        session::session_file_path(),
-        session::asked_marker_path(),
-        session::replied_marker_path(),
-        session::ack_hint_shown_path(),
-        session::stop_warned_marker_path(),
-        session::broadcast_marker_path(),
-        session::peers_active_marker_path(),
-        session::broadcast_remind_ttl_path(),
-        session::read_queue_path(),
-        session::urgent_file_path(),
-        session::daemon_pending_path(),
-        session::ttl_file_path(),
-        session::a2a_ttl_file_path(),
-        session::resume_pending_marker_path(),
-    ] {
-        let _ = fs::remove_file(path);
-    }
-
-    // Idempotent: reuse existing session if file already exists (handles duplicate hooks)
-    let session_id = if let Some(existing) = session::read_session_id() {
-        existing
-    } else {
-        let id = generate_session_id();
-        let _ = session::write_session_id(&id);
-
-        // Resolve branch, cwd, and repo name for session registration
-        let branch = get_git_branch();
-        let cwd = std::env::current_dir()
-            .ok()
-            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()));
-        let repo_name = get_repo_name();
-        // Label: "repo/branch" for thread titles (e.g. "hiboss/main")
-        let label = match (&repo_name, &branch) {
-            (Some(r), Some(b)) => Some(format!("{}/{}", r, b)),
-            (Some(r), None) => Some(r.clone()),
-            _ => None,
-        };
-
-        // Register session with the server (best-effort)
-        if let Ok(client) = build_client() {
-            let _ = client
-                .register_session(
-                    &id,
-                    branch.as_deref(),
-                    cwd.as_deref(),
-                    label.as_deref(),
-                    Some("working"),
-                    None,
-                )
-                .await;
-            // Mark all existing messages as read so unread count starts at 0
-            let _ = client.mark_all_read().await;
-        }
-        id
-    };
-
-    // Start background SSE daemon for real-time message delivery
-    start_daemon_if_needed();
-
-    println!("MANDATORY: hiboss is installed for boss communication. You MUST follow these rules:");
-    println!(
-        "1. After completing any task or subtask, run: hiboss send \"<what you did and what's next>\""
-    );
-    println!("2. When blocked or need input, run: hiboss ask \"<your question>\"");
-    println!("3. Reply to boss messages with: hiboss reply <id> \"<response>\"");
-    println!("4. Check inbox with: hiboss inbox");
-    println!("5. Send to peer sessions with: hiboss send --to <session-label-or-id> \"<message>\"");
-    println!(
-        "6. Broadcast to ALL peer sessions: hiboss send --broadcast \"<what you're working on>\""
-    );
-    println!(
-        "NOTIFY CONTEXT: hiboss send/ask accept --content \"<extra context>\" (rendered as the boss notification subtitle, under the project title) and --summary \"<non-sensitive summary>\" (shown in private-mode pushes). Add --content on decisions/asks to give the boss at-a-glance context."
-    );
-    println!(
-        "CRITICAL: When task is complete, NEVER just stop. Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\", using your tool call's OWN run_in_background:true parameter (NOT shell '&'/nohup/disown — those detach the process from tracking and you will never see the reply), then WAIT for boss reply."
-    );
-    println!(
-        "CLI SYNTAX: Repeat singular --option or --action for each choice. Never use removed --options/--actions or comma-separated choice lists."
-    );
-    println!(
-        "DEFAULT OPTION: add --default <LABEL> (must equal one of your --option/--action labels) to mark a fallback. The boss sees it flagged, and if you time out with no reply it is auto-selected and returned — so you can proceed safely on timeout."
-    );
-    println!(
-        "IMPORTANT: When replying to PEER messages (from [agent]), use: hiboss reply <id> \"response\" — do NOT use hiboss send without --to, as that sends to the boss's Telegram/Discord."
-    );
-    println!(
-        "COORDINATE: When peer sessions are active, broadcast your work plan BEFORE starting: hiboss send --broadcast \"Working on X in files Y\""
-    );
-    println!(
-        "RULE: After receiving a boss reply from `hiboss ask`, ALWAYS acknowledge via `hiboss send \"<acknowledgment>\"` — NEVER just print text in conversation."
-    );
-
-    // Prompt registration when project has posted before but has no .hiboss/team.json (fs-only).
-    if crate::hiboss_dir::should_hint_register() {
-        println!("Run: hiboss progress team register --display-name \"{}\"", session::project_name().replace('"', ""));
-    }
-
-    // Show peer sessions and auto-broadcast if peers exist
-    let has_peers = show_peer_sessions(&session_id).await;
-    if has_peers {
-        auto_broadcast_session_start().await;
-    }
-
-    // Show unread boss messages
-    let boss_count = get_inbox_count();
-    let a2a_count = get_a2a_inbox_count();
-    if boss_count > 0 || a2a_count > 0 {
-        println!("You have {} unread messages:", boss_count + a2a_count);
-        if let Ok(out) = Command::new("hiboss").args(["inbox"]).output() {
-            print!("{}", String::from_utf8_lossy(&out.stdout));
-        }
-        println!("Handle these messages first. Reply with: hiboss reply <id> \"response\"");
-    }
-    if let Ok(client) = build_client() {
-        if let Some(warning) = unacknowledged_outbound_warning(&client, &session_id).await {
-            println!("{warning}");
-        }
-    }
     Ok(())
 }
 
@@ -329,26 +202,6 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_stop() -> Result<(), Box<dyn Error>> {
-    // Only gate: must have called `hiboss ask` before exiting.
-    // No cleanup here — Claude Code fires Stop on every exit attempt,
-    // including ones the user cancels. Cleaning up markers here would
-    // delete the asked-marker and cause false BLOCKED on the next attempt.
-    // Session cleanup is handled by session-start (idempotent re-init).
-    if !session::has_asked() {
-        if session::has_stop_warned() {
-            // Already prompted once this session — let it through
-            return Ok(());
-        }
-        session::mark_stop_warned();
-        // stdout: AI sees detailed instructions
-        println!("BLOCKED: You cannot stop without asking the boss for next steps.");
-        println!("Run: hiboss ask --option \"Opt1\" --option \"Opt2\" \"summary and options\"");
-        let _ = std::io::Write::flush(&mut std::io::stdout());
-        // stderr: human sees a short note
-        eprintln!("ask boss first");
-        std::process::exit(2);
-    }
-
     // Best-effort: mark session waiting on server. Claude Code fires Stop on
     // every turn boundary, not process exit — so this is "idle, awaiting the
     // boss's next input", NOT "session ended". Marking it completed here made a
@@ -357,7 +210,7 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
     // server's 15-minute last_seen_at staleness cutoff instead.
     if let (Ok(client), Some(sid)) = (build_client(), &session::read_session_id()) {
         let _ = client
-            .heartbeat_session(sid, Some("waiting"), Some("Awaiting boss reply"))
+            .heartbeat_session(sid, Some("waiting"), Some("Awaiting next input"))
             .await;
         // Arm the resume signal: the next bg-check (which only runs when work has
         // resumed) will flip this back to "working".

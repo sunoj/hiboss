@@ -41,6 +41,7 @@ import { bossMessageReplyRouter } from './routes/boss-message-reply';
 import { bossGroupBroadcastRouter } from './routes/boss-group-broadcast';
 import { repairPanelRooms } from './panels/lifecycle/repair';
 import { panelLifecycleRouter } from './panels/lifecycle';
+import { panelRequestsRouter, interactionRequestsRouter } from './panels/requests';
 import { panelsRouter } from './panels/definition';
 import { panelRelayRouter } from './panels/relay';
 
@@ -107,6 +108,8 @@ app.route('/api/sessions', sessionsRouter);
 app.route('/api/sessions', sessionEventsRouter);
 app.route('/api/progress/teams', progressTeamsRouter);
 app.route('/api/progress', progressRouter);
+app.route('/api/panels', panelRequestsRouter);
+app.route('/api/interaction-requests', interactionRequestsRouter);
 app.route('/api/panels', panelLifecycleRouter);
 app.route('/api/panels', panelsRouter);
 app.route('/api', panelRelayRouter);

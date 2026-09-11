@@ -1,0 +1,169 @@
+{
+  "title": "Research intake",
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "defaults": {
+    "researchQuestion": "Which workflow reduces review time?",
+    "background": "The team needs evidence for a focused tooling decision.",
+    "evidenceTypes": [
+      "literature-review"
+    ],
+    "confidence": 0.6
+  },
+  "answerSchema": {
+    "type": "object",
+    "properties": {
+      "researchQuestion": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      },
+      "background": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 1200
+      },
+      "evidenceTypes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "literature-review",
+            "benchmarks",
+            "interviews",
+            "reproducibility"
+          ]
+        },
+        "minItems": 1,
+        "uniqueItems": true
+      },
+      "confidence": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "required": [
+      "researchQuestion",
+      "background",
+      "evidenceTypes",
+      "confidence"
+    ],
+    "additionalProperties": false
+  },
+  "formSpec": {
+    "root": "form",
+    "elements": {
+      "form": {
+        "type": "Stack",
+        "props": {
+          "direction": "vertical",
+          "gap": 16
+        },
+        "children": [
+          "intro",
+          "question",
+          "background",
+          "evidence",
+          "confidence",
+          "submit"
+        ]
+      },
+      "intro": {
+        "type": "Text",
+        "props": {
+          "text": "Shape the research brief before the first source is opened.",
+          "tone": "muted"
+        },
+        "children": []
+      },
+      "question": {
+        "type": "TextInput",
+        "props": {
+          "label": "Research question",
+          "value": {
+            "$bindState": "/form/researchQuestion"
+          },
+          "placeholder": "What should this investigation explain?",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "children": []
+      },
+      "background": {
+        "type": "TextArea",
+        "props": {
+          "label": "Context and constraints",
+          "value": {
+            "$bindState": "/form/background"
+          },
+          "placeholder": "Share the context, audience, and constraints.",
+          "rows": 5,
+          "minLength": 20,
+          "maxLength": 1200
+        },
+        "children": []
+      },
+      "evidence": {
+        "type": "MultiSelect",
+        "props": {
+          "label": "Evidence to prioritize",
+          "value": {
+            "$bindState": "/form/evidenceTypes"
+          },
+          "options": [
+            {
+              "id": "literature-review",
+              "label": "Literature review"
+            },
+            {
+              "id": "benchmarks",
+              "label": "Benchmarks"
+            },
+            {
+              "id": "interviews",
+              "label": "Interviews"
+            },
+            {
+              "id": "reproducibility",
+              "label": "Reproducibility checks"
+            }
+          ]
+        },
+        "children": []
+      },
+      "confidence": {
+        "type": "Slider",
+        "props": {
+          "label": "Starting confidence",
+          "value": {
+            "$bindState": "/form/confidence"
+          },
+          "min": 0,
+          "max": 1,
+          "step": 0.05
+        },
+        "children": []
+      },
+      "submit": {
+        "type": "Button",
+        "props": {
+          "label": "Submit research brief",
+          "variant": "primary"
+        },
+        "on": {
+          "press": {
+            "action": "submitRequest"
+          }
+        },
+        "children": []
+      }
+    }
+  },
+  "kind": "intake",
+  "blocking": true,
+  "priority": "normal",
+  "context": {
+    "purpose": "Collect research requirements before investigation"
+  }
+}

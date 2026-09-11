@@ -50,8 +50,8 @@ def wait_ready(url: str, process: subprocess.Popen) -> None:
     raise TimeoutError('Worker did not start')
 
 
-def main() -> None:
-    reports = ROOT / 'output/panel-lifecycle'
+def main(test_script: pathlib.Path | None = None, report_name: str = 'panel-lifecycle') -> None:
+    reports = ROOT / 'output' / report_name
     reports.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='hiboss-worker-') as temporary:
         directory = pathlib.Path(temporary)
@@ -68,7 +68,7 @@ def main() -> None:
                 cwd=ROOT / 'server', env=environment, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
             try:
                 wait_ready(url, process)
-                run(['python3', str(ROOT / 'cli/scripts/test-panel-lifecycle.py')], reports / 'cli-e2e.log',
+                run(['python3', str(test_script or ROOT / 'cli/scripts/test-panel-lifecycle.py')], reports / 'cli-e2e.log',
                     {**environment, 'HIBOSS_PANEL_TEST_URL': url})
             finally:
                 if process.poll() is None:

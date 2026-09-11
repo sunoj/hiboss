@@ -131,6 +131,21 @@ Today: 10 MB cap for every upload, whole body buffered via `arrayBuffer()`.
    stream. Say in your report which one you shipped and what the test showed.
 4. The multipart path keeps the 10 MB cap — the CLI uses raw binary for large media.
 
+### Media download
+
+`GET /api/attachments/:key` streams the object from R2. It advertises `Accept-Ranges:
+bytes`, a quoted ETag, and the full content length. A single byte range (bounded,
+open-ended, or suffix) returns `206` with `Content-Range` and the selected length.
+Unsatisfiable ranges return `416` with `Content-Range: bytes */<size>`. Malformed
+or multiple ranges are ignored and return the full object. A matching strong
+`If-Range` ETag permits a partial response; other validators return the full object.
+`HEAD` reads metadata only, ignores Range, and returns no body.
+
+This supports video probes and seeking without buffering the complete clip in the
+Worker. It applies to all attachments, including images used in notification choices.
+The implementation uses [R2 ranged reads](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+and [HTTP range semantics](https://www.rfc-editor.org/rfc/rfc9110.html#name-range-requests).
+
 ## CLI — `cli/src/commands/progress.rs` (+ `client/progress.rs`)
 
 Repeatable singular flags only; never comma-joined lists, never a plural `--images`.

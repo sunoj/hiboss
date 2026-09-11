@@ -38,6 +38,13 @@ struct PanelError {
 }
 
 impl HiBossClient {
+    pub async fn questionnaire_http(&self, method: reqwest::Method, path: &str, body: Option<Value>, key: Option<&str>) -> Result<Value, Box<dyn Error>> {
+        let mut request = self.http.request(method, format!("{}/api/{path}", self.base_url)).bearer_auth(&self.api_key);
+        if let Some(body) = body { request = request.json(&body); }
+        if let Some(key) = key { request = request.header("Idempotency-Key", key); }
+        parse_panel_response(request.send().await?, "questionnaire").await
+    }
+
     pub async fn publish_panel(&self, body: &Value, idempotency_key: &str) -> Result<PanelPublishResponse, Box<dyn Error>> {
         let response = self.http.post(format!("{}/api/panels", self.base_url)).bearer_auth(&self.api_key).header("Idempotency-Key", idempotency_key).json(body).send().await?;
         parse_panel_response(response, "panel publication").await

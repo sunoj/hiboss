@@ -8,27 +8,9 @@ use std::{error::Error, fs, path::{Path, PathBuf}};
 pub const PANEL_GUIDE: &str = include_str!("../../resources/panel-agent-guide.md");
 const BEGIN: &str = "<!-- hiboss:panels:begin -->";
 const END: &str = "<!-- hiboss:panels:end -->";
-const PROMPT: &str = r#"<!-- hiboss:panels:begin -->
-## HiBoss dynamic notifications and report delivery
-
-- Dynamic notifications / live cards / Panels use `hiboss panel`.
-- When asked to deliver task progress or a test report via HiBoss, read
-  `~/.config/hiboss/panel-agent-guide.md`, then inspect `hiboss panel --help`.
-- The guide contains the publication schema, recipient/session discovery,
-  one-shot updates, streaming, lease recovery, lifecycle shortcuts, doctor,
-  idempotency, and delivery verification.
-- Use actual test counts, fixes, artifact location, and untested scope. Publishing
-  a card does not upload a report file. Never invent accessible artifact URLs.
-- `hiboss send` is a one-shot message; `hiboss ask` is for a required human decision.
-  Report delivery itself does not require a blocking question.
-- A long-running panel producer must renew deliberately; streaming data does not keep
-  the card alive. When its expiry lapses the card leaves the wall, task state is
-  untouched, and `hiboss panel renew <id> [--ttl <seconds>]` brings it back.
-- Check the installed interface and server protocol before using lifecycle
-  commands. Report a version mismatch; never claim an unconfirmed delivery.
-- Keep one panel per execution and update it. Retry the same command/key after an
-  uncertain response; start a new run for a new execution. Never expose API keys.
-<!-- hiboss:panels:end -->"#;
+pub(crate) const PROMPT: &str = include_str!("../../resources/agent-instructions.md");
+const COMMUNICATION_BEGIN: &str = "<!-- hiboss:begin -->";
+const COMMUNICATION_END: &str = "<!-- hiboss:end -->";
 
 #[derive(Debug, Args)]
 pub struct SetupAgentsArgs {
@@ -45,7 +27,7 @@ pub fn run(args: &SetupAgentsArgs) -> Result<(), Box<dyn Error>> {
     let mut updates = Vec::new();
     for path in paths {
         let existing = if path.exists() { fs::read_to_string(&path)? } else { String::new() };
-        updates.push((path, managed_content(&existing)?));
+        updates.push((path, managed_content(&existing, false)?));
     }
     updates.push((guide, PANEL_GUIDE.to_owned()));
     if args.dry_run { println!("{PROMPT}\n"); }
@@ -56,15 +38,33 @@ pub fn run(args: &SetupAgentsArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn managed_content(existing: &str) -> Result<String, Box<dyn Error>> {
-    let mut content = existing.to_owned();
-    if let Some(start) = content.find(BEGIN) {
-        let end = content[start..].find(END).ok_or("Incomplete HiBoss instruction block; repair its markers first")? + start + END.len();
-        content.replace_range(start..end, PROMPT);
-        return Ok(content);
+fn replace_block(existing: &str, begin: &str, end: &str, replacement: &str) -> Result<String, Box<dyn Error>> {
+    let starts: Vec<_> = existing.match_indices(begin).collect();
+    let ends: Vec<_> = existing.match_indices(end).collect();
+    if starts.is_empty() && ends.is_empty() { return Ok(existing.to_owned()); }
+    if starts.len() != 1 || ends.len() != 1 || starts[0].0 >= ends[0].0 {
+        return Err("Invalid HiBoss instruction block; repair its markers first".into());
     }
-    if content.contains(END) { return Err("Orphaned HiBoss instruction end marker".into()); }
-    Ok(format!("{}\n\n{PROMPT}\n", existing.trim_end()))
+    let mut content = existing.to_owned();
+    content.replace_range(starts[0].0..ends[0].0 + end.len(), replacement);
+    Ok(content)
+}
+
+fn managed_content(existing: &str, remove: bool) -> Result<String, Box<dyn Error>> {
+    let content = replace_block(existing, COMMUNICATION_BEGIN, COMMUNICATION_END, "")?;
+    let replacement = if remove { "" } else { PROMPT.trim_end() };
+    let updated = replace_block(&content, BEGIN, END, replacement)?;
+    if remove || content.contains(BEGIN) { return Ok(updated); }
+    Ok(format!("{}\n\n{}\n", updated.trim_end(), PROMPT.trim_end()))
+}
+
+pub(crate) fn apply_prompt_changes(path: &Path, remove: bool) -> Result<(), Box<dyn Error>> {
+    if remove && !path.exists() { return Ok(()); }
+    let existing = if path.exists() { fs::read_to_string(path)? } else { String::new() };
+    let content = managed_content(&existing, remove)?;
+    write_atomic(path, &content)?;
+    println!("Updated HiBoss instructions in {}", path.display());
+    Ok(())
 }
 
 fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {

@@ -93,7 +93,7 @@ final class PanelLifecycleFlowTests: XCTestCase {
         }
     }
     private func card(_ tile: PanelTile, _ model: PanelsModel) -> some View {
-        PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) {}.frame(width: 430, height: 320)
+        PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile), pendingCount: model.pendingCount(for: tile)) {}.frame(width: 430, height: 320)
     }
 }
 

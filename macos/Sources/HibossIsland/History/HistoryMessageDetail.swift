@@ -67,11 +67,12 @@ struct HistoryMessageDetail: View {
         case .choices:
             VStack(alignment: .leading, spacing: 8) {
                 Text(L("Choices")).font(.headline)
-                if message.isBlockingHistoryMessage, let media = message.metadata?.optionMedia, !media.isEmpty {
+                if let media = message.metadata?.optionMedia, !media.isEmpty {
                     OptionMediaPicker(
                         options: message.options,
                         media: media,
                         defaultOption: message.defaultOption,
+                        allowsChoosing: message.isBlockingHistoryMessage && !reply.submitting.contains(message.id),
                         choose: { send($0) }
                     )
                 } else {

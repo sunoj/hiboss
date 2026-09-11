@@ -9,6 +9,7 @@ struct OptionMediaPicker: View {
     let options: [String]
     let media: [OptionMedia]
     let defaultOption: String?
+    var allowsChoosing = true
     let choose: (String) -> Void
     @State private var selectedMedia: OptionMedia?
 
@@ -20,6 +21,7 @@ struct OptionMediaPicker: View {
                         option: option,
                         media: optionMedia,
                         isDefault: option == defaultOption,
+                        allowsChoosing: allowsChoosing,
                         choose: choose,
                         openMedia: { selectedMedia = optionMedia }
                     )
@@ -27,11 +29,12 @@ struct OptionMediaPicker: View {
                     OptionButton(title: option, isDefault: option == defaultOption) {
                         choose(option)
                     }
+                    .disabled(!allowsChoosing)
                 }
             }
         }
-        .sheet(item: $selectedMedia) { media in
-            OptionMediaSheet(media: media)
+        .popover(item: $selectedMedia) { media in
+            OptionMediaPopover(media: media)
         }
     }
 
@@ -47,6 +50,7 @@ private struct OptionMediaRow: View {
     let option: String
     let media: OptionMedia
     let isDefault: Bool
+    let allowsChoosing: Bool
     let choose: (String) -> Void
     let openMedia: () -> Void
 
@@ -56,6 +60,7 @@ private struct OptionMediaRow: View {
             OptionButton(title: option, isDefault: isDefault) {
                 choose(option)
             }
+            .disabled(!allowsChoosing)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -102,15 +107,22 @@ private struct OptionMediaPreview: View {
     }
 }
 
-private struct OptionMediaSheet: View {
+private struct OptionMediaPopover: View {
     let media: OptionMedia
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 12) {
+            HStack {
+                Text(media.label).font(.headline)
+                Spacer()
+                Button(L("Close"), systemImage: "xmark") { dismiss() }
+                    .labelStyle(.iconOnly).keyboardShortcut(.cancelAction)
+            }
             AsyncImage(url: URL(string: media.url)) { phase in
                 switch phase {
                 case .success(let image):
-                    image.resizable().scaledToFit()
+                    image.resizable().scaledToFit().onTapGesture { }
                 case .failure:
                     ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
                 case .empty:
@@ -121,8 +133,6 @@ private struct OptionMediaSheet: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Text(media.label)
-                .font(.headline)
             if let caption = media.caption, !caption.isEmpty {
                 Text(caption)
                     .font(.callout)
@@ -130,6 +140,9 @@ private struct OptionMediaSheet: View {
             }
         }
         .padding()
-        .frame(minWidth: 520, minHeight: 360)
+        .frame(width: 720, height: 560)
+        .contentShape(Rectangle())
+        .onTapGesture { dismiss() }
+        .onExitCommand { dismiss() }
     }
 }

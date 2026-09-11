@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
-    hook, inbox, init, panel, progress, react, read, reply, route, send, setup, ss, status, watch,
+    hook, inbox, init, panel, progress, react, read, reply, request, route, send, setup, ss, status, watch,
 };
 use hiboss::config;
 use std::error::Error;
@@ -70,6 +70,8 @@ enum Commands {
     Progress(progress::ProgressArgs),
     #[command(about = "Deliver dynamic notifications and task reports with live panels")]
     Panel(panel::PanelArgs),
+    #[command(about = "Publish and receive durable structured questionnaire answers")]
+    Request(request::RequestArgs),
 }
 
 #[tokio::main]
@@ -122,6 +124,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
         Commands::Progress(args) => progress::run(args, &config, &client).await?,
         Commands::Panel(args) => panel::run(args, &client).await?,
+        Commands::Request(args) => request::run(args, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
         Commands::Init(_) => unreachable!(),

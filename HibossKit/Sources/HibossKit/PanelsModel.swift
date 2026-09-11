@@ -32,6 +32,9 @@ public final class PanelsModel: ObservableObject {
     var lastReconciled = Date.distantPast
     @Published public var section: PanelWallSection = .active
     @Published public internal(set) var preferenceError: String?
+    @Published public internal(set) var pendingQuestionnaires: [PendingQuestionnaire] = []
+    @Published public internal(set) var questionnaireError: String?
+    @Published public internal(set) var isLoadingQuestions = false
     var producerTasks: [Task<Void, Never>] = []
     var clockTask: Task<Void, Never>?
     var serverClocks: [String: (server: Date, uptime: TimeInterval, wall: Date)] = [:]
@@ -98,6 +101,13 @@ public final class PanelsModel: ObservableObject {
         let config = try await configurationProvider()
         relayConfig = config
         return HibossAPI(config: config)
+    }
+
+    func questionnaireService() async throws -> any QuestionnaireServing {
+        if let service = api as? any QuestionnaireServing { return service }
+        guard let configurationProvider else { throw PanelClientError.notConfigured }
+        let config = try await configurationProvider()
+        return HibossAPI(config: config, messageSigner: try KeychainMessageSignerStore().read())
     }
 
     func startSimulation() {

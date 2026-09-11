@@ -10,20 +10,24 @@ public enum PanelRenderMode: Sendable {
 }
 
 @MainActor
-public struct PanelRenderer {
+public struct PanelRenderer: View {
     let spec: PanelSpec
     @ObservedObject var store: PanelStore
     @ObservedObject var webModel: PanelWebModel
     let mode: PanelRenderMode
+    private let elementID: String
 
-    public init(spec: PanelSpec, store: PanelStore, webModel: PanelWebModel, mode: PanelRenderMode = .interactive) {
+    public init(spec: PanelSpec, store: PanelStore, webModel: PanelWebModel, mode: PanelRenderMode = .interactive, elementID: String? = nil) {
         self.spec = spec
         self.store = store
         self.webModel = webModel
         self.mode = mode
+        self.elementID = elementID ?? spec.root
     }
 
-    public func render(_ id: String) -> AnyView {
+    public var body: some View { render(elementID) }
+
+    private func render(_ id: String) -> AnyView {
         guard let element = spec.elements[id] else { return AnyView(EmptyView()) }
         switch element.type {
         case "Stack": return renderStack(element)
@@ -81,8 +85,9 @@ public struct PanelRenderer {
         let placeholder = element.props["placeholder"]?.string ?? ""
         let path = bindingPath(element)
         let binding = Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })
-        return AnyView(LabeledContent(label) {
-            TextField(placeholder, text: binding).textFieldStyle(.roundedBorder)
+        return AnyView(VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.headline)
+            TextField(placeholder, text: binding).textFieldStyle(.roundedBorder).accessibilityLabel(label)
         }.accessibilityLabel(label))
     }
 
@@ -98,8 +103,8 @@ public struct PanelRenderer {
             TextEditor(text: binding)
                 .frame(minHeight: CGFloat(rows * 24))
                 .overlay(alignment: .topLeading) {
-                    if let placeholder, panelValue(at: path, in: store.state)?.string?.isEmpty == true {
-                        Text(placeholder).foregroundStyle(.secondary).padding(6)
+                    if let placeholder, binding.wrappedValue.isEmpty {
+                        Text(placeholder).foregroundStyle(.secondary).padding(6).allowsHitTesting(false)
                     }
                 }
         }.accessibilityElement(children: .contain).accessibilityLabel(label))
@@ -107,7 +112,9 @@ public struct PanelRenderer {
 
     @ViewBuilder
     private func children(of element: PanelElement) -> some View {
-        ForEach(element.children, id: \.self) { render($0) }
+        ForEach(element.children, id: \.self) { id in
+            PanelRenderer(spec: spec, store: store, webModel: webModel, mode: mode, elementID: id)
+        }
     }
 
     private func renderSelect(_ element: PanelElement) -> AnyView {
@@ -118,7 +125,8 @@ public struct PanelRenderer {
             return PanelOption(id: id, label: text)
         } ?? []
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
-        return AnyView(Picker(label, selection: Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setText($0, at: path) })) {
+        return AnyView(Picker(label, selection: Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })) {
+            Text(kitL("Choose an option…")).tag("")
             ForEach(options) { option in Text(option.label).tag(option.id) }
         }.accessibilityLabel(label))
     }
@@ -129,24 +137,18 @@ public struct PanelRenderer {
         let options = panelOptions(element)
         let optionIDs = Set(options.map(\.id))
         let path = bindingPath(element)
+        let selection = selectedOptionIDs(at: path, allowed: optionIDs)
         return AnyView(VStack(alignment: .leading, spacing: 6) {
             Text(label).font(.headline)
-            List(options) { option in
+            ForEach(options) { option in
                 Toggle(option.label, isOn: Binding(
-                    get: { selectedOptionIDs(at: path, allowed: optionIDs).contains(option.id) },
+                    get: { selection.contains(option.id) },
                     set: { updateOption(option.id, selected: $0, at: path, allowed: optionIDs) }
-                )
-                )
+                ))
 #if os(macOS)
                 .toggleStyle(.checkbox)
 #endif
             }
-            .frame(minHeight: CGFloat(max(2, min(options.count, 5)) * 28))
-#if os(macOS)
-            .listStyle(.bordered)
-#else
-            .listStyle(.inset)
-#endif
         }.accessibilityElement(children: .contain).accessibilityLabel(label))
     }
 
@@ -154,10 +156,7 @@ public struct PanelRenderer {
         guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Number"
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
-        return AnyView(LabeledContent(label) {
-            TextField(label, text: Binding(get: { panelValue(at: path, in: store.state)?.displayText ?? "" }, set: { store.setText($0, at: path) }))
-                .textFieldStyle(.roundedBorder).frame(width: 120)
-        }.accessibilityLabel(label))
+        return AnyView(PanelNumberInput(label: label, path: path, store: store))
     }
 
     private func renderSlider(_ element: PanelElement) -> AnyView {
@@ -169,6 +168,7 @@ public struct PanelRenderer {
         let path = bindingPath(element)
         let value = Binding(get: { panelValue(at: path, in: store.state)?.number ?? minimum }, set: { store.setNumber($0, at: path) })
         return AnyView(GroupBox(label) {
+            Text(PanelValue.number(value.wrappedValue).displayText).monospacedDigit()
             if let step {
                 Slider(value: value, in: minimum...maximum, step: step)
             } else {

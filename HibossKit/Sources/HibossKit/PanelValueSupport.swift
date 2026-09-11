@@ -28,7 +28,7 @@ extension PanelValue {
     public var displayText: String {
         switch self {
         case let .string(value): value
-        case let .number(value): value.rounded() == value ? String(Int(value)) : String(value)
+        case let .number(value): Int(exactly: value).map(String.init) ?? String(value)
         case let .bool(value): value ? "On" : "Off"
         default: ""
         }

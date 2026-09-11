@@ -17,11 +17,11 @@ beforeAll(async () => {
 describe('Boss console feed stream', () => {
   it('delivers a new message without mutating its status', async () => {
     const messageId = `feed-${Date.now()}`;
+    const reader = await openFeed();
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'feed body', 'sent', 'normal')",
     ).bind(messageId, getTestAgentId()).run();
 
-    const reader = await openFeed();
     const chunk = await readEvent(reader, 6_000);
     expect(chunk).toContain(messageId);
     await reader.cancel();

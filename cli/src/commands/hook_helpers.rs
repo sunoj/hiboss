@@ -147,53 +147,11 @@ pub(crate) async fn show_peer_sessions(my_session_id: &str) -> bool {
             println!("  {}  {}  {}", id_short, label, detail);
         }
         println!(
-            "COORDINATE: Before starting work, broadcast your plan: hiboss send --broadcast \"Working on X\""
+            "COORDINATE: If peer communication is authorized, broadcast your plan: hiboss send --broadcast \"Working on X\""
         );
         return true;
     }
     false
-}
-
-/// Auto-broadcast session start to peer sessions (best-effort, no failure propagation).
-pub(crate) async fn auto_broadcast_session_start() {
-    let client = match build_client() {
-        Ok(c) => c,
-        Err(_) => return,
-    };
-    let branch = get_git_branch().unwrap_or_else(|| "unknown".to_owned());
-    let cwd = std::env::current_dir()
-        .ok()
-        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-        .unwrap_or_else(|| ".".to_owned());
-    let body = format!("Session started on {}, working in {}", branch, cwd);
-
-    let my_session_id = session::read_session_id().unwrap_or_default();
-    let sessions = match client.list_sessions().await {
-        Ok(s) => s,
-        Err(_) => return,
-    };
-    for peer in sessions
-        .sessions
-        .iter()
-        .filter(|s| s.id != my_session_id && s.status.as_deref() != Some("completed"))
-    {
-        // Target by exact session ID — labels collide across sessions and the server
-        // resolves a colliding label to the newest same-label session (often self).
-        let request = crate::types::SendRequest {
-            body: body.clone(),
-            mode: "async".to_owned(),
-            priority: "low".to_owned(),
-            channel: None,
-            metadata: None,
-            options: None,
-            file_url: None,
-            message_type: Some("session_start".to_owned()),
-            session_id: session::read_session_id(),
-            to: Some(peer.id.clone()),
-        };
-        let _ = client.send_message(&request).await;
-    }
-    session::mark_broadcast();
 }
 
 /// TTL for broadcast reminders in PostToolUse (10 minutes).

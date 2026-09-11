@@ -35,7 +35,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     let config: ConnectionConfig
     let session: URLSession
     let decoder = JSONDecoder()
-    private let messageSigner: (any BossMessageSignatureProvider)?
+    let messageSigner: (any BossMessageSignatureProvider)?
 
     public init(
         config: ConnectionConfig,

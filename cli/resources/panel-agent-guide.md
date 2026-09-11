@@ -1,13 +1,25 @@
-# HiBoss dynamic notification delivery
+# HiBoss delivery and durable questionnaires
 
-Dynamic notifications, live cards, and Panels refer to `hiboss panel`.
-Use Panels for task progress, test results, downloads, benchmark comparisons,
-and ongoing monitoring. Use `hiboss ask` only when a human decision is actually
-required. A completed report does not require a blocking question.
+Prefer HiBoss for boss-facing delivery during substantive tasks, without waiting
+for the user to name the channel. Honor an explicit channel preference or opt-out.
+Choose the surface by the work:
+
+| Need | Preferred command |
+| --- | --- |
+| Ongoing task progress, test run, final report | `hiboss panel` — one card per execution |
+| Multiple requirements, preferences, typed answers | `hiboss request` — a durable intake attached to the card |
+| One-shot notice or urgent blocker | `hiboss send` |
+| A milestone worth showing with images or video | `hiboss progress post` — quiet timeline, no push |
+| Required decision or short A/B image choice | `hiboss ask` |
+
+Publish the card early, update meaningful milestones, and finish it with evidence.
+A completion report does not require a blocking question or a next-step poll.
+If HiBoss is unavailable, explain the delivery failure in the current conversation
+and continue work that does not depend on the missing answer.
 
 ## Discover the installed interface
 
-Run `hiboss panel --help` once. This guide describes protocol v2. The required
+Run `hiboss panel --help` and `hiboss request --help` once. This guide describes protocol v2. The required
 commands are `validate`, `publish`, `update`, `stream`, `state`, `complete`,
 `fail`, `cancel`, `pause`, `resume`, `renew`, `doctor`, and `show`.
 If the installed CLI lacks one, report the version mismatch. Do not invent flags,
@@ -203,5 +215,72 @@ Paused cards stop accepting observations until resumed and claimed again. Ended
 cards cannot reopen. A retry creates a new publication with `supersedesPanelId`.
 
 Boss pin/archive/acknowledgement preferences are separate from task execution.
-Do not cancel work because the boss archived a card. Form previews currently
-capture local answers; they are not a durable interaction delivery API.
+Do not cancel work because the boss archived a card. Standalone catalog previews
+capture local answers; use `hiboss request` to publish a real durable questionnaire.
+
+## Durable intake questionnaires
+
+After migration 0038 and the matching Worker/client upgrade, attach a questionnaire
+to an existing panel with `hiboss request publish <panel-id> <file> --idempotency-key <key>`.
+The document declares `kind: "intake"`, title, blocking, priority, catalogId/version,
+formSpec, answerSchema, defaults, immutable context, and optional expiresAt.
+Inputs require `$bindState` under `/form/`; stable evidence uses `$state` under
+`/context`. Defaults are drafts only. Use this minimal `intake.json` as a starting
+point and adjust the schema to the actual information needed:
+
+```json
+{
+  "kind": "intake",
+  "title": "Confirm research scope",
+  "blocking": true,
+  "priority": "normal",
+  "catalogId": "hiboss.panel",
+  "catalogVersion": 1,
+  "context": { "goal": "Prepare the requested research brief" },
+  "defaults": {},
+  "answerSchema": {
+    "type": "object",
+    "properties": {
+      "topic": { "type": "string", "minLength": 1, "maxLength": 500 },
+      "depth": { "type": "string", "enum": ["overview", "detailed"] }
+    },
+    "required": ["topic", "depth"],
+    "additionalProperties": false
+  },
+  "formSpec": {
+    "root": "form",
+    "elements": {
+      "form": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["goal", "topic", "depth"] },
+      "goal": { "type": "Text", "props": { "text": { "$state": "/context/goal" } }, "children": [] },
+      "topic": { "type": "TextInput", "props": { "label": "Research topic", "value": { "$bindState": "/form/topic" } }, "children": [] },
+      "depth": { "type": "Select", "props": { "label": "Depth", "value": { "$bindState": "/form/depth" }, "options": [{ "id": "overview", "label": "Overview" }, { "id": "detailed", "label": "Detailed" }] }, "children": [] }
+    }
+  }
+}
+```
+
+```bash
+hiboss request publish PANEL_ID intake.json --idempotency-key RUN_ID-intake-1
+hiboss request wait REQUEST_ID --timeout 1800
+hiboss request ack REQUEST_ID SUBMISSION_ID
+```
+
+Keep `requestId` from publication and `submissionId` from the accepted response.
+Use a tracked tool call while waiting and continue independent work where possible.
+Native panel details provide the Submit action for this form. Publication does not
+create a discovery push yet; when immediate attention is needed, send one HiBoss
+notice identifying the panel and questionnaire. Do not duplicate the form as an ask.
+
+Use `hiboss request list <panel-id>` and `hiboss request show <request-id>` to inspect
+state. `hiboss request wait <request-id> --timeout 1800` returns a structured accepted
+submission or an explicit open/expired/withdrawn state. A timeout never supplies an
+answer. Deduplicate by submissionId and use `hiboss request ack <request-id>
+<submission-id>` only after receiving the answer; receipt does not mean execution.
+
+Replace an open questionnaire with `hiboss request replace <request-id> <file>
+--expected-revision <revision>`. Old drafts cannot submit against the new version.
+Withdraw with `hiboss request withdraw <request-id> --expected-revision <revision>
+--reason "..."`. Ending a panel rejects open questionnaires unless the terminal
+command explicitly provides `--withdraw-requests "reason"`. Accepted answers remain
+immutable. Execution authorization kinds and automatic callback delivery are not
+implemented by this intake release.

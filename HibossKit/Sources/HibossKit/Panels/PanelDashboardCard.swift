@@ -7,15 +7,17 @@ import SwiftUI
 public struct PanelDashboardCard: View {
     let tile: PanelTile
     let freshness: PanelFreshness
+    let pendingCount: Int
     let open: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovering = false
 
-    public init(tile: PanelTile, freshness: PanelFreshness, open: @escaping () -> Void) {
+    public init(tile: PanelTile, freshness: PanelFreshness, pendingCount: Int, open: @escaping () -> Void) {
         self.tile = tile
         self.freshness = freshness
+        self.pendingCount = pendingCount
         self.open = open
     }
 
@@ -32,6 +34,10 @@ public struct PanelDashboardCard: View {
                     Image(systemName: "chevron.right.circle.fill")
                         .font(.title3).foregroundStyle(.tertiary)
                         .accessibilityHidden(true)
+                }
+                if pendingCount > 0 {
+                    Label(kitL("Needs input") + " · \(pendingCount)", systemImage: "text.bubble.fill")
+                        .font(.callout.weight(.semibold)).foregroundStyle(.orange)
                 }
                 PanelTilePreview(tile: tile)
                 footer

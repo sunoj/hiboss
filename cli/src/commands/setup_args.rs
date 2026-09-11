@@ -12,7 +12,7 @@ pub struct SetupArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum SetupCommand {
-    #[command(about = "Install or refresh global Codex and Claude guidance for HiBoss Panels")]
+    #[command(about = "Install or refresh global Codex and Claude HiBoss delivery and questionnaire guidance")]
     Agents(crate::commands::setup_agents::SetupAgentsArgs),
     #[command(about = "Configure Claude Code hooks for hiboss")]
     Hooks(SetupHooksArgs),

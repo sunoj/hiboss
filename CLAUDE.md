@@ -6,14 +6,23 @@ CLI tool for AI agents to send messages to their boss (human or AI) and receive 
 
 Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionStart (unread messages + daemon start), PostToolUse (local message drain + async bg-check), and Stop (session cleanup).
 
-### Session Start
-1. Handle unread messages first — reply with `hiboss reply <id> "response"` before other work.
-2. Report your plan: `hiboss send "Starting work on X. Plan: 1) ... 2) ... 3) ..."`
-3. If peer sessions are active, broadcast your work plan: `hiboss send --broadcast "Working on X in files Y"`
+### Default delivery
 
-### During Work
-- `hiboss send "message"` for progress updates on major milestones.
-- `hiboss send --priority high "message"` for blockers or decisions needed urgently.
+Prefer HiBoss for boss-facing progress, results, and input during substantive tasks.
+Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss request
+--help`. Respect an explicit channel preference or notification opt-out.
+
+- Handle actual unread messages with `hiboss reply <id> "response"`.
+- Publish one live panel per execution, update meaningful milestones, and finish the
+  same card with actual results, artifact locations, and untested scope.
+- Prefer a durable `hiboss request` questionnaire for multiple requirements,
+  preferences, or typed answers. Keep the request ID, consume the accepted JSON
+  answers with `request wait`/`show`, deduplicate submission IDs, then acknowledge receipt.
+- Use `hiboss send` for a one-shot notice or urgent blocker, `hiboss progress post`
+  for visual milestones, and `hiboss ask` only when a decision is required.
+- A final report does not need a blocking question or an optional next-step poll.
+- Check server receipts before claiming delivery. Continue independent work when
+  delivery is unavailable and report the limitation in the current conversation.
 
 ### Progress Feed
 `hiboss progress` posts to the project's timeline, which the boss browses in the iOS 进展
@@ -23,7 +32,7 @@ tab. It is a **low-noise** surface: a post sends no notification and never enter
 - `hiboss progress list [--project <name>] [--limit <n>] [--json]`, `hiboss progress rm <id>`
 
 Use it for something worth *showing* — a shipped feature, a screenshot, a short clip — not
-for routine status, which belongs in `hiboss send`. Repeat the singular flags; there is no
+for routine status, which belongs on the current panel. Repeat the singular flags; there is no
 plural form. Up to 4 media items, images ≤ 10 MB and video ≤ 50 MB. A `.gif` is converted to
 a muted looping MP4 when `ffmpeg` is present (iOS shows a still frame otherwise), and
 `ffprobe`/`sips` fill in dimensions when available — all of them degrade with a warning
@@ -77,12 +86,14 @@ Two rules are contract, not style, because both mislead the boss when broken:
 ends with unacknowledged work** — an update that was sent but not acknowledged has not
 landed. If another producer takes the lease, it stops and says so rather than fighting.
 
-Not yet available: iOS shows no panels, and structured questionnaires with typed answers
-are designed but unbuilt. Panels today are display surfaces plus a form that reports what
-it would submit.
+Persistent intake questionnaires and typed answers are implemented for iOS/macOS
+panel details. Use `hiboss request publish <panel-id> <file> --idempotency-key <key>`;
+standalone catalog previews only capture local answers. The installed guide includes
+a complete intake example. See `docs/live-panels/questionnaires.md` for rollout and
+remaining scope. An intake answer is not authorization to execute an external action.
 
 ### Cross-Session Coordination
-When peer sessions are active on the same project:
+When peer communication is authorized and sessions are active on the same project:
 - **Broadcast before starting**: `hiboss send --broadcast "Working on X"` — prevents conflicts
 - **Broadcast on completion**: `hiboss send --broadcast "Done with X, files Y changed"` — keeps peers informed
 - **Direct message**: `hiboss send --to <target> "message"` — for targeted coordination
@@ -114,22 +125,15 @@ check them with `hiboss status <id>` before claiming coordination happened.
   no CLI surface shows it yet. Before acting on such a value irreversibly — a deploy, a migration,
   anything outward-facing — re-ask without `--default`, or read the reply's metadata directly.
 
-### Before Finishing (CRITICAL)
-1. Summarize what you accomplished
-2. Propose 2-4 concrete next directions
-3. Send via repeatable `hiboss ask --option` flags (**never** `hiboss send` for completion messages):
-   ```bash
-   hiboss ask --option "Short A" --option "Short B" --option "Short C" "Summary.\n\nNext options:\n1. Short A — details\n2. Short B — details\n3. Short C — details" --timeout 300
-   ```
-   Never use the removed plural `--options` / `--actions` flags or comma-join choices.
-   To ask the boss to compare two renderings, give a choice its own image with
-   `--option-image "<LABEL>=<path or http(s) URL>"`, repeated per option (at most 5, and the
-   label must match an `--option`/`--action` label). It combines with `--file`, which stays
-   the one message-level attachment. The label — never the image — is the answer;
-   `docs/option-media-spec.md` is the contract each surface implements.
-   Optionally add `--default <LABEL>` (equal to one of your option/action labels) to mark a fallback: the boss sees it flagged, and on timeout with no reply it is auto-selected on the server and returned to you, so you can proceed safely instead of stalling.
-4. Run it using your tool call's own `run_in_background: true` parameter (NOT shell `&`/`nohup`/`disown` — those detach the process from harness tracking, so a reply can never be delivered back to you) and **wait for the boss's reply**
-5. Only stop if: boss says stop, OR ask times out
+### Before finishing
+
+Complete or fail the existing panel with the observed result and verify its receipt.
+For a short task without a panel, deliver the result with `hiboss send`. Summarize the
+outcome in the current conversation as well. Ask a follow-up only when the work needs
+an actual human decision; use repeated singular `--option` flags. For A/B comparisons,
+attach each image with `--option-image "LABEL=PATH"`. A timeout default is not evidence
+of a human choice and never authorizes execution. Leave unresolved questionnaires
+open, or explicitly withdraw obsolete ones with a reason before ending their panel.
 
 ## Architecture
 

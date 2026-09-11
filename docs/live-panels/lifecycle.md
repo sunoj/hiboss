@@ -1,6 +1,7 @@
 # Dynamic card lifecycle protocol
 
-Status: core lifecycle implemented; durable requests and system projections remain planned. Date: 2026-09-08.
+Status: core lifecycle and durable intake questionnaires deployed to the Worker
+on 2026-09-11. System projections remain planned. See [questionnaires](questionnaires.md).
 See [implementation and rollout status](implementation.md) for the tested contract and remaining work.
 Scope: publication, ownership, freshness, terminal results, and wall visibility.
 This document specializes the [panel protocol](protocol.md) and

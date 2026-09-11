@@ -43,21 +43,13 @@ struct HomePanelWall: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(model.failureMessage == nil ? "No panels yet" : "Panels unavailable",
-                  systemImage: model.failureMessage == nil ? "rectangle.stack" : "wifi.exclamationmark")
-                .font(.headline)
-            Text(model.failureMessage ?? "Published agent panels appear here.")
-                .font(.callout).foregroundStyle(.secondary)
-            Button(model.failureMessage == nil ? "Refresh" : "Retry") { Task { await model.load() } }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        PanelWallEmptyState(model: model)
     }
 
     private var wall: some View {
         PanelWallLayout {
             ForEach(model.visibleTiles) { tile in
-                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) { model.open(tile.id) }
+                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile), pendingCount: model.pendingCount(for: tile)) { model.open(tile.id) }
                     .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
                     .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
@@ -85,9 +77,9 @@ private struct HomePanelDetail: View {
                     Label(model.freshness(for: tile).title, systemImage: model.freshness(for: tile).symbol)
                         .font(.caption).foregroundStyle(model.freshness(for: tile).color)
                     PanelOutcomeView(tile: tile)
+                    PanelQuestionnairesView(tile: tile, panels: model)
                     Menu("Panel actions") { PanelLifecycleMenu(tile: tile, model: model) }
                     PanelRenderer(spec: tile.fixture.spec, store: store, webModel: model.webModel)
-                        .render(tile.fixture.spec.root)
                         .disabled(tile.lifecycle.taskState != .running)
                     if let answer = store.submittedAnswerText {
                         Text("Captured submission").font(.headline)

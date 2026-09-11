@@ -1,10 +1,11 @@
 // Upload and serve file attachments via R2 storage.
-// Exports POST /upload (multipart) and GET /:key (serve file).
-// Depends on Hono, auth middleware, R2 bucket binding.
+// Exports POST /upload and GET/HEAD /:key with streaming media range support.
+// Depends on Hono, auth middleware, R2, and the attachment download module.
 
 import { Context, Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { serveAttachment } from '../attachments';
 
 const TEN_MB = 10 * 1024 * 1024;
 const FIFTY_MB = 50 * 1024 * 1024;
@@ -115,21 +116,6 @@ routes.post('/upload', apiAuth, async (c) => {
   return c.json({ key, url: attachmentUrl, filename, content_type: mimeType, size }, 201);
 });
 
-routes.get('/:key', async (c) => {
-  const key = c.req.param('key');
-  const object = await c.env.ATTACHMENTS.get(key);
-  if (!object) {
-    return c.text('not found', 404);
-  }
-  const headers = new Headers();
-  headers.set('content-type', object.httpMetadata?.contentType ?? 'application/octet-stream');
-  const filename = object.customMetadata?.filename;
-  if (filename) {
-    headers.set('content-disposition', `inline; filename="${filename}"`);
-  }
-  headers.set('cache-control', 'public, max-age=31536000, immutable');
-
-  return new Response(object.body as ReadableStream, { headers });
-});
+routes.on(['GET', 'HEAD'], '/:key', (c) => serveAttachment(c.req.raw, c.env.ATTACHMENTS, c.req.param('key')));
 
 export const attachmentsRouter = routes;

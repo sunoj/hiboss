@@ -30,13 +30,7 @@ struct DashboardPanelsSection: View {
             if !model.visibleTiles.isEmpty {
                 PanelWall(model: model)
             } else if !model.isLoading {
-                ContentUnavailableView(
-                    model.failureMessage == nil ? "No panels here" : "Panels unavailable",
-                    systemImage: "rectangle.stack",
-                    description: Text(model.failureMessage == nil
-                        ? "Task progress and results appear here." : "Try again when the server is reachable.")
-                )
-                .frame(minHeight: 180)
+                PanelWallEmptyState(model: model).frame(minHeight: 180)
             }
         }
         .accessibilityIdentifier("dashboard.panels")
@@ -49,7 +43,7 @@ struct PanelWall: View {
     var body: some View {
         PanelWallLayout {
             ForEach(model.visibleTiles) { tile in
-                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile)) { model.open(tile.id) }
+                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile), pendingCount: model.pendingCount(for: tile)) { model.open(tile.id) }
                     .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
                     .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
@@ -75,9 +69,9 @@ struct DashboardPanelDetail: View {
                 Text(tile.sourceLabel).font(.callout).foregroundStyle(.secondary)
             }
             PanelOutcomeView(tile: tile)
+            PanelQuestionnairesView(tile: tile, panels: model)
             Menu("Panel actions") { PanelLifecycleMenu(tile: tile, model: model) }
             PanelRenderer(spec: tile.fixture.spec, store: tile.store, webModel: model.webModel)
-                .render(tile.fixture.spec.root)
                         .disabled(tile.lifecycle.taskState != .running)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let answer = tile.store.submittedAnswerText {

@@ -55,7 +55,7 @@ public struct PanelPreferenceCommand: Encodable, Sendable {
         self.acknowledgedTerminalVersion = acknowledgedTerminalVersion
     }
 }
-public enum PanelWallSection: String, CaseIterable, Identifiable { case active = "Active", results = "Results", archived = "Archived"
+public enum PanelWallSection: String, CaseIterable, Identifiable { case active = "Active", needsInput = "Needs input", results = "Results", archived = "Archived"
     public var id: String { rawValue }
 }
 public func panelDate(_ value: String?) -> Date? {

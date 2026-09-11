@@ -31,6 +31,14 @@ public struct PanelFixture: Sendable {
         initialState = panel.definition.initialState
     }
 
+    public init(questionnaire: QuestionnaireRecord, answers: PanelValue) {
+        name = questionnaire.requestId
+        title = questionnaire.definition.title
+        summary = nil
+        spec = questionnaire.definition.formSpec
+        initialState = .object(["form": answers, "context": questionnaire.definition.context])
+    }
+
     private static func defaultTitle(for name: String) -> String {
         switch name {
         case "download-progress.json": return "Nightly artifact transfer"

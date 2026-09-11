@@ -9,16 +9,65 @@ public struct PanelWallFilter: View {
     public init(model: PanelsModel) { self.model = model }
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("Panels", selection: $model.section) {
-                ForEach(PanelWallSection.allCases) { section in
-                    Text(section == .results && model.unreadResults > 0 ? "Results (\(model.unreadResults))" : section.rawValue).tag(section)
-                }
+            ViewThatFits(in: .horizontal) {
+                picker.pickerStyle(.segmented).fixedSize(horizontal: true, vertical: false)
+                picker.pickerStyle(.menu)
             }
-            .pickerStyle(.segmented)
+            if let error = model.questionnaireError {
+                Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark").foregroundStyle(.orange)
+                Text(error).font(.caption).foregroundStyle(.secondary)
+                Button(kitL("Retry questions")) { Task { await model.refreshPendingQuestionnaires() } }
+                    .disabled(model.isLoadingQuestions)
+            }
             if let error = model.preferenceError {
                 Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
             }
         }
+    }
+
+    private var picker: some View {
+        Picker(kitL("Panels"), selection: $model.section) {
+            ForEach(PanelWallSection.allCases) { section in Text(title(section)).tag(section) }
+        }
+    }
+
+    private func title(_ section: PanelWallSection) -> String {
+        switch section {
+        case .active: kitL("Active")
+        case .needsInput: kitL("Needs input") + " (\(model.pendingQuestionnaireCount))"
+        case .results: kitL("Results") + (model.unreadResults > 0 ? " (\(model.unreadResults))" : "")
+        case .archived: kitL("Archived")
+        }
+    }
+}
+
+public struct PanelWallEmptyState: View {
+    @ObservedObject var model: PanelsModel
+    public init(model: PanelsModel) { self.model = model }
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if model.section == .needsInput && model.isLoadingQuestions {
+                ProgressView(kitL("Loading questions…"))
+            } else {
+                Label(title, systemImage: model.section == .needsInput ? "text.bubble" : "rectangle.stack").font(.headline)
+                Text(message).font(.callout).foregroundStyle(.secondary)
+                Button(kitL("Refresh")) { Task { await model.load() } }.disabled(model.isLoading)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    private var title: String {
+        if model.failureMessage != nil { return kitL("Panels unavailable") }
+        if model.section == .needsInput {
+            return model.questionnaireError == nil ? kitL("No questions waiting") : kitL("Questions unavailable")
+        }
+        return kitL("No panels here")
+    }
+    private var message: String {
+        if let failure = model.failureMessage { return failure }
+        if model.section == .needsInput {
+            return model.questionnaireError == nil ? kitL("New questions from your agents appear here.") : kitL("Retry to check for unanswered questions.")
+        }
+        return kitL("Task progress and results appear here.")
     }
 }
 public struct PanelLifecycleMenu: View {

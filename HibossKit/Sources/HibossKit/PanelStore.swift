@@ -11,6 +11,7 @@ public enum PanelActionResult: Sendable { case idle, submitted(PanelValue) }
 public final class PanelStore: ObservableObject {
     @Published public private(set) var state: PanelValue
     @Published public private(set) var actionResult: PanelActionResult = .idle
+    public var onSubmit: (@MainActor (PanelValue) -> Void)?
 
     public init(fixture: PanelFixture) { state = fixture.initialState }
 
@@ -22,12 +23,15 @@ public final class PanelStore: ObservableObject {
     }
 
     public func setText(_ text: String, at path: String) {
-        write(Double(text).map(PanelValue.number) ?? .string(text), at: path)
+        write(Double(text).flatMap { $0.isFinite ? .number($0) : nil } ?? .string(text), at: path)
     }
 
     public func setString(_ value: String, at path: String) { write(.string(value), at: path) }
 
-    public func setNumber(_ value: Double, at path: String) { write(.number(value), at: path) }
+    public func setNumber(_ value: Double, at path: String) {
+        guard value.isFinite else { return }
+        write(.number(value), at: path)
+    }
 
     public func setStrings(_ values: [String], at path: String) {
         write(.array(values.map(PanelValue.string)), at: path)
@@ -44,6 +48,7 @@ public final class PanelStore: ObservableObject {
     public func perform(_ action: PanelAction?) {
         guard action?.action == "submitRequest" else { return }
         let answer = panelValue(at: "/form", in: state) ?? state
+        if let onSubmit { onSubmit(answer); return }
         actionResult = .submitted(answer)
     }
 
@@ -83,7 +88,9 @@ private extension JSONEncoder {
 
 private func panelSetValue(_ value: PanelValue, at pointer: String, in root: PanelValue) -> PanelValue? {
     guard pointer.isEmpty || pointer.first == "/" else { return nil }
-    let segments = pointer.split(separator: "/", omittingEmptySubsequences: false).dropFirst().map(String.init)
+    let segments = pointer.split(separator: "/", omittingEmptySubsequences: false).dropFirst().map {
+        $0.replacingOccurrences(of: "~1", with: "/").replacingOccurrences(of: "~0", with: "~")
+    }
     return panelSetValue(value, segments: segments[...], in: root)
 }
 

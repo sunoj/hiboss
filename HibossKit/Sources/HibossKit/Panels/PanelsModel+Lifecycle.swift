@@ -8,6 +8,7 @@ extension PanelsModel {
     public var visibleTiles: [PanelTile] {
         tiles.filter { tile in
             switch section {
+            case .needsInput: return pendingCount(for: tile) > 0
             case .archived: return tile.preference.placement == .archived
             case .results: return tile.lifecycle.taskState.isTerminal
             case .active:
@@ -23,7 +24,7 @@ extension PanelsModel {
         tiles.filter { $0.lifecycle.taskState.isTerminal && $0.preference.seenTerminalVersion != $0.metadata?.metadataVersion }.count
     }
 
-    private func serverNow(for id: String) -> Date {
+    public func serverNow(for id: String) -> Date {
         serverClocks[id].map { $0.server.addingTimeInterval(ProcessInfo.processInfo.systemUptime - $0.uptime) } ?? now
     }
 

@@ -28,6 +28,7 @@ extension PanelsModel {
             if let selectedTileID, !retained.contains(selectedTileID) { self.selectedTileID = nil }
             loadState = .loaded
             if let relayConfig { startSubscriptions(config: relayConfig) }
+            await refreshPendingQuestionnaires(using: service as? any QuestionnaireServing)
         } catch { loadState = .failed(error.localizedDescription) }
     }
 

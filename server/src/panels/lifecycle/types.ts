@@ -49,7 +49,8 @@ export interface ControlCommand {
   expectedDefinitionRevision: number;
   expectedEpoch: string | null;
   expectedState: { epoch: string | null; sequence: number } | null;
-  openRequests: 'reject';
+  openRequests: 'reject' | 'withdraw';
+  withdrawalReason?: string;
   dismissal?: { policy: 'default' | 'immediate' | 'after' | 'manual'; afterSeconds?: number };
   finalTask?: JsonValue;
   result?: { title: string; message?: string; code?: string };
