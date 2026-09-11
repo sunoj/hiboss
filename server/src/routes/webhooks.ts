@@ -96,7 +96,7 @@ router.post('/telegram', async (c) => {
 export const webhooksRouter = router;
 
 type TelegramCommand = { body: string | null; name: 'msg' | 'status' };
-type TelegramConfigRow = { agent_id: string; config: string };
+type TelegramConfigRow = { agent_id: string; config: string; inbound?: true };
 type TelegramWebhookContext = Context<{ Bindings: Env }>;
 
 async function handleTelegramMessage(c: TelegramWebhookContext, payload: Record<string, unknown>): Promise<Response> {
@@ -106,9 +106,9 @@ async function handleTelegramMessage(c: TelegramWebhookContext, payload: Record<
   const text = asString(message?.['text']);
   const threadId = typeof message?.['message_thread_id'] === 'number' ? message['message_thread_id'] : undefined;
   if (!chatId || !text) return c.text('missing chat or body', 400);
-  if (!(await findEnabledChannelConfig(c.env, 'telegram', chatId))) return c.text('forbidden', 403);
+  if (!(await findEnabledChannelConfig(c.env, 'telegram', chatId, text, threadId?.toString()))) return c.text('forbidden', 403);
 
-  const target = await findTelegramTarget(c.env, chatId, threadId);
+  const target = await findTelegramTarget(c.env, chatId, threadId, text);
   if (!target) return c.text('forbidden', 403);
   const { boss: bossInfo, error: bossError } = await resolveBossForChannel(
     c.env,
@@ -141,7 +141,7 @@ async function createTelegramBossMessage(
     const existing = await findMessageByIdempotencyKey(c.env, target.configRow.agent_id, idempotencyKey);
     if (existing) return c.json(mapMessage(existing), 200);
   }
-  const routedAgentId = target.targetSessionId ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
+  const routedAgentId = target.targetSessionId || target.configRow.inbound ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
   const agentId = routedAgentId ?? target.configRow.agent_id;
   const replyTo = await resolveTelegramReplyTo(c.env, agentId, message);
   const senderId = asString((message?.['from'] as Record<string, unknown>)?.['id']);
@@ -161,7 +161,9 @@ async function createTelegramBossMessage(
   return c.json(mapMessage(inserted), 201);
 }
 
-async function findTelegramTarget(env: Env, chatId: string, threadId: number | undefined): Promise<{ configRow: TelegramConfigRow; targetSessionId: string | null } | null> {
+async function findTelegramTarget(env: Env, chatId: string, threadId: number | undefined, body: string): Promise<{ configRow: TelegramConfigRow; targetSessionId: string | null } | null> {
+  const inbound = await findEnabledChannelConfig(env, 'telegram', chatId, body, threadId?.toString());
+  if (inbound?.inbound) return { configRow: inbound, targetSessionId: inbound.session_id ?? null };
   if (threadId) {
     const sessionRoute = await findTelegramSessionRoute(env, chatId, threadId);
     if (sessionRoute) {

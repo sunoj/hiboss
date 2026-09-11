@@ -5,6 +5,7 @@
 import type { Env, MessageResponse, MessageRow } from '../types';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
+import { findInboundRoute } from '../delivery';
 
 export function asString(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
@@ -19,8 +20,12 @@ export function mapMessage(row: MessageRow): MessageResponse {
 export async function findEnabledChannelConfig(
   env: Env,
   channel: 'telegram' | 'discord',
-  externalId: string
-): Promise<{ agent_id: string; config: string } | null> {
+  externalId: string,
+  body?: string,
+  threadId?: string,
+): Promise<{ agent_id: string; config: string; session_id?: string | null; inbound?: true } | null> {
+  const inbound = await findInboundRoute(env, channel, externalId, body, threadId);
+  if (inbound) return inbound;
   const path = channel === 'telegram' ? '$.chat_id' : '$.channel_id';
   const row = await env.DB
     .prepare(`SELECT agent_id, config FROM channel_configs WHERE channel = ? AND enabled = 1 AND json_extract(config, '${path}') = ? LIMIT 1`)
@@ -150,23 +155,12 @@ export async function insertBossDiscordMessage(
   idempotencyKey: string | undefined,
   rawMetadata: Record<string, unknown>
 ): Promise<MessageRow | null> {
-  let agentRow = await findEnabledChannelConfig(env, 'discord', channelId);
-  let sessionId: string | null = null;
+  let agentRow = await findEnabledChannelConfig(env, 'discord', channelId, text);
+  let sessionId: string | null = agentRow?.session_id ?? null;
   if (!agentRow) {
-    const threadSession = await env.DB
-      .prepare('SELECT s.agent_id, s.id AS session_id FROM sessions s WHERE s.discord_thread_id = ? LIMIT 1')
-      .bind(channelId)
-      .first<{ agent_id: string; session_id: string }>();
-    if (threadSession) {
-      sessionId = threadSession.session_id;
-      const cc = await env.DB
-        .prepare("SELECT agent_id, config FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
-        .bind(threadSession.agent_id)
-        .first<{ agent_id: string; config: string }>();
-      if (cc) {
-        agentRow = cc;
-      }
-    }
+    const fallback = await legacyDiscordThread(env, channelId);
+    agentRow = fallback?.agentRow ?? null;
+    sessionId = fallback?.sessionId ?? null;
   }
   if (!agentRow) {
     console.error('[webhook] discord message rejected: no agent found for channel', channelId);
@@ -181,7 +175,7 @@ export async function insertBossDiscordMessage(
     const existing = await findMessageByIdempotencyKey(env, agentRow.agent_id, idempotencyKey);
     if (existing) return existing;
   }
-  const routedAgentId = await evaluateRoutingRules(env, 'discord', text, agentRow.agent_id);
+  const routedAgentId = agentRow.inbound ? null : await evaluateRoutingRules(env, 'discord', text, agentRow.agent_id);
   if (routedAgentId) agentRow.agent_id = routedAgentId;
   if (bossInfo && !(await hasBossAccess(env, bossInfo.id, agentRow.agent_id, bossInfo.role))) return null;
   // Extract discord_message_id from raw Discord payload for reactions support
@@ -192,29 +186,8 @@ export async function insertBossDiscordMessage(
     baseMetadata,
     channelMetadata('discord', bossInfo, senderUserId),
   );
-  // Precise reply linking: look up parent by discord_message_id in metadata
-  let replyTo: string | null = null;
-  if (replyToDiscordMsgId) {
-    const parent = await env.DB
-      .prepare("SELECT id FROM messages WHERE agent_id = ? AND channel = 'discord' AND json_extract(metadata, '$.discord_message_id') = ? LIMIT 1")
-      .bind(agentRow.agent_id, replyToDiscordMsgId)
-      .first<{ id: string }>();
-    if (parent) replyTo = parent.id;
-  }
-  // Fallback: auto-link to most recent pending blocking message
-  if (!replyTo && !replyToDiscordMsgId) {
-    const pending = await env.DB
-      .prepare("SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1")
-      .bind(agentRow.agent_id)
-      .first<{ id: string }>();
-    if (pending) replyTo = pending.id;
-  }
-  // Scope thread-bound messages to their session. The unread/SSE filters route
-  // boss_to_agent purely on target_session_id (session_id only affects the
-  // browse view), so a thread message with target_session_id NULL would fan out
-  // to every sibling session under this agent — the same mis-route this change
-  // closes elsewhere. A non-thread channel message keeps sessionId NULL and
-  // stays agent-wide. Mirrors the Telegram fresh-message path (webhooks.ts).
+  const replyTo = await resolveDiscordParent(env, agentRow.agent_id, replyToDiscordMsgId);
+  // Keep inbound thread replies scoped to the owning session.
   const inserted = await insertMessageWithEvent(
     env,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
@@ -222,4 +195,43 @@ export async function insertBossDiscordMessage(
     sessionId,
   );
   return inserted ?? null;
+}
+
+async function resolveDiscordParent(env: Env, agentId: string, replyToDiscordMsgId: string | undefined): Promise<string | null> {
+  // Precise reply linking: look up parent by discord_message_id in metadata
+  let replyTo: string | null = null;
+  if (replyToDiscordMsgId) {
+    const parent = await env.DB
+      .prepare("SELECT id FROM messages WHERE agent_id = ? AND channel = 'discord' AND json_extract(metadata, '$.discord_message_id') = ? LIMIT 1")
+      .bind(agentId, replyToDiscordMsgId)
+      .first<{ id: string }>();
+    if (parent) replyTo = parent.id;
+  }
+  // Fallback: auto-link to most recent pending blocking message
+  if (!replyTo && !replyToDiscordMsgId) {
+    const pending = await env.DB
+      .prepare("SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'discord' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1")
+      .bind(agentId)
+      .first<{ id: string }>();
+    if (pending) replyTo = pending.id;
+  }
+  return replyTo;
+}
+
+async function legacyDiscordThread(env: Env, channelId: string): Promise<{ agentRow: { agent_id: string; config: string }; sessionId: string } | null> {
+  const threadSession = await env.DB
+    .prepare('SELECT s.agent_id, s.id AS session_id FROM sessions s WHERE s.discord_thread_id = ? LIMIT 1')
+    .bind(channelId)
+    .first<{ agent_id: string; session_id: string }>();
+  if (threadSession) {
+
+    const cc = await env.DB
+      .prepare("SELECT agent_id, config FROM channel_configs WHERE agent_id = ? AND channel = 'discord' AND enabled = 1 LIMIT 1")
+      .bind(threadSession.agent_id)
+      .first<{ agent_id: string; config: string }>();
+    if (cc) {
+      return { agentRow: cc, sessionId: threadSession.session_id };
+    }
+  }
+  return null;
 }

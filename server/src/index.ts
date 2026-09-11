@@ -3,6 +3,7 @@
 // Depends on the shared routers and Env definition.
 
 import { Hono } from 'hono';
+import { bossDestinationsRouter, bossProvidersRouter } from './routes/boss-destinations';
 import { cors } from 'hono/cors';
 import type { Env } from './types';
 import { adminRouter } from './routes/admin';
@@ -99,6 +100,8 @@ app.route('/api/boss/inbox', bossInboxRouter);
 app.route('/api/boss/devices', bossDevicesRouter);
 app.route('/api/boss/tokens', bossTokensRouter);
 app.route('/api/boss/clients', bossClientsRouter);
+app.route('/api/boss/destinations', bossDestinationsRouter);
+app.route('/api/boss/providers', bossProvidersRouter);
 app.route('/api/boss', bossGroupBroadcastRouter);
 app.route('/api/boss', bossWritesRouter);
 app.route('/api/boss', bossMessageReplyRouter);

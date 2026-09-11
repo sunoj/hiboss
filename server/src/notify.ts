@@ -71,7 +71,7 @@ export async function notifyBossAgents(env: Env, subAgentId: string, message: Me
         await notifyAgentCallback(env, row.agent_id, message);
       }
     }
-    await notifyBossDevices(env, rows.results ?? [], subAgentId, message);
+    if (env.DESTINATIONS_MODE !== 'on') await notifyBossDevices(env, rows.results ?? [], subAgentId, message);
   } catch {
     // Best-effort
   }

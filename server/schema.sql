@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0039; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0040; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -453,3 +453,60 @@ CREATE TABLE interaction_deliveries (
   submission_id TEXT PRIMARY KEY REFERENCES interaction_submissions(submission_id),
   acknowledged_at TEXT
 );
+
+-- Add boss-owned destinations and per-message delivery state without touching messages.
+-- Backfill legacy credentials, accessible chats, session routes, and native clients.
+CREATE TABLE channel_providers (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  provider TEXT NOT NULL CHECK (provider IN ('telegram', 'discord')),
+  label TEXT NOT NULL,
+  credentials TEXT NOT NULL CHECK (json_valid(credentials)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE boss_destinations (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  boss_id TEXT NOT NULL REFERENCES bosses(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('telegram_chat', 'discord_channel', 'apns', 'native_live')),
+  provider_id TEXT REFERENCES channel_providers(id),
+  client_id TEXT REFERENCES boss_clients(id),
+  target TEXT NOT NULL CHECK (json_valid(target)),
+  label TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+  min_priority TEXT NOT NULL DEFAULT 'low' CHECK (min_priority IN ('low', 'normal', 'high', 'critical')),
+  honours_quiet_hours INTEGER NOT NULL DEFAULT 1 CHECK (honours_quiet_hours IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_boss_destinations_boss ON boss_destinations(boss_id, enabled);
+CREATE TABLE destination_routes (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  destination_id TEXT NOT NULL REFERENCES boss_destinations(id) ON DELETE CASCADE,
+  project TEXT,
+  session_id TEXT,
+  external_channel_id TEXT,
+  external_thread_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (destination_id, project, session_id)
+);
+CREATE UNIQUE INDEX idx_destination_routes_scope ON destination_routes(destination_id, COALESCE(project, ''), COALESCE(session_id, ''));
+CREATE TABLE inbound_routes (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  destination_id TEXT NOT NULL REFERENCES boss_destinations(id) ON DELETE CASCADE,
+  pattern TEXT,
+  target_agent_id TEXT NOT NULL REFERENCES api_keys(id),
+  priority INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE message_deliveries (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  message_id TEXT NOT NULL REFERENCES messages(id),
+  destination_id TEXT NOT NULL REFERENCES boss_destinations(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'delivered', 'failed')),
+  external_message_id TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (message_id, destination_id)
+);
+CREATE INDEX idx_message_deliveries_message ON message_deliveries(message_id);
+CREATE INDEX idx_message_deliveries_retry ON message_deliveries(status, next_attempt_at);
