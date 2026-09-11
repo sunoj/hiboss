@@ -9,6 +9,7 @@ struct SettingsScene: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
     @ObservedObject var preferencesStore: BossPreferencesStore
+    @ObservedObject var notifications: MessageNotificationStore
     @ObservedObject var updater: UpdaterState
     @ObservedObject var launchAtLogin: LaunchAtLoginController
     let soundPlayer: any SoundPlaying
@@ -21,6 +22,7 @@ struct SettingsScene: View {
         settings: AppSettings,
         flow: OptionFlowStore,
         preferencesStore: BossPreferencesStore,
+        notifications: MessageNotificationStore,
         updater: UpdaterState = UpdaterState(),
         launchAtLogin: LaunchAtLoginController = LaunchAtLoginController(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer()
@@ -28,6 +30,7 @@ struct SettingsScene: View {
         self.settings = settings
         self.flow = flow
         self.preferencesStore = preferencesStore
+        self.notifications = notifications
         self.updater = updater
         self.launchAtLogin = launchAtLogin
         self.soundPlayer = soundPlayer
@@ -67,7 +70,8 @@ struct SettingsScene: View {
                 reconnect: connect
             )
         case .notifications:
-            NotificationsSettingsPane(settings: settings, preferencesStore: preferencesStore)
+            NotificationsSettingsPane(settings: settings, preferencesStore: preferencesStore,
+                notifications: notifications)
         case .routing:
             ChannelsRoutingSettingsPane(
                 settings: settings,
@@ -154,6 +158,7 @@ struct SettingsScene: View {
         do {
             try await api.verifyConnection()
             flow.connect(api: api)
+            notifications.connect(api: api)
             await preferencesStore.save()
             statusMessage = preferencesStore.state == .loaded ? "" : statusMessage
         } catch {

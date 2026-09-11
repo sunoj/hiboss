@@ -1,9 +1,15 @@
 // Demo session-stream extras: mixed directions plus non-message kinds for UI shots.
-// Exports: DemoSessionStream projecting history messages and splicing system events.
+// Exports: DemoSessionStream history projection and DemoBossAPI's inactive passive feed.
 // Dependencies: Foundation, HibossKit SessionEvent / HistoryMessage.
 
 import Foundation
 import HibossKit
+
+extension DemoBossAPI {
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+}
 
 enum DemoSessionStream {
     static func events(for sessionID: String, from messages: [HistoryMessage]) -> [SessionEvent] {

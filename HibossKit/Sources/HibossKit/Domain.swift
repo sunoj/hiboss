@@ -264,6 +264,7 @@ public struct ConnectionConfig: Equatable, Sendable {
 
 public protocol BossServing: Sendable {
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error>
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error>
     func fetchHistory() async throws -> [HistoryMessage]
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome

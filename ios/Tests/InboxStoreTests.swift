@@ -96,6 +96,10 @@ private final class MutableBossAPI: BossServing, @unchecked Sendable {
 
     init(messages: [HistoryMessage]) { self.messages = messages }
 
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
         AsyncThrowingStream { continuation in continuation.onTermination = { _ in } }
     }

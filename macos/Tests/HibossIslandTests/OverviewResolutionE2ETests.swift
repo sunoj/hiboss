@@ -58,6 +58,10 @@ private actor OverviewResolutionAPI: BossServing {
     private var answered = false
     private var continuation: AsyncThrowingStream<BossEvent, Error>.Continuation?
 
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+
     func messageStream() -> AsyncThrowingStream<BossEvent, Error> {
         AsyncThrowingStream { continuation = $0 }
     }

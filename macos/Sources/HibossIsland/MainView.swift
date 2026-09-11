@@ -9,6 +9,7 @@ struct MainView: View {
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
+    @ObservedObject var notificationNavigation: MessageNotificationNavigation
     @StateObject private var reply = AttentionReplyState()
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var panels: PanelsModel
@@ -19,9 +20,11 @@ struct MainView: View {
 
     private static let sidebarMinimumWidth: CGFloat = 760
 
-    init(settings: AppSettings, flow: OptionFlowStore) {
+    init(settings: AppSettings, flow: OptionFlowStore,
+         notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation()) {
         self.settings = settings
         self.flow = flow
+        self.notificationNavigation = notificationNavigation
         _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
             await settings.loadToken()
             guard case let .success(config) = settings.connectionConfig() else {
@@ -39,6 +42,18 @@ struct MainView: View {
         }
         .frame(minWidth: 480, minHeight: 400)
         .onAppear { updateOverview() }
+        .onAppear {
+            let action = openWindow
+            notificationNavigation.openWindow = { action(id: "main") }
+        }
+        .onChange(of: notificationNavigation.target?.id, initial: true) { _, id in
+            guard id != nil else { return }
+            destination = .category(.all)
+            showsCompactOverview = false
+        }
+        .sheet(item: $notificationNavigation.target) { target in
+            NotificationMessageDetail(messageID: target.id, settings: settings, reply: reply)
+        }
         .onChange(of: flow.historyMessages) { updateOverview() }
         .onChange(of: flow.activeMessage) { updateOverview() }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
