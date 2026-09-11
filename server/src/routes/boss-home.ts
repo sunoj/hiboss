@@ -40,11 +40,11 @@ type AttentionItem =
   };
 
 interface LiveSession {
-  id: string; label: string | null; status: string; status_text: string | null; last_seen_at: string;
+  project: string | null; id: string; label: string | null; status: string; status_text: string | null; last_seen_at: string;
 }
 interface PendingRow {
   id: string; session_id: string | null; body: string; priority: Priority; mode: Mode;
-  created_at: string; expires_at: string | null; session_label: string | null;
+  project: string | null; created_at: string; expires_at: string | null; session_label: string | null;
 }
 interface ProgressRow {
   project: string; post_count: number; last_id: string; last_body: string; last_created: string;
@@ -129,37 +129,33 @@ function loadActivity(env: Env, ph: string, ids: string[]): D1PreparedStatement 
 
 function loadLiveSessions(env: Env, ph: string, ids: string[]): D1PreparedStatement {
   return env.DB.prepare(
-    `SELECT id, label, status, status_text, last_seen_at FROM sessions
-     WHERE agent_id IN (${ph}) AND last_seen_at > datetime('now', '-15 minutes')`,
+    `SELECT s.id, s.label, s.status, s.status_text, s.last_seen_at, ${sessionProjectSql()} AS project FROM sessions s LEFT JOIN projects t ON t.id = s.project_id
+     WHERE s.agent_id IN (${ph}) AND last_seen_at > datetime('now', '-15 minutes')`,
   ).bind(...ids);
 }
 function loadPending(env: Env, ph: string, ids: string[], now: string): D1PreparedStatement {
   return env.DB.prepare(
     `SELECT m.id, m.session_id, m.body, m.priority, m.mode, m.created_at, m.expires_at,
-            s.label AS session_label
-     FROM messages m LEFT JOIN sessions s ON s.id = m.session_id
+            s.label AS session_label, ${sessionProjectSql()} AS project
+     FROM messages m LEFT JOIN sessions s ON s.id = m.session_id LEFT JOIN projects t ON t.id = s.project_id
      WHERE m.agent_id IN (${ph}) AND ${pendingSql('m')}`,
   ).bind(...ids, now);
 }
 function loadProgress7d(env: Env, ph: string, ids: string[]): D1PreparedStatement {
   return env.DB.prepare(
-    `SELECT project, COUNT(*) AS post_count,
-       (SELECT id FROM progress_posts x WHERE x.project = p.project AND x.agent_id IN (${ph})
-          AND x.created_at >= datetime('now', '-7 days') ORDER BY x.created_at DESC LIMIT 1) AS last_id,
-       (SELECT body FROM progress_posts x WHERE x.project = p.project AND x.agent_id IN (${ph})
-          AND x.created_at >= datetime('now', '-7 days') ORDER BY x.created_at DESC LIMIT 1) AS last_body,
-       (SELECT created_at FROM progress_posts x WHERE x.project = p.project AND x.agent_id IN (${ph})
-          AND x.created_at >= datetime('now', '-7 days') ORDER BY x.created_at DESC LIMIT 1) AS last_created
-     FROM progress_posts p
-     WHERE p.agent_id IN (${ph}) AND p.created_at >= datetime('now', '-7 days')
-     GROUP BY p.project`,
-  ).bind(...ids, ...ids, ...ids, ...ids);
+    `WITH visible AS (
+       SELECT p.id, p.body, p.created_at, CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project
+       FROM progress_posts p LEFT JOIN projects t ON t.id = p.project_id
+       WHERE p.agent_id IN (${ph}) AND p.created_at >= datetime('now', '-7 days')
+     ), ranked AS (
+       SELECT *, COUNT(*) OVER (PARTITION BY project) AS post_count,
+         ROW_NUMBER() OVER (PARTITION BY project ORDER BY created_at DESC, id DESC) AS rank FROM visible
+     ) SELECT project, post_count, id AS last_id, body AS last_body, created_at AS last_created FROM ranked WHERE rank = 1`,
+  ).bind(...ids);
 }
 
-function projectFromLabel(label: string | null | undefined): string | null {
-  if (!label) return null;
-  const i = label.indexOf('/');
-  return i === -1 ? label : label.slice(0, i);
+function sessionProjectSql(): string {
+  return "CASE WHEN s.project_id IS NULL THEN CASE WHEN instr(s.label, '/') > 0 THEN substr(s.label, 1, instr(s.label, '/') - 1) ELSE s.label END ELSE t.slug END";
 }
 
 function maxTs(a: string | null, b: string | null): string | null {
@@ -183,7 +179,7 @@ function buildProjects(sessions: LiveSession[], pending: PendingRow[], progress:
     return row;
   };
   for (const s of sessions) {
-    const name = projectFromLabel(s.label);
+    const name = s.project;
     if (!name) continue;
     const row = ensure(name);
     if ((SESSION_KEYS as readonly string[]).includes(s.status)) {
@@ -199,7 +195,7 @@ function buildProjects(sessions: LiveSession[], pending: PendingRow[], progress:
     row.lastActivityAt = maxTs(row.lastActivityAt, normalizeTimestamp(p.last_created));
   }
   for (const d of pending) {
-    const name = projectFromLabel(d.session_label);
+    const name = d.project;
     if (!name) continue;
     const row = ensure(name);
     row.pendingDecisions += 1;
@@ -225,7 +221,7 @@ function buildAttention(sessions: LiveSession[], pending: PendingRow[]): Attenti
       createdAt: d.created_at,
       item: {
         kind: 'decision', messageId: d.id, sessionId: d.session_id, sessionLabel: d.session_label,
-        project: projectFromLabel(d.session_label) ?? '', priority: d.priority, mode: d.mode,
+        project: d.project ?? '', priority: d.priority, mode: d.mode,
         body: d.body, createdAt: normalizeTimestamp(d.created_at),
         expiresAt: d.expires_at ? normalizeTimestamp(d.expires_at) : null,
       },
@@ -240,7 +236,7 @@ function buildAttention(sessions: LiveSession[], pending: PendingRow[]): Attenti
       createdAt: s.last_seen_at,
       item: {
         kind: 'session', sessionId: s.id, sessionLabel: label,
-        project: projectFromLabel(label) ?? '', status: s.status,
+        project: s.project ?? '', status: s.status,
         statusText: s.status_text, lastSeenAt: normalizeTimestamp(s.last_seen_at),
       },
     });

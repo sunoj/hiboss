@@ -1,5 +1,6 @@
 // Agent message creation, validation, targeting, and delivery orchestration.
 // Exports messageSendRouter and idempotent insertion; depends on shared message helpers.
+import { ownsSession } from '../projects';
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
 import { notifyBossAgents, notifyTargetAgent } from '../notify';
@@ -51,6 +52,7 @@ routes.post('/', async (c) => {
   const input = await prepareSendInput(c);
   if (input instanceof Response) return input;
   const { toAgent, sessionId } = input;
+  if (!await ownsSession(c.env.DB, sessionId, input.agentId)) return c.text('session does not belong to calling agent', 400);
   const target = await resolveSendTarget(c, toAgent, sessionId);
   if (target instanceof Response) return target;
   const inserted = await persistSend(c, input, target);

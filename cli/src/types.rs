@@ -241,7 +241,7 @@ pub struct ProgressMediaItem {
 pub struct ProgressPostRequest {
     pub body: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub project: Option<String>,
+    pub project: Option<crate::session::ProjectIdentity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

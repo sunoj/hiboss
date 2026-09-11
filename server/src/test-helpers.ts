@@ -8,6 +8,10 @@ import targetMigration from '../migrations/0041_destination_targets_external_acc
 import credentialMigration from '../migrations/0042_provider_credentials.sql?raw';
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
+import projectsMigration from '../migrations/0043_projects.sql?raw';
+import postsMigration from '../migrations/0026_progress_posts.sql?raw';
+import teamsMigration from '../migrations/0027_progress_teams_likes.sql?raw';
+import attributionMigration from '../migrations/0029_progress_attribution.sql?raw';
 import interactionMigration from '../migrations/0038_interaction_requests.sql?raw';
 
 const TEST_API_KEY = 'hb_test_key_0000000000000000';
@@ -84,6 +88,11 @@ export async function seedDatabase(): Promise<void> {
   }
   for (const sql of credentialMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
     await env.DB.prepare(sql).run();
+  }
+  for (const migration of [postsMigration, teamsMigration, attributionMigration, projectsMigration]) {
+    for (const sql of migration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
+      await env.DB.prepare(sql).run();
+    }
   }
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')

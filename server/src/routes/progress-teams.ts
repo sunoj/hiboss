@@ -2,6 +2,7 @@
 // Exports progressTeamsRouter mounted at /api/progress/teams.
 // Depends on Hono, D1/R2, and shared progress identity helpers.
 
+import { resolveProject } from '../projects';
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -57,7 +58,7 @@ function parseTeamInput(value: unknown): TeamInput | string {
 }
 
 async function readTeam(env: Env, project: string): Promise<StoredTeam | null> {
-  return env.DB.prepare('SELECT id, project, handle, display_name, bio, avatar_url, created_by_agent_id FROM progress_teams WHERE project = ?')
+  return env.DB.prepare('SELECT id, slug AS project, handle, display_name, bio, avatar_url, created_by_agent_id FROM projects WHERE slug = ?')
     .bind(project).first<StoredTeam>();
 }
 
@@ -70,24 +71,19 @@ async function validateAvatar(env: Env, avatarUrl: string | null, requestUrl: UR
 }
 
 async function hasHandleConflict(env: Env, handle: string, project: string): Promise<boolean> {
-  const row = await env.DB.prepare('SELECT project FROM progress_teams WHERE handle = ? AND project != ?').bind(handle, project).first<{ project: string }>();
+  const row = await env.DB.prepare('SELECT slug AS project FROM projects WHERE handle = ? AND slug != ?').bind(handle, project).first<{ project: string }>();
   return !!row;
 }
 
-async function saveTeam(env: Env, project: string, input: TeamInput, agentId: string): Promise<StoredTeam | null> {
+async function saveTeam(env: Env, project: string, input: TeamInput): Promise<StoredTeam | null> {
   const existing = await readTeam(env, project);
   const handle = input.handle ?? existing?.handle ?? slugifyProject(project);
   const displayName = input.display_name ?? existing?.display_name ?? project;
   const bio = input.bio === undefined ? existing?.bio ?? null : input.bio;
   const avatarUrl = input.avatar_url === undefined ? existing?.avatar_url ?? null : input.avatar_url;
   if (await hasHandleConflict(env, handle, project)) return null;
-  if (existing) {
-    await env.DB.prepare("UPDATE progress_teams SET handle = ?, display_name = ?, bio = ?, avatar_url = ?, updated_at = datetime('now') WHERE project = ?")
-      .bind(handle, displayName, bio, avatarUrl, project).run();
-  } else {
-    await env.DB.prepare('INSERT INTO progress_teams (project, handle, display_name, bio, avatar_url, created_by_agent_id) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(project, handle, displayName, bio, avatarUrl, agentId).run();
-  }
+  await env.DB.prepare("UPDATE projects SET handle = ?, display_name = ?, bio = ?, avatar_url = ?, updated_at = datetime('now') WHERE slug = ?")
+    .bind(handle, displayName, bio, avatarUrl, project).run();
   return readTeam(env, project);
 }
 
@@ -216,7 +212,9 @@ routes.put('/:project', apiAuth, async (c) => {
   const avatarError = await validateAvatar(c.env, input.avatar_url ?? null, new URL(c.req.url), agentId);
   if (avatarError) return c.text(avatarError, 400);
   try {
-    const team = await saveTeam(c.env, project, input, agentId);
+    const resolved = await resolveProject(c.env.DB, { slug: project, aliases: [project] }, agentId);
+    if (!resolved.ok) return c.text(resolved.error, 409);
+    const team = await saveTeam(c.env, resolved.project.slug, input);
     if (!team) return c.text('handle is already in use', 409);
     return c.json(mapTeamRow(team, new URL(c.req.url)));
   } catch (error) {
@@ -230,7 +228,7 @@ routes.get('/', dualAuth, async (c) => {
   if (!agentIds.length) return c.json({ teams: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB.prepare(
-    `SELECT DISTINCT p.project, t.handle, t.display_name, t.bio, t.avatar_url FROM progress_posts p LEFT JOIN progress_teams t ON t.project = p.project WHERE p.agent_id IN (${placeholders}) ORDER BY p.project`
+    `SELECT DISTINCT CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project, t.handle, t.display_name, t.bio, t.avatar_url FROM progress_posts p LEFT JOIN projects t ON t.id = COALESCE(p.project_id, (SELECT project_id FROM project_aliases WHERE alias = p.project)) WHERE p.agent_id IN (${placeholders}) ORDER BY p.project`
   ).bind(...agentIds).all<TeamRow>();
   const requestUrl = new URL(c.req.url);
   return c.json({ teams: (rows.results ?? []).map((row) => mapTeamRow(row, requestUrl)) });

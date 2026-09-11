@@ -3,5 +3,5 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  test: { include: ['scripts/schema.check.ts', 'scripts/client-backfill.check.ts', 'scripts/destination-backfill.check.ts', 'scripts/external-accounts.check.ts'], environment: 'node' },
+  test: { include: ['scripts/schema.check.ts', 'scripts/projects.check.ts', 'scripts/client-backfill.check.ts', 'scripts/destination-backfill.check.ts', 'scripts/external-accounts.check.ts'], environment: 'node' },
 });

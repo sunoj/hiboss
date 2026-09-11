@@ -2,6 +2,10 @@
 // Exports: session_file_path, read_session_id, write_session_id, project_hash.
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
+mod project;
+mod markers;
+pub use project::{ProjectIdentity, resolve_project};
+pub use markers::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -95,15 +99,9 @@ pub fn project_dir() -> String {
     PROJECT_DIR.get_or_init(resolve_project_dir).clone()
 }
 
-/// Return the basename of the resolved project directory (git-root basename or cwd basename).
-/// Used as the default --project value for `hiboss progress post`.
+/// Return the canonical project slug used by sessions and progress.
 pub fn project_name() -> String {
-    let dir = PROJECT_DIR.get_or_init(resolve_project_dir);
-    std::path::Path::new(dir.as_str())
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(dir.as_str())
-        .to_owned()
+    resolve_project(None).slug
 }
 
 fn fnv1a_hash(s: &str) -> String {
@@ -143,167 +141,6 @@ pub fn daemon_pending_path() -> PathBuf {
 /// Path to the urgent message file (written by bg-check, read by post-tool-use).
 pub fn urgent_file_path() -> PathBuf {
     PathBuf::from(format!("/tmp/hiboss-urgent-{}", project_hash()))
-}
-
-/// Marker file: written by `hiboss ask`, checked by Stop hook.
-pub fn asked_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-asked-{}", project_hash()))
-}
-
-/// Record that `hiboss ask` was called this session.
-pub fn mark_asked() {
-    let _ = fs::write(asked_marker_path(), "1");
-}
-
-/// Check whether `hiboss ask` was called this session.
-pub fn has_asked() -> bool {
-    asked_marker_path().exists()
-}
-
-/// Marker: stop hook already warned once this session — don't block again.
-pub fn stop_warned_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-stop-warned-{}", project_hash()))
-}
-
-pub fn mark_stop_warned() {
-    let _ = fs::write(stop_warned_marker_path(), "1");
-}
-
-pub fn has_stop_warned() -> bool {
-    stop_warned_marker_path().exists()
-}
-
-/// Marker: the Stop hook parked this session as "waiting" (idle, awaiting the
-/// boss). Set on Stop, consumed by the next background heartbeat so a session
-/// that resumed work is flipped back to "working" instead of lingering as
-/// waiting. Existence flag only — never printed into agent context.
-pub fn resume_pending_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-resume-pending-{}", project_hash()))
-}
-
-/// Record that the Stop hook parked this session as waiting.
-pub fn mark_resume_pending() {
-    let _ = fs::write(resume_pending_marker_path(), "1");
-}
-
-/// Consume the resume-pending marker: returns true (and deletes it) when the
-/// session was parked as waiting and should now be reset to working. The next
-/// bg-check only runs because active work resumed, so consuming it there is the
-/// resume signal.
-pub fn take_resume_pending() -> bool {
-    let path = resume_pending_marker_path();
-    if path.exists() {
-        let _ = fs::remove_file(&path);
-        true
-    } else {
-        false
-    }
-}
-
-/// Clear the resume-pending marker without acting on it — a manually set status
-/// (`hiboss ss`) wins, so bg-check must not later override it with "working".
-pub fn clear_resume_pending() {
-    let _ = fs::remove_file(resume_pending_marker_path());
-}
-
-/// Marker file: written by send/reply/react after an ask, checked by Stop hook.
-pub fn replied_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-replied-{}", project_hash()))
-}
-
-/// Record that agent sent a reply/reaction after asking.
-pub fn mark_replied() {
-    if has_asked() {
-        let _ = fs::write(replied_marker_path(), "1");
-    }
-}
-
-/// Check whether agent replied after asking.
-pub fn has_replied() -> bool {
-    replied_marker_path().exists()
-}
-
-/// Marker file: written when agent broadcasts to peers, checked by Stop hook.
-pub fn broadcast_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-broadcast-{}", project_hash()))
-}
-
-/// Record that agent broadcast to peers this session.
-pub fn mark_broadcast() {
-    let _ = fs::write(broadcast_marker_path(), "1");
-}
-
-/// Check whether agent has broadcast to peers this session.
-pub fn has_broadcast() -> bool {
-    broadcast_marker_path().exists()
-}
-
-/// Marker file: tracks whether peers were active during this session.
-pub fn peers_active_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-peers-active-{}", project_hash()))
-}
-
-/// Record that peer sessions were detected during this session.
-pub fn mark_peers_active() {
-    let _ = fs::write(peers_active_marker_path(), "1");
-}
-
-/// Check whether peer sessions were active during this session.
-pub fn had_peers_active() -> bool {
-    peers_active_marker_path().exists()
-}
-
-/// TTL file for broadcast reminders (avoid spamming every PostToolUse).
-pub fn broadcast_remind_ttl_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-broadcast-remind-{}", project_hash()))
-}
-
-/// Queue file for message IDs to be marked as read by bg-check.
-pub fn read_queue_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-read-queue-{}", project_hash()))
-}
-
-/// Append message IDs to the read queue (one per line).
-pub fn queue_mark_read(ids: &[&str]) {
-    if ids.is_empty() {
-        return;
-    }
-    let content = ids.join("\n") + "\n";
-    // Append to file
-    let path = read_queue_path();
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    let _ = write_private(&path, &format!("{}{}", existing, content));
-}
-
-/// Drain message IDs from the read queue. Returns IDs to mark.
-pub fn drain_read_queue() -> Vec<String> {
-    let path = read_queue_path();
-    let tmp = path.with_extension("draining");
-    if fs::rename(&path, &tmp).is_err() {
-        return vec![];
-    }
-    let content = fs::read_to_string(&tmp).unwrap_or_default();
-    let _ = fs::remove_file(&tmp);
-    content
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| l.to_owned())
-        .collect()
-}
-
-/// Marker file: tracks whether the ack hint has been shown this session.
-pub fn ack_hint_shown_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-ack-hint-{}", project_hash()))
-}
-
-/// Show ack hint only once per session; returns true if hint should be printed.
-pub fn should_show_ack_hint() -> bool {
-    let path = ack_hint_shown_path();
-    if path.exists() {
-        return false;
-    }
-    let _ = fs::write(&path, "1");
-    true
 }
 
 /// Check if the daemon is running by reading the PID file and testing the process.

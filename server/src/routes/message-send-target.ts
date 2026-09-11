@@ -35,10 +35,10 @@ export async function resolveSendTarget(c: Context<{ Bindings: Env }>, toAgent: 
   let targetSession: { id: string; label: string | null } | null = null;
   if (toAgent) {
     // 1. Try agent by name or id prefix
-    const agentTarget = await c.env.DB
-      .prepare("SELECT id FROM api_keys WHERE name = ? OR id LIKE ? ESCAPE '\\' LIMIT 1")
-      .bind(toAgent, `${escapeLike(toAgent)}%`)
-      .first<{ id: string }>();
+    const agentTarget = await c.env.DB.prepare('SELECT id FROM api_keys WHERE name = ?')
+      .bind(toAgent).first<{ id: string }>()
+      ?? await c.env.DB.prepare("SELECT id FROM api_keys WHERE id LIKE ? ESCAPE '\\' LIMIT 1")
+        .bind(`${escapeLike(toAgent)}%`).first<{ id: string }>();
     if (agentTarget) {
       targetAgentId = agentTarget.id;
       direction = 'agent_to_agent';
