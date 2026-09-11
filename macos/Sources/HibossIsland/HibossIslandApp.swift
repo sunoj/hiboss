@@ -13,7 +13,8 @@ struct HibossIslandApp: App {
 
     var body: some Scene {
         Window("HiBoss", id: "main") {
-            MainView(settings: appDelegate.settings, flow: appDelegate.flow)
+            MainView(settings: appDelegate.settings, flow: appDelegate.flow,
+                notificationNavigation: appDelegate.notificationNavigation)
         }
         .defaultSize(width: 1320, height: 820)
         .commands { SettingsWindowCommands() }
@@ -23,6 +24,7 @@ struct HibossIslandApp: App {
                 settings: appDelegate.settings,
                 flow: appDelegate.flow,
                 preferencesStore: appDelegate.preferencesStore,
+                notifications: appDelegate.notifications,
                 updater: appDelegate.updater.state,
                 launchAtLogin: appDelegate.launchAtLogin
             )
@@ -51,6 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let flow = OptionFlowStore()
     let updater = SparkleUpdater()
     let launchAtLogin = LaunchAtLoginController()
+    let notificationCenter = SystemMessageNotificationCenter()
+    let notificationNavigation = MessageNotificationNavigation()
+    let notifications: MessageNotificationStore
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
     private var cancellables: Set<AnyCancellable> = []
@@ -58,12 +63,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     override init() {
         let settings = AppSettings()
         self.settings = settings
+        notifications = MessageNotificationStore(center: notificationCenter)
         preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else { return }
+        notificationCenter.onOpen = { [weak self] id in self?.notificationNavigation.open(id) }
+        notificationCenter.start()
+        Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings)
         Task { [weak self] in
@@ -81,7 +90,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     private func connectIfConfigured() {
         if case let .success(config) = settings.connectionConfig() {
-            flow.connect(api: HibossAPI(config: config))
+            let api = HibossAPI(config: config)
+            flow.connect(api: api)
+            notifications.connect(api: api)
             Task { await preferencesStore.load() }
         }
     }
@@ -147,7 +158,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     @objc private func reconnect() {
         guard case let .success(config) = settings.connectionConfig() else { return }
-        flow.connect(api: HibossAPI(config: config))
+        let api = HibossAPI(config: config)
+        flow.connect(api: api)
+        notifications.connect(api: api)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        notifications.disconnect()
     }
 
     @objc private func showMainWindow() {

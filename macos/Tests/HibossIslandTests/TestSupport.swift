@@ -53,6 +53,10 @@ actor ScriptedBossAPI: BossServing {
         self.history = []
     }
 
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+
     func messageStream() -> AsyncThrowingStream<BossEvent, Error> {
         let events = pendingEvents
         let interval = eventInterval

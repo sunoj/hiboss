@@ -243,6 +243,10 @@ actor RecordingBossAPI: BossServing {
         self.resolveAfterEmit = resolveAfterEmit
     }
 
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
         let messages = messages
         let resolveAfterEmit = resolveAfterEmit
