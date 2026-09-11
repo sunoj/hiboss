@@ -29,7 +29,10 @@ struct HomeView: View {
             .refreshable { await inbox.refresh() }
             .task { await inbox.refresh() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { inbox.refreshHistory() }
+                if phase == .active {
+                    inbox.refreshHistory()
+                    Task { await panels.load() }
+                }
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI) }

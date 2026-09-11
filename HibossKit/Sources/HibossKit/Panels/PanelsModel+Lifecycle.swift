@@ -62,7 +62,7 @@ extension PanelsModel {
     }
 
     public func receive(_ frame: PanelRelayFrame, for tileID: String) {
-        if frame == .metadataChanged { Task { await load() }; return }
+        if frame == .metadataChanged { reconcileSoon(); return }
         if frame == .subscriptionRevoked {
             liveSubscriptions.remove(tileID)
             relayConnections.removeValue(forKey: tileID)?.stop()

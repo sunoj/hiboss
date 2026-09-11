@@ -146,9 +146,37 @@ points. See [questionnaires](questionnaires.md) for migration order, exact scope
 retry semantics, and verification. Migration 0038 and the Worker were deployed on
 2026-09-11; see the [rollout record](rollout-2026-09-11.md) for client distribution.
 
+## Live wall discovery
+
+`POST /api/panel-wall-connections` issues a single-use, 60-second relay ticket
+with only `wall.subscribe` permission. Boss auth selects the boss's own PanelRoom;
+agent auth requires `targetBossId` and a current access grant. Agents receive only
+their own panels' invalidations. The existing per-tile tickets remain unchanged.
+
+The room sends a content-free `wall.changed` on subscribe/reconnect, publication,
+committed lifecycle/definition changes, renewal, and stored visibility expiry.
+This reuses the existing relay rather than adding a transport or a faster poll.
+Publication forwards its committed scope to the room; lifecycle operations already
+have that scope. Expiry uses DO storage and alarms, shared with lifecycle recovery.
+Each signal costs **zero D1 reads**, independent of subscriber count. Ticket auth
+has its normal reads (plus one access lookup for agent wall tickets); the triggered
+REST reconciliation retains normal scoped list/detail/state reads. There is no
+additional idle D1 polling; the existing 10-second reconciliation remains a fallback.
+Signals contain no identifiers or metadata, and REST rechecks access after revocation.
+
+HibossKit coalesces signals for 50 ms and retains a pending reconciliation if a load
+is already running. New/revised tiles fetch concurrently, capped at six tiles, with
+detail and checkpoint fetched together. Unchanged stores, selection, live sockets,
+and form drafts survive reconciliation. iOS scene activation and macOS key-window
+notifications also reload. The one-second server-anchored clock hides expired cards
+even if an alarm or signal is lost; reconnect reconciles an empty wall too.
+The target is approximately two seconds on a healthy connection, subject to REST
+latency. No protocol migration or CLI change is needed; deploy the Worker before
+upgrading native clients. A failed publication signal is recovered by the fallback.
+
 ## Remaining product scope
 
-Shared attention/inbox integration, boss-scoped discovery push, execution authorization
+Shared attention/inbox integration, background APNs discovery push, execution authorization
 forms, and system Live Activity projection remain separate work. Existing standalone
 form previews retain local drafts/captured answers. Only published questionnaires use
 durable server submissions; no defaults or withdrawals produce synthetic approval.

@@ -5,6 +5,7 @@
 import { Context, Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, isBossAuth } from '../../middleware/auth';
 import type { Env } from '../../types';
+import { panelWallRouter } from './wall';
 import {
   decodeTicketEnvelope,
   isPanelRole,
@@ -84,6 +85,7 @@ async function upgradeRelay(c: RelayContext): Promise<Response> {
 }
 
 const routes = new Hono<{ Bindings: Env }>({});
+routes.route('/', panelWallRouter);
 routes.post('/panel-connections', dualAuth, issueConnectionTicket);
 routes.get('/panel-relay', upgradeRelay);
 

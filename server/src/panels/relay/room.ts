@@ -8,9 +8,11 @@ import { isRecord } from '../definition/helpers';
 import { faultResponse, PanelFault } from '../lifecycle/types';
 import { consumeTicket, issueTicket, type ConnectionAttachment } from './ticket-store';
 import { PanelEngine } from './runtime/engine';
+import { WallSignals } from './wall/signals';
 
 export class PanelRoom extends DurableObject<Env> {
   private engine: PanelEngine;
+  private wall: WallSignals;
   private queues = new WeakMap<WebSocket, Promise<void>>();
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -19,7 +21,9 @@ export class PanelRoom extends DurableObject<Env> {
       ticket_id TEXT PRIMARY KEY, secret TEXT NOT NULL, room_id TEXT NOT NULL,
       identity TEXT NOT NULL, role TEXT NOT NULL, panel_id TEXT NOT NULL,
       operations TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)`);
-    this.engine = new PanelEngine(ctx.storage, env.DB, (id, frame) => this.broadcast(id, frame));
+    this.wall = new WallSignals(ctx, ws => this.attachment(ws));
+    this.engine = new PanelEngine(ctx.storage, env.DB, (id, frame) => this.broadcast(id, frame),
+      (id, agent, expiry) => this.wall.changed(id, agent, expiry));
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -27,6 +31,7 @@ export class PanelRoom extends DurableObject<Env> {
     if (path === '/__issue-ticket' && req.method === 'POST') return issueTicket(this.ctx, req);
     if (path === '/__repair' && req.method === 'POST') { await this.engine.repair(); return new Response(null, { status: 204 }); }
     if (path === '/__command' && req.method === 'POST') return this.command(req);
+    if (path === '/__wall-changed' && req.method === 'POST') return this.wallChanged(req);
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected Upgrade: websocket', { status: 426 });
     const consumed = consumeTicket(this.ctx, req.headers.get('X-Panel-Connection-Ticket'));
     if (!consumed.ok) return new Response('Invalid ticket', { status: consumed.status });
@@ -34,6 +39,14 @@ export class PanelRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server, [consumed.ticket.ticketId]);
     server.serializeAttachment(consumed.ticket);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  private async wallChanged(req: Request): Promise<Response> {
+    const input: unknown = await req.json();
+    if (!isRecord(input) || typeof input.panelId !== 'string' || typeof input.agentId !== 'string'
+      || typeof input.expiresAt !== 'string') return new Response('Invalid signal', { status: 400 });
+    await this.wall.changed(input.panelId, input.agentId, input.expiresAt);
+    return new Response(null, { status: 204 });
   }
 
   private async command(req: Request): Promise<Response> {
@@ -74,6 +87,11 @@ export class PanelRoom extends DurableObject<Env> {
       if (!isRecord(input) || input.protocolVersion !== 2) throw new PanelFault('unsupported_protocol', 400);
       const ticket = this.attachment(ws);
       if (!ticket || input.panelId !== ticket.panelId) throw new PanelFault('permission_denied', 403);
+      if (input.kind === 'wall.subscribe' && ticket.operations.includes('wall.subscribe')) {
+        ws.serializeAttachment({ ...ticket, subscribedPanelId: 'wall' });
+        ws.send(JSON.stringify({ kind: 'wall.changed' }));
+        return;
+      }
       if (input.kind === 'subscribe' && ticket.operations.includes('subscribe')) {
         const state = await this.engine.execute(ticket.panelId, ticket.identity, ticket.role, 'state', input);
         ws.serializeAttachment({ ...ticket, subscribedPanelId: ticket.panelId });
@@ -98,5 +116,5 @@ export class PanelRoom extends DurableObject<Env> {
   webSocketClose(socket: WebSocket): void { try { socket.close(1000); } catch { /* Already closed. */ } }
   webSocketError(socket: WebSocket): void { socket.close(1011, 'Relay connection failed'); }
 
-  async alarm(): Promise<void> { await this.engine.repair(); }
+  async alarm(): Promise<void> { await this.wall.expire(); await this.engine.repair(); }
 }
