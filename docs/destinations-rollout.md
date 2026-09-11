@@ -4,6 +4,15 @@ Apply migration `0040_destinations.sql` before deploying this server. It adds fi
 tables, indexes, and a backfill; it does not alter `messages` or delete legacy data.
 Apply additive migration `0041_destination_targets_external_accounts.sql` before the
 phase 2b server. It adds external identities and canonical delivery target claims.
+Apply `0042_provider_credentials.sql` before the FIX-round server. It backfills
+`credential_hash` as SHA-256 of the UTF-8 effective credential: nonempty webhook URL,
+otherwise bot token (empty string only for credential-less legacy rows). It retains
+the smallest provider ID per hash, repoints all destinations, and removes duplicate
+provider rows. Destination IDs, routes, attribution, and delivery history remain intact.
+The unique hash index protects API writes; a second unique expression index prevents
+direct SQL writers from bypassing uniqueness with an absent or incorrect hash.
+The SQL backfill uses portable integer/JSON operations, so Wrangler runs it without
+exporting credentials or requiring a separate application backfill command.
 This change is committed locally only. Deployment and the production comparison
 week are separate operational steps.
 
@@ -63,12 +72,14 @@ bypass them exactly as legacy delivery does. Set `honours_quiet_hours=false` to 
 a destination out of quiet hours entirely, including normal/low messages.
 
 Phase 2b collapses eligible destinations across bosses by effective external target:
-provider ID plus chat/channel and thread for Telegram/Discord, device token for APNs,
+effective credential hash plus chat/channel and thread for Telegram/Discord, device token for APNs,
 and client ID for native live. SHA-256 target keys have a unique per-message claim.
 The earliest quiet-hours due time wins (an immediate destination wins over deferral),
 then destination ID breaks ties. Only the canonical row has a retry schedule; duplicates
 reference it through `merged_into` and copy its status and external receipt. The canonical
 row carries attempt counts. Shadow uses the same grouping but never schedules sends.
+Send grouping and shadow comparison call the same credential/target key helper;
+provider row IDs, labels, app IDs, and unused bot tokens behind webhooks do not split a target.
 Retries re-resolve the group, so an eligible shared destination can replace a disabled
 canonical destination. Changing the effective target cancels its existing retry.
 Deleting a canonical destination also cascades its merged delivery history.
@@ -144,6 +155,23 @@ existing provider, PATCH enabled/min_priority/honours_quiet_hours/label, and DEL
 their own destinations. PATCH booleans are JSON booleans. Viewers are read-only.
 Even admins cannot mutate another boss's destination through this API.
 `GET/POST /api/boss/providers` is admin-only. New APIs accept no email kind/provider.
+Duplicate effective credentials return 409, including simultaneous creates and a
+different label/app ID. Neither success nor conflict responses contain credentials
+or their hashes. Select the existing provider when creating another destination.
+
+Existing `/api/bosses` HTTP contracts match `37ce778`: schema-generated 32-hex IDs,
+raw preference strings after PATCH, unchanged trimming and validation order, and
+plain-text validation errors. Non-string PATCH names/roles are ignored; invalid
+role strings still return `400 invalid role` without trimming. The existing JSON
+`403 {"error":"admin required"}` authorization response is preserved. POST identity
+conflicts now return text 409 instead of an uncaught 500, an intentional improvement.
+PATCH constraint failures retain the parent's 500 and roll back identity writes.
+The shared preference validator rejects `preferred_channel` and `notify_priorities`
+on both admin PATCH and self `PUT /api/boss/me/preferences`; accepted merges prune
+previously stored removed keys. Quiet-hours validation is shared by both paths.
+CLI argument names, defaults, and output remain unchanged except the two removed
+flags/help entries. A timezone-only CLI update remains a successful empty-preference
+merge, and a successful PATCH with string preferences prints no preference lines.
 
 `POST /api/boss/destinations/:id/test` requires ownership and a non-viewer role, and
 returns 409 unless mode is `on`. It sends an explicit probe to the base destination,

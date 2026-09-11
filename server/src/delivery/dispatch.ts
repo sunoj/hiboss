@@ -3,7 +3,7 @@
 import type { Channel, Env, MessageRow } from '../types';
 import { logAudit } from '../audit';
 import { resolveDiscordChannelId } from '../routes/agent-delivery';
-import { groupTargets, recordTarget, mirrorMerged, chatTarget, fingerprint, type DeliveryRow } from './targets';
+import { groupTargets, recordTarget, mirrorMerged, chatKey, type DeliveryRow } from './targets';
 import { sendDestination } from './adapters';
 import { resolveDestinations } from './destinations';
 import { destinationsMode, type ResolvedDestination } from './types';
@@ -54,7 +54,7 @@ async function chatSet(rows: { kind: string; config: Record<string, unknown> }[]
   const keys: string[] = [];
   for (const { kind, config } of rows) {
     if (kind !== 'telegram' && kind !== 'discord') continue;
-    keys.push(await fingerprint([kind, config.webhook_url ?? config.bot_token ?? '', ...chatTarget(kind, config)]));
+    keys.push(await chatKey(kind, config));
   }
   return [...new Set(keys)].sort();
 }

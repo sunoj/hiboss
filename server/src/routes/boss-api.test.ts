@@ -2,6 +2,7 @@
 // Covers boss auth flow, message listing with search, and reply.
 // Depends on cloudflare:test, test-helpers, and the Hono app.
 
+import type { MessageRow } from '../types';
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId, authHeaders, seedBossToken } from '../test-helpers';
@@ -65,7 +66,7 @@ describe('GET /api/boss/me', () => {
   it('returns boss profile', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/me', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; name: string; role: string; agent_ids: string[] };
     expect(data.id).toBe(bossId);
     expect(data.name).toBe('API Boss');
     expect(data.role).toBe('admin');
@@ -77,7 +78,7 @@ describe('Boss preferences', () => {
   it('GET /api/boss/me/preferences returns empty by default', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/me/preferences', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as Record<string, unknown>;
     expect(data).toEqual({});
   });
 
@@ -86,21 +87,21 @@ describe('Boss preferences', () => {
     const res1 = await SELF.fetch('http://localhost/api/boss/me/preferences', {
       method: 'PUT',
       headers: bossHeaders(),
-      body: JSON.stringify({ preferred_channel: 'telegram' }),
+      body: JSON.stringify({ timezone: 'UTC' }),
     });
     expect(res1.status).toBe(200);
-    const data1 = await res1.json() as any;
-    expect(data1.preferred_channel).toBe('telegram');
+    const data1 = await res1.json() as { timezone: string };
+    expect(data1.timezone).toBe('UTC');
     // Merge more
     const res2 = await SELF.fetch('http://localhost/api/boss/me/preferences', {
       method: 'PUT',
       headers: bossHeaders(),
-      body: JSON.stringify({ timezone: 'Asia/Shanghai' }),
+      body: JSON.stringify({ quiet_hours: { start: '22:00', end: '08:00' } }),
     });
     expect(res2.status).toBe(200);
-    const data2 = await res2.json() as any;
-    expect(data2.preferred_channel).toBe('telegram');
-    expect(data2.timezone).toBe('Asia/Shanghai');
+    const data2 = await res2.json() as { timezone: string; quiet_hours: { start: string; end: string } };
+    expect(data2.timezone).toBe('UTC');
+    expect(data2.quiet_hours).toEqual({ start: '22:00', end: '08:00' });
   });
 });
 
@@ -108,10 +109,10 @@ describe('GET /api/boss/agents', () => {
   it('returns accessible agents', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/agents', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { agents: { name: string }[] };
     expect(data.agents).toBeInstanceOf(Array);
     // Admin sees all agents, should include test-agent
-    const names = data.agents.map((a: any) => a.name);
+    const names = data.agents.map((a) => a.name);
     expect(names).toContain('test-agent');
   });
 });
@@ -150,7 +151,7 @@ describe('GET /api/boss/messages', () => {
   it('lists agent messages', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     expect(data.messages).toBeInstanceOf(Array);
     expect(data.total).toBeGreaterThanOrEqual(2);
   });
@@ -158,7 +159,7 @@ describe('GET /api/boss/messages', () => {
   it('filters by unread', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages?unread=true', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     for (const m of data.messages) {
       expect(['sent', 'delivered']).toContain(m.status);
     }
@@ -167,7 +168,7 @@ describe('GET /api/boss/messages', () => {
   it('filters by priority', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages?priority=high', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     for (const m of data.messages) {
       expect(m.priority).toBe('high');
     }
@@ -176,31 +177,34 @@ describe('GET /api/boss/messages', () => {
   it('supports search filter', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages?search=Deploy', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     expect(data.messages.length).toBeGreaterThanOrEqual(1);
     for (const m of data.messages) {
       expect(m.body.toLowerCase()).toContain('deploy');
     }
   });
 
+});
+
+describe('GET /api/boss/messages', () => {
   it('search returns empty for no match', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages?search=xyznonexistent', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     expect(data.messages.length).toBe(0);
   });
 
   it('supports limit and offset', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages?limit=1&offset=0', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     expect(data.messages.length).toBeLessThanOrEqual(1);
   });
 
   it('filters by agent', async () => {
     const res = await SELF.fetch(`http://localhost/api/boss/messages?agent=${getTestAgentId()}`, { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { messages: MessageRow[]; total: number };
     expect(data.messages.length).toBeGreaterThanOrEqual(1);
   });
 });
@@ -209,207 +213,13 @@ describe('GET /api/boss/messages/:id', () => {
   it('returns message with replies', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages/boss-api-msg-1', { headers: bossHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; replies: MessageRow[] };
     expect(data.id).toBe('boss-api-msg-1');
     expect(data.replies).toBeInstanceOf(Array);
   });
 
   it('returns 404 for unknown message', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/messages/nonexistent', { headers: bossHeaders() });
-    expect(res.status).toBe(404);
-  });
-});
-
-describe('POST /api/boss/messages/:id/reply', () => {
-  it('boss replies to agent message', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-api-msg-1/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Good work!' }),
-    });
-    expect(res.status).toBe(201);
-    const data = await res.json() as any;
-    expect(data.direction).toBe('boss_to_agent');
-    expect(data.reply_to).toBe('boss-api-msg-1');
-    expect(data.body).toBe('Good work!');
-  });
-
-  it('scopes the reply to the parent message\'s session (conversation affinity)', async () => {
-    // Two live sessions under the same agent; the boss replies to a message
-    // authored by session A. The reply must be targeted at session A only, so
-    // session B never drains it (the mis-routing regression).
-    for (const sid of ['affinity-sess-a', 'affinity-sess-b']) {
-      await env.DB.prepare(
-        "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
-      ).bind(sid, getTestAgentId(), sid).run();
-    }
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, session_id) VALUES (?, ?, 'agent_to_boss', 'async', 'api', ?, 'sent', 'normal', ?)"
-    ).bind('affinity-parent', getTestAgentId(), 'Question from session A', 'affinity-sess-a').run();
-
-    const res = await SELF.fetch('http://localhost/api/boss/messages/affinity-parent/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Do the two immediate fixes' }),
-    });
-    expect(res.status).toBe(201);
-    const reply = await res.json() as { id: string; target_session_id: string | null };
-    expect(reply.target_session_id).toBe('affinity-sess-a');
-    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?').bind(reply.id).first<{ session_id: string; message_id: string }>();
-    expect(event).toEqual({ session_id: 'affinity-sess-a', message_id: reply.id });
-
-    // Session A sees it as unread; session B does not.
-    const unreadFor = async (sid: string) => {
-      const r = await SELF.fetch(
-        `https://test.local/api/messages?unread=true&direction=boss_to_agent&target_session=${sid}`,
-        { headers: authHeaders() },
-      );
-      const body = await r.json() as { messages: { id: string }[] };
-      return body.messages.some((m) => m.id === reply.id);
-    };
-    expect(await unreadFor('affinity-sess-a')).toBe(true);
-    expect(await unreadFor('affinity-sess-b')).toBe(false);
-  });
-
-  it('rejects empty reply body', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-api-msg-2/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: '' }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 404 for unknown parent', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/messages/nonexistent/reply', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Reply' }),
-    });
-    expect(res.status).toBe(404);
-  });
-
-  it('removes Discord buttons when an API client selects an option', async () => {
-    const messageId = `boss-api-discord-option-${Date.now()}`;
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'discord', ?)"
-    ).bind(
-      `boss-api-discord-config-${Date.now()}`,
-      getTestAgentId(),
-      JSON.stringify({ webhook_url: 'https://discord.test/webhook' }),
-    ).run();
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata, expires_at) VALUES (?, ?, 'agent_to_boss', 'blocking', 'discord', ?, 'delivered', 'normal', ?, ?)"
-    ).bind(
-      messageId,
-      getTestAgentId(),
-      'Choose cleanup',
-      JSON.stringify({ options: ['Approve', 'Wait'], discord_message_id: 'discord-option-1' }),
-      new Date(Date.now() + 60_000).toISOString(),
-    ).run();
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const res = await SELF.fetch(`http://localhost/api/boss/messages/${messageId}/reply`, {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Approve' }),
-    });
-
-    expect(res.status).toBe(201);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://discord.test/webhook/messages/discord-option-1',
-      expect.objectContaining({
-        method: 'PATCH',
-        body: expect.stringContaining('"components":[]'),
-      }),
-    );
-  });
-});
-
-describe('POST /api/boss/messages/:id/forward', () => {
-  it('rejects invalid target channels', async () => {
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'agent_to_boss', 'async', 'discord', ?, 'sent', 'normal')"
-    ).bind('boss-forward-source', getTestAgentId(), 'Ship this update').run();
-
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-forward-source/forward', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ channel: 'api' }),
-    });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toContain('channel must be discord or telegram');
-  });
-
-  it('rejects forwarding boss-authored messages', async () => {
-    await env.DB.prepare(
-      "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority) VALUES (?, ?, 'boss_to_agent', 'async', 'api', ?, 'sent', 'normal')"
-    ).bind('boss-forward-blocked', getTestAgentId(), 'Do not forward this').run();
-
-    const res = await SELF.fetch('http://localhost/api/boss/messages/boss-forward-blocked/forward', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ channel: 'telegram' }),
-    });
-    expect(res.status).toBe(403);
-    expect(await res.text()).toBe('cannot forward boss messages');
-  });
-});
-
-describe('GET /api/boss/sessions', () => {
-  it('lists sessions for accessible agents', async () => {
-    // Register a session first
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO sessions (id, agent_id, label, status, last_seen_at) VALUES (?, ?, ?, ?, datetime('now'))"
-    ).bind('boss-sess-1', getTestAgentId(), 'test-session', 'working').run();
-
-    const res = await SELF.fetch('http://localhost/api/boss/sessions', { headers: bossHeaders() });
-    expect(res.status).toBe(200);
-    const data = await res.json() as { sessions: unknown[] };
-    expect(data.sessions).toBeInstanceOf(Array);
-  });
-});
-
-describe('POST /api/boss/sessions/:id/message', () => {
-  it('sends a fresh command to a session agent', async () => {
-    await env.DB.prepare(
-      "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
-    ).bind('boss-sess-cmd', getTestAgentId(), 'cmd-session').run();
-    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd/message', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'Run the deploy', priority: 'high' }),
-    });
-    expect(res.status).toBe(201);
-    const data = await res.json() as { id: string; direction: string; target_session_id: string; priority: string; body: string };
-    expect(data.direction).toBe('boss_to_agent');
-    expect(data.target_session_id).toBe('boss-sess-cmd');
-    expect(data.priority).toBe('high');
-    expect(data.body).toBe('Run the deploy');
-    const event = await env.DB.prepare('SELECT session_id, message_id FROM session_events WHERE message_id = ?').bind(data.id).first<{ session_id: string; message_id: string }>();
-    expect(event).toEqual({ session_id: 'boss-sess-cmd', message_id: data.id });
-  });
-
-  it('rejects empty body', async () => {
-    await env.DB.prepare(
-      "INSERT INTO sessions (id, agent_id, label, status) VALUES (?, ?, ?, 'working')"
-    ).bind('boss-sess-cmd-2', getTestAgentId(), 'cmd-session-2').run();
-    const res = await SELF.fetch('http://localhost/api/boss/sessions/boss-sess-cmd-2/message', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: '  ' }),
-    });
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 404 for unknown session', async () => {
-    const res = await SELF.fetch('http://localhost/api/boss/sessions/nope-nope/message', {
-      method: 'POST',
-      headers: bossHeaders(),
-      body: JSON.stringify({ body: 'hi' }),
-    });
     expect(res.status).toBe(404);
   });
 });

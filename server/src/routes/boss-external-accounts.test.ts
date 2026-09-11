@@ -52,6 +52,10 @@ it('keeps existing admin identity edits synchronized and rejects account theft',
   expect((await resolveBossForChannel(env, 'telegram', '401', true)).boss?.id).toBe('identity-manager');
   expect((await request('admin', 'bosses/identity-manager', 'PATCH', { telegram_user_id: '402' })).status).toBe(200);
   expect((await resolveBossForChannel(env, 'telegram', '401', true)).error).toBe('unknown sender');
-  expect((await request('admin', 'bosses/identity-admin', 'PATCH', { telegram_user_id: '402' })).status).toBe(409);
+  // PATCH preserves the parent's uncaught constraint response, with the batch rolled back.
+  const conflict = await request('admin', 'bosses/identity-admin', 'PATCH', { telegram_user_id: '402' });
+  expect(conflict.status).toBe(500);
+  expect(await conflict.json()).toMatchObject({ error: 'internal server error', request_id: expect.any(String) });
+  expect((await resolveBossForChannel(env, 'telegram', '402', true)).boss?.id).toBe('identity-manager');
   expect((await request('admin', own, 'POST', { provider: 'email', provider_user_id: '400' })).status).toBe(400);
 });

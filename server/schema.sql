@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0041; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0042; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -461,7 +461,13 @@ CREATE TABLE channel_providers (
   provider TEXT NOT NULL CHECK (provider IN ('telegram', 'discord')),
   label TEXT NOT NULL,
   credentials TEXT NOT NULL CHECK (json_valid(credentials)),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  credential_hash TEXT
+);
+
+CREATE UNIQUE INDEX idx_channel_providers_credential_hash ON channel_providers(credential_hash);
+CREATE UNIQUE INDEX idx_channel_providers_effective_credential ON channel_providers(
+  COALESCE(NULLIF(json_extract(credentials, '$.webhook_url'), ''), json_extract(credentials, '$.bot_token'), '')
 );
 CREATE TABLE boss_destinations (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),

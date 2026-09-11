@@ -8,8 +8,17 @@ export interface DeliveryRow {
   next_attempt_at: string; external_target: string | null;
 }
 export async function fingerprint(value: unknown): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)));
+  return credentialHash(JSON.stringify(value));
+}
+export function effectiveCredential(config: Record<string, unknown>): string {
+  return String(config.webhook_url || config.bot_token || '');
+}
+export async function credentialHash(credential: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(credential));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+export async function chatKey(kind: string, config: Record<string, unknown>): Promise<string> {
+  return fingerprint([kind, await credentialHash(effectiveCredential(config)), ...chatTarget(kind, config)]);
 }
 export function chatTarget(kind: string, config: Record<string, unknown>): unknown[] {
   if (kind === 'telegram') return [String(config.chat_id ?? ''), String(config.message_thread_id ?? '')];
@@ -23,7 +32,7 @@ async function targetKey(env: Env, row: ResolvedDestination): Promise<string> {
       .bind(row.config.device_id, row.boss_id, row.client_id).first<{ device_token: string }>();
     return fingerprint([row.kind, device?.device_token ?? row.id]);
   }
-  return fingerprint([row.kind, row.provider_id, ...chatTarget(row.kind === 'telegram_chat' ? 'telegram' : 'discord', row.config)]);
+  return chatKey(row.kind === 'telegram_chat' ? 'telegram' : 'discord', row.config);
 }
 export async function groupTargets(env: Env, rows: ResolvedDestination[]): Promise<TargetGroup[]> {
   const groups = new Map<string, ResolvedDestination[]>();

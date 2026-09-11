@@ -7,7 +7,7 @@ import type { Context } from 'hono';
 import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
-import { identityConflict, legacyIdentityWrites } from './boss-external-accounts';
+import { identityConflict } from './boss-external-accounts';
 import { buildBossUpdate } from './boss-updates';
 import { issueBossToken } from '../boss-token';
 
@@ -85,15 +85,16 @@ routes.post('/', async (c) => {
   const discordUserId = discordInput === '' ? null : discordInput;
   const agentIdInput = typeof payload.agent_id === 'string' ? payload.agent_id.trim() : null;
   const bossAgentId = agentIdInput === '' ? null : agentIdInput;
-  const id = crypto.randomUUID();
   for (const [provider, userId] of [['telegram', telegramUserId], ['discord', discordUserId]] as const) {
-    if (userId && await identityConflict(c.env, id, provider, userId)) return c.json({ error: 'external account already linked' }, 409);
+    if (userId && await identityConflict(c.env, '', provider, userId)) return c.text('external account already linked', 409);
   }
   const results = await c.env.DB.batch<BossRow>([
-    c.env.DB.prepare('INSERT INTO bosses (id, name, role, telegram_user_id, discord_user_id, agent_id) VALUES (?, ?, ?, ?, ?, ?) RETURNING *')
-      .bind(id, name, role, telegramUserId, discordUserId, bossAgentId),
-    ...legacyIdentityWrites(c.env, id, 'telegram', null, telegramUserId),
-    ...legacyIdentityWrites(c.env, id, 'discord', null, discordUserId),
+    c.env.DB.prepare('INSERT INTO bosses (name, role, telegram_user_id, discord_user_id, agent_id) VALUES (?, ?, ?, ?, ?) RETURNING *')
+      .bind(name, role, telegramUserId, discordUserId, bossAgentId),
+    c.env.DB.prepare(`WITH created AS MATERIALIZED (SELECT * FROM bosses WHERE rowid = last_insert_rowid())
+      INSERT INTO boss_external_accounts (boss_id, provider, provider_user_id)
+      SELECT id, 'telegram', telegram_user_id FROM created WHERE telegram_user_id IS NOT NULL
+      UNION ALL SELECT id, 'discord', discord_user_id FROM created WHERE discord_user_id IS NOT NULL`),
   ]);
   const inserted = results[0].results[0];
   if (!inserted) {
@@ -126,12 +127,8 @@ routes.patch('/:id', async (c) => {
   }
   const payload = await c.req.json<Record<string, unknown>>();
   const result = await buildBossUpdate(c.env, boss, payload);
-  if (!result.ok) return c.json({ error: result.error }, result.status);
-  try { await c.env.DB.batch(result.writes); }
-  catch (error) {
-    if (String(error).includes('UNIQUE constraint failed')) return c.json({ error: 'external account already linked' }, 409);
-    throw error;
-  }
+  if (!result.ok) return c.text(result.error, result.status);
+  await c.env.DB.batch(result.writes);
   const updated = await findBoss(c.env, boss.id);
   if (!updated) {
     return c.text('not found', 404);

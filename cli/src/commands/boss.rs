@@ -140,11 +140,11 @@ async fn run_preferences(
         // Show current preferences
         let boss = client.get_boss(&args.id).await?;
         eprintln!("Preferences for {}", boss["name"].as_str().unwrap_or("-"));
-        print_preferences(&boss);
+        print_preferences(&boss, true);
         return Ok(());
     }
     let mut prefs = Map::new();
-    if args.quiet_start.is_some() || args.quiet_end.is_some() || args.timezone.is_some() {
+    if args.quiet_start.is_some() || args.quiet_end.is_some() {
         let mut qh = Map::new();
         if let Some(ref s) = args.quiet_start {
             qh.insert("start".into(), Value::String(s.clone()));
@@ -166,15 +166,15 @@ async fn run_preferences(
         "Preferences updated for {}",
         boss["name"].as_str().unwrap_or("-")
     );
-    print_preferences(&boss);
+    print_preferences(&boss, false);
     Ok(())
 }
 
-fn print_preferences(boss: &Value) {
+fn print_preferences(boss: &Value, show_empty: bool) {
     let prefs: Vec<_> = boss["preferences"].as_object().into_iter().flatten()
         .filter(|(key, _)| key.as_str() != "preferred_channel" && key.as_str() != "notify_priorities")
         .collect();
-    if prefs.is_empty() { println!("  (no preferences set)"); }
+    if show_empty && prefs.is_empty() { println!("  (no preferences set)"); }
     for (key, value) in prefs { println!("  {}: {}", key, value); }
 }
 

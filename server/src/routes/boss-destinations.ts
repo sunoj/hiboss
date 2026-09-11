@@ -5,6 +5,7 @@ import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import type { Env } from '../types';
 import { probeDestination, type ProbeDestination } from '../delivery/probe';
 import { destinationsMode, parseDestination, parseDestinationPatch, parseProvider } from '../delivery';
+import { credentialHash, effectiveCredential } from '../delivery/targets';
 
 const destinations = new Hono<{ Bindings: Env }>();
 const providers = new Hono<{ Bindings: Env }>();
@@ -75,9 +76,11 @@ providers.get('/', async c => {
 providers.post('/', async c => {
   const input = parseProvider(await c.req.json<unknown>().catch(() => null));
   if (!input) return c.json({ error: 'invalid provider' }, 400);
-  const row = await c.env.DB.prepare(`INSERT INTO channel_providers (provider, label, credentials) VALUES (?, ?, ?)
-    RETURNING id, provider, label, created_at`).bind(input.provider, input.label, JSON.stringify(input.credentials)).first();
-  return c.json({ provider: row }, 201);
+  const hash = await credentialHash(effectiveCredential(input.credentials));
+  const row = await c.env.DB.prepare(`INSERT INTO channel_providers (provider, label, credentials, credential_hash) VALUES (?, ?, ?, ?)
+    ON CONFLICT DO NOTHING RETURNING id, provider, label, created_at`)
+    .bind(input.provider, input.label, JSON.stringify(input.credentials), hash).first();
+  return row ? c.json({ provider: row }, 201) : c.json({ error: 'provider credentials already registered' }, 409);
 });
 
 export const bossDestinationsRouter = destinations;
