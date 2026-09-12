@@ -98,7 +98,7 @@ struct HistoryView: View {
                         }
                     }
                 } header: {
-                    SessionGroupHeader(group: group)
+                    SessionGroupHeader(group: group, session: flow.projectSessions.first { $0.id == group.id })
                 }
             }
         }
@@ -130,6 +130,7 @@ struct HistoryView: View {
 
 private struct SessionGroupHeader: View {
     let group: SessionGroup
+    let session: ProjectSession?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -138,7 +139,7 @@ private struct SessionGroupHeader: View {
                 .frame(width: 8, height: 8)
                 .accessibilityLabel(statusAccessibilityLabel)
 
-            Text(group.id == HistoryMessageLogic.directSessionID ? L("Direct") : group.label)
+            Text(HistoryMessageLogic.sessionTitle(group: group, session: session))
                 .font(.headline)
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)

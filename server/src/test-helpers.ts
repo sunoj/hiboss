@@ -8,6 +8,7 @@ import targetMigration from '../migrations/0041_destination_targets_external_acc
 import credentialMigration from '../migrations/0042_provider_credentials.sql?raw';
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
+import projectSurfacesMigration from '../migrations/0044_project_surfaces.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
 import postsMigration from '../migrations/0026_progress_posts.sql?raw';
 import teamsMigration from '../migrations/0027_progress_teams_likes.sql?raw';
@@ -89,7 +90,7 @@ export async function seedDatabase(): Promise<void> {
   for (const sql of credentialMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
     await env.DB.prepare(sql).run();
   }
-  for (const migration of [postsMigration, teamsMigration, attributionMigration, projectsMigration]) {
+  for (const migration of [postsMigration, teamsMigration, attributionMigration, projectsMigration, projectSurfacesMigration]) {
     for (const sql of migration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
       await env.DB.prepare(sql).run();
     }

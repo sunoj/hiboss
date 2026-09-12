@@ -8,6 +8,16 @@ import XCTest
 
 @MainActor
 final class ProgressFeedStoreTests: XCTestCase {
+    func testProjectFilterGroupsAgentsBySlugAndKeepsSessionOnlyProjects() {
+        let rows = [ProgressProject(project: "repo", count: 2, lastPostAt: "2026-09-12", agentId: "a"),
+            ProgressProject(project: "repo", count: 3, lastPostAt: nil, agentId: "b"),
+            ProgressProject(project: "session-only", count: 0, lastPostAt: nil, agentId: "a")]
+        let projects = ProgressFeedStore.groupProjects(rows)
+        XCTAssertEqual(projects.map(\.slug), ["repo", "session-only"])
+        XCTAssertEqual(projects.map(\.count), [5, 0])
+        XCTAssertNil(projects.last?.lastPostAt)
+    }
+
     func testLoadMoreWaitsForRefreshAndKeepsTheReturnedCursor() async {
         let api = DelayedProgressAPI()
         let store = ProgressFeedStore()

@@ -77,8 +77,8 @@ routes.post('/', async (c) => {
   if (!resolved.ok) return c.text(resolved.error, 409);
   const project = resolved.project;
   const row = await c.env.DB.prepare(
-    `INSERT INTO progress_posts (agent_id, session_id, project, project_id, body, media, tags, agent_label, model) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
-  ).bind(agentId, payload.session_id, project.slug, project.id, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null, payload.agent_label, payload.model).first<{ id: string }>();
+    `INSERT INTO progress_posts (agent_id, session_id, project_id, body, media, tags, agent_label, model) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+  ).bind(agentId, payload.session_id, project.id, payload.body, payload.media ? JSON.stringify(payload.media) : null, payload.tags ? JSON.stringify(payload.tags) : null, payload.agent_label, payload.model).first<{ id: string }>();
   if (!row) return c.text('failed to create post', 500);
   const post = await findProgressPost(c.env, row.id, [agentId], null);
   if (!post) return c.text('failed to load post', 500);
@@ -94,7 +94,7 @@ routes.get('/', async (c) => {
   if (typeof cursor === 'string') return c.text(cursor, 400);
   const clauses = [`p.${scope.sql}`];
   const binds: (string | number)[] = [...scope.binds];
-  if (params.project) { clauses.push('(p.project_id IN (SELECT project_id FROM project_aliases WHERE alias = ?) OR t.slug = ? OR (p.project_id IS NULL AND p.project = ?))'); binds.push(params.project, params.project, params.project); }
+  if (params.project) { clauses.push('(p.project_id IN (SELECT project_id FROM project_aliases WHERE alias = ?) OR t.slug = ?)'); binds.push(params.project, params.project); }
   if (isBossAuth(c) && params.agent_id) { clauses.push('p.agent_id = ?'); binds.push(params.agent_id); }
   if (cursor) {
     clauses.push('(p.created_at < datetime(?) OR (p.created_at = datetime(?) AND p.id < ?))');
@@ -120,8 +120,8 @@ routes.get('/projects', async (c) => {
   const scope = scopedWhere(agentIds);
   const rows = await c.env.DB.prepare(
     `WITH activity AS (
-       SELECT CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project,
-         p.agent_id, p.created_at AS post_at FROM progress_posts p LEFT JOIN projects t ON t.id = p.project_id WHERE p.${scope.sql}
+       SELECT t.slug AS project,
+         p.agent_id, p.created_at AS post_at FROM progress_posts p JOIN projects t ON t.id = p.project_id WHERE p.${scope.sql}
        UNION ALL
        SELECT t.slug, s.agent_id, NULL FROM sessions s JOIN projects t ON t.id = s.project_id WHERE s.${scope.sql}
      ) SELECT project, COUNT(post_at) AS count, MAX(post_at) AS last_post_at, agent_id

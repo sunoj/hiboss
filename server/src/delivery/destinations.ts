@@ -42,19 +42,23 @@ export async function resolveDestinations(env: Env, message: DestinationMessage,
   return resolved;
 }
 
-async function resolveScope(env: Env, message: DestinationMessage): Promise<{ project: string | null; agent: string | null }> {
-  const row = await env.DB.prepare(`SELECT a.name, s.label FROM api_keys a
-    LEFT JOIN sessions s ON s.id = ? AND s.agent_id = a.id WHERE a.id = ?`)
-    .bind(message.session_id, message.agent_id).first<{ name: string; label: string | null }>();
-  return { project: message.project ?? row?.label?.split('/')[0] ?? null, agent: row?.name ?? null };
+async function resolveScope(env: Env, message: DestinationMessage): Promise<string | null> {
+  if (message.project) {
+    const row = await env.DB.prepare(`SELECT id FROM projects WHERE slug = ? OR id =
+      (SELECT project_id FROM project_aliases WHERE alias = ?)`)
+      .bind(message.project, message.project).first<{ id: string }>();
+    return row?.id ?? null;
+  }
+  return env.DB.prepare('SELECT project_id FROM sessions WHERE id = ? AND agent_id = ?')
+    .bind(message.session_id, message.agent_id).first<string>('project_id');
 }
 
-async function lookupRoute(env: Env, row: DestinationRow, message: DestinationMessage, scope: { project: string | null; agent: string | null }): Promise<RouteRow | null> {
+async function lookupRoute(env: Env, row: DestinationRow, message: DestinationMessage, projectId: string | null): Promise<RouteRow | null> {
   return env.DB.prepare(`SELECT external_channel_id, external_thread_id FROM destination_routes
-    WHERE destination_id = ? AND ((session_id = ? AND (project IS NULL OR project = ?))
-      OR (session_id IS NULL AND (project = ? OR project = ? OR project IS NULL)))
-    ORDER BY (session_id IS NOT NULL) DESC, (project = ?) DESC, (project IS NOT NULL) DESC, id LIMIT 1`)
-    .bind(row.id, message.session_id, scope.project, scope.project, scope.agent, scope.project).first<RouteRow>();
+    WHERE destination_id = ? AND ((session_id = ? AND (project_id IS NULL OR project_id = ?))
+      OR (session_id IS NULL AND (project_id = ? OR project_id IS NULL)))
+    ORDER BY (session_id IS NOT NULL) DESC, (project_id IS NOT NULL) DESC, id LIMIT 1`)
+    .bind(row.id, message.session_id, projectId, projectId).first<RouteRow>();
 }
 
 function routeConfig(row: DestinationRow, route: RouteRow | null): Record<string, unknown> {

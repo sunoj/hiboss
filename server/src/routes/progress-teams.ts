@@ -2,6 +2,7 @@
 // Exports progressTeamsRouter mounted at /api/progress/teams.
 // Depends on Hono, D1/R2, and shared progress identity helpers.
 
+import { lookupProject } from '../projects/inventory';
 import { parseProject, resolveProject } from '../projects';
 import { Hono } from 'hono';
 import type { Env } from '../types';
@@ -201,6 +202,13 @@ routes.get('/:handle/avatar.png', async (c) => {
   return new Response(png, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=31536000, immutable' } });
 });
 
+routes.get('/:project', dualAuth, async c => {
+  const project = await lookupProject(c.env.DB, c.req.param('project') ?? '');
+  if (!project) return c.text('project not found', 404);
+  const team = await readTeam(c.env, project.slug);
+  return team ? c.json(mapTeamRow(team, new URL(c.req.url))) : c.text('project not found', 404);
+});
+
 routes.put('/:project', apiAuth, async (c) => {
   const project = c.req.param('project');
   if (!project) return c.text('project is required', 400);
@@ -231,7 +239,7 @@ routes.get('/', dualAuth, async (c) => {
   if (!agentIds.length) return c.json({ teams: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB.prepare(
-    `SELECT DISTINCT CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project, t.handle, t.display_name, t.bio, t.avatar_url FROM progress_posts p LEFT JOIN projects t ON t.id = COALESCE(p.project_id, (SELECT project_id FROM project_aliases WHERE alias = p.project)) WHERE p.agent_id IN (${placeholders}) ORDER BY p.project`
+    `SELECT DISTINCT t.slug AS project, t.handle, t.display_name, t.bio, t.avatar_url FROM progress_posts p JOIN projects t ON t.id = p.project_id WHERE p.agent_id IN (${placeholders}) ORDER BY t.slug`
   ).bind(...agentIds).all<TeamRow>();
   const requestUrl = new URL(c.req.url);
   return c.json({ teams: (rows.results ?? []).map((row) => mapTeamRow(row, requestUrl)) });

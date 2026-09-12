@@ -107,7 +107,8 @@ public struct ProgressLikeState: Codable, Equatable, Sendable {
 
 public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let id: String
-    public let project: String
+    public var project: String { projectIdentity.slug }
+    public let projectIdentity: ProjectIdentity
     public let agentId: String
     public let agentName: String
     public let sessionId: String?
@@ -122,7 +123,8 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let model: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, project, body, media, tags, team, liked, model
+        case id, body, media, tags, team, liked, model
+        case projectIdentity = "project"
         case agentId = "agent_id"
         case agentName = "agent_name"
         case sessionId = "session_id"
@@ -134,6 +136,7 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public init(
         id: String,
         project: String,
+        projectIdentity: ProjectIdentity? = nil,
         agentId: String,
         agentName: String,
         sessionId: String? = nil,
@@ -148,7 +151,7 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         model: String? = nil
     ) {
         self.id = id
-        self.project = project
+        self.projectIdentity = projectIdentity ?? ProjectIdentity(id: project, slug: project, displayName: project)
         self.agentId = agentId
         self.agentName = agentName
         self.sessionId = sessionId
@@ -166,7 +169,7 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
-        project = try values.decode(String.self, forKey: .project)
+        projectIdentity = try values.decode(ProjectIdentity.self, forKey: .projectIdentity)
         agentId = try values.decode(String.self, forKey: .agentId)
         agentName = try values.decodeIfPresent(String.self, forKey: .agentName) ?? ""
         sessionId = try values.decodeIfPresent(String.self, forKey: .sessionId)
@@ -174,7 +177,7 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         media = try values.decodeIfPresent([ProgressMedia].self, forKey: .media) ?? []
         tags = try values.decodeIfPresent([String].self, forKey: .tags) ?? []
         createdAt = try values.decode(String.self, forKey: .createdAt)
-        team = try values.decodeIfPresent(ProgressTeam.self, forKey: .team) ?? .fallback(project: project)
+        team = try values.decodeIfPresent(ProgressTeam.self, forKey: .team) ?? .fallback(project: projectIdentity.slug)
         likeCount = try values.decodeIfPresent(Int.self, forKey: .likeCount) ?? 0
         liked = try values.decodeIfPresent(Bool.self, forKey: .liked) ?? false
         agentLabel = Self.nonEmpty(try values.decodeIfPresent(String.self, forKey: .agentLabel))
@@ -183,7 +186,7 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
 
     public func withLike(count: Int, liked: Bool) -> ProgressPost {
         ProgressPost(
-            id: id, project: project, agentId: agentId, agentName: agentName,
+            id: id, project: project, projectIdentity: projectIdentity, agentId: agentId, agentName: agentName,
             sessionId: sessionId, body: body, media: media, tags: tags,
             createdAt: createdAt, team: team, likeCount: count, liked: liked,
             agentLabel: agentLabel, model: model
@@ -233,11 +236,12 @@ public struct ProgressCursor: Codable, Equatable, Sendable {
 }
 
 public struct ProgressProject: Codable, Equatable, Sendable, Identifiable {
-    public var id: String { project }
+    public var id: String { slug }
+    public var slug: String { project }
 
     public let project: String
     public let count: Int
-    public let lastPostAt: String
+    public let lastPostAt: String?
     public let agentId: String
 
     enum CodingKeys: String, CodingKey {
@@ -246,7 +250,7 @@ public struct ProgressProject: Codable, Equatable, Sendable, Identifiable {
         case agentId = "agent_id"
     }
 
-    public init(project: String, count: Int, lastPostAt: String, agentId: String) {
+    public init(project: String, count: Int, lastPostAt: String?, agentId: String) {
         self.project = project
         self.count = count
         self.lastPostAt = lastPostAt

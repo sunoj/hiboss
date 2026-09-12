@@ -21,6 +21,7 @@ export interface BossHome {
 
 interface HomeProject {
   name: string;
+  slug: string;
   sessions: { working: number; waiting: number; blocked: number; idle: number };
   pendingDecisions: number;
   postCount7d: number;
@@ -144,8 +145,8 @@ function loadPending(env: Env, ph: string, ids: string[], now: string): D1Prepar
 function loadProgress7d(env: Env, ph: string, ids: string[]): D1PreparedStatement {
   return env.DB.prepare(
     `WITH visible AS (
-       SELECT p.id, p.body, p.created_at, CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project
-       FROM progress_posts p LEFT JOIN projects t ON t.id = p.project_id
+       SELECT p.id, p.body, p.created_at, t.slug AS project
+       FROM progress_posts p JOIN projects t ON t.id = p.project_id
        WHERE p.agent_id IN (${ph}) AND p.created_at >= datetime('now', '-7 days')
      ), ranked AS (
        SELECT *, COUNT(*) OVER (PARTITION BY project) AS post_count,
@@ -155,7 +156,7 @@ function loadProgress7d(env: Env, ph: string, ids: string[]): D1PreparedStatemen
 }
 
 function sessionProjectSql(): string {
-  return "CASE WHEN s.project_id IS NULL THEN CASE WHEN instr(s.label, '/') > 0 THEN substr(s.label, 1, instr(s.label, '/') - 1) ELSE s.label END ELSE t.slug END";
+  return "t.slug";
 }
 
 function maxTs(a: string | null, b: string | null): string | null {
@@ -203,7 +204,7 @@ function buildProjects(sessions: LiveSession[], pending: PendingRow[], progress:
   }
   return [...map.entries()]
     .map(([name, row]) => ({
-      name, sessions: row.sessions, pendingDecisions: row.pendingDecisions,
+      name, slug: name, sessions: row.sessions, pendingDecisions: row.pendingDecisions,
       postCount7d: row.postCount7d, lastPost: row.lastPost,
       lastActivityAt: row.lastActivityAt ?? new Date(0).toISOString(),
     }))

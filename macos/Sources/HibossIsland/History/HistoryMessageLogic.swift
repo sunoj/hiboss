@@ -30,6 +30,10 @@ enum HistorySegment: String, CaseIterable, Identifiable {
 }
 
 enum HistoryMessageLogic {
+    static func sessionTitle(group: SessionGroup, session: ProjectSession?) -> String {
+        group.id == SessionGrouping.directSessionID ? L("Direct") : (session?.displayLabel ?? group.label)
+    }
+
     static let directSessionID = SessionGrouping.directSessionID
     static let detailClickCount = 2
     static let allowsPreviewTextSelection = false

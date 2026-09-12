@@ -10,7 +10,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p1",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "session_id": null,
@@ -41,7 +41,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p2",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "New tab screenshot.",
@@ -76,7 +76,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p3",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "session_id": "abc123",
@@ -110,7 +110,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p4",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Image without probed dimensions.",
@@ -135,7 +135,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p5",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Null collections.",
@@ -153,7 +153,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p6",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Registered team.",
@@ -183,7 +183,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p7",
-          "project": "payments",
+          "project": {"id": "project-payments", "slug": "payments", "display_name": "payments"},
           "agent_id": "ak2",
           "agent_name": "worker-payments",
           "body": "Fallback identity.",
@@ -207,7 +207,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p8",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "No likes yet.",
@@ -230,7 +230,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p9",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Attributed post.",
@@ -248,7 +248,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p10",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Legacy post.",
@@ -264,7 +264,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p11",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Agent only.",
@@ -282,7 +282,7 @@ final class ProgressFeedDecodingTests: XCTestCase {
         let json = """
         {
           "id": "p12",
-          "project": "hiboss",
+          "project": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},
           "agent_id": "ak1",
           "agent_name": "hiboss-cli",
           "body": "Model only.",

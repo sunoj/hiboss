@@ -2,6 +2,8 @@
 // Exports the default Hono instance that groups message, admin, and webhook routes.
 // Depends on the shared routers and Env definition.
 
+import { bossProjectsRouter } from './projects/boss-router';
+import { projectAliasesRouter } from './projects/aliases-router';
 import { Hono } from 'hono';
 import { bossExternalAccountsRouter, adminExternalAccountsRouter } from './routes/boss-external-accounts';
 import { bossDestinationsRouter, bossProvidersRouter } from './routes/boss-destinations';
@@ -105,6 +107,8 @@ app.route('/api/boss/tokens', bossTokensRouter);
 app.route('/api/boss/clients', bossClientsRouter);
 app.route('/api/boss/destinations', bossDestinationsRouter);
 app.route('/api/boss/providers', bossProvidersRouter);
+app.route('/api/boss/projects', bossProjectsRouter);
+app.route('/api/projects', projectAliasesRouter);
 app.route('/api/boss', bossGroupBroadcastRouter);
 app.route('/api/boss', bossWritesRouter);
 app.route('/api/boss', bossMessageReplyRouter);

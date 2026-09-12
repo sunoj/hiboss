@@ -1,3 +1,5 @@
+<!-- Lists agents and their canonical project slugs.
+     Depends on boss agent responses and shared console formatting. -->
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import { formatRelativeTime } from '$lib/api/mappers';
@@ -41,6 +43,7 @@
 				>
 					<td>
 						<AgentIdentity name={agent.name} size="sm" />
+						{#if agent.project_slugs?.length}<div class="muted">{agent.project_slugs.join(", ")}</div>{/if}
 					</td>
 					<td class="muted">{roleLabel(agent.role)}</td>
 					<td class="muted">{lastUsedLabel(agent.last_used_at)}</td>

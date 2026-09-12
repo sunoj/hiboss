@@ -4,6 +4,7 @@
 
 import { parseProject, resolveProject } from '../projects';
 import { SESSION_LABEL_SQL } from '../projects/session-label';
+import { isRecord } from './progress-helpers';
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -20,6 +21,7 @@ const SESSION_STATUSES: SessionStatus[] = ['working', 'blocked', 'waiting', 'idl
 interface SessionRow {
   id: string;
   agent_id: string;
+  project_id: string | null;
   label: string | null;
   branch: string | null;
   cwd: string | null;
@@ -35,7 +37,8 @@ interface SessionRow {
 routes.post('/', async (c) => {
   if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
-  const payload = await c.req.json<Record<string, unknown>>();
+  const payload = await c.req.json<unknown>().catch(() => null);
+  if (!isRecord(payload)) return c.text('session body must be an object', 400);
   const id = typeof payload.id === 'string' ? payload.id.trim() : '';
   if (!id) return c.text('id is required', 400);
   const branch = typeof payload.branch === 'string' ? payload.branch.trim() || null : null;
@@ -44,13 +47,14 @@ routes.post('/', async (c) => {
   const rawStatus = typeof payload.status === 'string' ? payload.status.trim() : '';
   const status: SessionStatus = SESSION_STATUSES.includes(rawStatus as SessionStatus) ? (rawStatus as SessionStatus) : 'working';
   const statusText = typeof payload.status_text === 'string' ? payload.status_text.trim() || null : null;
-  const input = parseProject(payload.project_identity ?? payload.project ?? (label?.split('/')[0] || null));
+  const input = parseProject(payload.project_identity ?? payload.project ?? (typeof payload.label === 'string' ? payload.label.split('/')[0] : cwd?.replace(/\/+$/, '').split('/').pop()));
   if (typeof input === 'string') return c.text(input, 400);
-  const owner = await c.env.DB.prepare('SELECT agent_id FROM sessions WHERE id = ?').bind(id).first<{ agent_id: string }>();
+  const owner = await c.env.DB.prepare('SELECT s.agent_id, p.id, p.slug FROM sessions s LEFT JOIN projects p ON p.id = s.project_id WHERE s.id = ?').bind(id).first<{ agent_id: string; id: import('../projects').ProjectId | null; slug: string | null }>();
   if (owner && owner.agent_id !== agentId) return c.text('session belongs to another agent', 409);
   const resolved = input ? await resolveProject(c.env.DB, input, agentId, payload.project_identity || payload.project ? 'explicit' : 'label') : null;
   if (resolved && !resolved.ok) return c.text(resolved.error, 409);
-  const project = resolved?.ok ? resolved.project : null;
+  const project = resolved?.ok ? resolved.project : (owner?.id && owner.slug ? { id: owner.id, slug: owner.slug } : null);
+  if (!project) return c.text('project is required', 400);
   if (project && (payload.project_identity !== undefined || payload.project !== undefined || !label)) label = branch ? `${project.slug}/${branch}` : (label?.includes('/') ? `${project.slug}/${label.split('/').slice(1).join('/')}` : project.slug);
   // Upsert: insert or update on conflict
   const result = await c.env.DB
@@ -60,7 +64,7 @@ routes.post('/', async (c) => {
        WHERE sessions.agent_id = excluded.agent_id
        RETURNING id`
     )
-    .bind(id, agentId, label, branch, cwd, status, statusText, project?.id ?? null)
+    .bind(id, agentId, label, branch, cwd, status, statusText, project.id)
     .first<{ id: string }>();
   if (!result) {
     const existing = await c.env.DB.prepare('SELECT agent_id FROM sessions WHERE id = ?').bind(id).first<{ agent_id: string }>();
@@ -69,7 +73,7 @@ routes.post('/', async (c) => {
     }
     return c.text('failed to persist session', 500);
   }
-  return c.json({ id, label, branch, cwd, status, status_text: statusText, project_id: project?.id ?? null }, 201);
+  return c.json({ id, label, branch, cwd, status, status_text: statusText, project_id: project.id, project_slug: project.slug }, 201);
 });
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
@@ -111,7 +115,7 @@ routes.patch('/:id', async (c) => {
   if (statusText !== undefined) { sets.push('status_text = ?'); binds.push(statusText); }
   binds.push(c.req.param('id'), agentId);
   const result = await c.env.DB
-    .prepare(`UPDATE sessions SET ${sets.join(', ')} WHERE id = ? AND agent_id = ?`)
+    .prepare(`UPDATE sessions SET ${sets.join(', ')} WHERE id = ? AND agent_id = ? AND project_id IS NOT NULL`)
     .bind(...binds)
     .run();
   if (!result.meta.changed_db) return c.text('not found', 404);

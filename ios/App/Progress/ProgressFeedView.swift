@@ -74,7 +74,7 @@ struct ProgressFeedView: View {
                 Picker("Project", selection: projectFilter) {
                     Text("All projects").tag(nil as String?)
                     ForEach(store.projects) { item in
-                        Text("\(item.project) (\(item.count))").tag(item.project as String?)
+                        Text("\(item.slug) (\(item.count))").tag(item.slug as String?)
                     }
                 }
             } label: {

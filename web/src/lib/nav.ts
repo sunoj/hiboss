@@ -18,6 +18,7 @@ export const NAV_MODULES: readonly NavModule[] = [
 	{ id: 'dashboard', href: '/', labelKey: 'nav.dashboard', shortKey: 'nav.short.dashboard', primary: true },
 	{ id: 'messages', href: '/messages', labelKey: 'nav.messages', shortKey: 'nav.short.messages', primary: true },
 	{ id: 'sessions', href: '/sessions', labelKey: 'nav.sessions', shortKey: 'nav.short.sessions', primary: true },
+	{ id: 'projects', href: '/projects', labelKey: 'nav.projects', shortKey: 'nav.short.projects', primary: false },
 	{ id: 'agents', href: '/agents', labelKey: 'nav.agents', shortKey: 'nav.short.agents', primary: false },
 	{ id: 'groups', href: '/groups', labelKey: 'nav.groups', shortKey: 'nav.short.groups', primary: false },
 	{ id: 'bosses', href: '/bosses', labelKey: 'nav.bosses', shortKey: 'nav.short.bosses', primary: false },

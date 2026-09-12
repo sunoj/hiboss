@@ -34,7 +34,7 @@ export interface TeamProfile extends ProgressTeam {
 
 export interface ProgressPost {
   id: string;
-  project: string;
+  project: string | { id: string; slug: string; display_name: string };
   agent_id: string;
   agent_name: string;
   agent_label: string | null;
@@ -50,6 +50,7 @@ export interface ProgressPost {
 }
 
 export interface ProgressRow {
+  project_id: string;
   id: string;
   agent_id: string;
   agent_name: string;
@@ -232,7 +233,7 @@ export function mapProgressRow(row: ProgressRow, requestUrl: URL, bossAuthentica
   }, requestUrl);
   return {
     id: row.id,
-    project: row.project,
+    project: bossAuthenticated ? { id: row.project_id, slug: row.project, display_name: team.display_name } : row.project,
     agent_id: row.agent_id,
     agent_name: row.agent_name,
     agent_label: row.agent_label,
@@ -249,5 +250,5 @@ export function mapProgressRow(row: ProgressRow, requestUrl: URL, bossAuthentica
 }
 
 export function progressSelect(): string {
-  return `SELECT p.id, p.agent_id, p.agent_label, p.model, p.session_id, CASE WHEN p.project_id IS NULL THEN p.project ELSE t.slug END AS project, p.body, p.media, p.tags, p.created_at, a.name AS agent_name, t.handle AS team_handle, t.display_name AS team_display_name, t.avatar_url AS team_avatar_url, (SELECT COUNT(*) FROM progress_likes l WHERE l.post_id = p.id) AS like_count, EXISTS (SELECT 1 FROM progress_likes l WHERE l.post_id = p.id AND l.boss_id = ?) AS liked FROM progress_posts p JOIN api_keys a ON a.id = p.agent_id LEFT JOIN projects t ON t.id = COALESCE(p.project_id, (SELECT project_id FROM project_aliases WHERE alias = p.project))`;
+  return `SELECT p.id, p.agent_id, p.agent_label, p.model, p.session_id, p.project_id, t.slug AS project, p.body, p.media, p.tags, p.created_at, a.name AS agent_name, t.handle AS team_handle, t.display_name AS team_display_name, t.avatar_url AS team_avatar_url, (SELECT COUNT(*) FROM progress_likes l WHERE l.post_id = p.id) AS like_count, EXISTS (SELECT 1 FROM progress_likes l WHERE l.post_id = p.id AND l.boss_id = ?) AS liked FROM progress_posts p JOIN api_keys a ON a.id = p.agent_id JOIN projects t ON t.id = p.project_id`;
 }

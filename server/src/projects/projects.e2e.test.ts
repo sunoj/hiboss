@@ -26,7 +26,7 @@ it('keeps a renamed checkout, legacy posts, sessions and profiles on one project
   expect(rows.results).toHaveLength(1);
   const stored = await env.DB.prepare('SELECT project_id, label FROM sessions WHERE id = ?').bind('project-session').first();
   expect(stored).toMatchObject({ ...rows.results[0], label: 'repo/main' });
-  expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM progress_teams').first('n')).toBe(0);
+  expect(await env.DB.prepare("SELECT name FROM sqlite_master WHERE name = 'progress_teams'").first()).toBeNull();
 });
 
 it('resolves old session labels with and without a branch', async () => {

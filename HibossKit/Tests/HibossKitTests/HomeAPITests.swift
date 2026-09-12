@@ -19,7 +19,23 @@ final class HomeAPITests: XCTestCase {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
             return try Self.response(
                 for: request,
-                json: #"""
+                json: Self.homeJSON
+            )
+        }
+        let api = HibossAPI(config: try config(), session: session())
+        let home = try await api.fetchHome()
+
+        XCTAssertEqual(home.boss.name, "Ming")
+        XCTAssertEqual(home.kpis.pendingDecisions, 1)
+        XCTAssertEqual(home.activity.days.count, 1)
+        XCTAssertEqual(home.activity.delta.posts, 0.12)
+        XCTAssertNil(home.activity.delta.messages)
+        XCTAssertEqual(home.projects.first?.name, "hiboss")
+        XCTAssertEqual(home.attention.first?.kind, .decision)
+        XCTAssertEqual(home.attention.first?.messageId, "m1")
+    }
+
+    private static let homeJSON = #"""
                 {
                   "boss": {"name": "Ming"},
                   "kpis": {
@@ -31,7 +47,7 @@ final class HomeAPITests: XCTestCase {
                     "delta": {"posts": 0.12, "decisions": -0.5, "messages": null}
                   },
                   "projects": [{
-                    "name": "hiboss",
+                    "name": "hiboss", "slug": "hiboss",
                     "sessions": {"working": 1, "waiting": 0, "blocked": 0, "idle": 0},
                     "pendingDecisions": 1,
                     "postCount7d": 5,
@@ -52,20 +68,6 @@ final class HomeAPITests: XCTestCase {
                   }]
                 }
                 """#
-            )
-        }
-        let api = HibossAPI(config: try config(), session: session())
-        let home = try await api.fetchHome()
-
-        XCTAssertEqual(home.boss.name, "Ming")
-        XCTAssertEqual(home.kpis.pendingDecisions, 1)
-        XCTAssertEqual(home.activity.days.count, 1)
-        XCTAssertEqual(home.activity.delta.posts, 0.12)
-        XCTAssertNil(home.activity.delta.messages)
-        XCTAssertEqual(home.projects.first?.name, "hiboss")
-        XCTAssertEqual(home.attention.first?.kind, .decision)
-        XCTAssertEqual(home.attention.first?.messageId, "m1")
-    }
 
     private func config() throws -> ConnectionConfig {
         let serverURL = try XCTUnwrap(URL(string: "https://hiboss.example"))

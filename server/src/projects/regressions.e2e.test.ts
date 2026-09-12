@@ -21,7 +21,7 @@ it('prefers additive identity metadata over legacy project text', async () => {
     expect(response.status).toBe(201);
   }
   expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM projects WHERE slug = 'ignored-wire-slug'").first('n')).toBe(0);
-  expect(await env.DB.prepare("SELECT project FROM progress_posts WHERE body = 'additive'").first('project')).toBe('preferred-slug');
+  expect(await env.DB.prepare("SELECT p.slug AS project FROM progress_posts pp JOIN projects p ON p.id = pp.project_id WHERE body = 'additive'").first('project')).toBe('preferred-slug');
 });
 
 it('merges origin/checkout history, registers the hook and permits its next send', async () => {
