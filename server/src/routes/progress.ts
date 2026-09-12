@@ -125,7 +125,7 @@ routes.get('/projects', async (c) => {
        UNION ALL
        SELECT t.slug, s.agent_id, NULL FROM sessions s JOIN projects t ON t.id = s.project_id WHERE s.${scope.sql}
      ) SELECT project, COUNT(post_at) AS count, MAX(post_at) AS last_post_at, agent_id
-       FROM activity GROUP BY project, agent_id ORDER BY last_post_at DESC`
+       FROM activity GROUP BY project, agent_id HAVING COUNT(post_at) > 0 ORDER BY last_post_at DESC`
   ).bind(...scope.binds, ...scope.binds).all<{ project: string; count: number; last_post_at: string | null; agent_id: string }>();
   return c.json({ projects: (rows.results ?? []).map((row) => ({ ...row, last_post_at: row.last_post_at ? normalizeTimestamp(row.last_post_at) : null })) });
 });
