@@ -1,6 +1,6 @@
 # Entity model redesign — proposal for review
 
-Status: **approved 2026-09-11 — scope L (phases 0–4)**. Decisions A–F stand as written. Companion to `investigation-entity-model.md` (facts, 2026-09-11).
+Status: **phases 0–4 deployed 2026-09-12** (scope L approved 2026-09-11; decisions A–F stand as written). Destinations run in `shadow`; phase 2c (flip to `on`, drop `channel_configs`/`delivery_queue`/legacy boss identity columns, native Notifications pages) follows the parity week. Cleanup backlog: bosses DELETE must reassign-or-409 when panels reference the boss; drop text `project` columns; drop `api_keys.key_hash` and the auth fallback; retire `role='admin'`. Companion to `investigation-entity-model.md` (facts, 2026-09-11).
 Where this document says "today", it cites that inventory. Production row counts on 2026-09-11:
 messages 29,006 · sessions 3,873 · api_keys 7 · bosses 2 · boss_tokens 5 · boss_devices 3 ·
 channel_configs 7 · panels 13 · progress_posts 16 · routing_rules 0.
