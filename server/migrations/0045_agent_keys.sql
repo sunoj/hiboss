@@ -22,7 +22,7 @@ INSERT INTO api_keys_next
   (id, name, key_hash, callback_url, created_at, last_used_at, default_priority,
    rate_limit, channel_routing, avatar_url, role, session_info, is_admin)
 SELECT id, name, key_hash, callback_url, created_at, last_used_at, default_priority,
-  rate_limit, channel_routing, avatar_url, CASE WHEN role = 'admin' THEN NULL ELSE role END,
+  rate_limit, channel_routing, avatar_url, role,
   session_info, CASE WHEN role = 'admin' THEN 1 ELSE 0 END FROM api_keys;
 DROP TABLE api_keys;
 ALTER TABLE api_keys_next RENAME TO api_keys;

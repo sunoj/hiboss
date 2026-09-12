@@ -21,8 +21,11 @@ root pages and row contents, including 29,006 messages. Neither `messages` nor i
 indexes/FKs are rebuilt or modified. Check this assumption before deploying if any
 new migration adds an incoming cascading FK. `DESTINATIONS_MODE` is unchanged.
 
-Existing `role = 'admin'` becomes `is_admin = 1, role = NULL`. Workflow roles remain
-orchestrator, worker, reviewer or null; self configuration cannot grant admin.
+Existing `role = 'admin'` gains `is_admin = 1` and keeps its legacy role marker so
+the old Worker retains admin access during deployment. The new Worker authorizes
+agents only through `is_admin`. Self configuration still accepts only workflow roles
+orchestrator, worker, reviewer or null and cannot grant admin. Clear legacy
+`role = 'admin'` values in a later phase after all old Workers are retired.
 Boss roles remain admin/manager/viewer, independently of agent capabilities.
 
 ## Deploy order
@@ -31,8 +34,8 @@ Boss roles remain admin/manager/viewer, independently of agent capabilities.
    key counts and message counts without exporting bearer values or printing hashes.
 2. Review and apply migration 0045 before deploying the Worker. Apply it as one
    migration transaction, not as independently committed statements. The old Worker
-   still reads the preserved hashes during this window; its old admin-role check
-   stops working until the new Worker is deployed. Avoid enrolling agents in
+   still reads the preserved hashes and admin role during this window, so existing
+   bearer authentication and admin access continue. Avoid enrolling agents in
    the interval between migration and Worker deployment.
 3. Deploy the Worker. Check the old bearers with `GET /api/agents/me` on each box;
    `id` must be unchanged and the added `agent_key_id` must be non-null. Check one
@@ -46,8 +49,14 @@ Boss roles remain admin/manager/viewer, independently of agent capabilities.
 
 Authentication reads non-revoked `agent_keys` first. The temporary legacy fallback
 applies only when **no** row has the hash, including revoked rows. A revoked migrated
-key therefore cannot regain access through `api_keys.key_hash`. Credential activity
-uses a conditional update at most once per minute; agent activity keeps its existing
+key therefore cannot regain access through `api_keys.key_hash`. If the Worker goes
+live before 0045, only the D1 `no such table: agent_keys` error triggers a direct
+legacy hash lookup, with one warning per isolate. Agent-only and dual authentication
+remain available; other database errors propagate. Every request retries the
+credential query so migration takes effect without an isolate restart. This bridge
+covers existing authentication; key management, the new admin capability gate and
+enrollment require migration. Credential activity uses a conditional update at most
+once per minute; agent activity keeps its existing
 per-request timestamp semantics. Remove the fallback and legacy column in a later
 phase after parity has been observed. Do not roll back to a legacy Worker after key
 revocation: it would still accept legacy hashes and cannot use newly minted keys.
@@ -145,3 +154,21 @@ The remote host was `grok-bot-chief` (Tailscale `192.0.2.10`, advertised as
 scoped HTTP fixtures; Worker tests exercised real D1 authorization and persistence.
 The final enrollment/router cleanup also passed 28 focused Worker tests and typecheck.
 No production migration, deployment, installed-key rotation or push was performed.
+
+### Audit 4 fix validation — 2026-09-12
+
+Reran on `grok-bot-chief` at `/tmp/hiboss-fix-4-LYQWcW` with the authorized Wrangler
+config. Both deployment regressions failed before the fix and passed afterward.
+SELF tests exercise the legacy hash/admin predicate before and after migration,
+agent and dual boss auth with `agent_keys` dropped, then migration and revocation
+in the same isolate. Separate tests check one warning and unrelated error propagation.
+
+- `cd server && npm test`: 928 Worker tests and 19 schema/migration tests passed.
+- `npm run check:schema`: 46 migrations through 0045, 38 tables, 109 indexes match.
+- `npm run typecheck`: passed.
+- `cd cli && env -u RUSTC_WRAPPER cargo test -p hiboss`: 228 library and 2 binary
+  tests passed; 0 failed or ignored. Used an isolated target directory and debug info off.
+
+Evidence: `deployment-red.log`, `deployment-green.log`, `server-final.log`,
+`schema-final.log`, `typecheck-final.log` and `cli-final.log` in that remote directory.
+Browser/web checks and production deployment were not rerun in this fix round.

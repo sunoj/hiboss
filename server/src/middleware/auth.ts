@@ -116,13 +116,30 @@ export function isBossAuth(c: Context<{ Bindings: Env }>): boolean {
   return !!(c as AuthContext).bossId;
 }
 
+type AgentAuthRow = { id: string; key_id: AgentKeyId | null; last_used_at: string | null };
+let warnedMissingAgentKeys = false;
+
+async function findAgent(db: D1Database, keyHash: string): Promise<AgentAuthRow | null> {
+  try {
+    // A revoked row must block the legacy fallback. Keep this bridge for the deploy only.
+    return await db.prepare(`SELECT a.id, k.id AS key_id, k.last_used_at FROM agent_keys k
+      JOIN api_keys a ON a.id = k.agent_id WHERE k.key_hash = ? AND k.revoked_at IS NULL
+      UNION ALL SELECT id, NULL AS key_id, NULL AS last_used_at FROM api_keys WHERE key_hash = ?
+      AND NOT EXISTS (SELECT 1 FROM agent_keys WHERE key_hash = ?) LIMIT 1`)
+      .bind(keyHash, keyHash, keyHash).first<AgentAuthRow>();
+  } catch (error: unknown) {
+    if (!(error instanceof Error) || !error.message.includes('no such table: agent_keys')) throw error;
+    if (!warnedMissingAgentKeys) {
+      warnedMissingAgentKeys = true;
+      console.warn('agent_keys table unavailable; using legacy agent authentication until migration 0045');
+    }
+    return db.prepare('SELECT id, NULL AS key_id, NULL AS last_used_at FROM api_keys WHERE key_hash = ?')
+      .bind(keyHash).first<AgentAuthRow>();
+  }
+}
+
 async function resolveAgentAuth(c: AuthContext, keyHash: string): Promise<boolean> {
-  // A revoked row must block the legacy fallback. Keep this bridge for the deploy only.
-  const agent = await c.env.DB.prepare(`SELECT a.id, k.id AS key_id, k.last_used_at FROM agent_keys k
-    JOIN api_keys a ON a.id = k.agent_id WHERE k.key_hash = ? AND k.revoked_at IS NULL
-    UNION ALL SELECT id, NULL AS key_id, NULL AS last_used_at FROM api_keys WHERE key_hash = ?
-    AND NOT EXISTS (SELECT 1 FROM agent_keys WHERE key_hash = ?) LIMIT 1`)
-    .bind(keyHash, keyHash, keyHash).first<{ id: string; key_id: AgentKeyId | null; last_used_at: string | null }>();
+  const agent = await findAgent(c.env.DB, keyHash);
   if (!agent) return false;
   c.agentId = agent.id;
   c.agentKeyId = agent.key_id;

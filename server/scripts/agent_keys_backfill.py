@@ -36,7 +36,7 @@ def verify(db: sqlite3.Connection, before: list[tuple], children: dict) -> None:
                       "WHERE k.key_hash = a.key_hash AND k.label = 'migrated' "
                       "AND k.created_at = a.created_at AND k.last_used_at = a.last_used_at "
                       "AND k.revoked_at IS NULL").fetchone() == (7,)
-    assert db.execute("SELECT role, is_admin FROM api_keys WHERE id = '0'").fetchone() == (None, 1)
+    assert db.execute("SELECT role, is_admin FROM api_keys WHERE id = '0'").fetchone() == ('admin', 1)
     assert db.execute("SELECT role, is_admin FROM api_keys WHERE id = '1'").fetchone() == ('worker', 0)
     assert not db.execute('PRAGMA foreign_key_check').fetchall()
     db.execute("INSERT INTO api_keys (id, name) VALUES ('new', 'New')")

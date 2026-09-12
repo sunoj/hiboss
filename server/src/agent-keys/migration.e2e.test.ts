@@ -16,13 +16,20 @@ it('backfills seven agents atomically in D1 without rebuilding messages or chang
   }
   const tableBefore = await env.DB.prepare("SELECT sql, rootpage FROM sqlite_master WHERE name = 'messages'").first();
   const before = await env.DB.prepare('SELECT * FROM messages ORDER BY id').all();
+  const adminHeaders = { Authorization: 'Bearer old-bearer-0' };
+  expect((await SELF.fetch('https://test.local/__test/legacy-admin', { headers: adminHeaders })).status).toBe(200);
   const statements = migration.replace(/^--.*$/gm, '').split(';').map(s => s.trim()).filter(Boolean);
   await env.DB.batch(statements.map(sql => env.DB.prepare(sql)));
   expect(await env.DB.prepare("SELECT sql, rootpage FROM sqlite_master WHERE name = 'messages'").first()).toEqual(tableBefore);
   expect((await env.DB.prepare('SELECT * FROM messages ORDER BY id').all()).results).toEqual(before.results);
   expect((await env.DB.prepare('PRAGMA foreign_key_check').all()).results).toEqual([]);
   expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM agent_keys').first()).toEqual({ count: 7 });
-  expect(await env.DB.prepare("SELECT role, is_admin FROM api_keys WHERE id = 'agent-0'").first()).toEqual({ role: null, is_admin: 1 });
+  expect(await env.DB.prepare("SELECT role, is_admin FROM api_keys WHERE id = 'agent-0'").first()).toEqual({ role: 'admin', is_admin: 1 });
+  expect((await SELF.fetch('https://test.local/__test/legacy-admin', { headers: adminHeaders })).status).toBe(200);
+  expect((await SELF.fetch('https://test.local/api/keys', { headers: adminHeaders })).status).toBe(200);
+  expect((await SELF.fetch('https://test.local/__test/legacy-admin', {
+    headers: { Authorization: 'Bearer old-bearer-1' },
+  })).status).toBe(403);
   for (let i = 0; i < 7; i++) {
     const response = await SELF.fetch('https://test.local/api/agents/me', { headers: { Authorization: `Bearer old-bearer-${i}` } });
     expect(response.status).toBe(200);
