@@ -5,7 +5,7 @@ hosted D1 migration, production mode change, push, or PR was performed.
 
 ## FIX round on c404163
 
-All required checks ran on `root@grok-bot-twitter` in the isolated checkout
+All required checks ran on `the Linux build box` in the isolated checkout
 `/tmp/hiboss-fix-2b-c404163`. The requested source Wrangler file was copied into
 `server/` first. The final server command was exactly `npm test && npm run check:schema
 && npm run typecheck`; the final web command was `npm run check && npm test`.
@@ -41,7 +41,7 @@ The simpler operational choice is one self-contained SQL migration, with no
 credential export, application backfill job, or extra delivery/retry mechanism.
 
 The exact audit fixture (two provider rows, identical token, two bosses, Telegram
-chat `506099557`) now produces one adapter call, one canonical delivery row, and
+chat `<chat id>`) now produces one adapter call, one canonical delivery row, and
 one merged attribution row. Shadow produces the identical canonical key and zero
 mismatch audits without sending. After migration, one provider remains and both
 destinations plus all four on/shadow delivery rows survive. D1 backfill hashes
@@ -62,14 +62,14 @@ Source comparison against `37ce778` found all eight non-preference clap structs
 and ten implementations byte-identical; retained quiet-hours payload construction
 is also byte-identical. Defaults remain `add --role admin` and `inbox --limit 20`.
 No Rust runtime test is claimed. `CARGO_DISK_GUARD_MIN_FREE_GB=1 cargo check -p hiboss`
-failed before compilation because the configured `/Users/example/.cargo-target/hiboss/debug`
+failed before compilation because the configured `~/.cargo-target/hiboss/debug`
 directory was outside the writable sandbox; Cargo check was not run to completion.
 No alternate target-directory retry or formatter was used.
 
 ### Parent/current HTTP comparison (remote)
 
 The actual router from `git show 37ce778:server/src/routes/bosses.ts` was loaded
-beside the fixed router on `root@grok-bot-twitter`. The harness reset each fixture
+beside the fixed router on `the Linux build box`. The harness reset each fixture
 before each request and compared status, content type, and response body. Only
 random creation IDs/timestamps and issued token values were normalized; creation
 IDs were separately checked against `^[0-9a-f]{32}$`. All eight existing endpoint
@@ -144,7 +144,7 @@ because the CLI cannot resolve this execution's session.
 
 ## Original phase 2b checks (historical, before the FIX round)
 
-All Worker suites and browser interaction checks ran on `root@grok-bot-twitter`
+All Worker suites and browser interaction checks ran on `the Linux build box`
 in `/tmp/hiboss-phase2b-5uTm2n`. The other authorized hostname did not resolve.
 The requested Wrangler file was copied before testing; Vitest explicitly injects
 `DESTINATIONS_MODE=off`, and mode-specific tests inject their own values.
@@ -180,7 +180,7 @@ parity week were not exercised.
 Remote logs are `/tmp/hiboss-phase2b-server-final.log`,
 `/tmp/hiboss-phase2b-schema-final.log`, `/tmp/hiboss-phase2b-types-final.log`,
 `/tmp/hiboss-phase2b-web-check-final.log`, `/tmp/hiboss-phase2b-web-test-final.log`,
-and `/tmp/hiboss-phase2b-web-build.log` on `grok-bot-twitter`.
+and `/tmp/hiboss-phase2b-web-build.log` on `the Linux build box`.
 Local Cargo output is `/tmp/hiboss-phase2b-cargo.log`.
 
 Screenshots are under the remote checkout's `output/playwright/`:

@@ -50,7 +50,7 @@ whenever any questionnaire receives an answer.
 ## Validation and installation
 
 - Remote questionnaire HTTP E2E: 20 passed across four files on
-  `grok-bot-chief-1`, workspace `/tmp/hiboss-rich-media.GO2jIj`.
+  `the Linux build box`, workspace `/tmp/hiboss-rich-media.GO2jIj`.
 - The added regression verifies multi-selection validation, accepted-answer
   discovery, immediate card dismissal, and preserved immutable answers.
 - Shared questionnaire model, presentation, and API unit tests: 14 passed locally
@@ -62,7 +62,7 @@ whenever any questionnaire receives an answer.
 - Executable SHA-256:
   `095a2efbbc174cfceec7f1b0d06315b83366b57bbf6e695a86da0776b93a2313`.
 - Previous bundle:
-  `/Users/example/Library/Application Support/HiBoss/Backups/HiBoss Island.before-controls-20260911.app`.
+  `~/Library/Application Support/HiBoss/Backups/HiBoss Island.before-controls-20260911.app`.
 - Build, test, publication, completion, and installation evidence is under
   `output/native-ui-demo/`. The unsigned iOS app is in its `iOS/HiBoss.app` folder.
 

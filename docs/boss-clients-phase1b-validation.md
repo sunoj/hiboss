@@ -54,8 +54,8 @@ The iOS test build also compiles existing UI-test targets because they belong to
 its scheme, but does not execute them. Existing concurrency warnings remain in
 pairing-camera and UI-test code; these files were not changed.
 
-Native visual/E2E checks were not run. `grok-bot-twitter` is reachable but runs
-Linux, and `grok-bot-chief` did not resolve. The authorized remote hosts therefore
+Native visual/E2E checks were not run. `the Linux build box` is reachable but runs
+Linux, and `the Linux build box` did not resolve. The authorized remote hosts therefore
 could not run Apple-native UI checks. No local E2E fallback was used. iOS unit tests
 were built rather than executed to avoid installing/launching the app.
 

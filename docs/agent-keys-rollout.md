@@ -71,8 +71,8 @@ hiboss key rotate --label "Mac development"
 hiboss key list
 ```
 
-On a Linux installation use a distinct label such as `grok-bot-chief` or
-`grok-bot-twitter`. Commands operate on the current configured agent, not the current
+On a Linux installation use a distinct label such as `the Linux build box` or
+`the Linux build box`. Commands operate on the current configured agent, not the current
 project. Rotation fetches the current identity/key ID, mints with the existing
 bearer, verifies the new bearer with `GET /api/agents/me`, checks both identity and
 credential IDs, writes the config atomically, then revokes the old key using the
@@ -147,8 +147,7 @@ Validated on 2026-09-12:
 | `aid build check -p hiboss` | 0 errors, 0 warnings; shared `CARGO_TARGET_DIR` unchanged |
 | Remote Chromium UI checks | 6 passed: four locales' key lifecycle/copy and manager/viewer controls |
 
-The remote host was `grok-bot-chief` (Tailscale `192.0.2.10`, advertised as
-`grok-bot-chief-1`), in `/tmp/hiboss-agent-keys-xEIZqr`. Server evidence is
+The remote host was `the Linux build box` , in `/tmp/hiboss-agent-keys-xEIZqr`. Server evidence is
 `server-final.log`; UI evidence is `browser-test.log`, `agent-keys-browser.mjs` and
 `output/playwright/{en,zh-CN,ja,ko}.png` under that directory. Browser checks used
 scoped HTTP fixtures; Worker tests exercised real D1 authorization and persistence.
@@ -157,7 +156,7 @@ No production migration, deployment, installed-key rotation or push was performe
 
 ### Audit 4 fix validation — 2026-09-12
 
-Reran on `grok-bot-chief` at `/tmp/hiboss-fix-4-LYQWcW` with the authorized Wrangler
+Reran on `the Linux build box` at `/tmp/hiboss-fix-4-LYQWcW` with the authorized Wrangler
 config. Both deployment regressions failed before the fix and passed afterward.
 SELF tests exercise the legacy hash/admin predicate before and after migration,
 agent and dual boss auth with `agent_keys` dropped, then migration and revocation

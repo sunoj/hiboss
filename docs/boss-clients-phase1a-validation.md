@@ -1,7 +1,7 @@
 # Boss clients phase 1a validation
 
 Validated on 2026-09-11. All server E2E and browser execution ran on
-`grok-bot-twitter` in `/tmp/hiboss-clients-b6bfjX`, using isolated test databases.
+`the Linux build box` in `/tmp/hiboss-clients-b6bfjX`, using isolated test databases.
 Production was not deployed or migrated. Native binaries were not executed.
 
 | Command | Result |
