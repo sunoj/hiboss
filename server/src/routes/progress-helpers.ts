@@ -29,12 +29,14 @@ export interface ProgressTeam {
 
 export interface TeamProfile extends ProgressTeam {
   project: string;
+  project_ref: { id: string; slug: string; display_name: string };
   bio: string | null;
 }
 
 export interface ProgressPost {
   id: string;
-  project: string | { id: string; slug: string; display_name: string };
+  project: string;
+  project_ref: TeamProfile['project_ref'];
   agent_id: string;
   agent_name: string;
   agent_label: string | null;
@@ -70,6 +72,7 @@ export interface ProgressRow {
 }
 
 export interface TeamRow {
+  id: string;
   project: string;
   handle: string | null;
   display_name: string | null;
@@ -215,6 +218,7 @@ export function mapTeamRow(row: TeamRow, requestUrl: URL): TeamProfile {
   const handle = row.handle ?? slugifyProject(row.project);
   return {
     project: row.project,
+    project_ref: { id: row.id, slug: row.project, display_name: row.display_name ?? row.project },
     handle,
     display_name: row.display_name ?? row.project,
     bio: row.bio,
@@ -225,6 +229,7 @@ export function mapTeamRow(row: TeamRow, requestUrl: URL): TeamProfile {
 
 export function mapProgressRow(row: ProgressRow, requestUrl: URL, bossAuthenticated: boolean): ProgressPost {
   const team = mapTeamRow({
+    id: row.project_id,
     project: row.project,
     handle: row.team_handle,
     display_name: row.team_display_name,
@@ -233,7 +238,8 @@ export function mapProgressRow(row: ProgressRow, requestUrl: URL, bossAuthentica
   }, requestUrl);
   return {
     id: row.id,
-    project: bossAuthenticated ? { id: row.project_id, slug: row.project, display_name: team.display_name } : row.project,
+    project: row.project,
+    project_ref: team.project_ref,
     agent_id: row.agent_id,
     agent_name: row.agent_name,
     agent_label: row.agent_label,

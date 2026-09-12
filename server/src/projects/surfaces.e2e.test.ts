@@ -42,9 +42,10 @@ it('lists, renames and merges projects with boss audit and scoped counts', async
   expect(await env.DB.prepare("SELECT project_id FROM sessions WHERE id = 'merge-session'").first('project_id')).toBe(target.id);
   expect(await env.DB.prepare("SELECT actor_type FROM audit_log WHERE action = 'project.merge' AND resource_id = ?").bind(target.id).first('actor_type')).toBe('boss');
   const feed = await request('progress?project=source', 'GET', undefined, 'project-admin');
-  const { posts } = await feed.json() as { posts: { project: { id: string; slug: string } }[] };
+  const { posts } = await feed.json() as { posts: { project: string; project_ref: { id: string; slug: string } }[] };
   expect(posts).toHaveLength(2);
-  expect(posts[0].project).toMatchObject({ id: target.id, slug: 'target' });
+  expect(posts[0].project).toBe('target');
+  expect(posts[0].project_ref).toMatchObject({ id: target.id, slug: 'target' });
 });
 
 it('rejects viewer mutations and alias collisions without merging implicitly', async () => {

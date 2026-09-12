@@ -148,7 +148,7 @@ describe('progress visibility and lifecycle', () => {
     expect(data.posts.map((post) => post.id)).toEqual([]);
     const projects = await SELF.fetch('https://test.local/api/progress/projects', { headers: bossHeaders() });
     const projectData = await projects.json() as { projects: { project: string; count: number; agent_id: string; last_post_at: string }[] };
-    expect(projectData.projects).toContainEqual({ project: 'hiboss', count: 1, agent_id: getTestAgentId(), last_post_at: '2026-08-14T09:00:00Z' });
+    expect(projectData.projects).toContainEqual(expect.objectContaining({ project: 'hiboss', count: 1, agent_id: getTestAgentId(), last_post_at: '2026-08-14T09:00:00Z' }));
   });
 
   it('returns 404 for an out-of-scope post and deletes an own post', async () => {

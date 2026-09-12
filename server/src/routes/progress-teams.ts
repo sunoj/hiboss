@@ -34,7 +34,6 @@ interface TeamInput {
 }
 
 interface StoredTeam extends TeamRow {
-  id: string;
   created_by_agent_id: string | null;
 }
 
@@ -239,7 +238,7 @@ routes.get('/', dualAuth, async (c) => {
   if (!agentIds.length) return c.json({ teams: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB.prepare(
-    `SELECT DISTINCT t.slug AS project, t.handle, t.display_name, t.bio, t.avatar_url FROM progress_posts p JOIN projects t ON t.id = p.project_id WHERE p.agent_id IN (${placeholders}) ORDER BY t.slug`
+    `SELECT DISTINCT t.id, t.slug AS project, t.handle, t.display_name, t.bio, t.avatar_url FROM progress_posts p JOIN projects t ON t.id = p.project_id WHERE p.agent_id IN (${placeholders}) ORDER BY t.slug`
   ).bind(...agentIds).all<TeamRow>();
   const requestUrl = new URL(c.req.url);
   return c.json({ teams: (rows.results ?? []).map((row) => mapTeamRow(row, requestUrl)) });

@@ -175,16 +175,16 @@ ACL. `POST /api/projects/:project/aliases` accepts `{ "alias": "old-checkout" }`
 alias returns 409 rather than implicitly merging. Removing the canonical slug alias
 returns 400. Existing resolver reconciliation for CLI identity assertions is retained.
 
-Agent progress responses retain `project: "slug"` because installed old CLIs decode
-that field as a string. Boss progress responses expose
-`project: { "id": "...", "slug": "...", "display_name": "..." }`. Both come from the
-same FK join. Request text compatibility is unchanged. Session listings expose
-`project_id` and `project_slug`; the boss listing's `include_inactive=true` also
+All progress responses retain `project: "slug"` for installed CLI and native clients,
+and add `project_ref: { "id": "...", "slug": "...", "display_name": "..." }`.
+The project summary endpoint preserves its existing fields and adds `project_ref`.
+Both fields come from the same FK join. Session registration and listings retain
+`project_id` and `project_slug` and add `project_ref`; the boss listing's `include_inactive=true` also
 returns historical sessions within the same access scope for native History headers.
 
 The console Projects page lists aliases/activity and supports display-name edits and
 confirmed merges in English, Chinese, Japanese and Korean. Agents/Sessions show slugs.
-HibossKit decodes project objects and sessions; iOS groups the project filter across
+HibossKit decodes `project_ref` with a slug-string fallback; iOS groups the project filter across
 agents by slug, permits null last-post timestamps and keys Home cards by slug.
 macOS History reads session inventory for canonical `slug/branch` titles.
 
@@ -269,3 +269,25 @@ Changed Swift/Rust/TypeScript/UI source files stay within 300 lines; the consoli
 SQL schema retains its existing structure with targeted edits.
 HiBoss panel delivery was unavailable because this execution had no resolved session.
 No production migration, deployment, live message delivery, push or PR was performed.
+
+### Phase 3b wire compatibility fix (2026-09-12)
+
+Audited `9b0e716..872b7c2`: the boss progress `project` string-to-object change
+was the response type regression. `project_slugs` and Home `slug` are additive;
+session scalar fields and nullable summary timestamps retain their existing types.
+Progress posts, summaries and team profiles now retain `project` strings and add
+`project_ref`; session responses retain scalar fields and add the same reference.
+HibossKit uses the reference when present, otherwise a slug-based identity.
+
+Final remote checks on `grok-bot-twitter:/tmp/hiboss-wire-RGiZDH` passed:
+**915 API tests + 18 schema tests**, schema parity (**45 migrations, 37 tables,
+106 indexes**), server typecheck, and web check (**0 errors/warnings**) + **132 tests**.
+The seven new server regressions exercise legacy decoding and additive references.
+Logs in that remote directory: `server-final.log`, `schema-final.log`,
+`typecheck-final.log`, `web-check.log`, and `web-test.log` (host-local artifacts).
+
+Local HibossKit passed **136 tests** (135 XCTest + 1 Swift Testing); macOS passed
+**128 tests** with `E2E|AttentionLayoutTests` excluded, plus `swift build`.
+CLI passed **223 tests** with `RUSTC_WRAPPER` unset and target `/tmp/hiboss-wire-cargo`.
+iOS `build-for-testing` passed; iOS tests were compiled but not executed.
+Local logs: `/tmp/hiboss-wire-{kit,macos-test,macos-build,cli,ios-build}.log`.

@@ -6,11 +6,12 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
     public let id: String
     public let projectId: String?
     public let projectSlug: String?
+    public let projectRef: ProjectIdentity?
     public let branch: String?
     public let label: String?
 
     public var displayLabel: String {
-        guard let slug = projectSlug else { return label ?? String(id.prefix(8)) }
+        guard let slug = projectRef?.slug ?? projectSlug else { return label ?? String(id.prefix(8)) }
         guard let branch, !branch.isEmpty else { return slug }
         return "\(slug)/\(branch)"
     }
@@ -19,12 +20,14 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
         case id, branch, label
         case projectId = "project_id"
         case projectSlug = "project_slug"
+        case projectRef = "project_ref"
     }
 
-    public init(id: String, projectId: String?, projectSlug: String?, branch: String?, label: String? = nil) {
+    public init(id: String, projectId: String?, projectSlug: String?, branch: String?, label: String? = nil, projectRef: ProjectIdentity? = nil) {
         self.id = id
         self.projectId = projectId
         self.projectSlug = projectSlug
+        self.projectRef = projectRef
         self.branch = branch
         self.label = label
     }

@@ -19,13 +19,24 @@ final class ProjectIdentityTests: XCTestCase {
     }
 
     func testPostDecodesIdentityAndRetainsItWhenLiked() throws {
-        let data = Data(#"{"id":"post","project":{"id":"p","slug":"repo","display_name":"Renamed Repo"},"agent_id":"a","body":"Done","created_at":"2026-09-12T00:00:00Z"}"#.utf8)
+        let data = Data(#"{"id":"post","project":"repo","project_ref":{"id":"p","slug":"repo","display_name":"Renamed Repo"},"agent_id":"a","body":"Done","created_at":"2026-09-12T00:00:00Z"}"#.utf8)
         let post = try JSONDecoder().decode(ProgressPost.self, from: data)
         XCTAssertEqual(post.project, "repo")
         XCTAssertEqual(post.projectIdentity.id, "p")
         XCTAssertEqual(post.projectIdentity.displayName, "Renamed Repo")
         XCTAssertEqual(post.withLike(count: 1, liked: true).projectIdentity, post.projectIdentity)
         XCTAssertEqual(try JSONDecoder().decode(ProgressPost.self, from: JSONEncoder().encode(post)), post)
+        let legacy = try JSONDecoder().decode(LegacyPost.self, from: JSONEncoder().encode(post))
+        XCTAssertEqual(legacy.project, "repo")
+    }
+
+    func testPre3bFeedDecodesWithoutProjectRef() throws {
+        let data = Data(#"{"posts":[{"id":"old","project":"repo","agent_id":"a","body":"Done","created_at":"2026-09-12T00:00:00Z"}],"next_cursor":null}"#.utf8)
+        let feed = try JSONDecoder().decode(ProgressFeedPage.self, from: data)
+        let post = try XCTUnwrap(feed.posts.first)
+        XCTAssertEqual(post.project, "repo")
+        XCTAssertEqual(post.projectIdentity, ProjectIdentity(id: "repo", slug: "repo", displayName: "repo"))
+        XCTAssertEqual(post.team, .fallback(project: "repo"))
     }
 
     func testSessionsDecodeProjectAndPreferSlugOverStoredLabel() throws {
@@ -41,6 +52,15 @@ final class ProjectIdentityTests: XCTestCase {
         let project = try JSONDecoder().decode(ProgressProject.self, from: data)
         XCTAssertEqual(project.id, "repo")
         XCTAssertNil(project.lastPostAt)
+        XCTAssertEqual(project.projectIdentity.slug, "repo")
+    }
+
+    func testProjectSummaryDecodesAdditiveIdentity() throws {
+        let data = Data(#"{"project":"repo","project_ref":{"id":"p","slug":"repo","display_name":"Repo"},"count":1,"last_post_at":"2026-09-12T00:00:00Z","agent_id":"a"}"#.utf8)
+        let project = try JSONDecoder().decode(ProgressProject.self, from: data)
+        XCTAssertEqual(project.project, "repo")
+        XCTAssertEqual(project.projectIdentity.id, "p")
+        XCTAssertEqual(project.projectIdentity.displayName, "Repo")
     }
 
     func testHomeKeysOnSlugWhenDisplayNameChanges() {
@@ -49,6 +69,10 @@ final class ProjectIdentityTests: XCTestCase {
             pendingDecisions: 0, postCount7d: 0, lastPost: nil, lastActivityAt: "2026-09-12T00:00:00Z")
         XCTAssertEqual(project.id, "repo")
     }
+}
+
+private struct LegacyPost: Decodable {
+    let project: String
 }
 
 private struct FailedSessionInventory: BossServing, SessionsServing {

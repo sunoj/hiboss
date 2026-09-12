@@ -107,7 +107,7 @@ public struct ProgressLikeState: Codable, Equatable, Sendable {
 
 public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let id: String
-    public var project: String { projectIdentity.slug }
+    public let project: String
     public let projectIdentity: ProjectIdentity
     public let agentId: String
     public let agentName: String
@@ -123,8 +123,8 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public let model: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, body, media, tags, team, liked, model
-        case projectIdentity = "project"
+        case id, project, body, media, tags, team, liked, model
+        case projectIdentity = "project_ref"
         case agentId = "agent_id"
         case agentName = "agent_name"
         case sessionId = "session_id"
@@ -151,6 +151,7 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
         model: String? = nil
     ) {
         self.id = id
+        self.project = projectIdentity?.slug ?? project
         self.projectIdentity = projectIdentity ?? ProjectIdentity(id: project, slug: project, displayName: project)
         self.agentId = agentId
         self.agentName = agentName
@@ -169,7 +170,10 @@ public struct ProgressPost: Codable, Equatable, Sendable, Identifiable {
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decode(String.self, forKey: .id)
-        projectIdentity = try values.decode(ProjectIdentity.self, forKey: .projectIdentity)
+        let slug = try values.decode(String.self, forKey: .project)
+        projectIdentity = try values.decodeIfPresent(ProjectIdentity.self, forKey: .projectIdentity)
+            ?? ProjectIdentity(id: slug, slug: slug, displayName: slug)
+        project = projectIdentity.slug
         agentId = try values.decode(String.self, forKey: .agentId)
         agentName = try values.decodeIfPresent(String.self, forKey: .agentName) ?? ""
         sessionId = try values.decodeIfPresent(String.self, forKey: .sessionId)
@@ -240,18 +244,24 @@ public struct ProgressProject: Codable, Equatable, Sendable, Identifiable {
     public var slug: String { project }
 
     public let project: String
+    public let projectRef: ProjectIdentity?
+    public var projectIdentity: ProjectIdentity {
+        projectRef ?? ProjectIdentity(id: project, slug: project, displayName: project)
+    }
     public let count: Int
     public let lastPostAt: String?
     public let agentId: String
 
     enum CodingKeys: String, CodingKey {
         case project, count
+        case projectRef = "project_ref"
         case lastPostAt = "last_post_at"
         case agentId = "agent_id"
     }
 
-    public init(project: String, count: Int, lastPostAt: String?, agentId: String) {
+    public init(project: String, count: Int, lastPostAt: String?, agentId: String, projectRef: ProjectIdentity? = nil) {
         self.project = project
+        self.projectRef = projectRef
         self.count = count
         self.lastPostAt = lastPostAt
         self.agentId = agentId

@@ -3,7 +3,7 @@
 // Depends on Hono, auth middleware, and Env types.
 
 import { parseProject, resolveProject } from '../projects';
-import { SESSION_LABEL_SQL } from '../projects/session-label';
+import { SESSION_LABEL_SQL, mapSessionProject, type SessionProjectRow } from '../projects/session-label';
 import { isRecord } from './progress-helpers';
 import { Hono } from 'hono';
 import type { Env } from '../types';
@@ -73,7 +73,8 @@ routes.post('/', async (c) => {
     }
     return c.text('failed to persist session', 500);
   }
-  return c.json({ id, label, branch, cwd, status, status_text: statusText, project_id: project.id, project_slug: project.slug }, 201);
+  const displayName = await c.env.DB.prepare('SELECT display_name FROM projects WHERE id = ?').bind(project.id).first<string>('display_name');
+  return c.json(mapSessionProject({ id, label, branch, cwd, status, status_text: statusText, project_id: project.id, project_slug: project.slug, project_display_name: displayName }), 201);
 });
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
@@ -86,10 +87,10 @@ routes.get('/', async (c) => {
   const placeholders = agentIds.map(() => '?').join(', ');
   const where = `s.agent_id IN (${placeholders}) AND last_seen_at > datetime('now', '-${STALE_MINUTES} minutes')`;
   const rows = await c.env.DB
-    .prepare(`SELECT s.*, api_keys.name AS agent_name, p.slug AS project_slug, ${SESSION_LABEL_SQL} AS display_label FROM sessions s LEFT JOIN api_keys ON api_keys.id = s.agent_id LEFT JOIN projects p ON p.id = s.project_id WHERE ${where} ORDER BY last_seen_at DESC`)
+    .prepare(`SELECT s.*, api_keys.name AS agent_name, p.slug AS project_slug, p.display_name AS project_display_name, ${SESSION_LABEL_SQL} AS display_label FROM sessions s LEFT JOIN api_keys ON api_keys.id = s.agent_id LEFT JOIN projects p ON p.id = s.project_id WHERE ${where} ORDER BY last_seen_at DESC`)
     .bind(...agentIds)
-    .all<SessionRow & { agent_name: string; project_slug: string | null; display_label: string | null }>();
-  return c.json({ sessions: (rows.results ?? []).map(({ display_label, ...row }) => ({ ...row, label: display_label })) });
+    .all<SessionRow & SessionProjectRow & { agent_name: string; display_label: string | null }>();
+  return c.json({ sessions: rows.results.map(({ display_label, ...row }) => mapSessionProject({ ...row, label: display_label })) });
 });
 
 // PATCH /api/sessions/:id — heartbeat with optional status update
