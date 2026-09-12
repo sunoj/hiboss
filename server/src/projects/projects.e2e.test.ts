@@ -74,12 +74,14 @@ it('handles concurrent first sight without leaving orphan projects', async () =>
   expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM project_aliases WHERE alias LIKE 'concurrent-checkout-%'").first('n')).toBe(3);
 });
 
-it('lists session-only projects and filters posts using aliases', async () => {
+it('keeps session-only projects out of the progress listing and filters posts using aliases', async () => {
+  // Installed native decoders require a non-null last_post_at: a project is listed once it has a post.
   await post('sessions', { id: 'only-session', project: { slug: 'only-session-repo', aliases: ['only-session-cwd'] } });
   const response = await SELF.fetch('https://test.local/api/progress/projects', { headers: authHeaders() });
   expect(response.status).toBe(200);
   const data = await response.json() as { projects: { project: string; count: number; last_post_at: string | null }[] };
-  expect(data.projects).toContainEqual(expect.objectContaining({ project: 'only-session-repo', count: 0, last_post_at: null }));
+  expect(data.projects.map((row) => row.project)).not.toContain('only-session-repo');
+  expect(data.projects.every((row) => typeof row.last_post_at === 'string' && row.count > 0)).toBe(true);
   await post('progress', { body: 'filter me', project: { slug: 'filter-repo', aliases: ['filter-cwd'] } });
   const feed = await SELF.fetch('https://test.local/api/progress?project=filter-cwd', { headers: authHeaders() });
   const posts = await feed.json() as { posts: { project: string; body: string }[] };
