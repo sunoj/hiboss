@@ -32,14 +32,14 @@ function bossHeaders(): Record<string, string> {
 }
 
 describe('POST /api/sessions', () => {
-  it('registers a session with ID only', async () => {
+  it('registers a session with a legacy text project', async () => {
     const res = await SELF.fetch('http://localhost/api/sessions', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ id: 'sess-test-1' }),
+      body: JSON.stringify({ id: 'sess-test-1', project: 'test-project' }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.id).toBe('sess-test-1');
     expect(data.status).toBe('working');
   });
@@ -58,7 +58,7 @@ describe('POST /api/sessions', () => {
       }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.branch).toBe('feat/test');
     expect(data.cwd).toBe('/home/user/project');
     expect(data.label).toBe('test-session');
@@ -72,10 +72,10 @@ describe('POST /api/sessions validation', () => {
     const res = await SELF.fetch('http://localhost/api/sessions', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ id: 'sess-test-3', status: 'invalid' }),
+      body: JSON.stringify({ id: 'sess-test-3', project: 'test-project', status: 'invalid' }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.status).toBe('working');
   });
 
@@ -97,7 +97,7 @@ describe('POST /api/sessions ownership and updates', () => {
       body: JSON.stringify({ id: 'sess-test-1', status: 'blocked', status_text: 'Need help' }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.status).toBe('blocked');
   });
 
@@ -108,7 +108,7 @@ describe('POST /api/sessions ownership and updates', () => {
       body: JSON.stringify({ id: 'sess-test-4', cwd: '/project', branch: 'main' }),
     });
     expect(res.status).toBe(201);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.label).toBe('/project/main');
   });
 
@@ -127,7 +127,7 @@ describe('GET /api/sessions', () => {
   it('lists own sessions', async () => {
     const res = await SELF.fetch('http://localhost/api/sessions', { headers: authHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.sessions).toBeInstanceOf(Array);
     expect(data.sessions.length).toBeGreaterThanOrEqual(1);
   });
@@ -136,13 +136,13 @@ describe('GET /api/sessions', () => {
     await SELF.fetch('http://localhost/api/sessions', {
       method: 'POST',
       headers: otherAgentHeaders(),
-      body: JSON.stringify({ id: 'sess-other-agent-1', status: 'idle' }),
+      body: JSON.stringify({ id: 'sess-other-agent-1', project: 'test-project', status: 'idle' }),
     });
     const res = await SELF.fetch('http://localhost/api/sessions?all=true', { headers: authHeaders() });
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = await res.json() as { id: string; status: string; branch: string; cwd: string; label: string; status_text: string; sessions: { agent_id: string; id: string }[] };
     expect(data.sessions).toBeInstanceOf(Array);
-    expect(data.sessions.every((session: any) => session.agent_id === getTestAgentId())).toBe(true);
+    expect(data.sessions.every((session) => session.agent_id === getTestAgentId())).toBe(true);
   });
 
   it.each(['?all=true', '', '?all=false'])('allows admins to list all recent sessions with %s', async (query) => {

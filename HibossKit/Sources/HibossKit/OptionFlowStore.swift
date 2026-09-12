@@ -91,9 +91,12 @@ public final class OptionFlowStore: ObservableObject {
         seenMessageIDs.removeAll()
         presentationState = .idle
         historyMessages.removeAll()
+        projectSessions.removeAll()
         historyState = .idle
         connectionState = .disconnected
     }
+
+    @Published public private(set) var projectSessions: [ProjectSession] = []
 
     public func refreshHistory() async {
         guard let api else { return }
@@ -102,6 +105,9 @@ public final class OptionFlowStore: ObservableObject {
             historyMessages = try await api.fetchHistory()
             historyState = .loaded
             reconcileActiveAgainstHistory()
+            if let sessionsAPI = api as? any SessionsServing {
+                projectSessions = (try? await sessionsAPI.projectSessions()) ?? []
+            }
         } catch where Task.isCancelled {
             return
         } catch {

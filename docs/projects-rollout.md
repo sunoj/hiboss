@@ -1,4 +1,4 @@
-# Projects rollout — phase 3a
+# Projects rollout — phases 3a and 3b
 
 Phase 3a adds project identity to the server and CLI. Apply `0043_projects.sql`
 before deploying this Worker, then upgrade CLIs. Server-first is recommended, but
@@ -64,8 +64,9 @@ PRAGMA foreign_key_check;
 Old progress clients may continue sending `project: "checkout-name"`. The server
 resolves that text as an alias and auto-creates an identity when it is unknown.
 An omitted progress project still uses the agent name, through the same resolver.
-Old session registration derives an alias from the label prefix; registration with
-only an ID can stay unlinked. An explicitly supplied legacy label is retained in storage; session listing derives
+Old session registration derives an alias from the explicit label prefix or cwd basename.
+New sessions without a resolvable project return 400; ID-only re-registration retains
+an existing project link. Heartbeats cannot update unlinked sessions. An explicitly supplied legacy label is retained in storage; session listing derives
 the displayed label from the linked slug and branch.
 Both endpoints also accept:
 
@@ -116,31 +117,87 @@ remain supported; the same endpoint now writes the project profile.
 
 Projects listing includes accessible session-only projects with zero posts and a
 null last-post timestamp. Progress filtering accepts aliases or canonical slugs.
-Home and feeds use the project FK, falling back to legacy text only for unlinked
-rows; unlinked posts can still obtain a project profile through their text alias.
+Home, feeds and profile lists use project FKs exclusively. Unlinked historical posts
+are excluded from these surfaces; inspect and repair null links before rollout.
 
 Messages and progress reject missing or foreign `session_id` values with 400.
 Old CLIs with stale local session markers must register a fresh session before
 sending again. Sessions are not auto-created by message/progress requests.
 
-## Phase 3b cleanup
+## Phase 3b surfaces and migration
 
-`progress_teams` is an application-level read-only migration snapshot: this Worker
-never writes it. It is retained for inspection until 3b; no database triggers prevent
-an operator or an older Worker from modifying it. Avoid rolling back to a Worker
-that writes the snapshot after project profiles have changed.
+Phase 3a is already deployed (reported inventory: 118 projects, 128 aliases, all
+session/post/route links backfilled). This change is local implementation only.
+Apply `0044_project_surfaces.sql` before deploying the 3b Worker. Back up D1 first.
+The guard `missing_team_project` requires every snapshot team's exact alias to
+resolve to an existing project before dropping `progress_teams`.
 
-Drop `progress_teams` and legacy project text columns only in 3b, after all deployed
-readers/writers use project IDs, remaining null links are reviewed, and destination
-route readers/writers have adopted IDs. Keep the legacy JSON text input adapter as
-long as old CLIs remain installed; accepting text does not require a text DB column.
-Destination routing still uses its current text/session semantics in 3a. The new
-route FK is additive backfill only; phase 3b owns route identity cutover.
+The old `progress_posts.project` constraint forbids omitted text, so 0044 rebuilds
+that table with a nullable text field and preserves every post column, like and
+index. Both project FK columns remain nullable in SQL; API registration/post writes
+require a resolved project. New posts write only `project_id`. Destination route
+matching and the unique scope index now use `project_id`, with session-specific
+routes preceding project routes and default routes. Runtime route writers are absent;
+future route writes must supply IDs, never text. `DESTINATIONS_MODE` is unchanged.
 
-Agent-qualified local session slot keys, removal of `api_keys.session_info`, and
-removal of stored labels are also deferred. Keep project aliases: they are the durable
-record of renamed checkouts, not a temporary migration shim. Reconciliation is
-automatic in the shared resolver and backfill; there is no separate merge API.
+Before applying, verify these queries return no rows:
+
+```sql
+SELECT t.project FROM progress_teams t WHERE NOT EXISTS (
+  SELECT 1 FROM project_aliases a JOIN projects p ON p.id = a.project_id
+  WHERE a.alias = t.project
+);
+SELECT destination_id, project_id, session_id, COUNT(*) FROM destination_routes
+GROUP BY destination_id, COALESCE(project_id, ''), COALESCE(session_id, '')
+HAVING COUNT(*) > 1;
+```
+
+Resolve duplicate route scopes deliberately before migration: the new unique index
+rejects them. Explicit runtime merges keep the target route on conflicting scopes;
+otherwise the smallest route ID wins among absorbed routes. All relationship moves,
+conflicting-route removal, project deletion and `project.merge` audit share one batch.
+The target profile is retained. `progress_posts.project` and
+`destination_routes.project` remain as historical text and will be dropped in a
+later phase. Do not roll back to a Worker that writes the dropped team snapshot.
+
+`GET /api/boss/projects` returns `{ projects: [...] }`, with `id`, `slug`,
+`display_name`, `repo_url`, sorted `aliases`, `session_count`, `last_seen_at` and
+`last_post_at`. Counts/timestamps reflect accessible agents. Admins see all projects;
+other bosses see projects with accessible activity or an accessible creator.
+`PATCH /api/boss/projects/:id` accepts `display_name`, `repo_url` (HTTP(S) or null),
+or a separate `{ "merge_into": "target-project-id" }` operation. Viewers cannot
+mutate; both merge identities must be visible. Profile edits have boss audit entries.
+
+`GET/PUT /api/progress/teams/:project` resolves slug or alias and reads/writes
+`projects`; the old table is never accessed. Profiles remain shared without a project
+ACL. `POST /api/projects/:project/aliases` accepts `{ "alias": "old-checkout" }`;
+`DELETE /api/projects/:project/aliases/:alias` removes it. Adding another project's
+alias returns 409 rather than implicitly merging. Removing the canonical slug alias
+returns 400. Existing resolver reconciliation for CLI identity assertions is retained.
+
+All progress responses retain `project: "slug"` for installed CLI and native clients,
+and add `project_ref: { "id": "...", "slug": "...", "display_name": "..." }`.
+The project summary endpoint preserves its existing fields and adds `project_ref`.
+Both fields come from the same FK join. Session registration and listings retain
+`project_id` and `project_slug` and add `project_ref`; the boss listing's `include_inactive=true` also
+returns historical sessions within the same access scope for native History headers.
+
+The console Projects page lists aliases/activity and supports display-name edits and
+confirmed merges in English, Chinese, Japanese and Korean. Agents/Sessions show slugs.
+HibossKit decodes `project_ref` with a slug-string fallback; iOS groups the project filter across
+agents by slug, permits null last-post timestamps and keys Home cards by slug.
+macOS History reads session inventory for canonical `slug/branch` titles.
+
+Use `hiboss project show`, `hiboss project set --display-name NAME --bio BIO
+--avatar PATH`, and `hiboss project aliases add/remove ALIAS [--project SLUG]`.
+`hiboss progress team` is a hidden alias with a deprecation notice; its old
+`register` and `set-avatar` forms remain accepted. `show` reads the canonical server
+profile. `set` preserves unspecified server fields; `.hiboss/team.json` sync still
+targets the same project profile and retains its existing hash format.
+
+Agent-qualified local session slots, removal of `api_keys.session_info`, and removal
+of stored labels remain deferred. Messages, app installation, production deployment,
+remote migrations, pushes and PRs are outside this implementation.
 
 ## Validation
 
@@ -179,3 +236,58 @@ Local Rust validation passed **231 tests** and `cargo check -p hiboss`, with
 `/tmp/hiboss-fix-3a-rust-check.log`. The wire fixture rejects object-valued legacy
 `project` fields and accepts both new progress and session payloads.
 HiBoss panel delivery was unavailable because this execution had no resolved session.
+
+### Phase 3b verification (2026-09-12)
+
+The full remote `npm test && npm run check:schema && npm run typecheck` passed:
+**908 API tests and 18 schema tests**, including the two SQLite 0044 preservation/
+guard fixtures. Schema parity: **45 migrations, 37 tables, 106 indexes**.
+Remote console `npm run check && npm test` passed with **132 tests**, zero check
+errors/warnings; **4 Playwright browser flows** passed (rename/confirmed merge,
+four locales, mobile overflow, and viewer restrictions).
+
+The isolated checkout is `grok-bot-twitter:/tmp/hiboss-projects-3b-20260912`.
+Remote logs: `/tmp/hiboss-3b-{server,schema,server-typecheck,web-check,web-test,web-e2e}.log`.
+Screenshot: `web/output/playwright/projects-mobile.png` in that remote checkout.
+These are host-local artifacts, not hosted links. An initial SSE timeout passed on
+rerun. Remote disk exhaustion was recovered using identical existing compiler/runtime
+packages and clearing this task's interrupted Vite cache; other jobs were untouched.
+
+Local CLI tests passed **223 tests** (221 library + 2 command-parser tests) with
+`RUSTC_WRAPPER` unset and target `/tmp/hiboss-projects-3b-cargo`.
+Ten obsolete tests were removed with the unused client-side handle normalizer;
+project profile defaults now come from the server.
+Log: `/tmp/hiboss-3b-cli.log`. No Cargo formatting command was run.
+
+Local HibossKit passed **134 tests** (133 XCTest + 1 Swift Testing); macOS passed
+**128 tests** with `E2E|AttentionLayoutTests` excluded and `swift build` passed.
+Project-inventory failures are isolated from existing message-history behavior.
+iOS simulator app build and `build-for-testing` both passed; iOS tests were compiled,
+not executed. No native app or test runner was installed or launched.
+Local logs: `/tmp/hiboss-3b-{kit,macos-tests,macos-build,ios-build,ios-test-build}.log`.
+Changed Swift/Rust/TypeScript/UI source files stay within 300 lines; the consolidated
+SQL schema retains its existing structure with targeted edits.
+HiBoss panel delivery was unavailable because this execution had no resolved session.
+No production migration, deployment, live message delivery, push or PR was performed.
+
+### Phase 3b wire compatibility fix (2026-09-12)
+
+Audited `9b0e716..872b7c2`: the boss progress `project` string-to-object change
+was the response type regression. `project_slugs` and Home `slug` are additive;
+session scalar fields and nullable summary timestamps retain their existing types.
+Progress posts, summaries and team profiles now retain `project` strings and add
+`project_ref`; session responses retain scalar fields and add the same reference.
+HibossKit uses the reference when present, otherwise a slug-based identity.
+
+Final remote checks on `grok-bot-twitter:/tmp/hiboss-wire-RGiZDH` passed:
+**915 API tests + 18 schema tests**, schema parity (**45 migrations, 37 tables,
+106 indexes**), server typecheck, and web check (**0 errors/warnings**) + **132 tests**.
+The seven new server regressions exercise legacy decoding and additive references.
+Logs in that remote directory: `server-final.log`, `schema-final.log`,
+`typecheck-final.log`, `web-check.log`, and `web-test.log` (host-local artifacts).
+
+Local HibossKit passed **136 tests** (135 XCTest + 1 Swift Testing); macOS passed
+**128 tests** with `E2E|AttentionLayoutTests` excluded, plus `swift build`.
+CLI passed **223 tests** with `RUSTC_WRAPPER` unset and target `/tmp/hiboss-wire-cargo`.
+iOS `build-for-testing` passed; iOS tests were compiled but not executed.
+Local logs: `/tmp/hiboss-wire-{kit,macos-test,macos-build,cli,ios-build}.log`.

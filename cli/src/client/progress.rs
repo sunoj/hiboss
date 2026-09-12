@@ -77,9 +77,11 @@ impl HiBossClient {
         project: &str,
         req: &ProgressTeamRequest,
     ) -> Result<ProgressTeamFull, Box<dyn Error>> {
+        let mut url = reqwest::Url::parse(&format!("{}/api/progress/teams/", self.base_url))?;
+        url.path_segments_mut().map_err(|_| "invalid server URL")?.pop_if_empty().push(project);
         let resp = self
             .http
-            .put(format!("{}/api/progress/teams/{}", self.base_url, project))
+            .put(url)
             .bearer_auth(&self.api_key)
             .json(req)
             .send()

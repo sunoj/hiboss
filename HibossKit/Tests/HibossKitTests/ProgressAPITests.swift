@@ -27,7 +27,7 @@ final class ProgressAPITests: XCTestCase {
             XCTAssertEqual(decoded, ProgressCursor(createdAt: "2026-08-14T09:00:00Z", id: "p2"))
             return try Self.response(
                 for: request,
-                json: #"{"posts":[{"id":"p1","project":"hiboss","agent_id":"ak1","agent_name":"cli","body":"Hi","media":[],"tags":[],"created_at":"2026-08-14T08:00:00Z"}],"next_cursor":null}"#
+                json: #"{"posts":[{"id":"p1","project": "hiboss", "project_ref": {"id": "project-hiboss", "slug": "hiboss", "display_name": "hiboss"},"agent_id":"ak1","agent_name":"cli","body":"Hi","media":[],"tags":[],"created_at":"2026-08-14T08:00:00Z"}],"next_cursor":null}"#
             )
         }
         let api = HibossAPI(config: try config(), session: session())
@@ -48,10 +48,10 @@ final class ProgressAPITests: XCTestCase {
                 for: request,
                 json: #"""
                 {"posts":[
-                    {"id":"none","project":"p","agent_id":"a","agent_name":"cli","body":"none","created_at":"2026-08-14T08:00:00Z"},
-                    {"id":"image","project":"p","agent_id":"a","agent_name":"cli","body":"image","media":[{"url":"https://h/i.png","kind":"image","content_type":"image/png","size":3,"width":12,"height":8}],"tags":[],"created_at":"2026-08-14T07:00:00Z"},
-                    {"id":"video","project":"p","agent_id":"a","agent_name":"cli","body":"video","media":[{"url":"https://h/v.mp4","kind":"video","content_type":"video/mp4","size":4,"duration_ms":3200,"poster_url":"https://h/p.jpg"}],"created_at":"2026-08-14T06:00:00Z"},
-                    {"id":"missing-dimensions","project":"p","agent_id":"a","agent_name":"cli","body":"missing","media":[{"url":"https://h/m.png","kind":"image","content_type":"image/png","size":5}],"created_at":"2026-08-14T05:00:00Z"}
+                    {"id":"none","project": "p", "project_ref": {"id": "project-p", "slug": "p", "display_name": "p"},"agent_id":"a","agent_name":"cli","body":"none","created_at":"2026-08-14T08:00:00Z"},
+                    {"id":"image","project": "p", "project_ref": {"id": "project-p", "slug": "p", "display_name": "p"},"agent_id":"a","agent_name":"cli","body":"image","media":[{"url":"https://h/i.png","kind":"image","content_type":"image/png","size":3,"width":12,"height":8}],"tags":[],"created_at":"2026-08-14T07:00:00Z"},
+                    {"id":"video","project": "p", "project_ref": {"id": "project-p", "slug": "p", "display_name": "p"},"agent_id":"a","agent_name":"cli","body":"video","media":[{"url":"https://h/v.mp4","kind":"video","content_type":"video/mp4","size":4,"duration_ms":3200,"poster_url":"https://h/p.jpg"}],"created_at":"2026-08-14T06:00:00Z"},
+                    {"id":"missing-dimensions","project": "p", "project_ref": {"id": "project-p", "slug": "p", "display_name": "p"},"agent_id":"a","agent_name":"cli","body":"missing","media":[{"url":"https://h/m.png","kind":"image","content_type":"image/png","size":5}],"created_at":"2026-08-14T05:00:00Z"}
                 ],"next_cursor":{"created_at":"2026-08-14T05:00:00Z","id":"missing-dimensions"}}
                 """#
             )

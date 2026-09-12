@@ -1,4 +1,5 @@
-/** Pure helpers for Sessions kanban grouping and labels. */
+// Groups Sessions and derives canonical project/branch titles.
+// Exports session display and grouping helpers; depends on API session types.
 
 import type { SessionResponse } from '$lib/api/types';
 import { coerceSessionStatus, SESSION_STATUSES, type SessionStatus } from '$lib/design/semantics';
@@ -15,6 +16,7 @@ export function shortId(id: string): string {
 
 /** Prefer label, then branch, then truncated id. */
 export function sessionDisplayLabel(session: SessionResponse): string {
+	if (session.project_slug) return session.branch ? `${session.project_slug}/${session.branch}` : session.project_slug;
 	const label = session.label?.trim();
 	if (label) return label;
 	const branch = session.branch?.trim();

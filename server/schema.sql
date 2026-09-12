@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0043; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0044; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -281,7 +281,7 @@ CREATE TABLE IF NOT EXISTS progress_posts (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   agent_id TEXT NOT NULL REFERENCES api_keys(id),
   session_id TEXT,
-  project TEXT NOT NULL,
+  project TEXT,
   body TEXT NOT NULL,
   media TEXT,
   tags TEXT,
@@ -294,19 +294,6 @@ CREATE TABLE IF NOT EXISTS progress_posts (
 CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_posts(project, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_progress_agent ON progress_posts(agent_id, created_at DESC, id DESC);
-
--- Progress feed teams and boss likes.
-CREATE TABLE IF NOT EXISTS progress_teams (
-  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  project TEXT NOT NULL UNIQUE,
-  handle TEXT NOT NULL UNIQUE,
-  display_name TEXT NOT NULL,
-  bio TEXT,
-  avatar_url TEXT,
-  created_by_agent_id TEXT REFERENCES api_keys(id),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
 
 -- Boss likes on progress feed posts
 CREATE TABLE IF NOT EXISTS progress_likes (
@@ -494,7 +481,7 @@ CREATE TABLE destination_routes (
   project_id TEXT REFERENCES projects(id),
   UNIQUE (destination_id, project, session_id)
 );
-CREATE UNIQUE INDEX idx_destination_routes_scope ON destination_routes(destination_id, COALESCE(project, ''), COALESCE(session_id, ''));
+CREATE UNIQUE INDEX idx_destination_routes_scope ON destination_routes(destination_id, COALESCE(project_id, ''), COALESCE(session_id, ''));
 CREATE TABLE inbound_routes (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   destination_id TEXT NOT NULL REFERENCES boss_destinations(id) ON DELETE CASCADE,
@@ -532,7 +519,7 @@ CREATE TABLE boss_external_accounts (
 );
 CREATE INDEX idx_boss_external_accounts_boss ON boss_external_accounts(boss_id);
 
--- Project identities; progress_teams remains a frozen legacy profile snapshot.
+-- Project identities and profiles; legacy text columns await a later removal.
 CREATE TABLE projects (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   slug TEXT NOT NULL UNIQUE,

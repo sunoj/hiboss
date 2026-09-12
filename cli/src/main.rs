@@ -68,6 +68,8 @@ enum Commands {
     Daemon(daemon::DaemonArgs),
     #[command(about = "Post and browse project progress updates")]
     Progress(progress::ProgressArgs),
+    #[command(about = "Manage project profiles and aliases")]
+    Project(progress::progress_team::TeamArgs),
     #[command(about = "Deliver dynamic notifications and task reports with live panels")]
     Panel(panel::PanelArgs),
     #[command(about = "Publish and receive durable structured questionnaire answers")]
@@ -123,6 +125,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
         Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
         Commands::Progress(args) => progress::run(args, &config, &client).await?,
+        Commands::Project(args) => progress::progress_team::run(args, &config, &client).await?,
         Commands::Panel(args) => panel::run(args, &client).await?,
         Commands::Request(args) => request::run(args, &client).await?,
         Commands::Hook(_) => unreachable!(),
@@ -168,8 +171,11 @@ async fn run_local(command: &Commands, config: &mut config::Config) -> Result<bo
             panel::run_validate(match &args.command { panel::PanelCommand::Validate(arguments) => arguments, _ => unreachable!() })?;
             return Ok(true);
         }
-        Commands::Progress(_) => {}
+        Commands::Progress(_) | Commands::Project(_) => {}
         _ => {}
     }
     Ok(false)
 }
+
+#[cfg(test)]
+mod project_command_tests;

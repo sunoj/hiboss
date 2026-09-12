@@ -13,19 +13,6 @@ const AGENT_ID = 'home-agent-1';
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS progress_posts (
-    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    agent_id TEXT NOT NULL,
-    session_id TEXT,
-    project TEXT NOT NULL,
-    body TEXT NOT NULL,
-    media TEXT NOT NULL DEFAULT '[]',
-    tags TEXT NOT NULL DEFAULT '[]',
-    agent_label TEXT,
-    model TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`).run();
-
   await env.DB.prepare(
     "INSERT INTO api_keys (id, name, key_hash) VALUES (?, 'home-agent', ?)",
   ).bind(AGENT_ID, await hashApiKey('hb_home_agent_key')).run();
@@ -36,23 +23,24 @@ beforeAll(async () => {
 
   await seedBossToken('Empty Home Boss', 'viewer', EMPTY_TOKEN);
 
-  // Live sessions: label prefix → project; waiting + blocked for attention tiers.
+  await env.DB.prepare("INSERT INTO projects (id, slug, display_name) VALUES ('hiboss', 'hiboss', 'HiBoss'), ('smart-router', 'smart-router', 'Router'), ('solo-proj', 'solo-proj', 'Solo')").run();
+  // Live sessions: project FK; waiting + blocked for attention tiers.
   await env.DB.prepare(
-    "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'hiboss/main', 'waiting', 'Awaiting boss reply')",
+    "INSERT INTO sessions (id, agent_id, project_id, label, status, status_text) VALUES (?, ?, 'hiboss', 'hiboss/main', 'waiting', 'Awaiting boss reply')",
   ).bind('home-sess-wait', AGENT_ID).run();
   await env.DB.prepare(
-    "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'smart-router/feat', 'working', 'building')",
+    "INSERT INTO sessions (id, agent_id, project_id, label, status, status_text) VALUES (?, ?, 'smart-router', 'smart-router/feat', 'working', 'building')",
   ).bind('home-sess-work', AGENT_ID).run();
   await env.DB.prepare(
-    "INSERT INTO sessions (id, agent_id, label, status, status_text) VALUES (?, ?, 'hiboss/blocked', 'blocked', 'Needs input')",
+    "INSERT INTO sessions (id, agent_id, project_id, label, status, status_text) VALUES (?, ?, 'hiboss', 'hiboss/blocked', 'blocked', 'Needs input')",
   ).bind('home-sess-block', AGENT_ID).run();
 
   // Progress-only project (no session label) + post under hiboss.
   await env.DB.prepare(
-    "INSERT INTO progress_posts (id, agent_id, project, body, created_at) VALUES (?, ?, 'solo-proj', 'Only from progress', datetime('now'))",
+    "INSERT INTO progress_posts (id, agent_id, project_id, body, created_at) VALUES (?, ?, 'solo-proj', 'Only from progress', datetime('now'))",
   ).bind('home-post-solo', AGENT_ID).run();
   await env.DB.prepare(
-    "INSERT INTO progress_posts (id, agent_id, project, body, created_at) VALUES (?, ?, 'hiboss', 'Shipped home API', datetime('now'))",
+    "INSERT INTO progress_posts (id, agent_id, project_id, body, created_at) VALUES (?, ?, 'hiboss', 'Shipped home API', datetime('now'))",
   ).bind('home-post-hb', AGENT_ID).run();
 
   // Blocking critical decision (older) and async high decision (newer) for attention order.
@@ -94,7 +82,7 @@ describe('GET /api/boss/home', () => {
     expect(body.attention).toEqual([]);
   });
 
-  it('derives projects from label prefix union progress_posts.project', async () => {
+  it('derives projects from session and progress project FKs', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/home', { headers: headers(BOSS_TOKEN) });
     expect(res.status).toBe(200);
     const body = await res.json() as {
@@ -113,6 +101,9 @@ describe('GET /api/boss/home', () => {
     expect(solo?.sessions.working).toBe(0);
   });
 
+});
+
+describe('GET /api/boss/home', () => {
   it('sets activity delta null when prior window is 0', async () => {
     const res = await SELF.fetch('http://localhost/api/boss/home', { headers: headers(BOSS_TOKEN) });
     const body = await res.json() as {

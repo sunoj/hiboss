@@ -99,7 +99,9 @@ public struct HomeActivityDelta: Codable, Equatable, Sendable {
 }
 
 public struct HomeProject: Codable, Equatable, Sendable, Identifiable {
-    public var id: String { name }
+    public var id: String { slug }
+
+    public let slug: String
 
     public let name: String
     public let sessions: HomeProjectSessions
@@ -110,6 +112,7 @@ public struct HomeProject: Codable, Equatable, Sendable, Identifiable {
 
     public init(
         name: String,
+        slug: String? = nil,
         sessions: HomeProjectSessions,
         pendingDecisions: Int,
         postCount7d: Int,
@@ -117,6 +120,7 @@ public struct HomeProject: Codable, Equatable, Sendable, Identifiable {
         lastActivityAt: String
     ) {
         self.name = name
+        self.slug = slug ?? name
         self.sessions = sessions
         self.pendingDecisions = pendingDecisions
         self.postCount7d = postCount7d

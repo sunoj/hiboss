@@ -1,6 +1,7 @@
-/** Boss API domain types — mirrors server MessageResponse / overview shapes. */
+// Boss API contracts for messages, agents and configuration.
+// Exports wire types and errors; depends on shared semantics and project session types.
 
-import type { Direction, MessageStatus, Priority, SessionStatus } from '$lib/design/semantics';
+import type { Direction, MessageStatus, Priority } from '$lib/design/semantics';
 
 export type Mode = 'async' | 'blocking';
 export type Channel = 'discord' | 'telegram' | 'email' | 'api';
@@ -89,24 +90,10 @@ export interface MessagesQuery {
 	agent?: string;
 }
 
-export interface SessionResponse {
-	id: string;
-	label: string | null;
-	branch: string | null;
-	cwd: string | null;
-	status: SessionStatus | string;
-	status_text: string | null;
-	agent_name: string | null;
-	agent_id?: string;
-	last_seen_at: string;
-	started_at?: string | null;
-}
-
-export interface SessionsListResponse {
-	sessions: SessionResponse[];
-}
+export type { SessionResponse, SessionsListResponse } from './projects';
 
 export interface AgentResponse {
+	project_slugs?: string[];
 	id: string;
 	name: string;
 	role: string | null;

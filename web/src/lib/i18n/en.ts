@@ -4,12 +4,12 @@
  * Deps: plural helper for count-sensitive messages.
  */
 import { enNotifications } from './notifications';
+import { enProjects } from './projects';
 import { enDevices } from './devices';
 import { plural } from './plural';
 import type { MessageParams } from './types';
 const count = (params: MessageParams): number => Number(params.count ?? 0);
-
-export const enMessages = { ...enDevices, ...enNotifications,
+export const enMessages = { ...enProjects, ...enDevices, ...enNotifications,
 	'form.noDescription': 'No description', 'form.copy': 'Copy', 'form.copied': 'Copied',
 	'app.title': 'hiboss console',
 	'brand.console': 'Console',

@@ -1,7 +1,7 @@
 // Boss-authenticated API: lets bosses view agents, messages, sessions, and reply.
 // Exports bossApiRouter mounted at /api/boss.
 // Depends on Hono, boss auth middleware, and D1 bindings.
-
+import { SESSION_LABEL_SQL, mapSessionProject, type SessionProjectRow } from '../projects/session-label';
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { bossAuth, getBossId, getBossRole, getBossName, getBossTokenId, hashApiKey } from '../middleware/auth';
@@ -114,10 +114,10 @@ routes.get('/agents', async (c) => {
   if (agentIds.length === 0) return c.json({ agents: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB
-    .prepare(`SELECT id, name, role, last_used_at, created_at FROM api_keys WHERE id IN (${placeholders})`)
+    .prepare(`SELECT a.id, a.name, a.role, a.last_used_at, a.created_at, (SELECT json_group_array(slug) FROM (SELECT DISTINCT p.slug FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.agent_id = a.id ORDER BY p.slug)) AS project_slugs FROM api_keys a WHERE a.id IN (${placeholders})`)
     .bind(...agentIds)
-    .all();
-  return c.json({ agents: rows.results ?? [] });
+    .all<{ id: string; name: string; role: string | null; last_used_at: string | null; created_at: string; project_slugs: string }>();
+  return c.json({ agents: rows.results.map(row => ({ ...row, project_slugs: JSON.parse(row.project_slugs) as string[] })) });
 });
 
 /** GET /api/boss/groups — list groups for accessible agents */
@@ -196,10 +196,10 @@ routes.get('/sessions', async (c) => {
   if (agentIds.length === 0) return c.json({ sessions: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB
-    .prepare(`SELECT sessions.*, api_keys.name AS agent_name FROM sessions LEFT JOIN api_keys ON api_keys.id = sessions.agent_id WHERE sessions.agent_id IN (${placeholders}) AND sessions.last_seen_at > datetime('now', '-15 minutes') ORDER BY sessions.last_seen_at DESC`)
+    .prepare(`SELECT s.*, api_keys.name AS agent_name, p.slug AS project_slug, p.display_name AS project_display_name, ${SESSION_LABEL_SQL} AS label FROM sessions s LEFT JOIN projects p ON p.id = s.project_id LEFT JOIN api_keys ON api_keys.id = s.agent_id WHERE s.agent_id IN (${placeholders}) ${c.req.query('include_inactive') === 'true' ? '' : "AND s.last_seen_at > datetime('now', '-15 minutes')"} ORDER BY s.last_seen_at DESC`)
     .bind(...agentIds)
-    .all();
-  return c.json({ sessions: rows.results ?? [] });
+    .all<SessionProjectRow>();
+  return c.json({ sessions: rows.results.map(mapSessionProject) });
 });
 
 /** POST /api/boss/sessions/:id/message — send a fresh command to a session's agent */

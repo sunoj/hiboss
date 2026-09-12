@@ -39,7 +39,7 @@ pub enum ProgressCommand {
     List(ListArgs),
     #[command(about = "Delete a progress post")]
     Rm(RmArgs),
-    #[command(about = "Manage team identity for the project timeline")]
+    #[command(hide = true, about = "Deprecated alias for hiboss project")]
     Team(progress_team::TeamArgs),
 }
 
@@ -94,7 +94,10 @@ pub async fn run(
         ProgressCommand::Post(a) => run_post(a, config, client).await,
         ProgressCommand::List(a) => run_list(a, config, client).await,
         ProgressCommand::Rm(a) => run_rm(a, config, client).await,
-        ProgressCommand::Team(a) => progress_team::run(a, config, client).await,
+        ProgressCommand::Team(a) => {
+            eprintln!("Deprecated: use `hiboss project` instead of `hiboss progress team`.");
+            progress_team::run(a, config, client).await
+        },
     }
 }
 

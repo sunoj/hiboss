@@ -1,3 +1,5 @@
+// Canonical session labels and status grouping tests.
+// Depends on Vitest and the Sessions presentation helpers.
 import { describe, expect, it } from 'vitest';
 import type { SessionResponse } from '$lib/api/types';
 import {
@@ -29,6 +31,9 @@ describe('shortId', () => {
 });
 
 describe('sessionDisplayLabel', () => {
+	it('uses the canonical slug and full branch over a stale label', () => {
+		expect(sessionDisplayLabel(session({ id: 's', project_slug: 'repo', branch: 'feat/a', label: 'old/main' }))).toBe('repo/feat/a');
+	});
 	it('prefers label, then branch, then short id', () => {
 		expect(sessionDisplayLabel(session({ id: 'abcdefgh', label: 'feat-x' }))).toBe('feat-x');
 		expect(sessionDisplayLabel(session({ id: 'abcdefgh', branch: 'main' }))).toBe('main');

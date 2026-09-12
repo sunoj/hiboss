@@ -276,6 +276,7 @@ mod groups;
 mod messages;
 mod panels;
 mod progress;
+mod projects;
 mod routing;
 
 pub use panels::{PanelConnectionTicket, PanelPublishResponse};

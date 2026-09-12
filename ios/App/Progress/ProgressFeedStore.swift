@@ -37,6 +37,13 @@ final class ProgressFeedStore: ObservableObject {
         isLoadingMore = false
     }
 
+    static func groupProjects(_ rows: [ProgressProject]) -> [ProgressProject] {
+        Dictionary(grouping: rows, by: \.slug).map { slug, projects in
+            ProgressProject(project: slug, count: projects.reduce(0) { $0 + $1.count },
+                lastPostAt: projects.compactMap(\.lastPostAt).max(), agentId: "")
+        }.sorted { $0.slug < $1.slug }
+    }
+
     func selectProject(_ project: String?) {
         selectedProject = project
         Task { await refresh() }
@@ -74,7 +81,7 @@ final class ProgressFeedStore: ObservableObject {
         }
         if let list = try? await api.progressProjects() {
             guard !Task.isCancelled else { return }
-            projects = list
+            projects = Self.groupProjects(list)
         }
     }
 

@@ -7,6 +7,18 @@ import XCTest
 @testable import HibossIsland
 
 final class HistoryLogicTests: XCTestCase {
+    func testSessionHeaderUsesCanonicalProjectAndFullBranch() throws {
+        let message = historyMessage(id: "project-message", sessionId: "s", sessionLabel: "stale/main")
+        let group = try XCTUnwrap(SessionGrouping.groupBySession([message]).first)
+        for metadata in ["", #", "project_ref":{"id":"p","slug":"repo","display_name":"Repo"}"#] {
+            let data = Data("""
+            {"id":"s","project_id":"p","project_slug":"repo","branch":"feat/a"\(metadata)}
+            """.utf8)
+            let session = try JSONDecoder().decode(ProjectSession.self, from: data)
+            XCTAssertEqual(HistoryMessageLogic.sessionTitle(group: group, session: session), "repo/feat/a")
+        }
+    }
+
     func testAllSegmentIncludesEveryHistoryMessage() {
         let delivered = historyMessage(id: "delivered", status: "delivered")
         let replied = historyMessage(id: "replied", status: "replied")

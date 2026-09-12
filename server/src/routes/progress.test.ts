@@ -14,55 +14,19 @@ function bossHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${BOSS_TOKEN}`, 'Content-Type': 'application/json' };
 }
 
-async function createProgressSchema(): Promise<void> {
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS progress_posts (
-    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    agent_id TEXT NOT NULL REFERENCES api_keys(id),
-    session_id TEXT,
-    project TEXT NOT NULL,
-    body TEXT NOT NULL,
-    media TEXT,
-    tags TEXT,
-    agent_label TEXT,
-    model TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`).run();
-  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_created ON progress_posts(created_at DESC)').run();
-  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_project ON progress_posts(project, created_at DESC)').run();
-  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_agent ON progress_posts(agent_id, created_at DESC)').run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS progress_teams (
-    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    project TEXT NOT NULL UNIQUE,
-    handle TEXT NOT NULL UNIQUE,
-    display_name TEXT NOT NULL,
-    bio TEXT,
-    avatar_url TEXT,
-    created_by_agent_id TEXT REFERENCES api_keys(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`).run();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS progress_likes (
-    post_id TEXT NOT NULL REFERENCES progress_posts(id) ON DELETE CASCADE,
-    boss_id TEXT NOT NULL REFERENCES bosses(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (post_id, boss_id)
-  )`).run();
-  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_progress_likes_post ON progress_likes(post_id)').run();
-}
-
 beforeAll(async () => {
   await seedDatabase();
-  await createProgressSchema();
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind(OTHER_AGENT_ID, 'other-agent', await hashApiKey('progress-other-key')).run();
   await seedBossToken('Progress Boss', 'manager', BOSS_TOKEN, 'progress-boss');
   await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind('progress-boss', getTestAgentId()).run();
   await env.DB.prepare('DELETE FROM progress_posts').run();
-  await env.DB.prepare('DELETE FROM progress_teams').run();
   await env.DB.prepare('DELETE FROM progress_likes').run();
+  await env.DB.prepare("INSERT INTO projects (id, slug, display_name) VALUES ('hiboss', 'hiboss', 'hiboss'), ('other', 'other', 'other'), ('unregistered-project', 'unregistered-project', 'unregistered project')").run();
+  await env.DB.prepare("INSERT INTO project_aliases (alias, project_id, source) SELECT slug, id, 'explicit' FROM projects").run();
   await env.DB.prepare(
-    "INSERT INTO progress_posts (id, agent_id, project, body, created_at) VALUES (?, ?, ?, ?, '2026-08-14 09:00:00'), (?, ?, ?, ?, '2026-08-14 08:00:00')"
+    "INSERT INTO progress_posts (id, agent_id, project_id, body, created_at) VALUES (?, ?, ?, ?, '2026-08-14 09:00:00'), (?, ?, ?, ?, '2026-08-14 08:00:00')"
   ).bind('progress-own', getTestAgentId(), 'hiboss', 'own post', 'progress-other', OTHER_AGENT_ID, 'other', 'other post').run();
 });
 
@@ -104,6 +68,9 @@ describe('POST /api/progress', () => {
     expect(await list.json()).toMatchObject({ posts: expect.arrayContaining([expect.objectContaining({ id: post.id, agent_label: 'claude-code', model: 'claude-opus-5' })]) });
   });
 
+});
+
+describe('POST /api/progress', () => {
   it('rejects remote media URLs and oversized media lists', async () => {
     const remote = await SELF.fetch('https://test.local/api/progress', {
       method: 'POST', headers: authHeaders(),
@@ -147,6 +114,9 @@ describe('POST /api/progress', () => {
     expect(foreignPoster.status).toBe(400);
   });
 
+});
+
+describe('POST /api/progress', () => {
   it('does not insert a message or delivery row', async () => {
     const before = await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first<{ count: number }>();
     const queueBefore = await env.DB.prepare('SELECT COUNT(*) AS count FROM delivery_queue').first<{ count: number }>();
@@ -178,7 +148,7 @@ describe('progress visibility and lifecycle', () => {
     expect(data.posts.map((post) => post.id)).toEqual([]);
     const projects = await SELF.fetch('https://test.local/api/progress/projects', { headers: bossHeaders() });
     const projectData = await projects.json() as { projects: { project: string; count: number; agent_id: string; last_post_at: string }[] };
-    expect(projectData.projects).toContainEqual({ project: 'hiboss', count: 1, agent_id: getTestAgentId(), last_post_at: '2026-08-14T09:00:00Z' });
+    expect(projectData.projects).toContainEqual(expect.objectContaining({ project: 'hiboss', count: 1, agent_id: getTestAgentId(), last_post_at: '2026-08-14T09:00:00Z' }));
   });
 
   it('returns 404 for an out-of-scope post and deletes an own post', async () => {
@@ -190,12 +160,15 @@ describe('progress visibility and lifecycle', () => {
     expect(missing.status).toBe(404);
   });
 
+});
+
+describe('progress visibility and lifecycle', () => {
   it('paginates every post sharing one timestamp with a composite cursor', async () => {
     await env.DB.prepare('DELETE FROM progress_posts').run();
     const ids = ['tie-a', 'tie-b', 'tie-c', 'tie-d', 'tie-e'];
     for (const id of ids) {
       await env.DB.prepare(
-        "INSERT INTO progress_posts (id, agent_id, project, body, created_at) VALUES (?, ?, 'hiboss', ?, '2026-08-14 09:00:00')"
+        "INSERT INTO progress_posts (id, agent_id, project_id, body, created_at) VALUES (?, ?, 'hiboss', ?, '2026-08-14 09:00:00')"
       ).bind(id, getTestAgentId(), id).run();
     }
 
@@ -237,8 +210,11 @@ describe('progress teams and likes', () => {
     expect(firstBytes).not.toEqual(differentBytes);
   });
 
+});
+
+describe('progress teams and likes', () => {
   it('registers a team and includes fallback and registered identities in posts', async () => {
-    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project, body) VALUES ('team-fallback', ?, 'unregistered project', 'fallback')")
+    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project_id, body) VALUES ('team-fallback', ?, 'unregistered-project', 'fallback')")
       .bind(getTestAgentId()).run();
     const fallback = await SELF.fetch('https://test.local/api/progress/team-fallback', { headers: authHeaders() });
     const fallbackData = await fallback.json() as { team: { handle: string; display_name: string; avatar_url: string; registered: boolean } };
@@ -257,10 +233,10 @@ describe('progress teams and likes', () => {
     const visibleTeamData = await visibleTeams.json() as { teams: { project: string; registered: boolean }[] };
     expect(visibleTeamData.teams).toEqual(expect.arrayContaining([
       expect.objectContaining({ project: 'hiboss', registered: true }),
-      expect.objectContaining({ project: 'unregistered project', registered: false }),
+      expect.objectContaining({ project: 'unregistered-project', registered: false }),
     ]));
 
-    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project, body) VALUES ('team-registered', ?, 'hiboss', 'registered')")
+    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project_id, body) VALUES ('team-registered', ?, 'hiboss', 'registered')")
       .bind(getTestAgentId()).run();
     const post = await SELF.fetch('https://test.local/api/progress/team-registered', { headers: authHeaders() });
     const postData = await post.json() as { team: { handle: string; display_name: string; avatar_url: string; registered: boolean }; like_count: number; liked: boolean };
@@ -269,8 +245,11 @@ describe('progress teams and likes', () => {
     expect(postData.liked).toBe(false);
   });
 
+});
+
+describe('progress teams and likes', () => {
   it('keeps like and unlike operations idempotent in both directions', async () => {
-    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project, body) VALUES ('like-post', ?, 'hiboss', 'like me')")
+    await env.DB.prepare("INSERT OR IGNORE INTO progress_posts (id, agent_id, project_id, body) VALUES ('like-post', ?, 'hiboss', 'like me')")
       .bind(getTestAgentId()).run();
     const like = async (): Promise<Response> => SELF.fetch('https://test.local/api/progress/like-post/like', { method: 'POST', headers: bossHeaders() });
     const unlike = async (): Promise<Response> => SELF.fetch('https://test.local/api/progress/like-post/like', { method: 'DELETE', headers: bossHeaders() });

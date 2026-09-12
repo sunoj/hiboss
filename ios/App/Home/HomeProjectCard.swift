@@ -36,7 +36,7 @@ struct HomeProjectCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(project.name)
+            Text(project.slug)
                 .font(.hbBodyStrong)
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)

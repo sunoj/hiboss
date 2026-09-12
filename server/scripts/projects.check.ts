@@ -5,6 +5,11 @@ import { expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { projectSlug } from '../src/projects';
 
+it('preserves phase 3b posts, likes and messages and rejects uncopied profiles', () => {
+  const result = spawnSync('python3', ['scripts/project-surfaces.py'], { encoding: 'utf8' });
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+});
+
 it('passes six project backfill, preservation, merge, collision and constraint fixtures', () => {
   const result = spawnSync('python3', ['scripts/projects-backfill.py'], { encoding: 'utf8' });
   expect(result.status, result.stdout + result.stderr).toBe(0);

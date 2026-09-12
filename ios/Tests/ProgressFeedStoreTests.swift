@@ -8,6 +8,27 @@ import XCTest
 
 @MainActor
 final class ProgressFeedStoreTests: XCTestCase {
+    func testProgressDecodesLegacyAndAdditiveProjectIdentity() throws {
+        for metadata in ["", #", "project_ref":{"id":"p","slug":"repo","display_name":"Repo"}"#] {
+            let data = Data("""
+            {"id":"post","project":"repo","agent_id":"a","body":"Done","created_at":"2026-09-12"\(metadata)}
+            """.utf8)
+            let post = try JSONDecoder().decode(ProgressPost.self, from: data)
+            XCTAssertEqual(post.project, "repo")
+            XCTAssertEqual(post.projectIdentity.id, metadata.isEmpty ? "repo" : "p")
+        }
+    }
+
+    func testProjectFilterGroupsAgentsBySlugAndKeepsSessionOnlyProjects() {
+        let rows = [ProgressProject(project: "repo", count: 2, lastPostAt: "2026-09-12", agentId: "a"),
+            ProgressProject(project: "repo", count: 3, lastPostAt: nil, agentId: "b"),
+            ProgressProject(project: "session-only", count: 0, lastPostAt: nil, agentId: "a")]
+        let projects = ProgressFeedStore.groupProjects(rows)
+        XCTAssertEqual(projects.map(\.slug), ["repo", "session-only"])
+        XCTAssertEqual(projects.map(\.count), [5, 0])
+        XCTAssertNil(projects.last?.lastPostAt)
+    }
+
     func testLoadMoreWaitsForRefreshAndKeepsTheReturnedCursor() async {
         let api = DelayedProgressAPI()
         let store = ProgressFeedStore()
