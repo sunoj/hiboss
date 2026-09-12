@@ -8,8 +8,8 @@ import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare('UPDATE api_keys SET role = ? WHERE id = ?')
-    .bind('admin', getTestAgentId())
+  await env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?')
+    .bind(1, getTestAgentId())
     .run();
 });
 
@@ -35,8 +35,8 @@ describe('GET /api/channels', () => {
   });
 
   it('rejects non-admin agents', async () => {
-    await env.DB.prepare('UPDATE api_keys SET role = ? WHERE id = ?')
-      .bind('viewer', getTestAgentId())
+    await env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?')
+      .bind(0, getTestAgentId())
       .run();
 
     const res = await SELF.fetch(`${API_BASE}/channels`, {
@@ -46,8 +46,8 @@ describe('GET /api/channels', () => {
     expect(res.status).toBe(403);
     expect(await res.text()).toBe('admin access required');
 
-    await env.DB.prepare('UPDATE api_keys SET role = ? WHERE id = ?')
-      .bind('admin', getTestAgentId())
+    await env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?')
+      .bind(1, getTestAgentId())
       .run();
   });
 });

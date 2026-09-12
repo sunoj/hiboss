@@ -5,12 +5,13 @@
  */
 import { koNotifications } from './notifications';
 import { koProjects } from './projects';
+import { koAgentKeys } from './agent-keys';
 import { koDevices } from './devices';
 import { plural } from './plural';
 import type { LocaleDictionary, MessageParams } from './types';
 import type { MessageKey } from './en';
 const n = (p: MessageParams): number => Number(p.count ?? 0);
-export const koMessages = { ...koProjects, ...koDevices, ...koNotifications,
+export const koMessages = { ...koProjects, ...koAgentKeys, ...koDevices, ...koNotifications,
  'channel.toggle':(p:MessageParams)=>`${p.agent}의 ${p.channel} 알림`,'channel.updateFailed':'채널을 업데이트할 수 없습니다','channel.noEnabledWarning':'활성화된 채널이 없습니다. hiboss send가 실패합니다',
  'form.noDescription':'설명 없음','form.copy':'복사','form.copied':'복사됨',
  'app.title':'hiboss 콘솔','app.loading':'콘솔을 불러오는 중…','brand.console':'콘솔','brand.subtitle':'boss 서버에 연결','language.label':'언어','language.en':'English','language.zh':'중국어 간체','language.ja':'일본어','language.ko':'한국어',

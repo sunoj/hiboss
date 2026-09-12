@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
-    hook, inbox, init, panel, progress, react, read, reply, request, route, send, setup, ss, status, watch,
+    hook, inbox, init, key, panel, progress, react, read, reply, request, route, send, setup, ss, status, watch,
 };
 use hiboss::config;
 use std::error::Error;
@@ -40,6 +40,8 @@ enum Commands {
     Status(status::StatusArgs),
     #[command(about = "Manage agent identities")]
     Agent(agent::AgentArgs),
+    #[command(about = "List, rotate and revoke agent credentials")]
+    Key(key::KeyArgs),
     #[command(about = "Auto-reply to messages using an external handler")]
     Bot(bot::BotArgs),
     #[command(about = "Watch for new messages with desktop notifications")]
@@ -116,6 +118,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Forward(args) => forward::run(args, &config, &client).await?,
         Commands::Status(args) => status::run(args, &config, &client).await?,
         Commands::Agent(args) => agent::run(&args.command, &config, &client).await?,
+        Commands::Key(args) => key::run(args, &config).await?,
         Commands::Channel(args) => channel::run(args, &config, &client).await?,
         Commands::Bot(args) => bot::run(args, &config, &client).await?,
         Commands::Watch(args) => watch::run(args, &config, &client).await?,

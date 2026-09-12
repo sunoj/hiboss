@@ -1,13 +1,13 @@
--- hiboss D1 schema: generated from migrations through 0044; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0045; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
 
--- API keys for agent authentication
-CREATE TABLE IF NOT EXISTS api_keys (
+-- api_keys = agents. Legacy key_hash is retained read-only until a later phase.
+CREATE TABLE IF NOT EXISTS "api_keys" (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL,
-  key_hash TEXT NOT NULL UNIQUE,
+  key_hash TEXT UNIQUE,
   callback_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_used_at TEXT,
@@ -16,8 +16,21 @@ CREATE TABLE IF NOT EXISTS api_keys (
   channel_routing TEXT,
   avatar_url TEXT,
   role TEXT,
-  session_info TEXT
+  session_info TEXT,
+  is_admin INTEGER NOT NULL DEFAULT 0
 );
+
+-- Independently revocable agent credentials; public inventory never returns hashes.
+CREATE TABLE agent_keys (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  agent_id TEXT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  key_hash TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_used_at TEXT,
+  revoked_at TEXT
+);
+CREATE INDEX idx_agent_keys_agent ON agent_keys(agent_id, created_at DESC);
 
 -- Messaging and channel delivery
 

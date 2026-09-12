@@ -7,7 +7,7 @@ import type { DiscordChannelConfig, Env, TelegramChannelConfig } from '../types'
 import { logAudit } from '../audit';
 import { sendDiscordMessage } from '../channels/discord';
 import { sendTelegramMessage } from '../channels/telegram';
-import { hashApiKey } from '../middleware/auth';
+import { createAgent } from '../agent-keys';
 
 type JoinCreateResponse =
   | { request_id: string; poll_token: string; status: 'pending' }
@@ -35,18 +35,13 @@ router.post('/', async (c) => {
   const countRow = await c.env.DB.prepare('SELECT COUNT(*) AS cnt FROM api_keys').first<{ cnt: number }>();
   const count = Number(countRow?.cnt ?? 0);
   if (count === 0) {
-    const key = `hb_${generateHex(16)}`;
-    const keyHash = await hashApiKey(key);
-    const apiKey = await c.env.DB
-      .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) RETURNING id')
-      .bind(name, keyHash)
-      .first<{ id: string }>();
+    const apiKey = await createAgent(c.env.DB, name, { type: 'system', id: 'join' }, true);
     if (!apiKey) {
       return c.text('failed to create api key', 500);
     }
     const joinRequest = await c.env.DB
       .prepare('INSERT INTO join_requests (name, poll_token, status, api_key_id, api_key) VALUES (?, ?, ?, ?, ?) RETURNING id')
-      .bind(name, pollToken, 'approved', apiKey.id, key)
+      .bind(name, pollToken, 'approved', apiKey.id, apiKey.key)
       .first<{ id: string }>();
     if (!joinRequest) {
       await c.env.DB.prepare('DELETE FROM api_keys WHERE id = ?').bind(apiKey.id).run();
@@ -58,7 +53,7 @@ router.post('/', async (c) => {
       request_id: joinRequest.id,
       poll_token: pollToken,
       status: 'approved',
-      key,
+      key: apiKey.key,
       agent_id: apiKey.id,
     };
     return c.json(response, 201);

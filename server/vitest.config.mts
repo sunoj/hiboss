@@ -7,6 +7,7 @@ import { defineConfig } from 'vitest/config';
 import { cloudflarePool, cloudflareTest } from '@cloudflare/vitest-pool-workers';
 
 const workerOptions = {
+  main: './src/middleware/deployment-test-worker.ts',
   wrangler: { configPath: './wrangler.toml' },
   miniflare: { bindings: { STREAM_POLL_INTERVAL_MS: '25', DESTINATIONS_MODE: 'off' } },
 };

@@ -31,7 +31,7 @@ boss ──< boss_clients ──< boss_tokens (1 per client)
   │            └──< destination_routes (project/session → channel/thread)
   └──< boss_agent_access >── agents
 
-agents ──< agent_keys (phase 4, deferred)
+api_keys (= agents) ──< agent_keys (phase 4)
 agents ──< sessions ──> projects ──< project_aliases
 messages ──< message_deliveries ──> boss_destinations
 progress_posts ──> projects ;  panels ──> sessions, target boss (unchanged)
@@ -55,14 +55,15 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 | `project_aliases` | project | Absorb the three naming paths | project_id, alias (unique): origin basename, cwd basename, explicit `--project` |
 | `sessions` | agent | One CLI run | + `project_id` FK; `cwd` becomes full path; label derived `slug/branch`, not stored |
 | `message_deliveries` | message | Per-destination fan-out state | message_id, destination_id, status sent/delivered/read/failed, external_message_id, attempts, next_attempt_at. Replaces `delivery_queue` and the per-channel meaning of `messages.status` |
-| `agents` / `agent_keys` | — | Identity split from credential | **Phase 4, deferred** — see §6 |
+| `api_keys` (= agents) / `agent_keys` | — | Identity split from credentials | **Phase 4: done** — stable agent IDs, multiple labelled revocable keys; `is_admin` independent of workflow `role` |
 
 ### 2.2 Disposition of every current table
 
 | Today | Disposition | Backfill |
 | --- | --- | --- |
-| `api_keys` | **phase 3a: done** — unique agent names with a duplicate guard; exact-name addressing precedes the retained ID-prefix path. **phase 3a: deferred** — removing `session_info` and splitting keys/agents | No identity changes |
-| `bosses` | **phase 2b: done** — external accounts backfilled; inbound lookup reads them first, with legacy-column fallback until 2c. Admin identity edits synchronize both stores. Removed `preferred_channel`/`notify_priorities` validation and CLI/dashboard controls; quiet hours stay. Old stored preference keys are pruned when admin preferences are updated | Copy both provider IDs into `boss_external_accounts`; deleting an account clears its matching legacy fallback |
+| `api_keys` | **api_keys = agents**. **phase 4: done** — identity table name/IDs/FKs retained; `is_admin` split from workflow role; credentials in `agent_keys`. Unique names and exact-name addressing retained. **phase 4: deferred** — legacy `key_hash` removal and deploy fallback retirement; `session_info` cleanup remains deferred | One `migrated` key per agent, unchanged hashes and timestamps. Old hash becomes nullable so new identities do not write it; only the small identity table is rebuilt, never `messages` |
+| `agent_keys` | **phase 4: done** — separately revocable labelled credentials, self/boss inventory and mint/revoke, CLI optional rotation and console controls | Existing bearers keep working without re-enrolment |
+| `bosses` | **phase 4: done** — human admin/manager/viewer roles stay independent of agent `is_admin` and workflow role. **phase 2b: done** — external accounts backfilled; inbound lookup reads them first, with legacy-column fallback until 2c. Admin identity edits synchronize both stores. Removed `preferred_channel`/`notify_priorities` validation and CLI/dashboard controls; quiet hours stay. Old stored preference keys are pruned when admin preferences are updated | Copy both provider IDs into `boss_external_accounts`; deleting an account clears its matching legacy fallback |
 | `boss_tokens` | **phase 1a: done** — nullable `client_id`; existing bearer hashes remain valid | One client per non-revoked token; kind from bound signing key `client_kind` else `web`; token label and usage timestamps retained |
 | `boss_signing_keys` | **phase 1a: done** — nullable `client_id`; **phase 1a: deferred** — removing `boss_token_id` until native follow-up | Via token → client; keys of revoked tokens remain unbound |
 | `boss_pairing_codes` | **phase 1a: done** — redemption atomically creates client, token, and optional signing key | Kind from signing registration, otherwise `web`; label from `device_label` |
@@ -104,8 +105,8 @@ progress_posts ──> projects ;  panels ──> sessions, target boss (unchang
 | Smell (§6 of inventory) | Disposition |
 | --- | --- |
 | schema.sql incomplete | **Phase 0** |
-| Agent identity = key row | Phase 4 (deferred) |
-| Admin vs workflow role share `api_keys.role` | Phase 4 |
+| Agent identity = key row | **Phase 4: done** — `api_keys = agents`; `agent_keys` holds credentials with no forced re-enrolment |
+| Admin vs workflow role share `api_keys.role` | **Phase 4: done** — `is_admin` grants capability; workflow role remains orchestrator/worker/reviewer/null; boss role remains independent |
 | Boss general access vs panel explicit access | **Phase 1**: panels adopt "admin sees all" (decision A) |
 | `/api/sessions?all=true` unscoped | **Security fix now**, outside this redesign |
 | No project identity / three naming defaults / team ownership | Phase 3 |
@@ -142,7 +143,7 @@ Taken by the architect (stated so they can be overruled, not so they can be re-a
 | --- | --- | --- | --- | --- |
 | **S — fix the pain** (phases 0–2) | Truthful schema; client entity with cascade revoke; boss-owned destinations (Discord/Telegram/phone/Mac switches on one page); per-destination delivery state | ~8–10 rounds over 2–3 weeks | medium, concentrated in phase 2 | Projects stay text; Home cards keep the label-prefix hack; renamed checkouts still split timelines |
 | **M — pain + projects** (phases 0–3) — **recommended** | S plus real projects, sessions linked to projects, one naming path, unique agent names, session-owner validation | ~12–14 rounds over 4–5 weeks | S's risk plus low-medium; phase 3 is additive and old CLIs keep working | Agent keys stay one-per-agent; re-enrolment avoided |
-| **L — everything** (phases 0–4) | M plus agents split from keys, multiple revocable keys, admin role separated | ~16+ rounds, 6+ weeks | high in phase 4: every CLI, both remote boxes, re-enrol | Only worth it before open-sourcing to strangers who will rotate keys; for one operator it is churn |
+| **L — everything** (phases 0–4) | M plus agents split from keys, multiple revocable keys, admin role separated | ~16+ rounds, 6+ weeks | phase 4: existing bearers retained; optional rotation on each installation | Only worth it before open-sourcing to strangers who will rotate keys; for one operator it is churn |
 
 ## 6. Phases
 
@@ -156,7 +157,7 @@ that has not been upgraded. D1 rule: additive migrations only on `messages`; che
 | **1** Boss clients | `boss_clients`; tokens/keys/push devices attach; pairing creates a client; console "Devices" page lists clients with revoke; APNs upsert no longer moves tokens between bosses; panels adopt admin-sees-all | low | none (tokens unchanged) |
 | **2** Destinations | `channel_providers`, `boss_destinations`, `destination_routes`, `inbound_routes`, `message_deliveries`; delivery reads destinations behind a flag, dual-write both paths, compare for a week, then drop `channel_configs` + `delivery_queue`; console/iOS/macOS "Notifications" page per boss replaces the Channels page and the unread preferences; native `native_live` destinations make Mac/iOS banners a server-known choice | medium — this is the payoff and the largest change | `hiboss channel set` becomes a boss-side action; CLI keeps a shim that prints where to do it |
 | **3** Projects | `projects`, `project_aliases`, `sessions.project_id`, `progress_posts.project_id`; CLI sends slug + aliases; Home and progress read projects; `api_keys.name` UNIQUE; session-owner validation on messages/progress | low-medium | old CLIs keep sending text; server resolves via aliases |
-| **4** Agent split (deferred) | `agents` + `agent_keys`, multiple revocable keys, admin role separated from workflow role | high | every CLI re-enrols |
+| **4** Agent split | **done** — `api_keys = agents`, additive credential model, `agent_keys` backfill, separate `is_admin`, audited self/boss key lifecycle, CLI 1.10.0 rotation, four-locale console. **deferred** — drop legacy `key_hash` and same-deploy fallback after parity | narrow identity-table rebuild to relax legacy NOT NULL; child tables unchanged | existing bearers unchanged; no forced re-enrolment |
 
 Phase 1a delivers the server and console Devices inventory. Any authenticated boss can
 mint and revoke their own other clients; even admins cannot revoke another boss's client
@@ -183,6 +184,15 @@ adopts project route scopes. Bosses can inspect, rename and explicitly merge pro
 legacy CLI text requests and agent response strings remain supported. The rollout
 guide documents the required preflight, retained text columns and client contracts.
 No destination flag cutover or deployment is implied by this implementation.
+
+Phase 4 preserves all installed credentials. Migration 0045 retains the agent identity
+table name and IDs, copies hashes to `agent_keys`, and moves admin capability to
+`is_admin`. It relaxes the legacy hash constraint by rebuilding only the seven-row
+identity table; child rows, schemas and FKs remain unchanged. The model is additive;
+no existing credential or legacy column is removed. All new credential writes target
+`agent_keys`. See [agent-keys-rollout.md](agent-keys-rollout.md) for deploy order,
+optional box rotation, recovery on uncertain revocation, and deferred cleanup.
+“Done” here means implemented and validated in the phase-4 change, not deployed.
 
 Immediate items, independent of the redesign (this week): the unscoped
 `/api/sessions?all=true`, and the APNs upsert that can re-parent a device token.
