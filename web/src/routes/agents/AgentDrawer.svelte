@@ -1,9 +1,13 @@
+<!-- Agent detail drawer with profile, config and credential management.
+     Depends on agent metadata, auth and the console detail components. -->
 <script lang="ts">
 	import AgentIdentity from '$lib/components/AgentIdentity.svelte';
 	import { formatRelativeTime } from '$lib/api/mappers';
 	import type { AgentConfigResponse, AgentResponse } from '$lib/api/types';
 	import { lastUsedLabel, roleLabel, shortId } from './agent-helpers';
 	import AgentConfigForm from './AgentConfigForm.svelte';
+	import AgentKeys from './AgentKeys.svelte';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { t } from '$lib/i18n';
 
 	interface Props {
@@ -45,6 +49,9 @@
 			</div>
 		</section>
 
+		{#if auth.connection?.boss?.role === 'admin' || auth.connection?.boss?.role === 'manager'}
+			{#key agent.id}<AgentKeys agentId={agent.id} />{/key}
+		{/if}
 		<AgentConfigForm
 			agentId={agent.id}
 			initial={config}

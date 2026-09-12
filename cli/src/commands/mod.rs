@@ -21,6 +21,7 @@ pub(crate) mod hook_helpers;
 pub(crate) mod hook_unacked;
 pub mod inbox;
 pub mod init;
+pub mod key;
 pub mod react;
 pub mod read;
 pub mod reply;

@@ -1,15 +1,14 @@
-/**
- * Source dictionary for the web console.
- * Exports: enMessages, the key source for all locale dictionaries.
- * Deps: plural helper for count-sensitive messages.
- */
+// Source dictionary for the web console.
+// Exports enMessages, the key source for all locale dictionaries.
+// Depends on feature dictionaries and the plural helper for count-sensitive messages.
 import { enNotifications } from './notifications';
 import { enProjects } from './projects';
+import { enAgentKeys } from './agent-keys';
 import { enDevices } from './devices';
 import { plural } from './plural';
 import type { MessageParams } from './types';
 const count = (params: MessageParams): number => Number(params.count ?? 0);
-export const enMessages = { ...enProjects, ...enDevices, ...enNotifications,
+export const enMessages = { ...enProjects, ...enAgentKeys, ...enDevices, ...enNotifications,
 	'form.noDescription': 'No description', 'form.copy': 'Copy', 'form.copied': 'Copied',
 	'app.title': 'hiboss console',
 	'brand.console': 'Console',

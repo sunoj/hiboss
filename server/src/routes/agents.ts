@@ -3,8 +3,9 @@
 // Depends on Hono, D1, and auth middleware.
 
 import { Hono } from 'hono';
-import type { Channel, Env, Priority } from '../types';
-import { apiAuth, getAgentId } from '../middleware/auth';
+import type { Env } from '../types';
+import { agentConfigUpdates } from './agent-config';
+import { apiAuth, getAgentId, getAgentKeyId } from '../middleware/auth';
 import { logAudit } from '../audit';
 
 const routes = new Hono<{ Bindings: Env }>({});
@@ -26,7 +27,7 @@ routes.get('/me', async (c) => {
   if (!row) {
     return c.text('agent not found', 404);
   }
-  return c.json({ ...row, channel_routing: row.channel_routing ? JSON.parse(row.channel_routing) : null, session_info: row.session_info ? JSON.parse(row.session_info) : null });
+  return c.json({ ...row, agent_key_id: getAgentKeyId(c), channel_routing: row.channel_routing ? JSON.parse(row.channel_routing) : null, session_info: row.session_info ? JSON.parse(row.session_info) : null });
 });
 
 routes.get('/', async (c) => {
@@ -44,76 +45,9 @@ routes.get('/', async (c) => {
 routes.put('/me/config', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
-  const validPriorities: Priority[] = ['critical', 'high', 'normal', 'low'];
-  const updates: string[] = [];
-  const binds: (string | number)[] = [];
-  if ('default_priority' in payload) {
-    const dp = payload.default_priority;
-    if (typeof dp !== 'string' || !validPriorities.includes(dp as Priority)) {
-      return c.text('invalid default_priority', 400);
-    }
-    updates.push('default_priority = ?');
-    binds.push(dp);
-  }
-  if ('rate_limit' in payload) {
-    const rl = payload.rate_limit;
-    if (rl !== null && (typeof rl !== 'number' || rl < 0 || !Number.isInteger(rl))) {
-      return c.text('rate_limit must be a positive integer or null', 400);
-    }
-    updates.push('rate_limit = ?');
-    binds.push(rl as number);
-  }
-  if ('channel_routing' in payload) {
-    const cr = payload.channel_routing;
-    if (cr === null) {
-      updates.push('channel_routing = NULL');
-    } else if (typeof cr === 'object' && !Array.isArray(cr)) {
-      const validChannels: Channel[] = ['discord', 'telegram', 'email'];
-      for (const [, ch] of Object.entries(cr as Record<string, unknown>)) {
-        if (typeof ch !== 'string' || !validChannels.includes(ch as Channel)) {
-          return c.text('channel_routing values must be valid channels', 400);
-        }
-      }
-      updates.push('channel_routing = ?');
-      binds.push(JSON.stringify(cr));
-    } else {
-      return c.text('channel_routing must be an object or null', 400);
-    }
-  }
-  if ('avatar_url' in payload) {
-    const av = payload.avatar_url;
-    if (av === null) {
-      updates.push('avatar_url = NULL');
-    } else if (typeof av === 'string') {
-      updates.push('avatar_url = ?');
-      binds.push(av);
-    } else {
-      return c.text('avatar_url must be a string or null', 400);
-    }
-  }
-  if ('role' in payload) {
-    const role = payload.role;
-    const validRoles = ['orchestrator', 'worker', 'reviewer'];
-    if (role === null) {
-      updates.push('role = NULL');
-    } else if (typeof role === 'string' && validRoles.includes(role)) {
-      updates.push('role = ?');
-      binds.push(role);
-    } else {
-      return c.text('role must be orchestrator, worker, or reviewer', 400);
-    }
-  }
-  if ('session_info' in payload) {
-    const si = payload.session_info;
-    if (si === null) {
-      updates.push('session_info = NULL');
-    } else if (typeof si === 'object' && !Array.isArray(si)) {
-      updates.push('session_info = ?');
-      binds.push(JSON.stringify(si));
-    } else {
-      return c.text('session_info must be an object or null', 400);
-    }
-  }
+  const parsed = agentConfigUpdates(payload);
+  if (!parsed.ok) return c.text(parsed.error, 400);
+  const { updates, binds } = parsed.value;
   if (updates.length === 0) {
     return c.text('no valid fields to update', 400);
   }

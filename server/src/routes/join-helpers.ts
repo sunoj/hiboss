@@ -3,7 +3,7 @@
 // Depends on Env typings and auth hashing.
 
 import type { Env } from '../types';
-import { hashApiKey } from '../middleware/auth';
+import { createAgent } from '../agent-keys';
 
 export type JoinCallbackAction = 'approve' | 'reject';
 
@@ -37,18 +37,13 @@ export async function approveJoinRequest(env: Env, requestId: string): Promise<J
   if (joinRequest.status !== 'pending') {
     return joinErrorResult(`Already ${joinRequest.status}`, `join request already ${joinRequest.status}`, 409);
   }
-  const key = `hb_${generateHex(16)}`;
-  const keyHash = await hashApiKey(key);
-  const apiKey = await env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) ON CONFLICT(name) DO NOTHING RETURNING id')
-    .bind(joinRequest.name, keyHash)
-    .first<{ id: string }>();
+  const apiKey = await createAgent(env.DB, joinRequest.name, { type: 'system', id: 'join' });
   if (!apiKey) {
     return joinErrorResult('Name already exists', 'agent name already exists', 409);
   }
   const update = await env.DB
     .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
-    .bind(apiKey.id, key, requestId)
+    .bind(apiKey.id, apiKey.key, requestId)
     .run();
   if (!update.meta.changes) {
     await env.DB.prepare('DELETE FROM api_keys WHERE id = ?').bind(apiKey.id).run();

@@ -5,9 +5,11 @@
 import { Context, Next } from 'hono';
 import type { Env } from '../types';
 import type { ClientId } from '../boss-clients/types';
+import type { AgentKeyId } from '../agent-keys/types';
 
 type AuthContext = Context<{ Bindings: Env }> & {
   agentId?: string;
+  agentKeyId?: AgentKeyId | null;
   bossId?: string;
   bossTokenId?: string;
   clientId?: ClientId | null;
@@ -61,6 +63,10 @@ export function getClientId(c: Context<{ Bindings: Env }>): ClientId | null {
   return (c as AuthContext).clientId ?? null;
 }
 
+export function getAgentKeyId(c: Context<{ Bindings: Env }>): AgentKeyId | null {
+  return (c as AuthContext).agentKeyId ?? null;
+}
+
 export function getBossRole(c: Context<{ Bindings: Env }>): string {
   return (c as AuthContext).bossRole ?? 'viewer';
 }
@@ -77,17 +83,12 @@ function extractToken(c: Context<{ Bindings: Env }>): string | null {
   return token || null;
 }
 
-/** Agent-only authentication: requires an api_keys token. */
+/** Agent-only authentication through independently revocable credentials. */
 export async function apiAuth(c: AuthContext, next: Next): Promise<Response | void> {
   const token = extractToken(c);
   if (!token) return c.text('Unauthorized', 401);
   const keyHash = await hashApiKey(token);
-  const record = await c.env.DB.prepare('SELECT id FROM api_keys WHERE key_hash = ?').bind(keyHash).first<{ id: string }>();
-  if (!record) return c.text('Unauthorized', 401);
-  c.agentId = record.id;
-  c.executionCtx.waitUntil(
-    c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(record.id).run(),
-  );
+  if (!await resolveAgentAuth(c, keyHash)) return c.text('Unauthorized', 401);
   return next();
 }
 
@@ -105,15 +106,7 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
   const token = extractToken(c);
   if (!token) return c.text('Unauthorized', 401);
   const keyHash = await hashApiKey(token);
-  // Try agent first
-  const agent = await c.env.DB.prepare('SELECT id FROM api_keys WHERE key_hash = ?').bind(keyHash).first<{ id: string }>();
-  if (agent) {
-    c.agentId = agent.id;
-    c.executionCtx.waitUntil(
-      c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(agent.id).run(),
-    );
-    return next();
-  }
+  if (await resolveAgentAuth(c, keyHash)) return next();
   if (await resolveBossAuth(c, keyHash)) return next();
   return c.text('Unauthorized', 401);
 }
@@ -121,6 +114,28 @@ export async function dualAuth(c: AuthContext, next: Next): Promise<Response | v
 /** Check if current context is boss-authenticated. */
 export function isBossAuth(c: Context<{ Bindings: Env }>): boolean {
   return !!(c as AuthContext).bossId;
+}
+
+async function resolveAgentAuth(c: AuthContext, keyHash: string): Promise<boolean> {
+  // A revoked row must block the legacy fallback. Keep this bridge for the deploy only.
+  const agent = await c.env.DB.prepare(`SELECT a.id, k.id AS key_id, k.last_used_at FROM agent_keys k
+    JOIN api_keys a ON a.id = k.agent_id WHERE k.key_hash = ? AND k.revoked_at IS NULL
+    UNION ALL SELECT id, NULL AS key_id, NULL AS last_used_at FROM api_keys WHERE key_hash = ?
+    AND NOT EXISTS (SELECT 1 FROM agent_keys WHERE key_hash = ?) LIMIT 1`)
+    .bind(keyHash, keyHash, keyHash).first<{ id: string; key_id: AgentKeyId | null; last_used_at: string | null }>();
+  if (!agent) return false;
+  c.agentId = agent.id;
+  c.agentKeyId = agent.key_id;
+  c.executionCtx.waitUntil(c.env.DB.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?")
+    .bind(agent.id).run());
+  const lastUsed = agent.last_used_at ? Date.parse(agent.last_used_at.replace(' ', 'T') + 'Z') : 0;
+  if (agent.key_id && Date.now() - lastUsed >= 60_000) {
+    c.executionCtx.waitUntil(c.env.DB.prepare(`UPDATE agent_keys SET last_used_at = datetime('now')
+      WHERE id = ? AND revoked_at IS NULL
+      AND (last_used_at IS NULL OR last_used_at <= datetime('now', '-1 minute'))`)
+      .bind(agent.key_id).run());
+  }
+  return true;
 }
 
 // Read the client timestamp with authentication; conditional SQL also guards concurrent isolates.

@@ -4,7 +4,8 @@
 
 import { Context, Hono } from 'hono';
 import type { Env } from '../types';
-import { hashApiKey, timingSafeEqual } from '../middleware/auth';
+import { timingSafeEqual } from '../middleware/auth';
+import { createAgent } from '../agent-keys';
 import { logAudit } from '../audit';
 
 const router = new Hono<{ Bindings: Env }>({});
@@ -14,28 +15,15 @@ router.post('/', async (c) => {
     return c.text('unauthorized', 401);
   }
   const name = 'default-agent';
-  const key = `hb_${generateHex(16)}`;
-  const keyHash = await hashApiKey(key);
-  const inserted = await c.env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM api_keys) RETURNING id, name')
-    .bind(name, keyHash)
-    .first<{ id: string; name: string }>();
+  const inserted = await createAgent(c.env.DB, name, { type: 'system', id: 'bootstrap' }, true);
   if (!inserted) {
     return c.text('already initialized', 403);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'system', 'bootstrap', 'key.create', 'api_key', inserted.id, 'bootstrap'));
-  return c.json({ id: inserted.id, name: inserted.name, key }, 201);
+  return c.json(inserted, 201);
 });
 
 export const bootstrapRouter = router;
-
-function generateHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
-}
 
 function hasValidBootstrapSecret(c: Context<{ Bindings: Env }>): boolean {
   const expectedSecret = c.env.BOOTSTRAP_SECRET;

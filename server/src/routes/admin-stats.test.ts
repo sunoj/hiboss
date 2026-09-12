@@ -10,8 +10,8 @@ const API_BASE = 'https://test.local/api';
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare('UPDATE api_keys SET role = ? WHERE id = ?')
-    .bind('admin', getTestAgentId())
+  await env.DB.prepare('UPDATE api_keys SET is_admin = ? WHERE id = ?')
+    .bind(1, getTestAgentId())
     .run();
 });
 

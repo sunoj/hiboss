@@ -4,7 +4,8 @@
 
 import { Hono } from 'hono';
 import type { Channel, ChannelConfigRow, Env } from '../types';
-import { apiAuth, getAgentId, hashApiKey } from '../middleware/auth';
+import { apiAuth, getAgentId } from '../middleware/auth';
+import { createAgent } from '../agent-keys';
 import { logAudit } from '../audit';
 import { getChannelStatsResponse } from './admin-channel-stats';
 
@@ -13,10 +14,10 @@ router.use('*', apiAuth);
 router.use('*', async (c, next) => {
   const agentId = getAgentId(c);
   const agent = await c.env.DB
-    .prepare('SELECT role FROM api_keys WHERE id = ?')
+    .prepare('SELECT is_admin FROM api_keys WHERE id = ?')
     .bind(agentId)
-    .first<{ role: string | null }>();
-  if (agent?.role !== 'admin') {
+    .first<{ is_admin: number }>();
+  if (agent?.is_admin !== 1) {
     return c.text('admin access required', 403);
   }
   await next();
@@ -28,17 +29,12 @@ router.post('/keys', async (c) => {
   if (!name) {
     return c.text('name is required', 400);
   }
-  const key = `hb_${generateHex(16)}`;
-  const keyHash = await hashApiKey(key);
-  const inserted = await c.env.DB
-    .prepare('INSERT INTO api_keys (name, key_hash) VALUES (?, ?) ON CONFLICT(name) DO NOTHING RETURNING id, name')
-    .bind(name, keyHash)
-    .first<{ id: string; name: string }>();
+  const inserted = await createAgent(c.env.DB, name, { type: 'agent', id: getAgentId(c) });
   if (!inserted) {
     return c.text('agent name already exists', 409);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', getAgentId(c), 'key.create', 'api_key', inserted.id, name));
-  return c.json({ id: inserted.id, name: inserted.name, key }, 201);
+  return c.json(inserted, 201);
 });
 
 router.get('/keys', async (c) => {
@@ -103,14 +99,6 @@ router.put('/channels/:channel', async (c) => {
 });
 
 export const adminRouter = router;
-
-function generateHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
-}
 
 function normalizeChannel(value: string | null): Channel | null {
   if (value === 'discord' || value === 'telegram' || value === 'email') {

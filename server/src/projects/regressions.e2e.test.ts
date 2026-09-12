@@ -134,7 +134,7 @@ it('caps identity metadata and profile display names', async () => {
 });
 
 it('returns 409 text on duplicate API key creation', async () => {
-  await env.DB.prepare("UPDATE api_keys SET role = 'admin' WHERE id = ?").bind(getTestAgentId()).run();
+  await env.DB.prepare("UPDATE api_keys SET is_admin = 1 WHERE id = ?").bind(getTestAgentId()).run();
   const response = await post('keys', { name: 'test-agent' });
   expect(response.status).toBe(409);
   expect(await response.text()).toBe('agent name already exists');
