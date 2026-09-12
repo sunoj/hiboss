@@ -43,8 +43,8 @@ The app must be running to consume the feed. No server or APNs changes are requi
   is `ai.hiboss.island`. `codesign --verify --deep --strict` passed for the bundle and
   its nested components. Signing verifies packaging, not banner delivery.
 - The complete macOS `swift test` command was not run: 41 E2E/UI tests are excluded by
-  the mandatory remote-only execution rule. `grok-bot-chief` did not resolve;
-  `grok-bot-twitter` was reachable but reported Linux and had no Swift executable.
+  the mandatory remote-only execution rule. `the Linux build box` did not resolve;
+  `the Linux build box` was reachable but reported Linux and had no Swift executable.
 - A live `hiboss send "ping"` banner and notification-click UI were not observed.
   The authorized remote hosts cannot run this macOS UI check. The built app was not
   launched locally, installed into `/Applications`, or substituted for the running app.

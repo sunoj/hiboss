@@ -211,7 +211,7 @@ CLI validation uses `env -u RUSTC_WRAPPER cargo check -p hiboss` and
 with `CARGO_DISK_GUARD_MIN_FREE_GB=1`; an isolated writable Cargo target is supported.
 
 Verified on 2026-09-12: **891 Worker/API tests and 16 schema tests passed** on
-`grok-bot-twitter`, including all four project backfill fixtures. Schema parity
+`the Linux build box`, including all four project backfill fixtures. Schema parity
 reported 44 migrations, 38 tables and 109 indexes; server typecheck passed.
 Local Cargo check passed and all **8 session/resolver tests passed** (221 unrelated
 tests filtered), using `/tmp/hiboss-projects-cargo` because the configured shared
@@ -228,7 +228,7 @@ The final remote suite passed with **902 API tests and 17 schema tests**, includ
 six SQLite backfill fixtures and the normalization parity test. The required
 `npm test && npm run check:schema && npm run typecheck` completed successfully;
 schema parity reported 44 migrations, 38 tables and 109 indexes. Logs remain on
-`grok-bot-twitter` at `/tmp/hiboss-fix-3a-{server,schema,typecheck}-final.log`;
+`the Linux build box` at `/tmp/hiboss-fix-3a-{server,schema,typecheck}-final.log`;
 the isolated checkout is `/tmp/hiboss-fix-3a-20260912`.
 
 Local Rust validation passed **231 tests** and `cargo check -p hiboss`, with
@@ -246,7 +246,7 @@ Remote console `npm run check && npm test` passed with **132 tests**, zero check
 errors/warnings; **4 Playwright browser flows** passed (rename/confirmed merge,
 four locales, mobile overflow, and viewer restrictions).
 
-The isolated checkout is `grok-bot-twitter:/tmp/hiboss-projects-3b-20260912`.
+The isolated checkout is `the Linux build box`.
 Remote logs: `/tmp/hiboss-3b-{server,schema,server-typecheck,web-check,web-test,web-e2e}.log`.
 Screenshot: `web/output/playwright/projects-mobile.png` in that remote checkout.
 These are host-local artifacts, not hosted links. An initial SSE timeout passed on
@@ -279,7 +279,7 @@ Progress posts, summaries and team profiles now retain `project` strings and add
 `project_ref`; session responses retain scalar fields and add the same reference.
 HibossKit uses the reference when present, otherwise a slug-based identity.
 
-Final remote checks on `grok-bot-twitter:/tmp/hiboss-wire-RGiZDH` passed:
+Final remote checks on `the Linux build box` passed:
 **915 API tests + 18 schema tests**, schema parity (**45 migrations, 37 tables,
 106 indexes**), server typecheck, and web check (**0 errors/warnings**) + **132 tests**.
 The seven new server regressions exercise legacy decoding and additive references.
