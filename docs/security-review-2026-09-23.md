@@ -1,5 +1,8 @@
 # Security review — 2026-09-23
 
+Follow-up: [expanded review and fixes](security-review-2026-09-23-expanded.md)
+cover unread queries, HTTP stream revocation, and Discord Gateway administration.
+
 Baseline: commit `38c8570` plus the existing working tree. The three findings are
 now fixed in the working tree with security regression tests. Deployment and
 production cache remediation have not been performed. Existing uncommitted

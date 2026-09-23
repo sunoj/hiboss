@@ -5,23 +5,14 @@
 import { Hono } from 'hono';
 import type { Channel, ChannelConfigRow, Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { agentAdmin } from '../middleware/agent-admin';
 import { createAgent } from '../agent-keys';
 import { logAudit } from '../audit';
 import { getChannelStatsResponse } from './admin-channel-stats';
 
 const router = new Hono<{ Bindings: Env }>({});
 router.use('*', apiAuth);
-router.use('*', async (c, next) => {
-  const agentId = getAgentId(c);
-  const agent = await c.env.DB
-    .prepare('SELECT is_admin FROM api_keys WHERE id = ?')
-    .bind(agentId)
-    .first<{ is_admin: number }>();
-  if (agent?.is_admin !== 1) {
-    return c.text('admin access required', 403);
-  }
-  await next();
-});
+router.use('*', agentAdmin);
 
 router.post('/keys', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();

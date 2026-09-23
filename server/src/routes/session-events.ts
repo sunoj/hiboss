@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Env } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
+import { authorizedStreamWriter } from '../middleware/authorized-stream';
 import { getAccessibleAgentIds } from './boss-api';
 import { DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 
@@ -57,7 +58,8 @@ routes.get('/:id/stream', async (c) => {
   if (queryCursor === null && c.req.query('after') !== undefined) return c.text('after must be an integer', 400);
   if (queryCursor === null && headerCursor === null && c.req.header('Last-Event-ID')) return c.text('Last-Event-ID must be an integer', 400);
   const { readable, writable } = new TransformStream();
-  c.executionCtx.waitUntil(streamLoop(writable.getWriter(), new TextEncoder(), c.env, sessionId, after));
+  const writer = authorizedStreamWriter(c, writable, async () => await visibleSessionId(c) === sessionId);
+  c.executionCtx.waitUntil(streamLoop(writer, new TextEncoder(), c.env, sessionId, after));
   return new Response(readable, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' } });
 });
 

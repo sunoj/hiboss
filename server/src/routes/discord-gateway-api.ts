@@ -4,12 +4,13 @@
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
-import { apiAuth, getAgentId } from '../middleware/auth';
+import { apiAuth } from '../middleware/auth';
+import { agentAdmin } from '../middleware/agent-admin';
 
 type GwEnv = Env & { DISCORD_GATEWAY: DurableObjectNamespace };
 
 const router = new Hono<{ Bindings: GwEnv }>({});
-router.use('*', apiAuth);
+router.use('*', apiAuth, agentAdmin);
 
 function getStub(env: GwEnv): DurableObjectStub {
   const id = env.DISCORD_GATEWAY.idFromName('singleton');

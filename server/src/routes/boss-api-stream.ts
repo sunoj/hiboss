@@ -3,6 +3,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { getBossId, getBossRole } from '../middleware/auth';
+import { authorizedStreamWriter } from '../middleware/authorized-stream';
 import { getAccessibleAgentIds } from './boss-api-access';
 import { mapMessageRow } from './message-helpers';
 import { streamBossOptions } from './boss-option-stream';
@@ -15,7 +16,10 @@ routes.get('/stream', async (c) => {
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
   if (agentIds.length === 0) return c.text('no agents', 403);
   const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
+  const writer = authorizedStreamWriter(c, writable, async () => {
+    const current = new Set(await getAccessibleAgentIds(c.env, bossId, getBossRole(c)));
+    return agentIds.every(id => current.has(id));
+  });
   const encoder = new TextEncoder();
 
   const stream = c.req.query('options') === 'true'

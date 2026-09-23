@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
+import { authorizedStreamWriter } from '../middleware/authorized-stream';
 import { DEFAULT_AGENT_STREAM_POLL_INTERVAL_MS, getStreamPollIntervalMs } from './stream-config';
 
 const KEEPALIVE_INTERVAL_MS = 15000;
@@ -22,7 +23,7 @@ routes.get('/stream', async (c) => {
     if (!session) return c.text('session not found', 404);
   }
   const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
+  const writer = authorizedStreamWriter(c, writable);
   const encoder = new TextEncoder();
 
   c.executionCtx.waitUntil(streamLoop(writer, encoder, c.env, agentId, sessionId));

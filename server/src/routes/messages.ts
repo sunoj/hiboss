@@ -4,7 +4,7 @@
 
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
-import { apiAuth, getAgentId } from '../middleware/auth';
+import { apiAuth, createAuthValidator, getAgentId } from '../middleware/auth';
 import type { Direction, Env, MessageRow, Status } from '../types';
 import { propagateMessageEdit } from './message-edit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
@@ -164,13 +164,17 @@ routes.post('/:id/poll', async (c) => {
   }
   const timeoutSec = clampNumber(c.req.query('timeout'), DEFAULT_TIMEOUT_SECONDS, DEFAULT_TIMEOUT_SECONDS);
   const deadline = Date.now() + timeoutSec * 1000;
+  const validCredential = createAuthValidator(c);
   while (true) {
+    if (!await validCredential()) return c.text('Unauthorized', 401);
     const current = await fetchMessageWithReplies(c.env, agentId, message.id);
     if (current && (current.replies?.length ?? 0) > 0) {
+      if (!await validCredential()) return c.text('Unauthorized', 401);
       return c.json(current);
     }
     if (Date.now() >= deadline) {
       const finalCheck = await fetchMessageWithReplies(c.env, agentId, message.id);
+      if (!await validCredential()) return c.text('Unauthorized', 401);
       if (finalCheck && (finalCheck.replies?.length ?? 0) > 0) {
         return c.json(finalCheck);
       }

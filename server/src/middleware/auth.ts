@@ -155,14 +155,32 @@ async function resolveAgentAuth(c: AuthContext, keyHash: string): Promise<boolea
   return true;
 }
 
-// Read the client timestamp with authentication; conditional SQL also guards concurrent isolates.
-async function resolveBossAuth(c: AuthContext, keyHash: string): Promise<boolean> {
-  const boss = await c.env.DB.prepare(`SELECT b.id, b.name, b.role, bt.id AS token_id,
+function findBoss(db: D1Database, keyHash: string) {
+  return db.prepare(`SELECT b.id, b.name, b.role, bt.id AS token_id,
     bt.client_id, bc.last_seen_at FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id
     LEFT JOIN boss_clients bc ON bc.id = bt.client_id
     WHERE bt.token_hash = ? AND bt.revoked_at IS NULL AND bc.revoked_at IS NULL`)
     .bind(keyHash).first<{ id: string; name: string; role: string; token_id: string;
       client_id: ClientId | null; last_seen_at: string | null }>();
+}
+
+/** Recheck the original credential without updating usage or mutating request identity. */
+export function createAuthValidator(c: AuthContext): () => Promise<boolean> {
+  const { agentId, bossId, bossTokenId, bossRole } = c;
+  const token = extractToken(c);
+  const keyHash = token ? hashApiKey(token) : null;
+  return async () => {
+    if (!keyHash) return false;
+    if (agentId) return (await findAgent(c.env.DB, await keyHash))?.id === agentId;
+    if (!bossId) return false;
+    const boss = await findBoss(c.env.DB, await keyHash);
+    return boss?.id === bossId && boss.token_id === bossTokenId && boss.role === bossRole;
+  };
+}
+
+// Read the client timestamp with authentication; conditional SQL also guards concurrent isolates.
+async function resolveBossAuth(c: AuthContext, keyHash: string): Promise<boolean> {
+  const boss = await findBoss(c.env.DB, keyHash);
   if (!boss) return false;
   c.executionCtx.waitUntil(c.env.DB.prepare(
     "UPDATE boss_tokens SET last_used_at = datetime('now') WHERE id = ?",
