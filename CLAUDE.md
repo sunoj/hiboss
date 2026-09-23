@@ -192,7 +192,6 @@ This project uses [aid](https://github.com/agent-tools-org/ai-dispatch) for AI t
 - **Project**: hiboss
 - **Profile**: production
 - **Language**: rust, typescript
-- **Budget**: $50/day
 - **Verify**: `cd cli && cargo check && cd ../server && npm test`
 
 ### Rules
