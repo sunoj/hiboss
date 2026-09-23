@@ -123,7 +123,8 @@ struct HomeAttentionSnapshot {
             return $0.panelId < $1.panelId
         }.filter { request in
             let reference = panelNow?(request.panelId) ?? now
-            guard request.requestRevision == latestRevisions[request.requestId],
+            guard request.blocking,
+                  request.requestRevision == latestRevisions[request.requestId],
                   !terminalPanelIDs.contains(request.panelId),
                   request.expiresAt.flatMap(ISOTimestamp.date(from:)).map({ $0 > reference }) ?? true else {
                 return false

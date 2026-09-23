@@ -163,6 +163,7 @@ struct HomeAttentionRow: View {
             Text(item.message.body)
                 .font(.hbBodyStrong)
                 .foregroundStyle(Theme.ink)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
             if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
                !content.isEmpty, content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {

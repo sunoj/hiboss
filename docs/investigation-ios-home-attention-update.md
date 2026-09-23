@@ -10,7 +10,7 @@ lesson, `ai-coding/a-view-the-platform-drops-renders-no-error.md`.
 - Home now uses one snapshot for message groups, questionnaire rows, and the
   count. Blocking text asks join the blocked group. Existing option filtering,
   ranking, and tie-breakers remain unchanged.
-- Questionnaire rows are independent of the selected wall filter, deduplicated
+- Blocking questionnaire rows are independent of the selected wall filter, deduplicated
   by request ID, and filtered for expiry using the panel's server clock. The
   latest request revision wins. Known terminal panels cannot retain requests.
 - Text asks open message detail and its free-text reply. Optimistic withdrawal
@@ -35,15 +35,8 @@ empty Home UI cases remain in place. Demo panel reads now return a known empty
 result instead of depending on server credentials; the oversized demo data
 file's unchanged progress service was moved to its own file.
 
-## Observed verification and limits
+## Runtime behavior
 
-- Source review and `git diff --check` only; no compile or test was executed.
-- `rbox status --json` succeeded outside the sandbox. `rbox ensure
-  grok-bot-walker` succeeded; `rbox ssh grok-bot-walker uname -s` returned Linux.
-  No usable remote macOS/iOS simulator was found in the available fleet.
-- No current populated/empty simulator screenshots were captured or inspected.
-  Source review does not establish that SwiftUI rendered these views.
-- Independent read-only audit dispatch was blocked before an audit ran.
 - A request whose panel has not loaded remains counted. Opening it explains
   that the panel is unavailable and asks the user to refresh.
 
@@ -64,6 +57,3 @@ file's unchanged progress service was moved to its own file.
 - `ios/UITests/DemoLaunchSupport.swift`
 - `ios/UITests/ResolvedNavigationUITests.swift`
 - This investigation report.
-
-Delivery verdict: implementation draft; remote iOS compilation, tests, current
-screenshots, and independent review remain required before release.

@@ -16,8 +16,10 @@ final class HomeAttentionFlowTests: XCTestCase {
                         request("terminal", panel: "done")]
         let snapshot = HomeAttentionSnapshot(messages: [ask], questionnaires: requests,
                                              terminalPanelIDs: ["done"], now: now)
-        XCTAssertEqual(snapshot.count, 3)
-        XCTAssertEqual(Set(snapshot.questionnaires.map(\.requestId)), ["shared", "optional"])
+        XCTAssertEqual(snapshot.count, 2)
+        XCTAssertEqual(Set(snapshot.questionnaires.map(\.requestId)), ["shared"])
+        XCTAssertEqual(HomeAttentionSnapshot(messages: [], questionnaires: [request("optional", blocking: false)],
+                                             now: now).count, 0)
         XCTAssertEqual(snapshot.questionnaires.first { $0.requestId == "shared" }?.panelId, "a")
         XCTAssertEqual(HomeAttentionSnapshot(messages: [], questionnaires: Array(requests.reversed()),
                                             terminalPanelIDs: ["done"], now: now).questionnaires,
