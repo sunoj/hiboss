@@ -35,7 +35,8 @@
         <h2>Analytics and tracking</h2>
         <p>The current iOS app contains no advertising or third-party analytics SDK. It does not use app data for cross-app advertising tracking. A server you choose may use its own service providers; ask that server's operator about their practices.</p>
         <h2>Retention and your choices</h2>
-        <p>Signing out clears the saved connection token and signing key from the app; the previously entered server URL remains in device settings. Signing out or removing the app does not delete content stored on the server. Contact that server's operator to access or delete server-side data.</p>
+        <p>Signing out disconnects the app and asks iOS to remove the saved connection token and signing key. If Keychain removal fails, those credentials may remain on the device. The previously entered server URL remains in device settings. Signing out or removing the app does not delete content stored on the server.</p>
+        <p>Signing out does not remove the APNs device registration from your server. To stop alerts on this device, turn off HiBoss notifications in iOS Settings. Contact the server's operator to remove its device registration or to access or delete server-side data.</p>
         <p>You can deny or change notification and camera permissions in iOS Settings. Without camera access, you can still enter a server URL and Boss Token manually.</p>
         <h2>Questions</h2>
         <p>For questions about this iOS app or this policy, email <a href="mailto:hi@hiboss.org">hi@hiboss.org</a>. For a server you do not operate, direct requests about its stored content to that server's operator.</p>
