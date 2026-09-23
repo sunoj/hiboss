@@ -55,7 +55,7 @@ describe('stream helpers', () => {
       expect(sql).toContain('messages.target_session_id IS NULL');
       
       const binds = buildBinds('2026-01-01 00:00:00');
-      expect(binds).toEqual(['2026-01-01 00:00:00', agentId, sessionId, agentId, sessionId]);
+      expect(binds).toEqual(['2026-01-01 00:00:00', agentId, sessionId, agentId, sessionId, agentId]);
     });
   });
 
@@ -83,6 +83,50 @@ describe('stream helpers', () => {
 });
 
 describe('GET /api/messages/stream', () => {
+  it('rejects unknown sessions', async () => {
+    const response = await SELF.fetch('https://test.local/api/messages/stream?session=unknown-session', { headers: authHeaders() });
+    expect(response.status).toBe(404);
+  });
+
+  it('delivers own-session and agent-wide messages while excluding another session', async () => {
+    const agentId = getTestAgentId();
+    const sessionId = 'stream-owned-session';
+    await env.DB.prepare('INSERT INTO sessions (id, agent_id) VALUES (?, ?)').bind(sessionId, agentId).run();
+    const fixtures = [
+      ['stream-own-a2a', 'agent_to_agent', sessionId],
+      ['stream-wide-a2a', 'agent_to_agent', null],
+      ['stream-own-boss', 'boss_to_agent', sessionId],
+      ['stream-wide-boss', 'boss_to_agent', null],
+      ['stream-other-a2a', 'agent_to_agent', 'another-session'],
+    ] as const;
+    for (const [id, direction, target] of fixtures) {
+      await env.DB.prepare(`INSERT INTO messages
+        (id, agent_id, direction, mode, body, status, target_agent_id, target_session_id, created_at)
+        VALUES (?, ?, ?, 'async', ?, 'sent', ?, ?, datetime('now', '+1 minute'))`)
+        .bind(id, agentId, direction, id, direction === 'agent_to_agent' ? agentId : null, target).run();
+    }
+    const query = buildStreamQuery(agentId);
+    const all = await env.DB.prepare(query.sql).bind(...query.buildBinds('2000-01-01')).all<{ id: string }>();
+    expect(all.results.map(row => row.id)).toEqual(expect.arrayContaining(fixtures.map(([id]) => id)));
+    const response = await SELF.fetch(`https://test.local/api/messages/stream?session=${sessionId}`, { headers: authHeaders() });
+    expect(response.status).toBe(200);
+    const reader = response.body!.getReader();
+    let received = '';
+    try {
+      for (let count = 0; count < 4; count++) {
+        received += new TextDecoder().decode((await reader.read()).value);
+      }
+    } finally {
+      await reader.cancel();
+    }
+    for (const [id] of fixtures.slice(0, 4)) expect(received).toContain(id);
+    expect(received).not.toContain('stream-other-a2a');
+    for (const [id] of fixtures) {
+      expect(await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(id).first())
+        .toEqual({ status: id === 'stream-other-a2a' ? 'sent' : 'delivered' });
+    }
+  });
+
   it('returns SSE content-type headers', async () => {
     const res = await SELF.fetch('https://test.local/api/messages/stream', {
       headers: authHeaders(),

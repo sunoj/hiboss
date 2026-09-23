@@ -8,6 +8,7 @@ import { parseByteRange } from './range';
 type AttachmentBucket = Env['ATTACHMENTS'];
 type AttachmentObject = NonNullable<Awaited<ReturnType<AttachmentBucket['head']>>>;
 const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
+const INLINE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'video/mp4']);
 
 export async function serveAttachment(
   request: Request,
@@ -47,15 +48,22 @@ async function fullAttachment(bucket: AttachmentBucket, key: string): Promise<Re
 }
 
 function attachmentHeaders(object: AttachmentObject): Headers {
+  const contentType = (object.httpMetadata?.contentType ?? '').split(';', 1)[0].trim().toLowerCase();
+  const inline = INLINE_TYPES.has(contentType);
   const headers = new Headers({
-    'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+    'content-type': inline ? contentType : 'application/octet-stream',
     'content-length': String(object.size),
     'accept-ranges': 'bytes',
     etag: object.httpEtag,
-    'cache-control': IMMUTABLE_CACHE,
+    'cache-control': inline ? IMMUTABLE_CACHE : 'no-store',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; base-uri 'none'; form-action 'none'",
   });
-  const filename = object.customMetadata?.filename;
-  if (filename) headers.set('content-disposition', `inline; filename="${filename}"`);
+  // Encode metadata at download time so legacy objects receive the same protection.
+  const filename = (object.customMetadata?.filename || 'download').replace(/[\u0000-\u001f\u007f-\u009f]/g, '_');
+  const fallback = filename.replace(/[^\x20-\x7e]|["\\]/g, '_');
+  const encoded = encodeURIComponent(filename).replace(/['()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  headers.set('content-disposition', `${inline ? 'inline' : 'attachment'}; filename="${fallback}"; filename*=UTF-8''${encoded}`);
   return headers;
 }
 

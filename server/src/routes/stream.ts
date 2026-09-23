@@ -16,6 +16,11 @@ routes.use('*', apiAuth);
 routes.get('/stream', async (c) => {
   const agentId = getAgentId(c);
   const sessionId = c.req.query('session') || undefined;
+  if (sessionId) {
+    const session = await c.env.DB.prepare('SELECT id FROM sessions WHERE id = ? AND agent_id = ?')
+      .bind(sessionId, agentId).first();
+    if (!session) return c.text('session not found', 404);
+  }
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
@@ -62,8 +67,12 @@ async function streamLoop(
         const data = JSON.stringify({ ...row, metadata: safeJson(row.metadata) });
         await writer.write(encoder.encode(`event: message\ndata: ${data}\n\n`));
         await env.DB
-          .prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ? AND ((direction = 'agent_to_agent' AND status = 'sent') OR (direction = 'boss_to_agent' AND status = 'sent'))")
-          .bind(row.id)
+          .prepare(`UPDATE messages SET status = 'delivered', updated_at = datetime('now')
+            WHERE id = ? AND status = 'sent' AND
+              ((direction = 'agent_to_agent' AND target_agent_id = ?)
+               OR (direction = 'boss_to_agent' AND agent_id = ?))
+              AND (? IS NULL OR target_session_id IS NULL OR target_session_id = ?)`)
+          .bind(row.id, agentId, agentId, sessionId ?? null, sessionId ?? null)
           .run();
         seenMessageIds.add(row.id);
         lastCheck = row.created_at;
@@ -95,11 +104,11 @@ export function buildStreamQuery(agentId: string, sessionId?: string) {
     const where = `WHERE messages.created_at >= ? AND (
       (messages.agent_id = ? AND messages.direction = 'boss_to_agent' AND messages.status = 'sent' AND (messages.target_session_id IS NULL OR messages.target_session_id = ?))
       OR (messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.status = 'sent' AND messages.target_session_id IS NULL)
-      OR (messages.target_session_id = ? AND messages.direction = 'agent_to_agent' AND messages.status = 'sent')
+      OR (messages.target_session_id = ? AND messages.target_agent_id = ? AND messages.direction = 'agent_to_agent' AND messages.status = 'sent')
     ) ORDER BY messages.created_at ASC`;
     return {
       sql: `${baseCols} ${where}`,
-      buildBinds: (lastCheck: string) => [lastCheck, agentId, sessionId, agentId, sessionId],
+      buildBinds: (lastCheck: string) => [lastCheck, agentId, sessionId, agentId, sessionId, agentId],
     };
   }
 

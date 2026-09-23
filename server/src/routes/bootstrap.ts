@@ -2,9 +2,9 @@
 // Exports POST /api/bootstrap.
 // Depends on Hono, hashing helpers, and Env definition.
 
-import { Context, Hono } from 'hono';
+import { Hono } from 'hono';
 import type { Env } from '../types';
-import { timingSafeEqual } from '../middleware/auth';
+import { hasValidBootstrapSecret } from '../middleware/bootstrap-secret';
 import { createAgent } from '../agent-keys';
 import { logAudit } from '../audit';
 
@@ -24,19 +24,3 @@ router.post('/', async (c) => {
 });
 
 export const bootstrapRouter = router;
-
-function hasValidBootstrapSecret(c: Context<{ Bindings: Env }>): boolean {
-  const expectedSecret = c.env.BOOTSTRAP_SECRET;
-  if (!expectedSecret) {
-    return true;
-  }
-  const headerSecret = c.req.header('X-Bootstrap-Secret');
-  if (headerSecret && timingSafeEqual(headerSecret, expectedSecret)) {
-    return true;
-  }
-  const authorization = c.req.header('Authorization');
-  const bearerPrefix = 'Bearer ';
-  return authorization?.startsWith(bearerPrefix)
-    ? timingSafeEqual(authorization.slice(bearerPrefix.length), expectedSecret)
-    : false;
-}

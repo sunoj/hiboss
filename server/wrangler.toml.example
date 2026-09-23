@@ -38,7 +38,7 @@ crons = ["*/5 * * * *"]
 CONSOLE_ORIGIN = "https://your-console.pages.dev"
 
 # Secrets (set with `wrangler secret put <NAME>`, never in this file):
-#   BOOTSTRAP_SECRET        gates POST /api/bootstrap
+#   BOOTSTRAP_SECRET        gates first-agent issuance via /api/bootstrap and /api/join
 #   DISCORD_WEBHOOK_SECRET  X-Webhook-Secret for POST /api/webhooks/discord
 #   TELEGRAM_WEBHOOK_SECRET X-Telegram-Bot-Api-Secret-Token for the TG webhook
 #   RELEASE_UPLOAD_SECRET   Bearer token for PUT /updates/macos/* (macOS Sparkle release upload)

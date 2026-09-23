@@ -2,7 +2,7 @@
 // Covers playback probes, seeking, validators, HEAD, and invalid ranges against R2.
 // Dependencies: cloudflare:test SELF, Vitest, and isolated test authentication.
 
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, seedDatabase } from '../test-helpers';
 
@@ -22,12 +22,29 @@ beforeAll(async () => {
 });
 
 describe('media byte-range delivery', () => {
+  it('hardens legacy documents and safely encodes stored filenames', async () => {
+    await env.ATTACHMENTS.put('legacy-active-document', '<script>alert(1)</script>', {
+      httpMetadata: { contentType: 'text/html' },
+      customMetadata: { filename: 'report"\\\r\n☃.html' },
+    });
+    const response = await SELF.fetch('https://test.local/api/attachments/legacy-active-document');
+    expect(response.headers.get('content-type')).toBe('application/octet-stream');
+    const disposition = response.headers.get('content-disposition')!;
+    expect(disposition).toMatch(/^attachment; filename="report_____\.html";/);
+    expect(disposition).toContain("filename*=UTF-8''report%22%5C__%E2%98%83.html");
+    expect(response.headers.get('content-security-policy')).toContain('sandbox');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.text()).toBe('<script>alert(1)</script>');
+  });
+
   it('advertises size and range support for a complete download', async () => {
     const response = await SELF.fetch(mediaUrl);
     expect(response.status).toBe(200);
     expect(response.headers.get('accept-ranges')).toBe('bytes');
     expect(response.headers.get('content-length')).toBe('10');
     expect(response.headers.get('content-type')).toBe('video/mp4');
+    expect(response.headers.get('content-disposition')).toMatch(/^inline;/);
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(response.headers.get('etag')).toMatch(/^".+"$/);
     expect(response.headers.get('content-range')).toBeNull();
     expect(await response.text()).toBe(CONTENT);

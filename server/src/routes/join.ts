@@ -8,6 +8,7 @@ import { logAudit } from '../audit';
 import { sendDiscordMessage } from '../channels/discord';
 import { sendTelegramMessage } from '../channels/telegram';
 import { createAgent } from '../agent-keys';
+import { hasValidBootstrapSecret } from '../middleware/bootstrap-secret';
 
 type JoinCreateResponse =
   | { request_id: string; poll_token: string; status: 'pending' }
@@ -35,6 +36,7 @@ router.post('/', async (c) => {
   const countRow = await c.env.DB.prepare('SELECT COUNT(*) AS cnt FROM api_keys').first<{ cnt: number }>();
   const count = Number(countRow?.cnt ?? 0);
   if (count === 0) {
+    if (!hasValidBootstrapSecret(c)) return c.text('unauthorized', 401);
     const apiKey = await createAgent(c.env.DB, name, { type: 'system', id: 'join' }, true);
     if (!apiKey) {
       return c.text('failed to create api key', 500);
