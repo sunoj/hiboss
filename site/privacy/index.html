@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f4ee">
+  <meta name="description" content="How the HiBoss iOS app handles connections, content, notifications, and data on servers you choose.">
+  <link rel="canonical" href="https://hiboss.org/privacy/">
+  <link rel="icon" href="/assets/hiboss-icon.png" type="image/png">
+  <link rel="stylesheet" href="/assets/site.css">
+  <title>Privacy — HiBoss</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="wordmark" href="/" aria-label="HiBoss home"><span class="brand-dot"></span>hiboss</a>
+    <nav aria-label="Primary navigation"><a href="/">Home</a><a href="/support/">Support</a><a href="https://github.com/sunoj/hiboss" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+  </header>
+  <main id="main" class="doc-page">
+    <div class="doc-shell">
+      <p class="eyebrow doc-kicker">YOUR DATA, YOUR SERVER</p>
+      <h1>Privacy.</h1>
+      <p class="doc-lead">HiBoss connects to a server you choose. This policy explains what the iOS app handles and where that information goes.</p>
+      <p class="doc-meta">HiBoss iOS app · Published by Ming Sun · Last updated September 23, 2026</p>
+      <div class="doc-content">
+        <h2>How HiBoss connects</h2>
+        <p>The app has no default hosted account. You enter a HiBoss server URL and Boss Token, or pair with a code from the Mac client. The app sends authentication requests to that server. It stores the server URL in device settings and the connection token in the iOS Keychain. Pairing can also create a signing key in the device's Secure Enclave.</p>
+        <p>The server you choose may be operated by you or someone else. Its operator controls the storage, access, retention, and deletion of data sent to it. Installing the app alone does not send your messages to the app developer.</p>
+        <h2>Information sent to your server</h2>
+        <p>To show and act on your work, the app exchanges messages, replies, decisions, session content, progress posts, preferences, and related media with your selected server. Connecting or pairing can send a device label and a connection or device token. These are used to authenticate and identify the client to that server.</p>
+        <p>If you allow notifications, the app sends an Apple Push Notification service (APNs) device token to the selected server so it can address notifications to this installation.</p>
+        <h2>Notifications and camera</h2>
+        <p>Notifications pass through Apple APNs. Depending on the server's settings, a notification may include message text. The private notification option uses a generic alert and retrieves the message from your server after you open the app. Notification delivery also depends on the server being configured for this app's Apple signing team.</p>
+        <p>The camera is used to scan a pairing code. The iOS app processes the code on your device and does not upload camera video for the scan.</p>
+        <h2>Analytics and tracking</h2>
+        <p>The current iOS app contains no advertising or third-party analytics SDK. It does not use app data for cross-app advertising tracking. A server you choose may use its own service providers; ask that server's operator about their practices.</p>
+        <h2>Retention and your choices</h2>
+        <p>Signing out clears the saved connection token and signing key from the app; the previously entered server URL remains in device settings. Signing out or removing the app does not delete content stored on the server. Contact that server's operator to access or delete server-side data.</p>
+        <p>You can deny or change notification and camera permissions in iOS Settings. Without camera access, you can still enter a server URL and Boss Token manually.</p>
+        <h2>Questions</h2>
+        <p>For questions about this iOS app or this policy, email <a href="mailto:hi@hiboss.org">hi@hiboss.org</a>. For a server you do not operate, direct requests about its stored content to that server's operator.</p>
+      </div>
+      <nav class="doc-links" aria-label="Related pages"><a href="/support/">Get support <span aria-hidden="true">↗</span></a><a href="/">Back to HiBoss <span aria-hidden="true">↗</span></a></nav>
+    </div>
+  </main>
+  <footer class="site-footer"><a class="wordmark" href="/" aria-label="HiBoss home"><span class="brand-dot"></span>hiboss</a><p>Built for the people behind the agents.</p><nav aria-label="Footer navigation"><a href="/privacy/">Privacy</a><a href="/support/">Support</a><a href="https://github.com/sunoj/hiboss" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav><small>© 2026 Ming Sun</small></footer>
+</body>
+</html>
