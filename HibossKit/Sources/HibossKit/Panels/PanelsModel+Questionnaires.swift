@@ -16,24 +16,50 @@ extension PanelsModel {
     }
 
     public func refreshPendingQuestionnaires() async {
-        do { await refreshPendingQuestionnaires(using: try await panelService() as? any QuestionnaireServing) }
-        catch { questionnaireError = error.localizedDescription }
+        invalidateQuestionnaireCoverage()
+        if isFetching { needsReconcile = true }
+        let generation = questionnaireGeneration
+        do {
+            let service = try await panelService()
+            guard generation == questionnaireGeneration else { return }
+            if let relayConfig { startWallSubscription(config: relayConfig) }
+            await refreshPendingQuestionnaires(using: service as? any QuestionnaireServing)
+        } catch {
+            guard generation == questionnaireGeneration else { return }
+            questionnaireError = error.localizedDescription
+        }
     }
 
     func refreshPendingQuestionnaires(using service: (any QuestionnaireServing)?) async {
-        guard !isDemoMode, !isLoadingQuestions, let service else { return }
+        guard !isDemoMode else { return }
+        invalidateQuestionnaireCoverage()
+        guard !isLoadingQuestions else { needsReconcile = true; return }
+        guard let service else { return }
+        let generation = questionnaireGeneration
         isLoadingQuestions = true
-        defer { isLoadingQuestions = false }
+        defer {
+            isLoadingQuestions = false
+            if needsReconcile, !isFetching { needsReconcile = false; reconcileSoon() }
+        }
         do {
             let fetched = try await service.fetchPendingQuestionnaires()
             try Task.checkCancellation()
+            guard generation == questionnaireGeneration else { return }
             pendingQuestionnaires = fetched
             questionnaireError = nil
+            hasCompleteQuestionnaires = (wallConnection == nil || isWallConnected)
+                && !needsReconcile && reconciliationTask == nil
         } catch is CancellationError {
             return
         } catch {
+            guard generation == questionnaireGeneration else { return }
             if (error as? HibossAPIError)?.isAuthFailure == true { pendingQuestionnaires = [] }
             questionnaireError = error.localizedDescription
         }
+    }
+
+    func invalidateQuestionnaireCoverage() {
+        questionnaireGeneration &+= 1
+        hasCompleteQuestionnaires = false
     }
 }

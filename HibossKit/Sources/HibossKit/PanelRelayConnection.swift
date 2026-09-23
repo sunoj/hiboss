@@ -12,6 +12,7 @@ public final class PanelRelayConnection {
     private let isWall: Bool
     private let onFrame: (PanelRelayFrame) -> Void
     private let onDisconnect: () -> Void
+    private let onWallConnected: () -> Void
     private var socket: URLSessionWebSocketTask?
     private var connectionTask: Task<Void, Never>?
     private var stopped = false
@@ -21,13 +22,15 @@ public final class PanelRelayConnection {
         panelID: String,
         isWall: Bool = false,
         onFrame: @escaping (PanelRelayFrame) -> Void,
-        onDisconnect: @escaping () -> Void
+        onDisconnect: @escaping () -> Void,
+        onWallConnected: @escaping () -> Void = {}
     ) {
         self.config = config
         self.panelID = panelID
         self.isWall = isWall
         self.onFrame = onFrame
         self.onDisconnect = onDisconnect
+        self.onWallConnected = onWallConnected
     }
 
     public func start() {
@@ -81,6 +84,7 @@ public final class PanelRelayConnection {
     }
 
     private func receive(from task: URLSessionWebSocketTask) async throws {
+        var wallAcknowledged = false
         while !stopped && !Task.isCancelled {
             let message = try await task.receive()
             let data: Data
@@ -89,7 +93,14 @@ public final class PanelRelayConnection {
             case let .data(value): data = value
             @unknown default: continue
             }
-            if let frame = try? JSONDecoder().decode(PanelRelayFrame.self, from: data) { onFrame(frame) }
+            guard !stopped, !Task.isCancelled else { return }
+            if let frame = try? JSONDecoder().decode(PanelRelayFrame.self, from: data) {
+                if isWall, frame == .wallChanged, !wallAcknowledged {
+                    wallAcknowledged = true
+                    onWallConnected()
+                }
+                onFrame(frame)
+            }
         }
     }
 

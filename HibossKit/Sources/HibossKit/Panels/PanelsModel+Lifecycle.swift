@@ -66,7 +66,7 @@ extension PanelsModel {
         if frame == .subscriptionRevoked {
             liveSubscriptions.remove(tileID)
             relayConnections.removeValue(forKey: tileID)?.stop()
-            Task { await load() }
+            reconcileSoon()
             return
         }
         guard let tile = tiles.first(where: { $0.id == tileID }), let revision = tile.definitionRevision,

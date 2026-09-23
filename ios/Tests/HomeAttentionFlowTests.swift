@@ -10,6 +10,37 @@ import XCTest
 final class HomeAttentionFlowTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_000_000)
 
+    func testHomeRequiresCurrentQuestionnaireCoverageEvenWithHealthyMessageCoverage() async {
+        let inbox = InboxStore(decisionAlertsEnabled: false)
+        inbox.start(api: TextReplyAPI(messages: []))
+        defer { inbox.stop() }
+        await inbox.refresh()
+        let panels = PanelsModel(api: DemoHomePanelsAPI(), demoMode: false, autoload: false)
+        panels.clockTask?.cancel()
+        let home = HomeView(inbox: inbox, sessionAPI: nil, panels: panels)
+        await panels.load()
+        XCTAssertTrue(inbox.hasCompleteRequiredInputs)
+        XCTAssertNil(home.attentionStatus)
+        panels.receiveWall(.wallChanged)
+        XCTAssertEqual(home.attentionStatus, "Checking for requests…")
+        await panels.reconciliationTask?.value
+        XCTAssertNil(home.attentionStatus)
+        let config = ConnectionConfig(serverURL: URL(string: "https://example.invalid")!, bossToken: "test")
+        panels.wallConnection = PanelRelayConnection(config: config, panelID: "wall", isWall: true,
+                                                     onFrame: { _ in }, onDisconnect: {})
+        panels.wallConnectivityChanged(false)
+        await panels.reconciliationTask?.value
+        XCTAssertEqual(panels.loadState, .loaded)
+        XCTAssertEqual(home.attentionStatus, "Checking for requests…")
+        panels.wallConnectivityChanged(true)
+        XCTAssertNotNil(home.attentionStatus)
+        await panels.reconciliationTask?.value
+        XCTAssertNil(home.attentionStatus)
+        panels.connectionDidChange()
+        XCTAssertNotNil(home.attentionStatus)
+        await panels.reconciliationTask?.value
+    }
+
     func testQuestionnairesCountOnceAcrossPanelsAndDoNotDependOnWallVisibility() {
         let requests = [request("shared", panel: "b"), request("shared", panel: "a"),
                         request("optional", blocking: false), request("expired", expires: now),

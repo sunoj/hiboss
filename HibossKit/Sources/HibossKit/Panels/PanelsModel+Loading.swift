@@ -7,8 +7,10 @@ import Foundation
 extension PanelsModel {
     public func load() async {
         guard !isDemoMode else { return }
+        invalidateQuestionnaireCoverage()
         guard !isFetching else { needsReconcile = true; return }
         isFetching = true
+        var generation = questionnaireGeneration
         if tiles.isEmpty { loadState = .loading }
         defer {
             isFetching = false
@@ -17,9 +19,12 @@ extension PanelsModel {
         }
         do {
             let service = try await panelService()
+            guard generation == questionnaireGeneration else { return }
             if let relayConfig { startWallSubscription(config: relayConfig) }
+            generation = questionnaireGeneration
             let summaries = try await service.fetchPanels()
             let additions = try await fetchAdditions(summaries, service: service)
+            guard generation == questionnaireGeneration else { return }
             var fetched: [PanelTile] = []
             for summary in summaries {
                 serverClocks[summary.panelId] = (Date(timeIntervalSince1970: Double(summary.serverTime) / 1000), ProcessInfo.processInfo.systemUptime, Date())
@@ -36,7 +41,10 @@ extension PanelsModel {
             loadState = .loaded
             if let relayConfig { startSubscriptions(config: relayConfig) }
             await refreshPendingQuestionnaires(using: service as? any QuestionnaireServing)
-        } catch { loadState = .failed(error.localizedDescription) }
+        } catch {
+            guard generation == questionnaireGeneration else { return }
+            loadState = .failed(error.localizedDescription)
+        }
     }
 
     private func reconcile(_ summary: PanelMetadata, addition: PanelAddition?, order: Int) throws -> PanelTile {

@@ -69,12 +69,12 @@ struct HomeView: View {
         )
     }
 
-    private var attentionStatus: String? {
+    var attentionStatus: String? {
         if let error = inbox.requiredInputError ?? inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
             return "Couldn't check all requests. \(error) Pull to refresh."
         }
         if !inbox.didLoad || !inbox.hasCompleteRequiredInputs
-            || panels.loadState != .loaded || panels.isLoadingQuestions {
+            || panels.loadState != .loaded || !panels.hasCompleteQuestionnaires {
             return "Checking for requests…"
         }
         return nil

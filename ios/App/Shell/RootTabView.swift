@@ -55,7 +55,7 @@ struct RootTabView: View {
             settingsTabView
         }
         .task(id: router.pendingMessageID) { await openPendingMessage() }
-        .onChange(of: connection.config) { Task { await panels.load() } }
+        .onChange(of: connection.config) { panels.connectionDidChange() }
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.

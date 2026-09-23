@@ -33,12 +33,15 @@ public final class PanelsModel: ObservableObject {
     var reconciliationTask: Task<Void, Never>?
     var wallConnection: PanelRelayConnection?
     var wallConfig: ConnectionConfig?
+    var isWallConnected = false
     var lastReconciled = Date.distantPast
     @Published public var section: PanelWallSection = .active
     @Published public internal(set) var preferenceError: String?
     @Published public internal(set) var pendingQuestionnaires: [PendingQuestionnaire] = []
     @Published public internal(set) var questionnaireError: String?
     @Published public internal(set) var isLoadingQuestions = false
+    @Published public internal(set) var hasCompleteQuestionnaires = false
+    var questionnaireGeneration: UInt64 = 0
     var producerTasks: [Task<Void, Never>] = []
     var clockTask: Task<Void, Never>?
     var serverClocks: [String: (server: Date, uptime: TimeInterval, wall: Date)] = [:]
