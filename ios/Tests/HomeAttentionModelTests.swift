@@ -64,11 +64,40 @@ final class HomeAttentionModelTests: XCTestCase {
         XCTAssertEqual(item?.options, ["Yes", "No"])
     }
 
+    func testBlockingTextAsksRemainActionableWithoutWaitingSessionOrPriority() {
+        let ask = message("text", priority: "low", options: [], sessionStatus: "working")
+        let timed = message("timed", expiresOffset: 30, options: [])
+        let note = message("note", priority: "critical", options: [], mode: "async")
+        let answered = message("answered", options: [], status: "replied")
+        let expired = message("expired", options: [], isExpired: true)
+        let outgoing = message("outgoing", options: [], direction: "boss_to_agent")
+
+        XCTAssertEqual(Set(AttentionModel.items(from: [ask, timed, note, answered, expired, outgoing], now: now).map(\.id)),
+                       Set(["text", "timed"]))
+        XCTAssertTrue(AttentionModel.needsTextReply(ask, now: now))
+        XCTAssertFalse(AttentionModel.needsTextReply(timed, now: now.addingTimeInterval(30)))
+    }
+
+    func testTextAsksDoNotChangeRelativeOptionDecisionOrder() {
+        let decisions = [
+            message("high", priority: "high"),
+            message("blocked", sessionStatus: "waiting"),
+            message("auto", expiresOffset: 30, defaultOption: "No")
+        ]
+        let mixed = decisions + [message("text", priority: "critical", options: [])]
+        XCTAssertEqual(AttentionModel.items(from: mixed, now: now).filter { !$0.options.isEmpty }.map(\.id),
+                       AttentionModel.items(from: decisions, now: now).map(\.id))
+    }
+
     private func message(
         _ id: String,
         priority: String = "normal",
         expiresOffset: TimeInterval? = nil,
         defaultOption: String? = nil,
+        options: [String] = ["Yes", "No"],
+        mode: String = "blocking",
+        status: String = "delivered",
+        direction: String = "agent_to_boss",
         sessionStatus: String? = "working",
         sessionLabel: String? = "project",
         sessionBranch: String? = "main",
@@ -78,9 +107,9 @@ final class HomeAttentionModelTests: XCTestCase {
     ) -> HistoryMessage {
         HistoryMessage(
             id: MessageID(rawValue: id), body: "Question \(id)", agentName: "agent-\(id)",
-            direction: "agent_to_boss", status: "delivered", priority: priority,
-            mode: "blocking", metadata: MessageMetadata(
-                options: ["Yes", "No"], isExpired: isExpired,
+            direction: direction, status: status, priority: priority,
+            mode: mode, metadata: MessageMetadata(
+                options: options, isExpired: isExpired,
                 defaultOption: defaultOption, content: content
             ), expiresAt: expiresOffset.map { now.addingTimeInterval($0).ISO8601Format() },
             createdAt: now.addingTimeInterval(createdOffset).ISO8601Format(),

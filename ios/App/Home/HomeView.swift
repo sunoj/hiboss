@@ -16,7 +16,10 @@ struct HomeView: View {
     var body: some View {
         content
             .background(Theme.paper)
-            .refreshable { await inbox.refresh() }
+            .refreshable {
+                await inbox.refresh()
+                await panels.load()
+            }
             .task { await inbox.refresh() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
@@ -50,39 +53,38 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
     private func attentionContent(now: Date) -> some View {
-        if !inbox.didLoad && inbox.history.isEmpty {
-            if inbox.connectionState == .disconnected {
-                ContentUnavailableView(
-                    "Disconnected",
-                    systemImage: "wifi.slash",
-                    description: Text("Connect in Settings to see what needs you.")
-                )
-            } else {
-                ProgressView()
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, minHeight: 180)
-            }
-        } else if inbox.history.isEmpty, let error = inbox.loadError {
-            ContentUnavailableView {
-                Label("Can't reach the server", systemImage: "wifi.exclamationmark")
-            } description: {
-                Text(error)
-            } actions: {
-                Button("Retry") { Task { await inbox.refresh() } }
-            }
-        } else {
-            HomeAttentionSection(
-                groups: AttentionModel.grouped(
-                    from: inbox.history.filter { !inbox.withdrawn.contains($0.id) },
-                    now: now
-                ),
-                hasPanels: !panels.visibleTiles.isEmpty,
-                onChoose: handleReply,
-                onOpen: { AppRouter.shared.open(messageID: $0.rawValue) }
-            )
+        HomeAttentionSection(
+            snapshot: HomeAttentionSnapshot(
+                messages: inbox.history, withdrawn: inbox.withdrawn,
+                questionnaires: panels.pendingQuestionnaires,
+                terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
+                now: now, panelNow: { panels.serverNow(for: $0) }
+            ),
+            hasPanels: !panels.visibleTiles.isEmpty,
+            status: attentionStatus,
+            onChoose: handleReply,
+            onOpen: { AppRouter.shared.open(messageID: $0.rawValue) },
+            onOpenPanel: openPanel
+        )
+    }
+
+    private var attentionStatus: String? {
+        if let error = inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
+            return "Couldn't check all requests. \(error) Pull to refresh."
         }
+        if !inbox.didLoad || panels.loadState != .loaded || panels.isLoadingQuestions {
+            return "Checking for requests…"
+        }
+        return nil
+    }
+
+    private func openPanel(_ id: String) {
+        guard panels.tiles.contains(where: { $0.id == id }) else {
+            actionNote = "This panel isn't available yet. Pull to refresh and try again."
+            return
+        }
+        panels.open(id)
     }
 
     private func handleReply(_ choice: String, to id: MessageID) {

@@ -17,18 +17,23 @@ enum HomeAttentionLayout {
 }
 
 struct HomeAttentionSection: View {
-    let groups: [AttentionGroupItems]
+    let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
+    let status: String?
     let onChoose: (String, MessageID) -> Void
     let onOpen: (MessageID) -> Void
+    let onOpenPanel: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             title
-            if groups.isEmpty {
+            if let status {
+                Text(status).font(.hbCallout).foregroundStyle(Theme.ink2)
+            }
+            if snapshot.count == 0 && status == nil {
                 allClear
             } else {
-                ForEach(groups, id: \.group) { group in
+                ForEach(snapshot.groups, id: \.group) { group in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(group.group.title)
                             .font(.hbCaption.weight(.semibold))
@@ -42,6 +47,9 @@ struct HomeAttentionSection: View {
                             )
                         }
                     }
+                }
+                ForEach(snapshot.questionnaires) { request in
+                    questionnaireRow(request)
                 }
             }
         }
@@ -61,9 +69,30 @@ struct HomeAttentionSection: View {
     }
 
     private var titleSubtitle: String {
-        guard !groups.isEmpty else { return "Nothing is waiting on your call" }
-        let count = groups.reduce(0) { $0 + $1.items.count }
+        let count = snapshot.count
+        guard count > 0 else { return status == nil ? "Nothing is waiting on your call" : "Checking your attention queue" }
         return count == 1 ? "1 item waiting on your call" : String(count) + " items waiting on your call"
+    }
+
+    private func questionnaireRow(_ request: PendingQuestionnaire) -> some View {
+        Button { onOpenPanel(request.panelId) } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(request.title).font(.hbBodyStrong).foregroundStyle(Theme.ink)
+                    Text(request.blocking ? "Questionnaire · Agent waiting" : "Questionnaire")
+                        .font(.hbCaption).foregroundStyle(Theme.ink2)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").foregroundStyle(Theme.ink3)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(minHeight: 44)
+            .padding(12)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("home-questionnaire-\(request.requestId)")
+        .accessibilityHint("Opens the panel to answer this questionnaire")
     }
 
     private var allClear: some View {
@@ -96,11 +125,13 @@ struct HomeAttentionRow: View {
     let item: AttentionItem
     let onChoose: (String) -> Void
     let onOpen: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Button(action: onOpen) { info }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("home-message-\(item.id.rawValue)")
             timing
             OptionMediaComparison(
                 options: item.options,
@@ -121,7 +152,7 @@ struct HomeAttentionRow: View {
     private var info: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Label(project, systemImage: "square.stack.3d.up")
+                Text("\(project) · \(item.message.displayName)")
                     .font(.hbCaption.weight(.semibold))
                     .foregroundStyle(Theme.ink2)
                 Spacer(minLength: 8)
@@ -132,18 +163,17 @@ struct HomeAttentionRow: View {
             Text(item.message.body)
                 .font(.hbBodyStrong)
                 .foregroundStyle(Theme.ink)
-                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-            if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty {
+            if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !content.isEmpty, content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
                 Text(content)
                     .font(.hbCaption)
                     .foregroundStyle(Theme.ink2)
                     .lineLimit(2)
             }
-            Text("Asked by \(item.message.displayName)")
-                .font(.hbCaption)
-                .foregroundStyle(Theme.ink3)
         }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var project: String {
@@ -160,20 +190,16 @@ struct HomeAttentionRow: View {
 
     private var timing: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Label(waitedText, systemImage: "clock")
-                if item.group == .autoDecision, let deadline = item.expiresAt {
-                    Spacer(minLength: 0)
-                    Label { CountdownText(deadline: deadline, tint: tint) } icon: {
-                        Image(systemName: "timer")
-                    }
-                } else if item.group == .blocked {
-                    Spacer(minLength: 0)
-                    Text("Agent stopped")
+            if item.group == .autoDecision, let deadline = item.expiresAt, let option = item.defaultOption {
+                Text("Auto-selects “\(option)” when time runs out")
+                Label { CountdownText(deadline: deadline, tint: tint) } icon: {
+                    Image(systemName: "timer")
                 }
-            }
-            if item.group == .autoDecision, let option = item.defaultOption {
-                Label("Auto-selects \u{201C}\(option)\u{201D}", systemImage: "arrow.trianglehead.timer")
+            } else {
+                Text(waitedText)
+                if let deadline = item.expiresAt {
+                    Text("Reply by \(deadline.formatted(date: .abbreviated, time: .shortened))")
+                }
             }
         }
         .font(.hbCaption)
@@ -188,7 +214,10 @@ struct HomeAttentionRow: View {
 
     @ViewBuilder
     private var choices: some View {
-        if item.options.count == 2 {
+        if item.options.isEmpty {
+            OptionButton(title: "Reply…", controlSize: .regular, action: onOpen)
+        } else if item.options.count == 2 && !dynamicTypeSize.isAccessibilitySize
+                    && item.options.allSatisfy({ $0.count <= 28 && !$0.contains("\n") }) {
             HStack(spacing: 6) {
                 choiceButton(item.options[0])
                 choiceButton(item.options[1])
@@ -205,7 +234,7 @@ struct HomeAttentionRow: View {
     private func choiceButton(_ option: String, alignment: Alignment = .center) -> some View {
         OptionButton(
             title: option,
-            style: option == item.defaultOption ? .primary : .secondary,
+            style: .secondary,
             alignment: alignment,
             controlSize: .regular
         ) { onChoose(option) }

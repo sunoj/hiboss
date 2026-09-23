@@ -35,7 +35,7 @@ struct RootTabView: View {
         self.connection = connection
         self.preferences = preferences
         self.progress = progress
-        _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
+        _panels = StateObject(wrappedValue: PanelsModel(api: isDemoMode ? DemoHomePanelsAPI() : nil, configurationProvider: {
             guard let config = connection.config else { throw PanelClientError.notConfigured }
             return config
         }))

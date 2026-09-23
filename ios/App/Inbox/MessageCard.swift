@@ -207,6 +207,9 @@ struct OptionButton: View {
 
     private var label: some View {
         Text(title)
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(alignment == .leading ? .leading : .center)
             .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)
+            .frame(minHeight: 44)
     }
 }

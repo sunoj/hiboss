@@ -50,6 +50,44 @@ final class HomeAttentionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
     }
 
+    func testTwoChoiceDecisionCanBeAnsweredInline() {
+        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
+        let choice = app.buttons["Coarse grid"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        choice.tap()
+        XCTAssertTrue(app.staticTexts["2 items waiting on your call"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["home-message-c5"].exists)
+    }
+
+    func testTextAskOpensDetailAndReplyRemovesItFromHome() {
+        app.terminate()
+        app.configureDemoLaunch(["HIBOSS_DEMO_TEXT_ASK": "1"])
+        app.launch()
+        XCTAssertTrue(app.staticTexts["1 item waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
+        app.buttons["home-message-demo-text-ask"].tap()
+        let reply = app.descendants(matching: .any)["message-reply-draft"].firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 5))
+        reply.tap()
+        reply.typeText("Use staging")
+        app.buttons["Send"].tap()
+        app.tabBars.buttons["Home"].tap()
+        XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 5))
+    }
+
+    func testManyOptionsRemainReachableAtAccessibilityTextSize() {
+        app.terminate()
+        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
+        let option = app.buttons["Fail over to Adyen"]
+        for _ in 0..<12 where !option.isHittable { app.swipeUp() }
+        XCTAssertTrue(option.isHittable)
+        option.tap()
+        for _ in 0..<12 where !app.staticTexts["2 items waiting on your call"].isHittable { app.swipeDown() }
+        XCTAssertTrue(app.staticTexts["2 items waiting on your call"].exists)
+    }
+
     func testEmptyDemoShowsSettledAnswer() {
         app.terminate()
         app = XCUIApplication()

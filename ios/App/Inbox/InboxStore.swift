@@ -227,7 +227,9 @@ final class InboxStore: ObservableObject {
 
     /// Drop withdrawn ids once history no longer lists them as pending.
     private func pruneWithdrawn() {
-        let stillPending = Set(history.filter(\.isPendingDecision).map(\.id))
+        let stillPending = Set(history.filter {
+            $0.isPendingDecision || AttentionModel.needsTextReply($0)
+        }.map(\.id))
         withdrawn.formIntersection(stillPending)
     }
 

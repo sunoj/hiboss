@@ -1,5 +1,5 @@
 // Demo backing data so the UI can be exercised without a live server.
-// Exports: DemoBossAPI (incl. HomeServing), DemoProgressAPI, and isDemoMode.
+// Exports: DemoBossAPI (incl. HomeServing) and isDemoMode.
 // Dependencies: HibossKit BossServing/HomeServing. Not used in normal runs.
 
 import Foundation
@@ -14,7 +14,8 @@ final class DemoBossAPI: BossServing, SessionStreamServing, HomeServing, @unchec
     var messages: [HistoryMessage]
 
     init() {
-        messages = DemoFixtures.queue
+        messages = ProcessInfo.processInfo.environment["HIBOSS_DEMO_TEXT_ASK"] == "1"
+            ? [DemoTextAsk.message] : DemoFixtures.queue
     }
 
     func fetchHome() async throws -> HomeDashboard {
@@ -271,48 +272,4 @@ private enum DemoFixtures {
             metadata: nil, expiresAt: nil, createdAt: iso(-120)
         ),
     ]
-}
-
-/// Sample progress posts so the 进展 tab can be exercised without a live server.
-final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
-    private var posts = DemoProgressFixtures.posts
-
-    func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage {
-        var posts = self.posts
-        if let project { posts = posts.filter { $0.project == project } }
-        if let before {
-            posts = posts.filter {
-                $0.createdAt < before.createdAt || ($0.createdAt == before.createdAt && $0.id < before.id)
-            }
-        }
-        let page = Array(posts.prefix(limit))
-        let next = posts.count > limit ? page.last.map { ProgressCursor(createdAt: $0.createdAt, id: $0.id) } : nil
-        return ProgressFeedPage(posts: page, nextCursor: next)
-    }
-
-    func progressProjects() async throws -> [ProgressProject] {
-        DemoProgressFixtures.projects
-    }
-
-    func deleteProgressPost(id _: String) async throws {}
-
-    func likeProgressPost(id: String) async throws -> ProgressLikeState {
-        applyLike(id: id, liked: true)
-    }
-
-    func unlikeProgressPost(id: String) async throws -> ProgressLikeState {
-        applyLike(id: id, liked: false)
-    }
-
-    private func applyLike(id: String, liked: Bool) -> ProgressLikeState {
-        guard let index = posts.firstIndex(where: { $0.id == id }) else {
-            return ProgressLikeState(likeCount: 0, liked: liked)
-        }
-        let current = posts[index]
-        let count = current.liked == liked
-            ? current.likeCount
-            : max(0, current.likeCount + (liked ? 1 : -1))
-        posts[index] = current.withLike(count: count, liked: liked)
-        return ProgressLikeState(likeCount: count, liked: liked)
-    }
 }

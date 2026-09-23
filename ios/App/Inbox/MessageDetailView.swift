@@ -165,7 +165,7 @@ struct MessageDetailView: View {
     /// Options UI: interactive buttons while pending, a read-only picked/others
     /// list once resolved (with the chosen option checked and its source noted).
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
-        if message.isPendingDecision {
+        if message.isPendingDecision || AttentionModel.needsTextReply(message) {
             Section("Respond") {
                 OptionMediaComparison(
                     options: message.options,
@@ -188,8 +188,11 @@ struct MessageDetailView: View {
                 }
                 HStack {
                     TextField("Reply…", text: $replyDraft, axis: .vertical)
+                        .accessibilityIdentifier("message-reply-draft")
                         .disabled(submitting != nil)
-                    Button("Send") { submit(replyDraft, for: message.id) }
+                    Button { submit(replyDraft, for: message.id) } label: {
+                        Text("Send").frame(minWidth: 44, minHeight: 44)
+                    }
                         .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }

@@ -51,10 +51,13 @@ enum AttentionModel {
     private static func classify(_ message: HistoryMessage, now: Date) -> AttentionItem? {
         guard message.direction == "agent_to_boss",
               !message.isResolved,
-              message.metadata?.isExpired != true,
-              !message.options.isEmpty else { return nil }
+              message.metadata?.isExpired != true else { return nil }
         if let deadline = message.expirationDate, deadline <= now { return nil }
 
+        if message.options.isEmpty {
+            return needsTextReply(message, now: now)
+                ? AttentionItem(message: message, group: .blocked) : nil
+        }
         if message.expirationDate != nil, nonEmpty(message.defaultOption) != nil {
             return AttentionItem(message: message, group: .autoDecision)
         }
@@ -63,6 +66,13 @@ enum AttentionModel {
         }
         guard message.priorityValue == .critical || message.priorityValue == .high else { return nil }
         return AttentionItem(message: message, group: .priority)
+    }
+
+    static func needsTextReply(_ message: HistoryMessage, now: Date = Date()) -> Bool {
+        message.direction == "agent_to_boss" && message.mode == "blocking"
+            && message.options.isEmpty && !message.isResolved
+            && message.metadata?.isExpired != true
+            && (message.expirationDate.map { $0 > now } ?? true)
     }
 
     private static func isMoreUrgent(_ lhs: AttentionItem, _ rhs: AttentionItem) -> Bool {
@@ -86,5 +96,39 @@ enum AttentionModel {
             return nil
         }
         return trimmed
+    }
+}
+
+// A single projection drives Home rows, count, and the all-clear decision.
+struct HomeAttentionSnapshot {
+    let groups: [AttentionGroupItems]
+    let questionnaires: [PendingQuestionnaire]
+
+    var count: Int { groups.reduce(questionnaires.count) { $0 + $1.items.count } }
+
+    init(
+        messages: [HistoryMessage], withdrawn: Set<MessageID> = [],
+        questionnaires: [PendingQuestionnaire], terminalPanelIDs: Set<String> = [],
+        now: Date = Date(), panelNow: ((String) -> Date)? = nil
+    ) {
+        groups = AttentionModel.grouped(from: messages.filter { !withdrawn.contains($0.id) }, now: now)
+        var seen: Set<String> = []
+        let latestRevisions = questionnaires.reduce(into: [String: Int]()) { revisions, request in
+            revisions[request.requestId] = max(revisions[request.requestId] ?? request.requestRevision, request.requestRevision)
+        }
+        self.questionnaires = questionnaires.sorted {
+            if $0.requestRevision != $1.requestRevision { return $0.requestRevision > $1.requestRevision }
+            if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
+            if $0.requestId != $1.requestId { return $0.requestId < $1.requestId }
+            return $0.panelId < $1.panelId
+        }.filter { request in
+            let reference = panelNow?(request.panelId) ?? now
+            guard request.requestRevision == latestRevisions[request.requestId],
+                  !terminalPanelIDs.contains(request.panelId),
+                  request.expiresAt.flatMap(ISOTimestamp.date(from:)).map({ $0 > reference }) ?? true else {
+                return false
+            }
+            return seen.insert(request.requestId).inserted
+        }
     }
 }
