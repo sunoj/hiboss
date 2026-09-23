@@ -67,6 +67,17 @@ remotely merely because they were included in the local audit.
 
 ## Remote completion
 
+The maintainer approved the remote rewrite. All 15 branch heads and 43 tags were
+updated in one atomic, per-reference lease-protected push and compared against
+the cleaned local refs: all 58 matched. A new bare repository fetched only those
+GitHub branch/tag refs; its Gitleaks scan returned zero findings and Git object
+integrity checks passed. No Releases or Actions artifacts were present when checked.
+
+GitHub still advertised 19 PR heads pointing to the original history after that
+push. Their cleanup is outstanding. A private support-request draft was prepared
+outside this repository and has not been sent. This result certifies the rewritten
+branch/tag histories, not complete erasure of every GitHub-hosted copy.
+
 Local cleanup alone does not replace GitHub's history. Remote branch and tag
 updates must use the captured old object IDs as force-with-lease expectations so
 concurrent work is not overwritten. Avoid an unrestricted mirror push that could
