@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 
 const BOSS_TOKEN = 'hb_boss_devices_00112233445566778899';
-const DEVICE_TOKEN = 'abcdef1234567890';
+const DEVICE_TOKEN = "ab".repeat(8);
 let bossId: string;
 
 beforeAll(async () => {
@@ -84,7 +84,7 @@ describe('POST /api/boss/devices updates and validation', () => {
 
 describe('POST /api/boss/devices ownership', () => {
   it('audits a re-parent once and immediately removes the token from the old boss fan-out', async () => {
-    const token = 'abcdef9876543210';
+    const token = "cd".repeat(8);
     const newBossToken = 'hb_boss_devices_new_owner';
     const newBossId = await seedBossToken('New Device Boss', 'manager', newBossToken);
     const register = (bearer: string) => SELF.fetch('http://localhost/api/boss/devices', {

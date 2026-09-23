@@ -220,7 +220,7 @@ Revoke one token belonging to the authenticated boss. Any boss may revoke its ow
 ### POST /api/boss/tokens/revoke-others
 Admin only. Revoke every token belonging to the authenticated boss except the token making the request. Returns `{ "revoked": number }`.
 
-Token-management controls do not prevent a stolen admin bearer from revoking sibling devices; this residual risk is accepted. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
+An admin bearer can revoke sibling devices. The five-minute, single-use pairing-code lifetime protects an unredeemed QR code, not a bearer token that has already been issued.
 
 ### POST /api/boss/pairing
 Admin only. Issue a short-lived, single-use QR pairing code for the authenticated boss. At most five unconsumed codes are active per boss; expired rows are cleaned before minting. Consumed rows remain until expiry so the issuing client can observe completion. A concurrent burst can exceed this cap by its concurrency factor because the cleanup, count, and insert are separate D1 statements. Response:

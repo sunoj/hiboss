@@ -7,7 +7,7 @@ import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { seedDatabase, getTestAgentId, authHeaders, seedBossToken } from '../test-helpers';
 
-const BOSS_TOKEN = 'hb_boss_aabbccddeeff00112233445566778899';
+const BOSS_TOKEN = `hb_boss_${"ab".repeat(16)}`;
 let bossId: string;
 
 beforeAll(async () => {

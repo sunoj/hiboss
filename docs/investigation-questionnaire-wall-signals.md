@@ -58,7 +58,7 @@ The initial test launch found no ignored `server/wrangler.toml`; the remote-only
 fixture now uses the tracked `wrangler.toml.example`, without private config.
 
 After `rbox ensure` and a shared-load check, the final locked run on
-`grok-bot-walker` executed:
+a remote build host executed:
 `npm exec --workspace server -- vitest run src/panels/requests src/panels/relay/wall.e2e.test.ts src/panels/lifecycle`.
 Exact summary: `Test Files 9 passed (9)`; `Tests 46 passed (46)`;
 `Duration 21.75s`; `rbox: job d32d58dedd8e49cbbb57afe18d3bfc1d exited with code 0`.

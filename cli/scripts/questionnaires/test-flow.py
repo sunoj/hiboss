@@ -9,6 +9,7 @@ import re
 import subprocess
 import tempfile
 import urllib.request
+import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 BASE = os.environ['HIBOSS_PANEL_TEST_URL']
@@ -58,8 +59,9 @@ def main() -> None:
             answerSchema={'type': 'object', 'properties': {'count': {'type': 'integer', 'minimum': 1}}, 'required': ['count'], 'additionalProperties': False},
             formSpec={'root': 'count', 'elements': {'count': {'type': 'NumberInput', 'props': {'label': 'Count', 'value': {'$bindState': '/form/count'}}, 'children': []}}},
         )))
-        published = cli('publish', panel_id, str(form), '--idempotency-key', 'questionnaire-1')
-        assert cli('publish', panel_id, str(form), '--idempotency-key', 'questionnaire-1') == published
+        first_key = str(uuid.uuid4())
+        published = cli('publish', panel_id, str(form), '--idempotency-key', first_key)
+        assert cli('publish', panel_id, str(form), '--idempotency-key', first_key) == published
         request_id = published['requestId']
         assert cli('list', panel_id)['needsInput'] is True
         assert cli('wait', request_id, '--timeout', '0') == {'requestId': request_id, 'state': 'open', 'timedOut': True}
@@ -73,7 +75,7 @@ def main() -> None:
         assert answer['answers'] == {'count': 5} and answer['delivery'] == 'pending'
         assert cli('ack', request_id, answer['submissionId'])['delivery'] == 'delivered'
         assert cli('show', request_id)['submission']['delivery'] == 'delivered'
-        second = cli('publish', panel_id, str(form), '--idempotency-key', 'questionnaire-2')['requestId']
+        second = cli('publish', panel_id, str(form), '--idempotency-key', str(uuid.uuid4()))['requestId']
         assert cli('withdraw', second, '--expected-revision', '1', '--reason', 'Question no longer needed')['state'] == 'withdrawn'
         assert cli('wait', second, '--timeout', '0')['submission'] is None
         assert cli('list', panel_id)['needsInput'] is False

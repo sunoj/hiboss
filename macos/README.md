@@ -77,9 +77,9 @@ curl -X POST \
 Use the returned `token` value in the app. A boss with the `viewer` role can see
 messages but cannot send option replies, so use an `admin` or `manager` boss.
 
-Security note: a stolen admin bearer can revoke sibling devices; this residual
-risk is accepted. The five-minute, single-use pairing-code lifetime protects only
-an unredeemed QR code, not a bearer token that has already been issued.
+An admin bearer can revoke sibling devices. The five-minute, single-use pairing
+code protects an unredeemed QR code; it does not restrict a bearer token that has
+already been issued.
 
 Break-glass recovery is a manual database operation if all live tokens are lost,
 a rotated secret is discarded, or rotation revokes tokens before minting fails.

@@ -6,7 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 
-const ROOT_TOKEN = 'hb_boss_signing_root_0011223344556677';
+const ROOT_TOKEN = `hb_boss_signing_root_${"01".repeat(8)}`;
 const PARENT_ID = 'signed-reply-parent';
 const encoder = new TextEncoder();
 let bossId: string;

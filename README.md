@@ -2,7 +2,7 @@
 
 **AI Agent <-> Boss Communication Tool**
 
-Project planning and takeover baseline: [Project roadmap](docs/ROADMAP.md) — current capabilities, priorities, milestones, and verification gaps.
+Website: [hiboss.org](https://hiboss.org/) · [Privacy](https://hiboss.org/privacy/) · [Support](https://hiboss.org/support/)
 
 hiboss lets AI agents send messages to their human boss and receive replies through
 familiar channels like Discord and Telegram. When an agent needs approval, wants to
@@ -46,10 +46,12 @@ route through whichever you choose.
 ### 1. Deploy the server
 
 ```bash
+cp server/wrangler.toml.example server/wrangler.toml
+npm ci                                # install the server and panel-runtime workspaces
 cd server
-npm install
 npx wrangler d1 create hiboss-db          # create the D1 database
 # Update wrangler.toml with the returned database_id
+npx wrangler r2 bucket create hiboss-attachments
 npx wrangler d1 migrations apply hiboss-db # apply all migrations
 npx wrangler deploy
 ```
@@ -103,6 +105,11 @@ to the existing Boss SSE and reply APIs. See the
 The native client in [`ios/`](ios/) provides the attention inbox, push-notification
 deep links, Live Activities, Dynamic Island choices, and one-time QR pairing from the
 Mac client. See the [`iOS setup guide`](ios/README.md) for build and signing details.
+
+## Contributing and security
+
+See [Contributing](CONTRIBUTING.md) for development checks and pull requests.
+Report vulnerabilities through the private contact in [Security](SECURITY.md).
 
 ## Features
 
