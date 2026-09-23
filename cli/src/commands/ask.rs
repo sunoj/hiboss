@@ -2,9 +2,10 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
+use super::ask_result::{AskResult, Outcome};
 use super::ask_media::{resolve_option_media, upload_attachment};
 use super::ask_support::{
-    action_metadata, resolve_default_reply, validate_default_option, warn_unread_messages,
+    action_metadata, validate_default_option, warn_unread_messages,
 };
 use crate::{
     client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest,
@@ -21,6 +22,8 @@ const MAX_CHOICES: usize = 5;
 pub struct AskArgs {
     #[arg(long, default_value_t = 1800)]
     pub timeout: u32,
+    #[arg(long, help = "Print a JSON result with reply, auto_default, local_default, or timeout outcome")]
+    pub json: bool,
     #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,
     #[arg(
@@ -56,7 +59,7 @@ pub struct AskArgs {
     #[arg(
         long = "default",
         value_name = "LABEL",
-        help = "Mark one option/action LABEL as the default; executed on timeout"
+        help = "Select LABEL on timeout; automatic defaults are not execution authorization"
     )]
     pub default_option: Option<String>,
     #[arg(
@@ -208,7 +211,7 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
-    if args.to.is_none() {
+    if args.to.is_none() && !args.json {
         warn_unread_messages(client).await;
     }
     let choices = args.choice_payload()?;
@@ -239,60 +242,28 @@ pub async fn run(
         submission.id, args.timeout, submission.id
     );
     let poll = client.poll_reply(&submission.id, args.timeout).await?;
-    print_poll_result(
-        &submission.id,
-        poll.replies.as_deref(),
-        args.timeout,
-        &choices,
-        client,
-    )
-    .await
+    let result = AskResult::from_poll(&submission.id, poll.replies.as_deref(), &choices);
+    if let Some(reply_id) = &result.reply_id {
+        let _ = client.update_status(reply_id, "read").await;
+    }
+    print_result(&result, args.json)
 }
 
-async fn print_poll_result(
-    submission_id: &str,
-    replies: Option<&[crate::types::Message]>,
-    timeout: u32,
-    choices: &ChoicePayload,
-    client: &HiBossClient,
-) -> Result<(), Box<dyn Error>> {
-    if let Some(replies) = replies {
-        if let Some(reply) = replies.first() {
-            let _ = client.update_status(&reply.id, "read").await;
-            if let Some(meta) = &reply.metadata {
-                if let Some(Value::String(action_cmd)) = meta.get("action") {
-                    if let Some(body) = &reply.body {
-                        println!("{}", body);
-                    }
-                    eprintln!("Action: {}", action_cmd);
-                    return Ok(());
-                }
-            }
-            if let Some(body) = &reply.body {
-                println!("{}", body);
-                if crate::session::should_show_ack_hint() {
-                    let id_short = &reply.id[..8.min(reply.id.len())];
-                    eprintln!(
-                        "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
-                        id_short, id_short
-                    );
-                }
-                return Ok(());
-            }
-        }
-    }
-    if let Some(default) = resolve_default_reply(choices, replies) {
-        println!("{}", default.label);
-        if let Some(Value::String(action_cmd)) = default.action {
-            eprintln!("Action: {}", action_cmd);
-        }
-        eprintln!(
-            "[ask {}] no reply in {}s — using default: {}",
-            submission_id, timeout, default.label
-        );
+fn print_result(result: &AskResult, json: bool) -> Result<(), Box<dyn Error>> {
+    if json {
+        println!("{}", serde_json::to_string(result)?);
         return Ok(());
     }
-    eprintln!("No reply yet");
-    println!("{submission_id}");
+    println!("{}", result.text());
+    if let Some(action) = &result.action {
+        eprintln!("Action: {}", action);
+    } else if result.outcome == Outcome::Reply && crate::session::should_show_ack_hint() {
+        if let Some(id) = &result.reply_id {
+            let short = &id[..8.min(id.len())];
+            eprintln!("[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍", short, short);
+        }
+    } else if result.outcome == Outcome::Timeout {
+        eprintln!("No reply yet");
+    }
     Ok(())
 }

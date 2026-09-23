@@ -13,6 +13,12 @@ struct AskCommand {
 }
 
 #[test]
+fn json_output_is_opt_in() {
+    assert!(parse(&["--json", "Choose"]).args.json);
+    assert!(!parse(&["Choose"]).args.json);
+}
+
+#[test]
 fn repeated_options_preserve_commas() {
     let command = parse(&[
         "--option",

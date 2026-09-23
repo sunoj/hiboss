@@ -11,7 +11,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult, type Notification, type Request } from '@modelcontextprotocol/sdk/types.js';
 import { sendFile } from './send-file.js';
-import { enumField, fail, field, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
+import { enumField, fail, field, formatAskResult, formatReplyBody, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
 import { assuranceLabel, verifyMessage, verifyMessages, type VerifiableMessage } from './message-security.js';
 import { parseEvents } from './sse-events.js';
 
@@ -108,7 +108,7 @@ async function askTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const polled = await api('POST', `/api/messages/${encodeURIComponent(created.id)}/poll?timeout=${timeout}`) as Message;
   await verifyMessage(polled);
   const reply = latestReply(polled);
-  return ok(reply ? reply.body : `No reply before timeout. Message id: ${created.id}`);
+  return formatAskResult(created.id, reply);
 }
 
 async function replyTool(args: Record<string, unknown>): Promise<CallToolResult> {
@@ -198,7 +198,7 @@ async function streamMessages(controller: AbortController): Promise<void> {
 async function forwardMessage(mcp: Server<Request, ClaudeChannelNotification>, msg: Message): Promise<void> {
   const assurance = await verifyMessage(msg);
   const [origin, signature] = assuranceLabel(assurance).split('/');
-  await mcp.notification({ method: 'notifications/claude/channel', params: { content: msg.body, meta: { source: 'hiboss', origin: origin ?? 'unknown', signature: signature ?? 'not_applicable', message_id: msg.id, direction: msg.direction, from: msg.agent_name || msg.agent_id || 'unknown', priority: msg.priority, type: msg.type, reply_to: msg.reply_to } } });
+  await mcp.notification({ method: 'notifications/claude/channel', params: { content: formatReplyBody(msg), meta: { source: 'hiboss', origin: origin ?? 'unknown', signature: signature ?? 'not_applicable', message_id: msg.id, direction: msg.direction, from: msg.agent_name || msg.agent_id || 'unknown', priority: msg.priority, type: msg.type, reply_to: msg.reply_to } } });
   try {
     await api('PATCH', `/api/messages/${encodeURIComponent(msg.id)}`, { status: 'delivered' });
   } catch (error) {

@@ -2,6 +2,8 @@
 
 **AI Agent <-> Boss Communication Tool**
 
+Project planning and takeover baseline: [Project roadmap](docs/ROADMAP.md) — current capabilities, priorities, milestones, and verification gaps.
+
 hiboss lets AI agents send messages to their human boss and receive replies through
 familiar channels like Discord and Telegram. When an agent needs approval, wants to
 report progress, or has a question, it calls `hiboss send` or `hiboss ask` -- the
@@ -122,13 +124,14 @@ represent option text that itself contains commas.
 
 ### Action Buttons
 
-Repeat `--action "LABEL=COMMAND"` to create Telegram/Discord buttons that run commands.
-The executed command's result (success/failure + output) is automatically sent back
-to the boss as a `type=action_result` message.
+Repeat `--action "LABEL=COMMAND"` to associate a command with a Telegram/Discord
+choice. The CLI displays the returned command for the calling agent; it does not
+execute it. Automatic timeout defaults are explicitly marked and do not expose an
+action command. Use `hiboss ask --json` to inspect the outcome before acting.
 
 ```bash
 hiboss ask --action "Merge=git merge feature" --action "Reject=echo no" "Merge this PR?"
-# Boss taps "Merge" → `git merge feature` runs → result sent back automatically
+# Boss taps "Merge" → CLI displays the associated action for the caller to handle
 ```
 
 ### Channel Routing

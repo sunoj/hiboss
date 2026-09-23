@@ -36,11 +36,11 @@ hiboss send --summary "build status" "Full private-safe body here"    # --summar
 hiboss ask "Option A or B for the migration?"
 hiboss ask --timeout 60 "Quick question: proceed with deploy?"
 hiboss ask --option "A" --option "B" --option "C" "Pick one:\n1. A\n2. B\n3. C"
-hiboss ask --option "Ship" --option "Wait" --default "Ship" "Deploy now?"  # Ship auto-runs on timeout
+hiboss ask --json --option "Ship" --option "Wait" --default "Wait" "Deploy now?"
 hiboss ask --action "Approve=aid merge t-123" --action "Reject=echo rejected" "Deploy?"
 hiboss ask --to reviewer "Review feat/oauth branch"
 hiboss ask --content "payments · retry policy" --option "Approve" --option "Reject" "Retry?"  # subtitle context
-hiboss ask --option "压缩文案" --option-image "压缩文案=./after.png" --option "保持不动" --option-image "保持不动=./before.png" "A/B 选一个"
+hiboss ask --option "Shorter copy" --option-image "Shorter copy=./after.png" --option "Keep current" --option-image "Keep current=./before.png" "Choose A or B"
 ```
 
 `--content <TEXT>` adds a context line rendered as the boss notification subtitle
@@ -52,7 +52,18 @@ must not be used, and choices must not be joined with commas.
 
 `--default <LABEL>` marks one option/action label as the default. It is flagged in
 the boss UI, and if the ask times out with no reply the server auto-selects it and
-returns it to the asker, so the agent can proceed instead of stalling.
+returns it with `auto_default: true`. This is not a human reply or execution
+authorization. A shorter local polling timeout can instead return an unconfirmed
+local fallback; it does not prove that the server has selected that answer.
+
+`--json` emits one result object on stdout: `message_id`, `reply_id`, `outcome`,
+`body`, and `action`. Outcomes are `reply`, `auto_default`, `local_default`, or
+`timeout`. Automatic and local defaults always have a null action. A `reply`
+indicates an actual returned message, not proof of human approval; inspect its
+provenance and the applicable authorization context. Plain-text defaults include
+an explicit outcome marker. Action commands are displayed, never executed by
+`ask`. Existing scripts that compare raw default-answer text must adopt the JSON
+outcome contract. See [ask outcomes](../../docs/ask-outcomes.md).
 
 `--option-image LABEL=PATH_OR_URL` attaches an image to a choice so the boss can
 compare two renderings ("A or B?"). It is repeatable (at most 5), splits at the

@@ -120,10 +120,11 @@ check them with `hiboss status <id>` before claiming coordination happened.
 - When `hiboss ask` returns a boss reply, **always acknowledge via `hiboss send "your ack"`** — never just print text in conversation.
 - The reply output includes a reminder: `[reply <id>] Acknowledge via: hiboss send "..." or hiboss react <id> 👍`
 - **A returned value that equals your `--default` is not proof the boss chose it.** On timeout the
-  server auto-selects the default and returns it looking exactly like a real answer. The server
-  records which it was (the auto-generated reply carries `auto_default: true` in its metadata) but
-  no CLI surface shows it yet. Before acting on such a value irreversibly — a deploy, a migration,
-  anything outward-facing — re-ask without `--default`, or read the reply's metadata directly.
+  server auto-selects the default and returns its label as the answer body. The server
+  records which it was (the auto-generated reply carries `auto_default: true` in its metadata).
+  Use `hiboss ask --json` and inspect `outcome`: `auto_default` is server-generated and
+  `local_default` is an unconfirmed local fallback. Neither authorizes execution. A `reply`
+  still requires checking the actual message provenance and authorization context.
 
 ### Before finishing
 

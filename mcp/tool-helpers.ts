@@ -23,7 +23,24 @@ type ToolSession = {
 
 export function formatMessage(msg: ToolMessage): string {
   const from = msg.agent_name || msg.agent_id || 'unknown';
-  return `[${msg.id}] from=${from} source=${sourceLabel(msg)} priority=${msg.priority || 'normal'} type=${msg.type || 'text'}\n${msg.body}`;
+  return `[${msg.id}] from=${from} source=${sourceLabel(msg)} priority=${msg.priority || 'normal'} type=${msg.type || 'text'}\n${formatReplyBody(msg)}`;
+}
+
+export function formatReplyBody(message: Pick<ToolMessage, 'body' | 'metadata'>): string {
+  if (message.metadata?.['auto_default'] !== true) return message.body;
+  return `[auto_default] ${message.body}\nAutomatic timeout default; not a boss reply or execution authorization.`;
+}
+
+export function formatAskResult(messageId: string, reply: ToolMessage | null): CallToolResult {
+  return {
+    ...ok(reply ? formatReplyBody(reply) : `No reply before timeout. Message id: ${messageId}`),
+    structuredContent: {
+      message_id: messageId,
+      reply_id: reply?.id ?? null,
+      outcome: reply ? (reply.metadata?.['auto_default'] === true ? 'auto_default' : 'reply') : 'timeout',
+      body: reply?.body ?? null,
+    },
+  };
 }
 
 export function formatMessageList(messages: ToolMessage[], emptyText: string): string {
