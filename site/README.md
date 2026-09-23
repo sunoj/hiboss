@@ -18,3 +18,11 @@ Run `site/build.sh /absolute/new/output-directory` from the repository root. The
 ## Hosting
 
 Deploy that output directory to Cloudflare Pages with `hiboss.org` as the custom domain. The privacy policy and support pages are available at `/privacy/` and `/support/`.
+
+For a Direct Upload project, deploy the output directory with Wrangler:
+
+```sh
+npx wrangler pages deploy /absolute/output-directory --project-name YOUR_PAGES_PROJECT --branch main
+```
+
+Provide Cloudflare credentials through the deploy environment. Keep them outside the output directory and repository.
