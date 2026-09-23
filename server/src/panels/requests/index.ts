@@ -11,6 +11,7 @@ import { faultResponse, PanelFault } from '../lifecycle/types';
 import { publishRequest, replaceRequest, withdrawRequest } from './mutations';
 import { requestResponse, requestRow, submissionResponse, submissionRow } from './repository';
 import { submitAnswer } from './submissions';
+import { notifyRequestWall } from './signals';
 import { pendingRequests } from './discovery';
 import type { RequestRow } from './types';
 import { parseQuestionnaire, parseSubmission } from './validation';
@@ -51,6 +52,7 @@ interactionRequestsRouter.get('/', route(async c => c.json(await pendingRequests
 panelRequestsRouter.post('/:id/requests', route(async c => {
   const agent = owner(c);
   const result = await publishRequest(c.env.DB, c.req.param('id')!, agent, c.req.header('Idempotency-Key') ?? '', parseQuestionnaire(await body(c)));
+  await notifyRequestWall(c.env, c.req.param('id')!);
   return c.json(result, 201);
 }));
 panelRequestsRouter.get('/:id/requests', route(async c => {
@@ -70,7 +72,9 @@ interactionRequestsRouter.put('/:id', route(async c => {
   const agent = owner(c);
   const row = await requestRow(c.env.DB, c.req.param('id')!, agent, 'producer');
   const { expectedRevision, ...form } = await body(c);
-  return c.json(await replaceRequest(c.env.DB, row, agent, revision(expectedRevision), parseQuestionnaire(form)));
+  const result = await replaceRequest(c.env.DB, row, agent, revision(expectedRevision), parseQuestionnaire(form));
+  await notifyRequestWall(c.env, row.panel_id);
+  return c.json(result);
 }));
 interactionRequestsRouter.post('/:id/withdraw', route(async c => {
   const agent = owner(c);
@@ -78,6 +82,7 @@ interactionRequestsRouter.post('/:id/withdraw', route(async c => {
   const input = await body(c);
   if (Object.keys(input).some(k => !['expectedRevision', 'reason'].includes(k))) throw new PanelFault('invalid_request', 422);
   await withdrawRequest(c.env.DB, row, revision(input.expectedRevision), reason(input.reason));
+  await notifyRequestWall(c.env, row.panel_id);
   return c.json(await requestResponse(c.env.DB, await requestRow(c.env.DB, row.request_id, agent, 'producer')));
 }));
 interactionRequestsRouter.post('/:id/submissions', route(async c => {
@@ -86,6 +91,7 @@ interactionRequestsRouter.post('/:id/submissions', route(async c => {
   const row = await requestRow(c.env.DB, id, bossId, 'subscriber');
   const input = await body(c);
   const result = await submitAnswer(c.env.DB, row, { bossId, bossName: getBossName(c), tokenId: getBossTokenId(c) }, parseSubmission(input, id, bossId), input.signedSubmission);
+  await notifyRequestWall(c.env, row.panel_id);
   return c.json(result, 201);
 }));
 interactionRequestsRouter.get('/:id/submissions/:submissionId', route(async c => {

@@ -8,19 +8,24 @@ import XCTest
 
 @MainActor
 final class PanelsQuestionnaireCoverageTests: XCTestCase {
-    func testOldEmptyFetchCannotReplaceRowsOrCompleteCoverageAfterWallInvalidation() async {
+    func testOldEmptyFetchCannotAuthorizeAllClearAfterBlockingPublication() async {
         let api = ControlledQuestionnaireAPI()
         let model = makeModel(api)
-        await api.setQuestions([Self.request])
         await model.load()
         XCTAssertTrue(model.hasCompleteQuestionnaires)
+        XCTAssertTrue(model.pendingQuestionnaires.isEmpty)
         var completedSnapshots = 0
+        var allClearSnapshots = 0
         let observation = model.$hasCompleteQuestionnaires.dropFirst().filter { $0 }
-            .sink { _ in completedSnapshots += 1 }
+            .sink { _ in
+                completedSnapshots += 1
+                if model.pendingQuestionnaires.isEmpty { allClearSnapshots += 1 }
+            }
         defer { observation.cancel() }
         await api.holdQuestions(returning: [])
         let old = Task { await model.load() }
         await api.waitForQuestions()
+        await api.setQuestions([Self.request])
         await api.holdMetadata()
         model.receiveWall(.wallChanged)
         model.receiveWall(.wallChanged)
@@ -31,7 +36,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
         await api.waitForMetadata()
         XCTAssertFalse(model.hasCompleteQuestionnaires)
         XCTAssertEqual(completedSnapshots, 0, "No transient all-clear may be published")
-        XCTAssertEqual(model.pendingQuestionnaires, [Self.request])
+        XCTAssertTrue(model.pendingQuestionnaires.isEmpty, "The newly published row is not reconciled yet")
         await api.releaseMetadata()
         await followup?.value
         XCTAssertTrue(model.hasCompleteQuestionnaires)
@@ -39,6 +44,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
         let count = await api.questionFetchCount
         XCTAssertEqual(count, 3, "Repeated invalidations coalesce into one follow-up")
         XCTAssertEqual(completedSnapshots, 1)
+        XCTAssertEqual(allClearSnapshots, 0, "Current reconciliation must install the blocking row before coverage")
     }
 
     func testDisconnectRequiresAcknowledgedReconnectAndCurrentFetch() async {
