@@ -4,6 +4,7 @@
 # Dependencies: the built app, defaults, pgrep, kill, and the screenshot helper.
 
 set -eu
+: "${SCREENSHOT_HELPER:?Set SCREENSHOT_HELPER to your take_screenshot.py helper}"
 
 SPIKE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 APP="$SPIKE_DIR/dist/Panel Seam Spike.app/Contents/MacOS/PanelSeamSpike"
@@ -28,11 +29,11 @@ if [ "$ready" -ne 1 ]; then
     exit 1
 fi
 
-python3 /Users/example/.codex/skills/screenshot/scripts/take_screenshot.py --active-window --path "$EVIDENCE_DIR/light.png"
+python3 "$SCREENSHOT_HELPER" --active-window --path "$EVIDENCE_DIR/light.png"
 echo "appearance_state=light screenshot=$EVIDENCE_DIR/light.png"
 defaults write -g AppleInterfaceStyle Dark
 sleep 1
-python3 /Users/example/.codex/skills/screenshot/scripts/take_screenshot.py --active-window --path "$EVIDENCE_DIR/dark.png"
+python3 "$SCREENSHOT_HELPER" --active-window --path "$EVIDENCE_DIR/dark.png"
 echo "appearance_state=dark screenshot=$EVIDENCE_DIR/dark.png"
 defaults delete -g AppleInterfaceStyle
 sleep 1

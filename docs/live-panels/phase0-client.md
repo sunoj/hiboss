@@ -43,8 +43,8 @@ runtime fetch or a publication claim.
 ## Orchestrator verification — 2026-09-07
 
 Rebuilt the bundle and looked at the running app rather than reading the report.
-Screenshots captured independently: `screenshots/orchestrator-verified-light.png`
-and `screenshots/orchestrator-verified-dark.png`.
+Independent captures that included system keychain prompts were removed during
+public-release preparation. The light and dark demo images above remain available.
 
 What holds:
 

@@ -49,7 +49,8 @@ enough that the native `ScrollView` owns a taller document.
    preferences to set dark mode to true'`. Both the spike and the shipped
    HiBoss Island window turned dark, and **the web leaf turned dark with them** —
    dark chart background, adjusted series colour, no stranded light rectangle.
-   Evidence: `dark-osascript.png` captured by the orchestrator.
+   Evidence was captured by the orchestrator; the private terminal screenshot
+   was removed during public-release preparation.
 
    A control run mattered here. Under the wrong method the *shipped* app also stayed
    light, which is what showed the defect was in the measurement rather than in

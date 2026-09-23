@@ -16,3 +16,5 @@ result-t-*.md
 *.db
 test_migration*.sql
 result*.md
+.aid/state.toml
+spikes/panel-seam/evidence/

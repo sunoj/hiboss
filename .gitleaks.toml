@@ -1,0 +1,29 @@
+title = "HiBoss secret scanning"
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Exact synthetic test credentials and idempotency IDs, reviewed during release preparation"
+regexTarget = "secret"
+regexes = [
+  '''^abcdef1234567890$''',
+  '''^abcdef9876543210$''',
+  '''^hb_boss_aabbccddeeff00112233445566778899$''',
+  '''^hb_boss_signing_root_0011223344556677$''',
+  '''^questionnaire\-1$''',
+  '''^questionnaire\-2$''',
+]
+
+[[rules]]
+id = "hiboss-bearer-key"
+description = "Literal HiBoss bearer credential"
+regex = '''\bhb_(?:boss_)?[0-9a-fA-F]{32,64}\b'''
+
+[[rules]]
+id = "terminal-wifi-password"
+description = "Terminal Wi-Fi password committed in configuration"
+regex = '''CONFIG_WIFI_PASSWORD\s*=\s*"([^"]+)"'''
+secretGroup = 1
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ["^your-wifi-password$"]
