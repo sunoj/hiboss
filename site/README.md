@@ -13,6 +13,4 @@ python3 -m http.server 8080
 
 ## Hosting
 
-The directory has no build step or runtime dependencies. A Cloudflare Pages project can publish `site/` as its output directory with no build command, then attach the `hiboss.org` custom domain. The domain's DNS zone is on Cloudflare. Publish only after verifying the actual output with `security-guard artifact site --repo <repo>` and reviewing the privacy/support copy, DNS, and the public response from a remote host.
-
-The contact address `hi@hiboss.org` was supplied for the privacy and support pages. Verify its mailbox independently before deploying.
+The directory has no build step or runtime dependencies. Serve `site/` as the static root for `hiboss.org`. The privacy policy and support pages are available at `/privacy/` and `/support/`.

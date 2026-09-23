@@ -44,9 +44,6 @@ img{max-width:100%;display:block}
 .visual-caption{position:absolute;bottom:32px;left:40px;color:#594d43;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800}
 .hero-scroll{position:absolute;bottom:36px;left:clamp(28px,7vw,130px);z-index:3;font-size:.7rem;letter-spacing:.16em;font-weight:800;display:flex;gap:1.5rem;align-items:center}
 .hero-scroll span{font-size:1.3rem;letter-spacing:0}
-.hero-enter{animation:rise .8s both}
-.hero-enter:nth-child(2){animation-delay:.08s}.hero-enter:nth-child(3){animation-delay:.16s}.hero-enter:nth-child(4){animation-delay:.24s}.hero-enter:nth-child(5){animation-delay:.32s}
-@keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 .section-shell{padding-left:clamp(28px,7vw,130px);padding-right:clamp(28px,7vw,130px)}
 .intro{padding-top:clamp(100px,12vw,190px);padding-bottom:clamp(100px,12vw,180px);max-width:var(--max);margin:auto}
 .intro-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:10vw;align-items:end;margin-bottom:clamp(80px,10vw,150px)}
@@ -69,7 +66,6 @@ img{max-width:100%;display:block}
 .closing .display-title{margin-bottom:3rem}
 .site-footer{border-top:1px solid var(--line);padding:55px clamp(28px,7vw,130px) 35px;display:grid;grid-template-columns:1fr 1fr auto;gap:25px;align-items:center}
 .site-footer p{font-size:.85rem;color:var(--muted);margin:0}.site-footer small{grid-column:1/-1;color:var(--muted);font-size:.8rem}
-.reveal{transition:opacity .7s ease,transform .7s ease}.has-js .reveal{opacity:0;transform:translateY(22px)}.has-js .reveal.is-visible{opacity:1;transform:none}
 .doc-page{min-height:100svh;padding-top:150px;padding-bottom:120px}
 .doc-shell{width:min(100% - 48px,850px);margin:auto}
 .doc-kicker{color:#a24b21}.doc-page h1{font-size:clamp(3.6rem,8vw,7rem);letter-spacing:-.075em;line-height:.95;margin:0 0 2rem}
@@ -83,4 +79,4 @@ img{max-width:100%;display:block}
 .doc-links a{padding:1.5rem 0;border-bottom:1px solid var(--line);font-weight:750;display:flex;justify-content:space-between;gap:1rem}.doc-links a:hover{color:#a24b21}
 @media(max-width:900px){.hero{grid-template-columns:1fr;min-height:0}.hero-copy{padding:140px 28px 65px}.hero h1{font-size:clamp(5.8rem,19vw,9rem)}.hero-visual{height:690px;padding-top:50px}.phone-frame{width:350px;transform:rotate(4deg) translateY(2%)}.hero-scroll{display:none}.intro-grid{grid-template-columns:1fr;gap:2rem}.ownership-bottom{align-items:start;flex-direction:column}.site-footer{grid-template-columns:1fr auto}.site-footer p{grid-column:1/-1;grid-row:2}.site-footer nav{grid-column:2;grid-row:1}}
 @media(max-width:600px){.site-header{height:66px;padding:0 22px}.wordmark{font-size:1.65rem}.site-header nav{gap:16px}.site-header nav a{font-size:.79rem}.site-header nav a:first-child{display:none}.hero-copy{padding:128px 24px 58px}.hero h1{font-size:clamp(5.5rem,21vw,7.5rem);margin-bottom:35px}.hero-statement{font-size:2.45rem}.hero-actions{gap:1.5rem}.hero-visual{height:610px}.phone-frame{width:300px;border-radius:44px;border-width:8px}.phone-frame img{border-radius:37px}.visual-caption{left:22px;bottom:22px}.intro{padding-top:90px;padding-bottom:90px}.display-title{font-size:clamp(3.3rem,13vw,5rem)}.intro-grid{margin-bottom:65px}.feature{grid-template-columns:35px 1fr auto;gap:10px;padding:1.5rem 0}.feature p{font-size:.93rem}.feature-arrow{font-size:1.5rem}.ownership{min-height:0}.ownership-inner{padding-top:90px;padding-bottom:90px}.ownership-bottom{margin-top:80px}.closing{padding-top:100px;padding-bottom:100px}.site-footer{padding-top:40px;display:block}.site-footer>*{margin-bottom:20px}.site-footer nav{flex-wrap:wrap}.doc-page{padding-top:115px}.doc-shell{width:min(100% - 40px,850px)}.doc-links{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}.has-js .reveal{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
