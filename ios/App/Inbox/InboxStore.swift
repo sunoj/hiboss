@@ -13,13 +13,17 @@ enum ReplyResult: Equatable { case sent, alreadyResolved, failed }
 @MainActor
 final class InboxStore: ObservableObject {
     @Published private(set) var history: [HistoryMessage] = []
+    @Published var requiredInputs: [HistoryMessage] = []
+    @Published var requiredInputError: String?
+    @Published var requiredInputLoaded = false
+    @Published var requiredInputReady = false
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var loadError: String?
     /// False until the first history fetch completes, so views can show a spinner
     /// instead of flashing an empty state on cold launch.
     @Published private(set) var didLoad = false
     /// Ids removed optimistically (answered/expired locally) until history catches up.
-    @Published private(set) var withdrawn: Set<MessageID> = []
+    @Published var withdrawn: Set<MessageID> = []
     /// Decisions that should keep a settled card after leaving `pending`.
     @Published private(set) var settledIDs: Set<MessageID> = []
     /// Optimistic / stream-provided answers until history replies catch up.
@@ -29,9 +33,14 @@ final class InboxStore: ObservableObject {
     @Published var openedMessages: [MessageID: MessageDetail] = [:]
 
     var api: (any BossServing)?
-    private let reconnectDelay: Duration
+    let reconnectDelay: Duration
     private var streamTask: Task<Void, Never>?
     private var historyTask: Task<Void, Never>?
+    private var historyVersion = 0
+    var requiredStreamTask: Task<Void, Never>?
+    var requiredFetchTask: Task<Void, Never>?
+    var requiredEpoch = 0
+    var requiredFetchVersion = 0
     /// One timer per pending decision deadline, so an expiring card drops out of
     /// `pending` on time instead of waiting for the next unrelated stream event.
     private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
@@ -93,12 +102,15 @@ final class InboxStore: ObservableObject {
         self.api = api
         connectionState = .connecting
         streamTask = Task { [weak self] in await self?.consume(api) }
+        startRequiredInputs(api)
         refreshHistory()
     }
 
     func stop() {
         streamTask?.cancel()
         historyTask?.cancel()
+        historyVersion += 1
+        stopRequiredInputs()
         streamTask = nil
         historyTask = nil
         cancelExpiries()
@@ -116,32 +128,44 @@ final class InboxStore: ObservableObject {
     func refreshHistory() {
         guard let api else { return }
         historyTask?.cancel()
+        historyVersion += 1
+        let version = historyVersion
         historyTask = Task { [weak self] in
             do {
                 let messages = try await api.fetchHistory()
-                guard !Task.isCancelled, let self else { return }
+                guard !Task.isCancelled, let self, version == self.historyVersion else { return }
                 self.applyHistory(messages)
                 await self.syncDecisionActivity()
             } catch where Task.isCancelled {
                 return
             } catch {
-                self?.loadError = error.localizedDescription
-                self?.didLoad = true
+                guard let self, version == self.historyVersion else { return }
+                self.loadError = error.localizedDescription
+                self.didLoad = true
             }
         }
+        Task { await refreshRequiredInputs() }
     }
 
     /// Awaitable history reload for pull-to-refresh; keeps the spinner up until done.
     func refresh() async {
         guard let api else { return }
+        historyVersion += 1
+        let version = historyVersion
+        async let inputRefresh: Void = refreshRequiredInputs()
         do {
             let messages = try await api.fetchHistory()
-            applyHistory(messages)
-            await syncDecisionActivity()
+            if !Task.isCancelled, version == historyVersion {
+                applyHistory(messages)
+                await syncDecisionActivity()
+            }
         } catch {
-            loadError = error.localizedDescription
-            didLoad = true
+            if !Task.isCancelled, version == historyVersion {
+                loadError = error.localizedDescription
+                didLoad = true
+            }
         }
+        await inputRefresh
     }
 
     /// Commit a fresh history snapshot and re-arm all derived state.
@@ -149,7 +173,6 @@ final class InboxStore: ObservableObject {
         history = messages
         loadError = nil
         didLoad = true
-        pruneWithdrawn()
         adoptHistoryReplies()
         rescheduleExpiries()
     }
@@ -157,17 +180,25 @@ final class InboxStore: ObservableObject {
     @discardableResult
     func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
         guard let api else { return .failed }
-        withdrawn.insert(id)
-        settledIDs.insert(id)
-        localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
+        let epoch = requiredEpoch
         do {
             let outcome = try await api.reply(to: id, with: choice)
+            guard epoch == requiredEpoch else {
+                return outcome == .alreadyResolved ? .alreadyResolved : .sent
+            }
             if outcome == .alreadyResolved {
-                localResolutions[id] = DecisionSettlement(answer: choice, source: nil)
+                withdrawn.remove(id)
+                settledIDs.remove(id)
+                localResolutions[id] = nil
+            } else {
+                withdrawn.insert(id)
+                settledIDs.insert(id)
+                localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
             }
             refreshHistory()
             return outcome == .alreadyResolved ? .alreadyResolved : .sent
         } catch {
+            guard epoch == requiredEpoch else { return .failed }
             withdrawn.remove(id)
             settledIDs.remove(id)
             localResolutions[id] = nil
@@ -223,14 +254,6 @@ final class InboxStore: ObservableObject {
             }
             refreshHistory()
         }
-    }
-
-    /// Drop withdrawn ids once history no longer lists them as pending.
-    private func pruneWithdrawn() {
-        let stillPending = Set(history.filter {
-            $0.isPendingDecision || AttentionModel.needsTextReply($0)
-        }.map(\.id))
-        withdrawn.formIntersection(stillPending)
     }
 
     /// Prefer the persisted boss reply (body + source) over an optimistic guess.

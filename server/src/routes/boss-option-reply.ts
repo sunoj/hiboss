@@ -37,7 +37,7 @@ export async function claimOptionReply(
      SET status = 'replied', updated_at = datetime('now')
      WHERE id = ?
        AND status IN ('sent', 'delivered', 'read')
-       AND expires_at > ?
+       AND (expires_at IS NULL OR expires_at > ?)
      RETURNING id`,
   ).bind(parent.id, now).first<{ id: string }>();
   return claimed ? { kind: 'claimed' } : { kind: 'resolved' };

@@ -47,15 +47,15 @@ final class HomeAttentionUITests: XCTestCase {
     }
 
     func testPopulatedDemoShowsAttentionCount() {
-        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
     }
 
     func testTwoChoiceDecisionCanBeAnsweredInline() {
-        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
         let choice = app.buttons["Coarse grid"]
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
         choice.tap()
-        XCTAssertTrue(app.staticTexts["2 items waiting on your call"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["home-message-c5"].exists)
     }
 
@@ -79,13 +79,13 @@ final class HomeAttentionUITests: XCTestCase {
         app.terminate()
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
         app.launch()
-        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
         let option = app.buttons["Fail over to Adyen"]
         for _ in 0..<12 where !option.isHittable { app.swipeUp() }
         XCTAssertTrue(option.isHittable)
         option.tap()
-        for _ in 0..<12 where !app.staticTexts["2 items waiting on your call"].isHittable { app.swipeDown() }
-        XCTAssertTrue(app.staticTexts["2 items waiting on your call"].exists)
+        for _ in 0..<12 where !app.staticTexts["3 items waiting on your call"].isHittable { app.swipeDown() }
+        XCTAssertTrue(app.staticTexts["3 items waiting on your call"].exists)
     }
 
     func testEmptyDemoShowsSettledAnswer() {

@@ -1,59 +1,54 @@
 KB consulted: `kb ios home attention swiftui` matched the SwiftUI silent-view-drop
-lesson, `ai-coding/a-view-the-platform-drops-renders-no-error.md`.
+lesson (`ai-coding/a-view-the-platform-drops-renders-no-error.md`). The review also
+used the fixture-contract lesson,
+`ai-coding/a-stub-that-agrees-with-the-code-proves-nothing.md`.
 
 # iOS Home attention update
 
-## Findings and changes
+## Observed gaps
 
-- Home previously excluded all messages without options and did not include
-  pending questionnaires in its attention count.
-- Home now uses one snapshot for message groups, questionnaire rows, and the
-  count. Blocking text asks join the blocked group. Existing option filtering,
-  ranking, and tie-breakers remain unchanged.
-- Blocking questionnaire rows are independent of the selected wall filter, deduplicated
-  by request ID, and filtered for expiry using the panel's server clock. The
-  latest request revision wins. Known terminal panels cannot retain requests.
-- Text asks open message detail and its free-text reply. Optimistic withdrawal
-  survives stale history and is rolled back on send failure. Questionnaires
-  open their owning panel through the existing panel detail sheet.
-- The all-clear state requires zero attention items and completed, successful
-  message and questionnaire loading. Known items remain visible on load errors.
-- Cards combine project and agent attribution, omit repeated context, and give
-  all choices equal styling. Short pairs stay inline; long/many choices and
-  accessibility text sizes use vertically wrapping controls with 44pt targets.
-- The five tabs, notification routing, system theme tokens, safe-area structure,
-  and AllClearIsland artwork/motion implementation are unchanged.
+The bounded, mixed-direction message history could omit an older unresolved
+request. The existing options stream did not deliver blocking text asks. The
+priority subset could hide a normal-priority option while Home reported that
+nothing needed a reply. A NULL-expiry option could appear but its reply returned
+409. Pending blocking questionnaires were also absent from Home's count.
 
-## Coverage added
+## Implemented contract
 
-Model and flow cases cover text ask filtering, unchanged option ordering,
-request-ID deduplication, latest revisions, server-clock expiry, counts across
-resolution, owning-panel selection outside the wall filter, stale history,
-and failed replies. UI cases cover inline answers, text detail/reply, and
-reaching later choices at accessibility text sizes. Existing populated and
-empty Home UI cases remain in place. Demo panel reads now return a known empty
-result instead of depending on server credentials; the oversized demo data
-file's unchanged progress service was moved to its own file.
+- `GET /api/boss/pending-inputs` returns scoped, unresolved option and blocking
+  text requests through a complete keyset page sequence. The normal Inbox history
+  remains bounded. Missing pages, malformed cursors, and request failures cannot
+  authorize Home's all-clear state.
+- `GET /api/boss/stream?inputs=true` discovers both kinds of required input and
+  reports their resolution. The client applies events immediately, reconciles the
+  complete set, and requires a new ready event and successful fetch after a
+  disconnect. The existing `options=true` stream remains available.
+- Home counts every unresolved option decision regardless of declared priority
+  or session status. Priority still orders the rows. Blocking text asks and
+  blocking questionnaires also count. Forms are deduplicated by request ID,
+  use the panel clock for expiry, and open their owning panel.
+- A reply stays counted until the server accepts it. A failed or already-resolved
+  reply does not create a temporary all-clear. The server accepts active options
+  without an expiry while retaining the one-winner status claim and choice checks.
+- Short option pairs remain directly actionable. Long lists stack at accessibility
+  sizes. Text asks open the existing reply detail. Empty and incomplete states
+  have distinct presentations.
+- Demo deadlines remain near enough to show a useful countdown during UI tests.
+  The demo choice fixture describes its options in text because its old example
+  image URLs did not load. Production option media support remains intact.
 
-## Runtime behavior
+## Verification
 
-- A request whose panel has not loaded remains counted. Opening it explains
-  that the panel is unavailable and asks the user to refresh.
+- iOS simulator build with Xcode 27: passed.
+- `HomeAttentionModelTests`, `HomeAttentionFlowTests`, and
+  `RequiredInputCoverageTests`: 24 passed.
+- `HomeAttentionUITests`: 5 passed on an iPhone 18 Pro simulator, including text
+  reply, inline choice, empty state, and accessibility-size option reachability.
+- `RequiredInputClientTests`: 4 passed.
+- Server TypeScript check and the focused pending-input, access, and options
+  stream suites: 14 passed.
+- Current simulator captures: `ios/Screenshots/home-attention-populated.png` and
+  `ios/Screenshots/home-attention-empty.png`.
 
-## Changed files
-
-- `ios/App/Home/HomeAttentionModel.swift`
-- `ios/App/Home/HomeAttentionRow.swift`
-- `ios/App/Home/HomeView.swift`
-- `ios/App/Inbox/InboxStore.swift`
-- `ios/App/Inbox/MessageCard.swift`
-- `ios/App/Inbox/MessageDetailView.swift`
-- `ios/App/Preview/DemoData.swift`
-- `ios/App/Preview/DemoHomePanelsAPI.swift`
-- `ios/App/Preview/DemoProgressAPI.swift`
-- `ios/App/Shell/RootTabView.swift`
-- `ios/Tests/HomeAttentionModelTests.swift`
-- `ios/Tests/HomeAttentionFlowTests.swift`
-- `ios/UITests/DemoLaunchSupport.swift`
-- `ios/UITests/ResolvedNavigationUITests.swift`
-- This investigation report.
+The updated iOS Home requires the pending-input endpoint and input stream from
+this server revision. An older server cannot provide a complete attention state.

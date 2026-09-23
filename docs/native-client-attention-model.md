@@ -1,4 +1,11 @@
-# Attention model — the shared contract for both native clients
+# Attention model — original shared design
+
+Implementation note (2026-09-23): iOS Home now counts every unresolved option
+decision and blocking text ask regardless of declared priority or session
+status. It also counts unresolved blocking questionnaires. The macOS attention
+subset still follows the priority rule below. See
+[`investigation-ios-home-attention-update.md`](investigation-ios-home-attention-update.md)
+for the iOS implementation and validation.
 
 The iOS app and the macOS windows are being redesigned together. This file is the
 single model they both implement. Where a client deviates it must be because the

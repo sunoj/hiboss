@@ -14,7 +14,7 @@ enum AttentionGroup: Int, CaseIterable, Equatable, Hashable {
         switch self {
         case .autoDecision: "Decides for you soon"
         case .blocked: "Stopped on you"
-        case .priority: "Priority"
+        case .priority: "Other decisions"
         }
     }
 }
@@ -64,7 +64,6 @@ enum AttentionModel {
         if message.expirationDate == nil, message.sessionStatus?.lowercased() == "waiting" {
             return AttentionItem(message: message, group: .blocked)
         }
-        guard message.priorityValue == .critical || message.priorityValue == .high else { return nil }
         return AttentionItem(message: message, group: .priority)
     }
 

@@ -17,7 +17,8 @@ extension InboxStore {
     }
 
     func message(for id: MessageID) -> HistoryMessage? {
-        history.first { $0.id == id } ?? openedMessages[id]?.message
+        history.first { $0.id == id } ?? requiredInputs.first { $0.id == id }
+            ?? openedMessages[id]?.message
     }
 
     func reply(to id: MessageID) -> HistoryMessage? {

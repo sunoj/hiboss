@@ -10,7 +10,7 @@ var isDemoMode: Bool {
 }
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
-final class DemoBossAPI: BossServing, SessionStreamServing, HomeServing, @unchecked Sendable {
+final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing, HomeServing, @unchecked Sendable {
     var messages: [HistoryMessage]
 
     init() {
@@ -41,6 +41,17 @@ final class DemoBossAPI: BossServing, SessionStreamServing, HomeServing, @unchec
         let delay = UInt64(rawDelay) ?? 0
         if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
         return messages
+    }
+
+    func fetchRequiredInputs() async throws -> [HistoryMessage] {
+        messages.filter { $0.isPendingDecision || AttentionModel.needsTextReply($0) }
+    }
+
+    func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {
+        AsyncThrowingStream { continuation in
+            continuation.yield(.ready)
+            continuation.onTermination = { _ in }
+        }
     }
 
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
@@ -87,7 +98,9 @@ private enum DemoConnectionError: Error, LocalizedError {
 /// Sample history grouped into three sessions plus a direct message.
 private enum DemoFixtures {
     static func iso(_ offset: TimeInterval) -> String {
-        Date().addingTimeInterval(offset).ISO8601Format()
+        let stable = ProcessInfo.processInfo.environment["HIBOSS_DEMO_STABLE_DEADLINES"] == "1"
+        let reference = stable && offset > 0 ? Date().addingTimeInterval(20 * 60) : Date()
+        return reference.addingTimeInterval(offset).ISO8601Format()
     }
 
     /// `HIBOSS_DEMO_EMPTY=1` drops live decisions so the all-clear strip can be screenshotted.
@@ -126,25 +139,13 @@ private enum DemoFixtures {
 
     private static let deploy: [HistoryMessage] = [
         HistoryMessage(
-            id: "c5", body: "Two takes on the release banner — which one ships?",
+            id: "c5", body: "Which release banner grid should ship — coarse blocks or a fine weave?",
             agentName: "worker-design", direction: "agent_to_boss", status: "delivered",
             priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
                 options: ["Coarse grid", "Fine grid"],
-                optionMedia: [
-                    OptionMedia(
-                        label: "Coarse grid",
-                        url: "https://hiboss-server.example.workers.dev/api/attachments/f6ea7769-1f48-4de7-a887-21304252cf42.png",
-                        caption: "wider blocks"
-                    ),
-                    OptionMedia(
-                        label: "Fine grid",
-                        url: "https://hiboss-server.example.workers.dev/api/attachments/28eba3a2-330a-4cb6-90a0-30ba14dc51d5.png",
-                        caption: "tighter weave"
-                    ),
-                ],
                 defaultOption: "Coarse grid",
-                content: "The agent is waiting on a visual pick."
+                content: "Choose the density for the banner layout."
             ),
             expiresAt: iso(90), createdAt: iso(-60),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
@@ -189,7 +190,7 @@ private enum DemoFixtures {
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "c5", body: "Page the on-call for the staging 5xx spike?",
+            id: "c6", body: "Page the on-call for the staging 5xx spike?",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "normal", channel: "api", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(options: ["Page", "Later"]),
@@ -201,7 +202,7 @@ private enum DemoFixtures {
             id: "r5", body: "Later",
             agentName: "orchestrator-01", direction: "boss_to_agent", status: "sent",
             priority: "normal", channel: "api", mode: "async",
-            replyTo: "c5",
+            replyTo: "c6",
             metadata: MessageMetadata(options: [], source: "macos"),
             createdAt: iso(-179_900),
             targetSessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",

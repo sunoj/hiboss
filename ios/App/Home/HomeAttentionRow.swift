@@ -62,9 +62,11 @@ struct HomeAttentionSection: View {
             Text("Needs you now")
                 .font(.hbLargeTitle)
                 .foregroundStyle(Theme.ink)
-            Text(verbatim: titleSubtitle)
-                .font(.hbCallout)
-                .foregroundStyle(Theme.ink2)
+            if snapshot.count > 0 || status != nil || hasPanels {
+                Text(verbatim: titleSubtitle)
+                    .font(.hbCallout)
+                    .foregroundStyle(Theme.ink2)
+            }
         }
     }
 

@@ -9,8 +9,22 @@ import { escapeLike } from './bosses';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
+import { decodeRequiredInputCursor, fetchRequiredInputPage } from './boss-required-inputs';
 const routes = new Hono<{ Bindings: Env }>();
 const MAX_LIMIT = 100;
+
+/** GET /api/boss/pending-inputs — complete required inputs, paged independently of history. */
+routes.get('/pending-inputs', async (c) => {
+  const bossId = getBossId(c);
+  const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
+  let cursor: ReturnType<typeof decodeRequiredInputCursor>;
+  try {
+    cursor = decodeRequiredInputCursor(c.req.query('cursor'));
+  } catch {
+    return c.text('invalid pending-input cursor', 400);
+  }
+  return c.json(await fetchRequiredInputPage(c.env, agentIds, cursor, new Date().toISOString()));
+});
 
 function messageQuery(c: Context<{ Bindings: Env }>, agentIds: string[]): { limit: number; offset: number; clauses: string[]; binds: (string | number)[] } | null {
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);

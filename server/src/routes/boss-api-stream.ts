@@ -8,6 +8,7 @@ import { getAccessibleAgentIds } from './boss-api-access';
 import { mapMessageRow } from './message-helpers';
 import { streamBossOptions } from './boss-option-stream';
 import { streamBossFeed } from './boss-feed-stream';
+import { streamBossRequiredInputs } from './boss-required-input-stream';
 const routes = new Hono<{ Bindings: Env }>();
 
 /** GET /api/boss/stream — SSE stream of new agent messages for the boss */
@@ -24,9 +25,11 @@ routes.get('/stream', async (c) => {
 
   const stream = c.req.query('options') === 'true'
     ? streamBossOptions(writer, encoder, c.env, agentIds)
-    : c.req.query('feed') === 'true'
-      ? streamBossFeed(writer, encoder, c.env, agentIds)
-      : bossStreamLoop(writer, encoder, c.env, bossId, agentIds);
+    : c.req.query('inputs') === 'true'
+      ? streamBossRequiredInputs(writer, encoder, c.env, agentIds)
+      : c.req.query('feed') === 'true'
+        ? streamBossFeed(writer, encoder, c.env, agentIds)
+        : bossStreamLoop(writer, encoder, c.env, bossId, agentIds);
   c.executionCtx.waitUntil(stream);
 
   return new Response(readable, {

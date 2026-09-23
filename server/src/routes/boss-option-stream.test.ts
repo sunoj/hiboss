@@ -93,7 +93,7 @@ describe('Boss option stream lifecycle', () => {
     await stream.cancel();
   });
 
-  it('ignores legacy option rows without an expiry', async () => {
+  it('omits undated options from the legacy stream while allowing a direct reply', async () => {
     const messageId = `legacy-undated-${Date.now()}`;
     await env.DB.prepare(
       `INSERT INTO messages
@@ -107,7 +107,7 @@ describe('Boss option stream lifecycle', () => {
       .bind(messageId)
       .first<{ status: string }>();
     expect(row?.status).toBe('sent');
-    expect((await replyTo(messageId, 'Old')).status).toBe(409);
+    expect((await replyTo(messageId, 'Old')).status).toBe(201);
 
     await stream.cancel();
   });

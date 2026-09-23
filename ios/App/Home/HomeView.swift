@@ -56,7 +56,7 @@ struct HomeView: View {
     private func attentionContent(now: Date) -> some View {
         HomeAttentionSection(
             snapshot: HomeAttentionSnapshot(
-                messages: inbox.history, withdrawn: inbox.withdrawn,
+                messages: inbox.requiredInputs, withdrawn: inbox.withdrawn,
                 questionnaires: panels.pendingQuestionnaires,
                 terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
                 now: now, panelNow: { panels.serverNow(for: $0) }
@@ -70,10 +70,11 @@ struct HomeView: View {
     }
 
     private var attentionStatus: String? {
-        if let error = inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
+        if let error = inbox.requiredInputError ?? inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
             return "Couldn't check all requests. \(error) Pull to refresh."
         }
-        if !inbox.didLoad || panels.loadState != .loaded || panels.isLoadingQuestions {
+        if !inbox.didLoad || !inbox.hasCompleteRequiredInputs
+            || panels.loadState != .loaded || panels.isLoadingQuestions {
             return "Checking for requests…"
         }
         return nil

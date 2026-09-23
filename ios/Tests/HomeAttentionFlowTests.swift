@@ -97,13 +97,34 @@ final class HomeAttentionFlowTests: XCTestCase {
         let result = await store.reply("Try staging", to: ask.id)
         XCTAssertEqual(result, .failed)
         XCTAssertEqual(snapshot(store).count, 1)
-        let mixed = HomeAttentionSnapshot(messages: store.history, withdrawn: store.withdrawn,
+        let mixed = HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn,
                                           questionnaires: [request("form")], now: now)
         XCTAssertEqual(mixed.count, 2)
     }
 
+    func testAlreadyResolvedResponseKeepsStillPendingOptionVisible() async {
+        let option = HistoryMessage(
+            id: "null-expiry-option", body: "Choose a path", direction: "agent_to_boss",
+            status: "sent", priority: "normal", mode: "blocking",
+            metadata: MessageMetadata(options: ["Proceed"]), createdAt: now.ISO8601Format()
+        )
+        let api = TextReplyAPI(messages: [option])
+        api.outcome = .alreadyResolved
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: api)
+        defer { store.stop() }
+        await store.refresh()
+        XCTAssertEqual(store.requiredInputs.map(\.id), [option.id])
+        let result = await store.reply("Proceed", to: option.id)
+        XCTAssertEqual(result, .alreadyResolved)
+        XCTAssertFalse(store.withdrawn.contains(option.id))
+        XCTAssertEqual(store.requiredInputs.map(\.id), [option.id])
+        XCTAssertEqual(HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn,
+                                             questionnaires: [], now: now).count, 1)
+    }
+
     private func snapshot(_ store: InboxStore) -> HomeAttentionSnapshot {
-        HomeAttentionSnapshot(messages: store.history, withdrawn: store.withdrawn, questionnaires: [], now: now)
+        HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn, questionnaires: [], now: now)
     }
 
     private var ask: HistoryMessage {
@@ -120,22 +141,44 @@ final class HomeAttentionFlowTests: XCTestCase {
     }
 }
 
-private final class TextReplyAPI: BossServing, @unchecked Sendable {
+private final class TextReplyAPI: BossServing, RequiredInputServing, @unchecked Sendable {
     var messages: [HistoryMessage]
     var answer: String?
     var fails = false
+    var outcome: ReplyOutcome = .accepted
+    private var inputContinuation: AsyncThrowingStream<RequiredInputEvent, Error>.Continuation?
 
     init(messages: [HistoryMessage]) { self.messages = messages }
 
     func fetchHistory() async throws -> [HistoryMessage] { messages }
 
+    func fetchRequiredInputs() async throws -> [HistoryMessage] {
+        messages.filter { $0.mode == "blocking" && $0.status != "replied" }
+    }
+
+    func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {
+        AsyncThrowingStream { continuation in
+            inputContinuation = continuation
+            continuation.yield(.ready)
+        }
+    }
+
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
         AsyncThrowingStream { $0.onTermination = { _ in } }
     }
 
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
+
+    func fetchMessage(_ id: MessageID) async throws -> MessageDetail {
+        throw HibossAPIError.requestFailed(status: 404, message: "Missing test message")
+    }
+
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         if fails { throw HibossAPIError.requestFailed(status: 503, message: "Unavailable") }
+        if outcome == .alreadyResolved { return outcome }
         answer = choice
-        return .accepted
+        return outcome
     }
 }

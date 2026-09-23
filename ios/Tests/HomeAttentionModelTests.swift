@@ -20,12 +20,13 @@ final class HomeAttentionModelTests: XCTestCase {
             message("priority", priority: "high", createdOffset: -500),
             message("blocked", priority: "low", sessionStatus: "waiting", createdOffset: -600),
             message("auto", priority: "low", expiresOffset: 120, defaultOption: "Hold", createdOffset: -30),
-            message("normal", priority: "normal"),
+            message("normal", priority: "normal", expiresOffset: 180),
+            message("low", priority: "low", sessionStatus: nil),
             message("expired-metadata", priority: "critical", isExpired: true),
         ]
 
         XCTAssertEqual(AttentionModel.items(from: messages, now: now).map(\.id), [
-            "auto", "blocked", "priority",
+            "auto", "blocked", "priority", "normal", "low",
         ])
     }
 

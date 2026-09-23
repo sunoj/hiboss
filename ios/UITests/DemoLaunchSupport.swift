@@ -17,6 +17,7 @@ extension XCUIApplication {
         "HIBOSS_DEMO_RESOLVED",
         "HIBOSS_DEMO_EMPTY",
         "HIBOSS_DEMO_TEXT_ASK",
+        "HIBOSS_DEMO_STABLE_DEADLINES",
         "HIBOSS_PANELS_DEMO",
         "HIBOSS_DEMO_HISTORY_DELAY_MS",
         "HIBOSS_DEMO_MESSAGE_DELAY_MS",
@@ -29,6 +30,7 @@ extension XCUIApplication {
         for key in Self.demoRouteKeys {
             launchEnvironment[key] = ""
         }
+        launchEnvironment["HIBOSS_DEMO_STABLE_DEADLINES"] = "1"
         for (key, value) in extra {
             launchEnvironment[key] = value
         }
