@@ -11,6 +11,10 @@ cd site
 python3 -m http.server 8080
 ```
 
+## Build
+
+Run `site/build.sh /absolute/new/output-directory` from the repository root. The script copies an explicit list of public files into a new directory. It has no runtime dependencies.
+
 ## Hosting
 
-The directory has no build step or runtime dependencies. Serve `site/` as the static root for `hiboss.org`. The privacy policy and support pages are available at `/privacy/` and `/support/`.
+Deploy that output directory to Cloudflare Pages with `hiboss.org` as the custom domain. The privacy policy and support pages are available at `/privacy/` and `/support/`.
