@@ -48,6 +48,23 @@ TypeScript checking. History rewriting changes commit IDs and invalidates commit
 or tag signatures; old SHA references in historical documents describe the
 pre-cleanup baseline and are not public recovery links.
 
+Completed local verification:
+
+- Removed 26 historical paths and retained 784 reachable commits after pruning
+  empty cleanup-only commits. Local audit refs cover 19 imported PR heads.
+- Gitleaks history scan and exported tracked-tree scan both returned zero findings
+  under the checked-in configuration.
+- An independent scan of reachable blobs and commit/tag metadata found zero
+  occurrences of the private replacement values; removed paths were absent from
+  every local ref. `git fsck --full` reported no problems or dangling objects.
+- The current tree ID was identical before and immediately after rewriting.
+- Commit author/committer identities now use the existing maintainer noreply
+  address or GitHub's own noreply address.
+
+The captured remote inventory contains 15 branch heads and 43 tags. Six additional
+local historical branches came from stale tracking refs and must not be recreated
+remotely merely because they were included in the local audit.
+
 ## Remote completion
 
 Local cleanup alone does not replace GitHub's history. Remote branch and tag
