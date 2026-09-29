@@ -148,13 +148,13 @@ async function resolveStatus(
   tracked: TrackedOption,
   now: string,
 ): Promise<OptionResolution> {
-  if (tracked.expiresAt && tracked.expiresAt <= now) {
-    return { id: messageId, status: 'expired', answer: null, source: null };
-  }
   const row = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
     .bind(messageId)
     .first<{ status: Status }>();
   if (row?.status === 'expired') {
+    return { id: messageId, status: 'expired', answer: null, source: null };
+  }
+  if (row?.status !== 'replied' && tracked.expiresAt && tracked.expiresAt <= now) {
     return { id: messageId, status: 'expired', answer: null, source: null };
   }
   const reply = await env.DB.prepare(
@@ -180,6 +180,7 @@ function metadataResolutionSource(metadata: string | null): ResolutionSource | n
   if (!metadata) return null;
   try {
     const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    if (parsed['auto_default'] === true) return 'system';
     const source = parsed['source'];
     return source === 'ios' || source === 'macos' || source === 'telegram' || source === 'discord' || source === 'api'
       ? source

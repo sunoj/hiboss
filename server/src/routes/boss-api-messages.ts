@@ -2,6 +2,7 @@
 // Exports bossMessagesRouter; depends on authentication, D1, and shared boss access.
 import { Hono, type Context } from 'hono';
 import type { Env, MessageRow } from '../types';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { getBossId, getBossRole } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api-access';
 import { mapMessageRow, clampNumber, parsePriorityFilter } from './message-helpers';
@@ -147,10 +148,10 @@ routes.patch('/messages/:id', async (c) => {
     .first<MessageRow>();
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
   const updated = await c.env.DB
-    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? RETURNING *")
+    .prepare(`UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING *`)
     .bind(status, row.id)
     .first<MessageRow>();
-  if (!updated) return c.text('update failed', 500);
+  if (!updated) return c.text('message already resolved', 409);
   return c.json(mapMessageRow(updated));
 });
 

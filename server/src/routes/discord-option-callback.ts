@@ -6,11 +6,12 @@ import type { Context } from 'hono';
 import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
-import { claimOptionReply } from './boss-option-reply';
+import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { withdrawResolvedOptions } from './message-options';
 import { checkBossPermission, findDiscordAgent } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { channelMetadata, mergeProvenance } from '../message-security';
 
 interface DiscordOptionPayload {
@@ -39,13 +40,11 @@ export async function handleDiscordOptionCallback(
   if (!parent) return c.text('message not found', 404);
   if (parent.status === 'expired') return expiredResponse(c);
 
-  const claim = await claimOptionReply(c.env, parent, selection.option, false);
+  const claim = await insertReply(c.env, parent, selection.option, agentRow.agent_id, permission.boss, userId);
   if (claim.kind === 'invalid_choice') return c.text('invalid selection', 400);
   if (claim.kind === 'resolved') return resolvedResponse(c, payload.message?.content);
-  const reply = await insertReply(
-    c.env, parent, selection.option, agentRow.agent_id, permission.boss, userId,
-  );
-  if (!reply) return c.text('failed to persist', 500);
+  if (claim.kind === 'failed') return c.text('failed to persist', 500);
+  const reply = claim.reply;
   if (claim.kind === 'not_option') await markParentReplied(c.env, parent.id);
   if (claim.kind === 'claimed') {
     c.executionCtx.waitUntil(
@@ -82,15 +81,18 @@ async function findParent(
 
 async function insertReply(
   env: Env,
-  parent: Pick<MessageRow, 'id' | 'metadata' | 'session_id' | 'target_session_id'>,
+  parent: MessageRow,
   option: string,
   agentId: string,
   boss: { id: string; name: string } | null,
   externalUserId: string | undefined,
-): Promise<MessageRow | null> {
+): Promise<OptionClaimResult> {
   const metadata = getActionMetadata(parent.metadata, option, boss, externalUserId);
-  return insertMessageWithEvent(
+  return persistOptionReply(
     env,
+    parent,
+    option,
+    false,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), agentId, 'boss_to_agent', 'async', 'discord', option, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
     replyTargetSession(parent),
@@ -98,7 +100,7 @@ async function insertReply(
 }
 
 async function markParentReplied(env: Env, messageId: string): Promise<void> {
-  await env.DB.prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
+  await env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
     .bind(messageId).run();
 }
 

@@ -6,6 +6,7 @@ import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
 import { apiAuth, createAuthValidator, getAgentId } from '../middleware/auth';
 import type { Direction, Env, MessageRow, Status } from '../types';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { propagateMessageEdit } from './message-edit';
 import { forwardMessage, validateForwardChannel } from './message-forward';
 import {
@@ -28,9 +29,8 @@ const MAX_LIMIT = 100;
 const DEFAULT_TIMEOUT_SECONDS = 300;
 const WAIT_INTERVAL_MS = 1000;
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  sent: ['delivered', 'read', 'replied', 'expired'],
-  delivered: ['read', 'replied', 'expired'],
-  read: ['replied', 'expired'],
+  sent: ['delivered', 'read'],
+  delivered: ['read'],
 };
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
@@ -106,7 +106,7 @@ routes.patch('/:id', async (c) => {
   const agentId = getAgentId(c);
   const payload = await c.req.json<Record<string, unknown>>();
   const body = typeof payload.body === 'string' ? payload.body.trim() : undefined;
-  const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read', 'replied', 'expired']);
+  const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read']);
   if (!status && !body) {
     return c.text('status or body is required', 400);
   }
@@ -209,10 +209,10 @@ async function updateMessage(c: Context<{ Bindings: Env }>, existing: MessageRow
 
   const updated = await c.env.DB
     .prepare(
-      `UPDATE messages SET ${updates.join(', ')} WHERE id = ? RETURNING *`
+      `UPDATE messages SET ${updates.join(', ')} WHERE id = ?${status ? ` AND ${OPEN_MESSAGE_STATUS}` : ''} RETURNING *`
     )
     .bind(...binds)
     .first<MessageRow>();
 
-  return updated;
+  return updated ?? c.text('message status changed', 409);
 }

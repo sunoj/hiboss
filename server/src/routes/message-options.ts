@@ -5,7 +5,7 @@
 
 import type { Channel, Env, MessageRow } from '../types';
 import { createForumTopic, editTelegramCaption, editMessageReplyMarkup, formatTelegramAttachmentCaption, removeInlineKeyboard } from '../channels/telegram';
-import { createDiscordThread, addDiscordThreadMember, editDiscordMessage } from '../channels/discord';
+import { editDiscordMessage } from '../channels/discord';
 import { 
   requireTelegramConfig as _requireTelegramConfig, 
   requireDiscordConfig as _requireDiscordConfig, 
@@ -14,8 +14,10 @@ import {
 import { selectChannelConfig, fetchAgentName } from './message-queries';
 import { extractTelegramMessageId, replyTargetSession } from './message-helpers';
 import { notifyAgentCallback } from '../notify';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
 import { systemMetadata } from '../message-security';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
+import { persistOptionReply } from './boss-option-reply';
 
 const MAX_MESSAGE_OPTIONS = 5;
 const OPTIONS_ERROR = 'options must be an array of 1 to 5 non-empty unique strings';
@@ -54,10 +56,11 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
   }
   meta['options_expired'] = true;
   delete meta['actions'];
-  await env.DB
-    .prepare("UPDATE messages SET status = 'expired', metadata = ?, updated_at = datetime('now') WHERE id = ?")
+  const claimed = await env.DB
+    .prepare(`UPDATE messages SET status = 'expired', metadata = ?, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
     .bind(JSON.stringify(meta), message.id)
-    .run();
+    .first<{ id: string }>();
+  if (!claimed) return;
   // 2. Clean up channel inline keyboards
   await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
 }
@@ -81,20 +84,20 @@ async function autoResolveDefaultOption(
 ): Promise<void> {
   meta['options_expired'] = true;
   delete meta['actions'];
-  const claimed = await env.DB
-    .prepare(
-      "UPDATE messages SET status = 'replied', metadata = ?, updated_at = datetime('now') WHERE id = ? AND status IN ('sent', 'delivered', 'read') RETURNING id"
-    )
-    .bind(JSON.stringify(meta), message.id)
-    .first<{ id: string }>();
-  if (!claimed) return;
-  const inserted = await insertMessageWithEvent(
+  const outcome = await persistOptionReply(
     env,
+    message,
+    defaultOption,
+    false,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), agentId, 'boss_to_agent', 'async', 'api', defaultOption, 'sent', 'normal', message.id, JSON.stringify(systemMetadata({ auto_default: true })), replyTargetSession(message)],
     replyTargetSession(message),
+    true,
   );
-  if (!inserted) return;
+  if (outcome.kind !== 'claimed') return;
+  const inserted = outcome.reply;
+  await env.DB.prepare("UPDATE messages SET metadata = ?, updated_at = datetime('now') WHERE id = ? AND status = 'replied'")
+    .bind(JSON.stringify(meta), message.id).run();
   // Best-effort notifications: the default is already durably recorded above, so a failed
   // agent callback / channel edit (e.g. unreachable URL) must not throw out of the cron path.
   try {
@@ -248,62 +251,5 @@ export async function ensureTopicForAgent(env: Env, agentId: string, channelConf
       .run();
   } catch {
     // Topic creation failed (group may not support topics) — deliver without thread
-  }
-}
-
-/** Auto-create a Discord thread for this session if use_threads is enabled. */
-export async function ensureThreadForSession(
-  env: Env,
-  agentId: string,
-  sessionId: string | null,
-  channelConfig: { channel: Channel; config: Record<string, unknown> },
-  discordMessageId: string | undefined,
-  messageBody?: string,
-): Promise<string | undefined> {
-  if (channelConfig.channel !== 'discord') return undefined;
-  const cfg = channelConfig.config;
-  if (!cfg['use_threads']) return undefined;
-  if (!sessionId) return undefined;
-
-  const session = await env.DB
-    .prepare('SELECT discord_thread_id FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ discord_thread_id: string | null }>();
-  if (session?.discord_thread_id) return session.discord_thread_id;
-  if (!discordMessageId) return undefined;
-
-  const botToken = cfg['bot_token'] as string | undefined;
-  const channelId = cfg['channel_id'] as string | undefined;
-  if (!botToken || !channelId) return undefined;
-
-  const sessionRow = await env.DB
-    .prepare('SELECT label, branch FROM sessions WHERE id = ?')
-    .bind(sessionId)
-    .first<{ label: string | null; branch: string | null }>();
-  // Thread title: "repo/branch: first message summary" (max 100 chars for Discord)
-  const prefix = sessionRow?.label ?? sessionRow?.branch;
-  const summary = messageBody ? messageBody.split('\n')[0].slice(0, 60) : undefined;
-  const threadName = prefix && summary
-    ? `${prefix}: ${summary}`.slice(0, 100)
-    : prefix ?? summary ?? `${await fetchAgentName(env, agentId) ?? 'agent'}-session`;
-
-  try {
-    const threadId = await createDiscordThread(botToken, channelId, discordMessageId, threadName);
-    await env.DB
-      .prepare('UPDATE sessions SET discord_thread_id = ? WHERE id = ?')
-      .bind(threadId, sessionId)
-      .run();
-    // Add boss(es) to thread so they get notifications (bot-created threads only include the bot)
-    const bosses = await env.DB
-      .prepare('SELECT b.discord_user_id FROM bosses b JOIN boss_agent_access ba ON ba.boss_id = b.id WHERE ba.agent_id = ? AND b.discord_user_id IS NOT NULL')
-      .bind(agentId)
-      .all<{ discord_user_id: string }>();
-    for (const boss of bosses.results ?? []) {
-      await addDiscordThreadMember(botToken, threadId, boss.discord_user_id).catch(() => {});
-    }
-    return threadId;
-  } catch {
-    // Thread creation failed — deliver without thread
-    return undefined;
   }
 }

@@ -7,14 +7,15 @@ import { answerCallbackQuery, editMessageReplyMarkup } from '../channels/telegra
 import { logAudit } from '../audit';
 import { notifyAgentCallback } from '../notify';
 import type { Env, MessageRow } from '../types';
-import { claimOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { withdrawResolvedOptions } from './message-options';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
 import { findTelegramMessageInChat } from './telegram-message-match';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { channelMetadata, mergeProvenance } from '../message-security';
 
 type TelegramConfigRow = { agent_id: string; config: string };
@@ -96,20 +97,25 @@ async function handleMessageCallback(
     const existing = await findMessageByIdempotencyKey(c.env, configRow.agent_id, queryId);
     if (existing) return replyWithAnswer(c, botToken, queryId, `Selected: ${existing.body}`, c.json(mapMessage(existing), 200));
   }
-  const claim = await claimOptionReply(c.env, parentMsg, parsed.selectedOption, false);
-  const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
-  if (rejection) return rejection;
   const senderId = asString((query['from'] as Record<string, unknown>)?.['id']);
   const metadata = buildCallbackReplyMetadata(
     parentMsg.metadata, parsed.selectedOption, bossInfo, senderId,
   );
-  const inserted = await insertMessageWithEvent(
+  const claim = await persistOptionReply(
     c.env,
+    parentMsg,
+    parsed.selectedOption,
+    false,
     'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
     [createMessageId(), configRow.agent_id, 'boss_to_agent', 'async', 'telegram', parsed.selectedOption, 'sent', 'normal', parentMsg.id, queryId ?? null, metadata ? JSON.stringify(metadata) : null, replyTargetSession(parentMsg)],
     replyTargetSession(parentMsg),
   );
-  if (!inserted) return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
+  const rejection = await telegramClaimRejection(c, claim, botToken, queryId, query);
+  if (rejection) return rejection;
+  if (claim.kind === 'failed' || claim.kind === 'invalid_choice' || claim.kind === 'resolved') {
+    return replyWithAnswer(c, botToken, queryId, 'Error', c.text('failed to persist', 500));
+  }
+  const inserted = claim.reply;
   answerTelegramCallback(c, botToken, queryId, `Selected: ${parsed.selectedOption}`);
   await updateCallbackMessage(botToken, chatMessage(query), `✅ Selected: ${parsed.selectedOption}`);
   if (claim.kind === 'not_option') await markParentReplied(c.env, parentMsg.id);
@@ -140,7 +146,7 @@ async function telegramClaimRejection(
 }
 
 async function markParentReplied(env: Env, messageId: string): Promise<void> {
-  await env.DB.prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
+  await env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
     .bind(messageId).run();
 }
 

@@ -3,7 +3,8 @@
 // Depends on message queries/options, delivery helpers, and route-safe metadata parsing.
 
 import type { Channel, Env, MessageRow } from '../types';
-import { ensureThreadForSession, ensureTopicForAgent } from './message-options';
+import { ensureTopicForAgent } from './message-options';
+import { ensureThreadForSession } from './message-option-threads';
 import { fetchAgentName, selectChannelConfig } from './message-queries';
 import { ensureTopicForSession } from './session-channels';
 import {
