@@ -5,6 +5,7 @@ import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import type { Env } from '../types';
 import { probeDestination, type ProbeDestination } from '../delivery/probe';
 import { destinationsMode, parseDestination, parseDestinationPatch, parseProvider } from '../delivery';
+import { preserveMergedDeliveries } from '../delivery/delete-destination';
 
 const destinations = new Hono<{ Bindings: Env }>();
 const providers = new Hono<{ Bindings: Env }>();
@@ -49,9 +50,14 @@ destinations.post('/', async c => {
 });
 
 destinations.delete('/:id', async c => {
-  const row = await c.env.DB.prepare('DELETE FROM boss_destinations WHERE id = ? AND boss_id = ? RETURNING id')
-    .bind(c.req.param('id'), getBossId(c)).first();
-  return row ? c.json({ ok: true }) : c.json({ error: 'destination not found' }, 404);
+  const id = c.req.param('id');
+  const owned = await c.env.DB.prepare('SELECT id FROM boss_destinations WHERE id = ? AND boss_id = ?')
+    .bind(id, getBossId(c)).first<{ id: string }>();
+  if (!owned) return c.json({ error: 'destination not found' }, 404);
+  const statements = await preserveMergedDeliveries(c.env, id);
+  statements.push(c.env.DB.prepare('DELETE FROM boss_destinations WHERE id = ? AND boss_id = ?').bind(id, getBossId(c)));
+  await c.env.DB.batch(statements);
+  return c.json({ ok: true });
 });
 
 destinations.post('/:id/test', async c => {

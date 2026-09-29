@@ -105,7 +105,8 @@ it('F22 reused session id does not expose the previous agent session events', as
   const prior = await SELF.fetch(path, { headers: headers(previous.key) });
   expect(prior.status).toBe(200);
   expect((await prior.json() as { events: { id: string }[] }).events).toMatchObject([{ id: event }]);
-  await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(session).run();
+  const deleted = await SELF.fetch(`${api}/sessions/${session}`, { method: 'DELETE', headers: headers(previous.key) });
+  expect(deleted.status).toBe(200);
   await env.DB.prepare('INSERT INTO sessions (id, agent_id) VALUES (?, ?)').bind(session, next.id).run();
   const reused = await SELF.fetch(path, { headers: headers(next.key) });
   expect(reused.status).toBe(200);
@@ -129,7 +130,8 @@ it('F23 deleted session route does not apply when another agent reuses its id', 
     .bind(destination, session, 'previous-channel').run();
   const message = (agent_id: string) => ({ agent_id, session_id: session, priority: 'normal' as const, direction: 'agent_to_boss' as const });
   expect((await resolveDestinations(env, message(previous.id)))[0]?.config['channel_id']).toBe('previous-channel');
-  await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(session).run();
+  const deleted = await SELF.fetch(`${api}/sessions/${session}`, { method: 'DELETE', headers: headers(previous.key) });
+  expect(deleted.status).toBe(200);
   await env.DB.prepare('INSERT INTO sessions (id, agent_id) VALUES (?, ?)').bind(session, next.id).run();
   expect((await resolveDestinations(env, message(next.id)))[0]?.config['channel_id']).toBe('default-channel');
 });
