@@ -20,6 +20,7 @@ import {
   resolveBossForChannel,
 } from './webhook-helpers';
 import { handleTelegramCallbackQuery, handleTelegramReaction } from './telegram-webhook-actions';
+import { findPendingTelegramMessageInChat, findTelegramMessageInChat } from './telegram-message-match';
 import type { Env, MessageRow } from '../types';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
@@ -197,32 +198,11 @@ async function findTelegramTarget(env: Env, chatId: string, threadId: number | u
 async function resolveTelegramReplyTo(env: Env, agentId: string, chatId: string | undefined, message: Record<string, unknown> | undefined): Promise<string | null> {
   const replyToTgId = (message?.['reply_to_message'] as Record<string, unknown> | undefined)?.['message_id'] as number | undefined;
   if (replyToTgId && chatId) {
-    const parent = await env.DB
-      .prepare(`SELECT m.id FROM messages m WHERE m.agent_id = ? AND m.channel = 'telegram'
-        AND (json_extract(m.metadata, '$.telegram_message_id') = ? OR EXISTS (
-          SELECT 1 FROM message_deliveries md WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)))
-        AND (json_extract(m.metadata, '$.telegram_chat_id') = ? OR EXISTS (
-          SELECT 1 FROM message_deliveries md JOIN boss_destinations d ON d.id = md.destination_id
-          WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)
-            AND d.kind = 'telegram_chat' AND json_extract(d.target, '$.chat_id') = ?)) LIMIT 1`)
-      .bind(agentId, replyToTgId, replyToTgId, chatId, replyToTgId, chatId)
-      .first<{ id: string }>();
+    const parent = await findTelegramMessageInChat(env, agentId, chatId, replyToTgId);
     return parent?.id ?? null;
   }
   if (!chatId) return null;
-  const pending = await env.DB
-    .prepare(
-      `SELECT m.id FROM messages m WHERE m.agent_id = ? AND m.direction = 'agent_to_boss'
-        AND m.mode = 'blocking' AND m.channel = 'telegram' AND m.status IN ('sent', 'delivered')
-        AND (json_extract(m.metadata, '$.telegram_chat_id') = ? OR EXISTS (
-          SELECT 1 FROM message_deliveries md JOIN boss_destinations d ON d.id = md.destination_id
-          WHERE md.message_id = m.id AND d.kind = 'telegram_chat'
-            AND json_extract(d.target, '$.chat_id') = ? AND md.status IN ('sent', 'delivered')))
-        ORDER BY m.created_at DESC LIMIT 1`,
-    )
-    .bind(agentId, chatId, chatId)
-    .first<{ id: string }>();
-  return pending?.id ?? null;
+  return findPendingTelegramMessageInChat(env, agentId, chatId);
 }
 
 function extractTelegramCommand(message: Record<string, unknown> | undefined, text: string): TelegramCommand | null {

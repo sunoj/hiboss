@@ -11,6 +11,7 @@ import { claimOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { withdrawResolvedOptions } from './message-options';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
+import { findTelegramMessageInChat } from './telegram-message-match';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
@@ -58,16 +59,7 @@ export async function handleTelegramReaction(c: TelegramContext, reaction: Recor
   const configRow = await findTelegramConfigRow(c.env, chatId, threadId);
   if (!configRow) return c.text('forbidden', 403);
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  const msg = await c.env.DB
-    .prepare(`SELECT m.id, m.metadata FROM messages m WHERE m.agent_id = ? AND m.channel = 'telegram'
-      AND (json_extract(m.metadata, '$.telegram_message_id') = ? OR EXISTS (
-        SELECT 1 FROM message_deliveries md WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)))
-      AND (json_extract(m.metadata, '$.telegram_chat_id') = ? OR EXISTS (
-        SELECT 1 FROM message_deliveries md JOIN boss_destinations d ON d.id = md.destination_id
-        WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)
-          AND d.kind = 'telegram_chat' AND json_extract(d.target, '$.chat_id') = ?)) LIMIT 1`)
-    .bind(configRow.agent_id, tgMsgId, tgMsgId, chatId, tgMsgId, chatId)
-    .first<{ id: string; metadata: string | null }>();
+  const msg = await findTelegramMessageInChat(c.env, configRow.agent_id, chatId, tgMsgId);
   if (!msg) return c.text('ok', 200);
   const emojis = ((reaction['new_reaction'] as { type: string; emoji?: string }[] | undefined) ?? [])
     .filter((value) => value.type === 'emoji' && value.emoji)
