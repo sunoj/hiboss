@@ -10,6 +10,7 @@ import { logAudit } from '../audit';
 import { identityConflict } from './boss-external-accounts';
 import { buildBossUpdate } from './boss-updates';
 import { issueBossToken } from '../boss-token';
+import { inFlightDeliveryGuard, isDeliveryInProgressError, preserveMergedDeliveries } from '../delivery/delete-destination';
 
 type BossRole = 'admin' | 'manager' | 'viewer';
 
@@ -141,10 +142,23 @@ routes.delete('/:id', async (c) => {
   const denied = requireAdmin(c);
   if (denied) return denied;
   const bossId = c.req.param('id');
-  const result = await c.env.DB
-    .prepare('DELETE FROM bosses WHERE id = ?')
-    .bind(bossId)
-    .run();
+  const boss = await c.env.DB.prepare('SELECT id FROM bosses WHERE id = ?').bind(bossId).first<{ id: string }>();
+  if (!boss) return c.text('not found', 404);
+  const destinations = await c.env.DB.prepare('SELECT id FROM boss_destinations WHERE boss_id = ?')
+    .bind(bossId).all<{ id: string }>();
+  const removingIds = destinations.results.map(row => row.id);
+  const statements: D1PreparedStatement[] = [];
+  if (removingIds.length) {
+    statements.push(inFlightDeliveryGuard(c.env, removingIds));
+    for (const id of removingIds) statements.push(...await preserveMergedDeliveries(c.env, id, removingIds));
+  }
+  statements.push(c.env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(bossId));
+  let result: D1Result;
+  try { result = (await c.env.DB.batch(statements)).at(-1)!; }
+  catch (error) {
+    if (isDeliveryInProgressError(error)) return c.json({ error: 'delivery in progress, retry' }, 409);
+    throw error;
+  }
   if (!result.meta.changes || result.meta.changes === 0) {
     return c.text('not found', 404);
   }

@@ -48,11 +48,11 @@ const EVENT_INSERT_SQL = `
       'updated_at', messages.updated_at,
       'expires_at', messages.expires_at
     )
-  FROM messages
+  FROM messages JOIN sessions ON sessions.id = ? AND sessions.agent_id = messages.agent_id
   WHERE messages.id = ?`;
 
 export function messageEventStatement(env: Env, sessionId: string, messageId: string): D1PreparedStatement {
-  return env.DB.prepare(EVENT_INSERT_SQL).bind(sessionId, sessionId, messageId);
+  return env.DB.prepare(EVENT_INSERT_SQL).bind(sessionId, sessionId, sessionId, messageId);
 }
 
 export function createMessageId(): string {
