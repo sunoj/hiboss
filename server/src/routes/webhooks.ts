@@ -142,8 +142,10 @@ async function createTelegramBossMessage(
     if (existing) return c.json(mapMessage(existing), 200);
   }
   const routedAgentId = target.targetSessionId || target.configRow.inbound ? null : await evaluateRoutingRules(c.env, 'telegram', body, target.configRow.agent_id);
-  const agentId = routedAgentId ?? target.configRow.agent_id;
-  const replyTo = await resolveTelegramReplyTo(c.env, agentId, message);
+  const canRoute = !routedAgentId || !bossInfo || await hasBossAccess(c.env, bossInfo.id, routedAgentId, bossInfo.role);
+  const agentId = canRoute && routedAgentId ? routedAgentId : target.configRow.agent_id;
+  const chatId = asString((message?.['chat'] as Record<string, unknown> | undefined)?.['id']);
+  const replyTo = await resolveTelegramReplyTo(c.env, agentId, chatId, message);
   const senderId = asString((message?.['from'] as Record<string, unknown>)?.['id']);
   const metadata = mergeProvenance(
     payload,
@@ -192,20 +194,33 @@ async function findTelegramTarget(env: Env, chatId: string, threadId: number | u
   return fallback ? { configRow: fallback, targetSessionId: null } : null;
 }
 
-async function resolveTelegramReplyTo(env: Env, agentId: string, message: Record<string, unknown> | undefined): Promise<string | null> {
+async function resolveTelegramReplyTo(env: Env, agentId: string, chatId: string | undefined, message: Record<string, unknown> | undefined): Promise<string | null> {
   const replyToTgId = (message?.['reply_to_message'] as Record<string, unknown> | undefined)?.['message_id'] as number | undefined;
-  if (replyToTgId) {
+  if (replyToTgId && chatId) {
     const parent = await env.DB
-      .prepare("SELECT id FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1")
-      .bind(agentId, replyToTgId)
+      .prepare(`SELECT m.id FROM messages m WHERE m.agent_id = ? AND m.channel = 'telegram'
+        AND (json_extract(m.metadata, '$.telegram_message_id') = ? OR EXISTS (
+          SELECT 1 FROM message_deliveries md WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)))
+        AND (json_extract(m.metadata, '$.telegram_chat_id') = ? OR EXISTS (
+          SELECT 1 FROM message_deliveries md JOIN boss_destinations d ON d.id = md.destination_id
+          WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)
+            AND d.kind = 'telegram_chat' AND json_extract(d.target, '$.chat_id') = ?)) LIMIT 1`)
+      .bind(agentId, replyToTgId, replyToTgId, chatId, replyToTgId, chatId)
       .first<{ id: string }>();
     return parent?.id ?? null;
   }
+  if (!chatId) return null;
   const pending = await env.DB
     .prepare(
-      "SELECT id FROM messages WHERE agent_id = ? AND direction = 'agent_to_boss' AND mode = 'blocking' AND channel = 'telegram' AND status IN ('sent', 'delivered') ORDER BY created_at DESC LIMIT 1",
+      `SELECT m.id FROM messages m WHERE m.agent_id = ? AND m.direction = 'agent_to_boss'
+        AND m.mode = 'blocking' AND m.channel = 'telegram' AND m.status IN ('sent', 'delivered')
+        AND (json_extract(m.metadata, '$.telegram_chat_id') = ? OR EXISTS (
+          SELECT 1 FROM message_deliveries md JOIN boss_destinations d ON d.id = md.destination_id
+          WHERE md.message_id = m.id AND d.kind = 'telegram_chat'
+            AND json_extract(d.target, '$.chat_id') = ? AND md.status IN ('sent', 'delivered')))
+        ORDER BY m.created_at DESC LIMIT 1`,
     )
-    .bind(agentId)
+    .bind(agentId, chatId, chatId)
     .first<{ id: string }>();
   return pending?.id ?? null;
 }

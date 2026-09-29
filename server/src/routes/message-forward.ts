@@ -70,7 +70,8 @@ export async function forwardMessage(
   );
   if (!result.delivered) throw new Error('forward delivery failed');
 
-  const inserted = await persistForward(env, original, targetChannel, forwardBody, mergeDeliveryMetadata(metadata, result));
+  const inserted = await persistForward(env, original, targetChannel, forwardBody,
+    mergeDeliveryMetadata(metadata, result, targetChannel === 'telegram' ? config.chat_id : undefined));
   await dispatchDestinations(env, inserted, [channelConfig]);
 
   if (result.discordMessageId) {
@@ -107,8 +108,12 @@ function buildForwardMetadata(sourceChannel: Channel | null, fileUrl?: string): 
 function mergeDeliveryMetadata(
   metadata: Record<string, unknown>,
   result: { telegramMessageId?: number; discordMessageId?: string },
+  telegramChatId?: unknown,
 ): Record<string, unknown> {
-  if (result.telegramMessageId) metadata['telegram_message_id'] = result.telegramMessageId;
+  if (result.telegramMessageId) {
+    metadata['telegram_message_id'] = result.telegramMessageId;
+    if (typeof telegramChatId === 'string') metadata['telegram_chat_id'] = telegramChatId;
+  }
   if (result.discordMessageId) metadata['discord_message_id'] = result.discordMessageId;
   return metadata;
 }

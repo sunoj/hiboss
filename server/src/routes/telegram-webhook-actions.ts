@@ -59,8 +59,14 @@ export async function handleTelegramReaction(c: TelegramContext, reaction: Recor
   if (!configRow) return c.text('forbidden', 403);
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
   const msg = await c.env.DB
-    .prepare("SELECT id, metadata FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1")
-    .bind(configRow.agent_id, tgMsgId)
+    .prepare(`SELECT m.id, m.metadata FROM messages m WHERE m.agent_id = ? AND m.channel = 'telegram'
+      AND (json_extract(m.metadata, '$.telegram_message_id') = ? OR EXISTS (
+        SELECT 1 FROM message_deliveries md WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)))
+      AND (json_extract(m.metadata, '$.telegram_chat_id') = ? OR EXISTS (
+        SELECT 1 FROM message_deliveries md JOIN boss_destinations d ON d.id = md.destination_id
+        WHERE md.message_id = m.id AND md.external_message_id = CAST(? AS TEXT)
+          AND d.kind = 'telegram_chat' AND json_extract(d.target, '$.chat_id') = ?)) LIMIT 1`)
+    .bind(configRow.agent_id, tgMsgId, tgMsgId, chatId, tgMsgId, chatId)
     .first<{ id: string; metadata: string | null }>();
   if (!msg) return c.text('ok', 200);
   const emojis = ((reaction['new_reaction'] as { type: string; emoji?: string }[] | undefined) ?? [])
@@ -160,7 +166,7 @@ async function handleJoinCallback(
   if (bossError) return replyWithAnswer(c, botToken, queryId, bossError, c.text(bossError, 403));
   const parsed = parseJoinCallbackData(data);
   if (!parsed) return replyWithAnswer(c, botToken, queryId, 'Invalid', c.text('invalid callback data', 400));
-  if (parsed.action === 'approve' && bossInfo && bossInfo.role !== 'admin') {
+  if (bossInfo?.role !== 'admin') {
     return replyWithAnswer(c, botToken, queryId, 'Admin required', c.text('admin required', 403));
   }
   const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);
