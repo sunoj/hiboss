@@ -41,18 +41,18 @@ async function seedTelegramChats(owner: string, inboundChat: string, otherChat: 
   await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
     .bind(fresh('f14-config'), agent, JSON.stringify({ chat_id: otherChat, bot_token: 'synthetic' })).run();
   await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'telegram', ?, ?)")
-    .bind(provider, provider, JSON.stringify({ bot_token: 'synthetic' })).run();
+    .bind(provider, provider, JSON.stringify({ bot_token: provider })).run();
   await env.DB.prepare("INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label) VALUES (?, ?, 'telegram_chat', ?, ?, ?)")
     .bind(destination, owner, provider, JSON.stringify({ chat_id: inboundChat }), destination).run();
   await env.DB.prepare('INSERT INTO inbound_routes (id, destination_id, target_agent_id) VALUES (?, ?, ?)')
     .bind(fresh('f14-route'), destination, agent).run();
   const parent = fresh('f14-parent');
   const local = fresh('f14-local');
-  for (const [id, body, messageId] of [[parent, 'Question', 901], [local, 'Local', 902]] as const) {
+  for (const [id, body, messageId, chatId] of [[parent, 'Question', 901, inboundChat], [local, 'Local', 902, otherChat]] as const) {
     await env.DB.prepare(`INSERT INTO messages
       (id, agent_id, direction, mode, channel, body, status, metadata)
       VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', ?, 'delivered', ?)`)
-      .bind(id, agent, body, JSON.stringify({ telegram_message_id: messageId })).run();
+      .bind(id, agent, body, JSON.stringify({ telegram_message_id: messageId, telegram_chat_id: chatId })).run();
   }
   return { parent, local };
 }

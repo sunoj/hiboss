@@ -102,7 +102,8 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
         )
       );
       if (result.delivered) {
-        await markReplyDelivered(c.env, inserted.id, result.telegramMessageId);
+        await markReplyDelivered(c.env, inserted.id, result.telegramMessageId,
+          channelConfig.channel === 'telegram' ? channelConfig.config.chat_id : undefined);
       }
     } catch (error) {
       await persistDeliveryFailure(c.env, inserted.id, getDeliveryErrorMessage(error));
@@ -110,12 +111,13 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
   }
 }
 
-async function markReplyDelivered(env: Env, messageId: string, telegramMessageId?: number): Promise<void> {
+async function markReplyDelivered(env: Env, messageId: string, telegramMessageId?: number, telegramChatId?: unknown): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: (string | number)[] = [];
   if (telegramMessageId) {
     updates.push('metadata = ?');
-    binds.push(JSON.stringify({ telegram_message_id: telegramMessageId }));
+    binds.push(JSON.stringify({ telegram_message_id: telegramMessageId,
+      ...(typeof telegramChatId === 'string' ? { telegram_chat_id: telegramChatId } : {}) }));
   }
   binds.push(messageId);
   await env.DB

@@ -3,6 +3,7 @@
 // Deps: Env binding and D1-backed messages/channel_configs/sessions tables.
 
 import type { Env } from './types';
+import { checkBossPermission } from './routes/webhook-helpers';
 
 export interface DiscordReactionChangeData {
   user_id: string;
@@ -49,6 +50,8 @@ export async function persistDiscordReaction(
   reaction: DiscordReactionChangeData,
   action: 'add' | 'remove'
 ): Promise<boolean> {
+  const permission = await checkBossPermission(env, 'discord', reaction.user_id, agentId, true);
+  if (permission.error || !permission.boss) return false;
   const message = await findDiscordMessage(env, agentId, reaction.message_id);
   if (!message) {
     return false;

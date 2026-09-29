@@ -14,7 +14,7 @@ import { replyTargetSession } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
 
-interface DiscordInteractionPayload { type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
+interface DiscordInteractionPayload { id?: string; type: number; data?: DiscordInteractionData; channel_id?: string; member?: { user?: { id?: string } }; message?: { content?: string } }
 interface DiscordInteractionData { name?: string; options?: DiscordInteractionOption[]; custom_id?: string }
 type DiscordInteractionOption = { name: string; value?: unknown };
 
@@ -82,6 +82,12 @@ async function handleApplicationCommand(
   if (bossCheck.error) {
     return c.json({ type: 4, data: { content: bossCheck.error, flags: 64 } });
   }
+  const interactionKey = payload.id ? `discord-interaction:${payload.id}` : null;
+  if (interactionKey) {
+    const existing = await c.env.DB.prepare('SELECT id FROM messages WHERE agent_id = ? AND idempotency_key = ? LIMIT 1')
+      .bind(agentRow.agent_id, interactionKey).first<{ id: string }>();
+    if (existing) return c.json({ type: 4, data: { content: 'Interaction already handled.', flags: 64 } });
+  }
   const meta = mergeProvenance(
     payload as unknown as Record<string, unknown>,
     channelMetadata('discord', bossCheck.boss, discordUserId),
@@ -98,11 +104,11 @@ async function handleApplicationCommand(
   const targetSessionId = pendingMsg ? replyTargetSession(pendingMsg) : null;
   const inserted = await insertMessageWithEvent(
     c.env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta), targetSessionId],
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(agent_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING RETURNING *',
+    [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', message, 'sent', 'normal', replyTo, JSON.stringify(meta), targetSessionId, interactionKey],
     targetSessionId,
   );
-  if (!inserted) return c.text('failed to persist', 500);
+  if (!inserted) return c.json({ type: 4, data: { content: 'Interaction already handled.', flags: 64 } });
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentRow.agent_id, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossCheck.boss ? 'boss' : 'system', bossCheck.boss?.id ?? 'discord', 'message.send', 'message', inserted.id, 'discord-slash'));
   return c.json({ type: 4, data: { content: 'Message sent to agent.' } });
@@ -140,7 +146,7 @@ async function handleDiscordJoinCallback(
   if (!parsed) {
     return c.text('invalid callback data', 400);
   }
-  if (parsed.action === 'approve' && boss && boss.role !== 'admin') {
+  if (boss?.role !== 'admin') {
     return c.text('admin required', 403);
   }
   const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);

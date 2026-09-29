@@ -11,6 +11,7 @@ import { claimOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { withdrawResolvedOptions } from './message-options';
 import { approveJoinRequest, parseJoinCallbackData, rejectJoinRequest } from './join-helpers';
 import { findTelegramSessionRoute } from './session-channels';
+import { findTelegramMessageInChat } from './telegram-message-match';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
@@ -58,10 +59,7 @@ export async function handleTelegramReaction(c: TelegramContext, reaction: Recor
   const configRow = await findTelegramConfigRow(c.env, chatId, threadId);
   if (!configRow) return c.text('forbidden', 403);
   if (bossInfo && !(await hasBossAccess(c.env, bossInfo.id, configRow.agent_id, bossInfo.role))) return c.text('no access to this agent', 403);
-  const msg = await c.env.DB
-    .prepare("SELECT id, metadata FROM messages WHERE agent_id = ? AND channel = 'telegram' AND json_extract(metadata, '$.telegram_message_id') = ? LIMIT 1")
-    .bind(configRow.agent_id, tgMsgId)
-    .first<{ id: string; metadata: string | null }>();
+  const msg = await findTelegramMessageInChat(c.env, configRow.agent_id, chatId, tgMsgId);
   if (!msg) return c.text('ok', 200);
   const emojis = ((reaction['new_reaction'] as { type: string; emoji?: string }[] | undefined) ?? [])
     .filter((value) => value.type === 'emoji' && value.emoji)
@@ -160,7 +158,7 @@ async function handleJoinCallback(
   if (bossError) return replyWithAnswer(c, botToken, queryId, bossError, c.text(bossError, 403));
   const parsed = parseJoinCallbackData(data);
   if (!parsed) return replyWithAnswer(c, botToken, queryId, 'Invalid', c.text('invalid callback data', 400));
-  if (parsed.action === 'approve' && bossInfo && bossInfo.role !== 'admin') {
+  if (bossInfo?.role !== 'admin') {
     return replyWithAnswer(c, botToken, queryId, 'Admin required', c.text('admin required', 403));
   }
   const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);

@@ -176,69 +176,6 @@ describe('POST /api/webhooks/discord-interactions', () => {
     expect(parent?.status).toBe('delivered');
   });
 
-  it('approves a join request from a Discord button callback', async () => {
-    const requestId = 'a077e0fa00000001aabbccdd00000001';
-    await env.DB
-      .prepare("INSERT INTO join_requests (id, name, poll_token, status) VALUES (?, ?, ?, 'pending')")
-      .bind(requestId, 'discord-join-test', 'jt_discord_join_test')
-      .run();
-
-    const payload = {
-      type: 3,
-      channel_id: CHANNEL_ID,
-      data: { custom_id: `join:approve:${requestId}` },
-      message: { content: 'Join request for discord-join-test' },
-    };
-
-    const res = await signedFetch(payload);
-    expect(res.status).toBe(200);
-    const data = await res.json() as InteractionResponse;
-    expect(data.type).toBe(7);
-    expect(data.data?.content).toContain('Join request for discord-join-test');
-    expect(data.data?.content).toContain('✅ Approved');
-    expect(data.data?.components).toEqual([]);
-
-    const approved = await env.DB
-      .prepare('SELECT status, api_key_id, api_key FROM join_requests WHERE id = ?')
-      .bind(requestId)
-      .first<{ status: string; api_key_id: string | null; api_key: string | null }>();
-
-    expect(approved?.status).toBe('approved');
-    expect(approved?.api_key_id).toBeTruthy();
-    expect(approved?.api_key?.startsWith('hb_')).toBe(true);
-  });
-
-  it('rejects join approvals from non-admin discord bosses', async () => {
-    const requestId = 'a077e0fa00000009aabbccdd00000009';
-    await env.DB
-      .prepare("INSERT INTO join_requests (id, name, poll_token, status) VALUES (?, ?, ?, 'pending')")
-      .bind(requestId, 'discord-join-viewer', 'jt_discord_join_viewer')
-      .run();
-    await env.DB.prepare(
-      "INSERT INTO bosses (id, name, role, discord_user_id) VALUES (?, ?, ?, ?)"
-    ).bind('discord-viewer-boss', 'Discord Viewer', 'viewer', 'discord-viewer-user').run();
-
-    const payload = {
-      type: 3,
-      channel_id: CHANNEL_ID,
-      member: { user: { id: 'discord-viewer-user' } },
-      data: { custom_id: `join:approve:${requestId}` },
-      message: { content: 'Join request for discord-join-viewer' },
-    };
-
-    const res = await signedFetch(payload);
-    expect(res.status).toBe(403);
-    expect(await res.text()).toBe('admin required');
-
-    const pending = await env.DB
-      .prepare('SELECT status FROM join_requests WHERE id = ?')
-      .bind(requestId)
-      .first<{ status: string }>();
-    expect(pending?.status).toBe('pending');
-
-    await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind('discord-viewer-boss').run();
-  });
-
   it('copies action metadata into button replies', async () => {
     const parentId = 'b077ac71000000020000000000000002';
     const actions = { Approve: 'aid merge t-123', Reject: 'echo rejected' };
