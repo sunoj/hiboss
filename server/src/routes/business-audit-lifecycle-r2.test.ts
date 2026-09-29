@@ -11,7 +11,7 @@ import { seedBossToken, seedDatabase, getTestAgentId } from '../test-helpers';
 import type { Env, MessageRow } from '../types';
 
 const api = 'https://test.local/api';
-const unique = (name: string): string => `lifecycle-r2-${name}-${crypto.randomUUID()}`;
+const unique = (name: string): string => `l2-${name}-${crypto.randomUUID().slice(0, 8)}`;
 const headers = (token: string): Record<string, string> => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
 const on = (): Env => ({ ...env, DESTINATIONS_MODE: 'on' });
 
@@ -47,8 +47,8 @@ async function deliveryPair(name: string): Promise<{
   const primary = `${prefix}-a`;
   const secondary = `${prefix}-z`;
   const provider = unique('provider');
-  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'telegram', ?, '{}')")
-    .bind(provider, provider).run();
+  await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'telegram', ?, ?)")
+    .bind(provider, provider, JSON.stringify({ bot_token: provider })).run();
   for (const [id, bossId] of [[primary, primaryBoss.id], [secondary, otherBoss.id]]) {
     await env.DB.prepare(`INSERT INTO boss_destinations (id, boss_id, kind, provider_id, target, label)
       VALUES (?, ?, 'telegram_chat', ?, ?, ?)`)
@@ -62,7 +62,7 @@ async function deliveryPair(name: string): Promise<{
   await env.DB.prepare(`INSERT INTO message_deliveries
     (id, message_id, destination_id, external_target, next_attempt_at)
     VALUES (?, ?, ?, ?, '2000-01-01T00:00:00.000Z')`)
-    .bind(first, row.id, primary, await chatKey('telegram', { chat_id: prefix })).run();
+    .bind(first, row.id, primary, await chatKey('telegram', { chat_id: prefix, bot_token: provider })).run();
   await env.DB.prepare('INSERT INTO message_deliveries (message_id, destination_id, merged_into) VALUES (?, ?, ?)')
     .bind(row.id, secondary, first).run();
   return { primaryBoss, primary, secondary, message: row.id };
