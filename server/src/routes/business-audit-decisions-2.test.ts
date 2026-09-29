@@ -86,10 +86,11 @@ describe('decision integrity: scheduled and webhook paths', () => {
     expect(await answerCount(target.id)).toBe(1);
     expect((await env.DB.prepare('SELECT status FROM delivery_queue WHERE message_id = ?').bind(target.id)
       .first<{ status: string }>())?.status).toBe('delivered');
-    expect((await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(target.id)
-      .first<{ status: string }>())?.status).toBe('replied');
+    const firstStatus = (await env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(target.id)
+      .first<{ status: string }>())?.status;
     await handleScheduled(env as Env);
-    expect(await answerCount(target.id)).toBe(1);
+    expect({ firstStatus, answersAfterSecondRun: await answerCount(target.id) })
+      .toEqual({ firstStatus: 'replied', answersAfterSecondRun: 1 });
   });
 
   it('F20 option stream identifies auto-default as a system answer', async () => {
