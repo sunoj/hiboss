@@ -81,7 +81,8 @@ describe('Business audit access boundaries', () => {
       expect(await control.json()).toMatchObject({ agent_id: allowed.id });
       expect(await env.DB.prepare('SELECT 1 AS present FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?')
         .bind(boss, hidden.id).first()).toBeNull();
-      await send('secret-route');
+      const attempt = await send('secret-route');
+      expect([201, 403]).toContain(attempt.status);
       expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM messages WHERE body = 'secret-route' AND agent_id = ?")
         .bind(hidden.id).first()).toEqual({ count: 0 });
     } finally {
@@ -115,7 +116,8 @@ describe('Business audit access boundaries', () => {
     expect(await env.DB.prepare("SELECT project_id FROM destination_routes WHERE id = 'audit-f3-good-route'").first())
       .toEqual({ project_id: 'audit-f3-good-to' });
     expect(await sessionProject('audit-f3-hidden-session')).toBe('audit-f3-mixed-from');
-    await merge('audit-f3-mixed-from', 'audit-f3-mixed-to');
+    const attempt = await merge('audit-f3-mixed-from', 'audit-f3-mixed-to');
+    expect([200, 403, 409]).toContain(attempt.status);
     expect(await sessionProject('audit-f3-hidden-session')).toBe('audit-f3-mixed-from');
     expect(await env.DB.prepare("SELECT project_id FROM destination_routes WHERE id = 'audit-f3-hidden-route'").first())
       .toEqual({ project_id: 'audit-f3-mixed-from' });
@@ -136,7 +138,8 @@ describe('Business audit access boundaries', () => {
     expect(control.status).toBe(201);
     expect(await control.json()).toMatchObject({ project_ref: { id: 'audit-f2-winner' } });
     expect(await sessionProject('audit-f2-other-session')).toBe('audit-f2-other');
-    await post({ slug: 'audit-f2-winner', aliases: ['audit-f2-other'] }, 'alias collision');
+    const attempt = await post({ slug: 'audit-f2-winner', aliases: ['audit-f2-other'] }, 'alias collision');
+    expect([201, 409]).toContain(attempt.status);
     expect(await sessionProject('audit-f2-other-session')).toBe('audit-f2-other');
     expect(await env.DB.prepare("SELECT id FROM projects WHERE id = 'audit-f2-other'").first()).toEqual({ id: 'audit-f2-other' });
   });
@@ -189,7 +192,8 @@ describe('Business audit access boundaries', () => {
       expect((await press(controlId, 'audit-f15-tg-admin-user')).status).toBe(200);
       expect(await joinStatus(controlId)).toBe('rejected');
       expect(await joinStatus(targetId)).toBe('pending');
-      await press(targetId, 'audit-f15-tg-viewer-user');
+      const attempt = await press(targetId, 'audit-f15-tg-viewer-user');
+      expect([200, 403]).toContain(attempt.status);
       expect(await joinStatus(targetId)).toBe('pending');
     } finally {
       env.TELEGRAM_WEBHOOK_SECRET = oldSecret;
@@ -221,7 +225,8 @@ describe('Business audit access boundaries', () => {
       expect((await press(controlId, 'audit-f15-discord-admin-user')).status).toBe(200);
       expect(await joinStatus(controlId)).toBe('rejected');
       expect(await joinStatus(targetId)).toBe('pending');
-      await press(targetId, 'audit-f15-discord-viewer-user');
+      const attempt = await press(targetId, 'audit-f15-discord-viewer-user');
+      expect([200, 403]).toContain(attempt.status);
       expect(await joinStatus(targetId)).toBe('pending');
     } finally {
       env.DISCORD_PUBLIC_KEY = oldKey;
