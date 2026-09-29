@@ -74,7 +74,10 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
 
   for (const row of rows.results ?? []) {
     const locked = await markQueueProcessing(env, row.id, now);
-    if (!locked) continue;
+    if (!locked) {
+      await dropDisabledQueueItem(env, row);
+      continue;
+    }
     try {
       await deliverQueuedMessage(env, row);
       await markQueueDelivered(env, row.id);
@@ -174,10 +177,23 @@ async function retryFailedQueueItems(env: Env, now: string): Promise<void> {
 
 async function markQueueProcessing(env: Env, queueId: string, now: string): Promise<boolean> {
   const result = await env.DB
-    .prepare("UPDATE delivery_queue SET status = 'processing', attempts = attempts + 1, scheduled_at = ?, error = NULL WHERE id = ? AND status = 'pending'")
+    .prepare(`UPDATE delivery_queue SET status = 'processing', attempts = attempts + 1, scheduled_at = ?, error = NULL
+      WHERE id = ? AND status = 'pending' AND EXISTS (
+        SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
+        AND channel = delivery_queue.channel AND enabled = 1)`)
     .bind(now, queueId)
     .run();
   return (result.meta.changes ?? 0) > 0;
+}
+
+async function dropDisabledQueueItem(env: Env, row: DeliveryQueueRow): Promise<void> {
+  const error = 'channel disabled or removed';
+  const result = await env.DB.prepare(`UPDATE delivery_queue SET status = 'failed', attempts = ?, error = ?
+    WHERE id = ? AND status = 'pending' AND NOT EXISTS (
+      SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
+      AND channel = delivery_queue.channel AND enabled = 1)`)
+    .bind(MAX_QUEUE_ATTEMPTS, error, row.id).run();
+  if (result.meta.changes) await persistDeliveryFailure(env, row.message_id, error);
 }
 
 async function markQueueDelivered(env: Env, queueId: string): Promise<void> {
