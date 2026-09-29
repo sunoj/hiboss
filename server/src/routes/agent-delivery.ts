@@ -4,7 +4,8 @@
 
 import type { Channel, Env, OptionMedia } from '../types';
 import { deliverToChannelWithOptions, deliverWithRetry, type DeliveryResult, requireTelegramConfig } from './delivery';
-import { ensureThreadForSession, ensureTopicForAgent } from './message-options';
+import { ensureTopicForAgent } from './message-options';
+import { ensureThreadForSession } from './message-option-threads';
 import { ensureTopicForSession } from './session-channels';
 
 export interface AgentDeliveryRequest {

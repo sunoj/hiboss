@@ -51,6 +51,10 @@ const EVENT_INSERT_SQL = `
   FROM messages
   WHERE messages.id = ?`;
 
+export function messageEventStatement(env: Env, sessionId: string, messageId: string): D1PreparedStatement {
+  return env.DB.prepare(EVENT_INSERT_SQL).bind(sessionId, sessionId, messageId);
+}
+
 export function createMessageId(): string {
   return crypto.randomUUID().replaceAll('-', '');
 }
@@ -64,7 +68,7 @@ export async function insertMessageWithEvent(
   const messageStatement = env.DB.prepare(insertSql).bind(...insertBinds);
   if (!sessionId) return await messageStatement.first<MessageRow>();
 
-  const eventStatement = env.DB.prepare(EVENT_INSERT_SQL).bind(sessionId, sessionId, insertBinds[0]);
+  const eventStatement = messageEventStatement(env, sessionId, String(insertBinds[0]));
   const results = await env.DB.batch([messageStatement, eventStatement]);
   return results[0]?.results[0] as MessageRow | undefined ?? null;
 }

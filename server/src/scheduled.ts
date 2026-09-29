@@ -3,6 +3,7 @@
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
 import type { Env, MessageRow } from './types';
+import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
@@ -147,7 +148,7 @@ async function markMessageDelivered(
 
   binds.push(message.id);
   await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
     .bind(...binds)
     .run();
 }

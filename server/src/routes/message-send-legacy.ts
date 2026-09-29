@@ -2,6 +2,7 @@
 // Exports deliverLegacySend; depends on shared adapters and message metadata.
 import type { Context } from 'hono';
 import type { Env, Channel, MessageRow, OptionMedia } from '../types';
+import { SENT_MESSAGE_STATUS } from '../message-status';
 import { buildInlineKeyboard } from './message-helpers';
 import { deliverAgentMessage } from './agent-delivery';
 import { getAgentQuietHoursEnd } from './quiet-hours';
@@ -93,7 +94,7 @@ async function markLegacyDelivered(env: Env, messageId: string, metadata: Record
   }
   binds.push(messageId);
   await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
     .bind(...binds)
     .run();
 }
