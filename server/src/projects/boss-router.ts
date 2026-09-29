@@ -5,7 +5,7 @@ import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { getAccessibleAgentIds } from '../routes/boss-api';
 import { listProjects } from './inventory';
-import { mergeStatements } from './merge';
+import { hasProjectDataOutsideBossGrant, mergeStatements } from './merge';
 import { isRecord } from '../routes/progress-helpers';
 
 const routes = new Hono<{ Bindings: Env }>();
@@ -44,6 +44,9 @@ routes.patch('/:id', async c => {
     const target = projects.find(row => row.id === body.merge_into);
     if (!target) return c.text('target not found', 404);
     if (target.id === project.id) return c.text('cannot merge a project into itself', 400);
+    if (getBossRole(c) !== 'admin' && await hasProjectDataOutsideBossGrant(c.env.DB, project.id, getBossId(c))) {
+      return c.text('source project contains data from an agent outside boss access', 409);
+    }
     await c.env.DB.batch(mergeStatements(c.env.DB, target, [project], getBossId(c), 'boss'));
     return c.json({ id: target.id, slug: target.slug });
   }
