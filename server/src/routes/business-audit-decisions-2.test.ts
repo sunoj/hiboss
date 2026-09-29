@@ -77,10 +77,15 @@ describe('decision integrity: scheduled and webhook paths', () => {
     const target = await option(fresh('f19-target'), true);
     await env.DB.prepare(`UPDATE messages SET expires_at = datetime('now', '-1 minute') WHERE id = ?`)
       .bind(target.id).run();
+    // Queued rows always come from an enabled channel_configs row (discord/telegram/email only).
+    const config = JSON.stringify({ chat_id: fresh('f19-chat'), bot_token: 'synthetic' });
+    await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
+      .bind(fresh('f19-config'), agent, config).run();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{"ok":true,"result":{"message_id":1901}}', { status: 200 })));
     await env.DB.prepare(`INSERT INTO delivery_queue
       (id, message_id, agent_id, channel, config, scheduled_at)
-      VALUES (?, ?, ?, 'api', '{}', datetime('now', '-1 minute'))`)
-      .bind(fresh('f19-queue'), target.id, agent).run();
+      VALUES (?, ?, ?, 'telegram', ?, datetime('now', '-1 minute'))`)
+      .bind(fresh('f19-queue'), target.id, agent, config).run();
     expect(await answerCount(target.id)).toBe(0);
     await handleScheduled(env as Env);
     expect(await answerCount(target.id)).toBe(1);
