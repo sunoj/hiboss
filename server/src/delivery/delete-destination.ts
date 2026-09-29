@@ -1,7 +1,20 @@
 // Promotes merged delivery claims before their primary destination is deleted.
-// Exports D1 statements for callers to batch atomically with destination removal.
+// Exports promotion and in-flight guard statements for atomic destination removal.
 // Depends on the message_deliveries self-reference and D1 prepared statements.
 import type { Env } from '../types';
+
+export function inFlightDeliveryGuard(env: Env, removingIds: string[]): D1PreparedStatement {
+  const placeholders = removingIds.map(() => '?').join(', ');
+  // A claimed send keeps status queued with a future lease; the invalid update aborts the batch.
+  return env.DB.prepare(`UPDATE message_deliveries SET status = NULL
+    WHERE destination_id IN (${placeholders}) AND merged_into IS NULL
+      AND status = 'queued' AND attempts > 0 AND next_attempt_at > ?`)
+    .bind(...removingIds, new Date().toISOString());
+}
+
+export function isDeliveryInProgressError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('NOT NULL constraint failed: message_deliveries.status');
+}
 
 interface PrimaryDelivery {
   id: string;

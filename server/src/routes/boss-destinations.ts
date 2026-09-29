@@ -5,7 +5,7 @@ import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import type { Env } from '../types';
 import { probeDestination, type ProbeDestination } from '../delivery/probe';
 import { destinationsMode, parseDestination, parseDestinationPatch, parseProvider } from '../delivery';
-import { preserveMergedDeliveries } from '../delivery/delete-destination';
+import { inFlightDeliveryGuard, isDeliveryInProgressError, preserveMergedDeliveries } from '../delivery/delete-destination';
 
 const destinations = new Hono<{ Bindings: Env }>();
 const providers = new Hono<{ Bindings: Env }>();
@@ -55,8 +55,13 @@ destinations.delete('/:id', async c => {
     .bind(id, getBossId(c)).first<{ id: string }>();
   if (!owned) return c.json({ error: 'destination not found' }, 404);
   const statements = await preserveMergedDeliveries(c.env, id);
+  statements.unshift(inFlightDeliveryGuard(c.env, [id]));
   statements.push(c.env.DB.prepare('DELETE FROM boss_destinations WHERE id = ? AND boss_id = ?').bind(id, getBossId(c)));
-  await c.env.DB.batch(statements);
+  try { await c.env.DB.batch(statements); }
+  catch (error) {
+    if (isDeliveryInProgressError(error)) return c.json({ error: 'delivery in progress, retry' }, 409);
+    throw error;
+  }
   return c.json({ ok: true });
 });
 
