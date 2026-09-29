@@ -2,6 +2,7 @@
 // Exports deliverLegacySend; depends on shared adapters and message metadata.
 import type { Context } from 'hono';
 import type { Env, Channel, MessageRow, OptionMedia } from '../types';
+import { SENT_MESSAGE_STATUS } from '../message-status';
 import { buildInlineKeyboard } from './message-helpers';
 import { deliverAgentMessage } from './agent-delivery';
 import { getAgentQuietHoursEnd } from './quiet-hours';
@@ -49,6 +50,7 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
         channel: channelConfigs[i].channel,
         ok: r.status === 'fulfilled' && r.value.delivered,
         telegramMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.telegramMessageId : undefined,
+        telegramChatId: channelConfigs[i].channel === 'telegram' ? channelConfigs[i].config.chat_id : undefined,
         discordMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.discordMessageId : undefined,
       }));
       const anyDelivered = deliveryResults.some((d) => d.ok);
@@ -71,7 +73,7 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
   return queuedForQuietHours;
 }
 
-interface LegacyResult { channel: Channel; ok: boolean; telegramMessageId?: number; discordMessageId?: string }
+interface LegacyResult { channel: Channel; ok: boolean; telegramMessageId?: number; telegramChatId?: unknown; discordMessageId?: string }
 async function markLegacyDelivered(env: Env, messageId: string, metadata: Record<string, unknown> | null, deliveryResults: LegacyResult[], isUrgent: boolean): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: (string | number)[] = [];
@@ -79,6 +81,7 @@ async function markLegacyDelivered(env: Env, messageId: string, metadata: Record
   const tgResult = deliveryResults.find((d) => d.telegramMessageId);
   if (tgResult?.telegramMessageId) {
     meta['telegram_message_id'] = tgResult.telegramMessageId;
+    if (typeof tgResult.telegramChatId === 'string') meta['telegram_chat_id'] = tgResult.telegramChatId;
   }
   const dcResult = deliveryResults.find((d) => d.discordMessageId);
   if (dcResult?.discordMessageId) {
@@ -93,7 +96,7 @@ async function markLegacyDelivered(env: Env, messageId: string, metadata: Record
   }
   binds.push(messageId);
   await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
     .bind(...binds)
     .run();
 }

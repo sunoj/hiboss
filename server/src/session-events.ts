@@ -48,8 +48,12 @@ const EVENT_INSERT_SQL = `
       'updated_at', messages.updated_at,
       'expires_at', messages.expires_at
     )
-  FROM messages
+  FROM messages JOIN sessions ON sessions.id = ? AND sessions.agent_id = messages.agent_id
   WHERE messages.id = ?`;
+
+export function messageEventStatement(env: Env, sessionId: string, messageId: string): D1PreparedStatement {
+  return env.DB.prepare(EVENT_INSERT_SQL).bind(sessionId, sessionId, sessionId, messageId);
+}
 
 export function createMessageId(): string {
   return crypto.randomUUID().replaceAll('-', '');
@@ -64,7 +68,7 @@ export async function insertMessageWithEvent(
   const messageStatement = env.DB.prepare(insertSql).bind(...insertBinds);
   if (!sessionId) return await messageStatement.first<MessageRow>();
 
-  const eventStatement = env.DB.prepare(EVENT_INSERT_SQL).bind(sessionId, sessionId, insertBinds[0]);
+  const eventStatement = messageEventStatement(env, sessionId, String(insertBinds[0]));
   const results = await env.DB.batch([messageStatement, eventStatement]);
   return results[0]?.results[0] as MessageRow | undefined ?? null;
 }

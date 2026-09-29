@@ -2,6 +2,7 @@
 // Exports bossStreamRouter; depends on D1, stream helpers, and shared boss access.
 import { Hono } from 'hono';
 import type { Env, MessageRow } from '../types';
+import { SENT_MESSAGE_STATUS } from '../message-status';
 import { getBossId, getBossRole } from '../middleware/auth';
 import { authorizedStreamWriter } from '../middleware/authorized-stream';
 import { getAccessibleAgentIds } from './boss-api-access';
@@ -59,7 +60,7 @@ async function bossStreamLoop(
         if (seenIds.has(row.id)) continue;
         const data = JSON.stringify(mapMessageRow(row));
         await writer.write(encoder.encode(`event: message\ndata: ${data}\n\n`));
-        await env.DB.prepare("UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ?").bind(row.id).run();
+        await env.DB.prepare(`UPDATE messages SET status = 'delivered', updated_at = datetime('now') WHERE id = ? AND ${SENT_MESSAGE_STATUS}`).bind(row.id).run();
         seenIds.add(row.id);
         lastCheck = row.created_at;
       }

@@ -3,6 +3,7 @@
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
 import type { Env, MessageRow } from './types';
+import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
@@ -73,7 +74,10 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
 
   for (const row of rows.results ?? []) {
     const locked = await markQueueProcessing(env, row.id, now);
-    if (!locked) continue;
+    if (!locked) {
+      await dropDisabledQueueItem(env, row);
+      continue;
+    }
     try {
       await deliverQueuedMessage(env, row);
       await markQueueDelivered(env, row.id);
@@ -112,7 +116,8 @@ async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow): Promise<vo
   if (!result.delivered) {
     throw new Error('delivery failure');
   }
-  await markMessageDelivered(env, message, metadata, result.telegramMessageId, result.discordMessageId);
+  await markMessageDelivered(env, message, metadata, result.telegramMessageId, result.discordMessageId,
+    row.channel === 'telegram' ? (JSON.parse(row.config) as Record<string, unknown>).chat_id : undefined);
 }
 
 async function fetchQueuedMessage(env: Env, messageId: string): Promise<QueuedMessageRow | null> {
@@ -133,12 +138,16 @@ async function markMessageDelivered(
   metadata: Record<string, unknown> | null,
   telegramMessageId?: number,
   discordMessageId?: string,
+  telegramChatId?: unknown,
 ): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: Array<string | number> = [];
   const nextMetadata = metadata ? { ...metadata } : {};
 
-  if (telegramMessageId) nextMetadata['telegram_message_id'] = telegramMessageId;
+  if (telegramMessageId) {
+    nextMetadata['telegram_message_id'] = telegramMessageId;
+    if (typeof telegramChatId === 'string') nextMetadata['telegram_chat_id'] = telegramChatId;
+  }
   if (discordMessageId) nextMetadata['discord_message_id'] = discordMessageId;
   if (Object.keys(nextMetadata).length > 0) {
     updates.push('metadata = ?');
@@ -147,7 +156,7 @@ async function markMessageDelivered(
 
   binds.push(message.id);
   await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
     .bind(...binds)
     .run();
 }
@@ -168,10 +177,23 @@ async function retryFailedQueueItems(env: Env, now: string): Promise<void> {
 
 async function markQueueProcessing(env: Env, queueId: string, now: string): Promise<boolean> {
   const result = await env.DB
-    .prepare("UPDATE delivery_queue SET status = 'processing', attempts = attempts + 1, scheduled_at = ?, error = NULL WHERE id = ? AND status = 'pending'")
+    .prepare(`UPDATE delivery_queue SET status = 'processing', attempts = attempts + 1, scheduled_at = ?, error = NULL
+      WHERE id = ? AND status = 'pending' AND EXISTS (
+        SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
+        AND channel = delivery_queue.channel AND enabled = 1)`)
     .bind(now, queueId)
     .run();
   return (result.meta.changes ?? 0) > 0;
+}
+
+async function dropDisabledQueueItem(env: Env, row: DeliveryQueueRow): Promise<void> {
+  const error = 'channel disabled or removed';
+  const result = await env.DB.prepare(`UPDATE delivery_queue SET status = 'failed', attempts = ?, error = ?
+    WHERE id = ? AND status = 'pending' AND NOT EXISTS (
+      SELECT 1 FROM channel_configs WHERE agent_id = delivery_queue.agent_id
+      AND channel = delivery_queue.channel AND enabled = 1)`)
+    .bind(MAX_QUEUE_ATTEMPTS, error, row.id).run();
+  if (result.meta.changes) await persistDeliveryFailure(env, row.message_id, error);
 }
 
 async function markQueueDelivered(env: Env, queueId: string): Promise<void> {

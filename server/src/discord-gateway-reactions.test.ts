@@ -29,6 +29,12 @@ beforeAll(async () => {
   )
     .bind(THREAD_AGENT_ID, 'discord', '{"channel_id":"thread-parent","bot_token":"fake-token"}')
     .run();
+  for (const userId of ['boss-user-1', 'boss-user-2']) {
+    await env.DB.prepare("INSERT INTO bosses (id, name, role, discord_user_id) VALUES (?, ?, 'manager', ?)")
+      .bind(userId, userId, userId).run();
+    await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(userId, getTestAgentId()).run();
+  }
   await env.DB.prepare(
     'INSERT OR IGNORE INTO sessions (id, agent_id, discord_thread_id) VALUES (?, ?, ?)'
   )

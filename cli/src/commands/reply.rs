@@ -19,8 +19,6 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
-    // Auto-mark parent message as replied
-    let _ = client.update_status(&args.id, "replied").await;
     let response = client
         .reply_to(&args.id, &unescape_body(&args.body))
         .await?;

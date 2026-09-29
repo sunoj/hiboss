@@ -1,6 +1,25 @@
-// Builds atomic project reconciliation writes, including provenance in audit_log.
-// Exports mergeStatements; depends on D1 and project identity types.
+// Checks project data ownership and builds atomic reconciliation writes.
+// Exports merge guards and mergeStatements; depends on D1 and project identity types.
 import type { Project } from './index';
+
+export async function hasForeignProjectSessions(db: D1Database, projects: Project[], agentId: string): Promise<boolean> {
+  if (!projects.length) return false;
+  const placeholders = projects.map(() => '?').join(', ');
+  const row = await db.prepare(`SELECT 1 FROM sessions WHERE project_id IN (${placeholders}) AND agent_id != ? LIMIT 1`)
+    .bind(...projects.map(project => project.id), agentId).first();
+  return !!row;
+}
+
+export async function hasProjectDataOutsideBossGrant(db: D1Database, projectId: string, bossId: string): Promise<boolean> {
+  const row = await db.prepare(`SELECT 1 FROM (
+    SELECT agent_id FROM sessions WHERE project_id = ?
+    UNION SELECT agent_id FROM progress_posts WHERE project_id = ?
+    UNION SELECT s.agent_id FROM destination_routes r JOIN sessions s ON s.id = r.session_id WHERE r.project_id = ?
+  ) owners WHERE NOT EXISTS (
+    SELECT 1 FROM boss_agent_access access WHERE access.boss_id = ? AND access.agent_id = owners.agent_id
+  ) LIMIT 1`).bind(projectId, projectId, projectId, bossId).first();
+  return !!row;
+}
 
 export function mergeStatements(db: D1Database, winner: Project, absorbed: Project[], actorId: string, actorType: 'agent' | 'boss' = 'agent'): D1PreparedStatement[] {
   if (!absorbed.length) return [];

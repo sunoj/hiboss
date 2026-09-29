@@ -6,6 +6,7 @@ import { getAgentId } from '../middleware/auth';
 import { notifyTargetAgent } from '../notify';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import type { Channel, Direction, Env, MessageRow } from '../types';
+import { OPEN_MESSAGE_STATUS, SENT_MESSAGE_STATUS } from '../message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
 import {
   deliverReply,
@@ -33,6 +34,7 @@ routes.post('/:id/reply', async (c) => {
   if (!canReply) {
     return c.text('forbidden', 403);
   }
+  if (parent.direction === 'agent_to_boss') return c.text('agents cannot answer their own ask', 409);
   const payload = await c.req.json<Record<string, unknown>>();
   const body = typeof payload.body === 'string' ? payload.body.trim() : '';
   if (!body) {
@@ -41,7 +43,7 @@ routes.post('/:id/reply', async (c) => {
   // For agent_to_agent messages, reply direction is also agent_to_agent (back to sender)
   const replyDirection: Direction = parent.direction === 'agent_to_agent'
     ? 'agent_to_agent'
-    : parent.direction === 'boss_to_agent' ? 'agent_to_boss' : 'boss_to_agent';
+    : 'agent_to_boss';
   const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
   const replyTargetSessionId = replyDirection === 'agent_to_agent' ? replyTargetSession(parent) : null;
   const inserted = await insertMessageWithEvent(
@@ -55,7 +57,7 @@ routes.post('/:id/reply', async (c) => {
   }
   if (replyDirection === 'agent_to_boss') await sendBossReply(c, inserted, parent, body);
   await c.env.DB
-    .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
+    .prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
     .bind(parent.id)
     .run();
   if (replyTargetAgentId) {
@@ -102,7 +104,8 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
         )
       );
       if (result.delivered) {
-        await markReplyDelivered(c.env, inserted.id, result.telegramMessageId);
+        await markReplyDelivered(c.env, inserted.id, result.telegramMessageId,
+          channelConfig.channel === 'telegram' ? channelConfig.config.chat_id : undefined);
       }
     } catch (error) {
       await persistDeliveryFailure(c.env, inserted.id, getDeliveryErrorMessage(error));
@@ -110,16 +113,17 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
   }
 }
 
-async function markReplyDelivered(env: Env, messageId: string, telegramMessageId?: number): Promise<void> {
+async function markReplyDelivered(env: Env, messageId: string, telegramMessageId?: number, telegramChatId?: unknown): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: (string | number)[] = [];
   if (telegramMessageId) {
     updates.push('metadata = ?');
-    binds.push(JSON.stringify({ telegram_message_id: telegramMessageId }));
+    binds.push(JSON.stringify({ telegram_message_id: telegramMessageId,
+      ...(typeof telegramChatId === 'string' ? { telegram_chat_id: telegramChatId } : {}) }));
   }
   binds.push(messageId);
   await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ?`)
+    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
     .bind(...binds)
     .run();
 }

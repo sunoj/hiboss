@@ -4,14 +4,15 @@
 
 import { Hono, type Context } from 'hono';
 import type { Env, MessageRow } from '../types';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import {
   bossAuth, getBossId, getBossName, getBossRole, getBossTokenId,
 } from '../middleware/auth';
 import { authenticateBossReply } from '../message-security';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
-import { claimOptionReply } from './boss-option-reply';
+import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
 import { getAccessibleAgentIds } from './boss-api';
 import { escapeLike } from './bosses';
 import { mapMessageRow, replyTargetSession } from './message-helpers';
@@ -37,12 +38,11 @@ async function handleReply(c: BossContext): Promise<Response> {
   if (!authenticated.ok) return c.text(authenticated.error, authenticated.status);
   const duplicate = await findDuplicate(c.env, parent.agent_id, authenticated.value.idempotencyKey);
   if (duplicate) return c.json(mapMessageRow(duplicate));
-  const optionClaim = await claimOptionReply(c.env, parent, authenticated.value.body, true);
+  const optionClaim = await insertReply(c.env, parent, authenticated.value);
   if (optionClaim.kind === 'resolved') return c.text('option already resolved', 409);
-  const inserted = await insertReply(c.env, parent, authenticated.value);
-  if (!inserted) return c.text('failed to persist', 500);
-  finishReply(c, parent, inserted, optionClaim.kind, bossId, getBossName(c));
-  return c.json(mapMessageRow(inserted), 201);
+  if (optionClaim.kind === 'failed' || optionClaim.kind === 'invalid_choice') return c.text('failed to persist', 500);
+  finishReply(c, parent, optionClaim.reply, optionClaim.kind, bossId, getBossName(c));
+  return c.json(mapMessageRow(optionClaim.reply), 201);
 }
 
 async function findParent(c: BossContext): Promise<MessageRow | null> {
@@ -86,10 +86,13 @@ async function insertReply(
   env: Env,
   parent: MessageRow,
   authenticated: { body: string; idempotencyKey: string | null; provenance: Record<string, unknown> },
-): Promise<MessageRow | null> {
+): Promise<OptionClaimResult> {
   const targetSession = replyTargetSession(parent);
-  return insertMessageWithEvent(
+  return persistOptionReply(
     env,
+    parent,
+    authenticated.body,
+    true,
     `INSERT INTO messages
        (id, agent_id, direction, mode, channel, body, status, priority, reply_to,
         idempotency_key, metadata, target_session_id)
@@ -109,11 +112,10 @@ function finishReply(
   bossId: string,
   bossName: string,
 ): void {
-  if (optionKind === 'not_option') {
-    c.executionCtx.waitUntil(c.env.DB.prepare(
-      "UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?",
-    ).bind(parent.id).run());
-  }
+  if (optionKind === 'not_option') c.executionCtx.waitUntil(
+    c.env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
+      .bind(parent.id).run(),
+  );
   if (optionKind === 'claimed') {
     c.executionCtx.waitUntil(
       withdrawResolvedOptions(c.env, parent.agent_id, parent, inserted.body).catch(() => {}),

@@ -29,10 +29,14 @@ routes.post('/join-requests/:id/approve', async (c) => {
   if (request.status !== 'pending') return c.text('request already processed', 400);
   const inserted = await createAgent(c.env.DB, request.name, { type: 'boss', id: bossId });
   if (!inserted) return c.text('agent name already exists', 409);
-  await c.env.DB
-    .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ?")
+  const approved = await c.env.DB
+    .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
     .bind(inserted.id, inserted.key, request.id)
     .run();
+  if (!approved.meta.changes) {
+    await c.env.DB.prepare('DELETE FROM api_keys WHERE id = ?').bind(inserted.id).run();
+    return c.text('request already processed', 409);
+  }
   await c.env.DB
     .prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind(bossId, inserted.id)
@@ -48,10 +52,11 @@ routes.post('/join-requests/:id/reject', async (c) => {
   const request = await c.env.DB.prepare('SELECT * FROM join_requests WHERE id = ?').bind(requestId).first<JoinRequestRow>();
   if (!request) return c.text('not found', 404);
   if (request.status !== 'pending') return c.text('request already processed', 400);
-  await c.env.DB
-    .prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ?")
+  const rejected = await c.env.DB
+    .prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
     .bind(request.id)
     .run();
+  if (!rejected.meta.changes) return c.text('request already processed', 409);
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'join.reject', 'join_request', request.id));
   return c.json({ id: request.id, name: request.name, status: 'rejected' });
 });

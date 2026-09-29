@@ -3,7 +3,8 @@
 // Depends on message queries/options, delivery helpers, and route-safe metadata parsing.
 
 import type { Channel, Env, MessageRow } from '../types';
-import { ensureThreadForSession, ensureTopicForAgent } from './message-options';
+import { ensureTopicForAgent } from './message-options';
+import { ensureThreadForSession } from './message-option-threads';
 import { fetchAgentName, selectChannelConfig } from './message-queries';
 import { ensureTopicForSession } from './session-channels';
 import {
@@ -70,7 +71,8 @@ export async function forwardMessage(
   );
   if (!result.delivered) throw new Error('forward delivery failed');
 
-  const inserted = await persistForward(env, original, targetChannel, forwardBody, mergeDeliveryMetadata(metadata, result));
+  const inserted = await persistForward(env, original, targetChannel, forwardBody,
+    mergeDeliveryMetadata(metadata, result, targetChannel === 'telegram' ? config.chat_id : undefined));
   await dispatchDestinations(env, inserted, [channelConfig]);
 
   if (result.discordMessageId) {
@@ -107,8 +109,12 @@ function buildForwardMetadata(sourceChannel: Channel | null, fileUrl?: string): 
 function mergeDeliveryMetadata(
   metadata: Record<string, unknown>,
   result: { telegramMessageId?: number; discordMessageId?: string },
+  telegramChatId?: unknown,
 ): Record<string, unknown> {
-  if (result.telegramMessageId) metadata['telegram_message_id'] = result.telegramMessageId;
+  if (result.telegramMessageId) {
+    metadata['telegram_message_id'] = result.telegramMessageId;
+    if (typeof telegramChatId === 'string') metadata['telegram_chat_id'] = telegramChatId;
+  }
   if (result.discordMessageId) metadata['discord_message_id'] = result.discordMessageId;
   return metadata;
 }

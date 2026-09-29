@@ -127,14 +127,14 @@ routes.patch('/:id', async (c) => {
 routes.delete('/:id', async (c) => {
   if (isBossAuth(c)) return c.text('agent required', 403);
   const agentId = getAgentId(c);
-  await c.env.DB
-    .prepare('UPDATE sessions SET telegram_topic_id = NULL WHERE id = ? AND agent_id = ?')
-    .bind(c.req.param('id'), agentId)
-    .run();
-  await c.env.DB
-    .prepare('DELETE FROM sessions WHERE id = ? AND agent_id = ?')
-    .bind(c.req.param('id'), agentId)
-    .run();
+  const sessionId = c.req.param('id');
+  const ownedSession = 'SELECT id FROM sessions WHERE id = ? AND agent_id = ?';
+  await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM session_events WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
+    c.env.DB.prepare(`DELETE FROM destination_routes WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
+    c.env.DB.prepare('UPDATE sessions SET telegram_topic_id = NULL WHERE id = ? AND agent_id = ?').bind(sessionId, agentId),
+    c.env.DB.prepare('DELETE FROM sessions WHERE id = ? AND agent_id = ?').bind(sessionId, agentId),
+  ]);
   return c.json({ ok: true });
 });
 

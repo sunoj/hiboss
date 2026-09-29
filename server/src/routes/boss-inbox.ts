@@ -4,12 +4,15 @@
 
 import { Hono } from 'hono';
 import type { Env, MessageRow, Priority, Status } from '../types';
+import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { bearerApiMetadata } from '../message-security';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
+import { persistOptionReply, type OptionClaimResult } from './boss-option-reply';
+import { withdrawResolvedOptions } from './message-options';
 
 const MAX_LIMIT = 100;
 
@@ -149,27 +152,32 @@ routes.post('/:id/reply', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
-  const metadata = JSON.stringify(bearerApiMetadata(
-    { id: boss.id, name: boss.name }, agentId,
-  ));
-  const inserted = await insertMessageWithEvent(
-    c.env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
-    replyTargetSession(parent),
-  );
-  if (!inserted) {
-    return c.text('failed to persist', 500);
-  }
-  // Mark parent as replied
-  await c.env.DB
-    .prepare("UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ?")
-    .bind(parent.id)
-    .run();
+  const result = await insertInboxReply(c.env, parent, boss, agentId, body);
+  if (result.kind === 'resolved') return c.text('option already resolved', 409);
+  if (result.kind === 'failed' || result.kind === 'invalid_choice') return c.text('failed to persist', 500);
+  const inserted = result.reply;
+  if (result.kind === 'not_option') await c.env.DB
+    .prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
+    .bind(parent.id).run();
+  else c.executionCtx.waitUntil(withdrawResolvedOptions(c.env, parent.agent_id, parent, inserted.body).catch(() => {}));
   // Notify sub-agent via callback
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, parent.agent_id, inserted));
   return c.json(mapMessageRow(inserted), 201);
 });
+
+async function insertInboxReply(
+  env: Env, parent: MessageRow, boss: BossRecord, actorAgentId: string, body: string,
+): Promise<OptionClaimResult> {
+  const metadata = JSON.stringify(bearerApiMetadata(
+    { id: boss.id, name: boss.name }, actorAgentId,
+  ));
+  return persistOptionReply(
+    env, parent, body, true,
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), parent.agent_id, 'boss_to_agent', 'async', 'api', body, 'sent', 'normal', parent.id, metadata, replyTargetSession(parent)],
+    replyTargetSession(parent),
+  );
+}
 
 /** PATCH /api/boss/inbox/:id — boss-agent marks a message as read. */
 routes.patch('/:id', async (c) => {
@@ -178,9 +186,10 @@ routes.patch('/:id', async (c) => {
   if (!boss) {
     return c.text('not a boss agent', 403);
   }
+  if (boss.role === 'viewer') return c.text('viewer cannot update messages', 403);
   const messageId = c.req.param('id');
   const payload = await c.req.json<Record<string, unknown>>();
-  const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read', 'replied']);
+  const status = validateOption<Status>(payload.status, ['delivered', 'read']);
   if (!status) {
     return c.text('status is required', 400);
   }
@@ -196,11 +205,11 @@ routes.patch('/:id', async (c) => {
     return c.text('no access to this agent', 403);
   }
   const updated = await c.env.DB
-    .prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? RETURNING *")
+    .prepare(`UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING *`)
     .bind(status, messageId)
     .first<MessageRow>();
   if (!updated) {
-    return c.text('not found', 404);
+    return c.text('message already resolved', 409);
   }
   return c.json(mapMessageRow(updated));
 });
