@@ -13,7 +13,7 @@ const base = 'https://test.local';
 const agent = getTestAgentId();
 const token = 'decision-audit-stream-token';
 const bossHeaders = { Authorization: `Bearer ${token}` };
-const fresh = (name: string) => `decision-${name}-${crypto.randomUUID()}`;
+const fresh = (name: string) => `d-${name}-${crypto.randomUUID().slice(0, 8)}`;
 
 async function option(id: string, defaults = false): Promise<MessageRow> {
   await env.DB.prepare(`INSERT INTO messages
@@ -38,7 +38,7 @@ async function seedTelegramChats(owner: string, inboundChat: string, otherChat: 
   await env.DB.prepare("INSERT INTO bosses (id, name, role, telegram_user_id) VALUES (?, ?, 'manager', ?)")
     .bind(owner, owner, owner).run();
   await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(owner, agent).run();
-  await env.DB.prepare("INSERT INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
+  await env.DB.prepare("INSERT OR REPLACE INTO channel_configs (id, agent_id, channel, config) VALUES (?, ?, 'telegram', ?)")
     .bind(fresh('f14-config'), agent, JSON.stringify({ chat_id: otherChat, bot_token: 'synthetic' })).run();
   await env.DB.prepare("INSERT INTO channel_providers (id, provider, label, credentials) VALUES (?, 'telegram', ?, ?)")
     .bind(provider, provider, JSON.stringify({ bot_token: 'synthetic' })).run();

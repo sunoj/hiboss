@@ -13,7 +13,7 @@ const base = 'https://test.local';
 const agent = getTestAgentId();
 const bossToken = 'decision-audit-boss-token';
 const bossHeaders = { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' };
-const fresh = (name: string) => `decision-${name}-${crypto.randomUUID()}`;
+const fresh = (name: string) => `d-${name}-${crypto.randomUUID().slice(0, 8)}`;
 const request = (path: string, method: string, body: unknown, headers = authHeaders()) =>
   SELF.fetch(`${base}${path}`, { method, headers, body: JSON.stringify(body) });
 
