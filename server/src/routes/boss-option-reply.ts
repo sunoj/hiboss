@@ -1,4 +1,4 @@
-// Claims an option message so concurrent Boss clients have exactly one winner.
+// Inserts one answer to an open ask, then marks that ask replied in one D1 batch.
 // Exports: persistOptionReply and its explicit result union.
 // Depends on D1, session events, MessageRow metadata, and server time.
 
@@ -13,10 +13,10 @@ export type OptionClaimResult =
   | { kind: 'failed' }
   | { kind: 'resolved' };
 
-type OptionReplyParent = Pick<MessageRow, 'id' | 'metadata' | 'status'>;
+type OptionReplyParent = Pick<MessageRow, 'id' | 'metadata' | 'direction' | 'mode'>;
 
 /**
- * Persists a reply only if its option claim wins.
+ * Persists an ask answer only if its conditional insert wins.
  *
  * `allowFreeText` must be false for channel callbacks: Telegram callback_data is
  * client-supplied and both callback paths admit viewer-role bosses, so binding the
@@ -35,43 +35,35 @@ export async function persistOptionReply(
   allowExpired = false,
 ): Promise<OptionClaimResult> {
   const options = parseOptions(parent.metadata);
-  if (!options) {
+  if (options && !allowFreeText && !options.includes(choice)) return { kind: 'invalid_choice' };
+  const isAsk = parent.direction === 'agent_to_boss' && (parent.mode === 'blocking' || options !== null);
+  if (!isAsk) {
     const reply = await insertMessageWithEvent(env, insertSql, insertBinds, sessionId);
     return reply ? { kind: 'not_option', reply } : { kind: 'failed' };
   }
-  if (!allowFreeText && !options.includes(choice)) return { kind: 'invalid_choice' };
-
   const now = new Date().toISOString();
-  const claim = env.DB.prepare(
-    `UPDATE messages
-     SET status = 'replied', updated_at = datetime('now')
-     WHERE id = ?
-       AND ${OPEN_MESSAGE_STATUS}
-       AND (? = 1 OR expires_at IS NULL OR expires_at > ?)
-     RETURNING id`,
-  ).bind(parent.id, allowExpired ? 1 : 0, now);
-  // D1 batch executes these statements in one transaction. changes() ties the
-  // insert to this claim, and the event SELECT sees only a persisted reply.
-  if (!insertSql.includes('VALUES (') || !insertSql.includes(') RETURNING *')) {
+  if (!insertSql.includes('VALUES (') || !insertSql.includes('RETURNING *')) {
     throw new Error('reply insert must use VALUES and RETURNING');
   }
-  const conditionalInsert = insertSql.replace('VALUES (', 'SELECT ').replace(') RETURNING *', ' WHERE changes() = 1 RETURNING *');
+  const openAsk = `parent.id = ? AND ${OPEN_MESSAGE_STATUS.replace('status', 'parent.status')}
+    AND (? = 1 OR parent.expires_at IS NULL OR parent.expires_at > ?)
+    AND NOT EXISTS (SELECT 1 FROM messages answer WHERE answer.reply_to = parent.id
+      AND answer.direction = 'boss_to_agent')`;
+  const conditionalInsert = insertSql.replace('VALUES (', 'SELECT ').replace(
+    /\) (ON CONFLICT|RETURNING \*)/, ` FROM messages parent WHERE ${openAsk} $1`,
+  );
   const statements = [
-    env.DB.prepare('SELECT status FROM messages WHERE id = ?').bind(parent.id),
-    claim,
-    env.DB.prepare(conditionalInsert).bind(...insertBinds),
+    env.DB.prepare(conditionalInsert).bind(...insertBinds, parent.id, allowExpired ? 1 : 0, now),
+    env.DB.prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now')
+      WHERE id = ? AND EXISTS (SELECT 1 FROM messages WHERE id = ?)`).bind(parent.id, String(insertBinds[0])),
   ];
   if (sessionId) statements.push(messageEventStatement(env, sessionId, String(insertBinds[0])));
   const results = await env.DB.batch(statements);
-  if (!results[1]?.results.length) return { kind: 'resolved' };
-  const reply = results[2]?.results[0] as MessageRow | undefined;
+  const reply = results[0]?.results[0] as MessageRow | undefined;
   if (reply) return { kind: 'claimed', reply };
-  const previous = results[0]?.results[0] as { status: MessageRow['status'] } | undefined;
-  if (!previous) throw new Error('claimed option has no previous status');
-  // A trigger may silently ignore the insert; restore the prior status then.
-  await env.DB.prepare("UPDATE messages SET status = ?, updated_at = datetime('now') WHERE id = ? AND status = 'replied' AND NOT EXISTS (SELECT 1 FROM messages WHERE id = ?)")
-    .bind(previous.status, parent.id, String(insertBinds[0])).run();
-  return { kind: 'failed' };
+  const stillOpen = await env.DB.prepare(`SELECT 1 AS open FROM messages parent WHERE ${openAsk}`)
+    .bind(parent.id, allowExpired ? 1 : 0, now).first<{ open: number }>();
+  return stillOpen ? { kind: 'failed' } : { kind: 'resolved' };
 }
 
 function parseOptions(metadata: string | null): string[] | null {
@@ -80,10 +72,29 @@ function parseOptions(metadata: string | null): string[] | null {
     const parsed = JSON.parse(metadata) as Record<string, unknown>;
     const options = parsed['options'];
     if (!Array.isArray(options) || !options.every((item) => typeof item === 'string')) {
-      return null;
+      return 'options' in parsed ? [] : null;
     }
     return options;
   } catch {
     return null;
   }
+}
+
+/** Saves channel text as a standalone message if its candidate ask has closed. */
+export async function persistChannelText(
+  env: Env,
+  parent: OptionReplyParent | null,
+  body: string,
+  insertSql: string,
+  insertBinds: readonly unknown[],
+  sessionId: string | null,
+): Promise<MessageRow | null> {
+  if (!parent) return insertMessageWithEvent(env, insertSql, insertBinds, sessionId);
+  const result = await persistOptionReply(env, parent, body, true, insertSql, insertBinds, sessionId);
+  if (result.kind === 'claimed' || result.kind === 'not_option') return result.reply;
+  if (result.kind !== 'resolved') return null;
+  // Each channel insert statement binds reply_to at index 8.
+  const unlinked = [...insertBinds];
+  unlinked[8] = null;
+  return insertMessageWithEvent(env, insertSql, unlinked, sessionId);
 }

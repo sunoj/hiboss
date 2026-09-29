@@ -22,8 +22,9 @@ import {
 import { handleTelegramCallbackQuery, handleTelegramReaction } from './telegram-webhook-actions';
 import { findPendingTelegramMessageInChat, findTelegramMessageInChat } from './telegram-message-match';
 import type { Env, MessageRow } from '../types';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
+import { persistChannelText } from './boss-option-reply';
 
 const router = new Hono<{ Bindings: Env }>({});
 
@@ -152,12 +153,11 @@ async function createTelegramBossMessage(
     payload,
     channelMetadata('telegram', bossInfo, senderId),
   );
-  const inserted = await insertMessageWithEvent(
-    c.env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentId, 'boss_to_agent', 'async', 'telegram', body, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), target.targetSessionId],
-    target.targetSessionId,
-  );
+  const parent = replyTo ? await c.env.DB.prepare('SELECT * FROM messages WHERE id = ?')
+    .bind(replyTo).first<MessageRow>() : null;
+  const insertSql = 'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *';
+  const binds = [createMessageId(), agentId, 'boss_to_agent', 'async', 'telegram', body, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), target.targetSessionId];
+  const inserted = await persistChannelText(c.env, parent, body, insertSql, binds, target.targetSessionId);
   if (!inserted) return c.text('failed to persist', 500);
   c.executionCtx.waitUntil(notifyAgentCallback(c.env, agentId, inserted));
   c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', 'message.send', 'message', inserted.id, 'telegram'));

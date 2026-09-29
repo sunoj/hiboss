@@ -3,9 +3,10 @@
 // Depends on Env typings and D1 bindings.
 
 import type { Env, MessageResponse, MessageRow } from '../types';
-import { createMessageId, insertMessageWithEvent } from '../session-events';
+import { createMessageId } from '../session-events';
 import { channelMetadata, mergeProvenance } from '../message-security';
 import { destinationsMode, findInboundRoute } from '../delivery';
+import { persistChannelText } from './boss-option-reply';
 
 export function asString(value: unknown): string | undefined {
   if (typeof value === 'string') return value;
@@ -193,13 +194,12 @@ export async function insertBossDiscordMessage(
     channelMetadata('discord', bossInfo, senderUserId),
   );
   const replyTo = await resolveDiscordParent(env, agentRow.agent_id, replyToDiscordMsgId);
+  const parent = replyTo ? await env.DB.prepare('SELECT * FROM messages WHERE id = ?')
+    .bind(replyTo).first<MessageRow>() : null;
   // Keep inbound thread replies scoped to the owning session.
-  const inserted = await insertMessageWithEvent(
-    env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId, sessionId],
-    sessionId,
-  );
+  const insertSql = 'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, idempotency_key, metadata, session_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *';
+  const binds = [createMessageId(), agentRow.agent_id, 'boss_to_agent', 'async', 'discord', text, 'sent', 'normal', replyTo, idempotencyKey ?? null, JSON.stringify(metadata), sessionId, sessionId];
+  const inserted = await persistChannelText(env, parent, text, insertSql, binds, sessionId);
   return inserted ?? null;
 }
 
