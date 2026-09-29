@@ -222,7 +222,7 @@ routes.put('/:project', apiAuth, async (c) => {
   const avatarError = await validateAvatar(c.env, input.avatar_url ?? null, new URL(c.req.url), agentId);
   if (avatarError) return c.text(avatarError, 400);
   try {
-    const resolved = await resolveProject(c.env.DB, identity, agentId);
+    const resolved = await resolveProject(c.env.DB, identity, agentId, 'explicit', { requireOwnedTarget: true });
     if (!resolved.ok) return c.text(resolved.error, 409);
     const team = await saveTeam(c.env, resolved.project.slug, input);
     if (!team) return c.text('handle is already in use', 409);

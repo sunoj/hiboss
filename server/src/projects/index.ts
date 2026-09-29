@@ -1,6 +1,6 @@
 // Resolves project identities and validates session ownership for agent writes.
 // Exports project parsing/resolution and ownership checks; depends on D1.
-import { mergeStatements } from './merge';
+import { hasForeignProjectSessions, mergeStatements } from './merge';
 export type ProjectId = string & { readonly __brand: 'ProjectId' };
 export type AliasSource = 'origin' | 'cwd' | 'explicit' | 'label';
 export interface ProjectInput {
@@ -11,6 +11,7 @@ export interface ProjectInput {
 }
 export interface Project { id: ProjectId; slug: string }
 type Resolution = { ok: true; project: Project } | { ok: false; error: string };
+type ResolutionOptions = { requireOwnedTarget?: boolean };
 
 export function projectSlug(value: string): string {
   // SQLite lower() folds ASCII only; fold after removing non-ASCII characters.
@@ -36,7 +37,7 @@ export function parseProject(value: unknown): ProjectInput | string | null {
   return { slug: input.slug, aliases: input.aliases as string[], display_name: input.display_name as string | undefined, repo_url: input.repo_url as string | undefined };
 }
 
-export async function resolveProject(db: D1Database, input: ProjectInput, agentId: string, source: AliasSource = 'explicit', retries = 2): Promise<Resolution> {
+export async function resolveProject(db: D1Database, input: ProjectInput, agentId: string, source: AliasSource = 'explicit', options: ResolutionOptions = {}, retries = 2): Promise<Resolution> {
   const aliases = [...new Set([input.slug, ...input.aliases])];
   const placeholders = aliases.map(() => '?').join(', ');
   const matches = await db.prepare(`SELECT p.id, p.slug FROM projects p JOIN project_aliases a ON a.project_id = p.id WHERE a.alias IN (${placeholders}) GROUP BY p.id ORDER BY MAX(a.alias = ?) DESC, p.created_at, p.id`)
@@ -46,11 +47,15 @@ export async function resolveProject(db: D1Database, input: ProjectInput, agentI
   const slug = generated.length <= 256 ? generated : `project--${crypto.randomUUID().replace(/-/g, '')}`;
   const existing = matches.results[0] ?? await db.prepare('SELECT id, slug FROM projects WHERE slug IN (?, ?) ORDER BY slug = ? DESC').bind(input.slug, slug, input.slug).first<Project>();
   const project = existing ?? { id: crypto.randomUUID() as ProjectId, slug };
+  const absorbed = matches.results.slice(1);
+  if (await hasForeignProjectSessions(db, options.requireOwnedTarget ? [project, ...absorbed] : absorbed, agentId)) {
+    return { ok: false, error: 'project has sessions belonging to another agent' };
+  }
   try {
-    await persistProject(db, project, input, aliases, agentId, source, !!existing, matches.results.slice(1));
+    await persistProject(db, project, input, aliases, agentId, source, !!existing, absorbed);
   } catch (error) {
     if (error instanceof Error && /UNIQUE|NOT NULL|FOREIGN KEY/.test(error.message)) {
-      if (retries > 0) return resolveProject(db, input, agentId, source, retries - 1);
+      if (retries > 0) return resolveProject(db, input, agentId, source, options, retries - 1);
       return { ok: false, error: 'project identity conflict; retry with consistent aliases' };
     }
     throw error;
