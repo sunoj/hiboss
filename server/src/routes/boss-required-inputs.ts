@@ -44,6 +44,7 @@ export async function fetchRequiredInputPage(
        AND messages.direction = 'agent_to_boss'
        AND messages.status IN ('sent', 'delivered', 'read')
        AND (messages.expires_at IS NULL OR messages.expires_at > ?)
+       AND NOT (messages.expires_at IS NULL AND julianday(messages.created_at) < julianday('now') - 1)
        AND (CASE WHEN json_valid(messages.metadata)
             THEN json_extract(messages.metadata, '$.options_expired') IS NOT 1
             ELSE 1 END)

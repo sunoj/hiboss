@@ -7,6 +7,7 @@ import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
+import { expireStaleAsks } from './abandoned-asks';
 import { parseOptionMedia } from './routes/option-media';
 import { destinationsMode, drainDestinationDeliveries } from './delivery';
 
@@ -33,6 +34,7 @@ export async function handleScheduled(env: Env): Promise<void> {
   const now = new Date().toISOString();
   await cleanupPairingCodes(env, now);
   await expireDueOptions(env, now);
+  await expireStaleAsks(env);
   if (destinationsMode(env.DESTINATIONS_MODE) === 'on') await drainDestinationDeliveries(env);
   else await drainDeliveryQueue(env, now);
 }

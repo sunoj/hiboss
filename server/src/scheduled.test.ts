@@ -123,12 +123,17 @@ vi.mock('./routes/message-options', () => ({
   expireMessageOptions: vi.fn(async () => {}),
 }));
 
+vi.mock('./abandoned-asks', () => ({
+  expireStaleAsks: vi.fn(async () => 0),
+}));
+
 vi.mock('./routes/agent-delivery', () => ({
   deliverAgentMessage: vi.fn(async () => ({ delivered: true })),
 }));
 
 import { expireMessageOptions } from './routes/message-options';
 import { deliverAgentMessage } from './routes/agent-delivery';
+import { expireStaleAsks } from './abandoned-asks';
 
 const mockedExpire = vi.mocked(expireMessageOptions);
 const mockedDeliverAgentMessage = vi.mocked(deliverAgentMessage);
@@ -172,6 +177,7 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(mockedExpire).not.toHaveBeenCalled();
+    expect(vi.mocked(expireStaleAsks)).toHaveBeenCalled();
   });
 
   it('keeps consumed pairing codes observable until they expire', async () => {

@@ -54,15 +54,28 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
     await autoResolveDefaultOption(env, agentId, message, meta, defaultOption);
     return;
   }
+  await expireWithoutDefault(env, agentId, message);
+}
+
+/**
+ * Expires an open ask without answering it: nobody chose, so nothing is recorded as a
+ * choice. Returns false when the ask was already resolved. Channel cleanup is best-effort.
+ */
+export async function expireWithoutDefault(env: Env, agentId: string, message: MessageRow): Promise<boolean> {
+  const meta = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
   meta['options_expired'] = true;
   delete meta['actions'];
   const claimed = await env.DB
     .prepare(`UPDATE messages SET status = 'expired', metadata = ?, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
     .bind(JSON.stringify(meta), message.id)
     .first<{ id: string }>();
-  if (!claimed) return;
-  // 2. Clean up channel inline keyboards
-  await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
+  if (!claimed) return false;
+  try {
+    await editExpiredChannelMessage(env, agentId, message, meta, '⏰ Options expired');
+  } catch {
+    // swallow: the expiry is persisted; a chat edit (missing config, network) is best-effort
+  }
+  return true;
 }
 
 function getDefaultOption(meta: Record<string, unknown>): string | null {

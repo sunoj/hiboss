@@ -9,6 +9,10 @@ import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 const TOKEN = 'hb_boss_required_inputs_test_0001';
 const BASE = 'http://localhost/api/boss';
 const headers = { Authorization: `Bearer ${TOKEN}` };
+// Deadline-less asks older than a day are abandoned and leave pending inputs, so
+// fixtures stay inside the day: RECENT for the bulk, EARLIER for "an older request".
+const RECENT = new Date(Date.now() - 3_600_000).toISOString();
+const EARLIER = new Date(Date.now() - 20 * 3_600_000).toISOString();
 
 beforeAll(async () => {
   await seedDatabase();
@@ -20,7 +24,7 @@ describe('required-input discovery', () => {
     const prefix = `page-${Date.now()}-`;
     for (let index = 0; index < 105; index += 1) {
       await insert(`${prefix}${String(index).padStart(3, '0')}`, 'async',
-        JSON.stringify({ options: ['Choose'] }), 'normal', '2026-09-23T00:00:00Z');
+        JSON.stringify({ options: ['Choose'] }), 'normal', RECENT);
     }
     const first = await page();
     expect(first.messages.filter((row) => row.id.startsWith(prefix))).toHaveLength(100);
@@ -40,16 +44,16 @@ describe('required-input discovery', () => {
 
   it('finds an old blocking request beyond newer mixed history', async () => {
     const prefix = `old-${Date.now()}`;
-    await insert(`${prefix}-ask`, 'blocking', null, 'low', '2026-01-01T00:00:00Z');
+    await insert(`${prefix}-ask`, 'blocking', null, 'low', EARLIER);
     for (let index = 0; index < 110; index += 1) {
       if (index % 2 === 0) {
-        await insert(`${prefix}-${index}`, 'async', null, 'normal', '2026-09-23T00:00:00Z');
+        await insert(`${prefix}-${index}`, 'async', null, 'normal', RECENT);
       } else {
         await env.DB.prepare(
           `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status,
            priority, created_at) VALUES (?, ?, 'boss_to_agent', 'async', 'api',
            'Answer', 'sent', 'normal', ?)`,
-        ).bind(`${prefix}-${index}`, getTestAgentId(), '2026-09-23T00:00:00Z').run();
+        ).bind(`${prefix}-${index}`, getTestAgentId(), RECENT).run();
       }
     }
     expect(await allPages()).toContain(`${prefix}-ask`);
@@ -120,7 +124,7 @@ async function allPages(): Promise<string[]> {
 
 async function insert(
   id: string, mode: 'async' | 'blocking', metadata: string | null,
-  priority: string, createdAt = '2026-09-23T00:00:00Z', expiresAt: string | null = null,
+  priority: string, createdAt = RECENT, expiresAt: string | null = null,
 ): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO messages
