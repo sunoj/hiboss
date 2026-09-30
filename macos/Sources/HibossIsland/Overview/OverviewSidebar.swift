@@ -97,7 +97,7 @@ struct OverviewSidebar: View {
                 }
             }
             Spacer(minLength: 4)
-            Text("\(session.messages.count)").monospacedDigit().foregroundStyle(.secondary)
+            Text(session.messages.count.formatted()).monospacedDigit().foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)

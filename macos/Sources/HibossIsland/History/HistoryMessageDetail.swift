@@ -89,14 +89,14 @@ struct HistoryMessageDetail: View {
     private var metadataContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             metadataRow(L("From"), value: message.historyDisplayName)
-            metadataRow(L("Status"), value: message.status)
-            metadataRow(L("Priority"), value: message.priority)
+            metadataRow(L("Status"), value: message.historyStatusName)
+            metadataRow(L("Priority"), value: message.historyPriorityName)
             if let channel = cleaned(message.channel) { metadataRow(L("Channel"), value: channel) }
             if let mode = cleaned(message.mode) { metadataRow(L("Mode"), value: mode) }
             if let session = cleaned(message.sessionLabel) ?? cleaned(message.sessionBranch) {
                 metadataRow(L("Session"), value: session)
             }
-            metadataRow(L("Created"), value: message.createdAt)
+            metadataRow(L("Created"), value: HistoryTimestamp.localDateTime(from: message.createdAt))
         }
     }
 

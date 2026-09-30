@@ -135,7 +135,7 @@ struct IslandView: View {
     }
 
     private func projectTitle(for message: OptionMessage) -> String {
-        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch) ?? nonEmpty(message.agentName) ?? "HiBoss"
+        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch) ?? nonEmpty(message.agentName) ?? productName
     }
 
     private func nonEmpty(_ value: String?) -> String? {

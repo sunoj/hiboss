@@ -3987,6 +3987,24 @@
     },
     "View all %lld decisions": {
       "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "View all %lld decision"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "View all %lld decisions"
+                }
+              }
+            }
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -4069,6 +4087,864 @@
           "stringUnit": {
             "state": "translated",
             "value": "결정 샘플 · 로컬 미리보기"
+          }
+        }
+      }
+    },
+    "A pairing code is not available yet.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A pairing code is not available yet."
+          }
+        }
+      }
+    },
+    "Administrator permission required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Administrator permission required"
+          }
+        }
+      }
+    },
+    "Attention Unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attention Unavailable"
+          }
+        }
+      }
+    },
+    "Auto-decided": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-decided"
+          }
+        }
+      }
+    },
+    "Auto-decided · %@": {
+      "comment": "History row caption. %@: the default option the server picked on timeout.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-decided · %@"
+          }
+        }
+      }
+    },
+    "Blocked on you": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocked on you"
+          }
+        }
+      }
+    },
+    "Blow": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blow"
+          }
+        }
+      }
+    },
+    "Bottle": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottle"
+          }
+        }
+      }
+    },
+    "Captured submission": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captured submission"
+          }
+        }
+      }
+    },
+    "Channel": {
+      "comment": "Message detail label: delivery channel such as Discord or Telegram.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel"
+          }
+        }
+      }
+    },
+    "Choices": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choices"
+          }
+        }
+      }
+    },
+    "Chooses %@ in %@": {
+      "comment": "Auto-decision caption. First %@: the default option an agent wrote. Second %@: time left, e.g. \"1m 30s\".",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chooses %@ in %@"
+          }
+        }
+      }
+    },
+    "Close panel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close panel"
+          }
+        }
+      }
+    },
+    "Configure the server URL and Boss Token before pairing a device.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configure the server URL and Boss Token before pairing a device."
+          }
+        }
+      }
+    },
+    "Connect to HiBoss": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to HiBoss"
+          }
+        }
+      }
+    },
+    "Connecting…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting…"
+          }
+        }
+      }
+    },
+    "Couldn’t request a pairing code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t request a pairing code"
+          }
+        }
+      }
+    },
+    "Created": {
+      "comment": "Message detail label: when the message was created.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created"
+          }
+        }
+      }
+    },
+    "Critical priority": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Critical priority"
+          }
+        }
+      }
+    },
+    "Decides itself": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decides itself"
+          }
+        }
+      }
+    },
+    "Delivered": {
+      "comment": "Message status.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delivered"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        }
+      }
+    },
+    "Device connected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device connected"
+          }
+        }
+      }
+    },
+    "Device pairing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device pairing"
+          }
+        }
+      }
+    },
+    "Device pairing QR code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device pairing QR code"
+          }
+        }
+      }
+    },
+    "Done": {
+      "comment": "Button that closes the device pairing sheet.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "Expired": {
+      "comment": "Message status.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired"
+          }
+        }
+      }
+    },
+    "Form edited since submission; this is the previous answer, not the current draft.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Form edited since submission; this is the previous answer, not the current draft."
+          }
+        }
+      }
+    },
+    "From": {
+      "comment": "Message detail label: the sender.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From"
+          }
+        }
+      }
+    },
+    "Full context appears here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full context appears here."
+          }
+        }
+      }
+    },
+    "Funk": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funk"
+          }
+        }
+      }
+    },
+    "Glass": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glass"
+          }
+        }
+      }
+    },
+    "Hero": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hero"
+          }
+        }
+      }
+    },
+    "HiBoss could not render the pairing QR code.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss could not render the pairing QR code."
+          }
+        }
+      }
+    },
+    "High priority": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High priority"
+          }
+        }
+      }
+    },
+    "Image unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image unavailable"
+          }
+        }
+      }
+    },
+    "Loading…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
+          }
+        }
+      }
+    },
+    "Message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message"
+          }
+        }
+      }
+    },
+    "Message details": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message details"
+          }
+        }
+      }
+    },
+    "Mode": {
+      "comment": "Message detail label: delivery mode of the message.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        }
+      }
+    },
+    "Needs You": {
+      "comment": "Overview category title.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs You"
+          }
+        }
+      }
+    },
+    "No pairing code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pairing code"
+          }
+        }
+      }
+    },
+    "Nothing needs you": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing needs you"
+          }
+        }
+      }
+    },
+    "Only an administrator can mint pairing codes. Use an admin Boss Token.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only an administrator can mint pairing codes. Use an admin Boss Token."
+          }
+        }
+      }
+    },
+    "Open image for %@": {
+      "comment": "Accessibility label. %@: an agent-written option label.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open image for %@"
+          }
+        }
+      }
+    },
+    "Pair a new device": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair a new device"
+          }
+        }
+      }
+    },
+    "Pair a new device…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair a new device…"
+          }
+        }
+      }
+    },
+    "Pair another device": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair another device"
+          }
+        }
+      }
+    },
+    "Pairing code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing code"
+          }
+        }
+      }
+    },
+    "Pairing code expired": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing code expired"
+          }
+        }
+      }
+    },
+    "Pairing is not configured": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing is not configured"
+          }
+        }
+      }
+    },
+    "Pairing link unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairing link unavailable"
+          }
+        }
+      }
+    },
+    "Panel actions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel actions"
+          }
+        }
+      }
+    },
+    "Panels": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panels"
+          }
+        }
+      }
+    },
+    "Ping": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping"
+          }
+        }
+      }
+    },
+    "Pop": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop"
+          }
+        }
+      }
+    },
+    "QR code unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR code unavailable"
+          }
+        }
+      }
+    },
+    "Question": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Question"
+          }
+        }
+      }
+    },
+    "Replied": {
+      "comment": "Message status.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replied"
+          }
+        }
+      }
+    },
+    "Request a fresh code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request a fresh code"
+          }
+        }
+      }
+    },
+    "Request a fresh code before scanning.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request a fresh code before scanning."
+          }
+        }
+      }
+    },
+    "Requesting a pairing code…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requesting a pairing code…"
+          }
+        }
+      }
+    },
+    "Resolved": {
+      "comment": "Message status.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolved"
+          }
+        }
+      }
+    },
+    "Retry panels": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry panels"
+          }
+        }
+      }
+    },
+    "Sample data · Local preview": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sample data · Local preview"
+          }
+        }
+      }
+    },
+    "Scan this QR code with your phone to enroll it in HiBoss. The code is valid for five minutes and can be used once.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan this QR code with your phone to enroll it in HiBoss. The code is valid for five minutes and can be used once."
+          }
+        }
+      }
+    },
+    "Select a question": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a question"
+          }
+        }
+      }
+    },
+    "Session": {
+      "comment": "Noun: an agent work session.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session"
+          }
+        }
+      }
+    },
+    "Show a one-time QR code that includes this server and enrolls a phone without typing a token.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show a one-time QR code that includes this server and enrolls a phone without typing a token."
+          }
+        }
+      }
+    },
+    "Sosumi": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sosumi"
+          }
+        }
+      }
+    },
+    "Submarine": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submarine"
+          }
+        }
+      }
+    },
+    "The phone will receive the server address and one-time code from this QR code.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The phone will receive the server address and one-time code from this QR code."
+          }
+        }
+      }
+    },
+    "The server URL or pairing code could not be encoded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server URL or pairing code could not be encoded."
+          }
+        }
+      }
+    },
+    "This one-time code has been used.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This one-time code has been used."
+          }
+        }
+      }
+    },
+    "Time left": {
+      "comment": "Label: time left before the default option runs.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time left"
+          }
+        }
+      }
+    },
+    "Tink": {
+      "comment": "Name of a macOS system alert sound; use the name System Settings shows for this language.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tink"
+          }
+        }
+      }
+    },
+    "Try again when the server is reachable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again when the server is reachable."
+          }
+        }
+      }
+    },
+    "Valid for": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valid for"
+          }
+        }
+      }
+    },
+    "Waiting": {
+      "comment": "Label: how long the question has been waiting.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting"
+          }
+        }
+      }
+    },
+    "Waiting %@": {
+      "comment": "How long a question has waited. %@: duration, e.g. \"5m\".",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting %@"
+          }
+        }
+      }
+    },
+    "Waiting on you": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting on you"
+          }
+        }
+      }
+    },
+    "Will choose": {
+      "comment": "Label: the option that runs automatically on timeout.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will choose"
+          }
+        }
+      }
+    },
+    "You're clear. Agents will show up here when they need a decision.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're clear. Agents will show up here when they need a decision."
           }
         }
       }

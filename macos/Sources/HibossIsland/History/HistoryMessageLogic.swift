@@ -59,7 +59,7 @@ enum HistoryMessageLogic {
 }
 
 enum HistoryTimestamp {
-    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss")
+    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss") // i18n-exempt: server SQL timestamp pattern, parsing only
 
     static func date(from rawValue: String) -> Date? {
         (try? Date(rawValue, strategy: .iso8601))
@@ -80,11 +80,22 @@ enum HistoryTimestamp {
             locale: locale, timeZone: timeZone))
     }
 
+    /// Full date and time for detail views; the raw value when it cannot be parsed.
+    static func localDateTime(
+        from rawValue: String,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
+        guard let date = date(from: rawValue) else { return rawValue }
+        return date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened,
+            locale: locale, timeZone: timeZone))
+    }
+
     private static func dateFormatter(_ format: String) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = format
+        formatter.dateFormat = format // i18n-exempt: parses server SQL timestamps, never displayed
         return formatter
     }
 }
@@ -161,6 +172,23 @@ extension HistoryMessage {
     var historyPriorityAccessibilityLabel: String {
         let cleaned = clean(priority).map(localizedPriorityName) ?? L("Normal")
         return L("\(cleaned) priority")
+    }
+
+    var historyPriorityName: String {
+        clean(priority).map(localizedPriorityName) ?? priority
+    }
+
+    /// Known server statuses read in the boss's language; unknown ones stay as sent.
+    var historyStatusName: String {
+        switch normalizedStatus {
+        case "delivered": L("Delivered")
+        case "unread": L("Unread")
+        case "read": L("Read")
+        case "replied": L("Replied")
+        case "expired": L("Expired")
+        case "resolved": L("Resolved")
+        default: status
+        }
     }
 
     /// Kept for tests and any text surfaces; History rows use SF Symbols instead.

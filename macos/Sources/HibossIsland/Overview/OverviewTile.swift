@@ -15,7 +15,7 @@ struct OverviewTile: View {
         Button(action: onSelect) { tileContent }
             .buttonStyle(.plain)
             .accessibilityLabel(category.title)
-            .accessibilityValue(countsAvailable ? "\(count)" : L("Loading…"))
+            .accessibilityValue(countsAvailable ? count.formatted() : L("Loading…"))
             .accessibilityAddTraits(isSelected ? .isSelected : [])
             .accessibilityIdentifier("overview.\(category.rawValue)")
     }
@@ -25,7 +25,7 @@ struct OverviewTile: View {
             HStack {
                 Image(systemName: category.symbol).font(.title3.weight(.semibold))
                 Spacer(minLength: 4)
-                Text(countsAvailable ? "\(count)" : "—")
+                Text(countsAvailable ? count.formatted() : "—")
                     .font(.title2.bold()).monospacedDigit()
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {

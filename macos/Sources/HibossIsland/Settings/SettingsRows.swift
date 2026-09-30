@@ -75,7 +75,7 @@ enum QuietHoursClockFormatting {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         let hour = components.hour ?? 0
         let minute = components.minute ?? 0
-        return String(format: "%02d:%02d", hour, minute)
+        return String(format: "%02d:%02d", hour, minute) // i18n-exempt: HH:mm storage value
     }
 
     static func weekdayTitle(dayIndex: Int) -> String {
@@ -108,9 +108,9 @@ extension MessagePriority {
 extension NotificationChannel {
     var settingsLabel: String {
         switch self {
-        case .discord: "Discord"
-        case .telegram: "Telegram"
-        case .api: "API"
+        case .discord: "Discord" // i18n-exempt: service brand name
+        case .telegram: "Telegram" // i18n-exempt: service brand name
+        case .api: "API" // i18n-exempt: technical term kept as-is in every language
         }
     }
 }

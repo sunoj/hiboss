@@ -28,7 +28,7 @@ final class PairingLogicTests: XCTestCase {
         XCTAssertEqual(PairingValidity.remainingSeconds(expiresAt: expiresAt, now: now), 126)
         XCTAssertFalse(PairingValidity.isValid(expiresAt: now, now: now))
         XCTAssertEqual(PairingValidity.remainingSeconds(expiresAt: now, now: now), 0)
-        XCTAssertEqual(PairingValidity.formatted(remainingSeconds: 125), "2:05")
+        XCTAssertEqual(PairingValidity.formatted(remainingSeconds: 125, locale: Locale(identifier: "en_US")), "2:05")
     }
 
     func testQRCodeGeneratorProducesAnImageForThePairingLink() throws {

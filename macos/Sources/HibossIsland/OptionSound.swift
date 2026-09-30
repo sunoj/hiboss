@@ -21,7 +21,22 @@ enum OptionSound: String, CaseIterable, Identifiable, Sendable {
     static let fallback = OptionSound.glass
 
     var id: String { rawValue }
-    var label: String { self == .none ? L("None") : rawValue }
+    /// System sound names are proper names but still read through the catalog.
+    var label: String {
+        switch self {
+        case .none: L("None")
+        case .ping: L("Ping")
+        case .glass: L("Glass")
+        case .hero: L("Hero")
+        case .submarine: L("Submarine")
+        case .bottle: L("Bottle")
+        case .blow: L("Blow")
+        case .pop: L("Pop")
+        case .sosumi: L("Sosumi")
+        case .tink: L("Tink")
+        case .funk: L("Funk")
+        }
+    }
 }
 
 protocol SoundPlaying: Sendable {
