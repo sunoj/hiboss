@@ -15940,6 +15940,66 @@
           }
         }
       }
+    },
+    "You": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You"
+          }
+        }
+      }
+    },
+    "You answered: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You answered: %@"
+          }
+        }
+      }
+    },
+    "You replied: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You replied: %@"
+          }
+        }
+      }
+    },
+    "Decision needed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decision needed"
+          }
+        }
+      }
+    },
+    "High priority": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High priority"
+          }
+        }
+      }
+    },
+    "To %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

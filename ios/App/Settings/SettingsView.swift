@@ -24,7 +24,7 @@ struct SettingsView: View {
                 LabeledContent("Server", value: connection.config?.serverURL.host() ?? "—")
                 LabeledContent("Status") {
                     if connection.isConfigured {
-                        ConnectionDot(state: connectionState)
+                        Text(verbatim: connectionState.label)
                     } else {
                         Text("Not connected").foregroundStyle(.secondary)
                     }

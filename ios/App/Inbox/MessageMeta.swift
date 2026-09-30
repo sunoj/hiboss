@@ -6,13 +6,12 @@ import HibossKit
 import SwiftUI
 
 enum MessageMeta {
-    enum Density { case row, selected, detail }
+    enum Density { case selected, detail }
 
-    /// Row: notable type, urgent priority, blocking. Selected adds mode/channel/files.
+    /// Selected: notable type, urgent priority, blocking, plus mode/channel/files.
     /// Detail is the full labeled set for the message sheet.
     static func items(for message: HistoryMessage, density: Density) -> [MessageMetaItem] {
         switch density {
-        case .row: return rowItems(for: message)
         case .selected: return selectedItems(for: message)
         case .detail: return selectedItems(for: message)
         }
@@ -64,7 +63,8 @@ enum MessageMeta {
         }
     }
 
-    private static func rowItems(for message: HistoryMessage) -> [MessageMetaItem] {
+    /// The base set: notable type, urgent priority, blocking.
+    private static func baseItems(for message: HistoryMessage) -> [MessageMetaItem] {
         var items: [MessageMetaItem] = []
         let type = (message.type ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !type.isEmpty, type.lowercased() != "text" {
@@ -83,7 +83,7 @@ enum MessageMeta {
     }
 
     private static func selectedItems(for message: HistoryMessage) -> [MessageMetaItem] {
-        var items = rowItems(for: message)
+        var items = baseItems(for: message)
         if items.contains(where: { $0.id == "type" }) == false {
             let glyph = typeGlyph(message.type)
             items.insert(MessageMetaItem(id: "type", icon: glyph.icon, label: glyph.label, value: glyph.label), at: 0)
@@ -118,7 +118,7 @@ struct MessageMetaItem: Identifiable, Equatable {
 
 struct MessageMetaStrip: View {
     let message: HistoryMessage
-    var density: MessageMeta.Density = .row
+    var density: MessageMeta.Density = .selected
 
     var body: some View {
         let items = MessageMeta.items(for: message, density: density)
@@ -133,20 +133,12 @@ struct MessageMetaStrip: View {
         }
     }
 
-    @ViewBuilder
     private func chip(_ item: MessageMetaItem) -> some View {
-        if density == .row {
-            Image(systemName: item.icon)
-                .foregroundStyle(item.tint)
-                .symbolRenderingMode(.hierarchical)
-                .accessibilityLabel(Text(verbatim: "\(item.label) \(item.value)"))
-        } else {
-            Label {
-                Text(verbatim: item.value)
-            } icon: {
-                Image(systemName: item.icon).foregroundStyle(item.tint)
-            }
-            .labelStyle(.titleAndIcon)
+        Label {
+            Text(verbatim: item.value)
+        } icon: {
+            Image(systemName: item.icon).foregroundStyle(item.tint)
         }
+        .labelStyle(.titleAndIcon)
     }
 }

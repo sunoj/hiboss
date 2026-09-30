@@ -1,6 +1,6 @@
 // Messages tab: the full message history as a native list.
 // Exports: MessagesView bound to the shared InboxStore.
-// Dependencies: SwiftUI, HibossKit, HistoryRow, ReplySheet.
+// Dependencies: SwiftUI, HibossKit, MessageThreading, HistoryRow.
 
 import HibossKit
 import SwiftUI
@@ -19,12 +19,24 @@ struct MessagesView: View {
             onRetry: { await store.refresh() }
         ) {
             List {
-                ForEach(store.history) { message in
-                    NavigationLink(value: message.id) { HistoryRow(message: message) }
+                ForEach(MessageThreading.items(from: store.history)) { item in
+                    NavigationLink(value: item.id) { row(item) }
                 }
             }
             .listStyle(.plain)
         }
         .refreshable { await store.refresh() }
+    }
+
+    @ViewBuilder
+    private func row(_ item: MessageThreading.Item) -> some View {
+        switch item {
+        case let .agent(message, reply):
+            HistoryRow(message: message, answer: MessageThreading.bossAnswer(
+                for: message, answer: reply?.body ?? store.settlement(for: message.id)?.answer
+            ))
+        case let .boss(message):
+            BossHistoryRow(message: message)
+        }
     }
 }
