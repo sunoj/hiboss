@@ -66,7 +66,12 @@ struct QuestionnaireEditor: View {
         } else if model.latest.isOpen(at: now) {
             if !model.editing.definition.formSpec.elements.values.contains(where: { $0.on?["press"]?.action == "submitRequest" }) {
                 Button(kitL("Submit answers")) { Task { await model.submit() } }
-                    .buttonStyle(.borderedProminent).disabled(!model.canEdit)
+                    #if os(iOS)
+                    .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
+                    #else
+                    .buttonStyle(.borderedProminent)
+                    #endif
+                    .disabled(!model.canEdit)
             }
         }
     }

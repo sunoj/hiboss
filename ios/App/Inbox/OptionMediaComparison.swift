@@ -111,7 +111,7 @@ private struct OptionMediaZoom: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
+                .prominentAction()
                 .padding()
         }
     }

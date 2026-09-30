@@ -28,14 +28,16 @@ struct DecisionOptions: View {
         let isDefault = timing.isAutoDefault(option)
         let control = Button { onChoose(option) } label: { label(option, alignment: alignment) }
             .frame(maxWidth: .infinity)
-            .disabled(submitting != nil)
             .accessibilityValue(isDefault ? Text("Default") : Text(verbatim: ""))
             .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
-        if isDefault {
-            control.buttonStyle(.borderedProminent)
-        } else {
-            control.buttonStyle(.bordered)
+        Group {
+            if isDefault {
+                control.prominentAction()
+            } else {
+                control.buttonStyle(.bordered)
+            }
         }
+        .disabled(submitting != nil)
     }
 
     private func label(_ option: String, alignment: Alignment) -> some View {
@@ -45,7 +47,9 @@ struct DecisionOptions: View {
                 .multilineTextAlignment(alignment == .leading ? .leading : .center)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: alignment)
-            if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) { ProgressView() }
+            if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) {
+                ProgressView().tint(Theme.ink)
+            }
         }
         .frame(minWidth: 44, minHeight: 44)
     }

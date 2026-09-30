@@ -187,7 +187,12 @@ public struct PanelRenderer: View {
     private func renderButton(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
         let label = element.props["label"]?.string ?? "Submit"
-        return AnyView(Button(label) { store.perform(element.on?["press"]) }.buttonStyle(.borderedProminent))
+        let button = Button(label) { store.perform(element.on?["press"]) }
+        #if os(iOS)
+        return AnyView(button.modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground))))
+        #else
+        return AnyView(button.buttonStyle(.borderedProminent))
+        #endif
     }
 
     private func renderMetric(_ element: PanelElement) -> AnyView {

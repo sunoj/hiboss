@@ -126,7 +126,7 @@ struct SessionMessagesView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
         }
-        .buttonStyle(.borderedProminent)
+        .prominentAction()
         .padding(.bottom, 12)
         .accessibilityIdentifier("jump-to-live")
     }

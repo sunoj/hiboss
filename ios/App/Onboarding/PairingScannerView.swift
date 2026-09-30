@@ -77,7 +77,7 @@ struct PairingScannerView: View {
                 guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                 UIApplication.shared.open(url)
             }
-            .buttonStyle(.borderedProminent)
+            .prominentAction()
             Button("Cancel") { dismiss() }
                 .buttonStyle(.borderless)
         }

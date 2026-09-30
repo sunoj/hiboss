@@ -190,9 +190,9 @@ struct OptionButton: View {
         Group {
             if style == .primary {
                 Button(action: action) {
-                    label.foregroundStyle(Theme.paper)
+                    label
                 }
-                    .buttonStyle(.borderedProminent)
+                    .prominentAction()
                     .tint(Theme.ink)
             } else {
                 Button(action: action) {
