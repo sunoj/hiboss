@@ -34,7 +34,15 @@ export async function handleScheduled(env: Env): Promise<void> {
   const now = new Date().toISOString();
   await cleanupPairingCodes(env, now);
   await expireDueOptions(env, now);
-  await expireStaleAsks(env);
+  // Hourly is enough for a one-day rule (pending inputs already exclude stale asks), and
+  // the sweep query scans messages; isolate it so a failure never blocks delivery.
+  if (new Date().getUTCMinutes() < 5) {
+    try {
+      await expireStaleAsks(env);
+    } catch {
+      console.error('Failed to sweep abandoned asks');
+    }
+  }
   if (destinationsMode(env.DESTINATIONS_MODE) === 'on') await drainDestinationDeliveries(env);
   else await drainDeliveryQueue(env, now);
 }

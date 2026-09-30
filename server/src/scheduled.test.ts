@@ -177,7 +177,20 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(mockedExpire).not.toHaveBeenCalled();
-    expect(vi.mocked(expireStaleAsks)).toHaveBeenCalled();
+  });
+
+  it('sweeps abandoned asks only in the first five minutes of each hour', async () => {
+    const minutes = vi.spyOn(Date.prototype, 'getUTCMinutes');
+    try {
+      minutes.mockReturnValue(2);
+      await handleScheduled(makeFakeEnv({}).env as never);
+      expect(vi.mocked(expireStaleAsks)).toHaveBeenCalledTimes(1);
+      minutes.mockReturnValue(30);
+      await handleScheduled(makeFakeEnv({}).env as never);
+      expect(vi.mocked(expireStaleAsks)).toHaveBeenCalledTimes(1);
+    } finally {
+      minutes.mockRestore();
+    }
   });
 
   it('keeps consumed pairing codes observable until they expire', async () => {

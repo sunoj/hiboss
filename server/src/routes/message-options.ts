@@ -62,7 +62,7 @@ export async function expireMessageOptions(env: Env, agentId: string, message: M
  * choice. Returns false when the ask was already resolved. Channel cleanup is best-effort.
  */
 export async function expireWithoutDefault(env: Env, agentId: string, message: MessageRow): Promise<boolean> {
-  const meta = message.metadata ? JSON.parse(message.metadata) as Record<string, unknown> : {};
+  const meta = parseMetadata(message.metadata);
   meta['options_expired'] = true;
   delete meta['actions'];
   const claimed = await env.DB
@@ -76,6 +76,17 @@ export async function expireWithoutDefault(env: Env, agentId: string, message: M
     // swallow: the expiry is persisted; a chat edit (missing config, network) is best-effort
   }
   return true;
+}
+
+/** Unparseable metadata must not keep an ask open forever; expire it with a fresh object. */
+function parseMetadata(raw: string | null): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
 }
 
 function getDefaultOption(meta: Record<string, unknown>): string | null {

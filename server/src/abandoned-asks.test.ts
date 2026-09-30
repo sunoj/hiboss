@@ -5,8 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
-import { handleScheduled } from './scheduled';
-import type { Env } from './types';
+import { expireStaleAsks } from './abandoned-asks';
 
 const BOSS = 'hb_abandoned_asks_boss_0001';
 const hoursAgo = (hours: number): string => new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -49,7 +48,7 @@ describe('stale sweep', () => {
     await ask(timed, { created: hoursAgo(30), expires: inHours(2) });
     await ask(text, { created: hoursAgo(30), metadata: {} });
     await ask(replied, { created: hoursAgo(30), status: 'replied' });
-    await handleScheduled(env as Env);
+    await expireStaleAsks(env);
     expect(await state(stale)).toEqual({ status: 'expired', replies: 0 });
     expect(await state(text)).toEqual({ status: 'expired', replies: 0 });
     expect(await state(fresh)).toEqual({ status: 'delivered', replies: 0 });
