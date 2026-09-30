@@ -15,7 +15,7 @@ public struct PanelWallFilter: View {
             }
             if let error = model.questionnaireError {
                 Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark").foregroundStyle(.orange)
-                Text(error).font(.caption).foregroundStyle(.secondary)
+                Text(verbatim: error).font(.caption).foregroundStyle(.secondary)
                 Button(kitL("Retry questions")) { Task { await model.refreshPendingQuestionnaires() } }
                     .disabled(model.isLoadingQuestions)
             }
@@ -27,15 +27,15 @@ public struct PanelWallFilter: View {
 
     private var picker: some View {
         Picker(kitL("Panels"), selection: $model.section) {
-            ForEach(PanelWallSection.allCases) { section in Text(title(section)).tag(section) }
+            ForEach(PanelWallSection.allCases) { section in Text(verbatim: title(section)).tag(section) }
         }
     }
 
     private func title(_ section: PanelWallSection) -> String {
         switch section {
         case .active: kitL("Active")
-        case .needsInput: kitL("Needs input") + " (\(model.pendingQuestionnaireCount))"
-        case .results: kitL("Results") + (model.unreadResults > 0 ? " (\(model.unreadResults))" : "")
+        case .needsInput: kitL("Needs input (\(model.pendingQuestionnaireCount))")
+        case .results: model.unreadResults > 0 ? kitL("Results (\(model.unreadResults))") : kitL("Results")
         case .archived: kitL("Archived")
         }
     }
@@ -50,7 +50,7 @@ public struct PanelWallEmptyState: View {
                 ProgressView(kitL("Loading questions…"))
             } else {
                 Label(title, systemImage: model.section == .needsInput ? "text.bubble" : "rectangle.stack").font(.headline)
-                Text(message).font(.callout).foregroundStyle(.secondary)
+                Text(verbatim: message).font(.callout).foregroundStyle(.secondary)
                 Button(kitL("Refresh")) { Task { await model.load() } }.disabled(model.isLoading)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
@@ -76,14 +76,14 @@ public struct PanelLifecycleMenu: View {
     public init(tile: PanelTile, model: PanelsModel) { self.tile = tile; self.model = model }
     public var body: some View {
         if tile.metadata != nil {
-            Button(tile.preference.placement == .pinned ? "Unpin" : "Pin", systemImage: "pin") {
+            Button(tile.preference.placement == .pinned ? kitL("Unpin") : kitL("Pin"), systemImage: "pin") {
                 Task { await model.setPreference(tile, placement: tile.preference.placement == .pinned ? .automatic : .pinned) }
             }
-            Button(tile.preference.placement == .archived ? "Restore" : "Archive", systemImage: "archivebox") {
+            Button(tile.preference.placement == .archived ? kitL("Restore") : kitL("Archive"), systemImage: "archivebox") {
                 Task { await model.setPreference(tile, placement: tile.preference.placement == .archived ? .automatic : .archived) }
             }
             if tile.lifecycle.taskState.isTerminal, tile.preference.acknowledgedTerminalVersion != tile.metadata?.metadataVersion {
-                Button("Acknowledge result", systemImage: "checkmark.circle") {
+                Button(kitL("Acknowledge result"), systemImage: "checkmark.circle") {
                     Task { await model.setPreference(tile, acknowledge: true) }
                 }
             }
@@ -97,7 +97,7 @@ public struct PanelOutcomeView: View {
         if let result = tile.lifecycle.result {
             VStack(alignment: .leading, spacing: 6) {
                 Label(result.title, systemImage: tile.lifecycle.taskState.symbol).font(.headline)
-                if let message = result.message { Text(message).font(.callout).foregroundStyle(.secondary) }
+                if let message = result.message { Text(verbatim: message).font(.callout).foregroundStyle(.secondary) }
                 if let date = panelDate(tile.lifecycle.terminalAt) { Text(date, style: .date).font(.caption).foregroundStyle(.secondary) }
             }
         }

@@ -48,7 +48,7 @@ private func answerText(_ value: PanelValue, options: [PanelValue] = []) -> Stri
     case let .object(values): return values.keys.sorted().map { "\($0): \(answerText(values[$0] ?? .null))" }.joined(separator: "\n")
     case let .string(value):
         return options.first { $0.object?["id"]?.string == value }?.object?["label"]?.string ?? (value.isEmpty ? kitL("Not provided") : value)
-    case .number: return value.displayText
+    case .number: return value.formattedText
     }
 }
 
@@ -61,12 +61,12 @@ struct QuestionnaireAnswerView: View {
             Label(kitL("Answer saved"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
             ForEach(questionnaireAnswerRows(spec: record.definition.formSpec, answers: submission.answers)) { row in
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(row.label).font(.caption).foregroundStyle(.secondary)
-                    Text(row.value).font(.callout).textSelection(.enabled)
+                    Text(verbatim: row.label).font(.caption).foregroundStyle(.secondary)
+                    Text(verbatim: row.value).font(.callout).textSelection(.enabled)
                 }.accessibilityElement(children: .combine)
             }
             if let date = panelDate(submission.acceptedAt) {
-                Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                Text(verbatim: date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
             }
             Label(submission.delivery == "delivered" ? kitL("Received by agent") : kitL("Waiting for agent receipt"),
                   systemImage: submission.delivery == "delivered" ? "checkmark.bubble" : "clock")

@@ -20,6 +20,16 @@ public enum BossClientKind: String, Codable, Sendable {
         case .cli: "terminal"
         }
     }
+
+    /// Localized client type name for accessibility and settings rows.
+    public var localizedName: String {
+        switch self {
+        case .ios: kitL("iOS")
+        case .macos: kitL("macOS")
+        case .web: kitL("Web")
+        case .cli: kitL("Command line")
+        }
+    }
 }
 
 public struct BossClient: Decodable, Identifiable, Equatable, Sendable {

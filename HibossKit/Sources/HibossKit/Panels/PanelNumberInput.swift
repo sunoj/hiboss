@@ -13,7 +13,7 @@ struct PanelNumberInput: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.headline)
+            Text(verbatim: label).font(.headline)
             TextField(label, text: Binding(get: { text }, set: {
                 text = $0
                 store.setText($0, at: path)

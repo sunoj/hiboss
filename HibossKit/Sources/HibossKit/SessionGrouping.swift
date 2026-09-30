@@ -66,7 +66,7 @@ public enum SessionGrouping {
     }
 
     private static func groupLabel(id: String, messages: [HistoryMessage]) -> String {
-        if id == directSessionID { return "Direct" }
+        if id == directSessionID { return kitL("Direct") }
         return messages.lazy.compactMap { clean($0.sessionLabel) }.first
             ?? messages.lazy.compactMap { clean($0.sessionBranch) }.first
             ?? shortSessionID(id)
