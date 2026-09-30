@@ -33,7 +33,7 @@ struct HomeAttentionSection: View {
                 allClear
             } else {
                 ForEach(snapshot.groups, id: \.group) { group in
-                    VStack(alignment: .leading, spacing: 8) {
+                    LazyVStack(alignment: .leading, spacing: 8) {
                         Label {
                             Text(group.group.title)
                         } icon: {

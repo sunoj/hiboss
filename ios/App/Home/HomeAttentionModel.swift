@@ -50,7 +50,11 @@ enum AttentionModel {
     }
 
     static func grouped(from messages: [HistoryMessage], now: Date = Date()) -> [AttentionGroupItems] {
-        let ranked = messages.compactMap { classify($0, now: now) }.sorted(by: isMoreUrgent)
+        // Keys are computed once per item; comparing must not parse dates (Home re-ranks often).
+        let ranked = messages.compactMap { classify($0, now: now) }
+            .map { (item: $0, key: UrgencyKey($0)) }
+            .sorted { $0.key < $1.key }
+            .map(\.item)
         return AttentionGroup.allCases.compactMap { group in
             let items = ranked.filter { $0.group == group }
             return items.isEmpty ? nil : AttentionGroupItems(group: group, items: items)
@@ -83,27 +87,37 @@ enum AttentionModel {
             && (message.expirationDate.map { $0 > now } ?? true)
     }
 
-    private static func isMoreUrgent(_ lhs: AttentionItem, _ rhs: AttentionItem) -> Bool {
-        if lhs.group.rawValue != rhs.group.rawValue {
-            return lhs.group.rawValue < rhs.group.rawValue
-        }
-        if lhs.group == .autoDecision, lhs.expiresAt != rhs.expiresAt {
-            return (lhs.expiresAt ?? .distantFuture) < (rhs.expiresAt ?? .distantFuture)
-        }
-        let leftPriority = lhs.message.priorityValue.rank
-        let rightPriority = rhs.message.priorityValue.rank
-        if leftPriority != rightPriority { return leftPriority > rightPriority }
-        let leftCreated = ISOTimestamp.date(from: lhs.message.createdAt) ?? .distantFuture
-        let rightCreated = ISOTimestamp.date(from: rhs.message.createdAt) ?? .distantFuture
-        if leftCreated != rightCreated { return leftCreated < rightCreated }
-        return lhs.id.rawValue < rhs.id.rawValue
-    }
-
     private static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
             return nil
         }
         return trimmed
+    }
+}
+
+/// Sort key for attention ranking: group, then deadline for auto-decisions, then priority,
+/// then oldest first, then id. Built once per item so the sort does no parsing.
+private struct UrgencyKey: Comparable {
+    let group: Int
+    let deadline: Date
+    let priority: Int
+    let created: Date
+    let id: String
+
+    init(_ item: AttentionItem) {
+        group = item.group.rawValue
+        deadline = item.group == .autoDecision ? (item.expiresAt ?? .distantFuture) : .distantFuture
+        priority = item.message.priorityValue.rank
+        created = ISOTimestamp.date(from: item.message.createdAt) ?? .distantFuture
+        id = item.id.rawValue
+    }
+
+    static func < (lhs: UrgencyKey, rhs: UrgencyKey) -> Bool {
+        if lhs.group != rhs.group { return lhs.group < rhs.group }
+        if lhs.deadline != rhs.deadline { return lhs.deadline < rhs.deadline }
+        if lhs.priority != rhs.priority { return lhs.priority > rhs.priority }
+        if lhs.created != rhs.created { return lhs.created < rhs.created }
+        return lhs.id < rhs.id
     }
 }
 

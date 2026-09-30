@@ -18,9 +18,7 @@ extension HistoryMessage {
 
 enum ISOTimestamp {
     static func date(from raw: String) -> Date? {
-        (try? Date(raw, strategy: .iso8601))
-            ?? (try? Date(raw, strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
-            ?? plain.date(from: raw)
+        ISODate.parse(raw) ?? plain.date(from: raw)
     }
 
     private static let plain: DateFormatter = {
