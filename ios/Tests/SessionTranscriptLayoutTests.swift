@@ -1,4 +1,4 @@
-// Session transcript presentation: bubbles vs system lines, grouping, truncation.
+// Session transcript presentation: bubbles vs collapsed step runs, grouping, truncation.
 // Exports: SessionTranscriptLayoutTests.
 // Dependencies: XCTest, HiBoss app target, HibossKit SessionEvent.
 
@@ -40,19 +40,36 @@ final class SessionTranscriptLayoutTests: XCTestCase {
         XCTAssertFalse(last.showsSender)
     }
 
-    func testNonMessageAndUnknownKindsAreSystemLines() {
+    func testConsecutiveActivityCollapsesIntoOneStepsRunAndUnknownKindsAreSkipped() {
         let items = SessionTranscriptLayout.items(from: [
-            event(id: "m", seq: 1, kind: "message", at: "2026-08-14T10:00:00Z"),
+            event(id: "m1", seq: 1, kind: "message", at: "2026-08-14T10:00:00Z"),
             event(id: "t", seq: 2, kind: "tool_call", body: "bash", at: "2026-08-14T10:00:05Z"),
-            event(id: "u", seq: 3, kind: "future_kind", body: "keep me", at: "2026-08-14T10:00:06Z"),
+            event(id: "r", seq: 3, kind: "tool_result", body: "ok", at: "2026-08-14T10:00:06Z"),
+            event(id: "u", seq: 4, kind: "future_kind", body: "raw", at: "2026-08-14T10:00:07Z"),
+            event(id: "h", seq: 5, kind: "hook", body: "SessionStart", at: "2026-08-14T10:00:08Z"),
+            event(id: "m2", seq: 6, kind: "message", at: "2026-08-14T10:00:09Z"),
+            event(id: "e", seq: 7, kind: "error", body: "boom", at: "2026-08-14T10:00:10Z"),
         ])
-        XCTAssertEqual(items.count, 3)
-        guard case .bubble = items[0] else { return XCTFail("message stays a bubble") }
-        guard case let .system(tool) = items[1] else { return XCTFail("tool_call is a system line") }
-        guard case let .system(unknown) = items[2] else { return XCTFail("unknown kind is not dropped") }
-        XCTAssertEqual(tool.kind, "tool_call")
-        XCTAssertEqual(unknown.kind, "future_kind")
-        XCTAssertEqual(SessionTranscriptLayout.systemLabel(for: unknown), "future_kind · keep me")
+        XCTAssertEqual(items.map(\.id), ["m1", "steps-t", "m2", "steps-e"])
+        guard case let .steps(_, run) = items[1] else { return XCTFail("activity collapses into one run") }
+        XCTAssertEqual(run.map(\.id), ["t", "r", "h"], "unknown kinds never appear, not even inside the run")
+        guard case let .steps(_, tail) = items[3] else { return XCTFail("a message closes the run") }
+        XCTAssertEqual(tail.map(\.id), ["e"])
+    }
+
+    func testOnlyUnknownKindsProduceNoRow() {
+        let items = SessionTranscriptLayout.items(from: [
+            event(id: "u", seq: 1, kind: "future_kind", at: "2026-08-14T10:00:00Z"),
+        ])
+        XCTAssertTrue(items.isEmpty)
+    }
+
+    func testTimeSeparatorSplitsAStepsRun() {
+        let items = SessionTranscriptLayout.items(from: [
+            event(id: "t1", seq: 1, kind: "tool_call", at: "2026-08-14T10:00:00Z"),
+            event(id: "t2", seq: 2, kind: "tool_call", at: "2026-08-14T12:00:00Z"),
+        ])
+        XCTAssertEqual(items.map(\.id), ["steps-t1", "time-t2", "steps-t2"])
     }
 
     func testDistantGapInsertsTimeSeparatorAndBreaksGroup() {
@@ -76,7 +93,7 @@ final class SessionTranscriptLayoutTests: XCTestCase {
             event(id: "a2", seq: 3, kind: "message", actor: "worker", at: "2026-08-14T10:00:10Z"),
         ])
         guard case let .bubble(_, first) = items[0] else { return XCTFail("first") }
-        guard case .system = items[1] else { return XCTFail("system") }
+        guard case .steps = items[1] else { return XCTFail("steps") }
         guard case let .bubble(_, after) = items[2] else { return XCTFail("after") }
         XCTAssertTrue(first.isLastInGroup)
         XCTAssertTrue(after.isFirstInGroup)

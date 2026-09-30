@@ -1,22 +1,38 @@
-// SMS-style rows for a session stream: bubbles, centred system lines, time stamps.
+// SMS-style rows for a session stream: bubbles, decisions, step runs, time stamps.
 // Exports: SessionTranscriptItemView and the bubble / system / time subviews.
-// Dependencies: SwiftUI, HibossKit SessionEvent, SessionTranscriptLayout.
+// Dependencies: SwiftUI, HibossKit SessionEvent, SessionTranscriptLayout, InboxStore.
 
 import HibossKit
 import SwiftUI
 
 struct SessionTranscriptItemView: View {
     let item: SessionTranscriptItem
+    @ObservedObject var store: InboxStore
+    let onChoose: (String, MessageID) -> Void
 
     var body: some View {
         switch item {
         case let .time(_, date):
             SessionTimeSeparator(date: date)
         case let .bubble(event, style):
-            SessionBubbleView(event: event, style: style)
-        case let .system(event):
-            SessionSystemLine(event: event)
+            if let decision = decision(for: event) {
+                SessionDecisionBubble(event: event, style: style, message: decision, store: store) {
+                    onChoose($0, decision.id)
+                }
+            } else {
+                SessionBubbleView(event: event, style: style)
+            }
+        case let .steps(_, events):
+            SessionStepsRow(events: events)
         }
+    }
+
+    /// The agent decision behind a message event, when history still holds it.
+    private func decision(for event: SessionEvent) -> HistoryMessage? {
+        guard let raw = event.messageId,
+              let message = store.message(for: MessageID(rawValue: raw)),
+              message.isDecision else { return nil }
+        return message
     }
 }
 

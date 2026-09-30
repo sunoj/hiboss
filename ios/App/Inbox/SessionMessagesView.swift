@@ -1,20 +1,24 @@
-// Real-time session transcript: append-only events with scroll lock.
-// Exports: SessionMessagesView bound to SessionStreamStore and SessionRoute.
-// Dependencies: SwiftUI, HibossKit SessionStreamStore, system semantic styles.
+// Real-time session transcript: append-only events with scroll lock and in-place decisions.
+// Exports: SessionMessagesView bound to SessionStreamStore, InboxStore and SessionRoute.
+// Dependencies: SwiftUI, UIKit haptics, HibossKit SessionStreamStore, system semantic styles.
 
 import HibossKit
 import SwiftUI
+import UIKit
 
 struct SessionMessagesView: View {
     let route: SessionRoute
     let api: (any SessionStreamServing)?
+    @ObservedObject var store: InboxStore
 
     @StateObject private var stream: SessionStreamStore
     @Environment(\.scenePhase) private var scenePhase
+    @State private var actionNote: String?
 
-    init(route: SessionRoute, api: (any SessionStreamServing)?) {
+    init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore) {
         self.route = route
         self.api = api
+        self.store = store
         _stream = StateObject(wrappedValue: SessionStreamStore(sessionID: route.id))
     }
 
@@ -51,6 +55,15 @@ struct SessionMessagesView: View {
         } message: {
             Text(String(localized: "History was truncated on the server, so the transcript was reloaded."))
         }
+        .alert(
+            "Heads up",
+            isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
+            presenting: actionNote
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { note in
+            Text(verbatim: note)
+        }
     }
 
     @ViewBuilder
@@ -86,7 +99,7 @@ struct SessionMessagesView: View {
                             .onAppear { Task { await stream.loadEarlier() } }
                     }
                     ForEach(SessionTranscriptLayout.items(from: stream.events)) { item in
-                        SessionTranscriptItemView(item: item)
+                        SessionTranscriptItemView(item: item, store: store, onChoose: handleReply)
                             .id(item.id)
                     }
                     Color.clear.frame(height: 1).id("live-end")
@@ -133,5 +146,21 @@ struct SessionMessagesView: View {
 
     private func scrollToLive(_ proxy: ScrollViewProxy) {
         proxy.scrollTo("live-end", anchor: .bottom)
+    }
+
+    /// Same reply path and feedback as the Home card, so an answer means the same everywhere.
+    private func handleReply(_ choice: String, to id: MessageID) {
+        Task {
+            switch await store.reply(choice, to: id) {
+            case .sent:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            case .alreadyResolved:
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                actionNote = String(localized: "That decision was already answered elsewhere.")
+            case .failed:
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                actionNote = String(localized: "Couldn't send your reply — check your connection.")
+            }
+        }
     }
 }
