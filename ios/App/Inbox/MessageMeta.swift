@@ -1,5 +1,5 @@
 // Single catalog of message type/priority/mode/channel/file glyphs.
-// Exports: MessageMeta density items, MessageMetaStrip, and option swipe icons.
+// Exports: MessageMeta density items and MessageMetaStrip.
 // Dependencies: SwiftUI, HibossKit HistoryMessage.
 
 import HibossKit
@@ -64,14 +64,6 @@ enum MessageMeta {
         }
     }
 
-    static func optionIcon(_ option: String) -> String {
-        switch option.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "approve", "yes", "ship", "provide": "checkmark"
-        case "reject", "no", "hold", "later": "xmark"
-        default: "circle"
-        }
-    }
-
     private static func rowItems(for message: HistoryMessage) -> [MessageMetaItem] {
         var items: [MessageMetaItem] = []
         let type = (message.type ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -82,7 +74,7 @@ enum MessageMeta {
         let priority = message.priorityValue
         if priority == .critical || priority == .high {
             let p = MessageAttributeStyle.priority(message.priority)
-            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: priority.localizedTitle, value: priority.localizedTitle, tint: p.tint))
+            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: String(localized: priority.localizedTitle), value: String(localized: priority.localizedTitle), tint: p.tint))
         }
         if message.mode == "blocking" {
             items.append(MessageMetaItem(id: "mode", icon: MessageAttributeStyle.mode("blocking"), label: String(localized: "Blocking"), value: String(localized: "Blocking")))
@@ -121,7 +113,7 @@ struct MessageMetaItem: Identifiable, Equatable {
     let icon: String
     let label: String
     let value: String
-    var tint: Color = .secondary
+    var tint: Color = Theme.ink2
 }
 
 struct MessageMetaStrip: View {
@@ -136,7 +128,7 @@ struct MessageMetaStrip: View {
                 HStack(spacing: 8) { ForEach(items.prefix(4)) { chip($0) } }
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.ink2)
             .lineLimit(1)
         }
     }
@@ -147,10 +139,10 @@ struct MessageMetaStrip: View {
             Image(systemName: item.icon)
                 .foregroundStyle(item.tint)
                 .symbolRenderingMode(.hierarchical)
-                .accessibilityLabel("\(item.label) \(item.value)")
+                .accessibilityLabel(Text(verbatim: "\(item.label) \(item.value)"))
         } else {
             Label {
-                Text(item.value)
+                Text(verbatim: item.value)
             } icon: {
                 Image(systemName: item.icon).foregroundStyle(item.tint)
             }

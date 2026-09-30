@@ -25,18 +25,18 @@ public struct PanelDashboardCard: View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 8) {
-                    Text(tile.fixture.title).font(.headline).lineLimit(2)
+                    Text(verbatim: tile.fixture.title).font(.headline).lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if tile.preference.placement == .pinned { Image(systemName: "pin.fill").foregroundStyle(.secondary) }
                     if tile.lifecycle.taskState.isTerminal, tile.preference.seenTerminalVersion != tile.metadata?.metadataVersion {
-                        Circle().fill(.blue).frame(width: 7, height: 7).accessibilityLabel("Unread result")
+                        Circle().fill(.blue).frame(width: 7, height: 7).accessibilityLabel(kitL("Unread result"))
                     }
                     Image(systemName: "chevron.right.circle.fill")
                         .font(.title3).foregroundStyle(.tertiary)
                         .accessibilityHidden(true)
                 }
                 if pendingCount > 0 {
-                    Label(kitL("Needs input") + " · \(pendingCount)", systemImage: "text.bubble.fill")
+                    Label(kitL("Needs input · \(pendingCount)"), systemImage: "text.bubble.fill")
                         .font(.callout.weight(.semibold)).foregroundStyle(.orange)
                 }
                 PanelTilePreview(tile: tile)
@@ -56,18 +56,18 @@ public struct PanelDashboardCard: View {
         .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: hovering)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(tile.fixture.title)
-        .accessibilityHint("Open panel details")
+        .accessibilityHint(kitL("Open panel details"))
     }
 
     private var footer: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
-                Text(tile.sourceLabel).lineLimit(1)
+                Text(verbatim: tile.sourceLabel).lineLimit(1)
                 Spacer(minLength: 0)
                 freshnessLabel
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(tile.sourceLabel).lineLimit(1)
+                Text(verbatim: tile.sourceLabel).lineLimit(1)
                 freshnessLabel
             }
         }

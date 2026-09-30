@@ -46,7 +46,7 @@ public struct PanelRenderer: View {
         case "Progress": return renderProgress(element)
         case "Status": return renderStatus(element)
         case "Table", "LineChart", "BarChart": return renderWebLeaf(element)
-        default: return AnyView(Text("Unsupported component: \(element.type)").foregroundStyle(.secondary))
+        default: return AnyView(Text(kitL("Unsupported component: \(element.type)")).foregroundStyle(.secondary))
         }
     }
 
@@ -65,46 +65,46 @@ public struct PanelRenderer: View {
     }
 
     private func renderSection(_ element: PanelElement) -> AnyView {
-        let label = element.props["label"]?.string ?? "Section"
+        let label = element.props["label"]?.string ?? kitL("Section")
         let description = element.props["description"]?.string
         return AnyView(VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(.headline)
-            if let description { Text(description).font(.callout).foregroundStyle(.secondary) }
+            Text(verbatim: label).font(.headline)
+            if let description { Text(verbatim: description).font(.callout).foregroundStyle(.secondary) }
             children(of: element)
         })
     }
 
     private func renderText(_ element: PanelElement) -> AnyView {
         let value = valueText(element.props["text"])
-        return AnyView(Text(value).foregroundStyle(toneColor(element.props["tone"]?.string)))
+        return AnyView(Text(verbatim: value).foregroundStyle(toneColor(element.props["tone"]?.string)))
     }
 
     private func renderTextInput(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Text"
+        let label = element.props["label"]?.string ?? kitL("Text")
         let placeholder = element.props["placeholder"]?.string ?? ""
         let path = bindingPath(element)
         let binding = Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })
         return AnyView(VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.headline)
+            Text(verbatim: label).font(.headline)
             TextField(placeholder, text: binding).textFieldStyle(.roundedBorder).accessibilityLabel(label)
         }.accessibilityLabel(label))
     }
 
     private func renderTextArea(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Details"
+        let label = element.props["label"]?.string ?? kitL("Details")
         let placeholder = element.props["placeholder"]?.string
         let rows = max(3, Int(element.props["rows"]?.number ?? 4))
         let path = bindingPath(element)
         let binding = Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })
         return AnyView(VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.headline)
+            Text(verbatim: label).font(.headline)
             TextEditor(text: binding)
                 .frame(minHeight: CGFloat(rows * 24))
                 .overlay(alignment: .topLeading) {
                     if let placeholder, binding.wrappedValue.isEmpty {
-                        Text(placeholder).foregroundStyle(.secondary).padding(6).allowsHitTesting(false)
+                        Text(verbatim: placeholder).foregroundStyle(.secondary).padding(6).allowsHitTesting(false)
                     }
                 }
         }.accessibilityElement(children: .contain).accessibilityLabel(label))
@@ -119,7 +119,7 @@ public struct PanelRenderer: View {
 
     private func renderSelect(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Select"
+        let label = element.props["label"]?.string ?? kitL("Select")
         let options = element.props["options"]?.array?.compactMap { option -> PanelOption? in
             guard let object = option.object, let id = object["id"]?.string, let text = object["label"]?.string else { return nil }
             return PanelOption(id: id, label: text)
@@ -127,19 +127,19 @@ public struct PanelRenderer: View {
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
         return AnyView(Picker(label, selection: Binding(get: { panelValue(at: path, in: store.state)?.string ?? "" }, set: { store.setString($0, at: path) })) {
             Text(kitL("Choose an option…")).tag("")
-            ForEach(options) { option in Text(option.label).tag(option.id) }
+            ForEach(options) { option in Text(verbatim: option.label).tag(option.id) }
         }.accessibilityLabel(label))
     }
 
     private func renderMultiSelect(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Select options"
+        let label = element.props["label"]?.string ?? kitL("Select options")
         let options = panelOptions(element)
         let optionIDs = Set(options.map(\.id))
         let path = bindingPath(element)
         let selection = selectedOptionIDs(at: path, allowed: optionIDs)
         return AnyView(VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.headline)
+            Text(verbatim: label).font(.headline)
             ForEach(options) { option in
                 Toggle(option.label, isOn: Binding(
                     get: { selection.contains(option.id) },
@@ -154,74 +154,80 @@ public struct PanelRenderer: View {
 
     private func renderNumberInput(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Number"
+        let label = element.props["label"]?.string ?? kitL("Number")
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
         return AnyView(PanelNumberInput(label: label, path: path, store: store))
     }
 
     private func renderSlider(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Value"
+        let label = element.props["label"]?.string ?? kitL("Value")
         let minimum = element.props["min"]?.number ?? 0
         let maximum = element.props["max"]?.number ?? 1
         let step = element.props["step"]?.number
         let path = bindingPath(element)
         let value = Binding(get: { panelValue(at: path, in: store.state)?.number ?? minimum }, set: { store.setNumber($0, at: path) })
         return AnyView(GroupBox(label) {
-            Text(PanelValue.number(value.wrappedValue).displayText).monospacedDigit()
+            Text(verbatim: PanelValue.number(value.wrappedValue).formattedText).monospacedDigit()
             if let step {
                 Slider(value: value, in: minimum...maximum, step: step)
             } else {
                 Slider(value: value, in: minimum...maximum)
             }
-        }.accessibilityValue(PanelValue.number(value.wrappedValue).displayText))
+        }.accessibilityValue(PanelValue.number(value.wrappedValue).formattedText))
     }
 
     private func renderToggle(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Toggle"
+        let label = element.props["label"]?.string ?? kitL("Toggle")
         let path = element.props["value"]?.object?["$bindState"]?.string ?? ""
         return AnyView(Toggle(label, isOn: Binding(get: { panelValue(at: path, in: store.state)?.bool ?? false }, set: { store.setBool($0, at: path) })))
     }
 
     private func renderButton(_ element: PanelElement) -> AnyView {
         guard mode == .interactive else { return renderPreviewControl(element) }
-        let label = element.props["label"]?.string ?? "Submit"
-        return AnyView(Button(label) { store.perform(element.on?["press"]) }.buttonStyle(.borderedProminent))
+        let label = element.props["label"]?.string ?? kitL("Submit")
+        let button = Button(label) { store.perform(element.on?["press"]) }
+        #if os(iOS)
+        return AnyView(button.modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground))))
+        #else
+        return AnyView(button.buttonStyle(.borderedProminent))
+        #endif
     }
 
     private func renderMetric(_ element: PanelElement) -> AnyView {
-        let label = element.props["label"]?.string ?? "Metric"
+        let label = element.props["label"]?.string ?? kitL("Metric")
         let value = valueText(element.props["value"])
         let unit = element.props["unit"]?.string
         return AnyView(VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.callout).foregroundStyle(.secondary)
+            Text(verbatim: label).font(.callout).foregroundStyle(.secondary)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(value).font(.title2.bold()).foregroundStyle(.primary)
-                if let unit { Text(unit).font(.callout).foregroundStyle(.secondary) }
+                Text(verbatim: value).font(.title2.bold()).foregroundStyle(.primary)
+                if let unit { Text(verbatim: unit).font(.callout).foregroundStyle(.secondary) }
             }
         }.frame(maxWidth: .infinity, alignment: .leading))
     }
 
     private func renderProgress(_ element: PanelElement) -> AnyView {
-        let label = element.props["label"]?.string ?? "Progress"
-        let value = Double(valueText(element.props["value"])).flatMap { $0.isFinite ? $0 : nil } ?? 0
+        let label = element.props["label"]?.string ?? kitL("Progress")
+        let value = Double(valueText(element.props["value"], formatted: false)).flatMap { $0.isFinite ? $0 : nil } ?? 0
         let minimum = element.props["min"]?.number ?? 0
         let maximum = element.props["max"]?.number ?? 1
-        return AnyView(ProgressView(value: max(minimum, min(maximum, value)), total: maximum) { Text(label) }.accessibilityValue("\(value)"))
+        return AnyView(ProgressView(value: max(minimum, min(maximum, value)), total: maximum) { Text(verbatim: label) }
+            .accessibilityValue(value.formatted()))
     }
 
     private func renderStatus(_ element: PanelElement) -> AnyView {
-        let label = element.props["label"]?.string ?? "Status"
+        let label = element.props["label"]?.string ?? kitL("Status")
         let message = element.props["message"]?.string
         let status = element.props["status"]?.string ?? "pending"
         return AnyView(HStack(alignment: .top, spacing: 8) {
             Circle().fill(statusColor(status)).frame(width: 9, height: 9).padding(.top, 5)
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.headline)
-                if let message { Text(message).foregroundStyle(.secondary) }
+                Text(verbatim: label).font(.headline)
+                if let message { Text(verbatim: message).foregroundStyle(.secondary) }
             }
-        }.accessibilityElement(children: .combine).accessibilityLabel("\(label): \(message ?? status)"))
+        }.accessibilityElement(children: .combine).accessibilityLabel(kitL("\(label): \(message ?? status)")))
     }
 
     private func renderWebLeaf(_ element: PanelElement) -> AnyView {
@@ -257,10 +263,11 @@ public struct PanelRenderer: View {
         store.setStrings(selectedIDs.sorted(), at: path)
     }
 
-    private func valueText(_ value: PanelValue?) -> String {
+    private func valueText(_ value: PanelValue?, formatted: Bool = true) -> String {
         guard let value else { return "—" }
-        if let path = value.object?["$state"]?.string { return panelValue(at: path, in: store.state)?.displayText ?? "—" }
-        return value.displayText.isEmpty ? "—" : value.displayText
+        let text: (PanelValue) -> String = { formatted ? $0.formattedText : $0.displayText }
+        if let path = value.object?["$state"]?.string { return panelValue(at: path, in: store.state).map(text) ?? "—" }
+        return text(value).isEmpty ? "—" : text(value)
     }
 
     private func toneColor(_ tone: String?) -> Color {

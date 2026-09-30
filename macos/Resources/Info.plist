@@ -10,6 +10,13 @@
         <string>zh-Hans</string>
         <string>ja</string>
         <string>ko</string>
+        <string>th</string>
+        <string>es</string>
+        <string>hi</string>
+        <string>ar</string>
+        <string>pt-BR</string>
+        <string>fr</string>
+        <string>ru</string>
     </array>
     <key>CFBundleDisplayName</key>
     <string>HiBoss Island</string>

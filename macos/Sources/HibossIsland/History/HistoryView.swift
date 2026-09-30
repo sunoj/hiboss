@@ -153,7 +153,7 @@ private struct SessionGroupHeader: View {
 
             Spacer(minLength: 8)
 
-            Text("\(group.messages.count)")
+            Text(group.messages.count.formatted())
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()

@@ -124,11 +124,11 @@ private struct OptionMediaPopover: View {
                 case .success(let image):
                     image.resizable().scaledToFit().onTapGesture { }
                 case .failure:
-                    ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
+                    ContentUnavailableView(L("Image unavailable"), systemImage: "photo.badge.exclamationmark")
                 case .empty:
                     ProgressView()
                 @unknown default:
-                    ContentUnavailableView("Image unavailable", systemImage: "photo")
+                    ContentUnavailableView(L("Image unavailable"), systemImage: "photo")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

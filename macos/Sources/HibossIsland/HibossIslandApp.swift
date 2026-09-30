@@ -12,7 +12,7 @@ struct HibossIslandApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Window("HiBoss", id: "main") {
+        Window(productName, id: "main") {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow,
                 notificationNavigation: appDelegate.notificationNavigation)
         }
@@ -169,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     @objc private func showMainWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first(where: { $0.title == "HiBoss" })?.makeKeyAndOrderFront(nil)
+        NSApp.windows.first(where: { $0.title == productName })?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func quit() {

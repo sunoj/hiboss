@@ -52,7 +52,7 @@ struct PairingScannerView: View {
                 .stroke(.white.opacity(0.9), lineWidth: 3)
                 .frame(width: 250, height: 250)
             if let cameraError {
-                Text(cameraError)
+                Text(verbatim: cameraError)
                     .font(.hbSmall)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
@@ -77,7 +77,7 @@ struct PairingScannerView: View {
                 guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                 UIApplication.shared.open(url)
             }
-            .buttonStyle(.borderedProminent)
+            .prominentAction()
             Button("Cancel") { dismiss() }
                 .buttonStyle(.borderless)
         }

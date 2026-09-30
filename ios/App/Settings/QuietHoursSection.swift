@@ -23,8 +23,13 @@ struct QuietHoursSection: View {
         } header: {
             Text("Quiet Hours")
         } footer: {
-            if hours.enabled { Text("Times are in \(hours.timezone).") }
+            if hours.enabled { Text("Times are in \(timeZoneName).") }
         }
+    }
+
+    /// The server stores an IANA identifier; show the locale's name for it.
+    private var timeZoneName: String {
+        TimeZone(identifier: hours.timezone)?.localizedName(for: .generic, locale: .autoupdatingCurrent) ?? hours.timezone
     }
 
     private var enabledBinding: Binding<Bool> {

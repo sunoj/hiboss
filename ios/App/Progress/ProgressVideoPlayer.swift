@@ -115,7 +115,7 @@ struct ProgressVideoCell: View {
     @ViewBuilder
     private var durationPill: some View {
         if let ms = media.durationMs {
-            Text(ProgressMediaLayout.durationLabel(milliseconds: ms))
+            Text(verbatim: ProgressMediaLayout.durationLabel(milliseconds: ms))
                 .font(.caption)
                 .monospacedDigit()
                 .padding(.horizontal, 8)

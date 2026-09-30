@@ -24,7 +24,7 @@ struct ListStateView<Content: View>: View {
             ContentUnavailableView {
                 Label("Can't reach the server", systemImage: "wifi.exclamationmark")
             } description: {
-                Text(error)
+                Text(verbatim: error)
             } actions: {
                 Button("Retry") { Task { await onRetry() } }
             }

@@ -94,20 +94,27 @@ final class AttentionIslandAgreementTests: XCTestCase {
     }
 
     func testClockFormatsRemainingAndElapsed() {
-        XCTAssertEqual(AttentionClock.format(seconds: 0), "0s")
-        XCTAssertEqual(AttentionClock.format(seconds: 45), "45s")
-        XCTAssertEqual(AttentionClock.format(seconds: 60), "1m")
-        XCTAssertEqual(AttentionClock.format(seconds: 90), "1m 30s")
-        XCTAssertEqual(AttentionClock.format(seconds: 3600), "1h")
-        XCTAssertEqual(AttentionClock.format(seconds: 3660), "1h 1m")
+        let en = Locale(identifier: "en_US")
+        XCTAssertEqual(AttentionClock.format(seconds: 0, locale: en), "0s")
+        XCTAssertEqual(AttentionClock.format(seconds: 45, locale: en), "45s")
+        XCTAssertEqual(AttentionClock.format(seconds: 60, locale: en), "1m")
+        XCTAssertEqual(AttentionClock.format(seconds: 90, locale: en), "1m 30s")
+        XCTAssertEqual(AttentionClock.format(seconds: 3600, locale: en), "1h")
+        XCTAssertEqual(AttentionClock.format(seconds: 3660, locale: en), "1h 1m")
+        XCTAssertEqual(AttentionClock.format(seconds: 7199, locale: en), "1h 59m")
+        XCTAssertEqual(AttentionClock.format(seconds: 180_000, locale: en), "2d 2h")
         XCTAssertEqual(
-            AttentionClock.remaining(until: now.addingTimeInterval(1.2), now: now),
+            AttentionClock.remaining(until: now.addingTimeInterval(1.2), now: now, locale: en),
             "2s"
         )
         XCTAssertEqual(
-            AttentionClock.elapsed(since: now.addingTimeInterval(-90), now: now),
+            AttentionClock.elapsed(since: now.addingTimeInterval(-90), now: now, locale: en),
             "1m 30s"
         )
+    }
+
+    func testClockUsesTheLocaleUnitNames() {
+        XCTAssertEqual(AttentionClock.format(seconds: 90, locale: Locale(identifier: "ja")), "1分30秒")
     }
 
     func testHistoryAutoDecidedLabelUsesDefaultOption() {

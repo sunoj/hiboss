@@ -21,7 +21,6 @@ final class MessageMetaTests: XCTestCase {
         let items = MessageMeta.items(for: Self.ask, density: .selected)
         XCTAssertEqual(items.map(\.id), ["type", "priority", "mode", "channel", "files"])
         XCTAssertEqual(items.first { $0.id == "files" }?.value, String(localized: "\(2) files"))
-        XCTAssertEqual(MessageMeta.optionIcon("Approve"), "checkmark")
         XCTAssertEqual(MessageMeta.typeGlyph("task_update").label, String(localized: "Update"))
     }
 

@@ -10,7 +10,7 @@ struct HistoryRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(message.avatarInitials)
+            Text(verbatim: message.avatarInitials)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 40, height: 40)
@@ -18,24 +18,24 @@ struct HistoryRow: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(message.displayName)
+                    Text(verbatim: message.displayName)
                         .font(.headline)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Spacer(minLength: 4)
                     if !message.relativeCreatedAt.isEmpty {
-                        Text(message.relativeCreatedAt)
+                        Text(verbatim: message.relativeCreatedAt)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text(message.body)
+                Text(verbatim: message.body)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                 MessageMetaStrip(message: message, density: .row)
                 if !statusLabel.isEmpty {
-                    Text(statusLabel)
+                    Text(verbatim: statusLabel)
                         .font(.caption)
                         .foregroundStyle(statusColor)
                 }

@@ -1,30 +1,10 @@
-// Full-text detail for a single message, with reply and a jump to its session.
-// Exports: MessageDetailView and SessionRoute nav value.
-// Dependencies: SwiftUI, HibossKit.
+// Decision-first detail for a single message: question, shared timing and choices, then details.
+// Exports: MessageDetailView.
+// Dependencies: SwiftUI, HibossKit, DecisionOptions, DecisionTiming, MessageDetailsCard.
 
 import HibossKit
 import SwiftUI
 import UIKit
-
-/// Navigation value for drilling into a session's messages.
-struct SessionRoute: Hashable {
-    let id: String
-    let label: String
-
-    init(id: String, label: String) {
-        self.id = id
-        self.label = label
-    }
-
-    init(message: HistoryMessage) {
-        let id = SessionGrouping.sessionKey(for: message)
-        let session = message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let label = session.isEmpty
-            ? (id == SessionGrouping.directSessionID ? message.displayName : String(id.prefix(8)))
-            : session
-        self.init(id: id, label: label)
-    }
-}
 
 struct MessageDetailView: View {
     @ObservedObject var store: InboxStore
@@ -66,38 +46,61 @@ struct MessageDetailView: View {
 
     var body: some View {
         if let message {
-            Form {
-                Section {
-                    Text(message.body)
-                        .font(.body)
-                        .textSelection(.enabled)
-                }
-
-                if let actionNote {
-                    Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    question(for: message)
+                    if let actionNote {
                         Label(actionNote, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
-                            .font(.callout)
+                            .foregroundStyle(Theme.warn)
+                            .font(.hbCallout)
                     }
-                }
-
-                decisionSection(for: message)
-
-                MessageDetailsSection(message: message)
-
-                if let session = sessionRoute(for: message) {
-                    Section {
+                    decisionSection(for: message)
+                    MessageDetailsCard(message: message)
+                    if let session = sessionRoute(for: message) {
                         NavigationLink(value: session) {
                             Label("View session · \(session.label)", systemImage: "square.stack.3d.up")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         }
+                        .buttonStyle(.bordered)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .navigationTitle(message.displayName)
+            .background(Theme.paper)
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(Text(verbatim: title(for: message)))
             .navigationBarTitleDisplayMode(.inline)
         } else {
             fallbackView
         }
+    }
+
+    /// The question leads, plain and large; it wraps fully at every text size.
+    private func question(for message: HistoryMessage) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: message.body)
+                .font(.hbLargeTitle)
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .accessibilityIdentifier("message-question")
+            if let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !content.isEmpty, content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
+                Text(verbatim: content)
+                    .font(.hbCallout)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    /// Session, then project, then agent: where the question came from, not who typed it.
+    private func title(for message: HistoryMessage) -> String {
+        let session = message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let project = message.project?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !session.isEmpty ? session : (!project.isEmpty ? project : message.displayName)
     }
 
     /// Shown while the message hasn't landed in history. Holds a spinner until the
@@ -132,7 +135,7 @@ struct MessageDetailView: View {
         ContentUnavailableView {
             Label(title, systemImage: icon)
         } description: {
-            Text(description)
+            Text(verbatim: description)
         } actions: {
             Button("Retry") { fallback = .loading; loadAttempt += 1 }
         }
@@ -162,66 +165,79 @@ struct MessageDetailView: View {
         }
     }
 
-    /// Options UI: interactive buttons while pending, a read-only picked/others
-    /// list once resolved (with the chosen option checked and its source noted).
+    /// Pending: shared timing, choices, and a free-text reply. Resolved: a read-only
+    /// picked/others list, with the chosen option checked and its source noted.
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
         if message.isPendingDecision || AttentionModel.needsTextReply(message) {
-            Section("Respond") {
-                OptionMediaComparison(
-                    options: message.options,
-                    media: message.metadata?.optionMedia ?? []
-                )
-                ForEach(message.options, id: \.self) { option in
-                    Button {
-                        submit(option, for: message.id)
-                    } label: {
-                        HStack {
-                            Text(option)
-                            if option == message.defaultOption {
-                                Text("Default").font(.caption2).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if submitting == option { ProgressView() }
-                        }
-                    }
-                    .disabled(submitting != nil)
-                }
-                HStack {
-                    TextField("Reply…", text: $replyDraft, axis: .vertical)
-                        .accessibilityIdentifier("message-reply-draft")
-                        .disabled(submitting != nil)
-                    Button { submit(replyDraft, for: message.id) } label: {
-                        Text("Send").frame(minWidth: 44, minHeight: 44)
-                    }
-                        .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let timing = DecisionTiming(message: message, now: context.date)
+                pendingDecision(for: message, timing: timing)
             }
         } else if message.isDecision {
-            Section {
+            resolvedDecision(for: message)
+        }
+    }
+
+    private func pendingDecision(for message: HistoryMessage, timing: DecisionTiming) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DecisionTimingView(timing: timing, messageID: message.id)
+            OptionMediaComparison(
+                options: message.options,
+                media: message.metadata?.optionMedia ?? []
+            )
+            if !message.options.isEmpty {
+                DecisionOptions(options: message.options, timing: timing, submitting: submitting) {
+                    submit($0, for: message.id)
+                }
+            }
+            replyField(for: message)
+        }
+    }
+
+    private func resolvedDecision(for message: HistoryMessage) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Options").hbLabel().foregroundStyle(Theme.ink2)
+            VStack(alignment: .leading, spacing: 12) {
                 ForEach(message.options, id: \.self) { option in
                     optionRow(option, chosen: isChosen(option))
                 }
                 if let answer = chosenAnswer, !message.options.contains(where: isChosen) {
                     optionRow(answer, chosen: true, custom: true)
                 }
-            } header: {
-                Text("Options")
-            } footer: {
-                decisionFooter(for: message)
             }
+            .padding(12)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            decisionFooter(for: message)?.font(.hbFootnote).foregroundStyle(Theme.ink2)
+        }
+    }
+
+    private func replyField(for message: HistoryMessage) -> some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            TextField("Reply…", text: $replyDraft, axis: .vertical)
+                .accessibilityIdentifier("message-reply-draft")
+                .disabled(submitting != nil)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            Button { submit(replyDraft, for: message.id) } label: {
+                Text("Send").frame(minWidth: 44, minHeight: 44)
+            }
+            .buttonStyle(.bordered)
+            .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
     @ViewBuilder private func optionRow(_ text: String, chosen: Bool, custom: Bool = false) -> some View {
         HStack(spacing: 12) {
             Image(systemName: chosen ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(chosen ? Color.accentColor : Color.secondary)
+                .foregroundStyle(chosen ? Theme.accent : Theme.ink2)
             VStack(alignment: .leading, spacing: 2) {
-                Text(text).foregroundStyle(chosen ? .primary : .secondary)
-                if custom { Text("Custom reply").font(.caption2).foregroundStyle(.secondary) }
+                Text(verbatim: text).foregroundStyle(chosen ? Theme.ink : Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if custom { Text("Custom reply").font(.caption2).foregroundStyle(Theme.ink2) }
             }
             Spacer()
-            if chosen { Text("Selected").font(.caption).foregroundStyle(.secondary) }
+            if chosen { Text("Selected").font(.caption).foregroundStyle(Theme.ink2) }
         }
     }
 

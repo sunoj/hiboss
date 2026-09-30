@@ -13,7 +13,7 @@ struct ProgressAttributionChip: View {
         if let caption {
             HStack(spacing: 4) {
                 monogram
-                Text(caption)
+                Text(verbatim: caption)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -55,7 +55,7 @@ struct ProgressAttributionChip: View {
     }
 
     private var monogram: some View {
-        Text(vendor.monogram)
+        Text(verbatim: vendor.monogram)
             .font(.caption2.weight(.semibold))
             .foregroundStyle(monogramForeground)
             .frame(minWidth: 14, minHeight: 14)

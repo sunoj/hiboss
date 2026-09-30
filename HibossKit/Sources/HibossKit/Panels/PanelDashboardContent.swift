@@ -31,7 +31,7 @@ public struct PanelDashboardContent {
             guard let value = element.props["value"] else { continue }
             let headline = PanelHeadline(
                 path: value.object?["$state"]?.string, literal: value,
-                label: element.props["label"]?.string ?? "Metric", unit: element.props["unit"]?.string
+                label: element.props["label"]?.string ?? kitL("Metric"), unit: element.props["unit"]?.string
             )
             if !headlines.contains(where: { $0.path == headline.path && $0.label == headline.label }) {
                 headlines.append(headline)
@@ -70,7 +70,7 @@ public struct PanelDashboardContent {
         let maximum = props["max"]?.number ?? 1
         guard minimum.isFinite, maximum.isFinite, maximum > minimum else { return nil }
         return PanelDashboardProgress(
-            label: props["label"]?.string ?? "Progress",
+            label: props["label"]?.string ?? kitL("Progress"),
             fraction: min(1, max(0, (value - minimum) / (maximum - minimum)))
         )
     }
@@ -80,11 +80,11 @@ public struct PanelDashboardContent {
     ) -> PanelDashboardSeries? {
         if let path = fixture.summary?.seriesPath {
             let values = panelValue(at: path, in: state)?.array ?? []
-            return PanelDashboardSeries(label: "Trend", unit: nil, values: values.map(\.number), isBar: false)
+            return PanelDashboardSeries(label: kitL("Trend"), unit: nil, values: values.map(\.number), isBar: false)
         }
         guard let display, ["LineChart", "BarChart"].contains(display["type"]?.string) else { return nil }
         return PanelDashboardSeries(
-            label: display["label"]?.string ?? "Trend", unit: display["unit"]?.string,
+            label: display["label"]?.string ?? kitL("Trend"), unit: display["unit"]?.string,
             values: (display["values"]?.array ?? []).map { value in
                 guard let number = value.number, number.isFinite else { return nil }
                 return number

@@ -66,8 +66,8 @@ public struct PanelHeadline: Equatable, Sendable {
     public let unit: String?
 
     public func displayValue(in state: PanelValue) -> String {
-        if let path { return panelValue(at: path, in: state)?.displayText ?? "—" }
-        return literal?.displayText ?? "—"
+        if let path { return panelValue(at: path, in: state)?.formattedText ?? "—" }
+        return literal?.formattedText ?? "—"
     }
 }
 
@@ -101,7 +101,7 @@ extension PanelFixture {
 
     public var firstMetricHeadline: PanelHeadline? {
         for element in spec.elements.values where element.type == "Metric" {
-            let label = element.props["label"]?.string ?? "Metric"
+            let label = element.props["label"]?.string ?? kitL("Metric")
             let unit = element.props["unit"]?.string
             if let path = element.props["value"]?.object?["$state"]?.string {
                 return PanelHeadline(path: path, literal: nil, label: label, unit: unit)

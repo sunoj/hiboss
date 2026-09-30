@@ -50,7 +50,12 @@ enum RelativeTime {
     ) -> String {
         let seconds = now.timeIntervalSince(date)
         if seconds < 604_800 {
-            return relativeFormatter(locale: locale).localizedString(for: date, relativeTo: now)
+            let abbreviated = relativeFormatter(locale: locale, style: .abbreviated)
+                .localizedString(for: date, relativeTo: now)
+            // CLDR's narrowest past form in some languages is a signed number (ru "-1 мин");
+            // the short style reads as "ago" there ("1 мин. назад").
+            guard abbreviated.hasPrefix("-") || abbreviated.hasPrefix("\u{2212}") else { return abbreviated }
+            return relativeFormatter(locale: locale, style: .short).localizedString(for: date, relativeTo: now)
         }
         let calendar = Calendar(identifier: .gregorian)
         var localized = calendar
@@ -61,9 +66,11 @@ enum RelativeTime {
         return date.formatted(.dateTime.year().month(.abbreviated).day().locale(locale))
     }
 
-    private static func relativeFormatter(locale: Locale) -> RelativeDateTimeFormatter {
+    private static func relativeFormatter(
+        locale: Locale, style: RelativeDateTimeFormatter.UnitsStyle
+    ) -> RelativeDateTimeFormatter {
         let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
+        formatter.unitsStyle = style
         formatter.locale = locale
         return formatter
     }

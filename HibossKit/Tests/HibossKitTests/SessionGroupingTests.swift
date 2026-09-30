@@ -38,7 +38,7 @@ final class SessionGroupingTests: XCTestCase {
 
         XCTAssertEqual(groups.map(\.id), ["sess-new", SessionGrouping.directSessionID, "sess-old"])
         XCTAssertEqual(groups[0].label, "Newer Work")
-        XCTAssertEqual(groups[1].label, "Direct")
+        XCTAssertEqual(groups[1].label, kitL("Direct"))
         XCTAssertEqual(groups[1].messages.map(\.id), [directOlder.id, directNewer.id])
         XCTAssertTrue(groups[0].isExpandedByDefault)
         XCTAssertFalse(groups[2].isExpandedByDefault)

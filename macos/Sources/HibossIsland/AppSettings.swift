@@ -57,7 +57,7 @@ extension OptionDisplayMode {
 final class AppSettings: ObservableObject {
     @Published var serverAddress: String
     @Published var bossToken: String
-    @Published var deviceLabel = Host.current().localizedName ?? "Mac"
+    @Published var deviceLabel = Host.current().localizedName ?? "Mac" // i18n-exempt: fallback device name stored and sent to the server
     @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var activeClientConfig: ConnectionConfig?
     @Published var presentationMode: OptionPresentationMode {

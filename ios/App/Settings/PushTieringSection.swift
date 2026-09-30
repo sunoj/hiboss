@@ -67,10 +67,10 @@ private struct PushTieringRow: View {
         } label: {
             HStack {
                 Circle().fill(dotColor).frame(width: 8, height: 8)
-                Text(priority.localizedTitle)
+                Text(verbatim: priority.localizedTitle)
                     .foregroundStyle(.primary)
                 Spacer()
-                Text(summary)
+                Text(verbatim: summary)
                     .foregroundStyle(.secondary)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2)

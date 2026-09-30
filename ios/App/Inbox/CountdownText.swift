@@ -6,7 +6,7 @@ import SwiftUI
 
 struct CountdownText: View {
     let deadline: Date
-    var tint: Color = .secondary
+    var tint: Color = Theme.ink2
 
     /// Under two minutes the clock reads as a live emergency, not metadata.
     private let urgentWindow: TimeInterval = 120
@@ -16,7 +16,7 @@ struct CountdownText: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = deadline.timeIntervalSince(context.date)
-            Text(remaining <= 0 ? String(localized: "Expired") : String(localized: "\(format(remaining)) left"))
+            Text(verbatim: remaining <= 0 ? String(localized: "Expired") : String(localized: "\(format(remaining)) left"))
                 .monospacedDigit()
                 .fontWeight(remaining > 0 && remaining <= warnWindow ? .semibold : .regular)
                 .foregroundStyle(color(for: remaining))
@@ -24,18 +24,16 @@ struct CountdownText: View {
     }
 
     private func color(for remaining: TimeInterval) -> Color {
-        if remaining <= 0 { return .secondary }
-        if remaining <= urgentWindow { return .red }
-        if remaining <= warnWindow { return .orange }
+        if remaining <= 0 { return Theme.ink2 }
+        if remaining <= urgentWindow { return Theme.negative }
+        if remaining <= warnWindow { return Theme.warn }
         return tint
     }
 
     /// h:mm:ss for long windows, m:ss otherwise — never a bare minute overflow.
     private func format(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
-        let hours = total / 3600, minutes = (total % 3600) / 60, secs = total % 60
-        return hours > 0
-            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
-            : String(format: "%d:%02d", minutes, secs)
+        let pattern: Duration.TimeFormatStyle.Pattern = total >= 3600 ? .hourMinuteSecond : .minuteSecond
+        return Duration.seconds(total).formatted(.time(pattern: pattern))
     }
 }

@@ -58,7 +58,7 @@ public struct PanelTile: Identifiable {
 
     public var sourceLabel: String {
         if let producer { return producer.name }
-        let who = agentName ?? agentID.map { "agent \($0.prefix(8))" } ?? "Unattributed"
+        let who = agentName ?? agentID.map { kitL("agent \(String($0.prefix(8)))") } ?? kitL("Unattributed")
         guard let sessionLabel, !sessionLabel.isEmpty else { return who }
         return "\(who) · \(sessionLabel)"
     }
@@ -69,11 +69,11 @@ public enum PanelFreshness {
 
     public var title: String {
         switch self {
-        case .awaitingData: "Awaiting data"
+        case .awaitingData: kitL("Awaiting data")
         case let .task(state): state.title
-        case .live: "Live"
-        case .stale: "Stale"
-        case .offline: "Offline"
+        case .live: kitL("Live")
+        case .stale: kitL("Stale")
+        case .offline: kitL("Offline")
         }
     }
 

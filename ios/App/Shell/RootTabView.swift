@@ -6,7 +6,6 @@ import HibossKit
 import SwiftUI
 
 struct RootTabView: View {
-    @ObservedObject var home: HomeStore
     @ObservedObject var inbox: InboxStore
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var preferences: PreferencesStore
@@ -28,9 +27,8 @@ struct RootTabView: View {
     @State private var homePath = NavigationPath()
     @State private var messagesPath = NavigationPath()
 
-    init(home: HomeStore, inbox: InboxStore, connection: ConnectionStore,
+    init(inbox: InboxStore, connection: ConnectionStore,
          preferences: PreferencesStore, progress: ProgressFeedStore) {
-        self.home = home
         self.inbox = inbox
         self.connection = connection
         self.preferences = preferences
@@ -128,7 +126,6 @@ struct RootTabView: View {
         guard let api = connection.makeAPI() else { return }
         inbox.start(api: api)
         progress.start(api: api)
-        home.start(api: api)
         Task {
             await preferences.load(api: api)
             inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)

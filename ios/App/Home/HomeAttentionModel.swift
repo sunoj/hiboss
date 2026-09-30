@@ -10,11 +10,20 @@ enum AttentionGroup: Int, CaseIterable, Equatable, Hashable {
     case blocked
     case priority
 
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
         case .autoDecision: "Decides for you soon"
         case .blocked: "Stopped on you"
         case .priority: "Other decisions"
+        }
+    }
+
+    /// State glyph for the section header; the header, not a colored stripe, carries state.
+    var symbol: String {
+        switch self {
+        case .autoDecision: "timer"
+        case .blocked: "hand.raised.fill"
+        case .priority: "tray.full"
         }
     }
 }

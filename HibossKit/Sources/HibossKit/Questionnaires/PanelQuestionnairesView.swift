@@ -20,7 +20,7 @@ public struct PanelQuestionnairesView: View {
             if !panels.isDemoMode && !hasLoaded && error == nil { ProgressView(kitL("Loading questions…")) }
             if let error {
                 Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark").foregroundStyle(.orange)
-                Text(error).foregroundStyle(.secondary).font(.callout)
+                Text(verbatim: error).foregroundStyle(.secondary).font(.callout)
                 Button(kitL("Retry questions")) { Task { await refresh() } }.disabled(isRefreshing)
             }
             if let service, let bossID = tile.metadata?.targetBossId {

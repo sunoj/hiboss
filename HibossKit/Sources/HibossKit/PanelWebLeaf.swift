@@ -32,11 +32,11 @@ public final class PanelWebModel: ObservableObject {
             guard let height = message.contentHeight, height.isFinite else { return }
             contentHeight = max(48, min(800, CGFloat(height)))
         case .renderFailed:
-            failureMessage = message.message ?? "Display renderer failed"
+            failureMessage = message.message ?? kitL("Display renderer failed")
         }
     }
 
-    public func markTerminated() { failureMessage = "Web content process terminated" }
+    public func markTerminated() { failureMessage = kitL("Web content process terminated") }
 }
 
 public struct PanelWebLeafSlot: View {
@@ -54,14 +54,14 @@ public struct PanelWebLeafSlot: View {
         ZStack {
             PanelWebView(model: model, definition: resolvedDefinition)
             if let failure = model.failureMessage {
-                Text(failure).foregroundStyle(.secondary).padding()
+                Text(verbatim: failure).foregroundStyle(.secondary).padding()
                     .frame(maxWidth: .infinity, minHeight: 96)
                     .background(.regularMaterial)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 48, idealHeight: model.contentHeight, maxHeight: 800)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(resolvedDefinition["type"]?.string == "Table" ? "Display table" : "Display chart")
+        .accessibilityLabel(resolvedDefinition["type"]?.string == "Table" ? kitL("Display table") : kitL("Display chart"))
     }
 }
 

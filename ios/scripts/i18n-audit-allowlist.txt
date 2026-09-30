@@ -1,0 +1,34 @@
+# Deliberate exceptions for scripts/i18n-audit.py — one per line:
+#   path | rule | code substring on the flagged line | reason
+# A stale entry (nothing matches it any more) fails the audit, so remove it with the code.
+
+# Values typed LocalizedStringResource: Text(resource) resolves through the catalog.
+App/Home/HomeAttentionRow.swift | unlocalized-var | Text(group.group.title) | AttentionGroup.title is LocalizedStringResource
+App/Home/HomePanelWall.swift | unlocalized-var | Text(model.freshness(for: tile).localizedTitle) | PanelFreshness.localizedTitle is LocalizedStringResource
+App/Inbox/MessageAttributeStyle.swift | unlocalized-var | Text(label) | AttributeRow.label is LocalizedStringResource
+
+# Strings already resolved by String(localized:) or error.localizedDescription before they reach the view.
+App/Home/HomePanelWall.swift | unlocalized-var | Label(failure, | PanelsModel failure message, resolved in HibossKit
+App/Inbox/ListStateView.swift | unlocalized-var | ContentUnavailableView(emptyTitle, | callers pass String(localized:) title and detail
+App/Inbox/MessageDetailView.swift | unlocalized-var | Label(actionNote, | actionNote is set only from String(localized:)
+App/Inbox/MessageDetailView.swift | unlocalized-var | Label(title, systemImage: icon) | callers pass String(localized:) titles
+App/Inbox/ReplySheet.swift | unlocalized-var | Label(note, | note is set only from String(localized:)
+App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLabel(accessibilityCaption) | built with String(localized:)
+App/Sessions/SessionCard.swift | unlocalized-var | Label(statusStyle.label, | SessionStatusStyle.label is String(localized:); unknown server words show as sent
+App/Settings/SettingsView.swift | unlocalized-var | Label(message, | preference/registration failure: error.localizedDescription or String(localized:)
+App/Settings/SettingsView.swift | unlocalized-var | Button(actionTitle) | actionTitle is String(localized:)
+
+# Content, not UI copy: agent-authored alt text (with a localized fallback) and field placeholders.
+App/Progress/ProgressMediaView.swift | unlocalized-var | .accessibilityLabel(media.alt ?? | agent-authored alt text; fallback is localized
+App/Progress/ProgressMediaView.swift | unlocalized-var | .accessibilityValue(alt) | agent-authored alt text
+App/Progress/ProgressMediaViewer.swift | unlocalized-var | .accessibilityLabel(item.alt ?? | agent-authored alt text; fallback is localized
+App/Progress/ProgressVideoPlayer.swift | unlocalized-var | .accessibilityLabel(media.alt ?? | agent-authored alt text; fallback is localized
+App/Onboarding/ConnectView.swift | unlocalized-var | SecureField(placeholder, | placeholder is a token-format example ("hb_…")
+App/Onboarding/ConnectView.swift | unlocalized-var | TextField(placeholder, | placeholder is an example URL or the device's own name
+
+# Machine formats, never shown as prose.
+App/Push/PushManager.swift | hand-format | String(format: "%02x", $0) | APNs device token hex encoding sent to the server
+App/Settings/QuietHoursSection.swift | hand-format | String(format: "%02d:%02d" | wire format for quiet hours ("HH:mm"); the picker renders the locale time
+
+# Brand name compiled from ios/Shared (outside this audit's source scope) into both targets.
+Shared/HiBossBrandIcon.swift | extracted-key | HiBoss | product name; not translated

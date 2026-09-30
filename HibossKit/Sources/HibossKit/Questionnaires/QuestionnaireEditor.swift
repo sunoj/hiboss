@@ -23,7 +23,7 @@ struct QuestionnaireEditor: View {
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                Text(model.editing.definition.title).font(.headline)
+                Text(verbatim: model.editing.definition.title).font(.headline)
                 if let submission = model.latest.submission {
                     QuestionnaireAnswerView(record: model.latest, submission: submission)
                 } else {
@@ -48,7 +48,7 @@ struct QuestionnaireEditor: View {
             Label(model.editing.definition.blocking ? kitL("Agent needs your answers to continue") : kitL("Optional feedback"),
                   systemImage: model.editing.definition.blocking ? "text.bubble" : "bubble.left")
             if let deadline = panelDate(model.latest.expiresAt) {
-                Text(kitL("Answer by") + " " + deadline.formatted(date: .abbreviated, time: .shortened))
+                Text(kitL("Answer by \(deadline.formatted(date: .abbreviated, time: .shortened))"))
             }
             if model.hasSavedDraft { Text(kitL("Draft saved on this device")) }
         }.font(.caption).foregroundStyle(.secondary)
@@ -66,7 +66,12 @@ struct QuestionnaireEditor: View {
         } else if model.latest.isOpen(at: now) {
             if !model.editing.definition.formSpec.elements.values.contains(where: { $0.on?["press"]?.action == "submitRequest" }) {
                 Button(kitL("Submit answers")) { Task { await model.submit() } }
-                    .buttonStyle(.borderedProminent).disabled(!model.canEdit)
+                    #if os(iOS)
+                    .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
+                    #else
+                    .buttonStyle(.borderedProminent)
+                    #endif
+                    .disabled(!model.canEdit)
             }
         }
     }

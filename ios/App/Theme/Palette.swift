@@ -4,6 +4,7 @@
 
 import SwiftUI
 import UIKit
+import HibossKit
 
 /// Semantic tokens. Names kept for source compatibility; values are now the
 /// system's dynamic colors so the app reads as native iOS, not a web palette.
@@ -24,10 +25,21 @@ enum Theme {
     static let line = Color(.separator)
     static let line2 = Color(.opaqueSeparator)
 
+    // System tint and media surfaces
+    static let accent = Color.accentColor
+    static let onAccent = Color(uiColor: .systemBackground)
+    static let mediaBackground = Color(.systemBackground)
+
     // Status accents
     static let positive = Color.green
     static let negative = Color.red
     static let warn = Color.orange
+}
+
+extension View {
+    func prominentAction() -> some View {
+        modifier(ProminentActionModifier(labelColor: Theme.onAccent))
+    }
 }
 
 /// Message priority accents using system semantic colors.

@@ -16,7 +16,7 @@ public enum MessageSigningError: Error, LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .secureEnclaveUnavailable:
-            "Secure Enclave is unavailable on this device."
+            kitL("Secure Enclave is unavailable on this device.")
         }
     }
 }

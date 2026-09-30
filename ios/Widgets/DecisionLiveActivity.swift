@@ -21,6 +21,17 @@ private enum LA {
         }
     }
 
+    /// Catalog-backed priority name; an unknown value from the server shows as sent.
+    static func priorityText(_ p: String) -> Text {
+        switch p.lowercased() {
+        case "critical": Text("Critical")
+        case "high": Text("High")
+        case "normal": Text("Normal")
+        case "low": Text("Low")
+        default: Text(verbatim: p)
+        }
+    }
+
     static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
             return nil
@@ -41,13 +52,13 @@ struct DecisionLiveActivity: Widget {
                     HStack(spacing: 8) {
                         HiBossBrandIcon(size: 30)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(context.attributes.project)
+                            Text(verbatim: context.attributes.project)
                                 .font(.system(size: 13, weight: .semibold)).foregroundStyle(LA.ink)
                             if let content = LA.nonEmpty(context.state.content) {
-                                Text(content)
+                                Text(verbatim: content)
                                     .font(.system(size: 9)).foregroundStyle(LA.ink2)
                             } else {
-                                Text(context.attributes.meta)
+                                Text(verbatim: context.attributes.meta)
                                     .font(.system(size: 9, design: .monospaced)).foregroundStyle(LA.ink2)
                             }
                         }
@@ -64,11 +75,11 @@ struct DecisionLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(context.attributes.agentName)
+                            Text(verbatim: context.attributes.agentName)
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundStyle(LA.ink2)
                                 .lineLimit(1)
-                            Text(context.state.body)
+                            Text(verbatim: context.state.body)
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(LA.ink)
                                 .lineLimit(2)
@@ -101,7 +112,7 @@ private struct ActionButtons: View {
         HStack(spacing: 9) {
             ForEach(Array(options.prefix(2).enumerated()), id: \.offset) { index, option in
                 Button(intent: RespondDecisionIntent(messageID: context.attributes.messageID, choice: option)) {
-                    Text(option)
+                    Text(verbatim: option)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -124,19 +135,20 @@ private struct LockScreenCard: View {
                 HiBossBrandIcon(size: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 7) {
-                        Text(context.attributes.project)
+                        Text(verbatim: context.attributes.project)
                             .font(.system(size: 14, weight: .semibold)).foregroundStyle(LA.ink)
                             .lineLimit(1)
-                        Text(context.state.priority.uppercased())
+                        LA.priorityText(context.state.priority)
+                            .textCase(.uppercase)
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundStyle(LA.priorityColor(context.state.priority))
                     }
                     if let content = LA.nonEmpty(context.state.content) {
-                        Text(content)
+                        Text(verbatim: content)
                             .font(.system(size: 11)).foregroundStyle(LA.ink2)
                             .lineLimit(1)
                     }
-                    Text(context.attributes.meta)
+                    Text(verbatim: context.attributes.meta)
                         .font(.system(size: 10, design: .monospaced)).foregroundStyle(LA.ink2)
                         .lineLimit(1)
                 }
@@ -148,11 +160,11 @@ private struct LockScreenCard: View {
                 }
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(context.attributes.agentName)
+                Text(verbatim: context.attributes.agentName)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(LA.ink2)
                     .lineLimit(1)
-                Text(context.state.body)
+                Text(verbatim: context.state.body)
                     .font(.system(size: 14.5)).foregroundStyle(LA.ink.opacity(0.92))
                     .lineLimit(3)
             }
