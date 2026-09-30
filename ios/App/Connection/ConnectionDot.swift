@@ -1,5 +1,5 @@
-// Toolbar connection status: calm when healthy, loud only when failed.
-// Exports: ConnectionDot used on Inbox, Sessions, Messages, and Settings.
+// Toolbar connection status: silent when connected, a small localized label otherwise.
+// Exports: ConnectionDot used on the Messages, Sessions and session transcript toolbars.
 // Dependencies: SwiftUI, HibossKit ConnectionState.
 
 import HibossKit
@@ -9,31 +9,26 @@ struct ConnectionDot: View {
     let state: ConnectionState
 
     var body: some View {
-        Image(systemName: symbol)
-            .foregroundStyle(tint)
-            .symbolRenderingMode(.hierarchical)
-            .symbolEffect(.pulse, isActive: pulsing)
-            .accessibilityLabel("Connection: \(state.label)")
-    }
-
-    private var symbol: String {
         switch state {
-        case .connected: "wifi"
-        case .connecting: "wifi"
-        case .failed: "wifi.exclamationmark"
-        case .disconnected: "wifi.slash"
+        case .connected:
+            EmptyView()
+        case .connecting:
+            Text("Connecting…")
+                .font(.caption)
+                .foregroundStyle(Theme.ink2)
+                .accessibilityLabel(Text("Connection: \(state.label)"))
+        case .disconnected, .failed:
+            Label("Offline", systemImage: "wifi.slash")
+                .labelStyle(.titleAndIcon)
+                .font(.caption)
+                .foregroundStyle(tint)
+                .accessibilityLabel(Text("Connection: \(state.label)"))
         }
     }
 
-    /// Green only when live; every other state is the same quiet grey, so the
-    /// glyph alone carries the status and nothing on the bar competes for attention.
+    /// Failure is the one state worth a warning tint; a plain disconnect stays quiet.
     private var tint: Color {
-        if case .connected = state { return .green }
-        return Color(.tertiaryLabel)
-    }
-
-    private var pulsing: Bool {
-        if case .connecting = state { return true }
-        return false
+        if case .failed = state { return Theme.warn }
+        return Theme.ink2
     }
 }

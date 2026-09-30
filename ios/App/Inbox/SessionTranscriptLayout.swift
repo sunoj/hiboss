@@ -1,4 +1,4 @@
-// Groups session events into SMS-style bubbles, time separators, and system lines.
+// Groups session events into SMS-style bubbles, time separators, and collapsed step runs.
 // Exports: SessionTranscriptLayout, SessionTranscriptItem, SessionBubbleStyle.
 // Dependencies: Foundation, HibossKit SessionEvent. Presentation-only; stream model unchanged.
 
@@ -15,13 +15,17 @@ struct SessionBubbleStyle: Equatable {
 enum SessionTranscriptItem: Identifiable, Equatable {
     case time(id: String, date: Date)
     case bubble(SessionEvent, SessionBubbleStyle)
-    case system(SessionEvent)
+    /// A consecutive run of tool calls, results, hooks and other non-message activity.
+    case steps(id: String, events: [SessionEvent])
+    /// An agent error: the boss sees it, so it is never folded into steps.
+    case notice(SessionEvent)
 
     var id: String {
         switch self {
         case let .time(id, _): return id
         case let .bubble(event, _): return event.id
-        case let .system(event): return event.id
+        case let .steps(id, _): return id
+        case let .notice(event): return event.id
         }
     }
 }
@@ -30,11 +34,12 @@ enum SessionTranscriptLayout {
     static let distantGap: TimeInterval = 60 * 60
     static let collapseLimit = 160
 
+    /// Unknown kinds never reach the conversation; everything else keeps its order.
     static func items(from events: [SessionEvent]) -> [SessionTranscriptItem] {
         var result: [SessionTranscriptItem] = []
         var previous: SessionEvent?
         var groupBroken = true
-        for event in events {
+        for event in events where event.isKnownKind {
             var broke = groupBroken
             if let previous, shouldInsertTime(from: previous, to: event) {
                 if let date = parseDate(event.createdAt) {
@@ -110,8 +115,12 @@ extension SessionTranscriptLayout {
         groupBroken: Bool,
         into result: inout [SessionTranscriptItem]
     ) {
+        if event.kind == "error" {
+            result.append(.notice(event))
+            return
+        }
         guard isBubble(event) else {
-            result.append(.system(event))
+            appendStep(event, into: &result)
             return
         }
         let outgoing = isOutgoing(event)
@@ -125,6 +134,15 @@ extension SessionTranscriptLayout {
             result.append(.bubble(event, SessionBubbleStyle(
                 isOutgoing: outgoing, isFirstInGroup: true, isLastInGroup: true, showsSender: !outgoing
             )))
+        }
+    }
+
+    /// Extends the run directly above, or opens a new one after a bubble or time line.
+    private static func appendStep(_ event: SessionEvent, into result: inout [SessionTranscriptItem]) {
+        if let index = result.indices.last, case let .steps(id, run) = result[index] {
+            result[index] = .steps(id: id, events: run + [event])
+        } else {
+            result.append(.steps(id: "steps-\(event.id)", events: [event]))
         }
     }
 

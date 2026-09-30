@@ -1,6 +1,6 @@
 // One session summary card: status, agent, branch, pending + activity.
 // Exports: SessionCard rendering a SessionGroup; SessionGroup summary helpers.
-// Dependencies: SwiftUI, HibossKit SessionGroup, theme tokens.
+// Dependencies: SwiftUI, HibossKit SessionGroup, theme tokens. Accessibility sizes stack, never truncate.
 
 import HibossKit
 import SwiftUI
@@ -61,6 +61,17 @@ struct SessionStatusStyle {
 
 struct SessionCard: View {
     let group: SessionGroup
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// At accessibility sizes every row stacks and wraps instead of cutting words off.
+    private var stacked: Bool { typeSize.isAccessibilitySize }
+    private var lineLimit: Int? { stacked ? nil : 1 }
+
+    private var rowLayout: AnyLayout {
+        stacked
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -77,32 +88,32 @@ struct SessionCard: View {
     }
 
     private var statusRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        rowLayout {
             if let statusStyle {
                 Label(statusStyle.label, systemImage: statusStyle.icon)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(statusStyle.tint)
                     .symbolRenderingMode(.hierarchical)
-                    .lineLimit(1)
+                    .lineLimit(lineLimit)
             }
-            Spacer(minLength: 8)
+            if !stacked { Spacer(minLength: 8) }
             if let last = group.lastActivity {
                 Text(verbatim: RelativeTime.short(from: last))
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink2)
-                    .lineLimit(1)
+                    .lineLimit(lineLimit)
             }
         }
     }
 
     private var titleRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        rowLayout {
             Text(verbatim: group.localizedLabel)
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
-                .lineLimit(1)
+                .lineLimit(lineLimit)
             if group.pendingCount > 0 { pendingBadge }
-            Spacer(minLength: 0)
+            if !stacked { Spacer(minLength: 0) }
         }
     }
 
@@ -116,23 +127,25 @@ struct SessionCard: View {
     }
 
     private var metaRow: some View {
-        HStack(spacing: 12) {
+        (stacked
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(spacing: 12))) {
             if let agent = group.agentName, !agent.isEmpty { chip("person", agent, Theme.ink2) }
             if let branch = group.branch, !branch.isEmpty {
                 chip("arrow.triangle.branch", branch, Theme.ink2)
             }
             chip("bubble.left", group.messages.count.formatted(), Theme.ink2)
-            Spacer(minLength: 0)
+            if !stacked { Spacer(minLength: 0) }
         }
         .font(.caption)
         .foregroundStyle(Theme.ink2)
-        .lineLimit(1)
+        .lineLimit(lineLimit)
     }
 
     private func chip(_ icon: String, _ text: String, _ tint: Color) -> some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
             Image(systemName: icon).font(.caption2).foregroundStyle(tint)
-            Text(verbatim: text)
+            Text(verbatim: text).fixedSize(horizontal: false, vertical: stacked)
         }
     }
 

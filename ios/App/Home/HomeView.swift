@@ -31,7 +31,7 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-            .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI) }
+            .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI, store: inbox) }
             .alert(
                 "Heads up",
                 isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
@@ -94,16 +94,7 @@ struct HomeView: View {
 
     private func handleReply(_ choice: String, to id: MessageID) {
         Task {
-            switch await inbox.reply(choice, to: id) {
-            case .sent:
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-            case .alreadyResolved:
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                actionNote = String(localized: "That decision was already answered elsewhere.")
-            case .failed:
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
-                actionNote = String(localized: "Couldn't send your reply — check your connection.")
-            }
+            if let note = await inbox.replyWithFeedback(choice, to: id) { actionNote = note }
         }
     }
 }

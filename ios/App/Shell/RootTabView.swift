@@ -85,7 +85,7 @@ struct RootTabView: View {
                 .navigationTitle("Messages")
                 .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
                 .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
+                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox) }
                 .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
         }
         .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
@@ -101,7 +101,7 @@ struct RootTabView: View {
     private var sessionsTabView: some View {
         NavigationStack {
             SessionsView(store: inbox)
-                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI) }
+                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox) }
                 .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
         }
         .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
