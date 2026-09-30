@@ -7,6 +7,7 @@ import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
+import { expireStaleAsks } from './abandoned-asks';
 import { parseOptionMedia } from './routes/option-media';
 import { destinationsMode, drainDestinationDeliveries } from './delivery';
 
@@ -33,6 +34,15 @@ export async function handleScheduled(env: Env): Promise<void> {
   const now = new Date().toISOString();
   await cleanupPairingCodes(env, now);
   await expireDueOptions(env, now);
+  // Hourly is enough for a one-day rule (pending inputs already exclude stale asks), and
+  // the sweep query scans messages; isolate it so a failure never blocks delivery.
+  if (new Date().getUTCMinutes() < 5) {
+    try {
+      await expireStaleAsks(env);
+    } catch {
+      console.error('Failed to sweep abandoned asks');
+    }
+  }
   if (destinationsMode(env.DESTINATIONS_MODE) === 'on') await drainDestinationDeliveries(env);
   else await drainDeliveryQueue(env, now);
 }

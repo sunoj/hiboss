@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import type { Env } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api';
+import { expireSessionAsks } from '../abandoned-asks';
 
 const STALE_MINUTES = 15;
 
@@ -120,6 +121,8 @@ routes.patch('/:id', async (c) => {
     .bind(...binds)
     .run();
   if (!result.meta.changed_db) return c.text('not found', 404);
+  // A completed session has no agent left to read an answer.
+  if (status === 'completed') await expireSessionAsks(c.env, agentId, c.req.param('id'));
   return c.json({ ok: true });
 });
 
@@ -129,6 +132,7 @@ routes.delete('/:id', async (c) => {
   const agentId = getAgentId(c);
   const sessionId = c.req.param('id');
   const ownedSession = 'SELECT id FROM sessions WHERE id = ? AND agent_id = ?';
+  await expireSessionAsks(c.env, agentId, sessionId);
   await c.env.DB.batch([
     c.env.DB.prepare(`DELETE FROM session_events WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
     c.env.DB.prepare(`DELETE FROM destination_routes WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),

@@ -123,12 +123,17 @@ vi.mock('./routes/message-options', () => ({
   expireMessageOptions: vi.fn(async () => {}),
 }));
 
+vi.mock('./abandoned-asks', () => ({
+  expireStaleAsks: vi.fn(async () => 0),
+}));
+
 vi.mock('./routes/agent-delivery', () => ({
   deliverAgentMessage: vi.fn(async () => ({ delivered: true })),
 }));
 
 import { expireMessageOptions } from './routes/message-options';
 import { deliverAgentMessage } from './routes/agent-delivery';
+import { expireStaleAsks } from './abandoned-asks';
 
 const mockedExpire = vi.mocked(expireMessageOptions);
 const mockedDeliverAgentMessage = vi.mocked(deliverAgentMessage);
@@ -172,6 +177,20 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(mockedExpire).not.toHaveBeenCalled();
+  });
+
+  it('sweeps abandoned asks only in the first five minutes of each hour', async () => {
+    const minutes = vi.spyOn(Date.prototype, 'getUTCMinutes');
+    try {
+      minutes.mockReturnValue(2);
+      await handleScheduled(makeFakeEnv({}).env as never);
+      expect(vi.mocked(expireStaleAsks)).toHaveBeenCalledTimes(1);
+      minutes.mockReturnValue(30);
+      await handleScheduled(makeFakeEnv({}).env as never);
+      expect(vi.mocked(expireStaleAsks)).toHaveBeenCalledTimes(1);
+    } finally {
+      minutes.mockRestore();
+    }
   });
 
   it('keeps consumed pairing codes observable until they expire', async () => {
