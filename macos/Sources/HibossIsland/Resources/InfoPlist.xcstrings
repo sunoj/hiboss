@@ -1,0 +1,28 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "App name shown in Finder, the Dock and Login Items. Product name; keep it unless a market uses a local name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss Island"
+          }
+        }
+      }
+    },
+    "CFBundleName": {
+      "comment": "Short app name shown in the menu bar and About box. Product name; keep it unless a market uses a local name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss Island"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -64,7 +64,7 @@ struct QuietHoursSettingsPane: View {
     private var timezoneChoices: [String] {
         let current = SettingsPreferencesLogic.quietHours(from: preferencesStore.preferences).timezone
         let common = [
-            "UTC",
+            "UTC", // i18n-exempt: IANA time zone identifiers, stored as preference values
             "America/Los_Angeles",
             "America/New_York",
             "Europe/London",

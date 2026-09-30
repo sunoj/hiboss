@@ -38,10 +38,10 @@ enum PairingValidity {
         max(0, Int(ceil(expiresAt.timeIntervalSince(now))))
     }
 
-    static func formatted(remainingSeconds: Int) -> String {
-        let minutes = max(0, remainingSeconds) / 60
-        let seconds = max(0, remainingSeconds) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+    /// m:ss countdown in the locale's digits and separators.
+    static func formatted(remainingSeconds: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        Duration.seconds(max(0, remainingSeconds))
+            .formatted(.time(pattern: .minuteSecond).locale(locale))
     }
 }
 

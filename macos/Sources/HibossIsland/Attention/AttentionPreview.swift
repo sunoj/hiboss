@@ -5,6 +5,8 @@
 import HibossKit
 import SwiftUI
 
+// i18n-exempt-file: fixtures stand in for agent-authored questions, which are never localized
+
 enum AttentionPreview {
     static func historyIfRequested() -> [HistoryMessage]? {
         switch ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] {

@@ -16,7 +16,7 @@ struct OverviewContentHeader: View {
                     .font(.largeTitle.bold())
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Text(countsAvailable ? "\(snapshot.messages(for: destination).count)" : "—")
+                Text(countsAvailable ? snapshot.messages(for: destination).count.formatted() : "—")
                     .font(.largeTitle.bold()).monospacedDigit()
             }
             .foregroundStyle(.primary)

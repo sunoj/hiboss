@@ -45,17 +45,21 @@ cp "$PACKAGE_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$PACKAGE_DIR/Resources/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
 
 # Compile catalogs that command-line SwiftPM only copies, then embed the bundles.
-# Native resource lookup resolves these from Contents/Resources at runtime.
+# Native resource lookup resolves these from Contents/Resources at runtime; the
+# copied lproj folders also carry InfoPlist.strings for the main bundle.
 for bundle in "$BIN_DIR"/*_*.bundle; do
     [ -d "$bundle" ] || continue
     cp -R "$bundle" "$CONTENTS_DIR/Resources/"
     embedded="$CONTENTS_DIR/Resources/$(basename "$bundle")"
-    for catalog in "$embedded"/*.xcstrings; do
+    # Newer SwiftPM builds a macOS-style bundle (Contents/Resources); older ones are flat.
+    resources="$embedded"
+    [ -d "$embedded/Contents/Resources" ] && resources="$embedded/Contents/Resources"
+    for catalog in "$resources"/*.xcstrings; do
         [ -f "$catalog" ] || continue
-        xcrun xcstringstool compile "$catalog" --output-directory "$embedded"
+        xcrun xcstringstool compile "$catalog" --output-directory "$resources"
     done
     if [ "$(basename "$bundle")" = "HibossIsland_HibossIsland.bundle" ]; then
-        for locale in "$embedded"/*.lproj; do
+        for locale in "$resources"/*.lproj; do
             [ -d "$locale" ] || continue
             cp -R "$locale" "$CONTENTS_DIR/Resources/"
         done

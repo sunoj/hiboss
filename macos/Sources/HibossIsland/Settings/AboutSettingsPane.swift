@@ -21,9 +21,9 @@ struct AboutSettingsPane: View {
                 }
                 LabeledContent(L("Project")) {
                     if let url = URL(string: "https://hiboss.ai") {
-                        Link("hiboss.ai", destination: url)
+                        Link(destination: url) { Text(verbatim: "hiboss.ai") }
                     } else {
-                        Text("hiboss.ai")
+                        Text(verbatim: "hiboss.ai")
                             .foregroundStyle(.secondary)
                     }
                 }

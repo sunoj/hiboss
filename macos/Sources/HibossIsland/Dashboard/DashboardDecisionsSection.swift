@@ -48,7 +48,7 @@ struct DashboardDecisionsSection: View {
     }
 
     private var countLabel: String {
-        items.isEmpty && historyState != .loaded ? "—" : "\(items.count)"
+        items.isEmpty && historyState != .loaded ? "—" : items.count.formatted()
     }
 
     @ViewBuilder

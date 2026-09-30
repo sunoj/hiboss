@@ -229,7 +229,7 @@ struct ReplyField: View {
     /// sinks below the panel instead of matching their fill and reading as another button.
     var body: some View {
         HStack(spacing: 7) {
-            TextField("", text: $text)
+            TextField(String(), text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundStyle(.white)
