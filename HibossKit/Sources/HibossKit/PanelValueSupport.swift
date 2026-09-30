@@ -1,5 +1,5 @@
 // JSON pointer access and display helpers for shared panel values.
-// Exports: PanelValue accessors, displayText, and panelValue(at:in:).
+// Exports: PanelValue accessors, displayText, formattedText, and panelValue(at:in:).
 // Dependencies: Foundation and the shared PanelValue contract.
 
 import Foundation
@@ -29,9 +29,16 @@ extension PanelValue {
         switch self {
         case let .string(value): value
         case let .number(value): Int(exactly: value).map(String.init) ?? String(value)
-        case let .bool(value): value ? "On" : "Off"
+        case let .bool(value): value ? kitL("On") : kitL("Off")
         default: ""
         }
+    }
+
+    /// Display-only text: numbers use the current locale's digits and separators.
+    /// `displayText` stays locale-independent because inputs round-trip through it.
+    public var formattedText: String {
+        if case let .number(value) = self, value.isFinite { return value.formatted() }
+        return displayText
     }
 }
 

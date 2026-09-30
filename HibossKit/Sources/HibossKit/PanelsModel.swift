@@ -12,7 +12,7 @@ public enum PanelClientError: LocalizedError {
     case notConfigured
 
     public var errorDescription: String? {
-        switch self { case .notConfigured: "Connect HiBoss to load panels." }
+        switch self { case .notConfigured: kitL("Connect HiBoss to load panels.") }
     }
 }
 

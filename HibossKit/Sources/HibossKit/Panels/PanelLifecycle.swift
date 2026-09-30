@@ -7,7 +7,15 @@ import Foundation
 public enum PanelTaskState: String, Codable, Sendable {
     case running, paused, completed, failed, cancelled
     public var isTerminal: Bool { self == .completed || self == .failed || self == .cancelled }
-    public var title: String { rawValue.capitalized }
+    public var title: String {
+        switch self {
+        case .running: kitL("Running")
+        case .paused: kitL("Paused")
+        case .completed: kitL("Completed")
+        case .failed: kitL("Failed")
+        case .cancelled: kitL("Cancelled")
+        }
+    }
     public var symbol: String {
         switch self {
         case .running: "dot.radiowaves.left.and.right"

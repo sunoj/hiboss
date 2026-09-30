@@ -26,13 +26,13 @@ struct PanelDashboardChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text(series.label).lineLimit(2)
+                Text(verbatim: series.label).lineLimit(2)
                 Spacer(minLength: 4)
-                if let unit = series.unit { Text(unit).fixedSize() }
+                if let unit = series.unit { Text(verbatim: unit).fixedSize() }
             }
             .font(.caption).foregroundStyle(.secondary)
             if samples.isEmpty {
-                Text("No samples yet").font(.callout).foregroundStyle(.secondary)
+                Text(kitL("No samples yet")).font(.callout).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             } else {
                 plot.frame(height: 44)
@@ -43,13 +43,13 @@ struct PanelDashboardChart: View {
     private var plot: some View {
         Chart(samples) { sample in
             if series.isBar {
-                BarMark(x: .value("Sample", sample.id + 1), y: .value(series.unit ?? "Value", sample.value), width: .fixed(16))
+                BarMark(x: .value(kitL("Sample"), sample.id + 1), y: .value(series.unit ?? kitL("Value"), sample.value), width: .fixed(16))
                     .foregroundStyle(accent).cornerRadius(3)
             } else {
-                LineMark(x: .value("Sample", sample.id + 1), y: .value(series.unit ?? "Value", sample.value),
-                         series: .value("Segment", sample.segment))
+                LineMark(x: .value(kitL("Sample"), sample.id + 1), y: .value(series.unit ?? kitL("Value"), sample.value),
+                         series: .value(kitL("Segment"), sample.segment))
                     .foregroundStyle(accent).lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                PointMark(x: .value("Sample", sample.id + 1), y: .value(series.unit ?? "Value", sample.value))
+                PointMark(x: .value(kitL("Sample"), sample.id + 1), y: .value(series.unit ?? kitL("Value"), sample.value))
                     .foregroundStyle(accent).symbolSize(14)
             }
         }
@@ -57,7 +57,7 @@ struct PanelDashboardChart: View {
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .accessibilityLabel(series.label)
-        .accessibilityValue(series.values.map { $0.map { String($0) } ?? "gap" }.joined(separator: ", "))
+        .accessibilityValue(series.values.map { $0.map { $0.formatted() } ?? kitL("gap") }.formatted(.list(type: .and, width: .narrow)))
     }
 }
 
@@ -71,11 +71,11 @@ struct PanelDashboardTable: View {
     var body: some View {
         let rows = definition["rows"]?.array ?? []
         VStack(alignment: .leading, spacing: 6) {
-            Text(definition["label"]?.string ?? "Table").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(verbatim: definition["label"]?.string ?? kitL("Table")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 7) {
                 GridRow {
                     ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
-                        Text(column["label"]?.string ?? column["id"]?.string ?? "")
+                        Text(verbatim: column["label"]?.string ?? column["id"]?.string ?? "")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }
@@ -83,14 +83,14 @@ struct PanelDashboardTable: View {
                     Divider().gridCellColumns(max(1, columns.count))
                     GridRow {
                         ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
-                            Text(row.object?[column["id"]?.string ?? ""]?.displayText ?? "—")
+                            Text(verbatim: row.object?[column["id"]?.string ?? ""]?.formattedText ?? "—")
                                 .font(.caption).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
             }
             if rows.count > 2 {
-                Text("\(rows.count - 2) more rows in panel").font(.caption2).foregroundStyle(.secondary)
+                Text(kitL("\(rows.count - 2) more rows in panel")).font(.caption2).foregroundStyle(.secondary)
             }
         }
     }

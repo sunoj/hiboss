@@ -54,7 +54,7 @@ public struct BossClientsSection: View {
                 pendingRevocation = nil
             }
         } message: { client in
-            Text(client.label) + Text("\n") + Text(kitL("This device will lose access and stop receiving push notifications."))
+            Text(verbatim: client.label) + Text(verbatim: "\n") + Text(kitL("This device will lose access and stop receiving push notifications."))
         }
     }
 
@@ -75,11 +75,11 @@ public struct BossClientsSection: View {
         HStack(alignment: .top) {
             Image(systemName: client.kind.symbol)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(client.kind.rawValue)
+                .accessibilityLabel(client.kind.localizedName)
             VStack(alignment: .leading, spacing: 4) {
-                Text(client.label).font(.headline)
+                Text(verbatim: client.label).font(.headline)
                 if let date = client.lastSeenDate {
-                    (Text(kitL("Last seen")) + Text(" ") + Text(date, style: .relative))
+                    (Text(kitL("Last seen")) + Text(verbatim: " ") + Text(date, style: .relative))
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text(kitL("Last seen: never")).font(.caption).foregroundStyle(.secondary)
@@ -94,7 +94,7 @@ public struct BossClientsSection: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(store.isBusy)
-                .accessibilityLabel(Text(kitL("Revoke")) + Text(" ") + Text(client.label))
+                .accessibilityLabel(Text(kitL("Revoke")) + Text(verbatim: " ") + Text(verbatim: client.label))
             }
         }
     }
