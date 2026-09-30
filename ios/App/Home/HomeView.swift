@@ -45,9 +45,9 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
+        TimelineView(HomeRefreshSchedule(deadlines: refreshDeadlines)) { context in
             ScrollView {
-                VStack(spacing: 22) {
+                LazyVStack(spacing: 22) {
                     attentionContent(now: context.date)
                     if !panels.tiles.isEmpty {
                         HomePanelWall(model: panels)
@@ -56,6 +56,12 @@ struct HomeView: View {
                 .padding(.vertical, 12)
             }
         }
+    }
+
+    /// Expiry moments that change the ranking; countdown text ticks on its own.
+    private var refreshDeadlines: [Date] {
+        inbox.requiredInputs.compactMap(\.expirationDate)
+            + panels.pendingQuestionnaires.compactMap { $0.expiresAt.flatMap(ISODate.parse) }
     }
 
     private func attentionContent(now: Date) -> some View {

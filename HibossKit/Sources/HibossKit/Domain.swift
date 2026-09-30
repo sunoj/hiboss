@@ -67,14 +67,7 @@ public struct OptionMessage: Codable, Identifiable, Equatable, Sendable {
     public var defaultOption: String? { metadata?.defaultOption }
 
     public var content: String? { metadata?.content }
-    public var expirationDate: Date? {
-        guard let expiresAt else { return nil }
-        return (try? Date(expiresAt, strategy: .iso8601))
-            ?? (try? Date(
-                expiresAt,
-                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            ))
-    }
+    public var expirationDate: Date? { ISODate.parse(expiresAt) }
 }
 
 public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
@@ -171,14 +164,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
 
     public var content: String? { metadata?.content }
 
-    public var expirationDate: Date? {
-        guard let expiresAt else { return nil }
-        return (try? Date(expiresAt, strategy: .iso8601))
-            ?? (try? Date(
-                expiresAt,
-                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            ))
-    }
+    public var expirationDate: Date? { ISODate.parse(expiresAt) }
 }
 
 public struct HistoryResponse: Codable, Equatable, Sendable {
