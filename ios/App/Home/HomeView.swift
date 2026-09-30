@@ -39,7 +39,7 @@ struct HomeView: View {
             ) { _ in
                 Button("OK", role: .cancel) {}
             } message: { note in
-                Text(note)
+                Text(verbatim: note)
             }
     }
 

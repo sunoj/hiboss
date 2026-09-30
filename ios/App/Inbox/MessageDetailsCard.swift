@@ -54,7 +54,7 @@ struct MessageDetailsCard: View {
         let files = message.metadata?.files ?? []
         if !files.isEmpty {
             AttributeRow(icon: "doc.text", label: "Files") {
-                Text(verbatim: files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.joined(separator: ", "))
+                Text(verbatim: files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.formatted(.list(type: .and, width: .narrow)))
             }
         }
     }

@@ -35,12 +35,12 @@ struct HomeActivityGrid: View {
         .font(.hbCaption)
     }
 
-    private func deltaChip(label: String, value: Double?) -> some View {
+    private func deltaChip(label: LocalizedStringResource, value: Double?) -> some View {
         let text: String
         let tint: Color
         if let value {
-            let pct = Int((value * 100).rounded())
-            text = "\(pct >= 0 ? "+" : "")\(pct)%"
+            text = value.formatted(.percent.sign(strategy: .always(includingZero: false)).precision(.fractionLength(0)))
+            let pct = (value * 100).rounded()
             tint = pct > 0 ? Theme.positive : (pct < 0 ? Theme.negative : Theme.ink3)
         } else {
             text = "—"
@@ -48,10 +48,10 @@ struct HomeActivityGrid: View {
         }
         return VStack(alignment: .leading, spacing: 2) {
             Text(label).foregroundStyle(Theme.ink3)
-            Text(text).foregroundStyle(tint).font(.hbBodyStrong)
+            Text(verbatim: text).foregroundStyle(tint).font(.hbBodyStrong)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label) 7-day change \(text)")
+        .accessibilityLabel(Text("\(String(localized: label)) 7-day change \(text)"))
     }
 
     /// 4 weeks × 7 days, oldest week first; days are already oldest→newest.
@@ -88,7 +88,13 @@ struct HomeActivityGrid: View {
             .fill(cellColor(intensity: intensity))
             .frame(minWidth: 12, minHeight: 12)
             .aspectRatio(1, contentMode: .fit)
-            .accessibilityLabel("\(day.date): \(day.total) events")
+            .accessibilityLabel(Text("\(Self.dayLabel(day.date)): \(day.total) events"))
+    }
+
+    /// "yyyy-MM-dd" from the server, shown as a locale month/day; filler cells stay raw.
+    private static func dayLabel(_ raw: String) -> String {
+        guard let date = try? Date(raw, strategy: .iso8601.year().month().day()) else { return raw }
+        return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
     private func cellColor(intensity: Double) -> Color {

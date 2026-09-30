@@ -15,14 +15,14 @@ struct SessionSectionHeader: View {
                 .frame(width: 8, height: 8)
                 .accessibilityLabel(statusAccessibilityLabel)
 
-            Text(group.localizedLabel)
+            Text(verbatim: group.localizedLabel)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
             Spacer(minLength: 8)
 
-            Text("\(group.messages.count)")
+            Text(group.messages.count, format: .number)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -40,7 +40,9 @@ struct SessionSectionHeader: View {
     }
 
     private var statusAccessibilityLabel: String {
-        let cleaned = group.status?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return cleaned.isEmpty ? String(localized: "Session status unknown") : String(localized: "Session \(cleaned)")
+        guard let style = SessionStatusStyle(word: group.statusWord) else {
+            return String(localized: "Session status unknown")
+        }
+        return String(localized: "Session \(style.label)")
     }
 }

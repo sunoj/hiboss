@@ -69,7 +69,7 @@ struct RootView: View {
         .alert("Device token notice", isPresented: $showsClientNotice) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(connection.clientExchangeNotice ?? "")
+            Text(verbatim: connection.clientExchangeNotice ?? "")
         }
         .onAppear {
             if isDemoMode {

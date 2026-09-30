@@ -26,7 +26,7 @@ struct InboxView: View {
             ) { _ in
                 Button("OK", role: .cancel) {}
             } message: { note in
-                Text(note)
+                Text(verbatim: note)
             }
     }
 
@@ -65,7 +65,7 @@ struct InboxView: View {
             ContentUnavailableView {
                 Label("Can't reach the server", systemImage: "wifi.exclamationmark")
             } description: {
-                Text(error)
+                Text(verbatim: error)
             } actions: {
                 Button("Retry") { Task { await store.refresh() } }
             }
@@ -123,12 +123,12 @@ struct InboxView: View {
         let options = message.options
         if let first = options.first {
             Button { handleReply(first, to: message.id) } label: {
-                Label(first, systemImage: MessageMeta.optionIcon(first))
+                Label { Text(verbatim: first) } icon: { Image(systemName: MessageMeta.optionIcon(first)) }
             }
         }
         if options.count >= 2 {
             Button { handleReply(options[1], to: message.id) } label: {
-                Label(options[1], systemImage: MessageMeta.optionIcon(options[1]))
+                Label { Text(verbatim: options[1]) } icon: { Image(systemName: MessageMeta.optionIcon(options[1])) }
             }
         }
         if options.count > 2 {

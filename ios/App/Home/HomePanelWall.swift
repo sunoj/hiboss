@@ -16,7 +16,7 @@ struct HomePanelWall: View {
                 if model.isDemoMode {
                     Text("Sample data").font(.caption).foregroundStyle(Theme.ink2)
                 } else {
-                    Text("\(model.visibleTiles.count)").font(.headline).foregroundStyle(Theme.ink2)
+                    Text(model.visibleTiles.count, format: .number).font(.headline).foregroundStyle(Theme.ink2)
                 }
             }
             PanelWallFilter(model: model)
@@ -72,8 +72,8 @@ private struct HomePanelDetail: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(tile.sourceLabel).font(.callout).foregroundStyle(Theme.ink2)
-                    Label(model.freshness(for: tile).title, systemImage: model.freshness(for: tile).symbol)
+                    Text(verbatim: tile.sourceLabel).font(.callout).foregroundStyle(Theme.ink2)
+                    Label { Text(model.freshness(for: tile).localizedTitle) } icon: { Image(systemName: model.freshness(for: tile).symbol) }
                         .font(.caption).foregroundStyle(model.freshness(for: tile).color)
                     PanelOutcomeView(tile: tile)
                     PanelQuestionnairesView(tile: tile, panels: model)
@@ -86,14 +86,31 @@ private struct HomePanelDetail: View {
                             Text("The form has changed since this submission.")
                                 .font(.callout).foregroundStyle(Theme.ink2)
                         }
-                        Text(answer).font(.caption.monospaced()).textSelection(.enabled)
+                        Text(verbatim: answer).font(.caption.monospaced()).textSelection(.enabled)
                     }
                 }
                 .padding(20)
             }
-            .navigationTitle(tile.fixture.title)
+            .navigationTitle(Text(verbatim: tile.fixture.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.closeDetail() } } }
+        }
+    }
+}
+
+extension PanelFreshness {
+    /// Catalog-backed title; HibossKit's `title` is an English identifier.
+    var localizedTitle: LocalizedStringResource {
+        switch self {
+        case .awaitingData: "Awaiting data"
+        case .live: "Live"
+        case .stale: "Stale"
+        case .offline: "Offline"
+        case .task(.running): "Running"
+        case .task(.paused): "Paused"
+        case .task(.completed): "Completed"
+        case .task(.failed): "Failed"
+        case .task(.cancelled): "Cancelled"
         }
     }
 }

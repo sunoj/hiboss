@@ -52,7 +52,7 @@ struct PairingScannerView: View {
                 .stroke(.white.opacity(0.9), lineWidth: 3)
                 .frame(width: 250, height: 250)
             if let cameraError {
-                Text(cameraError)
+                Text(verbatim: cameraError)
                     .font(.hbSmall)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)

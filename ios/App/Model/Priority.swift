@@ -52,7 +52,5 @@ enum MessagePriority: String, CaseIterable, Sendable {
         }
     }
 
-    var badge: String { rawValue.uppercased() }
-
     var isUrgent: Bool { self == .critical || self == .high }
 }

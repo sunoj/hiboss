@@ -222,7 +222,7 @@ final class InboxStore: ObservableObject {
                 if (error as? HibossAPIError)?.isAuthFailure == true {
                     // A rejected token won't fix itself — stop reconnecting and
                     // surface it instead of retrying forever every few seconds.
-                    connectionState = .failed("Session expired — reconnect in Settings.")
+                    connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
                     return
                 }
                 connectionState = .failed(error.localizedDescription)

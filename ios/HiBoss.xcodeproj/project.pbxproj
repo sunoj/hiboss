@@ -20,6 +20,7 @@
 		0FAC7102A968494DED387632 /* SessionTranscriptLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F5157C51583AAFCCBC212A /* SessionTranscriptLayoutTests.swift */; };
 		11468F8BEBF2F4322FE3984E /* PushStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EA31B759446323F119D8E0 /* PushStatusStore.swift */; };
 		11615439C9BCA9AC0736421B /* MessageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */; };
+		1526F1612500C555A3E804FD /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F7AE50522D9770C46A1F8C56 /* InfoPlist.xcstrings */; };
 		1553776326486621FD350726 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C168405A30C4BEEF41971C62 /* InboxView.swift */; };
 		16C915691385AF2141445969 /* MessageAttributeStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFD23CFEB57E9C49C9FBB463 /* MessageAttributeStyle.swift */; };
 		1A90CA63E5F60222225B57A9 /* MessageMetaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */; };
@@ -43,6 +44,7 @@
 		45CC2525E50804258FEB6206 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8C85DD59D113BDF201E19A /* SettingsView.swift */; };
 		4806ED4EF03F14CEBB6030CB /* DecisionActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A10913E4EFCA3935E2FE49 /* DecisionActivityManager.swift */; };
 		4961C83E5598728E5AAE4341 /* ProgressAttributionChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6B071EE4BD1DF0070BBB00 /* ProgressAttributionChip.swift */; };
+		49675DC64573B73010BA5126 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F51D50828365C286871C0496 /* InfoPlist.xcstrings */; };
 		4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F038DB693219FA633FDAACC /* InboxStore.swift */; };
 		4DD822DA8B29C75A05C5921B /* ProgressSwipeDismissTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E669E95E96627DA0E3A5DC2 /* ProgressSwipeDismissTests.swift */; };
 		4FCE1DCE2A216A7FA1ECF0B5 /* SessionRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C25880523A9B9588F89A2 /* SessionRoute.swift */; };
@@ -289,6 +291,8 @@
 		EDDC470231CF4C5E99372E9B /* BrandIconUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandIconUITests.swift; sourceTree = "<group>"; };
 		EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressPostCard.swift; sourceTree = "<group>"; };
 		F4887B60FEFED301FF787042 /* SessionTranscriptViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTranscriptViews.swift; sourceTree = "<group>"; };
+		F51D50828365C286871C0496 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		F7AE50522D9770C46A1F8C56 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		F84DE9E51612D207273D47FB /* MessageMeta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageMeta.swift; sourceTree = "<group>"; };
 		FC8C85DD59D113BDF201E19A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FCDF1755B148C5042639522C /* ProgressVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressVideoPlayer.swift; sourceTree = "<group>"; };
@@ -474,6 +478,7 @@
 				714548036141EBBCA3849272 /* HiBoss.entitlements */,
 				35B18F7757D87683A1F768E5 /* HiBossApp.swift */,
 				CE512B87AB4778E24208134F /* Info.plist */,
+				F51D50828365C286871C0496 /* InfoPlist.xcstrings */,
 				B448CB7C1CB5C5B31FEBB796 /* Localizable.xcstrings */,
 			);
 			path = App;
@@ -485,6 +490,7 @@
 				4EED07A3DE2846E39BFD0D4E /* DecisionLiveActivity.swift */,
 				8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */,
 				7CA31A0E63F84D54574E1FAB /* Info.plist */,
+				F7AE50522D9770C46A1F8C56 /* InfoPlist.xcstrings */,
 				C397AF3D692ACAAF94388C64 /* Localizable.xcstrings */,
 			);
 			path = Widgets;
@@ -768,6 +774,7 @@
 			files = (
 				62015DFCC83862ABE5CF7571 /* Assets.xcassets in Resources */,
 				0233BC3781C6B1D455F3C295 /* BrandAssets.xcassets in Resources */,
+				49675DC64573B73010BA5126 /* InfoPlist.xcstrings in Resources */,
 				2F8E9AAFBC7E168D48F0B03E /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -777,6 +784,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				025E806B50242C5DFC8FF45C /* BrandAssets.xcassets in Resources */,
+				1526F1612500C555A3E804FD /* InfoPlist.xcstrings in Resources */,
 				DCBE6F0DDAC502A6C6A9C410 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

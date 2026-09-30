@@ -24,7 +24,7 @@ struct SessionTimeSeparator: View {
     let date: Date
 
     var body: some View {
-        Text(label)
+        Text(verbatim: label)
             .font(.caption2)
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity)
@@ -46,7 +46,7 @@ struct SessionSystemLine: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            Text(shown)
+            Text(verbatim: shown)
                 .font(bodyFont)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -92,14 +92,14 @@ struct SessionBubbleView: View {
         .padding(.top, style.isFirstInGroup ? 10 : 2)
         .padding(.bottom, style.isLastInGroup ? 8 : 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityText)
+        .accessibilityLabel(Text(verbatim: accessibilityText))
         .accessibilityIdentifier(style.isOutgoing ? "session-bubble-outgoing" : "session-bubble-incoming")
     }
 
     private var bubbleColumn: some View {
         VStack(alignment: style.isOutgoing ? .trailing : .leading, spacing: 2) {
             if style.showsSender {
-                Text(SessionTranscriptLayout.actorLabel(for: event))
+                Text(verbatim: SessionTranscriptLayout.actorLabel(for: event))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
@@ -109,7 +109,7 @@ struct SessionBubbleView: View {
     }
 
     private var bubbleBody: some View {
-        Text(event.displayBody)
+        Text(verbatim: event.displayBody)
             .font(.body)
             .foregroundStyle(textColor)
             .padding(.horizontal, 12)

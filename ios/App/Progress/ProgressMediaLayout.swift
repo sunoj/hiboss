@@ -23,10 +23,8 @@ enum ProgressMediaLayout {
         return min(max(raw, minPortraitAspect), maxLandscapeAspect)
     }
 
-    static func durationLabel(milliseconds: Int) -> String {
-        let totalSeconds = max(0, milliseconds / 1000)
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return "\(minutes):\(String(format: "%02d", seconds))"
+    /// Locale-formatted m:ss for a video's length.
+    static func durationLabel(milliseconds: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        Duration.seconds(max(0, milliseconds / 1000)).formatted(.time(pattern: .minuteSecond).locale(locale))
     }
 }

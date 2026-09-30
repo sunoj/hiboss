@@ -45,7 +45,7 @@ struct MessageCard: View {
     private var info: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
-            Text(message.body)
+            Text(verbatim: message.body)
                 .font(.body)
                 .foregroundStyle(.primary)
                 .lineLimit(4)
@@ -59,19 +59,19 @@ struct MessageCard: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            Text(message.avatarInitials)
+            Text(verbatim: message.avatarInitials)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 36, height: 36)
                 .background(Color(.tertiarySystemFill), in: Circle())
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(message.displayName)
+                Text(verbatim: message.displayName)
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 if let session = sessionText {
-                    Text(session)
+                    Text(verbatim: session)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -140,7 +140,7 @@ struct MessageCard: View {
 
     private func settledChoice(_ settlement: DecisionSettlement) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(settlement.answer, systemImage: "checkmark.circle.fill")
+            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: "checkmark.circle.fill") }
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
                 .symbolRenderingMode(.hierarchical)
@@ -206,7 +206,7 @@ struct OptionButton: View {
     }
 
     private var label: some View {
-        Text(title)
+        Text(verbatim: title)
             .fixedSize(horizontal: false, vertical: true)
             .multilineTextAlignment(alignment == .leading ? .leading : .center)
             .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)

@@ -36,10 +36,10 @@ struct SettingsView: View {
                 Text("Connection")
             } footer: {
                 if let notice = connection.clientExchangeNotice {
-                    Label(notice, systemImage: "exclamationmark.triangle")
+                    Label { Text(verbatim: notice) } icon: { Image(systemName: "exclamationmark.triangle") }
                 }
                 if let detail = connectionState.detail {
-                    Text(detail).foregroundStyle(.red)
+                    Text(verbatim: detail).foregroundStyle(.red)
                 }
             }
 
@@ -137,7 +137,7 @@ private struct NotificationsSection: View {
     var body: some View {
         Section("Notifications") {
             LabeledContent("Push") {
-                Text(push.label).foregroundStyle(push.isEnabled ? .green : .secondary)
+                Text(verbatim: push.label).foregroundStyle(push.isEnabled ? .green : .secondary)
             }
             // OS authorization ≠ the server actually has a live device token; show
             // the registration result so "Enabled" can't hide a device that

@@ -27,7 +27,7 @@ struct HomeAttentionSection: View {
         VStack(alignment: .leading, spacing: 8) {
             title
             if let status {
-                Text(status).font(.hbCallout).foregroundStyle(Theme.ink2)
+                Text(verbatim: status).font(.hbCallout).foregroundStyle(Theme.ink2)
             }
             if snapshot.count == 0 && status == nil {
                 allClear
@@ -82,8 +82,8 @@ struct HomeAttentionSection: View {
         Button { onOpenPanel(request.panelId) } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(request.title).font(.hbBodyStrong).foregroundStyle(Theme.ink)
-                    Text(request.blocking ? LocalizedStringKey("Questionnaire · Agent waiting") : "Questionnaire")
+                    Text(verbatim: request.title).font(.hbBodyStrong).foregroundStyle(Theme.ink)
+                    (request.blocking ? Text("Questionnaire · Agent waiting") : Text("Questionnaire"))
                         .font(.hbCaption).foregroundStyle(Theme.ink2)
                 }
                 Spacer(minLength: 0)
