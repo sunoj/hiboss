@@ -1,4 +1,4 @@
-// MessageMeta density tests: row stays sparse, selected adds channel/files.
+// MessageMeta density tests: selected names type/priority and adds channel/files.
 // Exports: MessageMetaTests covering the shared catalog.
 // Dependencies: XCTest, HiBoss app target, HibossKit.
 
@@ -7,14 +7,9 @@ import XCTest
 @testable import HiBoss
 
 final class MessageMetaTests: XCTestCase {
-    func testRowOmitsDefaultTypeAndNormalPriority() {
-        let items = MessageMeta.items(for: Self.text, density: .row)
-        XCTAssertTrue(items.isEmpty)
-    }
-
-    func testRowShowsNotableTypeUrgentPriorityAndBlocking() {
-        let ids = MessageMeta.items(for: Self.ask, density: .row).map(\.id)
-        XCTAssertEqual(ids, ["type", "priority", "mode"])
+    func testSelectedAlwaysNamesTypeAndPriority() {
+        let ids = MessageMeta.items(for: Self.text, density: .selected).map(\.id)
+        XCTAssertEqual(ids, ["type", "priority"])
     }
 
     func testSelectedAddsChannelAndFiles() {
