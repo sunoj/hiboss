@@ -22,8 +22,10 @@ struct MainView: View {
     private static let sidebarMinimumWidth: CGFloat = 760
 
     init(settings: AppSettings, flow: OptionFlowStore,
-         notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation()) {
+         notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation(),
+         initialDestination: OverviewDestination = .dashboard) {
         self.settings = settings
+        _destination = State(initialValue: initialDestination)
         self.flow = flow
         self.notificationNavigation = notificationNavigation
         _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
