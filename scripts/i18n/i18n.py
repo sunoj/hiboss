@@ -99,7 +99,8 @@ def apply(lang, source):
 
 
 def placeholders(text):
-    return sorted(PLACEHOLDER.findall(text))
+    # Positional forms (%2$@) may reorder arguments; compare the argument types only.
+    return sorted(re.sub(r"\d+\$", "", found) for found in PLACEHOLDER.findall(text))
 
 
 def check_entry(cid, key, entry, problems):

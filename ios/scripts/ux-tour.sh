@@ -20,8 +20,14 @@ run() { # $1 appearance, $2 prefix, $3.. -only-testing filters
       return 1
     }
 }
-run light "" -only-testing:HiBossUITests/UXTourUITests
+run light "" -only-testing:HiBossUITests/UXTourUITests -skip-testing:HiBossUITests/UXTourUITests/testTourLanguage
+mv "$OUT/light.xcresult" "$OUT/base-light.xcresult"
 run dark "dark-" -only-testing:HiBossUITests/UXTourUITests/testTourChinese
+# Extra languages: TOUR_LANGS="ar th hi" scripts/ux-tour.sh <dir>
+for lang in ${TOUR_LANGS:-}; do
+  TEST_RUNNER_UX_TOUR_LANG="$lang" run light "" -only-testing:HiBossUITests/UXTourUITests/testTourLanguage
+  mv "$OUT/light.xcresult" "$OUT/lang-$lang.xcresult"
+done
 xcrun simctl ui "$SIM" appearance light
 mkdir -p "$OUT/shots/raw" "$OUT/shots/small"
 for bundle in "$OUT"/*.xcresult; do

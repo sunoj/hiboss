@@ -27,6 +27,14 @@ final class UXTourUITests: XCTestCase {
              arguments: ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"])
     }
 
+    /// One extra language per run, chosen by `UX_TOUR_LANG` (e.g. `ar`, `pt-BR`); skipped when unset.
+    func testTourLanguage() throws {
+        let language = try XCTUnwrap(ProcessInfo.processInfo.environment["UX_TOUR_LANG"].flatMap { $0.isEmpty ? nil : $0 },
+                                     "set UX_TOUR_LANG to run this tour")
+        tour(prefix: appearancePrefix + language, extra: [:],
+             arguments: ["-AppleLanguages", "(\(language))", "-AppleLocale", language.replacingOccurrences(of: "-", with: "_")])
+    }
+
     func testTourEmpty() {
         tour(prefix: appearancePrefix + "empty", extra: ["HIBOSS_DEMO_EMPTY": "1"],
              arguments: ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"])
@@ -41,6 +49,14 @@ final class UXTourUITests: XCTestCase {
         app.configureDemoLaunch(extra)
         app.launchArguments += arguments
         app.launch()
+        // The first launch of a run sometimes starts without the demo environment and
+        // shows onboarding; the app itself is fine (a manual demo launch renders Home),
+        // so relaunch once and record that it happened.
+        if app.textFields["server-url-field"].waitForExistence(timeout: 3) {
+            XCTContext.runActivity(named: "relaunch: first launch lost its environment") { _ in }
+            app.terminate()
+            app.launch()
+        }
         settle()
         shot("\(prefix)-01-home")
         app.swipeUp()
