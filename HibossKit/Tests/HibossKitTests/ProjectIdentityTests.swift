@@ -62,13 +62,6 @@ final class ProjectIdentityTests: XCTestCase {
         XCTAssertEqual(project.projectIdentity.id, "p")
         XCTAssertEqual(project.projectIdentity.displayName, "Repo")
     }
-
-    func testHomeKeysOnSlugWhenDisplayNameChanges() {
-        let project = HomeProject(name: "Display Name", slug: "repo",
-            sessions: .init(working: 1, waiting: 0, blocked: 0, idle: 0),
-            pendingDecisions: 0, postCount7d: 0, lastPost: nil, lastActivityAt: "2026-09-12T00:00:00Z")
-        XCTAssertEqual(project.id, "repo")
-    }
 }
 
 private struct LegacyPost: Decodable {

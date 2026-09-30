@@ -1,5 +1,5 @@
 // Single catalog of message type/priority/mode/channel/file glyphs.
-// Exports: MessageMeta density items, MessageMetaStrip, and option swipe icons.
+// Exports: MessageMeta density items and MessageMetaStrip.
 // Dependencies: SwiftUI, HibossKit HistoryMessage.
 
 import HibossKit
@@ -61,14 +61,6 @@ enum MessageMeta {
         case "failed": String(localized: "Failed")
         case "resolved": String(localized: "Resolved")
         default: raw.capitalized
-        }
-    }
-
-    static func optionIcon(_ option: String) -> String {
-        switch option.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "approve", "yes", "ship", "provide": "checkmark"
-        case "reject", "no", "hold", "later": "xmark"
-        default: "circle"
         }
     }
 

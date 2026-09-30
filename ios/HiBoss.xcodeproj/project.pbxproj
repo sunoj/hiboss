@@ -21,7 +21,6 @@
 		11468F8BEBF2F4322FE3984E /* PushStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EA31B759446323F119D8E0 /* PushStatusStore.swift */; };
 		11615439C9BCA9AC0736421B /* MessageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */; };
 		1526F1612500C555A3E804FD /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F7AE50522D9770C46A1F8C56 /* InfoPlist.xcstrings */; };
-		1553776326486621FD350726 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C168405A30C4BEEF41971C62 /* InboxView.swift */; };
 		16C915691385AF2141445969 /* MessageAttributeStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFD23CFEB57E9C49C9FBB463 /* MessageAttributeStyle.swift */; };
 		1A90CA63E5F60222225B57A9 /* MessageMetaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */; };
 		1AE44BECED62093912724A21 /* ProgressVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDF1755B148C5042639522C /* ProgressVideoPlayer.swift */; };
@@ -49,7 +48,6 @@
 		4DD822DA8B29C75A05C5921B /* ProgressSwipeDismissTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E669E95E96627DA0E3A5DC2 /* ProgressSwipeDismissTests.swift */; };
 		4FCE1DCE2A216A7FA1ECF0B5 /* SessionRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C25880523A9B9588F89A2 /* SessionRoute.swift */; };
 		529A5DDAA2F27D5F6341AAD0 /* PairingPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB5E2D7A7AAFD68407EB7F9 /* PairingPayload.swift */; };
-		594483ECDB731E41D107E15E /* HomeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02617CAF3D92EA727FB1F5AA /* HomeStore.swift */; };
 		59EC4486EB14BA43AC79AFB7 /* ProgressFeedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA187AC3EECE30C5CD80F73 /* ProgressFeedStore.swift */; };
 		5A3809CA522350FB00225218 /* PairingRedeemer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7537E3F46555533CB9B79018 /* PairingRedeemer.swift */; };
 		5EDC0AEB743173107F498F2F /* InboxSettlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1A90DD2D68361065EC14E /* InboxSettlement.swift */; };
@@ -76,16 +74,13 @@
 		8DBB55E6216E2C3FCA96C146 /* DemoSessionStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA59C30851824651FEE0912B /* DemoSessionStream.swift */; };
 		91C53F41DB2DA754B602864B /* HiBossBrandIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C04BEFAB8AE95C45ED9AE1D /* HiBossBrandIcon.swift */; };
 		9276EB382DA08B0A2A5B5BCD /* SessionMessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */; };
-		92B10BFDB942AD2D93696AE7 /* HomeActivityGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = B33251D7A4A8D2E057EF77A1 /* HomeActivityGrid.swift */; };
 		93B2A5A71633327C3A580D38 /* OptionMediaComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 728E73A5CF359C59D9AF43A7 /* OptionMediaComparison.swift */; };
 		95A57C730F0EDFE064C59FBA /* PushMessageSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E47C4AB8B89241F4361D82 /* PushMessageSnapshotTests.swift */; };
-		98B50B58935D2B172504B3BB /* HomeProjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33384F0932EF0B2476CE16A /* HomeProjectCard.swift */; };
 		9975477625707226F0569D49 /* RespondIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80F1C6E7EC52A40A19F2144E /* RespondIntent.swift */; };
 		9A601988E4CF388CDA003659 /* DecisionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6984921D9196A67C9F627A26 /* DecisionActivity.swift */; };
 		9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */; };
 		A07FC9BF66500F4E1E595881 /* MessageMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84DE9E51612D207273D47FB /* MessageMeta.swift */; };
 		A0B54C22CED8FBC2143C8D24 /* HomeAttentionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2F46477424936975B4B9B2 /* HomeAttentionRow.swift */; };
-		A5EC5D86F37311FE30E74AD3 /* SessionSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */; };
 		A6D52D02F7F9A096BEC123B0 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD3C6F4D7A53E6E2A4D8D23 /* RootTabView.swift */; };
 		A8BD159F4B6E41CFBE919BEA /* HibossKit in Frameworks */ = {isa = PBXBuildFile; productRef = 6130F24DC3B95160884D0B5A /* HibossKit */; };
 		B390797FAB6B075E3C8D234C /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB277BBD9EEE996D38F2992 /* Palette.swift */; };
@@ -99,7 +94,6 @@
 		BDAB64AF333DCED195D904AF /* UXTourUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E268B75C55348164B46FCF3C /* UXTourUITests.swift */; };
 		BF0F1C80922111AE10208255 /* HiBossWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7CA2BEAA6F9759DBD29574 /* HiBossWidgetsBundle.swift */; };
 		C1B14ACF73F1B33DD53A84C9 /* DemoLaunchSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4CA44EC297641F85A330F02 /* DemoLaunchSupport.swift */; };
-		C38FB033923FB4FFDA80B197 /* DemoHomeData.swift in Sources */ = {isa = PBXBuildFile; fileRef = A960EC9F5868D2C73A9660BC /* DemoHomeData.swift */; };
 		C3DBB1D3ECCD0E7142271BA6 /* RelativeTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A59FEA0ECFFD31DD1F93981 /* RelativeTime.swift */; };
 		C59B8ECC621AA034B8E1B451 /* ResolvedDayGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5276F4AAC028EDB51E9BE783 /* ResolvedDayGroupingTests.swift */; };
 		C6145EFFDF1646839875569D /* RequiredInputCoverageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1A81AE4F75D3E97C4FC112 /* RequiredInputCoverageTests.swift */; };
@@ -115,7 +109,6 @@
 		D8AB374CD22976C87E188C8B /* SessionStatusStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 690FCE774D0C5469D59B0417 /* SessionStatusStyleTests.swift */; };
 		DBCC47DE56A53759D0FA4159 /* CountdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3978AF84900C9EC8584C7AAA /* CountdownText.swift */; };
 		DCBE6F0DDAC502A6C6A9C410 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C397AF3D692ACAAF94388C64 /* Localizable.xcstrings */; };
-		DD1959B2CB6A4EA81AEF7D01 /* HomeStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79DF55285572CB60857C1663 /* HomeStoreTests.swift */; };
 		DDC345411AD51AF290865A6F /* ProgressMediaTapUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */; };
 		DE402514590A2A23719EE2D3 /* InboxStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3F4F2F453328EDEFEA8B9F /* InboxStoreTests.swift */; };
 		E08B2758EE7D46B2F408F5EF /* ProgressMediaViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F0055CA35F82569DEFFEE33 /* ProgressMediaViewer.swift */; };
@@ -173,7 +166,6 @@
 
 /* Begin PBXFileReference section */
 		014E4F17260E1DBC8E935026 /* DemoMessageDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMessageDetail.swift; sourceTree = "<group>"; };
-		02617CAF3D92EA727FB1F5AA /* HomeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeStore.swift; sourceTree = "<group>"; };
 		03191B27AD071D51213D17C1 /* ConnectionDot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionDot.swift; sourceTree = "<group>"; };
 		0450AC74550F90E899B5C209 /* NativeClientLoginTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeClientLoginTests.swift; sourceTree = "<group>"; };
 		04E38393C7F0BB67A364CC15 /* Priority.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Priority.swift; sourceTree = "<group>"; };
@@ -197,7 +189,6 @@
 		28EB27DAC59C7B7C49A5546D /* MessageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDetailView.swift; sourceTree = "<group>"; };
 		2C04BEFAB8AE95C45ED9AE1D /* HiBossBrandIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiBossBrandIcon.swift; sourceTree = "<group>"; };
 		2C50796B18EE77AC58212D46 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
-		30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSectionHeader.swift; sourceTree = "<group>"; };
 		31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressFeedStoreTests.swift; sourceTree = "<group>"; };
 		35B18F7757D87683A1F768E5 /* HiBossApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiBossApp.swift; sourceTree = "<group>"; };
 		37A11D83C902A7BC3B219759 /* HomeAttentionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeAttentionModel.swift; sourceTree = "<group>"; };
@@ -235,7 +226,6 @@
 		7410F4EB333C1F90DE6D9CD7 /* AllClearIslandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllClearIslandView.swift; sourceTree = "<group>"; };
 		7537E3F46555533CB9B79018 /* PairingRedeemer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingRedeemer.swift; sourceTree = "<group>"; };
 		7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageMetaTests.swift; sourceTree = "<group>"; };
-		79DF55285572CB60857C1663 /* HomeStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeStoreTests.swift; sourceTree = "<group>"; };
 		7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMediaTapUITests.swift; sourceTree = "<group>"; };
 		7CA31A0E63F84D54574E1FAB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		7CA94EE3AD9E1CE019C26899 /* ProgressTeamAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTeamAvatar.swift; sourceTree = "<group>"; };
@@ -253,22 +243,18 @@
 		9740B1A7F94047F2FD7B60A2 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		976383649266ED887CEAA454 /* PushTieringSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTieringSection.swift; sourceTree = "<group>"; };
 		A177279A2246F5C1FDC53E3C /* MessageDetailsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDetailsCard.swift; sourceTree = "<group>"; };
-		A33384F0932EF0B2476CE16A /* HomeProjectCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeProjectCard.swift; sourceTree = "<group>"; };
 		A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListStateView.swift; sourceTree = "<group>"; };
 		A82F760F5C856C7A1F67C2CC /* HomeDecisionDetailUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDecisionDetailUITests.swift; sourceTree = "<group>"; };
 		A9195B9F8ACC692EF5D82C85 /* ProgressMediaLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMediaLayoutTests.swift; sourceTree = "<group>"; };
-		A960EC9F5868D2C73A9660BC /* DemoHomeData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoHomeData.swift; sourceTree = "<group>"; };
 		AADE1388284DE331D043B203 /* RelativeTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelativeTimeTests.swift; sourceTree = "<group>"; };
 		AB6B071EE4BD1DF0070BBB00 /* ProgressAttributionChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressAttributionChip.swift; sourceTree = "<group>"; };
 		AC5C1C4D0AD1D5C7D3E664A8 /* ReplySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplySheet.swift; sourceTree = "<group>"; };
-		B33251D7A4A8D2E057EF77A1 /* HomeActivityGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeActivityGrid.swift; sourceTree = "<group>"; };
 		B3F1A90DD2D68361065EC14E /* InboxSettlement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxSettlement.swift; sourceTree = "<group>"; };
 		B448CB7C1CB5C5B31FEBB796 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B4DF74B50F6D1F70BD328B16 /* NotificationDeepLinkUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDeepLinkUITests.swift; sourceTree = "<group>"; };
 		BA04D7AC4A24619AC58956DA /* ProgressMediaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressMediaView.swift; sourceTree = "<group>"; };
 		BF8FDF2319CA7E57192C7679 /* MessageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCard.swift; sourceTree = "<group>"; };
 		C142C39DF099EFEE4912C755 /* SessionTranscriptLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTranscriptLayout.swift; sourceTree = "<group>"; };
-		C168405A30C4BEEF41971C62 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
 		C397AF3D692ACAAF94388C64 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		CC1A81AE4F75D3E97C4FC112 /* RequiredInputCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequiredInputCoverageTests.swift; sourceTree = "<group>"; };
 		CCAF1F8FA1CBE5B516D462F4 /* ProgressZoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressZoomView.swift; sourceTree = "<group>"; };
@@ -351,7 +337,6 @@
 			isa = PBXGroup;
 			children = (
 				698713D5102923E7503E7814 /* DemoData.swift */,
-				A960EC9F5868D2C73A9660BC /* DemoHomeData.swift */,
 				21AD8A576E433550B352A07F /* DemoHomePanelsAPI.swift */,
 				014E4F17260E1DBC8E935026 /* DemoMessageDetail.swift */,
 				658779A15138D46FC30492D7 /* DemoProgressAPI.swift */,
@@ -373,12 +358,9 @@
 		50F1C9D87E98948347D85BAC /* Home */ = {
 			isa = PBXGroup;
 			children = (
-				B33251D7A4A8D2E057EF77A1 /* HomeActivityGrid.swift */,
 				37A11D83C902A7BC3B219759 /* HomeAttentionModel.swift */,
 				5F2F46477424936975B4B9B2 /* HomeAttentionRow.swift */,
 				4BE1C8259B39600A8E58A4CD /* HomePanelWall.swift */,
-				A33384F0932EF0B2476CE16A /* HomeProjectCard.swift */,
-				02617CAF3D92EA727FB1F5AA /* HomeStore.swift */,
 				131996B137584EA3A948402B /* HomeView.swift */,
 			);
 			path = Home;
@@ -545,7 +527,6 @@
 				4F038DB693219FA633FDAACC /* InboxStore.swift */,
 				54EE229DB589DC922E6B7135 /* InboxStore+MessageDetail.swift */,
 				3B1BB581BF213C48A14B6797 /* InboxStore+RequiredInputs.swift */,
-				C168405A30C4BEEF41971C62 /* InboxView.swift */,
 				A4DAD7A417A04A9B53B2F07F /* ListStateView.swift */,
 				CFD23CFEB57E9C49C9FBB463 /* MessageAttributeStyle.swift */,
 				BF8FDF2319CA7E57192C7679 /* MessageCard.swift */,
@@ -557,7 +538,6 @@
 				4AF11BA88743C4696BE600E0 /* ResolvedDecisionsView.swift */,
 				0A8ABB1BAA9AFF3EF53E3937 /* SessionMessagesView.swift */,
 				593C25880523A9B9588F89A2 /* SessionRoute.swift */,
-				30FA2FE6E931650BD9124CB8 /* SessionSectionHeader.swift */,
 				C142C39DF099EFEE4912C755 /* SessionTranscriptLayout.swift */,
 				F4887B60FEFED301FF787042 /* SessionTranscriptViews.swift */,
 			);
@@ -591,7 +571,6 @@
 				7E35550632DFB12DC17F132B /* DemoLaunchRouteTests.swift */,
 				72C58EDA4C8B8EF818568F3F /* HomeAttentionFlowTests.swift */,
 				7DAE8E5731B17C29902DD6E5 /* HomeAttentionModelTests.swift */,
-				79DF55285572CB60857C1663 /* HomeStoreTests.swift */,
 				3C3F4F2F453328EDEFEA8B9F /* InboxStoreTests.swift */,
 				7885D31E535B87C2C2331FF0 /* MessageMetaTests.swift */,
 				0450AC74550F90E899B5C209 /* NativeClientLoginTests.swift */,
@@ -808,7 +787,6 @@
 				0B8AD0F0F15C84EFBB4F2C2E /* DemoLaunchRouteTests.swift in Sources */,
 				2599DC018133F28F7829F822 /* HomeAttentionFlowTests.swift in Sources */,
 				2A2F78449838388D484F8EB3 /* HomeAttentionModelTests.swift in Sources */,
-				DD1959B2CB6A4EA81AEF7D01 /* HomeStoreTests.swift in Sources */,
 				DE402514590A2A23719EE2D3 /* InboxStoreTests.swift in Sources */,
 				1A90CA63E5F60222225B57A9 /* MessageMetaTests.swift in Sources */,
 				886CB81BE454B04D5062622F /* NativeClientLoginTests.swift in Sources */,
@@ -870,7 +848,6 @@
 				0E5FD13EA80612A095F8FE58 /* DecisionOptions.swift in Sources */,
 				F7F1C62A611B267D4AD3A987 /* DecisionTiming.swift in Sources */,
 				0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */,
-				C38FB033923FB4FFDA80B197 /* DemoHomeData.swift in Sources */,
 				1EBD88D58AC84C8264088F9B /* DemoHomePanelsAPI.swift in Sources */,
 				780BF01AC2DB63D839616C32 /* DemoLaunchRoute.swift in Sources */,
 				1D0D37DD77B7B2CDDACB0722 /* DemoMessageDetail.swift in Sources */,
@@ -880,18 +857,14 @@
 				68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */,
 				91C53F41DB2DA754B602864B /* HiBossBrandIcon.swift in Sources */,
 				761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */,
-				92B10BFDB942AD2D93696AE7 /* HomeActivityGrid.swift in Sources */,
 				3DE96A602F86EB16504B8F54 /* HomeAttentionModel.swift in Sources */,
 				A0B54C22CED8FBC2143C8D24 /* HomeAttentionRow.swift in Sources */,
 				F91C244F0EF372AEDA4B424F /* HomePanelWall.swift in Sources */,
-				98B50B58935D2B172504B3BB /* HomeProjectCard.swift in Sources */,
-				594483ECDB731E41D107E15E /* HomeStore.swift in Sources */,
 				067821CD5AB2246A173E22C6 /* HomeView.swift in Sources */,
 				5EDC0AEB743173107F498F2F /* InboxSettlement.swift in Sources */,
 				EAF9F798323EF8511633F80E /* InboxStore+MessageDetail.swift in Sources */,
 				0D139B3CBF91CCA183B3DBED /* InboxStore+RequiredInputs.swift in Sources */,
 				4C3CC9CBEEDCED80D593D8AF /* InboxStore.swift in Sources */,
-				1553776326486621FD350726 /* InboxView.swift in Sources */,
 				439087A86D4FA8E054A15F1E /* ListStateView.swift in Sources */,
 				16C915691385AF2141445969 /* MessageAttributeStyle.swift in Sources */,
 				7600F8475AE8F778AA97A714 /* MessageCard.swift in Sources */,
@@ -932,7 +905,6 @@
 				F9206BC91FCBEF650BFD18E5 /* SessionCard.swift in Sources */,
 				9276EB382DA08B0A2A5B5BCD /* SessionMessagesView.swift in Sources */,
 				4FCE1DCE2A216A7FA1ECF0B5 /* SessionRoute.swift in Sources */,
-				A5EC5D86F37311FE30E74AD3 /* SessionSectionHeader.swift in Sources */,
 				BBB283C767C793176360BF6B /* SessionTranscriptLayout.swift in Sources */,
 				D24B9AF69EAEA0E775066120 /* SessionTranscriptViews.swift in Sources */,
 				634D1F39A52B99D7231102F5 /* SessionsView.swift in Sources */,

@@ -9,7 +9,6 @@ import SwiftUI
 struct HiBossApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var connection = ConnectionStore()
-    @StateObject private var home = HomeStore()
     @StateObject private var inbox = InboxStore()
     @StateObject private var preferences = PreferencesStore()
     @StateObject private var progress = ProgressFeedStore()
@@ -18,7 +17,6 @@ struct HiBossApp: App {
         WindowGroup {
             RootView(
                 connection: connection,
-                home: home,
                 inbox: inbox,
                 preferences: preferences,
                 progress: progress
@@ -32,7 +30,6 @@ struct HiBossApp: App {
 struct RootView: View {
     @State private var showsClientNotice = false
     @ObservedObject var connection: ConnectionStore
-    @ObservedObject var home: HomeStore
     @ObservedObject var inbox: InboxStore
     @ObservedObject var preferences: PreferencesStore
     @ObservedObject var progress: ProgressFeedStore
@@ -43,7 +40,6 @@ struct RootView: View {
                 ConnectView(connection: connection)
             } else if isDemoMode || connection.isConfigured {
                 RootTabView(
-                    home: home,
                     inbox: inbox,
                     connection: connection,
                     preferences: preferences,
@@ -63,7 +59,6 @@ struct RootView: View {
             } else {
                 inbox.stop()
                 progress.stop()
-                home.stop()
             }
         }
         .alert("Device token notice", isPresented: $showsClientNotice) {
@@ -78,7 +73,6 @@ struct RootView: View {
                 if ProcessInfo.processInfo.environment["HIBOSS_DEMO_CONNECTION"] != "disconnected" {
                     let demo = DemoBossAPI()
                     inbox.start(api: demo)
-                    home.start(api: demo)
                 }
                 progress.start(api: DemoProgressAPI())
             } else if connection.isConfigured, let api = connection.makeAPI() {
@@ -93,7 +87,6 @@ struct RootView: View {
         inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
         inbox.start(api: api)
         progress.start(api: api)
-        home.start(api: api)
         Task {
             await preferences.load(api: api)
             inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
