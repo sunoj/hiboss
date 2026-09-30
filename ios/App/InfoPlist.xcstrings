@@ -64,6 +64,12 @@
             "state": "translated",
             "value": "HiBoss"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
         }
       }
     },
@@ -126,6 +132,12 @@
           }
         },
         "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "HiBoss"
@@ -195,6 +207,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "HiBoss использует камеру, чтобы отсканировать код привязки на экране вашего Mac и выполнить вход."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss는 카메라를 사용하여 Mac에 표시된 페어링 코드를 스캔하고 로그인해요."
           }
         }
       }

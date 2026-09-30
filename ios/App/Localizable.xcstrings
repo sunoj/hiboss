@@ -62,6 +62,12 @@
             "state": "translated",
             "value": "Имя устройства"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 이름"
+          }
         }
       }
     },
@@ -125,6 +131,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Устройства"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기"
           }
         }
       }
@@ -190,6 +202,12 @@
             "state": "translated",
             "value": "Токен устройства"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 토큰 알림"
+          }
         }
       }
     },
@@ -209,7 +227,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "받은 편지함"
           }
         },
@@ -273,8 +291,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "진행"
+            "state": "translated",
+            "value": "진행 상황"
           }
         },
         "th": {
@@ -337,7 +355,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션"
           }
         },
@@ -401,7 +419,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "설정"
           }
         },
@@ -465,7 +483,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지"
           }
         },
@@ -529,7 +547,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "HiBoss에 연결"
           }
         },
@@ -593,8 +611,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "HiBoss 서버를 지정하고 Boss Token을 붙여넣으세요."
+            "state": "translated",
+            "value": "HiBoss 서버 주소를 지정하고 Boss Token을 붙여 넣으세요."
           }
         },
         "th": {
@@ -657,7 +675,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "서버 URL"
           }
         },
@@ -721,7 +739,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "BOSS TOKEN"
           }
         },
@@ -785,7 +803,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결"
           }
         },
@@ -849,7 +867,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결 중…"
           }
         },
@@ -913,8 +931,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "서버에 연결할 수 없습니다."
+            "state": "translated",
+            "value": "서버에 연결할 수 없어요."
           }
         },
         "th": {
@@ -977,7 +995,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결 끊김"
           }
         },
@@ -1041,8 +1059,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "설정에서 연결하면 결정을 받을 수 있습니다."
+            "state": "translated",
+            "value": "결정 요청을 받으려면 설정에서 연결하세요."
           }
         },
         "th": {
@@ -1105,7 +1123,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "서버에 연결할 수 없음"
           }
         },
@@ -1169,7 +1187,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "다시 시도"
           }
         },
@@ -1233,8 +1251,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "모두 완료"
+            "state": "translated",
+            "value": "모두 처리됨"
           }
         },
         "th": {
@@ -1297,8 +1315,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "대기 중인 결정이 없습니다."
+            "state": "translated",
+            "value": "기다리는 결정이 없어요."
           }
         },
         "th": {
@@ -1361,7 +1379,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알림"
           }
         },
@@ -1425,7 +1443,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "확인"
           }
         },
@@ -1489,8 +1507,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 결정은 다른 곳에서 이미 답변되었습니다."
+            "state": "translated",
+            "value": "이 결정은 이미 다른 곳에서 답변했어요."
           }
         },
         "th": {
@@ -1553,8 +1571,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "답장을 보내지 못했습니다. 연결을 확인하세요."
+            "state": "translated",
+            "value": "답장을 보내지 못했어요. 연결 상태를 확인하세요."
           }
         },
         "th": {
@@ -1617,7 +1635,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "답장"
           }
         },
@@ -1681,7 +1699,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "더 보기"
           }
         },
@@ -1745,8 +1763,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "세부정보"
+            "state": "translated",
+            "value": "세부 사항"
           }
         },
         "th": {
@@ -1809,8 +1827,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "아직 진행 소식이 없습니다"
+            "state": "translated",
+            "value": "아직 진행 상황이 없음"
           }
         },
         "th": {
@@ -1873,8 +1891,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "에이전트는 hiboss progress post \"…\"로 여기에 올립니다. 푸시도 받은 편지함도 없습니다."
+            "state": "translated",
+            "value": "에이전트는 hiboss progress post \"…\"로 여기에 게시해요. 푸시 알림도 없고 받은 편지함에도 들어가지 않아요."
           }
         },
         "th": {
@@ -1937,7 +1955,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "모든 프로젝트"
           }
         },
@@ -2001,7 +2019,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "프로젝트"
           }
         },
@@ -2065,8 +2083,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "프로젝트별 필터"
+            "state": "translated",
+            "value": "프로젝트별로 필터링"
           }
         },
         "th": {
@@ -2129,7 +2147,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "좋아요"
           }
         },
@@ -2193,7 +2211,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "좋아요 취소"
           }
         },
@@ -2290,7 +2308,7 @@
             "plural": {
               "other": {
                 "stringUnit": {
-                  "state": "needs_review",
+                  "state": "translated",
                   "value": "좋아요 %lld개"
                 }
               }
@@ -2471,8 +2489,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "아직 세션이 없습니다"
+            "state": "translated",
+            "value": "아직 세션이 없음"
           }
         },
         "th": {
@@ -2535,8 +2553,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "에이전트 세션이 여기에 나타납니다."
+            "state": "translated",
+            "value": "에이전트 세션이 보고를 시작하면 여기에 표시돼요."
           }
         },
         "th": {
@@ -2599,7 +2617,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "작업 중"
           }
         },
@@ -2663,8 +2681,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "차단됨"
+            "state": "translated",
+            "value": "막힘"
           }
         },
         "th": {
@@ -2727,7 +2745,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "대기 중"
           }
         },
@@ -2791,7 +2809,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "유휴"
           }
         },
@@ -2855,8 +2873,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "완료"
+            "state": "translated",
+            "value": "완료됨"
           }
         },
         "th": {
@@ -2919,8 +2937,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "세션 열기"
+            "state": "translated",
+            "value": "세션을 열어요"
           }
         },
         "th": {
@@ -2983,8 +3001,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "아직 메시지가 없습니다"
+            "state": "translated",
+            "value": "아직 메시지가 없음"
           }
         },
         "th": {
@@ -3047,8 +3065,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "에이전트 메시지가 여기에 표시됩니다."
+            "state": "translated",
+            "value": "에이전트 메시지가 여기에 표시돼요."
           }
         },
         "th": {
@@ -3111,8 +3129,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "처리된 결정이 없습니다"
+            "state": "translated",
+            "value": "처리한 결정 없음"
           }
         },
         "th": {
@@ -3175,8 +3193,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "처리한 결정이 여기에 표시됩니다."
+            "state": "translated",
+            "value": "처리한 결정이 여기에 표시돼요."
           }
         },
         "th": {
@@ -3239,7 +3257,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 없음"
           }
         },
@@ -3303,8 +3321,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 세션에는 아직 메시지가 없습니다."
+            "state": "translated",
+            "value": "이 세션에는 아직 메시지가 없어요."
           }
         },
         "th": {
@@ -3367,8 +3385,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "메시지 세부정보 표시"
+            "state": "translated",
+            "value": "메시지 세부 사항을 표시해요"
           }
         },
         "th": {
@@ -3431,7 +3449,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "선택"
           }
         },
@@ -3495,7 +3513,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "선택 · %@"
           }
         },
@@ -3559,8 +3577,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "다이렉트"
+            "state": "translated",
+            "value": "직접"
           }
         },
         "th": {
@@ -3623,7 +3641,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션 상태 알 수 없음"
           }
         },
@@ -3687,7 +3705,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션 %@"
           }
         },
@@ -3751,8 +3769,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "옵션"
+            "state": "translated",
+            "value": "선택지"
           }
         },
         "th": {
@@ -3815,7 +3833,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "답장 입력…"
           }
         },
@@ -3879,7 +3897,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "보내기"
           }
         },
@@ -3943,7 +3961,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "닫기"
           }
         },
@@ -4007,8 +4025,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "다른 곳에서 이미 답변되었습니다."
+            "state": "translated",
+            "value": "이미 다른 곳에서 답변했어요."
           }
         },
         "th": {
@@ -4071,8 +4089,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "답장을 보내지 못했습니다. 다시 시도하세요."
+            "state": "translated",
+            "value": "답장을 보내지 못했어요. 다시 시도하세요."
           }
         },
         "th": {
@@ -4135,7 +4153,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "응답"
           }
         },
@@ -4199,7 +4217,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "기본값"
           }
         },
@@ -4263,7 +4281,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "답장…"
           }
         },
@@ -4327,8 +4345,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "사용자 지정 답장"
+            "state": "translated",
+            "value": "직접 답장"
           }
         },
         "th": {
@@ -4391,7 +4409,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "선택됨"
           }
         },
@@ -4455,8 +4473,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "답변됨"
+            "state": "translated",
+            "value": "답변함"
           }
         },
         "th": {
@@ -4519,8 +4537,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@에서 답변됨"
+            "state": "translated",
+            "value": "%@에서 답변함"
           }
         },
         "th": {
@@ -4583,7 +4601,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시간 초과 — 기본값: %@"
           }
         },
@@ -4647,7 +4665,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "만료됨 — 응답 없음"
           }
         },
@@ -4711,7 +4729,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션 보기 · %@"
           }
         },
@@ -4775,7 +4793,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "로드 중…"
           }
         },
@@ -4839,7 +4857,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지를 찾을 수 없음"
           }
         },
@@ -4903,8 +4921,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "삭제되었거나 만료되었을 수 있습니다."
+            "state": "translated",
+            "value": "삭제되었거나 만료되었을 수 있어요."
           }
         },
         "th": {
@@ -4967,8 +4985,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "결정 열기"
+            "state": "translated",
+            "value": "결정을 열어요"
           }
         },
         "th": {
@@ -5031,7 +5049,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시간 초과 시 “%@” 자동 선택"
           }
         },
@@ -5095,7 +5113,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "만료됨"
           }
         },
@@ -5159,7 +5177,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ 남음"
           }
         },
@@ -5223,7 +5241,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결: %@"
           }
         },
@@ -5287,7 +5305,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "실패"
           }
         },
@@ -5351,7 +5369,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결되지 않음"
           }
         },
@@ -5415,7 +5433,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결"
           }
         },
@@ -5479,7 +5497,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "다시 연결"
           }
         },
@@ -5543,7 +5561,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알림"
           }
         },
@@ -5607,7 +5625,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "푸시"
           }
         },
@@ -5671,7 +5689,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "기기"
           }
         },
@@ -5735,7 +5753,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "등록되지 않음"
           }
         },
@@ -5799,7 +5817,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "등록 중…"
           }
         },
@@ -5863,7 +5881,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "등록됨"
           }
         },
@@ -5927,8 +5945,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "설정에서 활성화"
+            "state": "translated",
+            "value": "설정에서 켜기"
           }
         },
         "th": {
@@ -5991,7 +6009,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알림 켜기"
           }
         },
@@ -6055,7 +6073,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "비공개 알림"
           }
         },
@@ -6119,8 +6137,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "결정 시 알림"
+            "state": "translated",
+            "value": "결정 요청 알림"
           }
         },
         "th": {
@@ -6183,8 +6201,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "메시지 본문을 Apple 서버에 두지 않습니다. 푸시는 일반 알림만 표시하고, 앱을 열면 서버에서 본문을 가져옵니다."
+            "state": "translated",
+            "value": "메시지 내용을 Apple 서버에 보내지 않아요. 푸시 알림에는 일반 알림만 표시되고, 앱을 열면 사용자의 서버에서 본문을 가져와요."
           }
         },
         "th": {
@@ -6247,8 +6265,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "결정이 필요한 요청은 보통 우선순위여도 Dynamic Island와 잠금 화면에 표시됩니다. 끄면 일반 우선순위 규칙을 따릅니다."
+            "state": "translated",
+            "value": "결정이 필요한 요청은 우선순위가 보통이어도 Dynamic Island와 잠금 화면에 표시돼요. 끄면 일반 우선순위 단계를 따라요."
           }
         },
         "th": {
@@ -6311,7 +6329,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "저장 중…"
           }
         },
@@ -6375,7 +6393,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "변경 사항 저장"
           }
         },
@@ -6439,7 +6457,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "로그아웃"
           }
         },
@@ -6503,8 +6521,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "환경설정을 불러오는 중…"
+            "state": "translated",
+            "value": "환경설정 로드 중…"
           }
         },
         "th": {
@@ -6567,7 +6585,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "서버"
           }
         },
@@ -6631,7 +6649,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "상태"
           }
         },
@@ -6695,8 +6713,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "사용 중"
+            "state": "translated",
+            "value": "켜짐"
           }
         },
         "th": {
@@ -6759,7 +6777,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "거부됨"
           }
         },
@@ -6823,7 +6841,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "설정되지 않음"
           }
         },
@@ -6887,7 +6905,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알 수 없음"
           }
         },
@@ -6951,8 +6969,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "알림 라우팅"
+            "state": "translated",
+            "value": "알림 전달 경로"
           }
         },
         "th": {
@@ -7015,8 +7033,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "우선순위별로 전달되는 채널입니다."
+            "state": "translated",
+            "value": "우선순위별로 전달할 채널이에요."
           }
         },
         "th": {
@@ -7079,7 +7097,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "없음"
           }
         },
@@ -7143,7 +7161,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "방해 금지 시간"
           }
         },
@@ -7207,8 +7225,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "알림 음소거"
+            "state": "translated",
+            "value": "알림 끄기"
           }
         },
         "th": {
@@ -7271,7 +7289,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시작"
           }
         },
@@ -7335,7 +7353,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "종료"
           }
         },
@@ -7399,8 +7417,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "긴급은 허용"
+            "state": "translated",
+            "value": "긴급 알림 허용"
           }
         },
         "th": {
@@ -7463,8 +7481,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "시간은 %@ 기준입니다."
+            "state": "translated",
+            "value": "시간은 %@ 기준이에요."
           }
         },
         "th": {
@@ -7527,8 +7545,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "푸시 단계"
+            "state": "translated",
+            "value": "푸시 알림 단계"
           }
         },
         "th": {
@@ -7591,8 +7609,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "우선순위별 상태 푸시의 방해 정도입니다. 결정 요청은 위의 “결정 시 알림”을 끄지 않으면 항상 알립니다."
+            "state": "translated",
+            "value": "우선순위별 상태 푸시 알림을 얼마나 눈에 띄게 표시할지 정해요. 위의 ‘결정 요청 알림’을 끄지 않으면 결정 요청은 항상 알려요."
           }
         },
         "th": {
@@ -7655,7 +7673,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "전달"
           }
         },
@@ -7719,7 +7737,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "끔"
           }
         },
@@ -7783,8 +7801,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "수동"
+            "state": "translated",
+            "value": "조용히"
           }
         },
         "th": {
@@ -7847,7 +7865,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "활성"
           }
         },
@@ -7911,7 +7929,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시간 민감"
           }
         },
@@ -7975,8 +7993,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "소리"
+            "state": "translated",
+            "value": "사운드"
           }
         },
         "th": {
@@ -8039,8 +8057,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ · 소리"
+            "state": "translated",
+            "value": "%@ · 사운드"
           }
         },
         "th": {
@@ -8103,7 +8121,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "업데이트"
           }
         },
@@ -8167,7 +8185,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "승인"
           }
         },
@@ -8231,7 +8249,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "지시"
           }
         },
@@ -8295,8 +8313,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "전달됨"
+            "state": "translated",
+            "value": "전달 메시지"
           }
         },
         "th": {
@@ -8359,7 +8377,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지"
           }
         },
@@ -8423,8 +8441,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "차단"
+            "state": "translated",
+            "value": "블로킹"
           }
         },
         "th": {
@@ -8487,7 +8505,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "우선순위"
           }
         },
@@ -8551,7 +8569,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "모드"
           }
         },
@@ -8615,7 +8633,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "채널"
           }
         },
@@ -8679,7 +8697,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "파일"
           }
         },
@@ -8743,7 +8761,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "비동기"
           }
         },
@@ -8807,7 +8825,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "전달됨"
           }
         },
@@ -8871,7 +8889,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "읽음"
           }
         },
@@ -8935,7 +8953,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "보냄"
           }
         },
@@ -8999,8 +9017,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "대기열"
+            "state": "translated",
+            "value": "대기열에 있음"
           }
         },
         "th": {
@@ -9063,7 +9081,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "대기 중"
           }
         },
@@ -9127,7 +9145,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "답장함"
           }
         },
@@ -9191,8 +9209,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "해결됨"
+            "state": "translated",
+            "value": "처리됨"
           }
         },
         "th": {
@@ -9255,8 +9273,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "에이전트 → Boss"
+            "state": "translated",
+            "value": "에이전트 → 보스"
           }
         },
         "th": {
@@ -9319,8 +9337,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Boss → 에이전트"
+            "state": "translated",
+            "value": "보스 → 에이전트"
           }
         },
         "th": {
@@ -9383,7 +9401,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "에이전트 → 에이전트"
           }
         },
@@ -9447,8 +9465,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "에이전트→boss"
+            "state": "translated",
+            "value": "에이전트→보스"
           }
         },
         "th": {
@@ -9511,8 +9529,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "boss→에이전트"
+            "state": "translated",
+            "value": "보스→에이전트"
           }
         },
         "th": {
@@ -9575,7 +9593,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "에이전트→에이전트"
           }
         },
@@ -9639,7 +9657,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "에이전트"
           }
         },
@@ -9703,7 +9721,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션"
           }
         },
@@ -9767,7 +9785,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "방향"
           }
         },
@@ -9831,7 +9849,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "유형"
           }
         },
@@ -9895,7 +9913,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "브랜치"
           }
         },
@@ -9959,7 +9977,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "남은 시간"
           }
         },
@@ -10023,8 +10041,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "생성됨"
+            "state": "translated",
+            "value": "생성 시각"
           }
         },
         "th": {
@@ -10087,7 +10105,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "승인"
           }
         },
@@ -10151,7 +10169,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "거절"
           }
         },
@@ -10215,7 +10233,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "답장 입력"
           }
         },
@@ -10279,7 +10297,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "서버에 연결되지 않음"
           }
         },
@@ -10343,7 +10361,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "비디오"
           }
         },
@@ -10407,7 +10425,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "이미지"
           }
         },
@@ -10471,8 +10489,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "탭하여 음소거 해제"
+            "state": "translated",
+            "value": "탭하여 소리 켜기"
           }
         },
         "th": {
@@ -10535,7 +10553,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "전체 화면으로 열기"
           }
         },
@@ -10599,7 +10617,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "높음"
           }
         },
@@ -10663,7 +10681,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "긴급"
           }
         },
@@ -10727,7 +10745,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "보통"
           }
         },
@@ -10791,7 +10809,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "낮음"
           }
         },
@@ -10888,7 +10906,7 @@
             "plural": {
               "other": {
                 "stringUnit": {
-                  "state": "needs_review",
+                  "state": "translated",
                   "value": "파일 %lld개"
                 }
               }
@@ -11102,8 +11120,8 @@
             "plural": {
               "other": {
                 "stringUnit": {
-                  "state": "needs_review",
-                  "value": "대기 %lld건"
+                  "state": "translated",
+                  "value": "%lld개 대기 중"
                 }
               }
             }
@@ -11283,7 +11301,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "결정에 응답"
           }
         },
@@ -11347,7 +11365,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 ID"
           }
         },
@@ -11411,7 +11429,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "ALT"
           }
         },
@@ -11475,7 +11493,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "대체 텍스트"
           }
         },
@@ -11539,8 +11557,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "대체 텍스트 표시"
+            "state": "translated",
+            "value": "대체 텍스트 보기"
           }
         },
         "th": {
@@ -11603,8 +11621,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "음소거"
+            "state": "translated",
+            "value": "소리 끄기"
           }
         },
         "th": {
@@ -11667,8 +11685,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "음소거 해제"
+            "state": "translated",
+            "value": "소리 켜기"
           }
         },
         "th": {
@@ -11731,8 +11749,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ (%lld)"
+            "state": "translated",
+            "value": "%@(%lld)"
           }
         },
         "th": {
@@ -11795,8 +11813,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@, %@ 기여"
+            "state": "translated",
+            "value": "%@(%@) 게시"
           }
         },
         "th": {
@@ -11859,8 +11877,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ 기여"
+            "state": "translated",
+            "value": "%@ 게시"
           }
         },
         "th": {
@@ -11923,7 +11941,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "모델 %@"
           }
         },
@@ -11987,8 +12005,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "실시간으로 이동"
+            "state": "translated",
+            "value": "최신 항목으로 이동"
           }
         },
         "th": {
@@ -12051,8 +12069,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "실시간으로 이동(%lld)"
+            "state": "translated",
+            "value": "최신 항목으로 이동(%lld)"
           }
         },
         "th": {
@@ -12115,8 +12133,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "기록이 다시 로드됨"
+            "state": "translated",
+            "value": "기록을 다시 로드함"
           }
         },
         "th": {
@@ -12179,8 +12197,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "서버에서 기록이 잘려 트랜스크립트를 다시 불러왔습니다."
+            "state": "translated",
+            "value": "서버의 기록이 잘려서 기록을 다시 로드했어요."
           }
         },
         "th": {
@@ -12243,8 +12261,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "기록을 불러올 수 없음"
+            "state": "translated",
+            "value": "기록을 로드할 수 없음"
           }
         },
         "th": {
@@ -12307,7 +12325,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "아직 이벤트 없음"
           }
         },
@@ -12371,8 +12389,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 세션에는 아직 트랜스크립트 이벤트가 없습니다."
+            "state": "translated",
+            "value": "이 세션에는 아직 기록된 이벤트가 없어요."
           }
         },
         "th": {
@@ -12435,7 +12453,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "보스"
           }
         },
@@ -12499,7 +12517,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "피어"
           }
         },
@@ -12563,7 +12581,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "보스 → 에이전트"
           }
         },
@@ -12627,7 +12645,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "에이전트 → 에이전트"
           }
         },
@@ -12691,7 +12709,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "에이전트 → 보스"
           }
         },
@@ -12755,7 +12773,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "이벤트"
           }
         },
@@ -12819,7 +12837,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알 수 없는 방향"
           }
         },
@@ -12883,7 +12901,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "더 보기"
           }
         },
@@ -12947,8 +12965,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "접기"
+            "state": "translated",
+            "value": "간단히 보기"
           }
         },
         "th": {
@@ -13056,6 +13074,12 @@
             "state": "translated",
             "value": "Главная"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "홈"
+          }
         }
       }
     },
@@ -13119,6 +13143,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нужно ваше участие"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금 확인 필요"
           }
         }
       }
@@ -13184,6 +13214,12 @@
             "state": "translated",
             "value": "Ничто не ждёт вашего решения"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "결정을 기다리는 항목이 없어요"
+          }
         }
       }
     },
@@ -13247,6 +13283,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Проверка очереди задач"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "대기 중인 항목 확인 중"
           }
         }
       }
@@ -13312,6 +13354,12 @@
             "state": "translated",
             "value": "Скоро решится само"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "곧 자동으로 결정됨"
+          }
         }
       }
     },
@@ -13375,6 +13423,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ждёт вас"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 응답을 기다리며 멈춤"
           }
         }
       }
@@ -13440,6 +13494,12 @@
             "state": "translated",
             "value": "Другие решения"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 결정"
+          }
         }
       }
     },
@@ -13503,6 +13563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Когда время выйдет, будет выбрано «%@»"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간이 다 되면 “%@” 자동 선택"
           }
         }
       }
@@ -13568,6 +13634,12 @@
             "state": "translated",
             "value": "Ожидает %@"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 대기 중"
+          }
         }
       }
     },
@@ -13631,6 +13703,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ответьте до %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@까지 답장"
           }
         }
       }
@@ -13696,6 +13774,12 @@
             "state": "translated",
             "value": "Живые панели"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실시간 패널"
+          }
         }
       }
     },
@@ -13759,6 +13843,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Пример данных"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "샘플 데이터"
           }
         }
       }
@@ -13824,6 +13914,12 @@
             "state": "translated",
             "value": "Загрузка панелей…"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널 로드 중…"
+          }
         }
       }
     },
@@ -13887,6 +13983,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сеанс без проекта"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지정되지 않은 세션"
           }
         }
       }
@@ -13952,6 +14054,12 @@
             "state": "translated",
             "value": "Анкета"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설문"
+          }
         }
       }
     },
@@ -14015,6 +14123,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Анкета · Агент ждёт"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설문 · 에이전트 대기 중"
           }
         }
       }
@@ -14080,6 +14194,12 @@
             "state": "translated",
             "value": "Всё под контролем"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인할 항목 없음"
+          }
         }
       }
     },
@@ -14143,6 +14263,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Всё решено. Следующий вопрос агента появится здесь."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모두 처리했어요. 에이전트의 다음 질문이 여기에 표시돼요."
           }
         }
       }
@@ -14208,6 +14334,12 @@
             "state": "translated",
             "value": "Проверка запросов…"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요청 확인 중…"
+          }
         }
       }
     },
@@ -14271,6 +14403,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось проверить все запросы. %@ Потяните вниз, чтобы обновить."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일부 요청을 확인할 수 없어요. %@ 아래로 당겨서 새로 고치세요."
           }
         }
       }
@@ -14336,6 +14474,12 @@
             "state": "translated",
             "value": "Панель пока недоступна. Потяните вниз, чтобы обновить, и повторите попытку."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 패널은 아직 사용할 수 없어요. 아래로 당겨서 새로 고친 후 다시 시도하세요."
+          }
         }
       }
     },
@@ -14399,6 +14543,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Будет выбрано автоматически, когда время выйдет"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간이 다 되면 자동으로 선택돼요"
           }
         }
       }
@@ -14464,6 +14614,12 @@
             "state": "translated",
             "value": "Подробнее"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가 정보"
+          }
         }
       }
     },
@@ -14528,6 +14684,12 @@
             "state": "translated",
             "value": "Задан"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "질문 시각"
+          }
         }
       }
     },
@@ -14591,6 +14753,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Уже отвечено в другом месте — показан сохранённый результат."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 다른 곳에서 답변했어요. 기록된 결과를 표시해요."
           }
         }
       }
@@ -14794,6 +14962,18 @@
               }
             }
           }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "결정을 기다리는 항목 %lld개"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -14857,6 +15037,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открывает панель, чтобы заполнить анкету"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널을 열어 이 설문에 답변해요"
           }
         }
       }
@@ -14922,6 +15108,12 @@
             "state": "translated",
             "value": "Не удалось загрузить сообщение"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메시지를 로드할 수 없음"
+          }
         }
       }
     },
@@ -14985,6 +15177,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подключение ещё не готово."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결이 준비되지 않았어요."
           }
         }
       }
@@ -15050,6 +15248,12 @@
             "state": "translated",
             "value": "Изображение недоступно"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미지를 표시할 수 없음"
+          }
         }
       }
     },
@@ -15113,6 +15317,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть изображение для «%@»"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” 이미지 열기"
           }
         }
       }
@@ -15178,6 +15388,12 @@
             "state": "translated",
             "value": "Действия с панелью"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널 동작"
+          }
         }
       }
     },
@@ -15241,6 +15457,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Отправленные ответы"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제출한 내용"
           }
         }
       }
@@ -15306,6 +15528,12 @@
             "state": "translated",
             "value": "С момента отправки форма изменилась."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제출한 후에 양식이 변경되었어요."
+          }
         }
       }
     },
@@ -15369,6 +15597,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Готово"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료"
           }
         }
       }
@@ -15434,6 +15668,12 @@
             "state": "translated",
             "value": "Решено автоматически"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 결정됨"
+          }
         }
       }
     },
@@ -15497,6 +15737,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Активность"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "활동"
           }
         }
       }
@@ -15562,6 +15808,12 @@
             "state": "translated",
             "value": "Публикации"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게시물"
+          }
         }
       }
     },
@@ -15625,6 +15877,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Решения"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "결정"
           }
         }
       }
@@ -15690,6 +15948,12 @@
             "state": "translated",
             "value": "%@: изменение за 7 дней %@"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 7일간 변화 %@"
+          }
         }
       }
     },
@@ -15753,6 +16017,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Тепловая карта активности за 28 дней"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "28일 활동 히트 맵"
           }
         }
       }
@@ -15818,6 +16088,12 @@
             "state": "translated",
             "value": "Ждёт данных"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "데이터 대기 중"
+          }
         }
       }
     },
@@ -15881,6 +16157,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Актуально"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실시간"
           }
         }
       }
@@ -15946,6 +16228,12 @@
             "state": "translated",
             "value": "Устарело"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오래됨"
+          }
         }
       }
     },
@@ -16009,6 +16297,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не в сети"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인"
           }
         }
       }
@@ -16074,6 +16368,12 @@
             "state": "translated",
             "value": "Выполняется"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실행 중"
+          }
         }
       }
     },
@@ -16137,6 +16437,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Приостановлено"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일시 정지됨"
           }
         }
       }
@@ -16202,6 +16508,12 @@
             "state": "translated",
             "value": "Отменено"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취소됨"
+          }
         }
       }
     },
@@ -16265,6 +16577,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Проекты"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프로젝트"
           }
         }
       }
@@ -16330,6 +16648,12 @@
             "state": "translated",
             "value": "Проектов пока нет"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 프로젝트가 없음"
+          }
         }
       }
     },
@@ -16393,6 +16717,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нет недавних публикаций"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최근 게시물 없음"
           }
         }
       }
@@ -16458,6 +16788,12 @@
             "state": "translated",
             "value": "Сеанс истёк — переподключитесь в Настройках."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세션이 만료되었어요. 설정에서 다시 연결하세요."
+          }
         }
       }
     },
@@ -16521,6 +16857,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сканировать код"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "코드 스캔"
           }
         }
       }
@@ -16586,6 +16928,12 @@
             "state": "translated",
             "value": "Используйте код привязки с Mac или введите URL сервера и Boss Token."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac의 페어링 코드를 사용하거나 서버 URL과 Boss Token을 입력하세요."
+          }
         }
       }
     },
@@ -16649,6 +16997,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запрос доступа к камере…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라 접근 권한 요청 중…"
           }
         }
       }
@@ -16714,6 +17068,12 @@
             "state": "translated",
             "value": "Сканировать код привязки"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드 스캔"
+          }
         }
       }
     },
@@ -16777,6 +17137,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Отменить"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취소"
           }
         }
       }
@@ -16842,6 +17208,12 @@
             "state": "translated",
             "value": "Этот QR-код не является кодом привязки HiBoss."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 QR 코드는 유효한 HiBoss 페어링 코드가 아니에요."
+          }
         }
       }
     },
@@ -16905,6 +17277,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Для сканирования кода привязки нужен доступ к камере."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드를 스캔하려면 카메라 접근 권한이 필요해요."
           }
         }
       }
@@ -16970,6 +17348,12 @@
             "state": "translated",
             "value": "Открыть Настройки"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정 열기"
+          }
         }
       }
     },
@@ -17033,6 +17417,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Этот код привязки больше недействителен. Отсканируйте другой код."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 페어링 코드는 더 이상 유효하지 않아요. 다시 스캔하여 다른 코드로 시도하세요."
           }
         }
       }
@@ -17098,6 +17488,12 @@
             "state": "translated",
             "value": "Не удалось использовать код привязки. Проверьте подключение и повторите попытку."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드를 사용할 수 없어요. 연결 상태를 확인한 후 다시 시도하세요."
+          }
         }
       }
     },
@@ -17162,6 +17558,12 @@
             "state": "translated",
             "value": "Сервер вернул некорректный ответ на запрос привязки."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 잘못된 페어링 응답을 반환했어요."
+          }
         }
       }
     },
@@ -17225,6 +17627,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сервер вернул не то сообщение."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 잘못된 메시지를 반환했어요."
           }
         }
       }
@@ -17424,6 +17832,18 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld работают"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "작업 중 %lld"
                 }
               }
             }
@@ -17630,6 +18050,18 @@
               }
             }
           }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "대기 중 %lld"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -17832,6 +18264,18 @@
               }
             }
           }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "막힘 %lld"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -18030,6 +18474,18 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld простаивают"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "유휴 %lld"
                 }
               }
             }
@@ -18330,6 +18786,28 @@
                     "stringUnit": {
                       "state": "translated",
                       "value": "%arg события"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %#@events@"
+          },
+          "substitutions": {
+            "events": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "이벤트 %arg개"
                     }
                   }
                 }

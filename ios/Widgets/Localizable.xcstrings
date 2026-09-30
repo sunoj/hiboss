@@ -17,8 +17,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "답변됨"
+            "state": "translated",
+            "value": "답변함"
           }
         },
         "th": {
@@ -81,7 +81,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "결정에 응답"
           }
         },
@@ -145,7 +145,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 ID"
           }
         },
@@ -209,7 +209,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "선택"
           }
         },
@@ -318,6 +318,12 @@
             "state": "translated",
             "value": "Критический"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "긴급"
+          }
         }
       }
     },
@@ -381,6 +387,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Высокий"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "높음"
           }
         }
       }
@@ -446,6 +458,12 @@
             "state": "translated",
             "value": "Обычный"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보통"
+          }
         }
       }
     },
@@ -509,6 +527,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Низкий"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "낮음"
           }
         }
       }

@@ -63,6 +63,12 @@
             "state": "translated",
             "value": "HiBoss Island"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss Island"
+          }
         }
       }
     },
@@ -124,6 +130,12 @@
           }
         },
         "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss Island"
+          }
+        },
+        "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "HiBoss Island"

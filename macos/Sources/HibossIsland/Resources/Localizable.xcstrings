@@ -62,6 +62,12 @@
             "state": "translated",
             "value": "Имя устройства"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 이름"
+          }
         }
       }
     },
@@ -125,6 +131,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Устройства"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기"
           }
         }
       }
@@ -190,6 +202,12 @@
             "state": "translated",
             "value": "Токен устройства"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 토큰 알림"
+          }
         }
       }
     },
@@ -253,6 +271,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "ОК"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인"
           }
         }
       }
@@ -318,6 +342,12 @@
             "state": "translated",
             "value": "Подключитесь, чтобы управлять устройствами."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기를 관리하려면 연결하세요."
+          }
         }
       }
     },
@@ -381,6 +411,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Управляйте устройствами, подключёнными к вашей учётной записи."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정에 연결된 기기를 관리해요."
           }
         }
       }
@@ -446,6 +482,12 @@
             "state": "translated",
             "value": "Повторить"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 시도"
+          }
         }
       }
     },
@@ -509,6 +551,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Уведомлять о сообщениях"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메시지 알림"
           }
         }
       }
@@ -574,6 +622,12 @@
             "state": "translated",
             "value": "Разрешение"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "권한"
+          }
         }
       }
     },
@@ -637,6 +691,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не запрошено"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요청되지 않음"
           }
         }
       }
@@ -702,6 +762,12 @@
             "state": "translated",
             "value": "Запрещено"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "거부됨"
+          }
         }
       }
     },
@@ -765,6 +831,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Разрешено"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "허용됨"
           }
         }
       }
@@ -830,6 +902,12 @@
             "state": "translated",
             "value": "Доставлять без звука"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조용히 전달"
+          }
         }
       }
     },
@@ -893,6 +971,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть настройки уведомлений"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림 설정 열기"
           }
         }
       }
@@ -958,6 +1042,12 @@
             "state": "translated",
             "value": "К уведомлениям о сообщениях не применяются тихие часы и фильтр по приоритету."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메시지 알림에는 방해 금지 시간이나 우선순위 필터가 적용되지 않아요."
+          }
         }
       }
     },
@@ -978,7 +1068,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "자동 결정"
+            "value": "자동"
           }
         },
         "th": {
@@ -1106,7 +1196,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "완료"
+            "value": "완료됨"
           }
         },
         "th": {
@@ -1298,7 +1388,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "세션이 여기에 표시됩니다."
+            "value": "세션이 여기에 표시돼요."
           }
         },
         "th": {
@@ -1362,7 +1452,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "최근 메시지 기준입니다."
+            "value": "최근 메시지 기준 개수예요."
           }
         },
         "th": {
@@ -1426,7 +1516,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "연결하면 에이전트 메시지를 받을 수 있습니다."
+            "value": "연결하면 에이전트 메시지를 받을 수 있어요."
           }
         },
         "th": {
@@ -1490,7 +1580,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "연결이 끊겼습니다. 최근 메시지를 표시합니다."
+            "value": "연결이 중단되었어요. 최근 메시지를 표시해요."
           }
         },
         "th": {
@@ -1554,7 +1644,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "결정이 필요한 질문입니다."
+            "value": "결정이 필요한 질문이에요."
           }
         },
         "th": {
@@ -1618,7 +1708,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "시간이 끝나면 기본 선택이 실행됩니다."
+            "value": "타이머가 끝나면 기본 선택지가 실행돼요."
           }
         },
         "th": {
@@ -1682,7 +1772,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "에이전트가 답변을 기다리고 있습니다."
+            "value": "답변을 기다리는 에이전트예요."
           }
         },
         "th": {
@@ -1746,7 +1836,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "확인이 필요한 우선순위가 높은 질문입니다."
+            "value": "확인이 필요한 우선순위 높은 질문이에요."
           }
         },
         "th": {
@@ -1810,7 +1900,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "모든 세션의 최근 메시지입니다."
+            "value": "모든 세션의 최근 메시지예요."
           }
         },
         "th": {
@@ -1874,7 +1964,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "답변했거나 만료된 질문입니다."
+            "value": "답변했거나 만료된 질문이에요."
           }
         },
         "th": {
@@ -1938,7 +2028,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 세션의 최근 메시지입니다."
+            "value": "이 세션의 최근 메시지예요."
           }
         },
         "th": {
@@ -2002,7 +2092,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 분류에 질문이 없습니다"
+            "value": "이 카테고리에 질문 없음"
           }
         },
         "th": {
@@ -2066,7 +2156,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "다른 분류를 선택하여 메시지를 확인하세요."
+            "value": "다른 카테고리를 선택하면 더 많은 메시지를 볼 수 있어요."
           }
         },
         "th": {
@@ -2130,7 +2220,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "완료된 질문이 없습니다"
+            "value": "완료된 질문 없음"
           }
         },
         "th": {
@@ -2194,7 +2284,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "답변했거나 만료된 질문이 여기에 표시됩니다."
+            "value": "답변했거나 만료된 질문이 여기에 표시돼요."
           }
         },
         "th": {
@@ -2366,6 +2456,12 @@
             "state": "translated",
             "value": "Все вопросы"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 질문"
+          }
         }
       }
     },
@@ -2430,6 +2526,12 @@
             "state": "translated",
             "value": "Вид"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보기"
+          }
         }
       }
     },
@@ -2493,6 +2595,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось ответить. Черновик сохранён. Повторите попытку."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답장을 보내지 못했어요. 임시 저장본은 보관되어 있어요. 다시 시도하세요."
           }
         }
       }
@@ -2577,7 +2685,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "일반"
           }
         },
@@ -2641,7 +2749,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결"
           }
         },
@@ -2705,7 +2813,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알림"
           }
         },
@@ -2769,8 +2877,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "채널 및 라우팅"
+            "state": "translated",
+            "value": "채널 및 전달 경로"
           }
         },
         "th": {
@@ -2833,7 +2941,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "방해 금지 시간"
           }
         },
@@ -2897,7 +3005,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "표시"
           }
         },
@@ -2961,7 +3069,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시스템 및 진단"
           }
         },
@@ -3025,7 +3133,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "정보"
           }
         },
@@ -3089,8 +3197,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 Mac의 시작 동작."
+            "state": "translated",
+            "value": "이 Mac에서의 시작 동작이에요."
           }
         },
         "th": {
@@ -3153,8 +3261,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 Mac을 boss 데몬에 연결합니다."
+            "state": "translated",
+            "value": "이 Mac을 보스 데몬에 연결해요."
           }
         },
         "th": {
@@ -3217,8 +3325,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 Mac에서 질문이 나타나는 방식을 선택합니다."
+            "state": "translated",
+            "value": "이 Mac에서 질문을 표시하는 방식을 선택해요."
           }
         },
         "th": {
@@ -3281,8 +3389,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "우선순위를 서버 채널로 라우팅합니다."
+            "state": "translated",
+            "value": "우선순위별로 서버 채널에 전달해요."
           }
         },
         "th": {
@@ -3345,8 +3453,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "일정에 따라 낮은 우선순위 알림을 음소거합니다."
+            "state": "translated",
+            "value": "일정에 따라 우선순위가 낮은 알림을 꺼요."
           }
         },
         "th": {
@@ -3409,8 +3517,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "로컬 옵션 화면과 소리를 조정합니다."
+            "state": "translated",
+            "value": "이 Mac의 선택지 화면과 사운드를 조정해요."
           }
         },
         "th": {
@@ -3473,8 +3581,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "데몬, 스트림, 환경설정 상태를 확인합니다."
+            "state": "translated",
+            "value": "데몬, 스트림, 환경설정 상태를 확인해요."
           }
         },
         "th": {
@@ -3537,8 +3645,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "버전 및 프로젝트 정보."
+            "state": "translated",
+            "value": "버전 및 프로젝트 정보예요."
           }
         },
         "th": {
@@ -3601,8 +3709,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "유효한 %@ 시간을 HH:mm으로 입력하세요."
+            "state": "translated",
+            "value": "유효한 %@ 시간을 HH:mm 형식으로 입력하세요."
           }
         },
         "th": {
@@ -3665,7 +3773,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시작"
           }
         },
@@ -3729,7 +3837,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "종료"
           }
         },
@@ -3793,7 +3901,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "전체"
           }
         },
@@ -3890,7 +3998,7 @@
             "plural": {
               "other": {
                 "stringUnit": {
-                  "state": "needs_review",
+                  "state": "translated",
                   "value": "읽지 않음 %lld"
                 }
               }
@@ -4071,8 +4179,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "차단"
+            "state": "translated",
+            "value": "블로킹"
           }
         },
         "th": {
@@ -4135,7 +4243,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알 수 없음"
           }
         },
@@ -4199,7 +4307,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "나"
           }
         },
@@ -4263,7 +4371,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "에이전트"
           }
         },
@@ -4327,8 +4435,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Boss에게"
+            "state": "translated",
+            "value": "보스에게"
           }
         },
         "th": {
@@ -4391,8 +4499,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Boss로부터"
+            "state": "translated",
+            "value": "보스로부터"
           }
         },
         "th": {
@@ -4455,7 +4563,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "피어 메시지"
           }
         },
@@ -4519,8 +4627,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ 우선순위"
+            "state": "translated",
+            "value": "우선순위 %@"
           }
         },
         "th": {
@@ -4583,7 +4691,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "✓ 답장함"
           }
         },
@@ -4647,7 +4755,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "● 읽음"
           }
         },
@@ -4711,7 +4819,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "● 만료됨"
           }
         },
@@ -4775,7 +4883,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "● %@"
           }
         },
@@ -4839,7 +4947,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "긴급"
           }
         },
@@ -4903,7 +5011,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "높음"
           }
         },
@@ -4967,7 +5075,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "보통"
           }
         },
@@ -5031,7 +5139,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "낮음"
           }
         },
@@ -5095,8 +5203,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "아일랜드"
+            "state": "translated",
+            "value": "Dynamic Island"
           }
         },
         "th": {
@@ -5159,7 +5267,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "윈도우"
           }
         },
@@ -5223,7 +5331,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "배너"
           }
         },
@@ -5287,8 +5395,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "로그인하면 HiBoss Island가 자동으로 시작됩니다."
+            "state": "translated",
+            "value": "로그인하면 HiBoss Island가 자동으로 실행돼요."
           }
         },
         "th": {
@@ -5351,8 +5459,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "시스템 설정 › 일반 › 로그인 항목에서 HiBoss Island를 허용해야 활성화가 완료됩니다."
+            "state": "translated",
+            "value": "활성화를 완료하려면 시스템 설정 › 일반 › 로그인 항목에서 HiBoss Island를 허용하세요."
           }
         },
         "th": {
@@ -5415,8 +5523,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "macOS가 이 앱 복사본을 아직 인식하지 않습니다. 켜면 보통 동작합니다. 안 되면 /Applications에서 다시 실행하세요."
+            "state": "translated",
+            "value": "macOS가 아직 이 앱 사본을 인식하지 못해요. 이 옵션을 켜도 대개 작동하지만, 작동하지 않으면 /Applications에서 다시 실행한 후 다시 시도하세요."
           }
         },
         "th": {
@@ -5479,8 +5587,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "HiBoss Island는 직접 열 때까지 실행되지 않습니다."
+            "state": "translated",
+            "value": "HiBoss Island는 직접 열기 전까지 실행되지 않아요."
           }
         },
         "th": {
@@ -5543,7 +5651,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "없음"
           }
         },
@@ -5607,7 +5715,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "월요일"
           }
         },
@@ -5671,7 +5779,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "화요일"
           }
         },
@@ -5735,7 +5843,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "수요일"
           }
         },
@@ -5799,7 +5907,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "목요일"
           }
         },
@@ -5863,7 +5971,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "금요일"
           }
         },
@@ -5927,7 +6035,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "토요일"
           }
         },
@@ -5991,7 +6099,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "일요일"
           }
         },
@@ -6055,8 +6163,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%lld일차"
+            "state": "translated",
+            "value": "%lld일째"
           }
         },
         "th": {
@@ -6119,8 +6227,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "저장되었지만 아직 적용되지 않았습니다. 전달은 각 에이전트의 채널 설정을 따릅니다. 이 설정은 이후 버전에서 적용됩니다."
+            "state": "translated",
+            "value": "저장했지만 아직 적용되지 않았어요. 전달은 계속 각 에이전트의 채널 구성을 따르며, 이 설정은 이후 릴리스에서 적용돼요."
           }
         },
         "th": {
@@ -6183,7 +6291,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 검색"
           }
         },
@@ -6247,7 +6355,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "필터"
           }
         },
@@ -6311,7 +6419,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 필터"
           }
         },
@@ -6375,7 +6483,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 새로 고침"
           }
         },
@@ -6439,7 +6547,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결: %@"
           }
         },
@@ -6503,8 +6611,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "메시지를 불러오는 중…"
+            "state": "translated",
+            "value": "메시지 로드 중…"
           }
         },
         "th": {
@@ -6567,7 +6675,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "기록을 사용할 수 없음"
           }
         },
@@ -6631,7 +6739,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "일치하는 메시지 없음"
           }
         },
@@ -6695,7 +6803,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "메시지 없음"
           }
         },
@@ -6759,8 +6867,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "다른 필터나 검색을 시도하세요."
+            "state": "translated",
+            "value": "다른 필터나 검색어를 사용해 보세요."
           }
         },
         "th": {
@@ -6823,8 +6931,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "에이전트 메시지가 여기에 표시됩니다."
+            "state": "translated",
+            "value": "에이전트 메시지가 여기에 표시돼요."
           }
         },
         "th": {
@@ -6887,8 +6995,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "다이렉트"
+            "state": "translated",
+            "value": "직접"
           }
         },
         "th": {
@@ -6951,7 +7059,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션 상태 알 수 없음"
           }
         },
@@ -7015,7 +7123,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "세션 %@"
           }
         },
@@ -7079,8 +7187,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "수신 중"
+            "state": "translated",
+            "value": "수신 대기 중"
           }
         },
         "th": {
@@ -7143,7 +7251,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "저장 후 연결"
           }
         },
@@ -7207,8 +7315,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "연결을 확인하는 중…"
+            "state": "translated",
+            "value": "연결 확인 중..."
           }
         },
         "th": {
@@ -7271,7 +7379,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "로그인 시 열기"
           }
         },
@@ -7335,7 +7443,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시작"
           }
         },
@@ -7399,8 +7507,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "옵션 표시"
+            "state": "translated",
+            "value": "선택지 표시"
           }
         },
         "th": {
@@ -7463,8 +7571,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "긴급은 방해금지 모드를 우회"
+            "state": "translated",
+            "value": "긴급 알림은 방해 금지 모드에서도 알림"
           }
         },
         "th": {
@@ -7527,8 +7635,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "메뉴 막대 아이콘 표시"
+            "state": "translated",
+            "value": "메뉴 막대 아이콘 보기"
           }
         },
         "th": {
@@ -7591,7 +7699,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "전달"
           }
         },
@@ -7655,8 +7763,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "긴급 질문은 계속 알립니다. 메뉴 막대 아이콘으로 HiBoss가 보입니다."
+            "state": "translated",
+            "value": "긴급 질문은 계속 알려요. 메뉴 막대 아이콘으로 HiBoss를 언제든 확인할 수 있어요."
           }
         },
         "th": {
@@ -7719,7 +7827,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시작"
           }
         },
@@ -7783,7 +7891,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "종료"
           }
         },
@@ -7847,7 +7955,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "시간대"
           }
         },
@@ -7911,8 +8019,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "긴급 우회"
+            "state": "translated",
+            "value": "긴급 알림 허용"
           }
         },
         "th": {
@@ -7975,7 +8083,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "일정"
           }
         },
@@ -8039,8 +8147,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "보통 및 낮은 우선순위 알림을 음소거합니다. 우회가 켜져 있으면 긴급은 알립니다."
+            "state": "translated",
+            "value": "보통 및 낮은 우선순위 알림을 꺼요. ‘긴급 알림 허용’이 켜져 있으면 긴급 알림은 계속 울려요."
           }
         },
         "th": {
@@ -8103,7 +8211,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "요일"
           }
         },
@@ -8167,7 +8275,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "방해 금지 시간을 적용할 요일을 선택하세요."
           }
         },
@@ -8231,8 +8339,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "소리 재생"
+            "state": "translated",
+            "value": "사운드 재생"
           }
         },
         "th": {
@@ -8295,8 +8403,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "기본 소리"
+            "state": "translated",
+            "value": "기본 사운드"
           }
         },
         "th": {
@@ -8359,7 +8467,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "알림"
           }
         },
@@ -8423,8 +8531,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "우선순위 규칙이 없는 알림의 기본 소리입니다."
+            "state": "translated",
+            "value": "우선순위 규칙이 없는 알림에 사용할 사운드예요."
           }
         },
         "th": {
@@ -8487,7 +8595,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "상태"
           }
         },
@@ -8551,7 +8659,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "엔드포인트"
           }
         },
@@ -8615,7 +8723,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "다시 연결"
           }
         },
@@ -8679,7 +8787,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "데몬"
           }
         },
@@ -8743,7 +8851,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "서버 URL"
           }
         },
@@ -8807,7 +8915,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Boss Token"
           }
         },
@@ -8871,8 +8979,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "자격 증명"
+            "state": "translated",
+            "value": "인증 정보"
           }
         },
         "th": {
@@ -8935,8 +9043,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "토큰은 로컬 키체인에 저장됩니다."
+            "state": "translated",
+            "value": "토큰은 로컬 키체인에 저장돼요."
           }
         },
         "th": {
@@ -8999,7 +9107,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결됨 · 데몬 실행 중"
           }
         },
@@ -9063,8 +9171,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "연결 중 · 데몬 대기"
+            "state": "translated",
+            "value": "연결 중 · 데몬 대기 중"
           }
         },
         "th": {
@@ -9127,7 +9235,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결 끊김 · 데몬 유휴"
           }
         },
@@ -9191,7 +9299,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "연결 끊김 · 데몬 오류"
           }
         },
@@ -9255,7 +9363,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "구성되지 않음"
           }
         },
@@ -9319,7 +9427,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "버전"
           }
         },
@@ -9383,7 +9491,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "빌드"
           }
         },
@@ -9447,7 +9555,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "프로젝트"
           }
         },
@@ -9511,7 +9619,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "HiBoss Island"
           }
         },
@@ -9575,8 +9683,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "업데이트 자동 확인"
+            "state": "translated",
+            "value": "자동으로 업데이트 확인"
           }
         },
         "th": {
@@ -9639,7 +9747,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "소프트웨어 업데이트"
           }
         },
@@ -9703,7 +9811,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "업데이트 확인…"
           }
         },
@@ -9767,7 +9875,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "업데이트"
           }
         },
@@ -9831,8 +9939,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "업데이트는 Sparkle로 전달되며 설치 전 EdDSA 서명으로 검증됩니다."
+            "state": "translated",
+            "value": "업데이트는 Sparkle을 통해 제공되며 설치 전에 EdDSA 서명으로 검증돼요."
           }
         },
         "th": {
@@ -9895,8 +10003,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "이 빌드에는 업데이트 피드가 없어 업데이트를 확인하지 않습니다."
+            "state": "translated",
+            "value": "이 빌드에는 업데이트 피드가 구성되어 있지 않아 업데이트를 확인하지 않아요."
           }
         },
         "th": {
@@ -9959,8 +10067,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "개발"
+            "state": "translated",
+            "value": "개발 버전"
           }
         },
         "th": {
@@ -10023,7 +10131,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "데몬 스트림"
           }
         },
@@ -10087,7 +10195,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "서버 연결 가능 여부"
           }
         },
@@ -10151,7 +10259,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "구성됨"
           }
         },
@@ -10215,7 +10323,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "구성되지 않음"
           }
         },
@@ -10279,7 +10387,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "마지막 오류"
           }
         },
@@ -10343,7 +10451,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "상태"
           }
         },
@@ -10407,8 +10515,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "로컬 데몬 스트림과 환경설정 저장소의 읽기 전용 진단입니다."
+            "state": "translated",
+            "value": "로컬 데몬 스트림과 환경설정 저장소의 읽기 전용 진단이에요."
           }
         },
         "th": {
@@ -10471,8 +10579,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "라우팅"
+            "state": "translated",
+            "value": "전달 경로"
           }
         },
         "th": {
@@ -10535,7 +10643,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "우선순위"
           }
         },
@@ -10599,8 +10707,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "소리"
+            "state": "translated",
+            "value": "사운드"
           }
         },
         "th": {
@@ -10663,8 +10771,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ → %@"
+            "state": "translated",
+            "value": "%@(%@ 경유)"
           }
         },
         "th": {
@@ -10727,8 +10835,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ 소리"
+            "state": "translated",
+            "value": "%@ 사운드"
           }
         },
         "th": {
@@ -10791,8 +10899,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@에서 답변됨"
+            "state": "translated",
+            "value": "%@에서 답변함"
           }
         },
         "th": {
@@ -10855,7 +10963,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "기본값"
           }
         },
@@ -10919,7 +11027,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ 선택, 기본값"
           }
         },
@@ -10983,7 +11091,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ 선택"
           }
         },
@@ -11047,7 +11155,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "이 질문 건너뛰기"
           }
         },
@@ -11111,7 +11219,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "답장 보내기"
           }
         },
@@ -11175,8 +11283,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "직접 지시로 답장…"
+            "state": "translated",
+            "value": "직접 지시를 입력하여 답장…"
           }
         },
         "th": {
@@ -11239,7 +11347,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "HiBoss 열기…"
           }
         },
@@ -11303,7 +11411,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "HiBoss Island 종료"
           }
         },
@@ -11367,8 +11475,8 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "HiBoss 옵션"
+            "state": "translated",
+            "value": "HiBoss 선택지"
           }
         },
         "th": {
@@ -11431,7 +11539,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "기본값 — 시간 초과 시 자동 실행"
           }
         },
@@ -11495,7 +11603,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "읽지 않음"
           }
         },
@@ -11559,7 +11667,7 @@
         },
         "ko": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "읽음"
           }
         },
@@ -11752,7 +11860,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "결정할 항목과 실시간 패널."
+            "value": "결정 및 실시간 패널."
           }
         },
         "th": {
@@ -11960,9 +12068,15 @@
           }
         },
         "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "결정 %lld개 모두 보기"
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "결정 %lld개 모두 보기"
+                }
+              }
+            }
           }
         },
         "th": {
@@ -12026,7 +12140,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "대시보드 새로고침"
+            "value": "대시보드 새로 고침"
           }
         },
         "th": {
@@ -12154,7 +12268,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "결정 샘플 · 로컬 미리보기"
+            "value": "샘플 결정 · 로컬 미리보기"
           }
         },
         "th": {
@@ -12262,6 +12376,12 @@
             "state": "translated",
             "value": "Код привязки пока недоступен."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 페어링 코드를 사용할 수 없어요."
+          }
         }
       }
     },
@@ -12325,6 +12445,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Требуются права администратора"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "관리자 권한 필요"
           }
         }
       }
@@ -12390,6 +12516,12 @@
             "state": "translated",
             "value": "Очередь недоступна"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인할 항목을 로드할 수 없음"
+          }
         }
       }
     },
@@ -12453,6 +12585,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Решено автоматически"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 결정됨"
           }
         }
       }
@@ -12519,6 +12657,12 @@
             "state": "translated",
             "value": "Решено автоматически · %@"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 결정됨 · %@"
+          }
         }
       }
     },
@@ -12582,6 +12726,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ждёт вас"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 응답을 기다리며 멈춤"
           }
         }
       }
@@ -12648,6 +12798,12 @@
             "state": "translated",
             "value": "Дуновение"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blow"
+          }
         }
       }
     },
@@ -12713,6 +12869,12 @@
             "state": "translated",
             "value": "Бутылка"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bottle"
+          }
         }
       }
     },
@@ -12776,6 +12938,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сохранённый ответ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제출한 내용"
           }
         }
       }
@@ -12842,6 +13010,12 @@
             "state": "translated",
             "value": "Канал"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채널"
+          }
         }
       }
     },
@@ -12905,6 +13079,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Варианты"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택지"
           }
         }
       }
@@ -12971,6 +13151,12 @@
             "state": "translated",
             "value": "Выберет %@ через %@"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$@ 후 “%1$@” 선택"
+          }
         }
       }
     },
@@ -13034,6 +13220,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Закрыть панель"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널 닫기"
           }
         }
       }
@@ -13099,6 +13291,12 @@
             "state": "translated",
             "value": "Перед привязкой устройства укажите URL сервера и Boss Token."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기를 페어링하기 전에 서버 URL과 Boss Token을 설정하세요."
+          }
         }
       }
     },
@@ -13162,6 +13360,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подключиться к HiBoss"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss에 연결"
           }
         }
       }
@@ -13227,6 +13431,12 @@
             "state": "translated",
             "value": "Подключение…"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 중…"
+          }
         }
       }
     },
@@ -13290,6 +13500,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Не удалось запросить код привязки"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드를 요청할 수 없음"
           }
         }
       }
@@ -13356,6 +13572,12 @@
             "state": "translated",
             "value": "Создано"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "생성 시각"
+          }
         }
       }
     },
@@ -13420,6 +13642,12 @@
             "state": "translated",
             "value": "Критический приоритет"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "긴급 우선순위"
+          }
         }
       }
     },
@@ -13483,6 +13711,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Решится автоматически"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동으로 결정 예정"
           }
         }
       }
@@ -13549,6 +13783,12 @@
             "state": "translated",
             "value": "Доставлено"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전달됨"
+          }
         }
       }
     },
@@ -13612,6 +13852,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подробности"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세부 사항"
           }
         }
       }
@@ -13677,6 +13923,12 @@
             "state": "translated",
             "value": "Устройство подключено"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 연결됨"
+          }
         }
       }
     },
@@ -13741,6 +13993,12 @@
             "state": "translated",
             "value": "Привязка устройства"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 페어링"
+          }
         }
       }
     },
@@ -13804,6 +14062,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "QR-код привязки устройства"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 페어링 QR 코드"
           }
         }
       }
@@ -13870,6 +14134,12 @@
             "state": "translated",
             "value": "Готово"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료"
+          }
         }
       }
     },
@@ -13935,6 +14205,12 @@
             "state": "translated",
             "value": "Истекло"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "만료됨"
+          }
         }
       }
     },
@@ -13998,6 +14274,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Форма изменена после отправки: это прежний ответ, а не текущий черновик."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제출한 후에 양식이 수정되었어요. 이 내용은 현재 임시 저장본이 아닌 이전 답변이에요."
           }
         }
       }
@@ -14064,6 +14346,12 @@
             "state": "translated",
             "value": "От"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보낸 사람"
+          }
         }
       }
     },
@@ -14127,6 +14415,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Здесь появится полный контекст."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전체 내용이 여기에 표시돼요."
           }
         }
       }
@@ -14193,6 +14487,12 @@
             "state": "translated",
             "value": "Фанк"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funk"
+          }
         }
       }
     },
@@ -14257,6 +14557,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Стекло"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glass"
           }
         }
       }
@@ -14323,6 +14629,12 @@
             "state": "translated",
             "value": "Герой"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hero"
+          }
         }
       }
     },
@@ -14386,6 +14698,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "HiBoss не удалось создать QR-код привязки."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss가 페어링 QR 코드를 생성할 수 없어요."
           }
         }
       }
@@ -14451,6 +14769,12 @@
             "state": "translated",
             "value": "Высокий приоритет"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "높은 우선순위"
+          }
         }
       }
     },
@@ -14514,6 +14838,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Изображение недоступно"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미지를 표시할 수 없음"
           }
         }
       }
@@ -14579,6 +14909,12 @@
             "state": "translated",
             "value": "Загрузка…"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로드 중…"
+          }
         }
       }
     },
@@ -14643,6 +14979,12 @@
             "state": "translated",
             "value": "Сообщение"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메시지"
+          }
         }
       }
     },
@@ -14706,6 +15048,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сведения о сообщении"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메시지 세부 사항"
           }
         }
       }
@@ -14772,6 +15120,12 @@
             "state": "translated",
             "value": "Режим"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모드"
+          }
         }
       }
     },
@@ -14837,6 +15191,12 @@
             "state": "translated",
             "value": "Ждут вас"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인 필요"
+          }
         }
       }
     },
@@ -14900,6 +15260,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Нет кода привязки"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드 없음"
           }
         }
       }
@@ -14965,6 +15331,12 @@
             "state": "translated",
             "value": "Всё под контролем"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인할 항목 없음"
+          }
         }
       }
     },
@@ -15028,6 +15400,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Коды привязки может выпускать только администратор. Используйте Boss Token администратора."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드는 관리자만 발급할 수 있어요. 관리자 Boss Token을 사용하세요."
           }
         }
       }
@@ -15094,6 +15472,12 @@
             "state": "translated",
             "value": "Открыть изображение для %@"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” 이미지 열기"
+          }
         }
       }
     },
@@ -15157,6 +15541,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Привязать новое устройство"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로운 기기 페어링"
           }
         }
       }
@@ -15222,6 +15612,12 @@
             "state": "translated",
             "value": "Привязать новое устройство…"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로운 기기 페어링…"
+          }
         }
       }
     },
@@ -15285,6 +15681,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Привязать ещё устройство"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 기기 페어링"
           }
         }
       }
@@ -15350,6 +15752,12 @@
             "state": "translated",
             "value": "Код привязки"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드"
+          }
         }
       }
     },
@@ -15413,6 +15821,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Срок действия кода истёк"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드 만료됨"
           }
         }
       }
@@ -15478,6 +15892,12 @@
             "state": "translated",
             "value": "Привязка не настроена"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링이 구성되지 않음"
+          }
         }
       }
     },
@@ -15541,6 +15961,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ссылка для привязки недоступна"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 링크를 사용할 수 없음"
           }
         }
       }
@@ -15606,6 +16032,12 @@
             "state": "translated",
             "value": "Действия с панелью"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널 동작"
+          }
         }
       }
     },
@@ -15669,6 +16101,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Панели"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널"
           }
         }
       }
@@ -15735,6 +16173,12 @@
             "state": "translated",
             "value": "Пинг"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping"
+          }
         }
       }
     },
@@ -15800,6 +16244,12 @@
             "state": "translated",
             "value": "Хлопок"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pop"
+          }
         }
       }
     },
@@ -15864,6 +16314,12 @@
             "state": "translated",
             "value": "QR-код недоступен"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR 코드를 사용할 수 없음"
+          }
         }
       }
     },
@@ -15927,6 +16383,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Вопрос"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "질문"
           }
         }
       }
@@ -15993,6 +16455,12 @@
             "state": "translated",
             "value": "Отвечено"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답장함"
+          }
         }
       }
     },
@@ -16056,6 +16524,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запросите новый код"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 코드 요청"
           }
         }
       }
@@ -16121,6 +16595,12 @@
             "state": "translated",
             "value": "Перед сканированием запросите новый код."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스캔하기 전에 새 코드를 요청하세요."
+          }
         }
       }
     },
@@ -16184,6 +16664,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запрос кода привязки…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "페어링 코드 요청 중…"
           }
         }
       }
@@ -16250,6 +16736,12 @@
             "state": "translated",
             "value": "Решено"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처리됨"
+          }
         }
       }
     },
@@ -16313,6 +16805,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Загрузить панели снова"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널 다시 로드"
           }
         }
       }
@@ -16378,6 +16876,12 @@
             "state": "translated",
             "value": "Пример данных · Локальный просмотр"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "샘플 데이터 · 로컬 미리보기"
+          }
         }
       }
     },
@@ -16442,6 +16946,12 @@
             "state": "translated",
             "value": "Отсканируйте этот QR-код телефоном, чтобы подключить его к HiBoss. Код действует пять минут и может быть использован один раз."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "휴대폰으로 이 QR 코드를 스캔하여 HiBoss에 등록하세요. 코드는 5분 동안 유효하며 한 번만 사용할 수 있어요."
+          }
         }
       }
     },
@@ -16505,6 +17015,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выберите вопрос"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "질문 선택"
           }
         }
       }
@@ -16571,6 +17087,12 @@
             "state": "translated",
             "value": "Сеанс"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세션"
+          }
         }
       }
     },
@@ -16634,6 +17156,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Показать одноразовый QR-код с адресом этого сервера, чтобы подключить телефон без ввода токена."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 서버 정보가 포함된 일회용 QR 코드를 표시하여 토큰을 입력하지 않고 휴대폰을 등록해요."
           }
         }
       }
@@ -16700,6 +17228,12 @@
             "state": "translated",
             "value": "Сосуми"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sosumi"
+          }
         }
       }
     },
@@ -16765,6 +17299,12 @@
             "state": "translated",
             "value": "Субмарина"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submarine"
+          }
         }
       }
     },
@@ -16828,6 +17368,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Телефон получит из этого QR-кода адрес сервера и одноразовый код."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "휴대폰은 이 QR 코드에서 서버 주소와 일회용 코드를 받아요."
           }
         }
       }
@@ -16893,6 +17439,12 @@
             "state": "translated",
             "value": "Не удалось закодировать URL сервера или код привязки."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 URL 또는 페어링 코드를 인코딩할 수 없어요."
+          }
         }
       }
     },
@@ -16956,6 +17508,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Этот одноразовый код уже использован."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 일회용 코드는 이미 사용되었어요."
           }
         }
       }
@@ -17022,6 +17580,12 @@
             "state": "translated",
             "value": "Осталось"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "남은 시간"
+          }
         }
       }
     },
@@ -17087,6 +17651,12 @@
             "state": "translated",
             "value": "Звяк"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tink"
+          }
         }
       }
     },
@@ -17151,6 +17721,12 @@
             "state": "translated",
             "value": "Повторите попытку, когда сервер станет доступен."
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 연결할 수 있을 때 다시 시도하세요."
+          }
         }
       }
     },
@@ -17214,6 +17790,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Действует"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "유효 기간"
           }
         }
       }
@@ -17280,6 +17862,12 @@
             "state": "translated",
             "value": "Ожидает"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "대기 시간"
+          }
         }
       }
     },
@@ -17345,6 +17933,12 @@
             "state": "translated",
             "value": "Ожидает %@"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 대기 중"
+          }
         }
       }
     },
@@ -17408,6 +18002,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ждёт вашего ответа"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 응답 대기 중"
           }
         }
       }
@@ -17474,6 +18074,12 @@
             "state": "translated",
             "value": "Будет выбрано"
           }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자동 선택"
+          }
         }
       }
     },
@@ -17537,6 +18143,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Всё чисто. Агенты появятся здесь, когда им понадобится ваше решение."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모두 처리했어요. 에이전트에게 결정이 필요하면 여기에 표시돼요."
           }
         }
       }

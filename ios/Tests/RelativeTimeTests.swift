@@ -34,7 +34,7 @@ final class RelativeTimeTests: XCTestCase {
     /// must read as "ago" in every shipped language.
     func testPastTimesNeverRenderAsNegativeNumbers() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let shipped = ["en_US", "zh_CN", "th_TH", "es_ES", "hi_IN", "ar_SA", "pt_BR", "fr_FR", "ja_JP", "ru_RU"]
+        let shipped = ["en_US", "zh_CN", "th_TH", "es_ES", "hi_IN", "ar_SA", "pt_BR", "fr_FR", "ja_JP", "ko_KR", "ru_RU"]
         for identifier in shipped {
             for seconds in [60.0, 3600, 86_400] {
                 let text = RelativeTime.short(from: now.addingTimeInterval(-seconds), now: now,

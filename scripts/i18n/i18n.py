@@ -17,12 +17,12 @@ CATALOGS = {
     "macos": "macos/Sources/HibossIsland/Resources/Localizable.xcstrings",
     "kit": "HibossKit/Sources/HibossKit/Resources/Localizable.xcstrings",
 }
-LANGS = ["en", "zh-Hans", "th", "es", "hi", "ar", "pt-BR", "fr", "ja", "ru"]
+LANGS = ["en", "zh-Hans", "th", "es", "hi", "ar", "pt-BR", "fr", "ja", "ko", "ru"]
 # CLDR categories each language must provide for a plural string; extra ones are allowed.
 PLURALS = {"en": {"one", "other"}, "es": {"one", "other"}, "fr": {"one", "other"},
            "pt-BR": {"one", "other"}, "hi": {"one", "other"}, "ru": {"one", "few", "many", "other"},
            "ar": {"zero", "one", "two", "few", "many", "other"},
-           "zh-Hans": {"other"}, "ja": {"other"}, "th": {"other"}}
+           "zh-Hans": {"other"}, "ja": {"other"}, "ko": {"other"}, "th": {"other"}}
 ALLOWED = {**{k: v | {"many"} for k, v in PLURALS.items() if k in ("es", "fr", "pt-BR")},
            **{k: v for k, v in PLURALS.items() if k not in ("es", "fr", "pt-BR")}}
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?(?:lld|ld|d|@|f|\.\d+f|u|llu)")
