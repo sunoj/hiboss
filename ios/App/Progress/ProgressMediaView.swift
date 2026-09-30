@@ -132,7 +132,7 @@ struct ProgressImageCell: View {
             .alert(String(localized: "Alternative text"), isPresented: $showAlt) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(media.alt ?? "")
+                Text(verbatim: media.alt ?? "")
             }
     }
 

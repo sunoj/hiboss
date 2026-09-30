@@ -32,7 +32,7 @@ struct ConnectView: View {
                 scanButton.padding(.top, 16)
 
                 if let error {
-                    Text(error)
+                    Text(verbatim: error)
                         .font(.hbCaption)
                         .foregroundStyle(Theme.negative)
                         .padding(.top, 12)
@@ -77,7 +77,7 @@ struct ConnectView: View {
         field: Field, secure: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).hbLabel().foregroundStyle(Theme.ink4)
+            Text(verbatim: title).hbLabel().foregroundStyle(Theme.ink4)
             Group {
                 if secure {
                     SecureField(placeholder, text: text)

@@ -87,7 +87,7 @@ struct SessionCard: View {
             }
             Spacer(minLength: 8)
             if let last = group.lastActivity {
-                Text(RelativeTime.short(from: last))
+                Text(verbatim: RelativeTime.short(from: last))
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink2)
                     .lineLimit(1)
@@ -97,7 +97,7 @@ struct SessionCard: View {
 
     private var titleRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(group.localizedLabel)
+            Text(verbatim: group.localizedLabel)
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)
@@ -121,7 +121,7 @@ struct SessionCard: View {
             if let branch = group.branch, !branch.isEmpty {
                 chip("arrow.triangle.branch", branch, Theme.ink2)
             }
-            chip("bubble.left", "\(group.messages.count)", Theme.ink2)
+            chip("bubble.left", group.messages.count.formatted(), Theme.ink2)
             Spacer(minLength: 0)
         }
         .font(.caption)
@@ -132,7 +132,7 @@ struct SessionCard: View {
     private func chip(_ icon: String, _ text: String, _ tint: Color) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon).font(.caption2).foregroundStyle(tint)
-            Text(text)
+            Text(verbatim: text)
         }
     }
 

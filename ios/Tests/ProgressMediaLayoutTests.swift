@@ -60,8 +60,9 @@ final class ProgressMediaLayoutTests: XCTestCase {
     }
 
     func testDurationLabelFormatsMinutesAndSeconds() {
-        XCTAssertEqual(ProgressMediaLayout.durationLabel(milliseconds: 0), "0:00")
-        XCTAssertEqual(ProgressMediaLayout.durationLabel(milliseconds: 15_000), "0:15")
-        XCTAssertEqual(ProgressMediaLayout.durationLabel(milliseconds: 65_000), "1:05")
+        let en = Locale(identifier: "en_US")
+        XCTAssertEqual(ProgressMediaLayout.durationLabel(milliseconds: 0, locale: en), "0:00")
+        XCTAssertEqual(ProgressMediaLayout.durationLabel(milliseconds: 15_000, locale: en), "0:15")
+        XCTAssertEqual(ProgressMediaLayout.durationLabel(milliseconds: 65_000, locale: en), "1:05")
     }
 }

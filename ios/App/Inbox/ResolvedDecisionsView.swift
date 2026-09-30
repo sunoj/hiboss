@@ -102,18 +102,18 @@ struct ResolvedDecisionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(message.displayName)
+                Text(verbatim: message.displayName)
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 if !when.isEmpty {
-                    Text(when)
+                    Text(verbatim: when)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
-            Text(message.body)
+            Text(verbatim: message.body)
                 .font(.body)
                 .foregroundStyle(.primary)
                 .lineLimit(3)
@@ -127,7 +127,7 @@ struct ResolvedDecisionRow: View {
 
     private func settlementBlock(_ settlement: DecisionSettlement) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(settlement.answer, systemImage: "checkmark.circle.fill")
+            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: "checkmark.circle.fill") }
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
                 .symbolRenderingMode(.hierarchical)

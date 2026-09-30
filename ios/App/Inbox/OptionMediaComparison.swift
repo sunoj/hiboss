@@ -41,7 +41,7 @@ private struct OptionMediaTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(media.label)
+            Text(verbatim: media.label)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
@@ -71,7 +71,7 @@ private struct OptionMediaTile: View {
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Open image for \(media.label)")
             if let caption = media.caption, !caption.isEmpty {
-                Text(caption)
+                Text(verbatim: caption)
                     .font(.caption)
                     .foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)

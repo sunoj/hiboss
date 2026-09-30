@@ -36,7 +36,7 @@ struct HomeProjectCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(project.slug)
+            Text(verbatim: project.slug)
                 .font(.hbBodyStrong)
                 .foregroundStyle(Theme.ink)
                 .lineLimit(1)
@@ -47,7 +47,7 @@ struct HomeProjectCard: View {
                     .foregroundStyle(Theme.warn)
             }
             if let post = project.lastPost {
-                Text(post.body)
+                Text(verbatim: post.body)
                     .font(.hbCaption)
                     .foregroundStyle(Theme.ink2)
                     .lineLimit(2)
@@ -66,19 +66,11 @@ struct HomeProjectCard: View {
     private var sessionCounts: some View {
         let s = project.sessions
         return HStack(spacing: 8) {
-            countPill(s.working, label: "working", tint: Theme.positive)
-            countPill(s.waiting, label: "waiting", tint: Theme.warn)
-            countPill(s.blocked, label: "blocked", tint: Theme.negative)
-            countPill(s.idle, label: "idle", tint: Theme.ink3)
+            if s.working > 0 { Text("\(s.working) working").foregroundStyle(Theme.positive) }
+            if s.waiting > 0 { Text("\(s.waiting) waiting").foregroundStyle(Theme.warn) }
+            if s.blocked > 0 { Text("\(s.blocked) blocked").foregroundStyle(Theme.negative) }
+            if s.idle > 0 { Text("\(s.idle) idle").foregroundStyle(Theme.ink3) }
         }
         .font(.hbCaption)
-    }
-
-    @ViewBuilder
-    private func countPill(_ count: Int, label: String, tint: Color) -> some View {
-        if count > 0 {
-            Text("\(count) \(label)")
-                .foregroundStyle(tint)
-        }
     }
 }

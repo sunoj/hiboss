@@ -20,7 +20,7 @@ struct ReplySheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(message.body)
+                    Text(verbatim: message.body)
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
@@ -30,7 +30,7 @@ struct ReplySheet: View {
                         ForEach(message.options, id: \.self) { option in
                             Button { send(option) } label: {
                                 HStack {
-                                    Text(option)
+                                    Text(verbatim: option)
                                     Spacer()
                                     if submitting == option { ProgressView() }
                                 }
@@ -53,7 +53,7 @@ struct ReplySheet: View {
                     }
                 }
             }
-            .navigationTitle(message.displayName)
+            .navigationTitle(Text(verbatim: message.displayName))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }

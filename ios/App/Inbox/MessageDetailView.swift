@@ -69,7 +69,7 @@ struct MessageDetailView: View {
             }
             .background(Theme.paper)
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(title(for: message))
+            .navigationTitle(Text(verbatim: title(for: message)))
             .navigationBarTitleDisplayMode(.inline)
         } else {
             fallbackView
@@ -135,7 +135,7 @@ struct MessageDetailView: View {
         ContentUnavailableView {
             Label(title, systemImage: icon)
         } description: {
-            Text(description)
+            Text(verbatim: description)
         } actions: {
             Button("Retry") { fallback = .loading; loadAttempt += 1 }
         }

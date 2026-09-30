@@ -35,14 +35,14 @@ private struct RoutingRow: View {
     var body: some View {
         Menu {
             ForEach(NotificationChannel.allCases, id: \.self) { channel in
-                Toggle(isOn: binding(channel)) { Text(channel.title) }
+                Toggle(isOn: binding(channel)) { Text(verbatim: channel.title) }
             }
         } label: {
             HStack {
                 Circle().fill(dotColor).frame(width: 8, height: 8)
-                Text(priority.localizedTitle).foregroundStyle(.primary)
+                Text(verbatim: priority.localizedTitle).foregroundStyle(.primary)
                 Spacer()
-                Text(summary).foregroundStyle(.secondary).lineLimit(1)
+                Text(verbatim: summary).foregroundStyle(.secondary).lineLimit(1)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2).foregroundStyle(.tertiary)
             }
@@ -51,7 +51,7 @@ private struct RoutingRow: View {
 
     private var summary: String {
         let names = NotificationChannel.allCases.filter(selected.contains).map(\.title)
-        return names.isEmpty ? String(localized: "None") : names.joined(separator: ", ")
+        return names.isEmpty ? String(localized: "None") : names.formatted(.list(type: .and, width: .narrow))
     }
 
     private func binding(_ channel: NotificationChannel) -> Binding<Bool> {

@@ -78,10 +78,11 @@ struct ProgressFeedView: View {
                     }
                 }
             } label: {
-                Label(
-                    store.selectedProject ?? String(localized: "All projects"),
-                    systemImage: "line.3.horizontal.decrease.circle"
-                )
+                Label {
+                    Text(verbatim: store.selectedProject ?? String(localized: "All projects"))
+                } icon: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
             }
             .accessibilityLabel("Filter by project")
         }

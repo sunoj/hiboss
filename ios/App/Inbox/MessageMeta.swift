@@ -147,10 +147,10 @@ struct MessageMetaStrip: View {
             Image(systemName: item.icon)
                 .foregroundStyle(item.tint)
                 .symbolRenderingMode(.hierarchical)
-                .accessibilityLabel("\(item.label) \(item.value)")
+                .accessibilityLabel(Text(verbatim: "\(item.label) \(item.value)"))
         } else {
             Label {
-                Text(item.value)
+                Text(verbatim: item.value)
             } icon: {
                 Image(systemName: item.icon).foregroundStyle(item.tint)
             }

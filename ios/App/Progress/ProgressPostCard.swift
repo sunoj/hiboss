@@ -17,7 +17,7 @@ struct ProgressPostCard: View {
             ProgressTeamAvatar(urlString: post.team.avatarUrl)
             VStack(alignment: .leading, spacing: 6) {
                 header
-                Text(post.body)
+                Text(verbatim: post.body)
                     .font(.body)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -25,7 +25,7 @@ struct ProgressPostCard: View {
                     ProgressMediaView(items: post.media, onOpen: onOpenMedia)
                 }
                 if !post.tags.isEmpty {
-                    Text(post.tags.map { "#\($0)" }.joined(separator: " "))
+                    Text(verbatim: post.tags.map { "#\($0)" }.joined(separator: " "))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -42,23 +42,23 @@ struct ProgressPostCard: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(post.team.displayName)
+                Text(verbatim: post.team.displayName)
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                Text("·")
+                Text(verbatim: "·")
                     .font(.subheadline)
                     .foregroundStyle(.tertiary)
-                Text("@\(post.team.handle)")
+                Text(verbatim: "@\(post.team.handle)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .layoutPriority(-1)
                 if !post.relativeCreatedAt.isEmpty {
-                    Text("·")
+                    Text(verbatim: "·")
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
-                    Text(post.relativeCreatedAt)
+                    Text(verbatim: post.relativeCreatedAt)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -87,7 +87,7 @@ struct ProgressLikeButton: View {
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: liked)
                 if count > 0 {
-                    Text("\(count)")
+                    Text(count, format: .number)
                         .font(.subheadline)
                         .monospacedDigit()
                         .contentTransition(.numericText())
