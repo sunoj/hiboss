@@ -50,11 +50,10 @@ final class SessionTranscriptLayoutTests: XCTestCase {
             event(id: "m2", seq: 6, kind: "message", at: "2026-08-14T10:00:09Z"),
             event(id: "e", seq: 7, kind: "error", body: "boom", at: "2026-08-14T10:00:10Z"),
         ])
-        XCTAssertEqual(items.map(\.id), ["m1", "steps-t", "m2", "steps-e"])
+        XCTAssertEqual(items.map(\.id), ["m1", "steps-t", "m2", "e"])
         guard case let .steps(_, run) = items[1] else { return XCTFail("activity collapses into one run") }
         XCTAssertEqual(run.map(\.id), ["t", "r", "h"], "unknown kinds never appear, not even inside the run")
-        guard case let .steps(_, tail) = items[3] else { return XCTFail("a message closes the run") }
-        XCTAssertEqual(tail.map(\.id), ["e"])
+        guard case .notice = items[3] else { return XCTFail("an agent error stays visible, never folded into steps") }
     }
 
     func testOnlyUnknownKindsProduceNoRow() {

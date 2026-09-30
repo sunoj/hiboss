@@ -24,6 +24,9 @@ struct SessionTranscriptItemView: View {
             }
         case let .steps(_, events):
             SessionStepsRow(events: events)
+        case let .notice(event):
+            SessionSystemLine(event: event)
+                .foregroundStyle(Theme.negative)
         }
     }
 

@@ -35,6 +35,26 @@ final class UXTourUITests: XCTestCase {
              arguments: ["-AppleLanguages", "(\(language))", "-AppleLocale", language.replacingOccurrences(of: "-", with: "_")])
     }
 
+    /// The Messages toolbar in the two non-connected states the demo can simulate.
+    func testTourConnectionStates() {
+        for state in ["failed", "connecting"] {
+            app = XCUIApplication()
+            app.configureDemoLaunch(["HIBOSS_DEMO_CONNECTION": state])
+            app.launchArguments += ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+            app.launch()
+            if app.textFields["server-url-field"].waitForExistence(timeout: 3) {
+                app.terminate()
+                app.launch()
+            }
+            let messages = app.tabBars.buttons.element(boundBy: 1)
+            guard messages.waitForExistence(timeout: 8) else { continue }
+            messages.tap()
+            settle()
+            shot("\(appearancePrefix)conn-\(state)-04-messages")
+            app.terminate()
+        }
+    }
+
     func testTourEmpty() {
         tour(prefix: appearancePrefix + "empty", extra: ["HIBOSS_DEMO_EMPTY": "1"],
              arguments: ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"])

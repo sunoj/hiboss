@@ -17,12 +17,15 @@ enum SessionTranscriptItem: Identifiable, Equatable {
     case bubble(SessionEvent, SessionBubbleStyle)
     /// A consecutive run of tool calls, results, hooks and other non-message activity.
     case steps(id: String, events: [SessionEvent])
+    /// An agent error: the boss sees it, so it is never folded into steps.
+    case notice(SessionEvent)
 
     var id: String {
         switch self {
         case let .time(id, _): return id
         case let .bubble(event, _): return event.id
         case let .steps(id, _): return id
+        case let .notice(event): return event.id
         }
     }
 }
@@ -112,6 +115,10 @@ extension SessionTranscriptLayout {
         groupBroken: Bool,
         into result: inout [SessionTranscriptItem]
     ) {
+        if event.kind == "error" {
+            result.append(.notice(event))
+            return
+        }
         guard isBubble(event) else {
             appendStep(event, into: &result)
             return

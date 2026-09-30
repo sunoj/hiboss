@@ -151,16 +151,7 @@ struct SessionMessagesView: View {
     /// Same reply path and feedback as the Home card, so an answer means the same everywhere.
     private func handleReply(_ choice: String, to id: MessageID) {
         Task {
-            switch await store.reply(choice, to: id) {
-            case .sent:
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-            case .alreadyResolved:
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                actionNote = String(localized: "That decision was already answered elsewhere.")
-            case .failed:
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
-                actionNote = String(localized: "Couldn't send your reply — check your connection.")
-            }
+            if let note = await store.replyWithFeedback(choice, to: id) { actionNote = note }
         }
     }
 }
