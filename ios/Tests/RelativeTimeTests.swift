@@ -30,6 +30,20 @@ final class RelativeTimeTests: XCTestCase {
         XCTAssertFalse(rendered.contains(where: \.isEmpty))
     }
 
+    /// Russian's narrowest CLDR past form is a signed number ("-1 мин"); a past time
+    /// must read as "ago" in every shipped language.
+    func testPastTimesNeverRenderAsNegativeNumbers() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let shipped = ["en_US", "zh_CN", "th_TH", "es_ES", "hi_IN", "ar_SA", "pt_BR", "fr_FR", "ja_JP", "ru_RU"]
+        for identifier in shipped {
+            for seconds in [60.0, 3600, 86_400] {
+                let text = RelativeTime.short(from: now.addingTimeInterval(-seconds), now: now,
+                                              locale: Locale(identifier: identifier))
+                XCTAssertFalse(text.hasPrefix("-") || text.hasPrefix("\u{2212}"), "\(identifier): \(text)")
+            }
+        }
+    }
+
     private func systemRelativeString(for date: Date, relativeTo now: Date, locale: Locale) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
