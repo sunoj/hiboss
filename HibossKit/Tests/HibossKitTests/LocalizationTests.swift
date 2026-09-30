@@ -37,16 +37,21 @@ final class LocalizationTests: XCTestCase {
                        "Bundle.main must not carry the package catalog")
     }
 
-    func testCountedStringsUsePluralVariations() {
-        XCTAssertEqual(kitL("\(1) fields"), "1 field")
-        XCTAssertEqual(kitL("\(3) fields"), "3 fields")
-        XCTAssertEqual(kitL("\(1) more rows in panel"), "1 more row in panel")
+    func testCountedStringsUsePluralVariations() throws {
+        let url = try XCTUnwrap(kitResourceBundle.url(forResource: "en", withExtension: "lproj"))
+        let english = try XCTUnwrap(Bundle(url: url))
+        func counted(_ key: String, _ count: Int) -> String {
+            String(format: english.localizedString(forKey: key, value: nil, table: nil), locale: Locale(identifier: "en"), count)
+        }
+        XCTAssertEqual(counted("%lld fields", 1), "1 field")
+        XCTAssertEqual(counted("%lld fields", 3), "3 fields")
+        XCTAssertEqual(counted("%lld more rows in panel", 1), "1 more row in panel")
     }
 
     func testPanelStatusCopyResolvesFromCatalog() {
-        XCTAssertEqual(PanelTaskState.completed.title, "Completed")
-        XCTAssertEqual(PanelFreshness.awaitingData.title, "Awaiting data")
-        XCTAssertEqual(PanelValue.bool(true).displayText, "On")
+        XCTAssertEqual(PanelTaskState.completed.title, kitL("Completed"))
+        XCTAssertEqual(PanelFreshness.awaitingData.title, kitL("Awaiting data"))
+        XCTAssertEqual(PanelValue.bool(true).displayText, kitL("On"))
         XCTAssertEqual(PanelValue.number(1234.5).formattedText, 1234.5.formatted())
         XCTAssertEqual(PanelValue.number(1234.5).displayText, "1234.5")
     }
