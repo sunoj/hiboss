@@ -64,7 +64,9 @@ final class ProminentActionAppearanceTests: XCTestCase {
         ))
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         var luminances: [Double] = []
-        for y in Int(Double(height) * 0.4)..<Int(Double(height) * 0.6) {
+        // The 360x100 window renders the two buttons in its top ~57%; the left label sits at
+        // roughly 20–38% of the height, so sample there rather than the window's middle.
+        for y in Int(Double(height) * 0.2)..<Int(Double(height) * 0.38) {
             for x in Int(Double(width) * 0.12)..<Int(Double(width) * 0.35) {
                 let offset = (y * width + x) * 4
                 let channels = (0..<3).map { channel -> Double in

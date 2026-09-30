@@ -12,6 +12,8 @@ CATALOGS = {
     "ios": "ios/App/Localizable.xcstrings",
     "ios-infoplist": "ios/App/InfoPlist.xcstrings",
     "widgets": "ios/Widgets/Localizable.xcstrings",
+    "widgets-infoplist": "ios/Widgets/InfoPlist.xcstrings",
+    "macos-infoplist": "macos/Sources/HibossIsland/Resources/InfoPlist.xcstrings",
     "macos": "macos/Sources/HibossIsland/Resources/Localizable.xcstrings",
     "kit": "HibossKit/Sources/HibossKit/Resources/Localizable.xcstrings",
 }
@@ -24,7 +26,7 @@ PLURALS = {"en": {"one", "other"}, "es": {"one", "other"}, "fr": {"one", "other"
 ALLOWED = {**{k: v | {"many"} for k, v in PLURALS.items() if k in ("es", "fr", "pt-BR")},
            **{k: v for k, v in PLURALS.items() if k not in ("es", "fr", "pt-BR")}}
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?(?:lld|ld|d|@|f|\.\d+f|u|llu)")
-SOURCE_DIRS = {"ios": ["ios/App"], "ios-infoplist": ["ios/App"], "widgets": ["ios/Widgets"],
+SOURCE_DIRS = {"ios": ["ios/App"], "ios-infoplist": ["ios/App"], "widgets": ["ios/Widgets"], "widgets-infoplist": ["ios/Widgets"], "macos-infoplist": ["macos/Sources"],
                "macos": ["macos/Sources"], "kit": ["HibossKit/Sources"]}
 
 
