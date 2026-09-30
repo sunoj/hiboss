@@ -19,7 +19,7 @@ extension HistoryMessage {
         return String(name.prefix(2)).capitalized
     }
 
-    var displayName: String { agentName ?? "agent" }
+    var displayName: String { agentName ?? String(localized: "Agent") }
 
     // `content` comes from HibossKit's HistoryMessage.content (metadata.content);
     // the Live Activity widget trims/empties it at render via LA.nonEmpty.

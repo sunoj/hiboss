@@ -1,6 +1,7 @@
 // Home tab: a glanceable, actionable attention surface.
 // Exports: HomeView bound to InboxStore and message/session detail destinations.
 // Dependencies: SwiftUI, InboxStore, AttentionModel, HomeAttentionSection, and PanelsModel.
+// Message rows push MessageID onto the Home tab's own NavigationStack.
 
 import HibossKit
 import SwiftUI
@@ -21,6 +22,8 @@ struct HomeView: View {
                 await panels.load()
             }
             .task { await inbox.refresh() }
+            // Panels load here, not in the wall: the wall only exists once there are tiles.
+            .task { await panels.loadIfNeeded() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     inbox.refreshHistory()
@@ -46,7 +49,9 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: 22) {
                     attentionContent(now: context.date)
-                    HomePanelWall(model: panels)
+                    if !panels.tiles.isEmpty {
+                        HomePanelWall(model: panels)
+                    }
                 }
                 .padding(.vertical, 12)
             }
@@ -64,25 +69,24 @@ struct HomeView: View {
             hasPanels: !panels.visibleTiles.isEmpty,
             status: attentionStatus,
             onChoose: handleReply,
-            onOpen: { AppRouter.shared.open(messageID: $0.rawValue) },
             onOpenPanel: openPanel
         )
     }
 
     var attentionStatus: String? {
         if let error = inbox.requiredInputError ?? inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
-            return "Couldn't check all requests. \(error) Pull to refresh."
+            return String(localized: "Couldn't check all requests. \(error) Pull to refresh.")
         }
         if !inbox.didLoad || !inbox.hasCompleteRequiredInputs
             || panels.loadState != .loaded || !panels.hasCompleteQuestionnaires {
-            return "Checking for requests…"
+            return String(localized: "Checking for requests…")
         }
         return nil
     }
 
     private func openPanel(_ id: String) {
         guard panels.tiles.contains(where: { $0.id == id }) else {
-            actionNote = "This panel isn't available yet. Pull to refresh and try again."
+            actionNote = String(localized: "This panel isn't available yet. Pull to refresh and try again.")
             return
         }
         panels.open(id)

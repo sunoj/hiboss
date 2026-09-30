@@ -6,13 +6,19 @@ set -euo pipefail
 OUT=$(cd "$(dirname "$1")" && pwd)/$(basename "$1"); SIM=${2:-iPhone 17}
 mkdir -p "$OUT"; rm -rf "$OUT"/*.xcresult "$OUT/shots"
 xcodegen generate -q
-xcrun simctl boot "$SIM" 2>/dev/null || true
+if ! xcrun simctl list devices booted | grep -F "$SIM (" >/dev/null; then
+  xcrun simctl boot "$SIM"
+fi
 run() { # $1 appearance, $2 prefix, $3.. -only-testing filters
   local appearance=$1 prefix=$2; shift 2
   xcrun simctl ui "$SIM" appearance "$appearance"
   TEST_RUNNER_UX_TOUR_PREFIX="$prefix" xcodebuild test -project HiBoss.xcodeproj -scheme HiBoss \
     -destination "platform=iOS Simulator,name=$SIM" -derivedDataPath "$OUT/dd" \
-    -resultBundlePath "$OUT/$appearance.xcresult" "$@" 2>&1 | grep -E 'error:|TEST (SUCCEEDED|FAILED)|Test Case .*failed' || true
+    -parallel-testing-enabled NO -collect-test-diagnostics never -resultBundlePath "$OUT/$appearance.xcresult" "$@" \
+    >"$OUT/$appearance.log" 2>&1 || {
+      tail -n 80 "$OUT/$appearance.log" >&2
+      return 1
+    }
 }
 run light "" -only-testing:HiBossUITests/UXTourUITests
 run dark "dark-" -only-testing:HiBossUITests/UXTourUITests/testTourChinese

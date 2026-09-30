@@ -1,6 +1,6 @@
-// Attribute-row styling for the message detail Details section.
-// Exports: MessageAttributeStyle, AttributeRow, MessageDetailsSection.
-// Dependencies: SwiftUI, HibossKit HistoryMessage, CountdownText.
+// Attribute-row styling for the message detail Details card.
+// Exports: MessageAttributeStyle and AttributeRow.
+// Dependencies: SwiftUI and Theme tokens.
 
 import HibossKit
 import SwiftUI
@@ -26,10 +26,10 @@ enum MessageAttributeStyle {
 
     static func priority(_ raw: String) -> (icon: String, tint: Color) {
         switch raw.lowercased() {
-        case "critical": ("exclamationmark.octagon.fill", .red)
-        case "high": ("exclamationmark.triangle.fill", .orange)
-        case "low": ("arrow.down.circle", .secondary)
-        default: ("equal.circle", .secondary)
+        case "critical": ("exclamationmark.octagon.fill", Theme.negative)
+        case "high": ("exclamationmark.triangle.fill", Theme.warn)
+        case "low": ("arrow.down.circle", Theme.ink2)
+        default: ("equal.circle", Theme.ink2)
         }
     }
 
@@ -48,110 +48,47 @@ enum MessageAttributeStyle {
 
     static func status(_ raw: String) -> (icon: String, tint: Color) {
         switch raw.lowercased() {
-        case "delivered": ("checkmark.circle.fill", .green)
-        case "read": ("eye.fill", .blue)
-        case "sent": ("paperplane.fill", .secondary)
-        case "queued", "pending": ("clock.badge", .orange)
-        case "expired": ("clock.badge.xmark", .secondary)
-        case "failed": ("exclamationmark.circle.fill", .red)
-        default: ("circle", .secondary)
+        case "delivered": ("checkmark.circle.fill", Theme.positive)
+        case "read": ("eye.fill", Theme.accent)
+        case "sent": ("paperplane.fill", Theme.ink2)
+        case "queued", "pending": ("clock.badge", Theme.warn)
+        case "expired": ("clock.badge.xmark", Theme.ink2)
+        case "failed": ("exclamationmark.circle.fill", Theme.negative)
+        default: ("circle", Theme.ink2)
         }
     }
 }
 
 struct AttributeRow<Value: View>: View {
     let icon: String
-    var tint: Color = .secondary
-    let label: String
+    var tint: Color = Theme.ink2
+    /// Localized through the catalog; a plain String here would render verbatim.
+    let label: LocalizedStringResource
     @ViewBuilder var value: () -> Value
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        LabeledContent {
-            value()
-        } label: {
-            Label {
-                Text(label)
-            } icon: {
-                Image(systemName: icon).foregroundStyle(tint)
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 4) {
+                labelView
+                value().foregroundStyle(Theme.ink2).fixedSize(horizontal: false, vertical: true)
             }
-        }
-    }
-}
-
-struct MessageDetailsSection: View {
-    let message: HistoryMessage
-
-    var body: some View {
-        Section("Details") {
-            baseRows
-            optionalRows
-            statusRow
-        }
-    }
-
-    @ViewBuilder private var baseRows: some View {
-        AttributeRow(icon: "cpu", label: "Agent") {
-            Text(message.displayName)
-        }
-        if let session = message.sessionLabel?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !session.isEmpty {
-            AttributeRow(icon: "square.stack.3d.up", label: "Session") {
-                Text(session)
-            }
-        }
-        AttributeRow(icon: MessageAttributeStyle.directionIcon(message.direction), label: "Direction") {
-            Text(MessageAttributeStyle.directionLabel(message.direction))
-        }
-        let glyph = MessageMeta.typeGlyph(message.type)
-        AttributeRow(icon: glyph.icon, label: "Type") {
-            Text(glyph.label)
-        }
-        let p = MessageAttributeStyle.priority(message.priority)
-        AttributeRow(icon: p.icon, tint: p.tint, label: "Priority") {
-            Text(MessageMeta.localizedPriorityName(message.priority))
-        }
-    }
-
-    @ViewBuilder private var optionalRows: some View {
-        if let branch = message.sessionBranch?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !branch.isEmpty {
-            AttributeRow(icon: "arrow.triangle.branch", label: "Branch") {
-                Text(branch).monospaced()
-            }
-        }
-        let files = message.metadata?.files ?? []
-        if !files.isEmpty {
-            AttributeRow(icon: "doc.text", label: String(localized: "Files")) {
-                Text(files.map { $0.split(separator: "/").last.map(String.init) ?? $0 }.joined(separator: ", "))
-            }
-        }
-        if let mode = message.mode, !mode.isEmpty {
-            AttributeRow(icon: MessageAttributeStyle.mode(mode), label: "Mode") {
-                Text(MessageMeta.localizedModeName(mode))
-            }
-        }
-        if let channel = message.channel, !channel.isEmpty {
-            AttributeRow(icon: MessageAttributeStyle.channel(channel), label: "Channel") {
-                Text(channel.capitalized)
-            }
-        }
-        if message.isPendingDecision, let deadline = message.expirationDate {
-            let tint: Color = message.priorityValue == .critical ? .red : .secondary
-            AttributeRow(icon: "timer", tint: tint, label: "Time left") {
-                CountdownText(deadline: deadline, tint: tint)
-            }
-        }
-        if !message.relativeCreatedAt.isEmpty {
-            AttributeRow(icon: "clock", label: "Created") {
-                Text(message.relativeCreatedAt)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        } else {
+            LabeledContent {
+                value().multilineTextAlignment(.trailing)
+            } label: {
+                labelView
             }
         }
     }
 
-    private var statusRow: some View {
-        let s = MessageAttributeStyle.status(message.status)
-        return AttributeRow(icon: s.icon, tint: s.tint, label: "Status") {
-            Text(MessageMeta.localizedStatusName(message.status))
+    private var labelView: some View {
+        Label {
+            Text(label)
+        } icon: {
+            Image(systemName: icon).foregroundStyle(tint)
         }
     }
 }

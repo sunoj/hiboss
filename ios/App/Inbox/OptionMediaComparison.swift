@@ -43,14 +43,12 @@ private struct OptionMediaTile: View {
         VStack(alignment: .leading, spacing: 5) {
             Text(media.label)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
             Button(action: open) {
-                // The aspect ratio hangs off Color.clear, which has no size of its
-                // own, so the tile takes the width it is offered. Put it on the
-                // AsyncImage instead and a loaded 480pt-wide screenshot becomes the
-                // tile's ideal width, which pushes the whole card past the screen.
-                Color.clear
+                // A flexible surface owns the aspect ratio; the loaded image stays
+                // in its overlay so its intrinsic width cannot expand the card.
+                Rectangle().fill(Theme.surface2)
                     .aspectRatio(1.35, contentMode: .fit)
                     .overlay {
                         AsyncImage(url: URL(string: media.url)) { phase in
@@ -70,12 +68,13 @@ private struct OptionMediaTile: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
+            .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Open image for \(media.label)")
             if let caption = media.caption, !caption.isEmpty {
                 Text(caption)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -84,7 +83,7 @@ private struct OptionMediaTile: View {
     private func placeholder(systemImage: String) -> some View {
         Image(systemName: systemImage)
             .font(.title2)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.ink2)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
@@ -95,19 +94,19 @@ private struct OptionMediaZoom: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
+            Theme.mediaBackground.ignoresSafeArea()
             AsyncImage(url: URL(string: media.url)) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().scaledToFit()
                 case .failure:
                     ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.ink2)
                 case .empty:
-                    ProgressView().tint(.white)
+                    ProgressView().tint(Theme.ink2)
                 @unknown default:
                     ContentUnavailableView("Image unavailable", systemImage: "photo")
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.ink2)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

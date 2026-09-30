@@ -43,12 +43,12 @@ enum MessagePriority: String, CaseIterable, Sendable {
         }
     }
 
-    var localizedTitle: String {
+    var localizedTitle: LocalizedStringResource {
         switch self {
-        case .critical: String(localized: "Critical")
-        case .high: String(localized: "High")
-        case .normal: String(localized: "Normal")
-        case .low: String(localized: "Low")
+        case .critical: "Critical"
+        case .high: "High"
+        case .normal: "Normal"
+        case .low: "Low"
         }
     }
 

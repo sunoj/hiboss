@@ -24,6 +24,10 @@ enum Theme {
     static let line = Color(.separator)
     static let line2 = Color(.opaqueSeparator)
 
+    // System tint and media surfaces
+    static let accent = Color.accentColor
+    static let mediaBackground = Color(.systemBackground)
+
     // Status accents
     static let positive = Color.green
     static let negative = Color.red

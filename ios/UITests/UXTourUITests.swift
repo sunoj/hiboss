@@ -11,7 +11,7 @@ final class UXTourUITests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
-        continueAfterFailure = true
+        continueAfterFailure = false
         app = XCUIApplication()
     }
 
@@ -47,11 +47,11 @@ final class UXTourUITests: XCTestCase {
         settle()
         shot("\(prefix)-02-home-scrolled")
         app.swipeDown()
-        openFirstHomeItem(prefix: prefix)
+        if extra["HIBOSS_DEMO_EMPTY"] != "1" { openFirstHomeItem(prefix: prefix) }
         // Tabs by position: labels are localised, the order is fixed by RootTabView.
         for (index, name) in ["messages", "progress", "sessions", "settings"].enumerated() {
             let tab = app.tabBars.buttons.element(boundBy: index + 1)
-            guard tab.waitForExistence(timeout: 5) else { continue }
+            XCTAssertTrue(tab.waitForExistence(timeout: 5), "missing tour tab \(name)")
             tab.tap()
             settle()
             shot("\(prefix)-\(String(format: "%02d", index * 2 + 4))-\(name)")
@@ -65,9 +65,10 @@ final class UXTourUITests: XCTestCase {
 
     private func openFirstHomeItem(prefix: String) {
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'home-message-'")).firstMatch
-        guard row.waitForExistence(timeout: 5) else { return }
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "populated Home requires a decision row")
         row.tap()
         settle()
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
         shot("\(prefix)-03-home-detail")
         app.navigationBars.buttons.firstMatch.tap()
         settle()

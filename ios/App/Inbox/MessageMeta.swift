@@ -82,7 +82,7 @@ enum MessageMeta {
         let priority = message.priorityValue
         if priority == .critical || priority == .high {
             let p = MessageAttributeStyle.priority(message.priority)
-            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: priority.localizedTitle, value: priority.localizedTitle, tint: p.tint))
+            items.append(MessageMetaItem(id: "priority", icon: p.icon, label: String(localized: priority.localizedTitle), value: String(localized: priority.localizedTitle), tint: p.tint))
         }
         if message.mode == "blocking" {
             items.append(MessageMetaItem(id: "mode", icon: MessageAttributeStyle.mode("blocking"), label: String(localized: "Blocking"), value: String(localized: "Blocking")))
@@ -121,7 +121,7 @@ struct MessageMetaItem: Identifiable, Equatable {
     let icon: String
     let label: String
     let value: String
-    var tint: Color = .secondary
+    var tint: Color = Theme.ink2
 }
 
 struct MessageMetaStrip: View {
@@ -136,7 +136,7 @@ struct MessageMetaStrip: View {
                 HStack(spacing: 8) { ForEach(items.prefix(4)) { chip($0) } }
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.ink2)
             .lineLimit(1)
         }
     }

@@ -6,7 +6,7 @@ import SwiftUI
 
 struct CountdownText: View {
     let deadline: Date
-    var tint: Color = .secondary
+    var tint: Color = Theme.ink2
 
     /// Under two minutes the clock reads as a live emergency, not metadata.
     private let urgentWindow: TimeInterval = 120
@@ -24,9 +24,9 @@ struct CountdownText: View {
     }
 
     private func color(for remaining: TimeInterval) -> Color {
-        if remaining <= 0 { return .secondary }
-        if remaining <= urgentWindow { return .red }
-        if remaining <= warnWindow { return .orange }
+        if remaining <= 0 { return Theme.ink2 }
+        if remaining <= urgentWindow { return Theme.negative }
+        if remaining <= warnWindow { return Theme.warn }
         return tint
     }
 

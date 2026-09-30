@@ -1,5 +1,5 @@
 // iOS dashboard wall with shared summary cards and native panel detail navigation.
-// Exports: HomePanelWall.
+// Exports: HomePanelWall, shown by Home only when at least one tile exists in any state.
 // Dependencies: SwiftUI, HibossKit PanelsModel, PanelDashboardCard, and PanelRenderer.
 
 import HibossKit
@@ -14,16 +14,16 @@ struct HomePanelWall: View {
                 Text("Live panels").font(.title2.bold())
                 Spacer()
                 if model.isDemoMode {
-                    Text("Sample data").font(.caption).foregroundStyle(.secondary)
+                    Text("Sample data").font(.caption).foregroundStyle(Theme.ink2)
                 } else {
-                    Text("\(model.visibleTiles.count)").font(.headline).foregroundStyle(.secondary)
+                    Text("\(model.visibleTiles.count)").font(.headline).foregroundStyle(Theme.ink2)
                 }
             }
             PanelWallFilter(model: model)
             if !model.visibleTiles.isEmpty {
                 if let failure = model.failureMessage {
                     Label(failure, systemImage: "exclamationmark.triangle")
-                        .font(.callout).foregroundStyle(.orange)
+                        .font(.callout).foregroundStyle(Theme.warn)
                 }
                 wall
             } else if model.isLoading {
@@ -33,7 +33,6 @@ struct HomePanelWall: View {
             }
         }
         .padding(.horizontal, 16)
-        .task { await model.loadIfNeeded() }
         .sheet(isPresented: Binding(
             get: { model.selectedTile != nil },
             set: { if !$0 { model.closeDetail() } }
@@ -73,7 +72,7 @@ private struct HomePanelDetail: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(tile.sourceLabel).font(.callout).foregroundStyle(.secondary)
+                    Text(tile.sourceLabel).font(.callout).foregroundStyle(Theme.ink2)
                     Label(model.freshness(for: tile).title, systemImage: model.freshness(for: tile).symbol)
                         .font(.caption).foregroundStyle(model.freshness(for: tile).color)
                     PanelOutcomeView(tile: tile)
@@ -85,7 +84,7 @@ private struct HomePanelDetail: View {
                         Text("Captured submission").font(.headline)
                         if store.submissionWasEdited {
                             Text("The form has changed since this submission.")
-                                .font(.callout).foregroundStyle(.secondary)
+                                .font(.callout).foregroundStyle(Theme.ink2)
                         }
                         Text(answer).font(.caption.monospaced()).textSelection(.enabled)
                     }
