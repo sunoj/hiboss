@@ -31,7 +31,7 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-            .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI) }
+            .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI, store: inbox) }
             .alert(
                 "Heads up",
                 isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
