@@ -65,7 +65,6 @@ struct SettingsScene: View {
             ConnectionSettingsPane(
                 settings: settings,
                 flow: flow,
-                statusMessage: statusMessage,
                 isConnecting: isConnecting,
                 reconnect: connect
             )
@@ -96,12 +95,9 @@ struct SettingsScene: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 16) {
-            SettingsFooterStatus(
-                text: L("Listening"),
-                isActive: flow.connectionState == .connected,
-                error: footerError
-            )
+        let status = SettingsConnectionStatus(flow.connectionState)
+        return HStack(spacing: 16) {
+            SettingsFooterStatus(text: status.title, isActive: status.isLive, error: footerError)
             Spacer()
             Button(L("Save & Connect"), action: connect)
                 .buttonStyle(.borderedProminent)
