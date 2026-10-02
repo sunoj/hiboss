@@ -1,6 +1,6 @@
 # macOS Client UX Audit — 2026-10-02
 
-Audit of the current native macOS client (`macos/`, shared code in `HibossKit/`) against
+Audit of the October 2 native macOS baseline (`macos/`, shared code in `HibossKit/`) against
 [`macos-design-v2.md`](macos-design-v2.md), [`macos-information-redesign.md`](macos-information-redesign.md)
 and [`native-client-attention-model.md`](native-client-attention-model.md). These docs were
 treated as claims to check, not as facts. Every finding here was traced in code, and most
@@ -50,7 +50,45 @@ consistency or polish.
 | Dark | tiles ✓; sidebar text unverified | ✓ | ✓ | ✓ | always dark ✓ |
 | Keyboard | ⌘, ⌘↩ only; no ⌘R; history detail is double-click only ✗ | ⌘↩ ✓ | ✗ | — | none |
 
-## Confirmed failures
+## Source fixes — 2026-10-03
+
+The findings below retain the baseline evidence. These source changes supersede
+the corresponding failures; they do not describe an installed release.
+
+| Finding | Current behavior | Evidence |
+| --- | --- | --- |
+| P0-1 | The status action opens scene `main`, independent of the current navigation title. The opener is installed from app commands; an early request is replayed once. | Five navigation tests; a synthetic native app passes four close/reopen cycles in accessory mode with one window, including repeated open. |
+| P0-2 | Reply methods return true only for acceptance. A conflict preserves drafts, refreshes history, retains an observed winning resolution and withdraws a stale question without inventing an answer. | Thirteen reply-outcome tests and native conflict renders, including expiry without a recorded answer. |
+| P2-9 | Inline History choices show message-specific feedback and disable choices while sending. | Scripted failure/retry tests and a row render with feedback on one message. |
+| P2-10 | Settings footer and Connection pane use `ConnectionState.label`; the pane exposes the failure reason. | Four Settings tests and disconnected/connected/failed renders in light and dark. |
+| P2-11 | Devices uses `laptopcomputer.and.iphone`. | Every Settings symbol resolves on the test Mac; fresh renders show the glyph. |
+| P2-13 | The sidebar footer has native `.bar` material. | Before/after renders no longer draw session content through the footer. |
+| Notification detail | Pending decisions opened from notifications use the shared reply callback and the loaded message's canonical ID. The previous callback always failed. | Two composition tests exercise the actual loaded-detail callback with accepted, closed and failed results; MainView sheet wiring is source-verified. |
+
+The P1-8 feedback portion also changed: the controller injects one
+`AttentionReplyState` into both Island hosting roots. Drafts, sending and errors
+belong to the presented message ID. Four Island tests cover rejected replies,
+question changes, accepted clearing and shared roots. Frame sizing and Skip
+remain tied to the live message and are still unresolved.
+
+HTTP 409 proves the decision is closed, not that someone answered. Conflict copy
+therefore says "That decision is no longer available." in all 11 locales. A
+specific answer and source require an actual recorded reply or stream resolution.
+
+Combined verification: **203 Mac tests**, **152 HibossKit XCTest tests** and
+**one Swift Testing test**, all passing. Fresh synthetic captures cover Settings,
+the sidebar, History feedback and Island conflict/failure states. The Island
+failure render retains the typed draft and wraps the error using semantic text.
+KB consulted: `a-timeout-default-writes-the-same-record-a-human-does` and
+`a-view-the-platform-drops-renders-no-error`.
+
+Remaining boundaries: no actual status-menu click, notification deep-link after
+reopen, closed-at-launch recovery, keyboard or VoiceOver verification. The
+offscreen resolved Island source caption is still not reliable visual evidence.
+P1-3 through P1-7 remain open: these changes do not fix history provenance,
+unified questionnaire attention, stale-content banners or stream handshake truth.
+
+## Confirmed baseline failures
 
 ### P0-1 — "Open HiBoss…" in the status menu cannot find the main window
 `HibossIslandApp.swift:170-173` looks the window up by `title == productName` ("HiBoss").
@@ -227,13 +265,13 @@ today.
 
 ## Ordered follow-ups
 
-1. Fix P0-1 (open by scene id) and P0-2 (propagate `ReplyOutcome`). Each is small and has a
-   unit test.
-2. Fix P1-3 and P1-4 together in `HistoryMessageLogic`, using one resolution model:
+1. Fix P1-3 and P1-4 together in `HistoryMessageLogic`, using one resolution model:
    answered, auto-decided, or expired without an answer.
-3. Fix P1-6 (connection truth), then P1-5 (content-level failure banner) and P2-10 (Settings
-   copy). Each depends on the one before it.
-4. Fix P1-7, the attention and questionnaire count, as a shared decision across iOS and
+2. Fix P1-6 (connection truth), then P1-5 (content-level failure banners). Settings now
+   displays the published state, but the stream still publishes connected too early.
+3. Fix P1-7, the attention and questionnaire count, as a shared decision across iOS and
    macOS.
-5. Fix P1-8 (Island frame and controls follow the presented item) and P2-9 (row errors).
-6. Fix P2-11 through P2-14, then the live screenshot pass for the unverified rows above.
+4. Finish P1-8: Island frame and Skip must follow the presented item, including error height.
+5. Fix P2-12 (duplicated disconnected panels) and P2-14 (timestamps without dates).
+6. Verify live menu/notification routing, keyboard, VoiceOver, resolved detail controls and
+   minimum-size task completion. P0-1, P0-2, P2-9, P2-10, P2-11 and P2-13 have source fixes.

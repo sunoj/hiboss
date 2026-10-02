@@ -1,6 +1,6 @@
 # HiBoss product roadmap
 
-Updated: 2026-10-02. This is the current product index. The
+Updated: 2026-10-03. This is the current product index. The
 [version history](../.aid/knowledge/roadmap-history.md) records earlier changes;
 individual design contracts define behavior in detail.
 
@@ -48,17 +48,32 @@ local-tool slice. Neither document claims a published release.
 
 P0 covers false decision confidence or inaccessible primary surfaces. P1 covers
 core task comprehension or completion; P2 covers consistency and readability.
-The audit confirms MAC-01 through MAC-06 at the source,
-synthetic-state or render levels; live interaction gaps remain explicit there.
+The audit records the October 2 baseline for MAC-01 through MAC-06 at the source,
+synthetic-state or render levels. Its source-fix table describes subsequent
+changes; live interaction gaps remain explicit there.
 MAC-07 through MAC-09 include behaviors still needing interactive verification.
+
+| Scope | Current source status | Verification boundary |
+| --- | --- | --- |
+| MAC-01 | The status menu opens the main scene by ID; early requests survive opener installation. | Navigation tests and four synthetic native close/reopen cycles in accessory mode; actual menu click and closed-at-launch case remain unverified. |
+| MAC-02 | Only accepted replies clear drafts. Conflicts refresh authoritative history and preserve message-specific drafts, including Island presentation changes. | Scripted accepted/conflict/failure and stream-resolution tests; native conflict/failure renders. |
+| MAC-04 | Settings displays the actual connection state and failure detail. | Stream handshake truth and content-level stale-data banners remain unresolved. |
+| MAC-06 | Island draft, submitting and failure feedback use the presented message ID. | Frame sizing and Skip still follow the live message. |
+| MAC-07 | Notification-opened decisions use the shared reply flow and the loaded message's canonical ID. | Two callback-composition tests; actual notification click, button interaction and minimum-size task completion remain unverified. |
+| MAC-09 | Devices uses an available symbol; the sidebar Settings footer has a native material background. | Synthetic light/dark renders; keyboard, VoiceOver and live selection rendering remain unverified. |
+| CLI-04 | `status` is read-only, supports JSON, retains reply assurance and labels recorded automatic defaults separately from other replies. | Ten executable loopback tests; live delivery and long-wait/retry feedback remain outside this slice. |
 
 CLI-01 through CLI-03 have an implemented first slice: six command groups,
 messaging/panel/questionnaire examples, offline guide/validation, recovery without
 config-value echoes, and preserved load-error/required-value exit statuses.
-Verification: 257 CLI tests passed on a Linux build host, including 11 executable
-UX tests. Mac baseline: 175 tests passed; the synthetic native harness passed
+Verification: 273 CLI tests passed on a Linux build host, including 21 executable
+UX tests. The combined Mac changes passed 203 tests; HibossKit passed 152 XCTest
+tests and one Swift Testing test. Mac baseline: 175 tests passed; its native harness passed
 9 additional render/state tests and captured 33 images. These results do not
 verify live delivery, native keyboard/VoiceOver use or the installed binaries.
+Configuration-load and provenance failures have typed exit handling. Other CLI
+errors still use text matching, so server response bodies and request URLs can
+affect their exit status; the CLI reference describes the current classifier.
 
 ## Dependent product work
 
