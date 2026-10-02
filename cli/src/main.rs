@@ -2,13 +2,14 @@
 // Exports: hiboss binary entry point.
 // Dependencies: clap, tokio, crate::commands, crate::client, crate::config.
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
     hook, inbox, init, key, panel, progress, react, read, reply, request, route, send, setup, ss, status, watch,
 };
 use hiboss::config;
+use hiboss::help;
 use std::error::Error;
 
 #[derive(Parser)]
@@ -83,7 +84,9 @@ async fn main() {
     if let Err(err) = run().await {
         let msg = err.to_string();
         eprintln!("Error: {}", msg);
-        let code = if msg.contains("not configured")
+        let code = if err.is::<config::LoadError>() {
+            1
+        } else if msg.contains("not configured")
             || msg.contains("missing")
             || msg.contains("config")
         {
@@ -101,9 +104,15 @@ async fn main() {
 }
 
 async fn run() -> Result<(), Box<dyn Error>> {
-    let cli = Cli::parse();
+    let matches = help::grouped_root_command(Cli::command()).get_matches();
+    let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|err| err.exit());
+    if run_offline(&cli.command).await? {
+        return Ok(());
+    }
     let mut config = config::load_config()?;
-    if run_local(&cli.command, &mut config).await? { return Ok(()); }
+    if run_local(&cli.command, &mut config).await? {
+        return Ok(());
+    }
     let server = config.require_server()?;
     let key = config.require_key()?;
     let client = client::HiBossClient::new(&server, &key);
@@ -140,45 +149,39 @@ async fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn run_local(command: &Commands, config: &mut config::Config) -> Result<bool, Box<dyn Error>> {
+/// Commands that do not require parseable configuration in the top-level dispatcher.
+async fn run_offline(command: &Commands) -> Result<bool, Box<dyn Error>> {
     match command {
-        Commands::Config(command) => {
-            config_cmd::run(&command.command, config).await?;
-            return Ok(true);
-        }
-        Commands::Init(command) => {
-            init::run(command, config).await?;
-            return Ok(true);
-        }
-        Commands::Hook(args) => {
-            hook::run(args).await?;
-            return Ok(true);
-        }
-        Commands::Setup(args) if !setup::needs_client(args) => {
-            setup::run(args)?;
-            return Ok(true);
-        }
-        Commands::Doctor(args) => {
-            doctor::run(args, &config).await?;
-            return Ok(true);
-        }
-        Commands::Daemon(args) => {
-            daemon::run(args).await?;
-            return Ok(true);
-        }
-        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Guide) => {
-            println!("{}", hiboss::commands::setup_agents::PANEL_GUIDE);
-            return Ok(true);
-        }
-        Commands::Panel(args) if matches!(&args.command, panel::PanelCommand::Validate(_)) => {
-            panel::run_validate(match &args.command { panel::PanelCommand::Validate(arguments) => arguments, _ => unreachable!() })?;
-            return Ok(true);
-        }
-        Commands::Progress(_) | Commands::Project(_) => {}
-        _ => {}
+        Commands::Hook(args) => hook::run(args).await?,
+        Commands::Setup(args) if !setup::needs_client(args) => setup::run(args)?,
+        Commands::Panel(args) => match &args.command {
+            panel::PanelCommand::Guide => {
+                println!("{}", hiboss::commands::setup_agents::PANEL_GUIDE)
+            }
+            panel::PanelCommand::Validate(arguments) => panel::run_validate(arguments)?,
+            _ => return Ok(false),
+        },
+        _ => return Ok(false),
     }
-    Ok(false)
+    Ok(true)
 }
 
+/// Commands that need a readable config file but not a configured server.
+async fn run_local(
+    command: &Commands,
+    config: &mut config::Config,
+) -> Result<bool, Box<dyn Error>> {
+    match command {
+        Commands::Config(command) => config_cmd::run(&command.command, config).await?,
+        Commands::Init(command) => init::run(command, config).await?,
+        Commands::Doctor(args) => doctor::run(args, config).await?,
+        Commands::Daemon(args) => daemon::run(args).await?,
+        _ => return Ok(false),
+    }
+    Ok(true)
+}
+
+#[cfg(test)]
+mod help_tests;
 #[cfg(test)]
 mod project_command_tests;
