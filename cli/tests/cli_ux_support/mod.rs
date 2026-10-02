@@ -1,5 +1,5 @@
 // Purpose: Run the hiboss binary under an isolated synthetic HOME for executable-level tests.
-// Exports: Sandbox (config states, run), Outcome.
+// Exports: Sandbox (config states, run, run_loopback), Outcome.
 // Dependencies: std::process, std::fs; CARGO_BIN_EXE_hiboss from Cargo.
 
 use std::fs;
@@ -52,6 +52,17 @@ impl Sandbox {
     }
 
     pub fn run(&self, args: &[&str]) -> Outcome {
+        self.execute(args, &[])
+    }
+
+    /// Like `run`, but 127.0.0.1 bypasses the dead proxy so a synthetic loopback server
+    /// is reachable; every other host still fails fast.
+    #[allow(dead_code)]
+    pub fn run_loopback(&self, args: &[&str]) -> Outcome {
+        self.execute(args, &[("NO_PROXY", "127.0.0.1")])
+    }
+
+    fn execute(&self, args: &[&str], extra: &[(&str, &str)]) -> Outcome {
         let output = Command::new(env!("CARGO_BIN_EXE_hiboss"))
             .args(args)
             .current_dir(&self.home)
@@ -63,6 +74,7 @@ impl Sandbox {
             // Any accidental HTTP request fails fast instead of leaving the box.
             .env("HTTPS_PROXY", "http://127.0.0.1:9")
             .env("HTTP_PROXY", "http://127.0.0.1:9")
+            .envs(extra.iter().copied())
             .stdin(Stdio::null())
             .output()
             .expect("run hiboss binary");
