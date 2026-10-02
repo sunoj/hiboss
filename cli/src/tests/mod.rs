@@ -3,6 +3,7 @@
 // Dependencies: test submodules.
 
 mod ask;
+mod config_recovery;
 mod helpers;
 mod inbox;
 mod setup;
