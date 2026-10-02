@@ -51,6 +51,8 @@ struct NotificationMessageDetail: View {
     let messageID: MessageID
     let settings: AppSettings
     @ObservedObject var reply: AttentionReplyState
+    /// Sends a reply for a message id; nil means accepted, as in `OptionFlowStore.answer`.
+    let onReply: (String, MessageID) async -> ReplyFeedback?
     @State private var message: HistoryMessage?
     @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
@@ -58,7 +60,7 @@ struct NotificationMessageDetail: View {
     var body: some View {
         Group {
             if let message {
-                HistoryMessageDetail(message: message, reply: reply) { _ in .failed("") }
+                loadedDetail(message)
             } else if let errorMessage {
                 ContentUnavailableView {
                     Label(L("History Unavailable"), systemImage: "exclamationmark.triangle")
@@ -74,6 +76,11 @@ struct NotificationMessageDetail: View {
         }
         .frame(minWidth: 360, minHeight: 320)
         .task(id: messageID) { await load() }
+    }
+
+    /// Replies go to the loaded message's own id, never the notification's requested id.
+    func loadedDetail(_ message: HistoryMessage) -> HistoryMessageDetail {
+        HistoryMessageDetail(message: message, reply: reply) { await onReply($0, message.id) }
     }
 
     private func load() async {
