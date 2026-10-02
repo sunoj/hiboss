@@ -58,7 +58,7 @@ struct NotificationMessageDetail: View {
     var body: some View {
         Group {
             if let message {
-                HistoryMessageDetail(message: message, reply: reply) { _ in false }
+                HistoryMessageDetail(message: message, reply: reply) { _ in .failed("") }
             } else if let errorMessage {
                 ContentUnavailableView {
                     Label(L("History Unavailable"), systemImage: "exclamationmark.triangle")

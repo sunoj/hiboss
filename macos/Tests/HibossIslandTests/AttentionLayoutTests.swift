@@ -22,9 +22,9 @@ final class AttentionLayoutTests: XCTestCase {
             options: ["Approve", "Wait"], sessionStatus: "waiting")
         let reply = AttentionReplyState()
         reply.drafts[message.id] = "Please investigate first."
-        await reply.send("Please investigate first.", for: message.id) { _, _ in false }
+        await reply.send("Please investigate first.", for: message.id) { _, _ in .failed("") }
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
-            let host = NSHostingView(rootView: HistoryMessageDetail(message: message, reply: reply) { _ in false })
+            let host = NSHostingView(rootView: HistoryMessageDetail(message: message, reply: reply) { _ in .failed("") })
             host.sizingOptions = []
             host.appearance = NSAppearance(named: appearance)
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 320),

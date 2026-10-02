@@ -1,47 +1,9 @@
 // Coordinates message history and the streamed option-to-reply flow.
-// Exports: OptionFlowStore plus connection, history, and presentation states.
+// Exports: OptionFlowStore; its published states live in OptionFlowStates.swift.
 // Dependencies: BossServing domain contract and Combine observation.
 
 import Combine
 import Foundation
-
-public enum ConnectionState: Equatable {
-    case disconnected
-    case connecting
-    case connected
-    case failed(String)
-
-    public var label: String {
-        switch self {
-        case .disconnected: kitL("Disconnected")
-        case .connecting: kitL("Connecting")
-        case .connected: kitL("Listening")
-        case .failed: kitL("Connection failed")
-        }
-    }
-
-    /// The failure reason for `.failed`, if any — surfaced where space allows.
-    public var detail: String? {
-        if case let .failed(message) = self, !message.isEmpty { return message }
-        return nil
-    }
-}
-
-public enum PresentationState: Equatable {
-    case idle
-    case ready
-    case submitting(String)
-    case failed(String)
-    /// The decision was answered elsewhere; briefly show the choice + source.
-    case resolved(answer: String?, source: String?)
-}
-
-public enum HistoryState: Equatable {
-    case idle
-    case loading
-    case loaded
-    case failed(String)
-}
 
 @MainActor
 public final class OptionFlowStore: ObservableObject {
@@ -50,6 +12,8 @@ public final class OptionFlowStore: ObservableObject {
     @Published public private(set) var presentationState: PresentationState = .idle
     @Published public private(set) var historyMessages: [HistoryMessage] = []
     @Published public private(set) var historyState: HistoryState = .idle
+    /// Per-message outcome of the last reply that did not land; cleared when one is accepted.
+    @Published public private(set) var replyFeedback: [MessageID: ReplyFeedback] = [:]
 
     private let reconnectDelay: Duration
     private var api: (any BossServing)?
@@ -93,6 +57,7 @@ public final class OptionFlowStore: ObservableObject {
         historyMessages.removeAll()
         projectSessions.removeAll()
         historyState = .idle
+        replyFeedback.removeAll()
         connectionState = .disconnected
     }
 
@@ -147,15 +112,25 @@ public final class OptionFlowStore: ObservableObject {
     }
 
     /// Answers a past (history) option message by id, independent of the live `activeMessage`.
-    /// Used by the History window so the boss can act on decisions that are not the current popup.
+    /// True only when the server accepted this reply; otherwise `replyFeedback[messageID]` says why.
     @discardableResult
     public func answerHistory(_ choice: String, for messageID: MessageID) async -> Bool {
-        guard let api else { return false }
+        guard let api else {
+            replyFeedback[messageID] = .failed(kitL("Disconnected"))
+            return false
+        }
+        replyFeedback[messageID] = nil
         do {
-            _ = try await api.reply(to: messageID, with: choice)
-            await refreshHistory()
-            return true
+            switch try await api.reply(to: messageID, with: choice) {
+            case .accepted:
+                await refreshHistory()
+                return true
+            case .alreadyResolved:
+                await settleConflict(for: messageID)
+                return false
+            }
         } catch {
+            replyFeedback[messageID] = .failed(error.localizedDescription)
             return false
         }
     }
@@ -177,19 +152,41 @@ public final class OptionFlowStore: ObservableObject {
         dismiss(message.id)
     }
 
-    @discardableResult
+    /// Replies to the live message. Only `.accepted` dismisses it as this device's answer.
     private func send(_ body: String, for message: OptionMessage) async -> Bool {
         guard let api else { return false }
+        replyFeedback[message.id] = nil
         presentationState = .submitting(body)
         do {
-            _ = try await api.reply(to: message.id, with: body)
-            dismiss(message.id)
-            refreshHistoryInBackground()
-            return true
+            switch try await api.reply(to: message.id, with: body) {
+            case .accepted:
+                dismiss(message.id)
+                refreshHistoryInBackground()
+                return true
+            case .alreadyResolved:
+                await settleConflict(for: message.id)
+                return false
+            }
         } catch {
-            presentationState = .failed(error.localizedDescription)
+            replyFeedback[message.id] = .failed(error.localizedDescription)
+            if activeMessage?.id == message.id, case .submitting = presentationState {
+                presentationState = .ready
+            }
             return false
         }
+    }
+
+    /// A 409 means another answer won. Reload history so a recorded answer is shown as the
+    /// outcome; if history still lags, withdraw the stale choice without inventing an answer.
+    /// Leaves other messages and an already observed resolution for this one untouched.
+    private func settleConflict(for messageID: MessageID) async {
+        replyFeedback[messageID] = .alreadyAnswered
+        await refreshHistory()
+        expirationTasks.removeValue(forKey: messageID)?.cancel()
+        queuedMessages.removeAll { $0.id == messageID }
+        guard activeMessage?.id == messageID else { return }
+        if case .resolved = presentationState { return }
+        showNextMessage()
     }
 
     private func consumeStreams(from api: any BossServing) async {

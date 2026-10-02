@@ -1,5 +1,5 @@
 // Native List row for one History message — Mail-style, no card chrome.
-// Exports: HistoryRow with avatar, unread dot, and priority/direction glyphs.
+// Exports: HistoryRow with avatar, unread dot, priority/direction glyphs, inline reply feedback.
 // Dependencies: SwiftUI, HibossKit HistoryMessage, DesignTokens.
 
 import HibossKit
@@ -7,6 +7,8 @@ import SwiftUI
 
 struct HistoryRow: View {
     let message: HistoryMessage
+    var error: String? = nil
+    var isSubmitting = false
     var onChoose: ((String) -> Void)? = nil
 
     var body: some View {
@@ -23,6 +25,12 @@ struct HistoryRow: View {
                         .foregroundStyle(.secondary)
                 } else if !message.options.isEmpty {
                     optionRow
+                }
+                if let error {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -57,6 +65,7 @@ struct HistoryRow: View {
             }
             .padding(.top, 2)
         }
+        .disabled(isSubmitting)
     }
 
     @ViewBuilder

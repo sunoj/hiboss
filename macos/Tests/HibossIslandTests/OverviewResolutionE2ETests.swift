@@ -32,9 +32,7 @@ final class OverviewResolutionE2ETests: XCTestCase {
         let reply = AttentionReplyState()
         reply.drafts["question"] = "Please run the smoke tests first."
 
-        await reply.send(reply.drafts["question"] ?? "", for: "question") { text, id in
-            await flow.answerHistory(text, for: id)
-        }
+        await reply.send(reply.drafts["question"] ?? "", for: "question", using: flow.answer)
 
         XCTAssertEqual(snapshot(flow).count(.completed), 1)
         XCTAssertEqual(snapshot(flow).count(.needsYou), 0)
