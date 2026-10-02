@@ -176,11 +176,11 @@ public final class OptionFlowStore: ObservableObject {
         }
     }
 
-    /// A 409 means another answer won. Reload history so a recorded answer is shown as the
-    /// outcome; if history still lags, withdraw the stale choice without inventing an answer.
+    /// A 409 means the decision is closed (answered elsewhere or expired). Reload history so only a
+    /// recorded answer is shown as the outcome; otherwise withdraw the stale choice without inventing one.
     /// Leaves other messages and an already observed resolution for this one untouched.
     private func settleConflict(for messageID: MessageID) async {
-        replyFeedback[messageID] = .alreadyAnswered
+        replyFeedback[messageID] = .alreadyResolved
         await refreshHistory()
         expirationTasks.removeValue(forKey: messageID)?.cancel()
         queuedMessages.removeAll { $0.id == messageID }

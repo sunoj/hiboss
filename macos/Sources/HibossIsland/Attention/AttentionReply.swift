@@ -45,10 +45,11 @@ extension OptionFlowStore {
 }
 
 extension ReplyFeedback {
-    /// Copy under a composer: an answer recorded elsewhere is final; a failure keeps the draft.
+    /// Copy under a composer: a closed decision is final and names no actor or answer;
+    /// a failure keeps the draft.
     var text: String {
         switch self {
-        case .alreadyAnswered: L("That decision was already answered elsewhere.")
+        case .alreadyResolved: L("That decision is no longer available.")
         case .failed: L("Reply failed. Your draft is saved. Try again.")
         }
     }
@@ -56,7 +57,7 @@ extension ReplyFeedback {
     /// Copy for a one-click choice, which has no draft to keep.
     var choiceText: String {
         switch self {
-        case .alreadyAnswered: L("That decision was already answered elsewhere.")
+        case .alreadyResolved: L("That decision is no longer available.")
         case .failed: L("Couldn't send your reply. Try again.")
         }
     }

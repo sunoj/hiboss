@@ -30,7 +30,7 @@ public enum PresentationState: Equatable {
     case idle
     case ready
     case submitting(String)
-    /// The decision was answered elsewhere; briefly show the choice + source.
+    /// An authoritative stream or history resolution; shows only the answer and source it recorded.
     case resolved(answer: String?, source: String?)
 }
 
@@ -43,8 +43,9 @@ public enum HistoryState: Equatable {
 
 /// Why a reply to one message did not land as the boss's answer, keyed by that message's id.
 public enum ReplyFeedback: Equatable, Sendable {
-    /// The server refused it (409): another client already answered. The local choice did not win.
-    case alreadyAnswered
+    /// The server refused it (409): the decision is closed. A 409 does not say whether another
+    /// client answered or the ask expired, so this case claims neither. The local choice did not win.
+    case alreadyResolved
     /// The request failed and can be retried.
     case failed(String)
 }

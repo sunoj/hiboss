@@ -245,7 +245,7 @@ final class OptionFlowE2ETests: XCTestCase {
         XCTAssertEqual(store.presentationState, .idle)
     }
 
-    func testWithdrawsMessageWhenAnotherClientWinsConcurrentSelection() async throws {
+    func testWithdrawsMessageWhenServerReportsDecisionClosed() async throws {
         let message = OptionMessage.fixture(id: "lost-race", options: ["Approve"])
         let api = ScriptedBossAPI(messages: [message], replyOutcome: .alreadyResolved)
         let store = OptionFlowStore(reconnectDelay: .seconds(60))
@@ -257,7 +257,7 @@ final class OptionFlowE2ETests: XCTestCase {
         XCTAssertFalse(accepted, "a 409 must not report the local choice as delivered")
         XCTAssertNil(store.activeMessage)
         XCTAssertEqual(store.presentationState, .idle)
-        XCTAssertEqual(store.replyFeedback[message.id], .alreadyAnswered)
+        XCTAssertEqual(store.replyFeedback[message.id], .alreadyResolved)
     }
 
     private func waitUntil(
