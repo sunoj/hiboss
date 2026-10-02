@@ -1,6 +1,6 @@
 // Presents option messages as either a top-edge island or standard window.
 // Exports: IslandPanelController driven by flow and presentation settings.
-// Dependencies: AppKit windows, SwiftUI hosting, Combine, and app constants.
+// Dependencies: AppKit windows, SwiftUI hosting, Combine, AttentionReplyState, and app constants.
 
 import AppKit
 import HibossKit
@@ -71,9 +71,11 @@ enum OptionPanelLayout {
 
 @MainActor
 final class IslandPanelController {
-    private let panel: IslandPanel
-    private let optionWindow: NSWindow
+    let panel: NSPanel
+    let optionWindow: NSWindow
     private let flow: OptionFlowStore
+    /// One reply state for both hosting roots: drafts survive question and presentation changes.
+    let reply = AttentionReplyState()
     private let settings: AppSettings
     private let soundPlayer: any SoundPlaying
     private var cancellables: Set<AnyCancellable> = []
@@ -114,7 +116,7 @@ final class IslandPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
-        panel.contentView = NSHostingView(rootView: IslandView(flow: flow))
+        panel.contentView = NSHostingView(rootView: IslandView(flow: flow, reply: reply))
     }
 
     /// The rounded surface is drawn in SwiftUI, so the window itself must be transparent.
@@ -140,7 +142,7 @@ final class IslandPanelController {
             optionWindow.standardWindowButton(button)?.isHidden = true
         }
         optionWindow.contentView = NSHostingView(
-            rootView: IslandView(flow: flow, surfaceStyle: .window)
+            rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
         )
     }
 

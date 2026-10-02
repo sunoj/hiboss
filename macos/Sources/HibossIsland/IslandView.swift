@@ -1,6 +1,6 @@
 // Renders the option picker for island and standard-window presentation.
 // Exports: IslandView, OptionMessageBody, and OptionSurfaceStyle.
-// Dependencies: SwiftUI and OptionFlowStore observation.
+// Dependencies: SwiftUI, OptionFlowStore, and the controller-owned AttentionReplyState.
 
 import SwiftUI
 import HibossKit
@@ -12,11 +12,14 @@ enum OptionSurfaceStyle: Sendable {
 
 struct IslandView: View {
     @ObservedObject var flow: OptionFlowStore
+    /// Drafts, sending and feedback keyed by message id; owned outside the hosting root so a
+    /// new question or presentation never erases them.
+    @ObservedObject var reply: AttentionReplyState
     let surfaceStyle: OptionSurfaceStyle
-    @State private var replyText = ""
 
-    init(flow: OptionFlowStore, surfaceStyle: OptionSurfaceStyle = .island) {
+    init(flow: OptionFlowStore, reply: AttentionReplyState, surfaceStyle: OptionSurfaceStyle = .island) {
         self.flow = flow
+        self.reply = reply
         self.surfaceStyle = surfaceStyle
     }
 
@@ -48,7 +51,6 @@ struct IslandView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(surfaceShape)
             .overlay(ExpiryBand(expiresAt: message.expirationDate, surfaceStyle: surfaceStyle))
-            .onChange(of: message.id) { replyText = "" }
         }
     }
 
@@ -111,14 +113,14 @@ struct IslandView: View {
                 }
             }
             Spacer()
-            if case .submitting = flow.presentationState {
+            if isSubmitting(message.id) {
                 ProgressView()
                     .controlSize(.small)
                     .tint(.white)
             }
             if flow.activeMessage?.id == message.id {
                 SkipButton { flow.skip() }
-                    .disabled(isSubmitting)
+                    .disabled(isSubmitting(message.id))
             }
         }
     }
@@ -150,20 +152,13 @@ struct IslandView: View {
         return trimmed
     }
 
-    private func submitReply(for messageID: MessageID) {
-        let pending = replyText
-        Task {
-            let trimmed = pending.trimmingCharacters(in: .whitespacesAndNewlines)
-            let sent: Bool
-            if flow.activeMessage?.id == messageID {
-                sent = await flow.submit(pending, for: messageID)
-            } else if trimmed.isEmpty {
-                sent = false
-            } else {
-                sent = await flow.answerHistory(trimmed, for: messageID)
-            }
-            if sent { replyText = "" }
-        }
+    /// Typed text and option clicks share one path: only an accepted reply clears the draft.
+    private func send(_ text: String, for messageID: MessageID) {
+        Task { await reply.send(text, for: messageID, using: flow.answer) }
+    }
+
+    private func draft(for messageID: MessageID) -> Binding<String> {
+        Binding(get: { reply.drafts[messageID] ?? "" }, set: { reply.drafts[messageID] = $0 })
     }
 
     private func optionList(_ message: OptionMessage) -> some View {
@@ -171,9 +166,9 @@ struct IslandView: View {
             options: message.options,
             media: message.metadata?.optionMedia ?? [],
             defaultOption: message.defaultOption,
-            choose: { chooseOption($0, for: message.id) }
+            choose: { send($0, for: message.id) }
         )
-        .disabled(isSubmitting)
+        .disabled(isSubmitting(message.id))
     }
 
     private func fixedActions(_ message: OptionMessage) -> some View {
@@ -182,32 +177,25 @@ struct IslandView: View {
                 .overlay(Color.white.opacity(0.12))
             optionList(message)
             errorLabel(for: message.id)
-            ReplyField(text: $replyText, isSubmitting: isSubmitting) {
-                submitReply(for: message.id)
+            ReplyField(text: draft(for: message.id), isSubmitting: isSubmitting(message.id)) {
+                send(reply.drafts[message.id] ?? "", for: message.id)
             }
         }
         .padding(.top, 10)
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func chooseOption(_ option: String, for messageID: MessageID) {
-        Task {
-            if flow.activeMessage?.id == messageID {
-                await flow.choose(option, for: messageID)
-            } else {
-                await flow.answerHistory(option, for: messageID)
-            }
-        }
-    }
-
     /// Feedback for the presented message only, never for a different live question.
+    /// Mentions the saved draft only when there is one.
     @ViewBuilder
     private func errorLabel(for messageID: MessageID) -> some View {
-        if let feedback = flow.replyFeedback[messageID] {
-            Text(feedback.choiceText)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color.red.opacity(0.9))
-                .lineLimit(2)
+        if let feedback = reply.errors[messageID] {
+            let hasDraft = !(reply.drafts[messageID] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            Text(hasDraft ? feedback.text : feedback.choiceText)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -228,9 +216,8 @@ struct IslandView: View {
         }
     }
 
-    private var isSubmitting: Bool {
-        if case .submitting = flow.presentationState { return true }
-        return false
+    private func isSubmitting(_ messageID: MessageID) -> Bool {
+        reply.submitting.contains(messageID)
     }
 }
 
