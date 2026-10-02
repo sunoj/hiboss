@@ -53,7 +53,8 @@ struct MainView: View {
             showsCompactOverview = false
         }
         .sheet(item: $notificationNavigation.target) { target in
-            NotificationMessageDetail(messageID: target.id, settings: settings, reply: reply)
+            NotificationMessageDetail(messageID: target.id, settings: settings, reply: reply,
+                onReply: flow.answer)
         }
         .onChange(of: flow.historyMessages) { updateOverview() }
         .onChange(of: flow.activeMessage) { updateOverview() }
