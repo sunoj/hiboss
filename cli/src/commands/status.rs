@@ -1,7 +1,8 @@
-// Purpose: Report the current status of a sent message and any replies.
-// Exports: StatusArgs and run().
-// Dependencies: clap, crate::client, crate::config.
+// Purpose: Report the stored status of a message and its replies without changing it.
+// Exports: StatusArgs and run(); one GET, then text or a single JSON document on stdout.
+// Dependencies: clap, crate::client, crate::config, status_result.
 
+use super::status_result::StatusReport;
 use crate::{client::HiBossClient, config::Config};
 use clap::Args;
 use std::error::Error;
@@ -10,6 +11,9 @@ use std::error::Error;
 pub struct StatusArgs {
     #[arg(value_name = "id")]
     pub id: String,
+    /// Print one JSON document (message_id, direction, status, replies) on stdout
+    #[arg(long)]
+    pub json: bool,
 }
 
 pub async fn run(
@@ -17,29 +21,12 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
-    let mut message = client.get_message(&args.id).await?;
-    let is_a2a = message.direction.as_deref() == Some("agent_to_agent");
-    if !is_a2a {
-        if let Err(err) = client.update_status(&args.id, "read").await {
-            eprintln!("Could not update status: {}", err);
-        }
-        message = client.get_message(&args.id).await?;
-    }
-    println!("ID: {}", message.id);
-    let status = message.status.as_deref().unwrap_or("unknown");
-    if is_a2a {
-        println!("Delivery: {status}");
+    let message = client.get_message(&args.id).await?;
+    let report = StatusReport::from_message(&message);
+    if args.json {
+        println!("{}", serde_json::to_string(&report)?);
     } else {
-        println!("Status: {status}");
-    }
-    if let Some(replies) = &message.replies {
-        for reply in replies {
-            println!(
-                "Reply {}: {}",
-                reply.id,
-                reply.body.as_deref().unwrap_or("-")
-            );
-        }
+        print!("{}", report.text());
     }
     Ok(())
 }
