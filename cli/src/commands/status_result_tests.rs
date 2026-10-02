@@ -24,7 +24,27 @@ fn non_boolean_auto_default_is_not_a_discriminator() {
     })));
     assert_eq!(reply.outcome, ReplyOutcome::Reply);
     assert_eq!(reply.action.as_deref(), Some("deploy"));
-    assert_eq!(reply.text(), "Reply r1 [reply]: Approve\n  Action: deploy\n");
+    assert_eq!(reply.text(), "Reply r1 [reply]: Approve\n  Source: agent\n  Action: deploy\n");
+}
+
+#[test]
+fn boss_replies_carry_the_verifier_assurance_label() {
+    let attributed = |source: &str, status: &str, extra: Value| {
+        let mut meta = json!({"source": source,
+            "provenance": {"version": 1, "source": source, "signature": {"status": status}}});
+        let extra = extra.as_object().cloned().unwrap_or_default();
+        meta.as_object_mut().expect("object").extend(extra);
+        let mut reply = json!({"id": "r1", "direction": "boss_to_agent", "body": "Approve"});
+        reply["metadata"] = meta;
+        message(reply)
+    };
+    let api = ReplyReport::from_reply(&attributed("api", "not_configured", json!({})));
+    assert_eq!(api.assurance, "api/not_configured");
+    assert_eq!(api.text(), "Reply r1 [reply]: Approve\n  Source: api/not_configured\n");
+    let auto_meta = json!({"auto_default": true});
+    let auto = ReplyReport::from_reply(&attributed("system", "not_applicable", auto_meta));
+    assert_eq!(auto.assurance, "system/not_applicable");
+    assert!(auto.text().contains("\n  Source: system/not_applicable\n  Automatic timeout"));
 }
 
 #[test]

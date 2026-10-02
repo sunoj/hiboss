@@ -72,11 +72,20 @@ none of these states sends a request.
 | --- | --- |
 | 0 | Success |
 | 1 | Command failed, including unreadable or unparseable configuration |
-| 2 | Usage error from argument parsing, or a network failure (`request failed`, `connect`, `timeout`) |
-| 3 | Missing or blank required configuration |
+| 2 | Usage error from argument parsing, or an error classified as a request failure |
+| 3 | Missing or blank required configuration, or an error classified as such |
 
-Configuration-load errors have an explicit type, so clearer diagnostics cannot
-change their status through the general message-based error classifier.
+Configuration-load and message provenance-verification errors have explicit
+types and always exit 1, so wording in their diagnostics (such as `missing
+provenance`) cannot change their status.
+
+Every other error is classified by its text. Text containing `not configured`,
+`missing` or `config` exits 3; otherwise text containing `request failed`,
+`connect` or `timeout` exits 2; anything else exits 1. That text includes the
+server's error body and, for transport failures, the request URL. So an HTTP
+error status from the message endpoints (`request failed (<code>): <body>`)
+usually exits 2, and a transport failure (`error sending request for url
+(...)`) usually exits 1, but words in the body or URL can change either.
 
 ## Verifying
 
@@ -94,17 +103,20 @@ never changes the stored status. `hiboss read <id>` shows the full message and
 reply chain and is also read-only.
 
 Text output names the message ID, its direction, and the stored `status`. The
-status is the raw server state (`sent`, `delivered`, `replied`, `expired`, ...);
-it records delivery, not that anyone approved anything. Each reply line carries
-its outcome:
+status is the raw stored delivery or resolution state (`sent`, `delivered`,
+`replied`, `expired`, ...); it does not mean that anyone approved anything. Each
+reply line carries its outcome and a `Source:` line with the reply's provenance
+assurance:
 
 ```text
 Message: msg_1
 Direction: agent_to_boss
-Status: replied (stored delivery state; not a reply or approval)
+Status: replied (stored message state)
 Reply rep_1 [reply]: Ship it
+  Source: ios/verified
   Action: deploy
 Reply rep_2 [auto_default]: Approve
+  Source: system/not_applicable
   Automatic timeout default recorded by the server; not a boss reply or execution authorization.
 ```
 
@@ -116,8 +128,10 @@ does not mean a timeout default was recorded.
 
 ```json
 {"message_id": "msg_1", "direction": "agent_to_boss", "status": "replied",
- "replies": [{"reply_id": "rep_1", "body": "Ship it", "outcome": "reply", "action": "deploy"},
-             {"reply_id": "rep_2", "body": "Approve", "outcome": "auto_default", "action": null}]}
+ "replies": [{"reply_id": "rep_1", "body": "Ship it", "outcome": "reply", "action": "deploy",
+              "assurance": "ios/verified"},
+             {"reply_id": "rep_2", "body": "Approve", "outcome": "auto_default", "action": null,
+              "assurance": "system/not_applicable"}]}
 ```
 
 | Field | Type | Meaning |
@@ -129,8 +143,16 @@ does not mean a timeout default was recorded.
 | `replies[].body` | string or null | Reply body; null when absent |
 | `replies[].outcome` | `reply` or `auto_default` | `auto_default` only when the reply's `metadata.auto_default` is `true` |
 | `replies[].action` | string or null | Stored `metadata.action` for `reply`; always null for `auto_default` |
+| `replies[].assurance` | string | Provenance label from the CLI verifier: `<source>/verified` for a valid native signature (`ios`, `macos`) under the public key the server returned with the message, `<source>/<status>` for an unsigned attributed source (`api/not_configured`, `system/not_applicable`, `discord/unsupported`, `telegram/unsupported`), or `agent` when the reply is not `boss_to_agent` |
 
 Parent `options_expired`, the default label, and the status do not change a
-reply's outcome. An `auto_default` reply is not execution authorization. A
-request, decode, or provenance failure prints `Error: ...` on stderr, leaves
-stdout empty, and exits with the codes above.
+reply's outcome. `assurance` describes how the reply's origin was checked; it
+does not name a human actor. Neither `outcome: "reply"` nor any `assurance`
+value is execution authorization, and an `auto_default` reply never is.
+
+A request, decode, or provenance failure prints `Error: ...` on stderr and leaves
+stdout empty. An HTTP error status (`request failed (<code>)`) exits 2 unless
+its body contains a word the classifier maps to 3, such as a proxy error that
+mentions `config`. A message or reply that fails provenance verification, including one with missing
+metadata or provenance, exits 1: it is a failed response, not missing
+configuration. Other failures follow the exit-code table.

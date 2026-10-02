@@ -10,6 +10,7 @@ use hiboss::commands::{
 };
 use hiboss::config;
 use hiboss::help;
+use hiboss::message_security::MessageVerificationError;
 use std::error::Error;
 
 #[derive(Parser)]
@@ -84,7 +85,8 @@ async fn main() {
     if let Err(err) = run().await {
         let msg = err.to_string();
         eprintln!("Error: {}", msg);
-        let code = if err.is::<config::LoadError>() {
+        // Typed failures first: their messages can contain classifier words like "missing".
+        let code = if err.is::<config::LoadError>() || err.is::<MessageVerificationError>() {
             1
         } else if msg.contains("not configured")
             || msg.contains("missing")

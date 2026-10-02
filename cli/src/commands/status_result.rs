@@ -1,7 +1,8 @@
 // Purpose: Build the read-only status report: stored message state plus classified replies.
 // Exports: StatusReport, ReplyReport, ReplyOutcome (serializable) and StatusReport::text().
-// Dependencies: serde, serde_json, crate::types::Message.
+// Dependencies: serde, serde_json, crate::types::Message, crate::message_security.
 
+use crate::message_security::assurance_label;
 use crate::types::Message;
 use serde::Serialize;
 use serde_json::Value;
@@ -22,6 +23,8 @@ pub(crate) struct ReplyReport {
     pub body: Option<String>,
     pub outcome: ReplyOutcome,
     pub action: Option<String>,
+    /// Verified provenance label, e.g. `ios/verified`, `api/not_configured`, `agent`.
+    pub assurance: String,
 }
 
 /// Stored server state only: `status` is the raw technical value, never an approval.
@@ -50,18 +53,27 @@ impl ReplyReport {
             metadata_field(reply, "action").and_then(Value::as_str).map(str::to_owned)
         };
         let outcome = if automatic { ReplyOutcome::AutoDefault } else { ReplyOutcome::Reply };
-        Self { reply_id: reply.id.clone(), body: reply.body.clone(), outcome, action }
+        Self {
+            reply_id: reply.id.clone(),
+            body: reply.body.clone(),
+            outcome,
+            action,
+            assurance: assurance_label(reply),
+        }
     }
 
     fn text(&self) -> String {
         let body = self.body.as_deref().unwrap_or("-");
+        let source = format!("  Source: {}\n", self.assurance);
         match self.outcome {
-            ReplyOutcome::AutoDefault => {
-                format!("Reply {} [auto_default]: {body}\n  {AUTO_DEFAULT_NOTE}\n", self.reply_id)
-            }
+            ReplyOutcome::AutoDefault => format!(
+                "Reply {} [auto_default]: {body}\n{source}  {AUTO_DEFAULT_NOTE}\n",
+                self.reply_id
+            ),
             ReplyOutcome::Reply => {
                 let action = self.action.as_deref().map(|a| format!("  Action: {a}\n"));
-                format!("Reply {} [reply]: {body}\n{}", self.reply_id, action.unwrap_or_default())
+                let action = action.unwrap_or_default();
+                format!("Reply {} [reply]: {body}\n{source}{action}", self.reply_id)
             }
         }
     }
@@ -84,7 +96,7 @@ impl StatusReport {
         let mut out = format!("Message: {}\n", self.message_id);
         out.push_str(&format!("Direction: {}\n", self.direction.as_deref().unwrap_or("unknown")));
         out.push_str(&format!(
-            "Status: {} (stored delivery state; not a reply or approval)\n",
+            "Status: {} (stored message state)\n",
             self.status.as_deref().unwrap_or("unknown"),
         ));
         if self.options_expired {
