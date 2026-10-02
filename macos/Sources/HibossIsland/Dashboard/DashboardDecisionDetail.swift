@@ -31,7 +31,7 @@ struct DashboardDecisionDetail: View {
             } else {
                 AttentionReplyComposer(text: Binding(
                     get: { reply.drafts[item.id] ?? "" }, set: { reply.drafts[item.id] = $0 }
-                ), isSubmitting: reply.submitting.contains(item.id), error: reply.errors[item.id],
+                ), isSubmitting: reply.submitting.contains(item.id), error: reply.errors[item.id]?.text,
                     onSend: { send(reply.drafts[item.id] ?? "") })
             }
         }
@@ -40,8 +40,6 @@ struct DashboardDecisionDetail: View {
 
     private func send(_ text: String) {
         guard !isPreview else { return }
-        Task { await reply.send(text, for: item.id) { choice, id in
-            await flow.answerHistory(choice, for: id)
-        } }
+        Task { await reply.send(text, for: item.id, using: flow.answer) }
     }
 }

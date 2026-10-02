@@ -204,7 +204,8 @@ final class OptionFlowE2ETests: XCTestCase {
         await store.choose("Retry", for: message.id)
 
         XCTAssertEqual(store.activeMessage?.id, message.id)
-        XCTAssertEqual(store.presentationState, .failed("The reply was rejected."))
+        XCTAssertEqual(store.presentationState, .ready)
+        XCTAssertEqual(store.replyFeedback[message.id], .failed("The reply was rejected."))
     }
 
     func testWithdrawsMessageResolvedByAnotherClient() async throws {
@@ -251,10 +252,12 @@ final class OptionFlowE2ETests: XCTestCase {
 
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == message.id }
-        await store.choose("Approve", for: message.id)
+        let accepted = await store.choose("Approve", for: message.id)
 
+        XCTAssertFalse(accepted, "a 409 must not report the local choice as delivered")
         XCTAssertNil(store.activeMessage)
         XCTAssertEqual(store.presentationState, .idle)
+        XCTAssertEqual(store.replyFeedback[message.id], .alreadyAnswered)
     }
 
     private func waitUntil(

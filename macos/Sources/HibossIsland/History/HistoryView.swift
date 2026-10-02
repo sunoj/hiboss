@@ -42,7 +42,7 @@ struct HistoryView: View {
             .toolbar { historyToolbar }
             .sheet(item: $detailMessage) { message in
                 HistoryMessageDetail(message: message, reply: reply) { choice in
-                    await flow.answerHistory(choice, for: message.id)
+                    await flow.answer(choice, for: message.id)
                 }
             }
             .task {
@@ -88,8 +88,12 @@ struct HistoryView: View {
             ForEach(sessionGroups) { group in
                 Section {
                     ForEach(group.messages) { message in
-                        HistoryRow(message: message) { choice in
-                            Task { await flow.answerHistory(choice, for: message.id) }
+                        HistoryRow(
+                            message: message,
+                            error: reply.errors[message.id]?.choiceText,
+                            isSubmitting: reply.submitting.contains(message.id)
+                        ) { choice in
+                            Task { await reply.send(choice, for: message.id, using: flow.answer) }
                         }
                         .tag(message.id)
                         .contentShape(Rectangle())

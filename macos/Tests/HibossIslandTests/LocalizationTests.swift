@@ -15,6 +15,9 @@ final class LocalizationTests: XCTestCase {
     func testExtractedKeysResolveFromTheCompiledCatalog() throws {
         XCTAssertEqual(try english("Chooses \("Ship") in \("5s")"), "Chooses Ship in 5s")
         XCTAssertEqual(try english("Captured submission"), "Captured submission")
+        XCTAssertEqual(try english("That decision was already answered elsewhere."),
+                       "That decision was already answered elsewhere.")
+        XCTAssertEqual(try english("Couldn't send your reply. Try again."), "Couldn't send your reply. Try again.")
     }
 
     func testCreatedTimestampFormatsPerLocaleAndKeepsUnparseableValues() throws {

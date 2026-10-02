@@ -20,7 +20,7 @@ enum HistoryDetailLayout {
 struct HistoryMessageDetail: View {
     let message: HistoryMessage
     @ObservedObject var reply: AttentionReplyState
-    let onChoose: (String) async -> Bool
+    let onChoose: (String) async -> ReplyFeedback?
     @Environment(\.dismiss) private var dismiss
     @State private var showsMetadata = HistoryDetailLayout.showsMetadataByDefault
 
@@ -38,7 +38,7 @@ struct HistoryMessageDetail: View {
             if message.isBlockingHistoryMessage {
                 AttentionReplyComposer(text: Binding(
                     get: { reply.drafts[message.id] ?? "" }, set: { reply.drafts[message.id] = $0 }),
-                    isSubmitting: reply.submitting.contains(message.id), error: reply.errors[message.id],
+                    isSubmitting: reply.submitting.contains(message.id), error: reply.errors[message.id]?.text,
                     onSend: { send(reply.drafts[message.id] ?? "") })
             }
         }
@@ -125,9 +125,9 @@ struct HistoryMessageDetail: View {
     private func send(_ text: String) {
         Task {
             await reply.send(text, for: message.id) { text, _ in
-                let succeeded = await onChoose(text)
-                if succeeded { dismiss() }
-                return succeeded
+                let feedback = await onChoose(text)
+                if feedback == nil { dismiss() }
+                return feedback
             }
         }
     }

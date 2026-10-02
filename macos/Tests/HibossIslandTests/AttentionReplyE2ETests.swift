@@ -17,9 +17,7 @@ final class AttentionReplyE2ETests: XCTestCase {
         reply.drafts["selected"] = "  Please retry after fixing the config.\n  "
         reply.drafts["another"] = "Keep this draft"
 
-        await reply.send(reply.drafts["selected"] ?? "", for: "selected") { text, id in
-            await flow.answerHistory(text, for: id)
-        }
+        await reply.send(reply.drafts["selected"] ?? "", for: "selected", using: flow.answer)
 
         let recorded = await api.recordedReplies
         XCTAssertEqual(recorded, [RecordedReply(
@@ -39,9 +37,7 @@ final class AttentionReplyE2ETests: XCTestCase {
         let reply = AttentionReplyState()
         reply.drafts["failed"] = "Please investigate first"
 
-        await reply.send("Please investigate first", for: "failed") { text, id in
-            await flow.answerHistory(text, for: id)
-        }
+        await reply.send("Please investigate first", for: "failed", using: flow.answer)
 
         XCTAssertEqual(reply.drafts["failed"], "Please investigate first")
         XCTAssertNotNil(reply.errors["failed"])
@@ -52,7 +48,7 @@ final class AttentionReplyE2ETests: XCTestCase {
         let reply = AttentionReplyState()
         await reply.send(" \n ", for: "blank") { _, _ in
             XCTFail("Whitespace must not be sent")
-            return true
+            return nil
         }
         XCTAssertTrue(reply.submitting.isEmpty)
     }
@@ -63,9 +59,9 @@ final class AttentionReplyE2ETests: XCTestCase {
             XCTAssertTrue(reply.submitting.contains("pending"))
             await reply.send("Ship", for: "pending") { _, _ in
                 XCTFail("An in-flight reply must not be submitted twice")
-                return true
+                return nil
             }
-            return true
+            return nil
         }
         XCTAssertTrue(reply.submitting.isEmpty)
     }

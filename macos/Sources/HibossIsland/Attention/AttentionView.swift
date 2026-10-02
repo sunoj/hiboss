@@ -37,9 +37,7 @@ struct AttentionView: View {
                 now: now,
                 selection: $selection,
                 reply: reply,
-                onChoose: { choice, id in
-                    await flow.answerHistory(choice, for: id)
-                }
+                onChoose: flow.answer
             )
         }
     }
@@ -60,7 +58,7 @@ struct AttentionWorkspace: View {
     let now: Date
     @Binding var selection: MessageID?
     @ObservedObject var reply: AttentionReplyState
-    let onChoose: (String, MessageID) async -> Bool
+    let onChoose: (String, MessageID) async -> ReplyFeedback?
     @State private var showsCompactDetail = false
 
     private static let splitMinimumWidth: CGFloat = 720
@@ -145,7 +143,7 @@ struct AttentionWorkspace: View {
                         set: { reply.drafts[selectedItem.id] = $0 }
                     ),
                     isSubmitting: reply.submitting.contains(selectedItem.id),
-                    error: reply.errors[selectedItem.id],
+                    error: reply.errors[selectedItem.id]?.text,
                     onSend: { send(reply.drafts[selectedItem.id] ?? "", for: selectedItem.id) }
                 )
             }

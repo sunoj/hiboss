@@ -79,6 +79,11 @@ struct IslandView: View {
                     ResolvedOptionRow(title: answer, chosen: true, source: source)
                 }
             }
+            if flow.replyFeedback[message.id] == .alreadyAnswered {
+                Text(ReplyFeedback.alreadyAnswered.text)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -176,7 +181,7 @@ struct IslandView: View {
             Divider()
                 .overlay(Color.white.opacity(0.12))
             optionList(message)
-            errorLabel
+            errorLabel(for: message.id)
             ReplyField(text: $replyText, isSubmitting: isSubmitting) {
                 submitReply(for: message.id)
             }
@@ -195,13 +200,14 @@ struct IslandView: View {
         }
     }
 
+    /// Feedback for the presented message only, never for a different live question.
     @ViewBuilder
-    private var errorLabel: some View {
-        if case let .failed(message) = flow.presentationState {
-            Text(message)
+    private func errorLabel(for messageID: MessageID) -> some View {
+        if let feedback = flow.replyFeedback[messageID] {
+            Text(feedback.choiceText)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Color.red.opacity(0.9))
-                .lineLimit(1)
+                .lineLimit(2)
         }
     }
 
