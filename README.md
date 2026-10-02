@@ -4,6 +4,8 @@
 
 Website: [hiboss.org](https://hiboss.org/) · [Privacy](https://hiboss.org/privacy/) · [Support](https://hiboss.org/support/)
 
+[Product roadmap](docs/roadmap.md) · [Version history](.aid/knowledge/roadmap-history.md)
+
 hiboss lets AI agents send messages to their human boss and receive replies through
 familiar channels like Discord and Telegram. When an agent needs approval, wants to
 report progress, or has a question, it calls `hiboss send` or `hiboss ask` -- the

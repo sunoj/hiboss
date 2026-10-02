@@ -1,5 +1,8 @@
 # hiboss Roadmap History
 
+For current capabilities and UX priorities, see the [product roadmap](../../docs/roadmap.md).
+The entries below are historical snapshots rather than current rollout status.
+
 All versions through v1.0 are complete and shipped.
 
 ## Current Unreleased — Convergent Options and Native macOS Client
