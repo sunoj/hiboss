@@ -1,4 +1,4 @@
-// Connection pane for editing server URL and boss token.
+// Connection pane: live connection state with its failure reason, endpoint, and credentials.
 // Exports: ConnectionSettingsPane.
 // Dependencies: SwiftUI, AppSettings, OptionFlowStore, and DesignTokens.
 
@@ -8,7 +8,6 @@ import SwiftUI
 struct ConnectionSettingsPane: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
-    let statusMessage: String
     let isConnecting: Bool
     let reconnect: () -> Void
     @State private var isPairingPresented = false
@@ -17,15 +16,24 @@ struct ConnectionSettingsPane: View {
         Form {
             Section {
                 LabeledContent(L("Status")) {
-                    Label {
-                        Text(connectionTitle)
-                    } icon: {
-                        Image(systemName: statusSymbol)
-                            .foregroundStyle(statusTint)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Label {
+                            Text(status.title)
+                        } icon: {
+                            Image(systemName: status.isLive ? "circle.fill" : "circle")
+                                .foregroundStyle(status.isLive ? DesignTokens.live : Color(nsColor: .tertiaryLabelColor))
+                        }
+                        if let detail = status.detail {
+                            Text(detail)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                                .textSelection(.enabled)
+                        }
                     }
                 }
                 LabeledContent(L("Endpoint")) {
-                    Text(connectionDetail)
+                    Text(endpoint)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -33,7 +41,7 @@ struct ConnectionSettingsPane: View {
                 Button(L("Reconnect"), action: reconnect)
                     .disabled(isConnecting)
             } header: {
-                Text(L("Daemon"))
+                Text(L("Connection"))
             }
 
             Section {
@@ -73,27 +81,11 @@ struct ConnectionSettingsPane: View {
         }
     }
 
-    private var statusSymbol: String {
-        flow.connectionState == .connected ? "circle.fill" : "circle"
+    private var status: SettingsConnectionStatus {
+        SettingsConnectionStatus(flow.connectionState)
     }
 
-    private var statusTint: Color {
-        flow.connectionState == .connected
-            ? DesignTokens.live
-            : Color(nsColor: .tertiaryLabelColor)
-    }
-
-    private var connectionTitle: String {
-        switch flow.connectionState {
-        case .connected: L("Connected · daemon running")
-        case .connecting: L("Connecting · daemon pending")
-        case .disconnected: L("Disconnected · daemon idle")
-        case .failed: L("Disconnected · daemon error")
-        }
-    }
-
-    private var connectionDetail: String {
-        if !statusMessage.isEmpty { return statusMessage }
+    private var endpoint: String {
         guard case let .success(config) = settings.connectionConfig() else {
             return L("not configured")
         }

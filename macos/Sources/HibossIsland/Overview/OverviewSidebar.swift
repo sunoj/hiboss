@@ -113,5 +113,6 @@ struct OverviewSidebar: View {
             }
             .buttonStyle(.plain).padding(14)
         }
+        .background(.bar)
     }
 }
