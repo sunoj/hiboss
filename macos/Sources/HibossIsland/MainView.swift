@@ -47,10 +47,6 @@ struct MainView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             Task { await panels.load() }
         }
-        .onAppear {
-            let action = openWindow
-            notificationNavigation.openWindow = { action(id: "main") }
-        }
         .onChange(of: notificationNavigation.target?.id, initial: true) { _, id in
             guard id != nil else { return }
             destination = .category(.all)

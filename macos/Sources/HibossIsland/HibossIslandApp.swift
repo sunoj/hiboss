@@ -17,7 +17,7 @@ struct HibossIslandApp: App {
                 notificationNavigation: appDelegate.notificationNavigation)
         }
         .defaultSize(width: 1320, height: 820)
-        .commands { SettingsWindowCommands() }
+        .commands { AppWindowCommands(navigation: appDelegate.notificationNavigation) }
 
         Window(L("Settings"), id: "settings") {
             SettingsScene(
@@ -33,10 +33,15 @@ struct HibossIslandApp: App {
     }
 }
 
-private struct SettingsWindowCommands: Commands {
+/// Commands are evaluated at launch whether or not any window is open, so this is where the
+/// scene-id opener reaches the status menu and notification routing.
+private struct AppWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
+    let navigation: MessageNotificationNavigation
 
     var body: some Commands {
+        let action = openWindow
+        let _ = navigation.install { action(id: "main") }
         CommandGroup(replacing: .appSettings) {
             Button(L("Settings")) {
                 openWindow(id: "settings")
@@ -168,8 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     @objc private func showMainWindow() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.windows.first(where: { $0.title == productName })?.makeKeyAndOrderFront(nil)
+        notificationNavigation.openMainWindow()
     }
 
     @objc private func quit() {

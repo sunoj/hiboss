@@ -1,5 +1,5 @@
 // Testable models and transforms for the native Settings scene.
-// Exports: SettingsPane, SettingsPreferencesLogic, and SettingsPreferencesService.
+// Exports: SettingsPane, SettingsConnectionStatus, SettingsPreferencesLogic, SettingsPreferencesService.
 // Dependencies: HibossKit preferences, AppSettings, and Foundation time zones.
 
 import Foundation
@@ -51,7 +51,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .connection: "link"
-        case .devices: "desktopcomputer.and.iphone"
+        case .devices: "laptopcomputer.and.iphone"
         case .notifications: "bell"
         case .routing: "point.3.connected.trianglepath.dotted"
         case .quietHours: "moon"
@@ -59,6 +59,19 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .systemDoctor: "stethoscope"
         case .about: "info.circle"
         }
+    }
+}
+
+/// Settings copy for the live connection, taken from the state itself rather than fixed words.
+struct SettingsConnectionStatus: Equatable {
+    let title: String
+    let detail: String?
+    let isLive: Bool
+
+    init(_ state: ConnectionState) {
+        title = state.label
+        detail = state.detail
+        isLive = state == .connected
     }
 }
 

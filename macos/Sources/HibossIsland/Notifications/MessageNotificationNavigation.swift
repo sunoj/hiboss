@@ -1,4 +1,4 @@
-// Routes notification clicks into the main History surface, including older messages.
+// Opens the main window by scene id and routes notification clicks into History.
 // Exports: MessageNotificationNavigation and NotificationMessageDetail.
 // Dependencies: SwiftUI, AppKit, HibossAPI targeted message lookup, and HistoryMessageDetail.
 
@@ -10,17 +10,40 @@ struct NotificationMessageTarget: Identifiable {
     let id: MessageID
 }
 
+/// Opens the main window by scene id. `title` is the current destination, so a window
+/// lookup by title fails; the SwiftUI opener reopens a closed window, also without a Dock icon.
 @MainActor
 final class MessageNotificationNavigation: ObservableObject {
     @Published var target: NotificationMessageTarget?
-    var openWindow: (() -> Void)? {
-        didSet { if target != nil { openWindow?() } }
+    private var openWindow: (@MainActor () -> Void)?
+    private var opensWhenInstalled = false
+    private let activate: () -> Void
+
+    init(activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) }) {
+        self.activate = activate
+    }
+
+    /// Installs the scene-id opener. A request made before installation is replayed once,
+    /// asynchronously, because installation happens while SwiftUI evaluates the app's commands.
+    func install(_ opener: @escaping @MainActor () -> Void) {
+        openWindow = opener
+        guard opensWhenInstalled else { return }
+        opensWhenInstalled = false
+        Task { opener() }
+    }
+
+    func openMainWindow() {
+        activate()
+        guard let openWindow else {
+            opensWhenInstalled = true
+            return
+        }
+        openWindow()
     }
 
     func open(_ id: MessageID) {
         target = NotificationMessageTarget(id: id)
-        openWindow?()
-        NSApp.activate(ignoringOtherApps: true)
+        openMainWindow()
     }
 }
 
