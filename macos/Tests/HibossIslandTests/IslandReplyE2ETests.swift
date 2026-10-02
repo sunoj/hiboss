@@ -40,9 +40,9 @@ final class IslandReplyE2ETests: XCTestCase {
 
         await reply.send(reply.drafts["first"] ?? "", for: "first", using: flow.answer)
 
-        XCTAssertEqual(flow.activeMessage?.id, "second", "the answered-elsewhere question is withdrawn")
+        XCTAssertEqual(flow.activeMessage?.id, "second", "the closed question is withdrawn")
         XCTAssertEqual(reply.drafts["first"], "Hold until Monday")
-        XCTAssertEqual(reply.errors["first"], .alreadyAnswered)
+        XCTAssertEqual(reply.errors["first"], .alreadyResolved)
         XCTAssertNil(reply.errors["second"])
         let shown2 = try await Self.fieldText(host)
         XCTAssertEqual(shown2, "", "the next question never shows another's draft")

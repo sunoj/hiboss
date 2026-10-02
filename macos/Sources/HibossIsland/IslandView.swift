@@ -81,8 +81,8 @@ struct IslandView: View {
                     ResolvedOptionRow(title: answer, chosen: true, source: source)
                 }
             }
-            if flow.replyFeedback[message.id] == .alreadyAnswered {
-                Text(ReplyFeedback.alreadyAnswered.text)
+            if flow.replyFeedback[message.id] == .alreadyResolved {
+                Text(ReplyFeedback.alreadyResolved.text)
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
             }

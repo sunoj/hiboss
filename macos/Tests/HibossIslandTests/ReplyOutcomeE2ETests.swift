@@ -1,4 +1,4 @@
-// Reply outcomes end to end: accepted, already answered elsewhere (409), and retryable failure.
+// Reply outcomes end to end: accepted, closed decision (409, recorded or expired), retryable failure.
 // Exports: ReplyOutcomeE2ETests over history composers, inline rows, and the live question.
 // Dependencies: XCTest, HibossKit OptionFlowStore, AttentionReplyState, OutcomeScriptAPI.
 
@@ -16,7 +16,7 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         return flow
     }
 
-    func testHistoryComposerConflictKeepsDraftAndShowsRecordedAnswer() async throws {
+    func testHistoryComposerRecordedConflictKeepsDraftAndShowsRecordedAnswer() async throws {
         let api = OutcomeScriptAPI(questions: ["q"], steps: [.conflict(answer: "Wait", source: "ios")])
         let flow = try await connected(api)
         defer { flow.disconnect() }
@@ -26,16 +26,19 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         await reply.send(reply.drafts["q"] ?? "", for: "q", using: flow.answer)
 
         XCTAssertEqual(reply.drafts["q"], "Ship after the smoke tests")
-        XCTAssertEqual(reply.errors["q"], .alreadyAnswered)
-        XCTAssertEqual(flow.replyFeedback["q"], .alreadyAnswered)
+        XCTAssertEqual(reply.errors["q"], .alreadyResolved)
+        XCTAssertEqual(flow.replyFeedback["q"], .alreadyResolved)
         XCTAssertEqual(flow.historyMessages.first { $0.id == "q" }?.status, "replied")
-        XCTAssertEqual(flow.historyMessages.first { $0.replyTo == "q" }?.body, "Wait")
+        let recorded = flow.historyMessages.first { $0.replyTo == "q" }
+        XCTAssertEqual(recorded?.body, "Wait")
+        XCTAssertEqual(recorded?.metadata?.source, "ios")
     }
 
-    func testFeedbackCopySeparatesAnsweredElsewhereFromRetryableFailure() {
-        let answered = L("That decision was already answered elsewhere.")
-        XCTAssertEqual(ReplyFeedback.alreadyAnswered.text, answered)
-        XCTAssertEqual(ReplyFeedback.alreadyAnswered.choiceText, answered)
+    func testFeedbackCopySeparatesClosedDecisionFromRetryableFailure() {
+        let closed = L("That decision is no longer available.")
+        XCTAssertEqual(closed, "That decision is no longer available.")
+        XCTAssertEqual(ReplyFeedback.alreadyResolved.text, closed)
+        XCTAssertEqual(ReplyFeedback.alreadyResolved.choiceText, closed)
         XCTAssertEqual(ReplyFeedback.failed("x").text, L("Reply failed. Your draft is saved. Try again."))
         XCTAssertEqual(ReplyFeedback.failed("x").choiceText, L("Couldn't send your reply. Try again."))
     }
@@ -48,7 +51,42 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         let accepted = await flow.answerHistory("Ship", for: "q")
 
         XCTAssertFalse(accepted)
-        XCTAssertEqual(flow.replyFeedback["q"], .alreadyAnswered)
+        XCTAssertEqual(flow.replyFeedback["q"], .alreadyResolved)
+    }
+
+    func testExpiredWithoutAnswerKeepsDraftAndClaimsNoAnswer() async throws {
+        let api = OutcomeScriptAPI(questions: ["q"], steps: [.conflictExpired, .conflictExpired])
+        let flow = try await connected(api)
+        defer { flow.disconnect() }
+        let reply = AttentionReplyState()
+        reply.drafts["q"] = "Ship after the smoke tests"
+
+        let accepted = await flow.answerHistory("Ship after the smoke tests", for: "q")
+        await reply.send(reply.drafts["q"] ?? "", for: "q", using: flow.answer)
+
+        XCTAssertFalse(accepted)
+        XCTAssertEqual(reply.drafts["q"], "Ship after the smoke tests")
+        XCTAssertEqual(reply.errors["q"], .alreadyResolved)
+        XCTAssertEqual(reply.errors["q"]?.text, "That decision is no longer available.")
+        XCTAssertEqual(flow.historyMessages.first { $0.id == "q" }?.status, "expired")
+        XCTAssertTrue(flow.historyMessages.filter { $0.replyTo == "q" }.isEmpty, "no answer is recorded")
+        if case .resolved = flow.presentationState { XCTFail("a history 409 must not present a resolution") }
+    }
+
+    func testActiveExpiredConflictWithdrawsWithoutAnswerOrSource() async throws {
+        let live = OptionMessage.fixture(id: "live", options: ["Ship", "Wait"])
+        let api = OutcomeScriptAPI(questions: ["live"], live: [live], steps: [.conflictExpired])
+        let flow = try await connected(api)
+        defer { flow.disconnect() }
+        try await waitForCondition { flow.activeMessage?.id == "live" }
+
+        let accepted = await flow.choose("Ship", for: "live")
+
+        XCTAssertFalse(accepted)
+        XCTAssertEqual(flow.replyFeedback["live"], .alreadyResolved)
+        XCTAssertNil(flow.activeMessage)
+        XCTAssertEqual(flow.presentationState, .idle, "an expiry shows no resolved card")
+        XCTAssertTrue(flow.historyMessages.filter { $0.replyTo == "live" }.isEmpty)
     }
 
     func testAcceptedReplyClearsDraftAndFeedback() async throws {
@@ -144,7 +182,7 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         let accepted = await flow.choose("Ship", for: "live")
 
         XCTAssertFalse(accepted)
-        XCTAssertEqual(flow.replyFeedback["live"], .alreadyAnswered)
+        XCTAssertEqual(flow.replyFeedback["live"], .alreadyResolved)
         XCTAssertEqual(flow.presentationState, .resolved(answer: "Wait", source: "iOS"))
     }
 
@@ -160,7 +198,7 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         XCTAssertFalse(accepted)
         XCTAssertNil(flow.activeMessage)
         XCTAssertEqual(flow.presentationState, .idle)
-        XCTAssertEqual(flow.replyFeedback["live"], .alreadyAnswered)
+        XCTAssertEqual(flow.replyFeedback["live"], .alreadyResolved)
     }
 
     func testConflictKeepsAnObservedStreamResolution() async throws {

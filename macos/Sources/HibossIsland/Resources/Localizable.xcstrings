@@ -2395,72 +2395,72 @@
         }
       }
     },
-    "That decision was already answered elsewhere.": {
+    "That decision is no longer available.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "That decision was already answered elsewhere."
+            "value": "That decision is no longer available."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "该决策已在其他地方答复。"
+            "value": "该决策已不再可用。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "この判断はほかの場所で回答済みです。"
+            "value": "この判断はもう利用できません。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 결정은 이미 다른 곳에서 답변했어요."
+            "value": "이 결정은 더 이상 사용할 수 없어요."
           }
         },
         "th": {
           "stringUnit": {
             "state": "translated",
-            "value": "การตัดสินใจนั้นถูกตอบจากที่อื่นแล้ว"
+            "value": "การตัดสินใจนั้นไม่พร้อมใช้งานแล้ว"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Esa decisión ya se respondió en otro lugar."
+            "value": "Esa decisión ya no está disponible."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "उस निर्णय का जवाब पहले ही कहीं और दिया जा चुका है।"
+            "value": "वह निर्णय अब उपलब्ध नहीं है।"
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "تمت الإجابة عن هذا القرار في مكان آخر."
+            "value": "لم يعد هذا القرار متاحًا."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Essa decisão já foi respondida em outro lugar."
+            "value": "Essa decisão não está mais disponível."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cette décision a déjà reçu une réponse ailleurs."
+            "value": "Cette décision n’est plus disponible."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "На это решение уже ответили в другом месте."
+            "value": "Это решение больше недоступно."
           }
         }
       }

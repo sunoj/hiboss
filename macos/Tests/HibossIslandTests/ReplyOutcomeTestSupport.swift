@@ -10,10 +10,12 @@ import HibossKit
 enum ReplyStep: Sendable {
     /// 200: the boss's own reply is recorded.
     case accept
-    /// 409: another client already recorded `answer`; history reflects it on the next fetch.
+    /// 409 with a known recorded reply: history shows `answer` from `source` on the next fetch.
     case conflict(answer: String, source: String)
     /// 409 while history still lags and shows the question pending.
     case conflictUnrecorded
+    /// 409 because the ask expired with no reply; history marks it expired and records no answer.
+    case conflictExpired
     /// 409 after the resolution was already streamed; history still lags.
     case conflictAfterStream(answer: String, source: String)
     /// Transport or server failure.
@@ -64,6 +66,12 @@ actor OutcomeScriptAPI: BossServing {
             record(messageID, answer: answer, source: source)
             return .alreadyResolved
         case .conflictUnrecorded:
+            return .alreadyResolved
+        case .conflictExpired:
+            questions = questions.map { question in
+                guard question.id == messageID else { return question }
+                return AttentionTestSupport.ask(id: messageID, options: question.options, status: "expired")
+            }
             return .alreadyResolved
         case let .conflictAfterStream(answer, source):
             continuation?.yield(.resolved(OptionResolution(
