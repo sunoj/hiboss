@@ -86,3 +86,51 @@ help and the recovery messages from a throwaway `HOME`. Run it on a build host:
 ```sh
 rbox exec <box> <checkout> --untracked -- sh cli/scripts/check-ux.sh
 ```
+
+## Message status
+
+`hiboss status <id>` is read-only. It sends one `GET /api/messages/<id>` and
+never changes the stored status. `hiboss read <id>` shows the full message and
+reply chain and is also read-only.
+
+Text output names the message ID, its direction, and the stored `status`. The
+status is the raw server state (`sent`, `delivered`, `replied`, `expired`, ...);
+it records delivery, not that anyone approved anything. Each reply line carries
+its outcome:
+
+```text
+Message: msg_1
+Direction: agent_to_boss
+Status: replied (stored delivery state; not a reply or approval)
+Reply rep_1 [reply]: Ship it
+  Action: deploy
+Reply rep_2 [auto_default]: Approve
+  Automatic timeout default recorded by the server; not a boss reply or execution authorization.
+```
+
+Without replies the output says `Replies: none recorded`. When the message
+metadata has `options_expired: true`, it adds `Options: expired`; that alone
+does not mean a timeout default was recorded.
+
+`--json` prints exactly one JSON document on stdout and nothing else:
+
+```json
+{"message_id": "msg_1", "direction": "agent_to_boss", "status": "replied",
+ "replies": [{"reply_id": "rep_1", "body": "Ship it", "outcome": "reply", "action": "deploy"},
+             {"reply_id": "rep_2", "body": "Approve", "outcome": "auto_default", "action": null}]}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `message_id` | string | Message ID returned by the server |
+| `direction` | string or null | Stored direction, such as `agent_to_boss` or `agent_to_agent` |
+| `status` | string or null | Raw stored status |
+| `replies[].reply_id` | string | Reply message ID |
+| `replies[].body` | string or null | Reply body; null when absent |
+| `replies[].outcome` | `reply` or `auto_default` | `auto_default` only when the reply's `metadata.auto_default` is `true` |
+| `replies[].action` | string or null | Stored `metadata.action` for `reply`; always null for `auto_default` |
+
+Parent `options_expired`, the default label, and the status do not change a
+reply's outcome. An `auto_default` reply is not execution authorization. A
+request, decode, or provenance failure prints `Error: ...` on stderr, leaves
+stdout empty, and exits with the codes above.

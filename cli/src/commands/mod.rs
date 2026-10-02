@@ -36,4 +36,5 @@ pub mod setup_agents;
 pub mod setup_hooks;
 pub mod ss;
 pub mod status;
+mod status_result;
 pub mod watch;
