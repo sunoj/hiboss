@@ -7,15 +7,15 @@ import SwiftUI
 struct QuestionnaireEditor: View {
     let record: QuestionnaireRecord
     let webModel: PanelWebModel
-    let now: Date
+    let currentTime: @MainActor () -> Date
     let changed: @MainActor () async -> Void
     @StateObject private var model: QuestionnaireModel
 
     init(record: QuestionnaireRecord, bossID: String, service: any QuestionnaireServing, webModel: PanelWebModel,
-         now: Date, currentTime: @escaping @MainActor () -> Date, changed: @escaping @MainActor () async -> Void) {
+         currentTime: @escaping @MainActor () -> Date, changed: @escaping @MainActor () async -> Void) {
         self.record = record
         self.webModel = webModel
-        self.now = now
+        self.currentTime = currentTime
         self.changed = changed
         _model = StateObject(wrappedValue: QuestionnaireModel(record: record, bossID: bossID, service: service, currentTime: currentTime))
     }
@@ -28,10 +28,13 @@ struct QuestionnaireEditor: View {
                     QuestionnaireAnswerView(record: model.latest, submission: submission)
                 } else {
                     metadata
-                    if !model.latest.isOpen(at: now) { closedStatus }
-                    QuestionnaireFields(model: model, store: model.store, webModel: webModel,
-                        enabled: model.canEdit && model.latest.isOpen(at: now))
-                    status
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        let now = currentTime()
+                        if !model.latest.isOpen(at: now) { closedStatus }
+                        QuestionnaireFields(model: model, store: model.store, webModel: webModel,
+                            enabled: model.canEdit && model.latest.isOpen(at: now))
+                        status(at: now)
+                    }
                 }
                 if let error = model.error {
                     Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red).font(.callout)
@@ -54,7 +57,7 @@ struct QuestionnaireEditor: View {
         }.font(.caption).foregroundStyle(.secondary)
     }
 
-    @ViewBuilder private var status: some View {
+    @ViewBuilder private func status(at now: Date) -> some View {
         if model.isSending {
             ProgressView(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submitting answers…"))
         } else if model.pendingID != nil {

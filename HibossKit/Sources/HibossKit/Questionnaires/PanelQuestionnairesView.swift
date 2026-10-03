@@ -26,7 +26,7 @@ public struct PanelQuestionnairesView: View {
             if let service, let bossID = tile.metadata?.targetBossId {
                 ForEach(records) { record in
                     QuestionnaireEditor(record: record, bossID: bossID, service: service, webModel: panels.webModel,
-                        now: panels.serverNow(for: tile.id), currentTime: { panels.serverNow(for: tile.id) }) {
+                        currentTime: { panels.serverNow(for: tile.id) }) {
                             await panels.refreshPendingQuestionnaires()
                         }
                         .id("\(service.questionnaireScope)/\(bossID)/\(record.id)")

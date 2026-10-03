@@ -122,17 +122,27 @@ public final class PanelsModel: ObservableObject {
         producerTasks = tiles.indices.map { index in Task { [weak self] in await self?.runProducer(at: index) } }
     }
 
+    private struct WallSignature: Equatable {
+        let visibleIDs: [String]
+        let pendingCounts: [String: Int]
+    }
+
+    private var wallSignature: WallSignature {
+        WallSignature(visibleIDs: visibleTiles.map(\.id),
+            pendingCounts: Dictionary(uniqueKeysWithValues: tiles.map { ($0.id, pendingCount(for: $0)) }))
+    }
+
     func startClock() {
         clockTask = Task { [weak self] in
-            var visibleIDs = self?.visibleTiles.map(\.id) ?? []
+            var signature = self?.wallSignature
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: PanelDemoProducer.clockIntervalNanoseconds)
                 guard !Task.isCancelled else { return }
                 self?.now = Date()
-                let currentIDs = self?.visibleTiles.map(\.id) ?? []
-                if currentIDs != visibleIDs {
+                let current = self?.wallSignature
+                if current != signature {
                     self?.objectWillChange.send()
-                    visibleIDs = currentIDs
+                    signature = current
                 }
                 guard let self, !self.isDemoMode, !self.isFetching, Date().timeIntervalSince(self.lastReconciled) > 10 else { continue }
                 await self.load()

@@ -109,6 +109,46 @@ final class PanelWallTests: XCTestCase {
         XCTAssertTrue(model.tiles.first?.store === tile.store)
     }
 
+    func testQuestionnaireExpiryPublishesOnceWithUnchangedActiveTiles() async throws {
+        try await assertQuestionnaireExpiry(in: .active)
+    }
+
+    func testQuestionnaireExpiryPublishesOnceWithUnchangedNeedsInputTiles() async throws {
+        try await assertQuestionnaireExpiry(in: .needsInput)
+    }
+
+    func testHiddenQuestionnaireExpiryPublishesOnceForNeedsInputTotal() async throws {
+        try await assertQuestionnaireExpiry(in: .results)
+    }
+
+    private func assertQuestionnaireExpiry(in section: PanelWallSection) async throws {
+        let model = PanelsModel(api: try WallPanelsService(), demoMode: false, autoload: false)
+        await model.load()
+        let tile = try XCTUnwrap(model.tiles.first)
+        model.section = section
+        let expiry = timestamp(model.serverNow(for: tile.id).addingTimeInterval(0.5))
+        model.pendingQuestionnaires = [nil, expiry].enumerated().map { index, deadline in
+            PendingQuestionnaire(requestId: "request-\(index)", panelId: tile.id, requestRevision: 1,
+                title: "Settings", blocking: true, expiresAt: deadline, createdAt: "2026-09-07T12:00:00Z")
+        }
+        model.clockTask?.cancel()
+        model.startClock()
+        await Task.yield()
+        let visibleIDs = model.visibleTiles.map(\.id)
+        var publications = 0
+        let subscription = model.objectWillChange.sink { publications += 1 }
+        defer { subscription.cancel(); model.clockTask?.cancel() }
+        XCTAssertEqual(model.pendingCount(for: tile), 2)
+        XCTAssertEqual(model.pendingQuestionnaireCount, 2)
+
+        try await Task.sleep(for: .milliseconds(2200))
+
+        XCTAssertEqual(model.pendingCount(for: tile), 1)
+        XCTAssertEqual(model.pendingQuestionnaireCount, 1)
+        XCTAssertEqual(model.visibleTiles.map(\.id), visibleIDs)
+        XCTAssertEqual(publications, 1, "Only the deadline crossing should invalidate the wall")
+    }
+
     func testTokenChangeRestartsPanelStreamsAndPreservesDrafts() async throws {
         let model = PanelsModel(api: try WallPanelsService(), demoMode: false, autoload: false)
         await model.load()
