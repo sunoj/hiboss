@@ -179,6 +179,9 @@ async fn run_offline(command: &Commands) -> Result<bool, Box<dyn Error>> {
                 println!("{}", hiboss::commands::setup_agents::PANEL_GUIDE)
             }
             panel::PanelCommand::Validate(arguments) => panel::run_validate(arguments)?,
+            panel::PanelCommand::Example { name } => {
+                print!("{}", panel::examples::render(name.as_deref())?)
+            }
             _ => return Ok(false),
         },
         _ => return Ok(false),

@@ -114,6 +114,7 @@ fn validate_element(id: &str, value: &Value, paths: &[String], state_schema: &Va
     }
     let props = object_value(element, "props", &path)?;
     validate_props(component, props, &format!("{path}/props"), paths, state_schema)?;
+    if let Some(warning) = metric_denominator_warning(component, props) { eprintln!("{warning}"); }
     let children = element.get("children").ok_or_else(|| error("invalid_spec", &path, "missing children"))?;
     if !children.as_array().is_some_and(|items| items.iter().all(Value::is_string)) {
         return Err(error("invalid_spec", &format!("{path}/children"), "children must be string element IDs"));
@@ -122,6 +123,13 @@ fn validate_element(id: &str, value: &Value, paths: &[String], state_schema: &Va
         validate_actions(actions, &format!("{path}/on"))?;
     }
     Ok(())
+}
+
+fn metric_denominator_warning(component: &str, props: &Value) -> Option<String> {
+    if component != "Metric" { return None; }
+    let label = props.get("label")?.as_str()?;
+    let carries_denominator = label.split('/').skip(1).any(|tail| tail.trim_start().starts_with(|c: char| c.is_ascii_digit()));
+    carries_denominator.then(|| format!("warning: Metric \"{label}\" carries a denominator; a real denominator is a Progress element"))
 }
 
 fn validate_props(component: &str, value: &Value, path: &str, paths: &[String], state_schema: &Value) -> Result<(), ValidationError> {

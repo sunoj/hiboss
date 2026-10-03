@@ -2,9 +2,7 @@
 
 Prefer HiBoss for boss-facing delivery during substantive tasks, without waiting
 for the user to name the channel. Honor an explicit channel preference or opt-out.
-A panel only when the task has state the boss would watch change: a series, per-test
-status, sweep counters, a monitor. A progress note, a result, or a final report is
-`hiboss send`; a card holding only static text is a message in the wrong place.
+A card holding only static text is a message in the wrong place.
 
 | Need | Preferred command |
 | --- | --- |
@@ -15,121 +13,134 @@ status, sweep counters, a monitor. A progress note, a result, or a final report 
 | One-shot notice or urgent blocker | `hiboss send` |
 | A milestone worth showing with images or video | `hiboss progress post` — quiet timeline, no push |
 
-A single question is never a questionnaire. If the answer fits in one `--option`
-label, use `hiboss ask`; `hiboss request` earns its card only when the boss has to
-fill in several things at once.
+A completion report needs no blocking question. If HiBoss is unavailable, report
+the delivery failure here and continue work independent of the missing answer.
 
-A completion report does not require a blocking question or a next-step poll.
-If HiBoss is unavailable, explain the delivery failure in the current conversation
-and continue work that does not depend on the missing answer.
+## Choose elements by data shape
+
+| Data shape | Element |
+| --- | --- |
+| A count with a real denominator | `Progress`: bind `value` to a 0..1 fraction, or use `min`/`max` for the count range |
+| A number without a denominator | `Metric` |
+| A value over time | `LineChart` or `BarChart`, with `values` bound to a state array; a gap is explicit `null`, never 0. Resend the whole array each update (`update` merges objects and replaces arrays); keep a bounded window such as the last 60 points |
+| A stage or health word | `Status` |
+| Per-item outcomes | `Table` |
+
+No `Progress` without a real denominator; never invent a completion percentage.
+Any card with a series or table automatically renders as a wide wall tile.
+Run `hiboss panel example` for names and descriptions; `hiboss panel example NAME`
+prints JSON ready for `validate`/`publish` after filling `taskKey`, `sessionId`, and
+the actual `targetBossId` when needed. Fixture values are illustrative: replace them
+with observed state; literal chart/table data must be bound to state for live updates.
 
 ## Discover the installed interface
 
 Run `hiboss panel --help` and `hiboss request --help` once. This guide describes protocol v2. The required
-commands are `validate`, `publish`, `update`, `stream`, `state`, `complete`,
+commands are `example`, `validate`, `publish`, `update`, `stream`, `state`, `complete`,
 `fail`, `cancel`, `pause`, `resume`, `renew`, `doctor`, and `show`.
 If the installed CLI lacks one, report the version mismatch. Do not invent flags,
 search unrelated repositories, or repeatedly scan the user's configuration.
 Never display API keys or notification credentials.
 
-The lifecycle implementation must be deployed with the matching server. An
-`unsupported_protocol` response means the server needs the v2 rollout. Do not
-silently fall back to an older protocol or claim the card was delivered.
+`unsupported_protocol` requires the matching v2 server rollout; do not fall back
+to an older protocol or claim delivery.
 
 ## Choose the recipient and execution session
 
-Use the current authenticated agent and its actual session. `hiboss panel doctor`
-prints the server's default publication target and the named candidates with roles
-and full IDs. `targetBossId` is optional: omission selects the only resolved boss,
-or the agent's sole admin boss when several resolve. Set an explicit value only to
-override the default or resolve ambiguity when no default exists. Do not create
-unrelated identities, guess a boss ID, or use a session owned by another agent.
+Use the authenticated agent's actual session. `hiboss panel doctor` prints the
+server's default boss and named candidates with roles and full IDs. Omit
+`targetBossId` to use that default, or set it to override/resolve ambiguity.
+Never guess identities or use another agent's session.
 
-## Publish a live test run
+## Publish a live download
 
-Create `report-panel.json` for a running test suite with a stable task key and the actual session ID:
+Create `download-panel.json` with a stable task key and the actual session ID.
+Here the known total is 10 GiB: 6.8 GiB downloaded gives a fraction of 0.68.
 
 ```json
 {
   "protocolVersion": 2,
   "sessionId": "SESSION_ID",
-  "taskKey": "remote-e2e-run",
-  "title": "Remote E2E run",
+  "taskKey": "artifact-download",
+  "title": "Artifact download",
   "catalogId": "hiboss.panel",
   "catalogVersion": 1,
   "lifecycle": { "mode": "run", "expectedUpdateIntervalSeconds": 15, "ttlSeconds": 3600 },
   "spec": {
-    "root": "report",
+    "root": "download",
     "elements": {
-      "report": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["counts", "fixes", "scope", "artifact"] },
-      "counts": { "type": "Grid", "props": { "columns": 3 }, "children": ["passed", "skipped", "failed"] },
-      "passed": { "type": "Metric", "props": { "label": "Passed", "value": { "$state": "/task/passed" } }, "children": [] },
-      "skipped": { "type": "Metric", "props": { "label": "Skipped", "value": { "$state": "/task/skipped" } }, "children": [] },
-      "failed": { "type": "Metric", "props": { "label": "Failed", "value": { "$state": "/task/failed" } }, "children": [] },
-      "fixes": { "type": "Text", "props": { "text": "Testing modal focus cycling, initial avatar crop, and market connection state." }, "children": [] },
-      "scope": { "type": "Text", "props": { "text": "Remote UI E2E. On-chain settlement is outside this run." }, "children": [] },
-      "artifact": { "type": "Text", "props": { "text": "Report: output/playwright/remote-final/report/index.html (workspace-relative artifact)" }, "children": [] }
+      "download": { "type": "Stack", "props": { "direction": "vertical" }, "children": ["stage", "progress", "metrics", "throughput"] },
+      "stage": { "type": "Status", "props": { "label": "Stage", "status": "active", "message": "Downloading artifacts" }, "children": [] },
+      "progress": { "type": "Progress", "props": { "label": "Artifact transfer (10 GiB total)", "value": { "$state": "/task/fraction" }, "min": 0, "max": 1 }, "children": [] },
+      "metrics": { "type": "Grid", "props": { "columns": 2 }, "children": ["rate", "eta"] },
+      "rate": { "type": "Metric", "props": { "label": "Rate", "value": { "$state": "/task/rate" }, "unit": "MB/s" }, "children": [] },
+      "eta": { "type": "Metric", "props": { "label": "ETA", "value": { "$state": "/task/etaSeconds" }, "unit": "s" }, "children": [] },
+      "throughput": { "type": "LineChart", "props": { "label": "Recent throughput", "values": { "$state": "/task/rateSeries" }, "unit": "MB/s" }, "children": [] }
     }
   },
   "stateSchema": {
     "type": "object", "required": ["task"], "additionalProperties": false,
     "properties": {
       "task": {
-        "type": "object", "required": ["passed", "skipped", "failed"], "additionalProperties": false,
+        "type": "object", "required": ["fraction", "rate", "etaSeconds", "rateSeries"], "additionalProperties": false,
         "properties": {
-          "passed": { "type": "integer", "minimum": 0 },
-          "skipped": { "type": "integer", "minimum": 0 },
-          "failed": { "type": "integer", "minimum": 0 }
+          "fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+          "rate": { "type": "number", "minimum": 0 },
+          "etaSeconds": { "type": "number", "minimum": 0 },
+          "rateSeries": { "type": "array", "items": { "type": ["number", "null"] }, "maxItems": 60 }
         }
       }
     }
   },
-  "initialState": { "task": { "passed": 0, "skipped": 0, "failed": 0 } }
+  "initialState": { "task": { "fraction": 0.68, "rate": 202, "etaSeconds": 17, "rateSeries": [184, null, 196, 202] } }
 }
 ```
 
-Update counts as tests finish. Send a completed report with `hiboss send`. A workspace-relative HTML path is not a public link.
-Include its host/workspace location, or an already authorized accessible artifact
-URL. Do not invent a hosted URL or claim the report file was uploaded merely
-because the card was published. Put key fixes and material untested scope in the
-card so the result remains useful without opening the artifact.
+Send the completed report with `hiboss send`, including fixes and untested scope.
+A panel does not upload artifacts: give the host/workspace path or an authorized
+accessible URL, never an invented public link.
 
 ```bash
-hiboss panel validate report-panel.json
-hiboss panel publish report-panel.json --run-id RUN_ID
+hiboss panel validate download-panel.json
+hiboss panel publish download-panel.json --run-id RUN_ID
 ```
 
 Keep the returned `panelId`. The key identifies this execution: reuse it with the
 same document on retry; use a new run ID for a new execution. Do not republish a
 new card for every progress update.
 
+For a test run, start with the shorter built-in example (counts plus a `Table`):
+
+```bash
+hiboss panel example e2e-test-run > test-panel.json
+# Fill taskKey/sessionId/targetBossId and actual observations before publication.
+hiboss panel validate test-panel.json
+hiboss panel publish test-panel.json --run-id TEST_RUN_ID
+```
+
 ## Update the same card
 
 `update` applies one partial task object and exits after the accepted sequence:
 
 ```bash
-hiboss panel update PANEL_ID '{"passed":14,"skipped":1,"failed":0}'
+hiboss panel update PANEL_ID '{"fraction":0.72,"rate":210,"etaSeconds":14,"rateSeries":[184,null,196,202,210]}'
 hiboss panel update PANEL_ID --file progress.json
 ```
 
-If neither JSON nor `--file` is supplied, `update` reads one JSON object from stdin.
-It claims the lease, merges the object exactly like a stream line, sends one
-`state.update` (or `state.unchanged`), waits for the acknowledgement, releases the
-lease, and prints the accepted sequence. Repeat it as often as needed; no version
-numbers are hand-written.
+Without JSON or `--file`, `update` reads one object from stdin. It claims a lease,
+merges the observation, sends `state.update` (or `state.unchanged`), waits for the
+acknowledgement, releases the lease, and prints the accepted sequence.
 
 `stream` consumes newline-delimited partial task objects, without a `task` wrapper:
 
 ```bash
-printf '%s\n' '{"passed":14,"skipped":1,"failed":0}' | hiboss panel stream PANEL_ID
+printf '%s\n' '{"fraction":0.76,"rate":215,"etaSeconds":12,"rateSeries":[184,null,196,202,210,215]}' | hiboss panel stream PANEL_ID
 ```
 
-A long-running stdin stream renews its lease every 15 seconds. On clean stdin EOF,
-it releases the lease after the last acknowledgement. A repeated input observation
-with unchanged values uses `state.unchanged`. Only submit observations that were
-actually checked. Lease renewal alone cannot keep old data fresh, and streaming
-data does not keep a card alive. A long-running producer must deliberately renew
-the visibility window:
+A stream renews its lease every 15 seconds and releases it after the final EOF
+acknowledgement. Repeated observations use `state.unchanged`; submit only checked
+observations. Lease renewal cannot refresh old data, and streaming does not extend
+card visibility. Renew the visibility window deliberately:
 
 ```bash
 hiboss panel renew PANEL_ID
@@ -161,11 +172,11 @@ metadata, definition, epoch, and state cursor field. Use the same command and it
 default idempotency key when retrying:
 
 ```bash
-hiboss panel complete PANEL_ID --title "13 passed · 1 platform skip · 0 failed" \
-  --message "Remote UI E2E completed. On-chain settlement was not tested." \
-  --final-task '{"passed":13,"skipped":1,"failed":0}'
-hiboss panel fail PANEL_ID --title "Remote UI E2E failed" --code test_failure \
-  --message "See the captured report"
+hiboss panel complete PANEL_ID --title "10 GiB downloaded" \
+  --message "Artifact transfer completed and verified." \
+  --final-task '{"fraction":1,"rate":0,"etaSeconds":0,"rateSeries":[184,null,196,202,210,215]}'
+hiboss panel fail PANEL_ID --title "Artifact download failed" --code transfer_failure \
+  --message "See the transfer log"
 hiboss panel cancel PANEL_ID --title "Cancelled by operator"
 ```
 
@@ -174,9 +185,7 @@ hiboss panel cancel PANEL_ID --title "Cancelled by operator"
 `--code` valid only for `fail`. `--idempotency-key` overrides the retry-safe key.
 Use `lifecycle <file>` only when the full versioned command is intentionally needed.
 
-If the full `lifecycle <file>` escape hatch is intentional, a just-published card
-with no stream uses the following versioned command; normal agents should use
-`complete` instead:
+For an intentional `lifecycle <file>` on a just-published card with no stream:
 
 ```json
 {
@@ -187,13 +196,13 @@ with no stream uses the following versioned command; normal agents should use
   "expectedEpoch": null,
   "expectedState": { "epoch": null, "sequence": 0 },
   "openRequests": "reject",
-  "finalTask": { "passed": 13, "skipped": 1, "failed": 0 },
-  "result": { "title": "13 passed · 1 platform skip · 0 failed", "message": "Remote UI E2E completed. On-chain settlement was not tested." }
+  "finalTask": { "fraction": 1, "rate": 0, "etaSeconds": 0, "rateSeries": [184, null, 196, 202, 210, 215] },
+  "result": { "title": "10 GiB downloaded", "message": "Artifact transfer completed and verified." }
 }
 ```
 
 ```bash
-hiboss panel lifecycle PANEL_ID finish.json --idempotency-key remote-e2e-RUN_ID-finish
+hiboss panel lifecycle PANEL_ID finish.json --idempotency-key download-RUN_ID-finish
 hiboss panel show PANEL_ID --json
 hiboss panel state PANEL_ID
 ```
@@ -203,20 +212,10 @@ snapshot matches the evidence. A pending/saving response is not completion: retr
 the exact same file and key. A revision conflict requires reading the new state;
 never overwrite newer work blindly.
 
-Before relying on the channel, run:
-
-```bash
-hiboss panel doctor
-```
-
-It checks authentication, the resolved session and boss, and confirms a v2 relay
-ticket advertises `lease.release` before testing the subscribe handshake without
-claiming a lease. A non-zero
-result includes the corrective action.
-When several bosses resolve, doctor prints the default and all candidates. An
-explicit `targetBossId` is required only when no sole admin provides a default.
-Deploy the server's default-target support before installing the matching CLI;
-doctor reads `defaultBossId` from the server and does not derive it locally.
+Before relying on the channel, run `hiboss panel doctor`. It checks authentication,
+session/boss resolution, v2 `lease.release`, and subscription without claiming a lease.
+A non-zero result includes corrective action. Boss defaults come from the server;
+deploy its default-target support before installing the matching CLI.
 
 Other actions are `pause`, `resume`, `fail`, and `cancel`. Failure needs a result
 with a stable `code` and `title`; cancellation needs a reason in `title`.
@@ -237,8 +236,7 @@ Inputs require `$bindState` under `/form/`; stable evidence uses `$state` under
 `/context`. Defaults are drafts only. A questionnaire needs at least two fields or a
 free-form value; a lone choice is `hiboss ask`. `blocking: true` sends the boss one
 push on publication; `blocking: false` is silent and relies on the Needs input filter.
-Use this `intake.json` as a starting point and adjust the schema to the actual
-information needed:
+Adapt this `intake.json` schema to the information needed:
 
 ```json
 {

@@ -10,6 +10,26 @@ use super::*;
     fn accepts_one_bound_metric() { assert_eq!(validate_publication(&publication()), Ok(())); }
 
     #[test]
+    fn warns_about_metric_denominators_without_rejecting_publication() {
+        for label in ["Downloaded GB / 787", "Downloaded/787", "Downloaded /\t787"] {
+            let mut value = publication();
+            value["spec"]["elements"]["main"]["props"]["label"] = serde_json::json!(label);
+            assert_eq!(validate_publication(&value), Ok(()));
+            assert_eq!(metric_denominator_warning("Metric", &value["spec"]["elements"]["main"]["props"]),
+                Some(format!("warning: Metric \"{label}\" carries a denominator; a real denominator is a Progress element")));
+        }
+    }
+
+    #[test]
+    fn leaves_plain_labels_and_other_elements_unwarned() {
+        for label in ["Downloaded GB", "Rate GB/s", "Downloaded / total", "Downloaded /"] {
+            assert_eq!(metric_denominator_warning("Metric", &serde_json::json!({"label": label})), None);
+        }
+        assert_eq!(metric_denominator_warning("Progress", &serde_json::json!({"label": "Downloaded / 787"})), None);
+        assert_eq!(metric_denominator_warning("Metric", &serde_json::json!({})), None);
+    }
+
+    #[test]
     fn rejects_text_only_publication() {
         let mut value = publication();
         value["spec"]["elements"]["main"] = serde_json::json!({

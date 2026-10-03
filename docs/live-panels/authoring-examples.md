@@ -3,6 +3,8 @@
 
 # Live panel authoring examples
 
+Run `hiboss panel example` to list the four built-in publication examples, or `hiboss panel example NAME` to print their JSON from any project.
+
 The catalog is the space an agent composes in. These examples are a handful of points
 inside that space, not a menu or a boundary. Compose freely across the catalog: an agent
 is expected to invent arrangements nobody has written down, and a panel that resembles

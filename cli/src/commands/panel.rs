@@ -4,6 +4,8 @@
 
 #[path = "panel/doctor.rs"]
 mod doctor;
+#[path = "panel/examples/mod.rs"]
+pub mod examples;
 #[path = "panel/validation.rs"]
 mod validation;
 #[path = "panel/json.rs"]
@@ -34,6 +36,8 @@ pub struct PanelArgs {
 pub enum PanelCommand {
     #[command(about = "Read the built-in live panel and message delivery guide")]
     Guide,
+    #[command(about = "List built-in publication examples or print one as JSON")]
+    Example { #[arg(value_name = "NAME")] name: Option<String> },
     #[command(about = "Validate a panel publication document locally")]
     Validate(PanelFileArgs),
     #[command(about = "Publish a panel publication document", long_about = "Publish a panel publication document.\n\nFor live state only; a report is `hiboss send`.")]
@@ -106,6 +110,7 @@ pub struct PanelShowArgs {
 pub async fn run(args: &PanelArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     match &args.command {
         PanelCommand::Guide => { println!("{}", crate::commands::setup_agents::PANEL_GUIDE); Ok(()) },
+        PanelCommand::Example { name } => { print!("{}", examples::render(name.as_deref())?); Ok(()) },
         PanelCommand::Validate(arguments) => run_validate(arguments),
         PanelCommand::Publish(arguments) => run_publish(arguments, client).await,
         PanelCommand::List(arguments) => run_list(arguments, client).await,
