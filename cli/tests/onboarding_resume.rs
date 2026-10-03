@@ -1,5 +1,5 @@
 // Verifies that a pending join request survives the setup process through the built binary.
-// Covers timeout then resume, rejection, already-delivered keys, 404, and --abandon.
+// Covers timeout then resume, rejection, already-delivered keys, 404, --abandon and a changed server.
 // Dependencies: std HTTP mock and shared synthetic onboarding fixtures.
 
 mod onboarding_support;
@@ -67,7 +67,11 @@ fn timeout_keeps_a_private_keyless_file_and_a_rerun_saves_the_approval() {
     assert_eq!(saved["poll_token"], "synthetic-poll");
     assert_eq!(saved["verification_code"], "123456");
     assert_eq!(saved["profiles"][0]["profile"], "aid");
-    assert!(saved["created_at"].as_str().is_some_and(|at| !at.is_empty()));
+    assert!(
+        saved["created_at"]
+            .as_str()
+            .is_some_and(|at| !at.is_empty())
+    );
     assert!(!body.contains("synthetic-key") && !body.contains(INVITE));
     #[cfg(unix)]
     {
@@ -82,7 +86,11 @@ fn timeout_keeps_a_private_keyless_file_and_a_rerun_saves_the_approval() {
     assert_eq!(output.code, 0, "{}", output.stderr);
     assert!(output.stdout.contains("Resuming the pending request from"));
     assert!(output.stdout.contains("VERIFICATION CODE: 123456"));
-    assert!(output.stderr.contains("ignoring --invite"), "{}", output.stderr);
+    assert!(
+        output.stderr.contains("ignoring --invite"),
+        "{}",
+        output.stderr
+    );
     assert_no_secrets(&output, &["synthetic-key-aid"]);
     assert!(!pending_file(&sandbox).exists());
     let config = saved_config(&sandbox);
@@ -160,4 +168,23 @@ fn abandon_deletes_the_pending_file_beside_hiboss_config_without_polling() {
     let requests = server.requests();
     assert_eq!(requests.len(), 1);
     assert_eq!(joins(&requests), 1);
+}
+
+#[test]
+fn resuming_with_a_different_server_fails_before_any_request_and_keeps_the_file() {
+    let sandbox = Sandbox::new();
+    let first = status_server(
+        200,
+        json!({"status":"pending", "request_id":"synthetic-request"}),
+    );
+    start_and_time_out(&sandbox, &first.url);
+    let other = status_server(200, json!({"status":"approved"}));
+    let output = sandbox.run_input(&["setup", "--yes", "--server", &other.url], "", LOOPBACK);
+    assert_ne!(output.code, 0);
+    assert!(pending_file(&sandbox).is_file());
+    assert!(
+        other.requests().is_empty(),
+        "the other server was contacted"
+    );
+    assert_eq!(joins(&first.requests()), 1);
 }
