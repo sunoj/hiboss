@@ -16,6 +16,7 @@ const PAIRING_CODE_BYTES = 32;
 const PAIRING_TTL_MS = 5 * 60 * 1000;
 const MAX_ACTIVE_PAIRING_CODES = 5;
 const MAX_DEVICE_LABEL_LENGTH = 100;
+const PAIRING_ROLES = ['admin', 'manager'];
 
 interface PairingRedeemRequest {
   code: string;
@@ -38,30 +39,38 @@ interface PairingStatusRow {
 export const bossPairingRouter = createBossPairingRouter();
 export const pairingRouter = createPairingRouter();
 
+/** Issues a single-use code for bossId; null when the active-code limit is reached. */
+export async function issuePairingCode(db: D1Database, bossId: string): Promise<{ code: string; expires_at: string } | null> {
+  const now = new Date().toISOString();
+  await db.prepare('DELETE FROM boss_pairing_codes WHERE boss_id = ? AND expires_at <= ?').bind(bossId, now).run();
+  const active = await db.prepare(
+    'SELECT COUNT(*) AS count FROM boss_pairing_codes WHERE boss_id = ? AND consumed_at IS NULL AND expires_at > ?',
+  ).bind(bossId, now).first<{ count: number }>();
+  if ((active?.count ?? 0) >= MAX_ACTIVE_PAIRING_CODES) return null;
+  const code = newPairingCode();
+  const expiresAt = new Date(Date.now() + PAIRING_TTL_MS).toISOString();
+  await db.prepare('INSERT INTO boss_pairing_codes (boss_id, code_hash, expires_at) VALUES (?, ?, ?)')
+    .bind(bossId, await hashApiKey(code), expiresAt).run();
+  return { code, expires_at: expiresAt };
+}
+
+export function newPairingCode(): string {
+  const bytes = new Uint8Array(PAIRING_CODE_BYTES);
+  crypto.getRandomValues(bytes);
+  return `hb_pair_${Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export const PAIRING_CODE_TTL_MS = PAIRING_TTL_MS;
+
 function createBossPairingRouter(): Hono<{ Bindings: Env }> {
   const routes = new Hono<{ Bindings: Env }>({});
   routes.use('*', bossAuth);
   routes.post('/', async (c) => {
-    if (getBossRole(c) !== 'admin') return c.json({ error: 'admin required' }, 403);
-    const bossId = getBossId(c);
-    const now = new Date().toISOString();
-    await c.env.DB.prepare(
-      'DELETE FROM boss_pairing_codes WHERE boss_id = ? AND expires_at <= ?',
-    ).bind(bossId, now).run();
-    const active = await c.env.DB.prepare(
-      'SELECT COUNT(*) AS count FROM boss_pairing_codes WHERE boss_id = ? AND consumed_at IS NULL AND expires_at > ?',
-    ).bind(bossId, now).first<{ count: number }>();
-    if ((active?.count ?? 0) >= MAX_ACTIVE_PAIRING_CODES) {
-      return c.text('too many pairing codes', 429);
-    }
-    const bytes = new Uint8Array(PAIRING_CODE_BYTES);
-    crypto.getRandomValues(bytes);
-    const code = `hb_pair_${Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
-    const expiresAt = new Date(Date.now() + PAIRING_TTL_MS).toISOString();
-    await c.env.DB.prepare(
-      'INSERT INTO boss_pairing_codes (boss_id, code_hash, expires_at) VALUES (?, ?, ?)',
-    ).bind(bossId, await hashApiKey(code), expiresAt).run();
-    return c.json({ code, expires_at: expiresAt });
+    // A code mints another token for the issuing boss, so it never grants more than the issuer holds.
+    if (!PAIRING_ROLES.includes(getBossRole(c))) return c.json({ error: 'admin or manager required' }, 403);
+    const issued = await issuePairingCode(c.env.DB, getBossId(c));
+    if (!issued) return c.text('too many pairing codes', 429);
+    return c.json(issued);
   });
   routes.post('/status', async (c) => {
     let body: unknown;

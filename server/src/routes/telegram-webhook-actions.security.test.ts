@@ -5,7 +5,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashApiKey } from '../middleware/auth';
-import { seedDatabase } from '../test-helpers';
+import { insertPendingJoin, seedDatabase } from '../test-helpers';
 
 const TELEGRAM_SECRET = 'telegram-security-secret';
 
@@ -24,9 +24,6 @@ beforeEach(() => {
 beforeAll(async () => {
   await seedDatabase();
   env.TELEGRAM_WEBHOOK_SECRET = TELEGRAM_SECRET;
-  await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS join_requests (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, poll_token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')), api_key_id TEXT REFERENCES api_keys(id), api_key TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))"
-  ).run();
 });
 
 afterEach(async () => {
@@ -37,7 +34,7 @@ afterEach(async () => {
   await env.DB.prepare("DELETE FROM sessions WHERE id LIKE 'tg-sec-%' OR agent_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM channel_configs WHERE agent_id LIKE 'tg-sec-%'").run();
   await env.DB.prepare("DELETE FROM api_keys WHERE id LIKE 'tg-sec-%'").run();
-  await env.DB.prepare("DELETE FROM join_requests WHERE name LIKE 'tg-sec-%'").run();
+  await env.DB.prepare("DELETE FROM join_requests WHERE profiles LIKE '%tg-sec-%'").run();
   vi.unstubAllGlobals();
 });
 
@@ -51,9 +48,7 @@ describe('Telegram webhook security', () => {
       "INSERT INTO bosses (id, name, role, telegram_user_id) VALUES (?, ?, ?, ?)"
     ).bind('tg-sec-boss-viewer', 'Viewer Boss', 'viewer', 'tg-sec-viewer-1').run();
     const requestId = '11111111000000000000000000000000';
-    await env.DB.prepare(
-      "INSERT INTO join_requests (id, name, poll_token, status) VALUES (?, ?, ?, 'pending')"
-    ).bind(requestId, 'tg-sec-join-request', 'tg-sec-join-token').run();
+    await insertPendingJoin(requestId, 'tg-sec-join-request');
 
     const res = await postTelegramWebhook({
       callback_query: {

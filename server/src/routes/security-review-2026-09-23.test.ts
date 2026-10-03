@@ -1,7 +1,7 @@
 // Security regressions for foreign-session streams, active attachments, and bootstrap.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { authHeaders, seedDatabase } from '../test-helpers';
+import { approveAndCollect, authHeaders, mintTestInvite, seedDatabase } from '../test-helpers';
 import { createAgent } from '../agent-keys';
 import { buildStreamQuery } from './stream';
 
@@ -75,22 +75,15 @@ describe('Security review 2026-09-23 regressions', () => {
   it.each(['Authorization', 'X-Bootstrap-Secret'])('requires the configured bootstrap secret and accepts %s for first join', async (secretHeader) => {
     const previousSecret = env.BOOTSTRAP_SECRET;
     await env.DB.prepare('DELETE FROM api_keys').run();
-    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS join_requests (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL,
-      poll_token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending',
-      api_key_id TEXT REFERENCES api_keys(id), api_key TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`).run();
     env.BOOTSTRAP_SECRET = 'review-bootstrap-secret';
     try {
-      const bootstrap = await SELF.fetch(`${base}/api/bootstrap`, { method: 'POST' });
+      const bootstrap = await SELF.fetch(`${base}/api/bootstrap/boss`, { method: 'POST', body: JSON.stringify({ name: 'review' }) });
       expect(bootstrap.status).toBe(401);
       const invalidHeaders: Record<string, string>[] = [{}, { Authorization: 'Bearer wrong' }, { 'X-Bootstrap-Secret': 'wrong' }];
       for (const headers of invalidHeaders) {
         const denied = await SELF.fetch(`${base}/api/join`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify({ name: 'review-unauthorized-agent' }),
+          body: JSON.stringify(joinBody('review-unauthorized-agent')),
         });
         expect(denied.status).toBe(401);
       }
@@ -98,13 +91,12 @@ describe('Security review 2026-09-23 regressions', () => {
       expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM join_requests').first()).toEqual({ count: 0 });
       const join = await SELF.fetch(`${base}/api/join`, {
         method: 'POST',
-        body: JSON.stringify({ name: 'review-authorized-agent' }),
+        body: JSON.stringify(joinBody('review-authorized-agent')),
         headers: { 'Content-Type': 'application/json', [secretHeader]: secretHeader === 'Authorization'
           ? 'Bearer review-bootstrap-secret' : 'review-bootstrap-secret' },
       });
       expect(join.status).toBe(201);
-      const grant = await join.json() as { status: string; key: string; agent_id: string };
-      expect(grant.status).toBe('approved');
+      const grant = await approveAndCollect(join);
       const profile = await SELF.fetch(`${base}/api/agents/me`, {
         headers: { Authorization: `Bearer ${grant.key}` },
       });
@@ -112,7 +104,7 @@ describe('Security review 2026-09-23 regressions', () => {
       expect(await profile.json()).toMatchObject({ id: grant.agent_id });
       const pending = await SELF.fetch(`${base}/api/join`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'review-pending-agent' }),
+        body: JSON.stringify({ ...joinBody('review-pending-agent'), invite: await mintTestInvite(grant.key) }),
       });
       expect(pending.status).toBe(201);
       expect(await pending.json()).toMatchObject({ status: 'pending' });
@@ -123,3 +115,7 @@ describe('Security review 2026-09-23 regressions', () => {
     }
   });
 });
+
+function joinBody(name: string): Record<string, unknown> {
+  return { device: { label: 'review-device' }, profiles: [{ profile: 'claude', name }] };
+}

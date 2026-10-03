@@ -114,16 +114,37 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   "profiles": [ { "profile": "claude", "name": "alice-claude@macbook" },
                 { "profile": "codex",  "name": "alice-codex@macbook" } ] }
 ```
-- Rejects up front with 409 and the conflicting names when any requested name already exists
-  as an agent or in a pending request. The CLI prints this immediately.
-- Bootstrap (no agents yet) requires `X-Bootstrap-Secret` when configured. The CLI sends it from
+- Rejects up front with 409 and the conflicting names when any requested name already belongs
+  to an agent. A name held only by another pending request is caught at approval: 409, and
+  nothing is created. The CLI prints the 409 immediately. Without a live invite (when one is
+  required) the 403 comes before the name check, so names cannot be probed.
+- Nothing skips approval. On an empty server (no agents yet), a configured `BOOTSTRAP_SECRET`
+  and a matching `X-Bootstrap-Secret` stand in for an invite; without a configured secret the
+  join gets a 403. The request is still pending until a boss approves it, so the first boss
+  comes from `POST /api/bootstrap/boss` and pairing. The CLI sends the secret from
   `--bootstrap-secret` or `HIBOSS_BOOTSTRAP_SECRET`.
-- Approval creates every profile's agent atomically under one new `device_id`.
+- Approval creates every profile's agent atomically under one new `device_id`. The join
+  response itself is always `pending`.
 - `GET /api/join/status` returns
   `{status, device_id, profiles: [{profile, name, agent_id, key}]}`. The keys are delivered once.
 - Adding a profile to an existing device: `POST /api/join` with an `X-Device-Proof` header
   (an existing key of that device). The new profiles join that `device_id`, still after
   approval.
+
+## Invites and verification codes
+
+- `POST /api/devices/invites` (agent key) returns a single-use `hb_inv_…` invite. It lasts
+  30 minutes, and an agent can hold at most 5 active invites. Only the invite's hash is
+  stored, together with the inviter's device label (or agent name).
+- After the first agent exists, `POST /api/join` needs either a live invite or an
+  `X-Device-Proof`; without one it returns 403. Taken names are checked first, so a 409 does
+  not spend the invite.
+- Every join request gets a 6-digit `verification_code`. The joining machine
+  prints it. Telegram, Discord, the APNs push (category `HIBOSS_JOIN_REQUEST`, key
+  `join_request_id`) and `GET /api/boss/join-requests` all show it next to the inviter label.
+  An invite never skips approval.
+- `hiboss device invite [--copy]` prints a self-contained prompt for the new machine: install
+  the CLI if missing, run `hiboss setup --server … --invite …`, report the code, and wait.
 
 ## Agent onboarding: `hiboss setup`
 
@@ -159,6 +180,14 @@ bosses; `boss add` is removed.
   observing redemption like the Mac sheet.
 - **Docs:** the token-minting route is documented only as "rotate: revokes every token of
   this boss".
+
+## Known properties
+
+- A device proof is checked when the request is created. Revoking the proving key afterwards
+  does not withdraw a pending request; the approver still has to approve it.
+- Approved keys wait in plaintext in `join_requests.delivery` until the first poll, which clears
+  them. A request that is approved but never polled keeps them.
+- The active-invite cap is a count-then-insert, so concurrent mints can briefly exceed it.
 
 ## Not covered by this contract
 

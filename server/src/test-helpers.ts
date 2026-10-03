@@ -2,14 +2,16 @@
 // Exports database seeding, auth helpers, and request builders.
 // Depends on cloudflare:test env and the app's auth hashing.
 
-import { env } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { hashApiKey } from './middleware/auth';
+import { approveJoin } from './devices/approve';
 import targetMigration from '../migrations/0041_destination_targets_external_accounts.sql?raw';
 import credentialMigration from '../migrations/0042_provider_credentials.sql?raw';
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
 import projectSurfacesMigration from '../migrations/0044_project_surfaces.sql?raw';
 import agentKeysMigration from '../migrations/0045_agent_keys.sql?raw';
+import devicesMigration from '../migrations/0046_devices.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
 import postsMigration from '../migrations/0026_progress_posts.sql?raw';
 import teamsMigration from '../migrations/0027_progress_teams_likes.sql?raw';
@@ -102,6 +104,8 @@ export async function seedDatabase(): Promise<void> {
   await seedPreAgentKeysDatabase();
   const statements = agentKeysMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(statements.map(sql => env.DB.prepare(sql)));
+  const deviceStatements = devicesMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
+  await env.DB.batch(deviceStatements.map(sql => env.DB.prepare(sql)));
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)
@@ -131,4 +135,30 @@ export async function seedBossToken(name: string, role: string, token: string, i
   await env.DB.prepare('INSERT OR REPLACE INTO boss_tokens (boss_id, label, token_hash) VALUES (?, ?, ?)')
     .bind(boss.id, 'test', tokenHash).run();
   return boss.id;
+}
+
+/** Inserts a pending single-profile device join request for approval-path tests. */
+export async function insertPendingJoin(id: string, name: string): Promise<void> {
+  await env.DB.prepare(`INSERT INTO join_requests (id, poll_token_hash, status, device_label, profiles)
+    VALUES (?, ?, 'pending', ?, ?)`)
+    .bind(id, `hash-${id}`, `device-${id}`, JSON.stringify([{ profile: 'claude', name }])).run();
+}
+
+/** Mints a single-use device invite with the given agent key (the seeded test agent by default). */
+export async function mintTestInvite(agentKey: string = TEST_API_KEY): Promise<string> {
+  const response = await SELF.fetch('https://test.local/api/devices/invites', {
+    method: 'POST', headers: { Authorization: `Bearer ${agentKey}` },
+  });
+  if (response.status !== 201) throw new Error(`invite mint failed: ${response.status}`);
+  return (await response.json() as { invite: string }).invite;
+}
+
+/** Approves a pending join as the system and returns the first delivered profile credential. */
+export async function approveAndCollect(join: Response): Promise<{ agent_id: string; key: string }> {
+  const { request_id, poll_token, status } = await join.json() as { request_id: string; poll_token: string; status: string };
+  if (status !== 'pending') throw new Error(`expected a pending join, got ${status}`);
+  const approved = await approveJoin(env.DB, request_id, { type: 'system', id: 'test' });
+  if (!approved.ok) throw new Error(approved.error);
+  const poll = await SELF.fetch(`https://test.local/api/join/status?token=${poll_token}`);
+  return (await poll.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
 }
