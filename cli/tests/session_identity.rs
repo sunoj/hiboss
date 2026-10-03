@@ -10,7 +10,7 @@ use session_identity_support::{Fixture, read};
 const FOREIGN: &str = "session does not belong to calling agent";
 
 fn sent() -> Value {
-    json!({"id": "msg_1", "direction": "agent_to_boss", "status": "sent", "metadata": {}, "replies": []})
+    json!({"id": "msg_1", "status": "sent", "created_at": "2026-10-03T00:00:00Z", "warning": null})
 }
 
 /// Accepts registrations and sends; every read answers empty.
@@ -43,7 +43,7 @@ fn claude(session: &str, profile: &'static str) -> Vec<(&'static str, String)> {
     ]
 }
 
-fn env(pairs: &[(&'static str, String)]) -> Vec<(&'static str, &str)> {
+fn env<'a>(pairs: &'a [(&'static str, String)]) -> Vec<(&'static str, &'a str)> {
     pairs
         .iter()
         .map(|(name, value)| (*name, value.as_str()))
