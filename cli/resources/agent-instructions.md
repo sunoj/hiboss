@@ -14,15 +14,18 @@
 - Use one `hiboss panel` per execution for ongoing progress and final test/report
   delivery. Publish early, update at meaningful milestones, and finish the same card.
   Renew visibility deliberately; streaming or lease renewal does not extend expiry.
-- Prefer `hiboss request publish` for multi-field intake, requirements, preferences,
-  and structured answers attached to a panel. Retain requestId; use `request wait`
-  or `show`, consume typed `answers`, deduplicate submissionId, then `request ack`.
-  Defaults are drafts; timeout/expiry is not an answer. Never infer execution approval.
+- One question, or one choice among a few labels, is `hiboss ask` with repeatable
+  `--option` (and `--option-image` for A/B comparisons). Never publish a questionnaire
+  for a single question or a single choice.
+- Use `hiboss request publish` only for an intake with two or more fields, or a
+  free-form typed value, attached to a panel. A blocking questionnaire pushes once on
+  publication; an optional one sends no push and is found only through the boss's
+  Needs input filter. Retain requestId; use `request wait` or `show`, consume typed
+  `answers`, deduplicate submissionId, then `request ack`. Defaults are drafts;
+  timeout/expiry is not an answer. Never infer execution approval.
 - Use `hiboss send` for a one-shot notice or urgent blocker; use `hiboss progress
-  post` for a milestone with images/video in the quiet timeline. Use `hiboss ask`
-  only for a required decision or a short choice, including A/B image comparisons
-  with repeatable `--option` and `--option-image`. Do not add a blocking question
-  just to deliver a completion report or ask for optional next steps.
+  post` for a milestone with images/video in the quiet timeline. Do not add a
+  blocking question just to deliver a completion report or ask for optional next steps.
 - Use actual test counts, fixes, artifact locations, and untested scope. A panel
   does not upload report files. Never invent accessible artifact URLs or success.
 - Read the server receipt and verify the final state before claiming delivery.

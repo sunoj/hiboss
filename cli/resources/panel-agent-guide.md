@@ -7,10 +7,14 @@ Choose the surface by the work:
 | Need | Preferred command |
 | --- | --- |
 | Ongoing task progress, test run, final report | `hiboss panel` — one card per execution |
-| Multiple requirements, preferences, typed answers | `hiboss request` — a durable intake attached to the card |
+| One question, or one choice among a few labels (incl. A/B images) | `hiboss ask` — pushes, blocks until answered |
+| An intake with two or more fields, or a free-form typed value | `hiboss request` — durable, attached to the card; blocking pushes once, optional never |
 | One-shot notice or urgent blocker | `hiboss send` |
 | A milestone worth showing with images or video | `hiboss progress post` — quiet timeline, no push |
-| Required decision or short A/B image choice | `hiboss ask` |
+
+A single question is never a questionnaire. If the answer fits in one `--option`
+label, use `hiboss ask`; `hiboss request` earns its card only when the boss has to
+fill in several things at once.
 
 Publish the card early, update meaningful milestones, and finish it with evidence.
 A completion report does not require a blocking question or a next-step poll.
@@ -225,8 +229,11 @@ to an existing panel with `hiboss request publish <panel-id> <file> --idempotenc
 The document declares `kind: "intake"`, title, blocking, priority, catalogId/version,
 formSpec, answerSchema, defaults, immutable context, and optional expiresAt.
 Inputs require `$bindState` under `/form/`; stable evidence uses `$state` under
-`/context`. Defaults are drafts only. Use this minimal `intake.json` as a starting
-point and adjust the schema to the actual information needed:
+`/context`. Defaults are drafts only. A questionnaire needs at least two fields or a
+free-form value; a lone choice is `hiboss ask`. `blocking: true` sends the boss one
+push on publication; `blocking: false` is silent and relies on the Needs input filter.
+Use this `intake.json` as a starting point and adjust the schema to the actual
+information needed:
 
 ```json
 {

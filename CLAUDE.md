@@ -15,11 +15,15 @@ Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss reques
 - Handle actual unread messages with `hiboss reply <id> "response"`.
 - Publish one live panel per execution, update meaningful milestones, and finish the
   same card with actual results, artifact locations, and untested scope.
-- Prefer a durable `hiboss request` questionnaire for multiple requirements,
-  preferences, or typed answers. Keep the request ID, consume the accepted JSON
-  answers with `request wait`/`show`, deduplicate submission IDs, then acknowledge receipt.
-- Use `hiboss send` for a one-shot notice or urgent blocker, `hiboss progress post`
-  for visual milestones, and `hiboss ask` only when a decision is required.
+- One question, or one choice among a few labels, is `hiboss ask` with repeatable
+  `--option`. Never publish a questionnaire for a single question or a single choice.
+- Use a `hiboss request` questionnaire only for an intake with two or more fields or
+  a free-form typed value. A blocking questionnaire pushes once on publication; an
+  optional one sends no push and is found only through the Needs input filter. Keep
+  the request ID, consume the accepted JSON answers with `request wait`/`show`,
+  deduplicate submission IDs, then acknowledge receipt.
+- Use `hiboss send` for a one-shot notice or urgent blocker and `hiboss progress post`
+  for visual milestones.
 - A final report does not need a blocking question or an optional next-step poll.
 - Check server receipts before claiming delivery. Continue independent work when
   delivery is unavailable and report the limitation in the current conversation.
