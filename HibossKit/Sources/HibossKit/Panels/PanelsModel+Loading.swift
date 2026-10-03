@@ -5,6 +5,19 @@
 import Foundation
 
 extension PanelsModel {
+    public func openWhenLoaded(_ tileID: String) async -> Bool {
+        if !tiles.contains(where: { $0.id == tileID }) {
+            while isFetching {
+                do { try await Task.sleep(for: .milliseconds(50)) }
+                catch { return false }
+            }
+            if !tiles.contains(where: { $0.id == tileID }) { await load() }
+        }
+        guard !Task.isCancelled, tiles.contains(where: { $0.id == tileID }) else { return false }
+        open(tileID)
+        return true
+    }
+
     public func load() async {
         guard !isDemoMode else { return }
         invalidateQuestionnaireCoverage()

@@ -20,6 +20,7 @@ final class AppRouter: ObservableObject {
 
     /// Set when a notification is tapped; the shell routes to this message.
     @Published private(set) var pendingMessage: PendingMessageRoute?
+    @Published private(set) var pendingPanel: PushPanelRequest?
 
     /// Set when a join-request push is tapped; the shell opens its approval sheet.
     @Published private(set) var pendingJoinRequest: JoinRequestTarget?
@@ -27,6 +28,15 @@ final class AppRouter: ObservableObject {
     var pendingMessageID: MessageID? { pendingMessage?.messageID }
 
     private init() {}
+
+    func open(panel: PushPanelRequest) {
+        pendingPanel = panel
+    }
+
+    func finishOpening(_ panel: PushPanelRequest) {
+        guard pendingPanel == panel else { return }
+        pendingPanel = nil
+    }
 
     func open(messageID: String, cachedMessage: PushCachedMessage? = nil) {
         let id = MessageID(rawValue: messageID)

@@ -14,6 +14,23 @@ enum PushCategory {
     static let options = "HIBOSS_OPTIONS"
     static let message = "HIBOSS_MESSAGE"
     static let joinRequest = JoinRequestPush.category
+    static let request = "HIBOSS_REQUEST"
+}
+
+struct PushPanelRequest: Hashable, Sendable {
+    let panelID: String
+    let requestID: String
+
+    nonisolated static func decode(from info: [AnyHashable: Any]) -> PushPanelRequest? {
+        guard let panelID = info["panelId"] as? String, !panelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let requestID = info["requestId"] as? String, !requestID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return PushPanelRequest(panelID: panelID, requestID: requestID)
+    }
+}
+
+private enum PushNotificationRequest: Sendable {
+    case panel(PushPanelRequest)
+    case message(PushActionRequest)
 }
 
 enum PushAction {
@@ -54,7 +71,12 @@ final class PushManager: NSObject, ObservableObject {
     func configure() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.setNotificationCategories([optionsCategory(), messageCategory(), JoinRequestPush.notificationCategory()])
+        let requestCategory = UNNotificationCategory(
+            identifier: PushCategory.request, actions: [], intentIdentifiers: [], options: []
+        )
+        center.setNotificationCategories([
+            optionsCategory(), messageCategory(), JoinRequestPush.notificationCategory(), requestCategory,
+        ])
         Task { await registerIfAuthorized() }
     }
 
@@ -173,21 +195,31 @@ extension PushManager: UNUserNotificationCenterDelegate {
         let request = joinRequestID == nil ? Self.actionRequest(from: response) : nil
         Task { @MainActor in
             if let joinRequestID { AppRouter.shared.openJoinRequest(id: joinRequestID) }
-            if let request { await PushManager.shared.handle(request) }
+            switch request {
+            case .panel(let panel): AppRouter.shared.open(panel: panel)
+            case .message(let message): await PushManager.shared.handle(message)
+            case nil: break
+            }
             completionHandler()
         }
     }
 
-    private nonisolated static func actionRequest(from response: UNNotificationResponse) -> PushActionRequest? {
-        let info = response.notification.request.content.userInfo
+    private nonisolated static func actionRequest(from response: UNNotificationResponse) -> PushNotificationRequest? {
+        let content = response.notification.request.content
+        let info = content.userInfo
+        if content.categoryIdentifier == PushCategory.request || info["category"] as? String == PushCategory.request {
+            guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+                  let panel = PushPanelRequest.decode(from: info) else { return nil }
+            return .panel(panel)
+        }
         guard let messageID = info["messageId"] as? String else { return nil }
-        return PushActionRequest(
+        return .message(PushActionRequest(
             messageID: messageID,
             cachedMessage: PushMessageSnapshot.decode(from: info),
             options: info["options"] as? [String] ?? [],
             actionIdentifier: response.actionIdentifier,
             replyText: (response as? UNTextInputNotificationResponse)?.userText
-        )
+        ))
     }
 
     private func handle(_ request: PushActionRequest) async {

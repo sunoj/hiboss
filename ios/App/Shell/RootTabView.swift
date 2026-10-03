@@ -28,6 +28,7 @@ struct RootTabView: View {
         : Self.homeTab
     @State private var homePath = NavigationPath()
     @State private var messagesPath = NavigationPath()
+    @State private var panelRouteNote: String?
 
     init(inbox: InboxStore, connection: ConnectionStore,
          preferences: PreferencesStore, progress: ProgressFeedStore) {
@@ -66,6 +67,14 @@ struct RootTabView: View {
             Task { await joinRequests.refresh() }
         }
         .task { await joinRequests.refresh() }
+        .task(id: router.pendingPanel) { await openPendingPanel() }
+        .alert("Panel unavailable", isPresented: Binding(
+            get: { panelRouteNote != nil }, set: { if !$0 { panelRouteNote = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(panelRouteNote ?? "")
+        }
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
@@ -175,6 +184,27 @@ struct RootTabView: View {
         if route.cachedMessage?.requiresRefresh == true {
             Task { await refreshNotificationPreview(route.messageID) }
         }
+    }
+
+    private func openPendingPanel() async {
+        guard let route = router.pendingPanel else { return }
+        tab = Self.homeTab
+        homePath = NavigationPath()
+        panels.closeDetail()
+        panelRouteNote = nil
+        if !panels.tiles.contains(where: { $0.id == route.panelID }) {
+            for _ in 0..<AppConstants.API.notificationReadinessChecks where connection.config == nil {
+                try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
+                if Task.isCancelled { return }
+            }
+        }
+        let opened = await panels.openWhenLoaded(route.panelID)
+        guard !Task.isCancelled, router.pendingPanel == route else { return }
+        if !opened {
+            panels.section = .needsInput
+            panelRouteNote = String(localized: "Couldn't open this panel. Showing Needs input so you can find unanswered questions or refresh.")
+        }
+        router.finishOpening(route)
     }
 
     private func refreshNotificationPreview(_ messageID: MessageID) async {
