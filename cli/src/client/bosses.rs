@@ -1,5 +1,5 @@
 // Purpose: Boss management client methods for hiboss CLI.
-// Exports: Boss-related methods on HiBossClient (list, create, update, delete, access).
+// Exports: Boss-related methods on HiBossClient (list, update, delete, access).
 // Dependencies: reqwest, serde_json, crate::client::HiBossClient.
 
 use super::HiBossClient;
@@ -22,16 +22,6 @@ impl HiBossClient {
             .http
             .get(format!("{}/api/bosses", self.base_url))
             .bearer_auth(&self.api_key)
-            .send()
-            .await?;
-        Self::parse_response(resp).await
-    }
-    pub async fn create_boss(&self, body: &Value) -> Result<Value, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/bosses", self.base_url))
-            .bearer_auth(&self.api_key)
-            .json(body)
             .send()
             .await?;
         Self::parse_response(resp).await

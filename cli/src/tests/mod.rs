@@ -6,6 +6,5 @@ mod ask;
 mod config_recovery;
 mod helpers;
 mod inbox;
-mod setup;
 mod send;
 mod types_config;

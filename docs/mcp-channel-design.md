@@ -47,9 +47,11 @@ mcp/
 
 ### Startup
 
-1. Load config from `~/.config/hiboss/config.json` (same as CLI)
-2. Validate server_url + api_key exist
-3. Start SSE connection to `{server_url}/api/messages/stream?session={session_id}`
+1. Load v2 config from `$HIBOSS_CONFIG` or the CLI's platform config directory
+   (`~/Library/Application Support/hiboss/config.json` on macOS; XDG config on Linux)
+2. Resolve `HIBOSS_PROFILE` or require the `claude` profile; `HIBOSS_SERVER` +
+   `HIBOSS_KEY` form an ephemeral pair that bypasses the file
+3. Start SSE connection to `{server}/api/messages/stream?session={session_id}`
 4. Connect MCP via StdioServerTransport
 
 ### Shutdown
@@ -186,11 +188,13 @@ For peer agents, use send with the 'to' parameter.
 
 ## Configure Skill
 
-`/hiboss:configure [server_url] [api_key]`
+`/hiboss:configure [status|setup [profile]|clear]`
 
-- No args: show current config status (server URL, key masked, connection state)
-- With args: save to `~/.config/hiboss/config.json`
-- Reads same config file as CLI — shared config
+- No args/status: use `hiboss whoami` for profile and source, without exposing keys
+- Setup: direct the user to `hiboss setup --profile claude` (or their chosen profile)
+- Clear: do not overwrite shared config containing other profiles
+- CLI owns config writes and migration; MCP reads only v2, never hand-written JSON
+- A migrated v1 file contains `default`; select it with `HIBOSS_PROFILE=default`
 
 ## Migration Path
 

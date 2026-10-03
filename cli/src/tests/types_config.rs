@@ -206,6 +206,13 @@ mod tests {
         let mut cfg = Config::default();
         assert!(cfg.require_server().is_err());
         cfg.server = Some("https://example.com".to_string());
+        cfg.profiles.insert(
+            "default".into(),
+            crate::config::Profile {
+                key: Some("secret".into()),
+                ..Default::default()
+            },
+        );
         assert_eq!(cfg.require_server().unwrap(), "https://example.com");
     }
 
@@ -213,7 +220,14 @@ mod tests {
     fn config_require_key_behavior() {
         let mut cfg = Config::default();
         assert!(cfg.require_key().is_err());
-        cfg.key = Some("secret".to_string());
+        cfg.server = Some("https://example.com".into());
+        cfg.profiles.insert(
+            "default".into(),
+            crate::config::Profile {
+                key: Some("secret".into()),
+                ..Default::default()
+            },
+        );
         assert_eq!(cfg.require_key().unwrap(), "secret");
     }
 
@@ -221,13 +235,24 @@ mod tests {
     fn config_roundtrips_via_json() {
         let cfg = Config {
             server: Some("https://a".to_string()),
-            key: Some("abc".to_string()),
             channel: Some("chan".to_string()),
+            profiles: [(
+                "default".into(),
+                crate::config::Profile {
+                    key: Some("abc".into()),
+                    ..Default::default()
+                },
+            )]
+            .into(),
+            ..Config::default()
         };
         let payload = serde_json::to_string(&cfg).expect("serialize");
         let restored: Config = serde_json::from_str(&payload).expect("deserialize");
         assert_eq!(cfg.server, restored.server);
-        assert_eq!(cfg.key, restored.key);
+        assert_eq!(
+            cfg.profiles["default"].key,
+            restored.profiles["default"].key
+        );
         assert_eq!(cfg.channel, restored.channel);
     }
 }

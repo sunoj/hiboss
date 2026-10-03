@@ -10,6 +10,7 @@ pub mod help;
 pub mod helpers;
 pub mod hiboss_dir;
 pub mod message_security;
+pub mod runtime;
 pub mod session;
 pub mod sse;
 pub mod team;

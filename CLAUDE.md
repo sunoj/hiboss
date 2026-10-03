@@ -168,7 +168,8 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 ### CLI (Rust)
 - clap derive API for argument parsing
 - reqwest for HTTP (rustls-tls, json feature), serde for serialization
-- Config stored in `~/.config/hiboss/config.json` (dirs crate)
+- Config stored at `$HIBOSS_CONFIG` or `dirs::config_dir()/hiboss/config.json`
+  (`~/Library/Application Support/hiboss/config.json` on macOS)
 - colored crate for ANSI output
 - Error handling: anyhow-style, friendly messages to stderr, data to stdout
 

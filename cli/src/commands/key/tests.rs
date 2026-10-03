@@ -19,7 +19,9 @@ fn prepare(replies: Vec<Reply>) -> Mock {
     let root = std::env::temp_dir().join(format!("hiboss-key-{}-{}", std::process::id(), listener.local_addr().unwrap().port()));
     fs::create_dir_all(&root).unwrap();
     let path = root.join("config.json");
-    fs::write(&path, serde_json::json!({ "server": server, "key": "old-key", "channel": "api", "future": 42 }).to_string()).unwrap();
+    fs::write(&path, serde_json::json!({ "version": 2, "server": server, "default_profile": "default",
+        "channel": "api", "profiles": { "default": { "key": "old-key" }, "other": { "key": "other-key" } },
+        "future": 42 }).to_string()).unwrap();
     let config_path = path.clone();
     let requests = thread::spawn(move || {
         for response in replies { serve(&listener, response, &config_path); }
@@ -47,7 +49,8 @@ fn serve(listener: &TcpListener, reply: Reply, path: &Path) {
     assert!(request.to_lowercase().contains(&format!("authorization: bearer {}", reply.bearer)));
     if reply.method == "DELETE" {
         let config: serde_json::Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
-        assert_eq!(config["key"], "new-key", "config must be installed before revocation");
+        assert_eq!(config["profiles"]["default"]["key"], "new-key", "config must be installed before revocation");
+        assert_eq!(config["profiles"]["other"]["key"], "other-key");
     }
     write!(socket, "HTTP/1.1 {} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         reply.status, reply.body.len(), reply.body).unwrap();
@@ -57,7 +60,13 @@ fn beginning() -> Vec<Reply> {
         reply("POST", "/keys", "old-key", 201, r#"{"id":"new-id","key":"new-key"}"#)]
 }
 impl Mock {
-    fn config(&self) -> Config { Config { server: Some(self.server.clone()), key: Some("old-key".into()), channel: Some("api".into()) } }
+    fn config(&self) -> Config {
+        let mut config = Config { server: Some(self.server.clone()), key: Some("old-key".into()),
+            channel: Some("api".into()), selected_profile: Some("default".into()), ..Config::default() };
+        config.profiles.insert("default".into(), crate::config::Profile {
+            key: Some("old-key".into()), ..Default::default() });
+        config
+    }
     fn stored(&self) -> serde_json::Value { serde_json::from_slice(&fs::read(&self.path).unwrap()).unwrap() }
     fn finish(self) { self.requests.join().unwrap(); fs::remove_dir_all(self.path.parent().unwrap()).unwrap(); }
 }
@@ -68,7 +77,8 @@ async fn rotates_after_verification_and_preserves_other_config_fields() {
     replies.extend([reply("GET", "", "new-key", 200, NEW), reply("DELETE", "/keys/old-id", "new-key", 200, "{}")]);
     let mock = prepare(replies);
     assert_eq!(rotate(&mock.config(), &mock.path, "Mac").await.unwrap(), "new-id");
-    assert_eq!(mock.stored()["key"], "new-key");
+    assert_eq!(mock.stored()["profiles"]["default"]["key"], "new-key");
+    assert_eq!(mock.stored()["profiles"]["other"]["key"], "other-key");
     assert_eq!(mock.stored()["future"], 42);
     assert!(!mock.path.with_extension("key-previous").exists());
     #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; assert_eq!(fs::metadata(&mock.path).unwrap().permissions().mode() & 0o777, 0o600); }
@@ -107,9 +117,9 @@ async fn uncertain_revoke_keeps_verified_new_config_and_old_recovery_backup() {
     let mock = prepare(replies);
     let error = rotate(&mock.config(), &mock.path, "Mac").await.unwrap_err().to_string();
     assert!(error.contains("outcome uncertain"));
-    assert_eq!(mock.stored()["key"], "new-key");
+    assert_eq!(mock.stored()["profiles"]["default"]["key"], "new-key");
     let saved: serde_json::Value = serde_json::from_slice(&fs::read(mock.path.with_extension("key-previous")).unwrap()).unwrap();
-    assert_eq!(saved["key"], "old-key");
+    assert_eq!(saved["profiles"]["default"]["key"], "old-key");
     mock.finish();
 }
 
@@ -120,7 +130,7 @@ async fn install_failure_does_not_revoke_old_key() {
     let mock = prepare(replies);
     fs::write(mock.path.with_extension("key-next"), "occupied").unwrap();
     assert!(rotate(&mock.config(), &mock.path, "Mac").await.is_err());
-    assert_eq!(mock.stored()["key"], "old-key");
+    assert_eq!(mock.stored()["profiles"]["default"]["key"], "old-key");
     mock.finish();
 }
 
@@ -128,7 +138,7 @@ async fn install_failure_does_not_revoke_old_key() {
 async fn mint_failure_keeps_previous_key() {
     let mock = prepare(vec![reply("GET", "", "old-key", 200, OLD), reply("POST", "/keys", "old-key", 500, "{}")]);
     assert!(rotate(&mock.config(), &mock.path, "Mac").await.unwrap_err().to_string().contains("previous key retained"));
-    assert_eq!(mock.stored()["key"], "old-key");
+    assert_eq!(mock.stored()["profiles"]["default"]["key"], "old-key");
     mock.finish();
 }
 
@@ -138,6 +148,6 @@ async fn verification_rejects_another_identity_without_changing_config() {
     replies.push(reply("GET", "", "new-key", 200, r#"{"id":"other","agent_key_id":"new-id"}"#));
     let mock = prepare(replies);
     assert!(rotate(&mock.config(), &mock.path, "Mac").await.unwrap_err().to_string().contains("did not match"));
-    assert_eq!(mock.stored()["key"], "old-key");
+    assert_eq!(mock.stored()["profiles"]["default"]["key"], "old-key");
     mock.finish();
 }

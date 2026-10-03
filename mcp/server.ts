@@ -3,9 +3,6 @@
 // Exports a single MCP server with hiboss tools and Claude channel notifications.
 // Depends on @modelcontextprotocol/sdk, native fetch, and Node-compatible fs/process APIs.
 
-import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -14,9 +11,8 @@ import { sendFile } from './send-file.js';
 import { enumField, fail, field, formatAskResult, formatReplyBody, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
 import { assuranceLabel, verifyMessage, verifyMessages, type VerifiableMessage } from './message-security.js';
 import { parseEvents } from './sse-events.js';
+import { loadConfig, type Config } from './config.js';
 
-type Config = { server_url: string; api_key: string; agent_name?: string };
-type FileConfig = Partial<Config> & { server?: string; key?: string };
 type Message = VerifiableMessage & { priority?: string; type?: string | null; agent_name?: string | null; agent_id?: string; status?: string; replies?: Message[] };
 type MessageList = { messages?: Message[] };
 type Session = { id: string };
@@ -153,7 +149,7 @@ async function editMessageTool(args: Record<string, unknown>): Promise<CallToolR
 }
 async function sendFileTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const { config, session } = mustState();
-  const result = await sendFile({ serverUrl: config.server_url, apiKey: config.api_key, sessionId: session.id }, { filePath: str(args.file_path, 'file_path'), body: optStr(args.body), to: optStr(args.to), priority: optStr(args.priority) });
+  const result = await sendFile({ serverUrl: config.server, apiKey: config.key, sessionId: session.id }, { filePath: str(args.file_path, 'file_path'), body: optStr(args.body), to: optStr(args.to), priority: optStr(args.priority) });
   return ok(`Sent ${result.messageId}. Attachment: ${result.url}`);
 }
 async function sseLoop(): Promise<void> {
@@ -175,7 +171,7 @@ async function sseLoop(): Promise<void> {
 
 async function streamMessages(controller: AbortController): Promise<void> {
   const { config, session, mcp } = mustState();
-  const url = new URL('/api/messages/stream', config.server_url);
+  const url = new URL('/api/messages/stream', config.server);
   url.searchParams.set('session', session.id);
   const response = await fetch(url, { headers: authHeaders(config, { Accept: 'text/event-stream' }), signal: controller.signal });
   if (!response.ok || !response.body) throw new Error(`SSE connect failed: ${response.status}`);
@@ -208,29 +204,17 @@ async function forwardMessage(mcp: Server<Request, ClaudeChannelNotification>, m
 
 async function api(method: string, path: string, body?: unknown): Promise<unknown> {
   const { config } = mustState();
-  const response = await fetch(new URL(path, config.server_url), { method, headers: authHeaders(config, body ? { 'Content-Type': 'application/json' } : undefined), body: body === undefined ? undefined : JSON.stringify(body) });
+  const response = await fetch(new URL(path, config.server), { method, headers: authHeaders(config, body ? { 'Content-Type': 'application/json' } : undefined), body: body === undefined ? undefined : JSON.stringify(body) });
   if (!response.ok) throw new Error(`${method} ${path} failed: ${response.status} ${await response.text()}`);
   const text = await response.text();
   if (!text) return null;
   try { return JSON.parse(text) as unknown; } catch { return text; }
 }
 
-function loadConfig(): Config {
-  const envUrl = process.env.HIBOSS_SERVER_URL?.trim();
-  const envKey = process.env.HIBOSS_API_KEY?.trim();
-  const home = homedir();
-  const macFile = readJson(join(home, 'Library', 'Application Support', 'hiboss', 'config.json'));
-  const file = (macFile.server || macFile.server_url || macFile.key || macFile.api_key) ? macFile : readJson(join(home, '.config', 'hiboss', 'config.json'));
-  const server_url = envUrl || file.server_url || file.server || '';
-  const api_key = envKey || file.api_key || file.key || '';
-  if (!server_url || !api_key) throw new Error('hiboss config missing server_url/api_key (or HIBOSS_SERVER_URL/HIBOSS_API_KEY)');
-  return { server_url, api_key, agent_name: file.agent_name };
-}
-
 async function registerSession(config: Config): Promise<Session> {
   const id = randomUUID();
   const label = process.env.SESSION_LABEL?.trim() || `claude-${process.pid}-${Date.now().toString(36)}`;
-  const response = await fetch(new URL('/api/sessions', config.server_url), { method: 'POST', headers: authHeaders(config, { 'Content-Type': 'application/json' }), body: JSON.stringify({ id, label, cwd: process.cwd(), status: 'working' }) });
+  const response = await fetch(new URL('/api/sessions', config.server), { method: 'POST', headers: authHeaders(config, { 'Content-Type': 'application/json' }), body: JSON.stringify({ id, label, cwd: process.cwd(), status: 'working' }) });
   if (!response.ok) throw new Error(`session register failed: ${response.status} ${await response.text()}`);
   return { id };
 }
@@ -249,11 +233,8 @@ async function shutdown(reason: string): Promise<void> {
 function latestReply(message: Message): Message | null {
   return latestReplyFromList(message.replies ?? []);
 }
-function readJson(path: string): FileConfig {
-  try { return JSON.parse(readFileSync(path, 'utf8')) as FileConfig; } catch { return {}; }
-}
 function authHeaders(config: Config, extra?: Record<string, string>): Record<string, string> {
-  return { Authorization: `Bearer ${config.api_key}`, ...extra };
+  return { Authorization: `Bearer ${config.key}`, ...extra };
 }
 function compact<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;

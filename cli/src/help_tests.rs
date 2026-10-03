@@ -36,12 +36,12 @@ fn grouped_help_shows_descriptions_and_examples() {
     let help = grouped_root_command(Cli::command())
         .render_help()
         .to_string();
-    assert!(help.contains("Get started:\n  init "), "{help}");
+    assert!(help.contains("Get started:\n  setup "), "{help}");
     assert!(
         help.contains("Send an async message to your boss"),
         "{help}"
     );
-    assert!(help.contains("Examples:\n  hiboss init https://"), "{help}");
+    assert!(help.contains("Examples:\n  hiboss setup --server https://"), "{help}");
     assert!(help.contains("Options:\n"), "{help}");
 }
 

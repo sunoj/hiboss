@@ -3,7 +3,7 @@
 // Dependencies: clap, colored, time, crate::client, crate::config, crate::types, std::process.
 
 use crate::client::HiBossClient;
-use crate::config::{Config, config_path};
+use crate::config::{Config, config_path, resolve_credentials};
 use crate::types::{
     ChannelStats, ChannelStatsResponse, DeliveryErrorInfo, DeliveryQueueStatus, DirectionCount,
 };
@@ -26,22 +26,20 @@ struct DoctorReport {
 
 pub async fn run(args: &DoctorArgs, config: &Config) -> Result<(), Box<dyn Error>> {
     let mut report = DoctorReport::default();
-    let (server, key) = print_local_checks(config, &mut report);
-    if let (Some(url), Some(value)) = (server, key) {
-        let client = HiBossClient::new(url, value);
-        run_remote_checks(args, &client, &mut report).await;
-    } else {
-        print_channel_health_skip("missing server or key");
-    }
+    let credential = resolve_credentials(config)?;
+    print_local_checks(config, &credential.server, &credential.key, &mut report);
+    let client = HiBossClient::new(&credential.server, &credential.key);
+    run_remote_checks(args, &client, &mut report).await;
     finish(report)
 }
 
-fn print_local_checks<'a>(
-    config: &'a Config,
-    report: &mut DoctorReport,
-) -> (Option<&'a str>, Option<&'a str>) {
+fn print_local_checks(config: &Config, server: &str, key: &str, report: &mut DoctorReport) {
     let path = config_path();
-    let exists = path.is_file();
+    let exists = if std::env::var_os("HIBOSS_SERVER").is_some() {
+        false // Rule 1 must not stat the config file.
+    } else {
+        path.is_file()
+    };
     println!(
         "Config file: {} {}",
         path.display(),
@@ -51,29 +49,12 @@ fn print_local_checks<'a>(
             "MISSING".red()
         }
     );
-    if !exists {
+    if !exists && std::env::var_os("HIBOSS_SERVER").is_none() {
         report.issues += 1;
     }
 
-    let server = config
-        .server
-        .as_deref()
-        .filter(|value| !value.trim().is_empty());
-    print_required("Server", server, "not set", report);
-    let key = config
-        .key
-        .as_deref()
-        .filter(|value| !value.trim().is_empty());
-    println!(
-        "Key: {} {}",
-        key.map(mask_key).unwrap_or_else(|| "not set".to_string()),
-        if key.is_some() {
-            "OK".green()
-        } else {
-            report.issues += 1;
-            "MISSING".red()
-        }
-    );
+    println!("Server: {} {}", server, "OK".green());
+    println!("Key: {} {}", mask_key(key), "OK".green());
 
     let channel = config
         .channel
@@ -84,7 +65,6 @@ fn print_local_checks<'a>(
     } else {
         println!("Channel: {} {}", "NOT SET", "WARN".yellow());
     }
-    (server, key)
 }
 
 async fn run_remote_checks(args: &DoctorArgs, client: &HiBossClient, report: &mut DoctorReport) {
@@ -117,15 +97,6 @@ async fn run_remote_checks(args: &DoctorArgs, client: &HiBossClient, report: &mu
             println!("  {} ({})", "FAIL".red(), err);
             report.issues += 1;
         }
-    }
-}
-
-fn print_required(label: &str, value: Option<&str>, missing: &str, report: &mut DoctorReport) {
-    if let Some(found) = value {
-        println!("{label}: {} {}", found, "OK".green());
-    } else {
-        println!("{label}: {} {}", missing, "MISSING".red());
-        report.issues += 1;
     }
 }
 
@@ -308,17 +279,19 @@ fn finish(report: DoctorReport) -> Result<(), Box<dyn Error>> {
     process::exit(1);
 }
 
-fn print_channel_health_skip(reason: &str) {
-    println!("📡 Channel Health");
-    println!("  skipped ({reason})");
+fn mask_key(value: &str) -> String {
+    if value.chars().count() <= 4 { return "...".into(); }
+    let tail: String = value
+        .chars()
+        .rev()
+        .take(4)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    format!("...{tail}")
 }
 
-fn mask_key(value: &str) -> String {
-    if value.len() <= 8 {
-        value.to_string()
-    } else {
-        let start = &value[..4];
-        let end = &value[value.len() - 4..];
-        format!("{}...{}", start, end)
-    }
-}
+#[cfg(test)]
+#[path = "doctor_tests.rs"]
+mod tests;

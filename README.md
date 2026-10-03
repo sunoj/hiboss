@@ -67,14 +67,20 @@ cp target/release/hiboss ~/.cargo/bin/
 hiboss setup agents    # install/refresh Codex and Claude global delivery and questionnaire guidance
 ```
 
-### 3. Initialize
+### 3. Add a machine
+
+On a configured machine, run `hiboss device invite` to get an **Add a machine** prompt.
+Use `--copy` to copy it. Paste the prompt into an AI agent on the new machine: it installs the CLI if needed,
+runs setup, shows a six-digit code, and waits for approval in HiBoss on iPhone/Mac or in Telegram.
 
 ```bash
-hiboss init https://hiboss-server.<you>.workers.dev
+hiboss setup --server https://hiboss-server.<you>.workers.dev --invite <invite>
 ```
 
-This bootstraps the first API key and saves your config to
-`~/.config/hiboss/config.json`.
+One approval sets up the machine's profiles in a v2 config under `~/Library/Application Support/hiboss/config.json` on macOS or `${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json`
+on Linux. Set `HIBOSS_CONFIG` for a different file; `hiboss whoami --json` shows the local identity.
+Use `hiboss setup --check` to verify all profiles, or repeated `--profile` flags and `--label` to customize setup.
+Hooks and guidance honor `CLAUDE_CONFIG_DIR` and `CODEX_HOME`; Gemini uses `~/.gemini/GEMINI.md`.
 
 ### 4. Configure a channel
 
@@ -166,8 +172,7 @@ hiboss react <id> "✅"                   # emoji reaction (Telegram)
 ### Multi-Boss Teams
 
 ```bash
-hiboss boss add "Alice" --role admin --telegram-user-id 12345
-hiboss boss add "Bob" --role manager --discord-user-id 67890
+hiboss boss update <boss-id> --telegram-user-id 12345
 hiboss boss grant <boss-id> <agent-id>    # grant agent access
 hiboss boss list                          # list bosses with roles
 ```
@@ -179,8 +184,8 @@ Roles: `admin` (access all agents), `manager` (explicit grants only), `viewer` (
 An agent can act as boss for other agents -- enabling autonomous orchestration:
 
 ```bash
-# Create a boss linked to an agent
-hiboss boss add "Orchestrator" --role admin --agent-id <orchestrator-key-id>
+# Link an existing boss to an agent
+hiboss boss update <boss-id> --agent-id <orchestrator-key-id>
 
 # The orchestrator reads sub-agent messages and replies
 hiboss boss inbox
@@ -209,7 +214,7 @@ Each Claude Code session gets a unique session ID. Messages are scoped per sessi
 
 ```bash
 claude --channels plugin:hiboss    # launch with hiboss channel
-/hiboss:configure <server_url> <api_key>  # one-time setup
+/hiboss:configure status           # inspect local configuration
 ```
 
 The MCP plugin connects via SSE for instant message delivery. Messages appear as
@@ -254,16 +259,18 @@ server via SSE streaming. It provides real-time message delivery and native MCP 
       "args": ["start"],
       "cwd": "/path/to/hiboss/mcp",
       "env": {
-        "HIBOSS_SERVER_URL": "https://hiboss-server.<you>.workers.dev",
-        "HIBOSS_API_KEY": "hb_your_api_key"
+        "HIBOSS_SERVER": "https://hiboss-server.<you>.workers.dev",
+        "HIBOSS_KEY": "hb_your_api_key"
       }
     }
   }
 }
 ```
 
-Or configure via the shared config file (`~/.config/hiboss/config.json`) used by both
-the CLI and MCP plugin.
+The environment pair is ephemeral and never reads or writes the shared config.
+For saved credentials, use the CLI's v2 config and select the `claude` profile
+(or set `HIBOSS_PROFILE`). Do not hand-write a separate MCP config file.
+A migrated v1 file contains `default`; set `HIBOSS_PROFILE=default` to use it in MCP.
 
 ## Security & Performance
 

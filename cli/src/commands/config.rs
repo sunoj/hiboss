@@ -51,8 +51,14 @@ impl ConfigKey {
 
     fn current(&self, config: &Config) -> Option<String> {
         match self {
-            ConfigKey::Server => config.server.clone(),
-            ConfigKey::Key => config.key.clone(),
+            ConfigKey::Server => config
+                .selected_profile
+                .as_ref()
+                .and_then(|name| config.profiles.get(name))
+                .and_then(|profile| profile.server.clone())
+                .filter(|server| !server.trim().is_empty())
+                .or_else(|| config.server.clone()),
+            ConfigKey::Key => config.key.as_deref().map(super::whoami::mask_key),
             ConfigKey::Channel => config.channel.clone(),
         }
     }
@@ -70,8 +76,18 @@ pub async fn run(command: &ConfigCommand, config: &mut Config) -> Result<(), Box
             println!("{}", value);
         }
         ConfigCommand::List => {
-            println!("server = {}", config.server.as_deref().unwrap_or("-"));
-            println!("key = {}", config.key.as_deref().unwrap_or("-"));
+            println!(
+                "server = {}",
+                ConfigKey::Server.current(config).as_deref().unwrap_or("-")
+            );
+            println!(
+                "key = {}",
+                config
+                    .key
+                    .as_deref()
+                    .map(super::whoami::mask_key)
+                    .unwrap_or_else(|| "-".into())
+            );
             println!("channel = {}", config.channel.as_deref().unwrap_or("-"));
         }
     }

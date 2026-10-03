@@ -1,6 +1,10 @@
 <!-- hiboss:panels:begin -->
 ## HiBoss delivery and human input
 
+- On a new machine, run `hiboss setup --server <url> --invite <invite>`, and wait
+  for the boss to approve the runtime profiles together. Use `hiboss whoami`
+  for local identity and `hiboss setup --check` for server verification. Never
+  ask for or print an API key; setup owns the shared v2 profile configuration.
 - Prefer HiBoss for boss-facing progress, results, questions, and rich media. Use it
   proactively during substantive tasks; the user need not repeat "send via HiBoss".
   Honor an explicit request for another channel or no notifications.

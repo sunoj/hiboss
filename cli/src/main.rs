@@ -6,7 +6,8 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
-    hook, inbox, init, key, panel, progress, react, read, reply, request, route, send, setup, ss, status, watch,
+    device, hook, inbox, key, onboarding, panel, progress, react, read, reply, request, route, send, setup, ss,
+    status, watch, whoami,
 };
 use hiboss::config;
 use hiboss::help;
@@ -48,16 +49,18 @@ enum Commands {
     Bot(bot::BotArgs),
     #[command(about = "Watch for new messages with desktop notifications")]
     Watch(watch::WatchArgs),
-    #[command(about = "Initialize hiboss with a server URL")]
-    Init(init::InitArgs),
+    #[command(about = "Invite another machine using the active profile")]
+    Device(device::DeviceArgs),
     #[command(about = "Manage local configuration")]
     Config(config_cmd::ConfigArgs),
     #[command(about = "Run Claude Code hook events")]
     Hook(hook::HookArgs),
-    #[command(about = "Setup integrations (hooks, etc.)")]
+    #[command(about = "Set up runtime profiles or configure integrations")]
     Setup(setup::SetupArgs),
     #[command(about = "Validate local configuration and connectivity")]
     Doctor(doctor::DoctorArgs),
+    #[command(about = "Show the active local credential identity")]
+    Whoami(whoami::WhoamiArgs),
     #[command(about = "Configure messaging channels (Discord, Telegram)")]
     Channel(channel::ChannelArgs),
     #[command(about = "Manage routing rules for incoming messages")]
@@ -84,9 +87,15 @@ enum Commands {
 async fn main() {
     if let Err(err) = run().await {
         let msg = err.to_string();
-        eprintln!("Error: {}", msg);
+        if err.is::<config::ProfileError>() {
+            eprintln!("{msg}");
+        } else {
+            eprintln!("Error: {msg}");
+        }
         // Typed failures first: their messages can contain classifier words like "missing".
-        let code = if err.is::<config::LoadError>() || err.is::<MessageVerificationError>() {
+        let code = if err.is::<config::ProfileError>() {
+            3
+        } else if err.is::<config::LoadError>() || err.is::<MessageVerificationError>() {
             1
         } else if msg.contains("not configured")
             || msg.contains("missing")
@@ -115,10 +124,17 @@ async fn run() -> Result<(), Box<dyn Error>> {
     if run_local(&cli.command, &mut config).await? {
         return Ok(());
     }
-    let server = config.require_server()?;
-    let key = config.require_key()?;
-    let client = client::HiBossClient::new(&server, &key);
-    match &cli.command {
+    let credential = config::resolve_credentials(&config)?;
+    let client = client::HiBossClient::new(&credential.server, &credential.key);
+    run_remote(&cli.command, &config, &client).await
+}
+
+async fn run_remote(
+    command: &Commands,
+    config: &config::Config,
+    client: &client::HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    match command {
         Commands::Send(args) => send::run(args, &config, &client).await?,
         Commands::Ask(args) => ask::run(args, &config, &client).await?,
         Commands::Inbox(args) => inbox::run(args, &config, &client).await?,
@@ -136,6 +152,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Route(args) => route::run(args, &config, &client).await?,
         Commands::Group(args) => group::run(args, &config, &client).await?,
         Commands::Boss(args) => boss::run(args, &config, &client).await?,
+        Commands::Device(args) => device::run(args, config).await?,
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
         Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
         Commands::Progress(args) => progress::run(args, &config, &client).await?,
@@ -144,9 +161,9 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Request(args) => request::run(args, &client).await?,
         Commands::Hook(_) => unreachable!(),
         Commands::Config(_) => unreachable!(),
-        Commands::Init(_) => unreachable!(),
         Commands::Doctor(_) => unreachable!(),
         Commands::Daemon(_) => unreachable!(),
+        Commands::Whoami(_) => unreachable!(),
     }
     Ok(())
 }
@@ -155,6 +172,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
 async fn run_offline(command: &Commands) -> Result<bool, Box<dyn Error>> {
     match command {
         Commands::Hook(args) => hook::run(args).await?,
+        Commands::Setup(args) if args.command.is_none() => onboarding::run(args).await?,
         Commands::Setup(args) if !setup::needs_client(args) => setup::run(args)?,
         Commands::Panel(args) => match &args.command {
             panel::PanelCommand::Guide => {
@@ -175,8 +193,8 @@ async fn run_local(
 ) -> Result<bool, Box<dyn Error>> {
     match command {
         Commands::Config(command) => config_cmd::run(&command.command, config).await?,
-        Commands::Init(command) => init::run(command, config).await?,
         Commands::Doctor(args) => doctor::run(args, config).await?,
+        Commands::Whoami(args) => whoami::run(args, config)?,
         Commands::Daemon(args) => daemon::run(args).await?,
         _ => return Ok(false),
     }
@@ -187,3 +205,5 @@ async fn run_local(
 mod help_tests;
 #[cfg(test)]
 mod project_command_tests;
+#[cfg(test)]
+mod onboarding_command_tests;
