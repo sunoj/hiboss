@@ -22,14 +22,15 @@ the delivery failure here and continue work independent of the missing answer.
 | --- | --- |
 | A count with a real denominator | `Progress`: bind `value` to a 0..1 fraction, or use `min`/`max` for the count range |
 | A number without a denominator | `Metric`: `value` is a number or a short word (it renders large and bold) |
-| A live sentence or a list of names | `Text` with `text` bound to state; never a `Metric` |
+| A live sentence or a list of names | `Text` with `text` bound to one state string (join the names yourself); never a `Metric` |
 | A value over time | `LineChart` or `BarChart`, with `values` bound to a state array; a gap is explicit `null`, never 0. Resend the whole array each update (`update` merges objects and replaces arrays); keep a bounded window such as the last 60 points |
 | A stage or health word | `Status` (its props are literal; put the changing word in a `Metric` or `Text`) |
 | Per-item outcomes | `Table` with `rowsBinding: {"$state": "/task/rows"}` bound to a state array of row objects keyed by column id; literal `rows` never change after publication |
 
 No `Progress` without a real denominator; never invent a completion percentage.
-Only bound props change: `Metric.value`, `Text.text`, `Progress.value`, chart `values`
-and `Table.rowsBinding`. Labels, `Status` props and table columns are literal.
+Live `$state` bindings reach the boss through `Metric.value`, `Text.text`, `Progress.value`,
+chart `values` and `Table.rowsBinding`; input elements bind through `$bindState` for
+questionnaires. Labels, `Status` props and table columns are literal.
 Any card with a series or table automatically renders as a wide wall tile.
 Run `hiboss panel example` for names and descriptions; `hiboss panel example NAME`
 prints JSON ready for `validate`/`publish` after filling `taskKey`, `sessionId`, and

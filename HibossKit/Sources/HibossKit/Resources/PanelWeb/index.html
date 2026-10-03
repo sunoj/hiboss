@@ -70,11 +70,15 @@
   }
   function renderTable(definition) {
     const columns = Array.isArray(definition.columns) ? definition.columns : [];
-    const rows = Array.isArray(definition.rows) ? definition.rows : [];
+    // Rows come from producer state: skip anything that is not an object and never treat cell text as markup.
+    const rows = (Array.isArray(definition.rows) ? definition.rows : []).filter((row) => row !== null && typeof row === 'object' && !Array.isArray(row));
+    const cell = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
     document.getElementById('table-label').textContent = prop(definition, 'label', 'Table');
-    document.getElementById('table-head').replaceChildren(Object.assign(document.createElement('tr'), { innerHTML: columns.map((column) => `<th scope="col">${String(column.label || column.id)}</th>`).join('') }));
+    const head = document.createElement('tr');
+    head.replaceChildren(...columns.map((column) => { const th = cell('th', String(column.label || column.id)); th.scope = 'col'; return th; }));
+    document.getElementById('table-head').replaceChildren(head);
     const body = document.getElementById('table-body');
-    body.replaceChildren(...rows.map((row) => { const tr = document.createElement('tr'); tr.innerHTML = columns.map((column) => `<td>${String(row[column.id] ?? '—')}</td>`).join(''); return tr; }));
+    body.replaceChildren(...rows.map((row) => { const tr = document.createElement('tr'); tr.replaceChildren(...columns.map((column) => cell('td', String(row[column.id] ?? '—')))); return tr; }));
   }
   function render(message) {
     const definition = message.definition || {};
