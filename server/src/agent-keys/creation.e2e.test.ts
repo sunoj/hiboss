@@ -8,7 +8,10 @@ import { approveJoinRequest } from '../routes/join-helpers';
 beforeAll(async () => {
   await seedDatabase();
   await env.DB.prepare('DELETE FROM api_keys').run();
+  env.BOOTSTRAP_SECRET = BOOTSTRAP_SECRET;
 });
+// The secret is accepted as a bearer token on the first join of an empty server.
+const BOOTSTRAP_SECRET = 'creation-bootstrap-secret';
 const base = 'https://test.local/api';
 interface Grant { id: string; key: string }
 // The first-joined agent invites the later machines.
@@ -27,7 +30,7 @@ async function post(path: string, body: unknown, token?: string): Promise<Respon
 }
 
 it('first join and admin creation write only independent credentials', async () => {
-  const response = await post('/join', joinBody('bootstrap-agent'));
+  const response = await post('/join', joinBody('bootstrap-agent'), BOOTSTRAP_SECRET);
   expect(response.status).toBe(201);
   const first = (await response.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
   const bootstrap: Grant = { id: first.agent_id, key: first.key };
@@ -57,7 +60,7 @@ it('first-agent join creates an independent credential without enrolment changes
   await env.DB.prepare('DELETE FROM join_requests').run();
   await env.DB.prepare('DELETE FROM boss_agent_access').run();
   await env.DB.prepare('DELETE FROM api_keys').run();
-  const response = await post('/join', joinBody('first-join'));
+  const response = await post('/join', joinBody('first-join'), BOOTSTRAP_SECRET);
   expect(response.status).toBe(201);
   const body = await response.json() as { status: string; profiles: Array<{ agent_id: string; key: string }> };
   expect(body.status).toBe('approved');

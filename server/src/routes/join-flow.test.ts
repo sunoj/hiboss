@@ -142,7 +142,7 @@ describe('Join flow', () => {
 
   it('rejects a taken name when the request is created', async () => {
     const res = await SELF.fetch(JOIN_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(joinBody('test-agent')) });
+      body: JSON.stringify({ ...joinBody('test-agent'), invite: await mintTestInvite() }) });
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: 'agent name already exists', conflicts: ['test-agent'] });
   });
@@ -172,13 +172,19 @@ describe('Join flow', () => {
     await env.DB.prepare('DELETE FROM channel_configs').run();
     await env.DB.prepare('DELETE FROM boss_agent_access').run();
     await env.DB.prepare('DELETE FROM api_keys').run();
-
-    const res = await SELF.fetch(JOIN_BASE, {
+    const previous = env.BOOTSTRAP_SECRET;
+    const firstJoin = (headers: Record<string, string>) => SELF.fetch(JOIN_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(joinBody('join-flow-bootstrap')),
     });
+    env.BOOTSTRAP_SECRET = '';
+    const unconfigured = await firstJoin({});
+    env.BOOTSTRAP_SECRET = 'join-flow-bootstrap-secret';
+    const res = await firstJoin({ 'X-Bootstrap-Secret': 'join-flow-bootstrap-secret' });
+    env.BOOTSTRAP_SECRET = previous;
 
+    expect(unconfigured.status).toBe(403);
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({
       status: 'approved',

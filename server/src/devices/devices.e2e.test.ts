@@ -5,6 +5,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
 import { joinRequestPayload } from './notify-push';
+import { createJoinRequest } from './enroll';
 
 const BASE = 'https://test.local';
 const ADMIN = 'devices-admin-token';
@@ -91,6 +92,8 @@ describe('device enrolment', () => {
 
   it('requires a live single-use invite and keeps it when the name check fails', async () => {
     expect((await join(request('dev-e', { claude: 'dev-e-claude' }))).status).toBe(403);
+    expect((await join(request('dev-e', { claude: 'test-agent' }))).status).toBe(403);
+    expect((await join({ ...request('dev-e', { claude: 'test-agent' }), invite: `hb_inv_${'0'.repeat(64)}` })).status).toBe(403);
     const invite = await mintTestInvite();
     expect((await join({ ...request('dev-e', { claude: 'test-agent' }), invite })).status).toBe(409);
     expect((await join({ ...request('dev-e', { claude: 'dev-e-claude' }), invite })).status).toBe(201);
@@ -104,8 +107,16 @@ describe('device enrolment', () => {
     expect(anonymous.status).toBe(401);
   });
 
+  it('rejects a first join that loses the empty-server race instead of leaving it approvable', async () => {
+    const payload = { device: { label: 'dev-race', host: null }, profiles: [{ profile: 'claude', name: 'dev-race-claude' }], invite: null };
+    const lost = await createJoinRequest(env.DB, payload, { deviceId: null, invite: null, bootstrap: true });
+    expect(lost).toEqual({ kind: 'bootstrap_lost' });
+    expect(await env.DB.prepare("SELECT status FROM join_requests WHERE device_label = 'dev-race'").first('status')).toBe('rejected');
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM api_keys WHERE name = 'dev-race-claude'").first('n')).toBe(0);
+  });
+
   it('builds a join push that names the device, profiles, inviter and code', () => {
-    const payload = joinRequestPayload({ requestId: 'r1', deviceLabel: 'mini', inviterLabel: 'air',
+    const payload = joinRequestPayload({ requestId: 'r1', deviceLabel: 'mini', inviterLabel: 'air', existingDevice: false,
       verificationCode: '012345', profiles: [{ profile: 'claude', name: 'a' }, { profile: 'codex', name: 'b' }] });
     expect(payload.aps.alert).toEqual({ title: 'New device wants to join', subtitle: 'Invited from air', body: 'mini (claude, codex) · code 012345' });
     expect(payload).toMatchObject({ join_request_id: 'r1', aps: { category: 'HIBOSS_JOIN_REQUEST' } });

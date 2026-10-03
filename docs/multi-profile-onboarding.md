@@ -114,9 +114,13 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   "profiles": [ { "profile": "claude", "name": "alice-claude@macbook" },
                 { "profile": "codex",  "name": "alice-codex@macbook" } ] }
 ```
-- Rejects up front with 409 and the conflicting names when any requested name already exists
-  as an agent or in a pending request. The CLI prints this immediately.
-- Bootstrap (no agents yet) requires `X-Bootstrap-Secret` when configured. The CLI sends it from
+- Rejects up front with 409 and the conflicting names when any requested name already belongs
+  to an agent. A name held only by another pending request is caught at approval: 409, and
+  nothing is created. The CLI prints the 409 immediately. Without a live invite (when one is
+  required) the 403 comes before the name check, so names cannot be probed.
+- Bootstrap (no agents yet) requires a configured `BOOTSTRAP_SECRET` and a matching
+  `X-Bootstrap-Secret`. Without a configured secret the first join gets a 403. A join that
+  loses the empty-server race is rejected, not left pending. The CLI sends the secret from
   `--bootstrap-secret` or `HIBOSS_BOOTSTRAP_SECRET`.
 - Approval creates every profile's agent atomically under one new `device_id`.
 - `GET /api/join/status` returns
@@ -176,6 +180,14 @@ bootstrap below).
   observing redemption like the Mac sheet.
 - **Docs:** the token-minting route is documented only as "rotate: revokes every token of
   this boss".
+
+## Known properties
+
+- A device proof is checked when the request is created. Revoking the proving key afterwards
+  does not withdraw a pending request; the approver still has to approve it.
+- Approved keys wait in plaintext in `join_requests.delivery` until the first poll, which clears
+  them. A request that is approved but never polled keeps them.
+- The active-invite cap is a count-then-insert, so concurrent mints can briefly exceed it.
 
 ## Not covered by this contract
 

@@ -1,5 +1,5 @@
 // Single-use device invites minted by an enrolled agent, plus join verification codes.
-// Exports deviceInvitesRouter (POST /api/devices/invites), consumeInvite, verificationCode.
+// Exports deviceInvitesRouter (POST /api/devices/invites), inviteIsLive, consumeInvite, verificationCode.
 // Depends on agent auth, D1 and SHA-256 hashing; an invite never skips boss approval.
 import { Hono } from 'hono';
 import type { Env } from '../types';
@@ -30,6 +30,13 @@ router.post('/invites', async (c) => {
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'device_invite.create', 'device_invite', row.id, label));
   return c.json({ invite, expires_at: expiresAt, inviter_label: label }, 201);
 });
+
+/** True when the invite exists, is unused and unexpired; does not spend it. */
+export async function inviteIsLive(db: D1Database, invite: string): Promise<boolean> {
+  const row = await db.prepare('SELECT 1 AS live FROM device_invites WHERE token_hash = ? AND consumed_at IS NULL AND expires_at > ?')
+    .bind(await hashApiKey(invite), new Date().toISOString()).first<number>('live');
+  return row === 1;
+}
 
 /** Atomically consumes an unexpired invite; null when it is unknown, used or expired. */
 export async function consumeInvite(db: D1Database, invite: string): Promise<ConsumedInvite | null> {

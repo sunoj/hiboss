@@ -15,7 +15,8 @@ type ChannelConfigRow = {
 type NamedProfile = { profile: string; name: string; agent_id?: string };
 
 export async function notifyJoinRequest(env: Env, notice: JoinNotice): Promise<void> {
-  const inviter = notice.inviterLabel ? ` (invited from ${notice.inviterLabel})` : '';
+  const inviter = notice.existingDevice ? ' (adds profiles to this enrolled device)'
+    : notice.inviterLabel ? ` (invited from ${notice.inviterLabel})` : '';
   const code = notice.verificationCode ? `\nVerification code: ${notice.verificationCode}` : '';
   await Promise.allSettled([
     broadcastJoinMessage(env, `Join request from device ${notice.deviceLabel}${inviter}: ${profileList(notice.profiles)}${code}`,

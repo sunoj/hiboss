@@ -8,8 +8,9 @@ import { parseStoredProfiles, type Delivery, type JoinPayload, type JoinRequestR
 
 export type CreateOutcome =
   | { kind: 'created'; requestId: string; pollToken: string; status: 'pending' | 'approved'; delivery?: Delivery;
-      verificationCode: string | null }
-  | { kind: 'conflict'; names: string[] };
+      verificationCode: string | null; deviceLabel: string }
+  | { kind: 'conflict'; names: string[] }
+  | { kind: 'bootstrap_lost' };
 
 /** Names among `names` that already belong to an agent. */
 export async function takenNames(db: D1Database, names: string[]): Promise<string[]> {
@@ -34,10 +35,16 @@ export async function createJoinRequest(db: D1Database, payload: JoinPayload, co
       invite?.id ?? null, invite?.inviterLabel ?? null, code)
     .first<{ id: string }>();
   if (!row) throw new Error('join request insert returned no row');
-  const pending = { kind: 'created' as const, requestId: row.id, pollToken, status: 'pending' as const, verificationCode: code };
+  const pending = { kind: 'created' as const, requestId: row.id, pollToken, status: 'pending' as const, verificationCode: code,
+    deviceLabel: label };
   if (!bootstrap) return pending;
   const approved = await approveJoin(db, row.id, { type: 'system', id: 'join' }, { firstOnly: true });
-  if (!approved.ok) return pending;
+  if (!approved.ok) {
+    // Another first join won the race; this one carried no invite, so it must not stay approvable.
+    await db.prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
+      .bind(row.id).run();
+    return { kind: 'bootstrap_lost' };
+  }
   const delivered = await pollJoinRequest(db, pollToken);
   return { ...pending, status: 'approved', delivery: delivered?.delivery };
 }

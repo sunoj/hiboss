@@ -11,6 +11,7 @@ export interface JoinNotice {
   profiles: Array<{ profile: string; name: string }>;
   inviterLabel: string | null;
   verificationCode: string | null;
+  existingDevice: boolean;
 }
 
 export const JOIN_REQUEST_CATEGORY = 'HIBOSS_JOIN_REQUEST';
@@ -22,7 +23,8 @@ export function joinRequestPayload(notice: JoinNotice): ApnsPayload {
     aps: {
       alert: {
         title: 'New device wants to join',
-        subtitle: notice.inviterLabel ? `Invited from ${notice.inviterLabel}` : undefined,
+        subtitle: notice.existingDevice ? 'Adds profiles to an enrolled device'
+          : notice.inviterLabel ? `Invited from ${notice.inviterLabel}` : undefined,
         body: `${notice.deviceLabel} (${profiles})${code}`,
       },
       sound: 'default',
