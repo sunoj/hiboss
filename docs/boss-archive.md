@@ -7,6 +7,7 @@ history remain. Restore clears it; existing non-revoked tokens work again.
 | Production selection site | Classification and policy |
 | --- | --- |
 | `middleware/auth.ts`: `resolveBossAuth` | Live: reject archived token owners. |
+| `panels/relay/room.ts`: socket attachments | Live: archive evicts matching subscriber identities from the boss wall and visible panel rooms with close code 4401 (`boss archived`); producer/other-boss sockets remain. |
 | `panels/access.ts`: `resolvedBosses`, `bossCanAccessAgent`, `panelTargetAccessSql` | Live: filter archived admins and grantees; discovery and publication inherit this. |
 | `notify.ts`: boss-agent fan-out and request push target | Live: exclude archived recipients and their devices. |
 | `delivery/destinations.ts` | Live: exclude archived owners, including retry resolution. |
@@ -34,6 +35,8 @@ boss ID. Unknown targets return 404; repeated state transitions return 409.
 Archive rejects self and the last live admin with 400. The last-admin constraint
 also guards the UPDATE atomically. Successful changes append `boss.archive` or
 `boss.restore` audit events. No delete or token revocation occurs in either path.
+After committing, archive awaits best-effort socket eviction. Restored subscribers
+reconnect; restore itself performs no eviction.
 
 The existing update verb is PATCH. PATCH (including preferences), grant/revoke,
 token rotation, and external-account mutations reject archived targets with 409

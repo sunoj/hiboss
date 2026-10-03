@@ -27,6 +27,7 @@ export async function archiveBoss(c: BossContext): Promise<Response> {
     return current.archived_at !== null ? c.text('boss is archived', 409) : c.text('cannot archive the last unarchived admin', 400);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.archive', 'boss', id));
+  await evictBossSubscriptions(c.env, boss);
   return c.json(result);
 }
 
@@ -40,4 +41,25 @@ export async function restoreBoss(c: BossContext): Promise<Response> {
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', getBossId(c), 'boss.restore', 'boss', id));
   return c.json(result);
+}
+
+async function evictBossSubscriptions(env: Env, boss: ArchiveRow): Promise<void> {
+  const namespace = env.PANEL_ROOM;
+  if (!namespace) return;
+  const rooms = new Set([boss.id]);
+  try {
+    const scope = boss.role === 'admin'
+      ? "json_extract(lifecycle_json, '$.taskState') NOT IN ('completed', 'failed', 'cancelled')"
+      : 'target_boss_id = ?';
+    const query = env.DB.prepare(`SELECT DISTINCT target_boss_id FROM panels WHERE ${scope}`);
+    const panels = await (boss.role === 'admin' ? query : query.bind(boss.id)).all<{ target_boss_id: string }>();
+    for (const panel of panels.results) rooms.add(panel.target_boss_id);
+  } catch { /* Still evict the boss's own wall room if enumeration is unavailable. */ }
+  // Await every best-effort eviction before acknowledging the committed archive.
+  await Promise.allSettled([...rooms].map(async roomId => {
+    const room = namespace.get(namespace.idFromName(roomId));
+    await room.fetch('https://panel-room.internal/__evict-subscriber', {
+      method: 'POST', body: JSON.stringify({ identity: boss.id }),
+    });
+  }));
 }

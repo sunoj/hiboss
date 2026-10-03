@@ -30,6 +30,7 @@ export class PanelRoom extends DurableObject<Env> {
     const path = new URL(req.url).pathname;
     if (path === '/__issue-ticket' && req.method === 'POST') return issueTicket(this.ctx, req);
     if (path === '/__repair' && req.method === 'POST') { await this.engine.repair(); return new Response(null, { status: 204 }); }
+    if (path === '/__evict-subscriber' && req.method === 'POST') return this.evictSubscriber(req);
     if (path === '/__command' && req.method === 'POST') return this.command(req);
     if (path === '/__wall-changed' && req.method === 'POST') return this.wallChanged(req);
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected Upgrade: websocket', { status: 426 });
@@ -39,6 +40,19 @@ export class PanelRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server, [consumed.ticket.ticketId]);
     server.serializeAttachment(consumed.ticket);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  private async evictSubscriber(req: Request): Promise<Response> {
+    const input: unknown = await req.json().catch(() => null);
+    if (!isRecord(input) || typeof input.identity !== 'string' || !input.identity) return new Response('Invalid identity', { status: 400 });
+    for (const socket of this.ctx.getWebSockets()) {
+      const ticket = this.attachment(socket);
+      if (ticket?.role !== 'subscriber' || ticket.identity !== input.identity) continue;
+      // Stop broadcasts immediately, including while the close handshake is pending.
+      socket.serializeAttachment(null);
+      try { socket.close(4401, 'boss archived'); } catch { /* Already closed. */ }
+    }
+    return new Response(null, { status: 204 });
   }
 
   private async wallChanged(req: Request): Promise<Response> {
