@@ -14,10 +14,14 @@ struct HibossIslandApp: App {
     var body: some Scene {
         Window(productName, id: "main") {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow,
-                notificationNavigation: appDelegate.notificationNavigation)
+                notificationNavigation: appDelegate.notificationNavigation,
+                joinRequests: appDelegate.joinRequests)
         }
         .defaultSize(width: 1320, height: 820)
-        .commands { AppWindowCommands(navigation: appDelegate.notificationNavigation) }
+        .commands {
+            AppWindowCommands(navigation: appDelegate.notificationNavigation,
+                pairingLinks: appDelegate.pairingLinks)
+        }
 
         Window(L("Settings"), id: "settings") {
             SettingsScene(
@@ -26,7 +30,8 @@ struct HibossIslandApp: App {
                 preferencesStore: appDelegate.preferencesStore,
                 notifications: appDelegate.notifications,
                 updater: appDelegate.updater.state,
-                launchAtLogin: appDelegate.launchAtLogin
+                launchAtLogin: appDelegate.launchAtLogin,
+                pairingLinks: appDelegate.pairingLinks
             )
         }
         .defaultSize(width: 960, height: 640)
@@ -38,10 +43,12 @@ struct HibossIslandApp: App {
 private struct AppWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     let navigation: MessageNotificationNavigation
+    let pairingLinks: PairingLinkRouter
 
     var body: some Commands {
         let action = openWindow
         let _ = navigation.install { action(id: "main") }
+        let _ = pairingLinks.install { action(id: "settings") }
         CommandGroup(replacing: .appSettings) {
             Button(L("Settings")) {
                 openWindow(id: "settings")
@@ -60,31 +67,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let launchAtLogin = LaunchAtLoginController()
     let notificationCenter = SystemMessageNotificationCenter()
     let notificationNavigation = MessageNotificationNavigation()
+    let pairingLinks = PairingLinkRouter()
     let notifications: MessageNotificationStore
+    let joinRequests: JoinRequestsModel
+    var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
-    private var cancellables: Set<AnyCancellable> = []
+    var cancellables: Set<AnyCancellable> = []
 
     override init() {
         let settings = AppSettings()
         self.settings = settings
         notifications = MessageNotificationStore(center: notificationCenter)
         preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
+        joinRequests = JoinRequestsModel {
+            (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
+        }
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else { return }
         notificationCenter.onOpen = { [weak self] id in self?.notificationNavigation.open(id) }
+        notificationCenter.onOpenJoinRequest = { [weak self] id in
+            self?.notificationNavigation.openDeviceRequests(requestID: id)
+        }
         notificationCenter.start()
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings)
+        observeJoinRequests()
         Task { [weak self] in
             guard let self else { return }
             await settings.loadToken()
             connectIfConfigured()
         }
+    }
+
+    /// A clicked hiboss://pair link only opens the redeem sheet; the boss still confirms it.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first(where: { $0.scheme?.lowercased() == "hiboss" }) else { return }
+        pairingLinks.receive(url)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(
@@ -143,19 +166,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         refreshStatusMenu()
     }
 
-    private func refreshStatusMenu() {
+    func refreshStatusMenu() {
         guard let statusItem else { return }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: flow.connectionState.label, action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(menuItem(L("Reconnect"), action: #selector(reconnect)))
         menu.addItem(menuItem(L("Open HiBoss…"), action: #selector(showMainWindow)))
+        menu.addItem(deviceRequestsMenuItem())
         menu.addItem(.separator())
         menu.addItem(menuItem(L("Quit HiBoss Island"), action: #selector(quit)))
         statusItem.menu = menu
     }
 
-    private func menuItem(_ title: String, action: Selector) -> NSMenuItem {
+    func menuItem(_ title: String, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
         return item

@@ -10,11 +10,18 @@ struct NotificationMessageTarget: Identifiable {
     let id: MessageID
 }
 
+/// A request to show Device Requests, optionally with one request's approval sheet open.
+struct DeviceRequestsFocus: Identifiable, Equatable {
+    let id = UUID()
+    let requestID: String?
+}
+
 /// Opens the main window by scene id. `title` is the current destination, so a window
 /// lookup by title fails; the SwiftUI opener reopens a closed window, also without a Dock icon.
 @MainActor
 final class MessageNotificationNavigation: ObservableObject {
     @Published var target: NotificationMessageTarget?
+    @Published var deviceRequestsFocus: DeviceRequestsFocus?
     private var openWindow: (@MainActor () -> Void)?
     private var opensWhenInstalled = false
     private let activate: () -> Void
@@ -43,6 +50,11 @@ final class MessageNotificationNavigation: ObservableObject {
 
     func open(_ id: MessageID) {
         target = NotificationMessageTarget(id: id)
+        openMainWindow()
+    }
+
+    func openDeviceRequests(requestID: String? = nil) {
+        deviceRequestsFocus = DeviceRequestsFocus(requestID: requestID)
         openMainWindow()
     }
 }

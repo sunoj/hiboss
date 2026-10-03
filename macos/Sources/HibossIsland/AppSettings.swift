@@ -85,17 +85,20 @@ final class AppSettings: ObservableObject {
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
+    private let redeemer: any PairingRedeeming
     private static let optionDisplayModeKey = "hiboss.optionDisplayMode"
     private static let prioritySoundsKey = "hiboss.prioritySounds"
 
     init(
         defaults: UserDefaults = .standard,
         keychain: any TokenStoring = KeychainStore(),
-        clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
+        clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) },
+        redeemer: any PairingRedeeming = PairingRedeemClient()
     ) {
         self.defaults = defaults
         self.keychain = keychain
         self.clientsAPI = clientsAPI
+        self.redeemer = redeemer
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
         let storedPresentationMode = OptionPresentationMode(
@@ -160,6 +163,24 @@ final class AppSettings: ObservableObject {
             defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
             bossToken = accepted.bossToken
             clientExchangeNotice = notice
+            activeClientConfig = accepted
+            return .success(accepted)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    /// Redeems a one-time pairing code and stores the returned token as a manual login does.
+    func pair(with payload: PairingPayload) async -> Result<ConnectionConfig, Error> {
+        do {
+            let label = DeviceLabel.sanitize(deviceLabel, fallback: "Mac") // i18n-exempt: fallback device name sent to the server
+            let grant = try await redeemer.redeem(payload: payload, deviceLabel: label, signing: nil)
+            let accepted = ConnectionConfig(serverURL: payload.serverURL, bossToken: grant.token)
+            try keychain.write(accepted.bossToken)
+            defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+            serverAddress = accepted.serverURL.absoluteString
+            bossToken = accepted.bossToken
+            clientExchangeNotice = nil
             activeClientConfig = accepted
             return .success(accepted)
         } catch {

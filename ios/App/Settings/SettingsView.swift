@@ -11,6 +11,7 @@ struct SettingsView: View {
     /// credentials exist (a revoked token used to still read "Connected").
     let connectionState: ConnectionState
     @ObservedObject var prefs: PreferencesStore
+    @ObservedObject var joinRequests: JoinRequestsModel
     /// Re-attaches the stream with the existing token (transient failures / a
     /// recovered server), without wiping credentials like Sign Out does.
     var onReconnect: () -> Void = {}
@@ -40,6 +41,28 @@ struct SettingsView: View {
                 }
                 if let detail = connectionState.detail {
                     Text(verbatim: detail).foregroundStyle(.red)
+                }
+            }
+
+            if let config = connection.config {
+                Section {
+                    NavigationLink {
+                        PairDeviceView(config: config)
+                    } label: {
+                        Label("Pair another device", systemImage: "qrcode")
+                    }
+                } footer: {
+                    Text("Show a one-time code that signs in another iPhone or Mac. No token leaves this phone.")
+                }
+                Section {
+                    NavigationLink {
+                        DeviceRequestsView(model: joinRequests)
+                    } label: {
+                        Label("Device Requests", systemImage: "desktopcomputer.and.arrow.down")
+                    }
+                    .badge(joinRequests.pendingCount)
+                } footer: {
+                    Text("Machines that run hiboss setup with an invite wait here until an admin approves them.")
                 }
             }
 

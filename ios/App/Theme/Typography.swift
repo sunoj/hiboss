@@ -16,6 +16,8 @@ extension Font {
 
     static let hbMono = Font.system(.footnote, design: .monospaced)
     static let hbMonoSmall = Font.system(.caption2, design: .monospaced)
+    /// A verification code the boss compares digit by digit with another screen.
+    static let hbCode = Font.system(.largeTitle, design: .monospaced).weight(.semibold)
 }
 
 /// The quiet uppercase "label" role, as a footnote-scale tracked caption.

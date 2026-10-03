@@ -1,12 +1,10 @@
 // Pure pairing-flow tests for deep-link encoding, expiry presentation, and QR generation.
 // Exports: PairingLogicTests.
-// Dependencies: XCTest, Foundation, AppKit, and the macOS pairing helpers.
+// Dependencies: XCTest, Foundation, and the HibossKit pairing helpers.
 
-import AppKit
 import Foundation
-import HibossKit
 import XCTest
-@testable import HibossIsland
+@testable import HibossKit
 
 final class PairingLogicTests: XCTestCase {
     func testPairingLinkPercentEncodesTheCompleteServerURL() throws {
@@ -35,9 +33,24 @@ final class PairingLogicTests: XCTestCase {
         let serverURL = try XCTUnwrap(URL(string: "https://hiboss.example"))
         let link = try PairingLink(serverURL: serverURL, code: Self.validCode)
 
-        let image = try XCTUnwrap(PairingQRCodeGenerator.image(for: link))
+        let image = try XCTUnwrap(PairingQRCode.cgImage(for: link))
 
-        XCTAssertFalse(image.representations.isEmpty)
+        XCTAssertGreaterThan(image.width, 100)
+    }
+
+    func testPairingLinkRoundTripsThroughTheSharedParser() throws {
+        let link = try Self.link()
+        XCTAssertEqual(
+            PairingPayload.parse(link.url.absoluteString),
+            .success(PairingPayload(serverURL: try XCTUnwrap(URL(string: "https://hiboss.example")), code: Self.validCode))
+        )
+    }
+
+    func testPairingLinkRefusesAServerTheReceiverWouldReject() throws {
+        let lanServer = try XCTUnwrap(URL(string: "http://192.168.1.20:8787"))
+        XCTAssertThrowsError(try PairingLink(serverURL: lanServer, code: Self.validCode)) { error in
+            XCTAssertEqual(error as? PairingLinkError, .invalidServerURL)
+        }
     }
 
     func testPairingContentStateShowsProgressWhileRequesting() {

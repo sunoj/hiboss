@@ -13,6 +13,7 @@ private let pushLog = Logger(subsystem: "ai.hiboss.app", category: "Push")
 enum PushCategory {
     static let options = "HIBOSS_OPTIONS"
     static let message = "HIBOSS_MESSAGE"
+    static let joinRequest = JoinRequestPush.category
 }
 
 enum PushAction {
@@ -53,7 +54,7 @@ final class PushManager: NSObject, ObservableObject {
     func configure() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        center.setNotificationCategories([optionsCategory(), messageCategory()])
+        center.setNotificationCategories([optionsCategory(), messageCategory(), JoinRequestPush.notificationCategory()])
         Task { await registerIfAuthorized() }
     }
 
@@ -165,8 +166,13 @@ extension PushManager: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
-        let request = Self.actionRequest(from: response)
+        let joinRequestID = JoinRequestPush.requestID(
+            userInfo: response.notification.request.content.userInfo,
+            actionIdentifier: response.actionIdentifier
+        )
+        let request = joinRequestID == nil ? Self.actionRequest(from: response) : nil
         Task { @MainActor in
+            if let joinRequestID { AppRouter.shared.openJoinRequest(id: joinRequestID) }
             if let request { await PushManager.shared.handle(request) }
             completionHandler()
         }

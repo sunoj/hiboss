@@ -10,6 +10,7 @@ struct OverviewSidebar: View {
     let selection: OverviewDestination
     let historyState: HistoryState
     let connectionState: ConnectionState
+    var deviceRequestCount = 0
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
     let onRefresh: () -> Void
@@ -23,6 +24,10 @@ struct OverviewSidebar: View {
                     .font(.headline)
                     .tag(OverviewDestination.dashboard)
                     .accessibilityIdentifier("overview.dashboard")
+                Label(L("Device Requests"), systemImage: "desktopcomputer.and.arrow.down")
+                    .badge(deviceRequestCount)
+                    .tag(OverviewDestination.deviceRequests)
+                    .accessibilityIdentifier("overview.deviceRequests")
             }
             Section {
                 LazyVGrid(columns: columns, spacing: 8) {

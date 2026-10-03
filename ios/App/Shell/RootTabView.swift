@@ -11,6 +11,8 @@ struct RootTabView: View {
     @ObservedObject var preferences: PreferencesStore
     @ObservedObject var progress: ProgressFeedStore
     @StateObject private var panels: PanelsModel
+    @StateObject private var joinRequests: JoinRequestsModel
+    @State private var joinRequestTarget: JoinRequestTarget?
     @ObservedObject private var router = AppRouter.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -37,6 +39,7 @@ struct RootTabView: View {
             guard let config = connection.config else { throw PanelClientError.notConfigured }
             return config
         }))
+        _joinRequests = StateObject(wrappedValue: JoinRequestsModel { isDemoMode ? nil : connection.makeAPI() })
     }
 
     private var sessionStreamAPI: (any SessionStreamServing)? {
@@ -53,11 +56,24 @@ struct RootTabView: View {
             settingsTabView
         }
         .task(id: router.pendingMessageID) { await openPendingMessage() }
-        .onChange(of: connection.config) { panels.connectionDidChange() }
+        .onChange(of: router.pendingJoinRequest, initial: true) { openPendingJoinRequest() }
+        .sheet(item: $joinRequestTarget) { target in
+            NavigationStack { JoinRequestReviewView(requestID: target.id, model: joinRequests) }
+        }
+        .onChange(of: connection.config) {
+            panels.connectionDidChange()
+            joinRequests.reset()
+            Task { await joinRequests.refresh() }
+        }
+        .task { await joinRequests.refresh() }
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
-            if phase == .active { inbox.refreshHistory() }
+            if phase == .active {
+                inbox.refreshHistory()
+                // A 403 is final for this connection; only pull-to-refresh asks again.
+                if !joinRequests.isForbidden { Task { await joinRequests.refresh() } }
+            }
             ProgressVideoPlayback.shared.sceneActive = phase == .active
         }
         .onChange(of: tab) { _, new in
@@ -114,12 +130,19 @@ struct RootTabView: View {
                 connection: connection,
                 connectionState: inbox.connectionState,
                 prefs: preferences,
+                joinRequests: joinRequests,
                 onReconnect: reconnect,
                 onDecisionAlertsChanged: { inbox.setDecisionAlertsEnabled($0) }
             )
         }
         .tabItem { Label("Settings", systemImage: "gearshape") }
         .tag(5)
+    }
+
+    /// A tapped join-request push opens its sheet over whichever tab is showing.
+    private func openPendingJoinRequest() {
+        guard let target = router.takeJoinRequest() else { return }
+        joinRequestTarget = target
     }
 
     private func reconnect() {

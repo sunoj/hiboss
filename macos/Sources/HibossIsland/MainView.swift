@@ -11,6 +11,7 @@ struct MainView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
     @ObservedObject var notificationNavigation: MessageNotificationNavigation
+    @ObservedObject var joinRequests: JoinRequestsModel
     @StateObject private var reply = AttentionReplyState()
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var panels: PanelsModel
@@ -23,11 +24,13 @@ struct MainView: View {
 
     init(settings: AppSettings, flow: OptionFlowStore,
          notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation(),
+         joinRequests: JoinRequestsModel = JoinRequestsModel { nil },
          initialDestination: OverviewDestination = .dashboard) {
         self.settings = settings
         _destination = State(initialValue: initialDestination)
         self.flow = flow
         self.notificationNavigation = notificationNavigation
+        self.joinRequests = joinRequests
         _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
             guard let config = settings.activeClientConfig else {
                 throw PanelClientError.notConfigured
@@ -50,6 +53,11 @@ struct MainView: View {
         .onChange(of: notificationNavigation.target?.id, initial: true) { _, id in
             guard id != nil else { return }
             destination = .category(.all)
+            showsCompactOverview = false
+        }
+        .onChange(of: notificationNavigation.deviceRequestsFocus?.id, initial: true) { _, id in
+            guard id != nil else { return }
+            destination = .deviceRequests
             showsCompactOverview = false
         }
         .sheet(item: $notificationNavigation.target) { target in
@@ -98,9 +106,17 @@ struct MainView: View {
                 Button(action: refresh) {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help(destination == .dashboard ? L("Refresh dashboard") : L("Refresh messages"))
+                .help(refreshHelp)
                 .disabled(flow.historyState == .loading || (destination == .dashboard && panels.isLoading))
             }
+        }
+    }
+
+    private var refreshHelp: String {
+        switch destination {
+        case .dashboard: L("Refresh dashboard")
+        case .deviceRequests: L("Refresh device requests")
+        default: L("Refresh messages")
         }
     }
 
@@ -108,6 +124,7 @@ struct MainView: View {
         OverviewSidebar(snapshot: snapshot, selection: destination,
             historyState: previewHistory == nil ? flow.historyState : .loaded,
             connectionState: previewHistory == nil ? flow.connectionState : .connected,
+            deviceRequestCount: joinRequests.pendingCount,
             onSelect: { destination = $0; showsCompactOverview = false },
             onSettings: { openWindow(id: "settings") },
             onRefresh: refresh)
@@ -119,6 +136,10 @@ struct MainView: View {
                 DashboardView(flow: flow, reply: reply, panels: panels, snapshot: snapshot,
                     isPreview: previewHistory != nil,
                     onAllDecisions: { destination = .category(.needsYou) },
+                    onSettings: { openWindow(id: "settings") })
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            } else if destination == .deviceRequests {
+                DeviceRequestsView(model: joinRequests, focus: $notificationNavigation.deviceRequestsFocus,
                     onSettings: { openWindow(id: "settings") })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else {
@@ -156,6 +177,7 @@ struct MainView: View {
     }
 
     private func refresh() {
+        if destination == .deviceRequests { Task { await joinRequests.refresh() } }
         Task { await flow.refreshHistory() }
         if destination == .dashboard { Task { await panels.load() } }
     }
