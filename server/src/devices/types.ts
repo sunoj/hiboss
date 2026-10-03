@@ -4,7 +4,7 @@
 
 export interface JoinProfile { profile: string; name: string }
 export interface JoinDevice { label: string; host: string | null }
-export interface JoinPayload { device: JoinDevice; profiles: JoinProfile[] }
+export interface JoinPayload { device: JoinDevice; profiles: JoinProfile[]; invite: string | null }
 
 export interface DeliveredProfile extends JoinProfile { agent_id: string; key: string }
 export interface Delivery { device_id: string; profiles: DeliveredProfile[] }
@@ -16,6 +16,9 @@ export interface JoinRequestRow {
   device_host: string | null;
   device_id: string | null;
   profiles: string;
+  invite_id: string | null;
+  inviter_label: string | null;
+  verification_code: string | null;
   delivery: string | null;
   created_at: string;
   updated_at: string;
@@ -26,6 +29,7 @@ const PROFILE_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
 const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._@+-]{0,99}$/;
 const LABEL_PATTERN = /^[^<>&\u0000-\u001f]{1,64}$/;
 const HOST_PATTERN = /^[A-Za-z0-9.-]{1,253}$/;
+const INVITE_PATTERN = /^hb_inv_[0-9a-f]{64}$/;
 
 /** Returns the parsed payload or a human-readable reason for a 400. */
 export function parseJoinPayload(value: unknown): JoinPayload | string {
@@ -35,6 +39,8 @@ export function parseJoinPayload(value: unknown): JoinPayload | string {
   }
   const device = parseDevice(value.device);
   if (typeof device === 'string') return device;
+  const invite = value.invite ?? null;
+  if (invite !== null && (typeof invite !== 'string' || !INVITE_PATTERN.test(invite))) return 'invite is malformed';
   if (!Array.isArray(value.profiles) || value.profiles.length === 0) return 'profiles must be a non-empty array';
   if (value.profiles.length > MAX_PROFILES) return `at most ${MAX_PROFILES} profiles per request`;
   const profiles: JoinProfile[] = [];
@@ -46,7 +52,7 @@ export function parseJoinPayload(value: unknown): JoinPayload | string {
     }
     profiles.push(profile);
   }
-  return { device, profiles };
+  return { device, profiles, invite: typeof invite === 'string' ? invite : null };
 }
 
 function parseDevice(value: unknown): JoinDevice | string {

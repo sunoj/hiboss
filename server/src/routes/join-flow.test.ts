@@ -4,7 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
+import { getTestAgentId, mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 const JOIN_BASE = 'https://test.local/api/join';
@@ -193,13 +193,13 @@ async function createJoinRequest(name: string): Promise<{ request_id: string; po
   const res = await SELF.fetch(JOIN_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(joinBody(name)),
+    body: JSON.stringify({ ...joinBody(name), invite: await mintTestInvite() }),
   });
   expect(res.status).toBe(201);
   return res.json() as Promise<{ request_id: string; poll_token: string; status: string }>;
 }
 
-function joinBody(name: string): unknown {
+function joinBody(name: string): Record<string, unknown> {
   return { device: { label: 'join-flow-device' }, profiles: [{ profile: 'claude', name }] };
 }
 

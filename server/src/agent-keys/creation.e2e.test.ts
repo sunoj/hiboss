@@ -2,7 +2,7 @@
 // Verifies credentials authenticate while the retained identity hash stays NULL.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
-import { seedDatabase, seedBossToken } from '../test-helpers';
+import { mintTestInvite, seedDatabase, seedBossToken } from '../test-helpers';
 import { approveJoinRequest } from '../routes/join-helpers';
 
 beforeAll(async () => {
@@ -11,6 +11,8 @@ beforeAll(async () => {
 });
 const base = 'https://test.local/api';
 interface Grant { id: string; key: string }
+// The first-joined agent invites the later machines.
+let inviterKey = '';
 async function assertGrant(grant: Grant): Promise<void> {
   expect(await env.DB.prepare('SELECT key_hash FROM api_keys WHERE id = ?').bind(grant.id).first()).toEqual({ key_hash: null });
   const keys = await env.DB.prepare('SELECT id FROM agent_keys WHERE agent_id = ?').bind(grant.id).all<{ id: string }>();
@@ -29,6 +31,7 @@ it('first join and admin creation write only independent credentials', async () 
   expect(response.status).toBe(201);
   const first = (await response.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
   const bootstrap: Grant = { id: first.agent_id, key: first.key };
+  inviterKey = bootstrap.key;
   await assertGrant(bootstrap);
   await env.DB.prepare('UPDATE api_keys SET is_admin = 1 WHERE id = ?').bind(bootstrap.id).run();
   const created = await post('/keys', { name: 'admin-created' }, bootstrap.key);
@@ -39,7 +42,7 @@ it('first join and admin creation write only independent credentials', async () 
 it('boss and provider approvals create keys for new identities', async () => {
   await seedBossToken('Creation admin', 'admin', 'creation-boss');
   for (const provider of ['boss', 'callback']) {
-    const pending = await post('/join', joinBody(`approved-${provider}`));
+    const pending = await post('/join', { ...joinBody(`approved-${provider}`), invite: await mintTestInvite(inviterKey) });
     expect(pending.status).toBe(201);
     const { request_id, poll_token } = await pending.json() as { request_id: string; poll_token: string };
     if (provider === 'boss') expect((await post(`/boss/join-requests/${request_id}/approve`, {}, 'creation-boss')).status).toBe(200);

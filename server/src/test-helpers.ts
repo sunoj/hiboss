@@ -2,7 +2,7 @@
 // Exports database seeding, auth helpers, and request builders.
 // Depends on cloudflare:test env and the app's auth hashing.
 
-import { env } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import { hashApiKey } from './middleware/auth';
 import targetMigration from '../migrations/0041_destination_targets_external_accounts.sql?raw';
 import credentialMigration from '../migrations/0042_provider_credentials.sql?raw';
@@ -141,4 +141,13 @@ export async function insertPendingJoin(id: string, name: string): Promise<void>
   await env.DB.prepare(`INSERT INTO join_requests (id, poll_token_hash, status, device_label, profiles)
     VALUES (?, ?, 'pending', ?, ?)`)
     .bind(id, `hash-${id}`, `device-${id}`, JSON.stringify([{ profile: 'claude', name }])).run();
+}
+
+/** Mints a single-use device invite with the given agent key (the seeded test agent by default). */
+export async function mintTestInvite(agentKey: string = TEST_API_KEY): Promise<string> {
+  const response = await SELF.fetch('https://test.local/api/devices/invites', {
+    method: 'POST', headers: { Authorization: `Bearer ${agentKey}` },
+  });
+  if (response.status !== 201) throw new Error(`invite mint failed: ${response.status}`);
+  return (await response.json() as { invite: string }).invite;
 }

@@ -1,9 +1,10 @@
-// End-to-end device enrolment: grouped profiles, atomic approval, device proof,
+// End-to-end device enrolment: invites, grouped profiles, atomic approval, device proof,
 // first-boss bootstrap and pairing roles, all through the worker's HTTP surface.
 // Depends on cloudflare:test SELF/env and the shared D1 seed.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { seedBossToken, seedDatabase } from '../test-helpers';
+import { mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
+import { joinRequestPayload } from './notify-push';
 
 const BASE = 'https://test.local';
 const ADMIN = 'devices-admin-token';
@@ -33,7 +34,8 @@ async function poll(token: string): Promise<Json> {
 }
 
 async function enrol(label: string, names: Record<string, string>, headers: Record<string, string> = {}): Promise<{ device_id: string; profiles: Delivered[] }> {
-  const created = await join(request(label, names), headers);
+  const invite = headers['X-Device-Proof'] ? {} : { invite: await mintTestInvite() };
+  const created = await join({ ...request(label, names), ...invite }, headers);
   expect(created.status).toBe(201);
   const { request_id, poll_token } = await created.json() as { request_id: string; poll_token: string };
   expect((await approve(request_id)).status).toBe(200);
@@ -42,9 +44,14 @@ async function enrol(label: string, names: Record<string, string>, headers: Reco
 
 describe('device enrolment', () => {
   it('approves every profile of a device at once and delivers working keys once', async () => {
-    const created = await join(request('dev-a', { claude: 'dev-a-claude', codex: 'dev-a-codex' }));
-    const { request_id, poll_token } = await created.json() as { request_id: string; poll_token: string };
-    expect(await poll(poll_token)).toMatchObject({ status: 'pending', device_label: 'dev-a' });
+    const created = await join({ ...request('dev-a', { claude: 'dev-a-claude', codex: 'dev-a-codex' }), invite: await mintTestInvite() });
+    const { request_id, poll_token, verification_code } = await created.json() as { request_id: string; poll_token: string; verification_code: string };
+    expect(verification_code).toMatch(/^[0-9]{6}$/);
+    expect(await poll(poll_token)).toMatchObject({ status: 'pending', device_label: 'dev-a', verification_code });
+    const listed = await SELF.fetch(`${BASE}/api/boss/join-requests?status=pending`, { headers: { Authorization: `Bearer ${ADMIN}` } });
+    expect(((await listed.json()) as { requests: Json[] }).requests).toContainEqual(expect.objectContaining({
+      id: request_id, verification_code, inviter_label: 'test-agent',
+      profiles: [{ profile: 'claude', name: 'dev-a-claude' }, { profile: 'codex', name: 'dev-a-codex' }] }));
     const approved = await approve(request_id);
     const body = await approved.json() as Json;
     expect(body).toMatchObject({ status: 'approved', device_id: expect.stringMatching(/^d_/) });
@@ -62,7 +69,7 @@ describe('device enrolment', () => {
   });
 
   it('creates nothing when one name is taken by approval time', async () => {
-    const created = await join(request('dev-b', { claude: 'dev-b-claude', codex: 'dev-b-codex' }));
+    const created = await join({ ...request('dev-b', { claude: 'dev-b-claude', codex: 'dev-b-codex' }), invite: await mintTestInvite() });
     const { request_id } = await created.json() as { request_id: string };
     await env.DB.prepare('INSERT INTO api_keys (id, name) VALUES (?, ?)').bind('dev-b-squatter', 'dev-b-codex').run();
     const response = await approve(request_id);
@@ -80,6 +87,28 @@ describe('device enrolment', () => {
       .bind(first.device_id).first('device_label')).toBe('dev-c');
     const forged = await join(request('dev-c', { gemini: 'dev-c-gemini' }), { 'X-Device-Proof': 'hb_not_a_key' });
     expect(forged.status).toBe(401);
+  });
+
+  it('requires a live single-use invite and keeps it when the name check fails', async () => {
+    expect((await join(request('dev-e', { claude: 'dev-e-claude' }))).status).toBe(403);
+    const invite = await mintTestInvite();
+    expect((await join({ ...request('dev-e', { claude: 'test-agent' }), invite })).status).toBe(409);
+    expect((await join({ ...request('dev-e', { claude: 'dev-e-claude' }), invite })).status).toBe(201);
+    const reused = await join({ ...request('dev-e2', { claude: 'dev-e2-claude' }), invite });
+    expect(reused.status).toBe(403);
+    await env.DB.prepare("UPDATE device_invites SET expires_at = '2000-01-01T00:00:00.000Z' WHERE consumed_at IS NULL").run();
+    const stale = await mintTestInvite();
+    await env.DB.prepare("UPDATE device_invites SET expires_at = '2000-01-01T00:00:00.000Z' WHERE consumed_at IS NULL").run();
+    expect((await join({ ...request('dev-e3', { claude: 'dev-e3-claude' }), invite: stale })).status).toBe(403);
+    const anonymous = await SELF.fetch(`${BASE}/api/devices/invites`, { method: 'POST' });
+    expect(anonymous.status).toBe(401);
+  });
+
+  it('builds a join push that names the device, profiles, inviter and code', () => {
+    const payload = joinRequestPayload({ requestId: 'r1', deviceLabel: 'mini', inviterLabel: 'air',
+      verificationCode: '012345', profiles: [{ profile: 'claude', name: 'a' }, { profile: 'codex', name: 'b' }] });
+    expect(payload.aps.alert).toEqual({ title: 'New device wants to join', subtitle: 'Invited from air', body: 'mini (claude, codex) · code 012345' });
+    expect(payload).toMatchObject({ join_request_id: 'r1', aps: { category: 'HIBOSS_JOIN_REQUEST' } });
   });
 
   it('rejects the legacy single-name payload and malformed profiles', async () => {

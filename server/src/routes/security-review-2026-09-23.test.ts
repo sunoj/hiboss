@@ -1,7 +1,7 @@
 // Security regressions for foreign-session streams, active attachments, and bootstrap.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { authHeaders, seedDatabase } from '../test-helpers';
+import { authHeaders, mintTestInvite, seedDatabase } from '../test-helpers';
 import { createAgent } from '../agent-keys';
 import { buildStreamQuery } from './stream';
 
@@ -106,7 +106,7 @@ describe('Security review 2026-09-23 regressions', () => {
       expect(await profile.json()).toMatchObject({ id: grant.agent_id });
       const pending = await SELF.fetch(`${base}/api/join`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(joinBody('review-pending-agent')),
+        body: JSON.stringify({ ...joinBody('review-pending-agent'), invite: await mintTestInvite(grant.key) }),
       });
       expect(pending.status).toBe(201);
       expect(await pending.json()).toMatchObject({ status: 'pending' });
@@ -118,6 +118,6 @@ describe('Security review 2026-09-23 regressions', () => {
   });
 });
 
-function joinBody(name: string): unknown {
+function joinBody(name: string): Record<string, unknown> {
   return { device: { label: 'review-device' }, profiles: [{ profile: 'claude', name }] };
 }

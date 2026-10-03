@@ -29,6 +29,18 @@ CREATE TABLE devices (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE device_invites (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  token_hash TEXT NOT NULL UNIQUE,
+  inviter_agent_id TEXT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  inviter_label TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_device_invites_inviter ON device_invites(inviter_agent_id, expires_at);
+
 CREATE INDEX idx_api_keys_device ON api_keys(device_id) WHERE device_id IS NOT NULL;
 
 -- Independently revocable agent credentials; public inventory never returns hashes.
@@ -292,6 +304,9 @@ CREATE TABLE IF NOT EXISTS join_requests (
   device_host TEXT,
   device_id TEXT REFERENCES devices(id),
   profiles TEXT NOT NULL,
+  invite_id TEXT,
+  inviter_label TEXT,
+  verification_code TEXT,
   delivery TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))

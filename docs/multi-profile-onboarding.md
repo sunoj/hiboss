@@ -125,10 +125,25 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   (an existing key of that device). The new profiles join that `device_id`, still after
   approval.
 
+## Invites and verification codes
+
+- `POST /api/devices/invites` (agent key) returns a single-use `hb_inv_…` invite. It lasts
+  30 minutes, and an agent can hold at most 5 active invites. Only the invite's hash is
+  stored, together with the inviter's device label (or agent name).
+- After the first agent exists, `POST /api/join` needs either a live invite or an
+  `X-Device-Proof`; without one it returns 403. Taken names are checked first, so a 409 does
+  not spend the invite.
+- Every non-bootstrap join request gets a 6-digit `verification_code`. The joining machine
+  prints it. Telegram, Discord, the APNs push (category `HIBOSS_JOIN_REQUEST`, key
+  `join_request_id`) and `GET /api/boss/join-requests` all show it next to the inviter label.
+  An invite never skips approval.
+- `hiboss device invite [--copy]` prints a self-contained prompt for the new machine: install
+  the CLI if missing, run `hiboss setup --server … --invite …`, report the code, and wait.
+
 ## Agent onboarding: `hiboss setup`
 
 ```
-hiboss setup [--server <url>] [--profile <p>]... [--bootstrap-secret <s>] [--check] [--yes]
+hiboss setup [--server <url>] [--invite <code>] [--profile <p>]... [--label <device>] [--bootstrap-secret <s>] [--check] [--yes]
 ```
 1. Resolve the server (flag, config, prompt).
 2. Detect installed runtimes on PATH (`claude`, `codex`, `gemini`, `aid`). Propose one profile

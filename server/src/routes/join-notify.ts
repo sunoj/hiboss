@@ -1,10 +1,11 @@
 // Broadcasts join approval prompts and key-delivery notices to enabled channels.
 // Exports notifyJoinRequest and notifyJoinConnected (device + profile names) with target deduplication.
-// Depends on D1 channel configs and the Telegram and Discord senders.
+// Depends on D1 channel configs, the Telegram and Discord senders and the APNs join prompt.
 
 import type { DiscordChannelConfig, Env, TelegramChannelConfig } from '../types';
 import { sendDiscordMessage } from '../channels/discord';
 import { sendTelegramMessage } from '../channels/telegram';
+import { pushJoinRequest, type JoinNotice } from '../devices/notify-push';
 
 type ChannelConfigRow = {
   channel: 'telegram' | 'discord';
@@ -13,8 +14,14 @@ type ChannelConfigRow = {
 
 type NamedProfile = { profile: string; name: string; agent_id?: string };
 
-export function notifyJoinRequest(env: Env, requestId: string, deviceLabel: string, profiles: NamedProfile[]): Promise<void> {
-  return broadcastJoinMessage(env, `Join request from device ${deviceLabel}: ${profileList(profiles)}`, requestId);
+export async function notifyJoinRequest(env: Env, notice: JoinNotice): Promise<void> {
+  const inviter = notice.inviterLabel ? ` (invited from ${notice.inviterLabel})` : '';
+  const code = notice.verificationCode ? `\nVerification code: ${notice.verificationCode}` : '';
+  await Promise.allSettled([
+    broadcastJoinMessage(env, `Join request from device ${notice.deviceLabel}${inviter}: ${profileList(notice.profiles)}${code}`,
+      notice.requestId),
+    pushJoinRequest(env, notice),
+  ]);
 }
 
 export function notifyJoinConnected(env: Env, deviceLabel: string, profiles: NamedProfile[]): Promise<void> {

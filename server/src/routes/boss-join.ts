@@ -7,7 +7,7 @@ import { logAudit } from '../audit';
 import { approveJoin, rejectJoin } from '../devices/approve';
 import { parseStoredProfiles, type JoinRequestRow } from '../devices/types';
 
-const LIST_COLUMNS = 'id, status, device_label, device_host, device_id, profiles, created_at, updated_at';
+const LIST_COLUMNS = 'id, status, device_label, device_host, device_id, profiles, inviter_label, verification_code, created_at, updated_at';
 const routes = new Hono<{ Bindings: Env }>();
 
 routes.get('/join-requests', async (c) => {
@@ -16,7 +16,7 @@ routes.get('/join-requests', async (c) => {
   const query = c.env.DB.prepare(status
     ? `SELECT ${LIST_COLUMNS} FROM join_requests WHERE status = ? ORDER BY created_at DESC`
     : `SELECT ${LIST_COLUMNS} FROM join_requests ORDER BY created_at DESC`);
-  const rows = await (status ? query.bind(status) : query).all<Omit<JoinRequestRow, 'delivery'>>();
+  const rows = await (status ? query.bind(status) : query).all<Omit<JoinRequestRow, 'delivery' | 'invite_id'>>();
   const requests = (rows.results ?? []).map(row => ({ ...row, profiles: parseStoredProfiles(row.profiles) }));
   return c.json({ requests });
 });

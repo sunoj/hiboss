@@ -1,15 +1,17 @@
 // Join route for device enrolment: one request carries every runtime profile.
-// Exports POST /api/join and GET /api/join/status without auth.
+// Exports POST /api/join (invite, device proof or bootstrap secret) and GET /api/join/status.
 // Depends on Hono, the devices module, bootstrap-secret policy and join notifications.
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { logAudit } from '../audit';
 import { hasValidBootstrapSecret } from '../middleware/bootstrap-secret';
-import { createJoinRequest, pollJoinRequest, resolveDeviceProof } from '../devices/enroll';
+import { createJoinRequest, pollJoinRequest, resolveDeviceProof, takenNames } from '../devices/enroll';
+import { consumeInvite } from '../devices/invites';
 import { parseJoinPayload } from '../devices/types';
 import { notifyJoinConnected, notifyJoinRequest } from './join-notify';
 
+const INVITE_REQUIRED = 'an invite is required; run `hiboss device invite` on an enrolled machine';
 const router = new Hono<{ Bindings: Env }>({});
 
 router.post('/', async (c) => {
@@ -21,15 +23,23 @@ router.post('/', async (c) => {
   const proof = c.req.header('X-Device-Proof');
   const deviceId = proof ? await resolveDeviceProof(c.env.DB, proof) : null;
   if (proof && !deviceId) return c.json({ error: 'invalid device proof' }, 401);
-  const outcome = await createJoinRequest(c.env.DB, payload, deviceId, bootstrap);
-  if (outcome.kind === 'conflict') {
-    return c.json({ error: 'agent name already exists', conflicts: outcome.names }, 409);
-  }
+  const conflicts = await takenNames(c.env.DB, payload.profiles.map(p => p.name));
+  if (conflicts.length) return c.json({ error: 'agent name already exists', conflicts }, 409);
+  // A new machine needs an invite from an enrolled one; the invite is spent only after the name check.
+  const needsInvite = !bootstrap && !deviceId;
+  if (needsInvite && !payload.invite) return c.json({ error: INVITE_REQUIRED }, 403);
+  const invite = needsInvite && payload.invite ? await consumeInvite(c.env.DB, payload.invite) : null;
+  if (needsInvite && !invite) return c.json({ error: 'invite is invalid, already used or expired' }, 403);
+  const outcome = await createJoinRequest(c.env.DB, payload, { deviceId, invite, bootstrap });
+  if (outcome.kind === 'conflict') return c.json({ error: 'agent name already exists', conflicts: outcome.names }, 409);
   const names = payload.profiles.map(p => p.name).join(', ');
   c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.create', 'join_request', outcome.requestId, names));
   if (outcome.status === 'pending') {
-    c.executionCtx.waitUntil(notifyJoinRequest(c.env, outcome.requestId, payload.device.label, payload.profiles));
-    return c.json({ request_id: outcome.requestId, poll_token: outcome.pollToken, status: 'pending' }, 201);
+    const notice = { requestId: outcome.requestId, deviceLabel: payload.device.label, profiles: payload.profiles,
+      inviterLabel: invite?.inviterLabel ?? null, verificationCode: outcome.verificationCode };
+    c.executionCtx.waitUntil(notifyJoinRequest(c.env, notice));
+    return c.json({ request_id: outcome.requestId, poll_token: outcome.pollToken, status: 'pending',
+      verification_code: outcome.verificationCode }, 201);
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.approve', 'join_request', outcome.requestId, 'bootstrap'));
   return c.json({ request_id: outcome.requestId, poll_token: outcome.pollToken, status: 'approved', ...outcome.delivery }, 201);
@@ -44,6 +54,7 @@ router.get('/status', async (c) => {
     request_id: result.requestId,
     status: result.status,
     device_label: result.deviceLabel,
+    verification_code: result.verificationCode,
     profiles: result.profiles,
     ...(result.delivered ? { delivered: true } : {}),
     ...result.delivery,

@@ -3,37 +3,50 @@
 // Depends on D1, SHA-256 hashing and the atomic approval in approve.ts.
 import { hashApiKey } from '../middleware/auth';
 import { approveJoin } from './approve';
+import { verificationCode, type ConsumedInvite } from './invites';
 import { parseStoredProfiles, type Delivery, type JoinPayload, type JoinRequestRow } from './types';
 
 export type CreateOutcome =
-  | { kind: 'created'; requestId: string; pollToken: string; status: 'pending' | 'approved'; delivery?: Delivery }
+  | { kind: 'created'; requestId: string; pollToken: string; status: 'pending' | 'approved'; delivery?: Delivery;
+      verificationCode: string | null }
   | { kind: 'conflict'; names: string[] };
 
-/** Rejects up front when any requested name already belongs to an agent. */
-export async function createJoinRequest(db: D1Database, payload: JoinPayload, deviceId: string | null,
-  bootstrap: boolean): Promise<CreateOutcome> {
-  const names = payload.profiles.map(p => p.name);
+/** Names among `names` that already belong to an agent. */
+export async function takenNames(db: D1Database, names: string[]): Promise<string[]> {
   const taken = await db.prepare(`SELECT name FROM api_keys WHERE name IN (${names.map(() => '?').join(', ')})`)
     .bind(...names).all<{ name: string }>();
-  if (taken.results.length) return { kind: 'conflict', names: taken.results.map(r => r.name) };
+  return taken.results.map(r => r.name);
+}
+
+export interface JoinContext { deviceId: string | null; invite: ConsumedInvite | null; bootstrap: boolean }
+
+/** Rejects up front when any requested name already belongs to an agent. */
+export async function createJoinRequest(db: D1Database, payload: JoinPayload, context: JoinContext): Promise<CreateOutcome> {
+  const conflicts = await takenNames(db, payload.profiles.map(p => p.name));
+  if (conflicts.length) return { kind: 'conflict', names: conflicts };
   const pollToken = `jt_${randomHex(24)}`;
+  const { deviceId, invite, bootstrap } = context;
   const label = deviceId ? await deviceLabel(db, deviceId) ?? payload.device.label : payload.device.label;
-  const row = await db.prepare(`INSERT INTO join_requests (poll_token_hash, device_label, device_host, device_id, profiles)
-    VALUES (?, ?, ?, ?, ?) RETURNING id`)
-    .bind(await hashApiKey(pollToken), label, payload.device.host, deviceId, JSON.stringify(payload.profiles))
+  const code = bootstrap ? null : verificationCode();
+  const row = await db.prepare(`INSERT INTO join_requests (poll_token_hash, device_label, device_host, device_id, profiles,
+    invite_id, inviter_label, verification_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
+    .bind(await hashApiKey(pollToken), label, payload.device.host, deviceId, JSON.stringify(payload.profiles),
+      invite?.id ?? null, invite?.inviterLabel ?? null, code)
     .first<{ id: string }>();
   if (!row) throw new Error('join request insert returned no row');
-  if (!bootstrap) return { kind: 'created', requestId: row.id, pollToken, status: 'pending' };
+  const pending = { kind: 'created' as const, requestId: row.id, pollToken, status: 'pending' as const, verificationCode: code };
+  if (!bootstrap) return pending;
   const approved = await approveJoin(db, row.id, { type: 'system', id: 'join' }, { firstOnly: true });
-  if (!approved.ok) return { kind: 'created', requestId: row.id, pollToken, status: 'pending' };
+  if (!approved.ok) return pending;
   const delivered = await pollJoinRequest(db, pollToken);
-  return { kind: 'created', requestId: row.id, pollToken, status: 'approved', delivery: delivered?.delivery };
+  return { ...pending, status: 'approved', delivery: delivered?.delivery };
 }
 
 export interface PollResult {
   requestId: string;
   status: JoinRequestRow['status'];
   deviceLabel: string;
+  verificationCode: string | null;
   profiles: Array<{ profile: string; name: string }>;
   delivery?: Delivery;
   delivered: boolean;
@@ -54,6 +67,7 @@ export async function pollJoinRequest(db: D1Database, pollToken: string): Promis
     requestId: row.id,
     status: row.status,
     deviceLabel: row.device_label,
+    verificationCode: row.verification_code,
     profiles: parseStoredProfiles(row.profiles),
     delivery,
     delivered: row.status === 'approved' && !row.delivery,
