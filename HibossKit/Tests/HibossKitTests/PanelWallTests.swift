@@ -1,6 +1,7 @@
 // Verifies signal-driven reconciliation, concurrent discovery, and live-store preservation.
 // Exports PanelWallTests; dependencies: XCTest and an actor-backed PanelsServing fixture.
 
+import Combine
 import XCTest
 @testable import HibossKit
 
@@ -62,6 +63,52 @@ final class PanelWallTests: XCTestCase {
         XCTAssertEqual(counts.lists, 0)
     }
 
+    func testFreshnessClockDoesNotPublishWallChanges() async throws {
+        let model = PanelsModel(api: try WallPanelsService(), demoMode: false, autoload: false)
+        await model.load()
+        let tile = try XCTUnwrap(model.tiles.first)
+        let now = Date()
+        model.receive(.snapshot(PanelRelaySnapshot(panelID: tile.id, definitionRevision: 1, epoch: "live", sequence: 0,
+            task: .object(["done": .number(3)]), lastObservedAt: now.ISO8601Format(),
+            staleAt: timestamp(now.addingTimeInterval(0.5)),
+            leaseExpiresAt: now.addingTimeInterval(60).ISO8601Format())), for: tile.id)
+        model.clockTask?.cancel()
+        model.startClock()
+        await Task.yield()
+        var publications = 0
+        let subscription = model.objectWillChange.sink { publications += 1 }
+        defer { subscription.cancel(); model.clockTask?.cancel() }
+        if case .live = model.freshness(for: tile) {} else { XCTFail("Expected live data before deadline") }
+
+        try await Task.sleep(for: .milliseconds(1200))
+
+        XCTAssertEqual(publications, 0, "Freshness ticks must not invalidate the wall")
+        if case .stale = model.freshness(for: tile) {} else { XCTFail("Freshness must still advance") }
+        XCTAssertEqual(model.visibleTiles.map(\.id), [tile.id])
+    }
+
+    func testClockStillPublishesWhenAVisibleTileExpires() async throws {
+        let model = PanelsModel(api: try WallPanelsService(), demoMode: false, autoload: false)
+        await model.load()
+        let tile = try XCTUnwrap(model.tiles.first)
+        let expiry = timestamp(Date().addingTimeInterval(0.5))
+        model.receive(.snapshot(PanelRelaySnapshot(panelID: tile.id, definitionRevision: 1, epoch: "live", sequence: 0,
+            task: .object(["done": .number(3)]), expiresAt: expiry)), for: tile.id)
+        model.clockTask?.cancel()
+        model.startClock()
+        await Task.yield()
+        var publications = 0
+        let subscription = model.objectWillChange.sink { publications += 1 }
+        defer { subscription.cancel(); model.clockTask?.cancel() }
+        XCTAssertEqual(model.visibleTiles.map(\.id), [tile.id])
+
+        try await Task.sleep(for: .milliseconds(2200))
+
+        XCTAssertEqual(publications, 1, "Only the membership change should invalidate the wall")
+        XCTAssertTrue(model.visibleTiles.isEmpty)
+        XCTAssertTrue(model.tiles.first?.store === tile.store)
+    }
+
     func testTokenChangeRestartsPanelStreamsAndPreservesDrafts() async throws {
         let model = PanelsModel(api: try WallPanelsService(), demoMode: false, autoload: false)
         await model.load()
@@ -90,6 +137,12 @@ final class PanelWallTests: XCTestCase {
         XCTAssertTrue(model.tiles.first?.store === tile.store)
         XCTAssertEqual(model.selectedTileID, tile.id)
         XCTAssertEqual(panelValue(at: "/form/answer", in: tile.store.state), .string("unsent answer"))
+    }
+
+    private func timestamp(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 
     private func waitUntil(_ predicate: () -> Bool) async {

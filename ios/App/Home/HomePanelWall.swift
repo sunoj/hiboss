@@ -73,8 +73,8 @@ private struct HomePanelDetail: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(verbatim: tile.sourceLabel).font(.callout).foregroundStyle(Theme.ink2)
-                    Label { Text(model.freshness(for: tile).localizedTitle) } icon: { Image(systemName: model.freshness(for: tile).symbol) }
-                        .font(.caption).foregroundStyle(model.freshness(for: tile).color)
+                    PanelFreshnessLabel(freshness: model.freshness(for: tile))
+                        .font(.caption)
                     PanelOutcomeView(tile: tile)
                     PanelQuestionnairesView(tile: tile, panels: model)
                     Menu("Panel actions") { PanelLifecycleMenu(tile: tile, model: model) }
@@ -94,23 +94,6 @@ private struct HomePanelDetail: View {
             .navigationTitle(Text(verbatim: tile.fixture.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.closeDetail() } } }
-        }
-    }
-}
-
-extension PanelFreshness {
-    /// Catalog-backed title; HibossKit's `title` is an English identifier.
-    var localizedTitle: LocalizedStringResource {
-        switch self {
-        case .awaitingData: "Awaiting data"
-        case .live: "Live"
-        case .stale: "Stale"
-        case .offline: "Offline"
-        case .task(.running): "Running"
-        case .task(.paused): "Paused"
-        case .task(.completed): "Completed"
-        case .task(.failed): "Failed"
-        case .task(.cancelled): "Cancelled"
         }
     }
 }

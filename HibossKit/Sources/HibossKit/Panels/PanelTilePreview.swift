@@ -4,20 +4,32 @@
 
 import SwiftUI
 
-public struct PanelTilePreview: View {
+public struct PanelTilePreview: View, Equatable {
     public let tile: PanelTile
     @ObservedObject private var store: PanelStore
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     public init(tile: PanelTile) {
         self.tile = tile
         _store = ObservedObject(wrappedValue: tile.store)
     }
 
-    private var content: PanelDashboardContent { PanelDashboardContent(fixture: tile.fixture, state: store.state) }
-    private var accent: Color { content.progress != nil ? .green : .cyan }
+    public nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.tile.store === rhs.tile.store && lhs.tile.fixture.spec == rhs.tile.fixture.spec
+            && lhs.tile.fixture.summary == rhs.tile.fixture.summary
+    }
 
     public var body: some View {
+        PanelTileContent(content: PanelDashboardContent(fixture: tile.fixture, state: store.state), state: store.state)
+    }
+}
+
+private struct PanelTileContent: View {
+    let content: PanelDashboardContent
+    let state: PanelValue
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var accent: Color { content.progress != nil ? .green : .cyan }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if !content.metrics.isEmpty || content.progress != nil {
                 HStack(alignment: .center, spacing: 16) {
@@ -44,7 +56,7 @@ public struct PanelTilePreview: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: metric.label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(verbatim: metric.displayValue(in: store.state))
+                        Text(verbatim: metric.displayValue(in: state))
                         .font(index == 0 ? .largeTitle.bold() : .title2.weight(.semibold))
                         .foregroundStyle(index == 0 ? accent : .primary).monospacedDigit()
                         .contentTransition(.numericText())
@@ -62,10 +74,10 @@ public struct PanelTilePreview: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: headline.label).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(verbatim: headline.displayValue(in: store.state))
+                        Text(verbatim: headline.displayValue(in: state))
                             .font(.system(.largeTitle, design: .rounded, weight: .semibold))
                             .monospacedDigit().contentTransition(.numericText())
-                            .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: headline.displayValue(in: store.state))
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: headline.displayValue(in: state))
                         if let unit = headline.unit { Text(verbatim: unit).font(.headline) }
                     }
                     .foregroundStyle(accent).lineLimit(1).minimumScaleFactor(0.7)
@@ -76,7 +88,7 @@ public struct PanelTilePreview: View {
                     ForEach(Array(content.metrics.dropFirst().enumerated()), id: \.offset) { _, metric in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(verbatim: metric.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                            Text(verbatim: metric.displayValue(in: store.state) + (metric.unit.map { " \($0)" } ?? ""))
+                            Text(verbatim: metric.displayValue(in: state) + (metric.unit.map { " \($0)" } ?? ""))
                                 .font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1)
                         }
                     }

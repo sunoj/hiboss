@@ -61,8 +61,7 @@ struct DashboardPanelDetail: View {
             HStack {
                 Button(L("Close panel"), systemImage: "xmark") { model.closeDetail() }
                 Spacer()
-                Label(model.freshness(for: tile).title, systemImage: model.freshness(for: tile).symbol)
-                    .foregroundStyle(model.freshness(for: tile).color)
+                PanelFreshnessLabel(freshness: model.freshness(for: tile))
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(tile.fixture.title).font(.title.bold())

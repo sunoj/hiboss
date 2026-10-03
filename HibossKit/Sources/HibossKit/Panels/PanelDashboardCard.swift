@@ -1,12 +1,12 @@
 // Shared dashboard tile with native activation, attribution, and freshness.
-// Exports: PanelDashboardCard for macOS and iOS panel walls.
+// Exports: PanelDashboardCard and PanelFreshnessLabel for macOS and iOS panels.
 // Dependencies: SwiftUI, PanelTilePreview, and PanelFreshness.
 
 import SwiftUI
 
 public struct PanelDashboardCard: View {
     let tile: PanelTile
-    let freshness: PanelFreshness
+    let freshness: () -> PanelFreshness
     let pendingCount: Int
     let open: () -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -14,7 +14,7 @@ public struct PanelDashboardCard: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovering = false
 
-    public init(tile: PanelTile, freshness: PanelFreshness, pendingCount: Int, open: @escaping () -> Void) {
+    public init(tile: PanelTile, freshness: @autoclosure @escaping () -> PanelFreshness, pendingCount: Int, open: @escaping () -> Void) {
         self.tile = tile
         self.freshness = freshness
         self.pendingCount = pendingCount
@@ -39,7 +39,7 @@ public struct PanelDashboardCard: View {
                     Label(kitL("Needs input · \(pendingCount)"), systemImage: "text.bubble.fill")
                         .font(.callout.weight(.semibold)).foregroundStyle(.orange)
                 }
-                PanelTilePreview(tile: tile)
+                PanelTilePreview(tile: tile).equatable()
                 footer
             }
             .padding(18)
@@ -75,8 +75,8 @@ public struct PanelDashboardCard: View {
     }
 
     private var freshnessLabel: some View {
-        Label(freshness.title, systemImage: freshness.symbol)
-            .foregroundStyle(freshness.color).fixedSize(horizontal: false, vertical: true)
+        PanelFreshnessLabel(freshness: freshness())
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var surface: Color {
@@ -85,5 +85,20 @@ public struct PanelDashboardCard: View {
 #else
         Color(uiColor: .secondarySystemGroupedBackground)
 #endif
+    }
+}
+
+public struct PanelFreshnessLabel: View {
+    private let freshness: () -> PanelFreshness
+
+    public init(freshness: @autoclosure @escaping () -> PanelFreshness) {
+        self.freshness = freshness
+    }
+
+    public var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let value = freshness()
+            Label(value.title, systemImage: value.symbol).foregroundStyle(value.color)
+        }
     }
 }

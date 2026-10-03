@@ -23,7 +23,7 @@ public final class PanelsModel: ObservableObject {
     public let webModel = PanelWebModel()
     @Published public internal(set) var tiles: [PanelTile] = []
     @Published public internal(set) var selectedTileID: String?
-    @Published public internal(set) var now = Date()
+    public internal(set) var now = Date()
     @Published public internal(set) var loadState: PanelsLoadState = .idle
     let api: (any PanelsServing)?
     let configurationProvider: (@MainActor () async throws -> ConnectionConfig)?
@@ -124,10 +124,16 @@ public final class PanelsModel: ObservableObject {
 
     func startClock() {
         clockTask = Task { [weak self] in
+            var visibleIDs = self?.visibleTiles.map(\.id) ?? []
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: PanelDemoProducer.clockIntervalNanoseconds)
                 guard !Task.isCancelled else { return }
                 self?.now = Date()
+                let currentIDs = self?.visibleTiles.map(\.id) ?? []
+                if currentIDs != visibleIDs {
+                    self?.objectWillChange.send()
+                    visibleIDs = currentIDs
+                }
                 guard let self, !self.isDemoMode, !self.isFetching, Date().timeIntervalSince(self.lastReconciled) > 10 else { continue }
                 await self.load()
             }

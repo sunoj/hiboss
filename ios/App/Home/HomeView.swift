@@ -45,16 +45,17 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        TimelineView(HomeRefreshSchedule(deadlines: refreshDeadlines)) { context in
-            ScrollView {
-                LazyVStack(spacing: 22) {
+        ScrollView {
+            LazyVStack(spacing: 22) {
+                // Only attention ranking depends on time; the wall keeps its own clocks.
+                TimelineView(HomeRefreshSchedule(deadlines: refreshDeadlines)) { context in
                     attentionContent(now: context.date)
-                    if !panels.tiles.isEmpty {
-                        HomePanelWall(model: panels)
-                    }
                 }
-                .padding(.vertical, 12)
+                if !panels.tiles.isEmpty {
+                    HomePanelWall(model: panels)
+                }
             }
+            .padding(.vertical, 12)
         }
     }
 
