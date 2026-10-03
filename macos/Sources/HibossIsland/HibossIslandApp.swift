@@ -17,7 +17,10 @@ struct HibossIslandApp: App {
                 notificationNavigation: appDelegate.notificationNavigation)
         }
         .defaultSize(width: 1320, height: 820)
-        .commands { AppWindowCommands(navigation: appDelegate.notificationNavigation) }
+        .commands {
+            AppWindowCommands(navigation: appDelegate.notificationNavigation,
+                pairingLinks: appDelegate.pairingLinks)
+        }
 
         Window(L("Settings"), id: "settings") {
             SettingsScene(
@@ -26,7 +29,8 @@ struct HibossIslandApp: App {
                 preferencesStore: appDelegate.preferencesStore,
                 notifications: appDelegate.notifications,
                 updater: appDelegate.updater.state,
-                launchAtLogin: appDelegate.launchAtLogin
+                launchAtLogin: appDelegate.launchAtLogin,
+                pairingLinks: appDelegate.pairingLinks
             )
         }
         .defaultSize(width: 960, height: 640)
@@ -38,10 +42,12 @@ struct HibossIslandApp: App {
 private struct AppWindowCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     let navigation: MessageNotificationNavigation
+    let pairingLinks: PairingLinkRouter
 
     var body: some Commands {
         let action = openWindow
         let _ = navigation.install { action(id: "main") }
+        let _ = pairingLinks.install { action(id: "settings") }
         CommandGroup(replacing: .appSettings) {
             Button(L("Settings")) {
                 openWindow(id: "settings")
@@ -60,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let launchAtLogin = LaunchAtLoginController()
     let notificationCenter = SystemMessageNotificationCenter()
     let notificationNavigation = MessageNotificationNavigation()
+    let pairingLinks = PairingLinkRouter()
     let notifications: MessageNotificationStore
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
@@ -85,6 +92,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             await settings.loadToken()
             connectIfConfigured()
         }
+    }
+
+    /// A clicked hiboss://pair link only opens the redeem sheet; the boss still confirms it.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first(where: { $0.scheme?.lowercased() == "hiboss" }) else { return }
+        pairingLinks.receive(url)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(

@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI, AVFoundation, and UIKit camera preview.
 
 import AVFoundation
+import HibossKit
 import SwiftUI
 import UIKit
 

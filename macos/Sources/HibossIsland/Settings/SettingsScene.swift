@@ -1,6 +1,6 @@
 // Native macOS Settings shell with sidebar navigation and save footer.
 // Exports: SettingsScene.
-// Dependencies: SwiftUI, AppSettings, OptionFlowStore, and settings panes.
+// Dependencies: SwiftUI, AppSettings, OptionFlowStore, PairingLinkRouter, and settings panes.
 
 import HibossKit
 import SwiftUI
@@ -12,6 +12,7 @@ struct SettingsScene: View {
     @ObservedObject var notifications: MessageNotificationStore
     @ObservedObject var updater: UpdaterState
     @ObservedObject var launchAtLogin: LaunchAtLoginController
+    @ObservedObject var pairingLinks: PairingLinkRouter
     let soundPlayer: any SoundPlaying
 
     @State private var selection: SettingsPane = .connection
@@ -25,6 +26,7 @@ struct SettingsScene: View {
         notifications: MessageNotificationStore,
         updater: UpdaterState = UpdaterState(),
         launchAtLogin: LaunchAtLoginController = LaunchAtLoginController(),
+        pairingLinks: PairingLinkRouter = PairingLinkRouter(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer()
     ) {
         self.settings = settings
@@ -33,6 +35,7 @@ struct SettingsScene: View {
         self.notifications = notifications
         self.updater = updater
         self.launchAtLogin = launchAtLogin
+        self.pairingLinks = pairingLinks
         self.soundPlayer = soundPlayer
     }
 
@@ -46,6 +49,12 @@ struct SettingsScene: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { footer }
         .frame(minWidth: 820, minHeight: 560)
         .task { await loadPreferencesIfConfigured() }
+        .onChange(of: pairingLinks.request?.id, initial: true) { _, id in
+            if id != nil { selection = .connection }
+        }
+        .sheet(item: $pairingLinks.request) { request in
+            PairWithCodeSheet(settings: settings, initialLink: request.link, onPaired: didPair)
+        }
     }
 
     private var sidebar: some View {
@@ -65,6 +74,7 @@ struct SettingsScene: View {
             ConnectionSettingsPane(
                 settings: settings,
                 flow: flow,
+                pairingLinks: pairingLinks,
                 isConnecting: isConnecting,
                 reconnect: connect
             )
@@ -135,6 +145,13 @@ struct SettingsScene: View {
         let api = HibossAPI(config: config)
         flow.connect(api: api)
         notifications.connect(api: api)
+    }
+
+    /// A paired device starts from the server's preferences instead of saving local defaults.
+    private func didPair(_ config: ConnectionConfig) {
+        statusMessage = ""
+        reconnectStreams(config)
+        Task { await preferencesStore.load() }
     }
 
     private func loadPreferencesIfConfigured() async {

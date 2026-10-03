@@ -47,8 +47,11 @@ History detail shares those drafts and supports custom replies to pending questi
 Failed submissions retain the draft and show a retry message. See the
 [overview contract](../docs/macos-information-redesign.md) for count definitions.
 
-On first launch, enter the server root URL and Boss Token, then select
-**Save & Connect**. Presentation settings let users choose Island or Window mode
+On first launch, open **Settings → Connection** and choose **Pair with Code…**.
+Paste a `hiboss://pair?server=…&code=…` link, or type the server and the one-time
+code, then confirm with the button that names the server host. **Use a Boss Token**
+stays available as the secondary path: enter the server root URL and token, then
+select **Save & Connect**. Presentation settings let users choose Island or Window mode
 and independently show or hide the menu bar icon. Closing the main window keeps
 the listener running; clicking the Dock icon opens it again. The menu bar icon uses
 a native status item so hiding it does not remove the app's SwiftUI scene. Keychain
@@ -60,13 +63,29 @@ selects an option, the server accepts only the first selection and broadcasts a
 `resolved` event so all other clients withdraw the picker within one polling cycle.
 Unanswered options withdraw locally at their exact `expires_at` timestamp.
 
-**Pair another device** creates a QR code containing the server URL and a short-lived
-single-use code, never a Boss Token. The sheet observes redemption and replaces the
-QR with the connected device label. Pairing another device does not rotate or expose
-the Mac's existing token.
+### Pairing a device
 
-To generate a token for an existing boss, call the server endpoint with an admin
-Boss Token:
+A signed-in device issues the code: **Pair another device** on iPhone (Settings) or
+**Pair a new device…** on the Mac (Settings → Connection). Both call
+`POST /api/boss/pairing` and show a QR code plus a copyable `hiboss://pair` link that
+carries the server URL and a five-minute, single-use code, never a Boss Token. The
+issuing screen polls `POST /api/boss/pairing/status` and replaces the QR with the
+connected device label. Pairing does not rotate or expose the issuer's token. A role
+the server refuses (HTTP 403) shows "Your role cannot pair devices".
+
+The new Mac redeems the code with `POST /api/pairing/redeem`
+(`{"code", "device_label"}`) and stores the returned token in Keychain, as a manual
+login does. The app registers the `hiboss://` URL scheme: a clicked `hiboss://pair`
+link opens the redeem sheet pre-filled and never redeems until the confirm button,
+which names the server host, is clicked. A link whose server is not `https` is
+rejected, except `http://localhost` and `http://127.0.0.1`. A boss with the `viewer`
+role can see messages but cannot send option replies.
+
+### Rotate all tokens (revokes every device of this boss)
+
+`POST /api/bosses/<BOSS_ID>/token` mints a new token and revokes every existing token
+of that boss, signing out all of its devices. Use it only to rotate credentials, not
+to onboard a device:
 
 ```bash
 curl -X POST \
@@ -74,8 +93,8 @@ curl -X POST \
   "https://<HIBOSS_SERVER>/api/bosses/<BOSS_ID>/token"
 ```
 
-Use the returned `token` value in the app. A boss with the `viewer` role can see
-messages but cannot send option replies, so use an `admin` or `manager` boss.
+Sign the devices back in afterwards with **Use a Boss Token** on one device and
+pairing for the rest.
 
 An admin bearer can revoke sibling devices. The five-minute, single-use pairing
 code protects an unredeemed QR code; it does not restrict a bearer token that has

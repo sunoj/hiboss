@@ -1,6 +1,6 @@
-// Connection pane: live connection state with its failure reason, endpoint, and credentials.
+// Connection pane: live state, then Pair with Code first and a Boss Token second.
 // Exports: ConnectionSettingsPane.
-// Dependencies: SwiftUI, AppSettings, OptionFlowStore, and DesignTokens.
+// Dependencies: SwiftUI, AppSettings, OptionFlowStore, PairingLinkRouter, and DesignTokens.
 
 import HibossKit
 import SwiftUI
@@ -8,6 +8,7 @@ import SwiftUI
 struct ConnectionSettingsPane: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var flow: OptionFlowStore
+    let pairingLinks: PairingLinkRouter
     let isConnecting: Bool
     let reconnect: () -> Void
     @State private var isPairingPresented = false
@@ -45,12 +46,22 @@ struct ConnectionSettingsPane: View {
             }
 
             Section {
+                pairWithCodeButton
+            } header: {
+                Text(L("Pair with code"))
+            } footer: {
+                Text(L("Paste a hiboss://pair link from a signed-in device, or type its server and one-time code."))
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(isConnecting)
+
+            Section {
                 TextField(L("Server URL"), text: $settings.serverAddress)
                     .font(.system(.body, design: .monospaced))
                 SecureField(L("Boss Token"), text: $settings.bossToken)
                 TextField(L("Device label"), text: $settings.deviceLabel)
             } header: {
-                Text(L("Credentials"))
+                Text(L("Use a Boss Token"))
             } footer: {
                 Text(L("Token is stored locally in Keychain."))
                     .foregroundStyle(.secondary)
@@ -78,6 +89,20 @@ struct ConnectionSettingsPane: View {
         .formStyle(.grouped)
         .sheet(isPresented: $isPairingPresented) {
             DevicePairingSheet(settings: settings)
+        }
+    }
+
+    @ViewBuilder
+    private var pairWithCodeButton: some View {
+        let button = Button {
+            pairingLinks.request = PairingSheetRequest(link: "")
+        } label: {
+            Label(L("Pair with Code…"), systemImage: "link.badge.plus")
+        }
+        if settings.isConfigured {
+            button
+        } else {
+            button.buttonStyle(.borderedProminent)
         }
     }
 

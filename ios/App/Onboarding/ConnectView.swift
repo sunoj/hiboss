@@ -2,6 +2,7 @@
 // Exports: ConnectView that populates the ConnectionStore on success.
 // Dependencies: SwiftUI, HibossKit, theme tokens.
 
+import HibossKit
 import SwiftUI
 
 struct ConnectView: View {

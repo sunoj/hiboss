@@ -43,6 +43,18 @@ struct SettingsView: View {
                 }
             }
 
+            if let config = connection.config {
+                Section {
+                    NavigationLink {
+                        PairDeviceView(config: config)
+                    } label: {
+                        Label("Pair another device", systemImage: "qrcode")
+                    }
+                } footer: {
+                    Text("Show a one-time code that signs in another iPhone or Mac. No token leaves this phone.")
+                }
+            }
+
             if let api = connection.makeAPI(), let config = connection.config {
                 BossClientsSection(api: api, kind: .ios, deviceLabel: connection.deviceLabel) { token in
                     try connection.activateDeviceToken(token, replacing: config)
