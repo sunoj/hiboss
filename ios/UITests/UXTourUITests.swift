@@ -35,24 +35,89 @@ final class UXTourUITests: XCTestCase {
              arguments: ["-AppleLanguages", "(\(language))", "-AppleLocale", language.replacingOccurrences(of: "-", with: "_")])
     }
 
-    /// The Messages toolbar in the two non-connected states the demo can simulate.
+    /// Home and Messages in the two non-connected states the demo can simulate.
     func testTourConnectionStates() {
         for state in ["failed", "connecting"] {
-            app = XCUIApplication()
-            app.configureDemoLaunch(["HIBOSS_DEMO_CONNECTION": state])
-            app.launchArguments += ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
-            app.launch()
-            if app.textFields["server-url-field"].waitForExistence(timeout: 3) {
-                app.terminate()
-                app.launch()
-            }
+            launchFresh(["HIBOSS_DEMO_CONNECTION": state], arguments: Self.chinese)
             let messages = app.tabBars.buttons.element(boundBy: 1)
             guard messages.waitForExistence(timeout: 8) else { continue }
+            settle()
+            shot("\(appearancePrefix)conn-\(state)-01-home")
             messages.tap()
             settle()
             shot("\(appearancePrefix)conn-\(state)-04-messages")
             app.terminate()
         }
+    }
+
+    /// A refresh that fails after a successful load: the list keeps its rows and says so.
+    func testTourStaleRefresh() {
+        launchFresh(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
+        let messages = app.tabBars.buttons.element(boundBy: 1)
+        XCTAssertTrue(messages.waitForExistence(timeout: 8))
+        messages.tap()
+        Thread.sleep(forTimeInterval: 5)
+        pullToRefresh(app)
+        settle()
+        Thread.sleep(forTimeInterval: 2)  // the refresh control animates back after the failure
+        shot("\(appearancePrefix)conn-stale-04-messages")
+    }
+
+    /// First run: the connect screen, at the default and the largest tour text size.
+    func testTourOnboarding() {
+        for (name, arguments) in [("en", [String]()), ("xxl", Self.largeText)] {
+            launchFresh(["HIBOSS_DEMO_ONBOARDING": "1"], arguments: arguments, keepOnboarding: true)
+            XCTAssertTrue(app.textFields["server-url-field"].waitForExistence(timeout: 8))
+            settle()
+            shot("\(appearancePrefix)\(name)-00-onboarding")
+            app.terminate()
+        }
+    }
+
+    /// Settings → Pair another device, Device Requests and its review sheet, then Sign Out.
+    func testTourDevices() {
+        launchFresh([:])
+        openSettingsRow("Pair another device")
+        shot("\(appearancePrefix)en-13-pair-device")
+        app.navigationBars.buttons.firstMatch.tap()
+        openSettingsRow("Device Requests")
+        shot("\(appearancePrefix)en-14-device-requests")
+        let request = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'")).firstMatch
+        if request.waitForExistence(timeout: 4) {
+            request.tap()
+            settle()
+            shot("\(appearancePrefix)en-15-device-request-review")
+            app.buttons["Close"].firstMatch.tap()
+            settle()
+        }
+        app.navigationBars.buttons.firstMatch.tap()
+        for _ in 0..<6 where !app.buttons["settings-sign-out"].isHittable { app.swipeUp() }
+        app.buttons["settings-sign-out"].tap()
+        settle()
+        shot("\(appearancePrefix)en-16-sign-out")
+    }
+
+    /// A pairing code that runs out while the screen is open.
+    func testTourPairingExpired() {
+        launchFresh(["HIBOSS_DEMO_PAIRING_TTL": "3"])
+        openSettingsRow("Pair another device")
+        Thread.sleep(forTimeInterval: 4)
+        shot("\(appearancePrefix)en-17-pair-expired")
+    }
+
+    /// A decision the server settled with its timeout default, in detail and in Resolved.
+    func testTourAutoDecided() {
+        launchFresh(["HIBOSS_DEMO_OPEN": "a1"])
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 8))
+        settle()
+        shot("\(appearancePrefix)en-18-auto-decided-detail")
+        app.terminate()
+        launchFresh(["HIBOSS_DEMO_RESOLVED": "1"])
+        settle()
+        for _ in 0..<4 where !app.staticTexts["Rotate the export bucket key before tonight's run?"].isHittable {
+            app.swipeUp()
+        }
+        shot("\(appearancePrefix)en-19-resolved-auto-decided")
     }
 
     func testTourEmpty() {
@@ -61,8 +126,32 @@ final class UXTourUITests: XCTestCase {
     }
 
     func testTourLargeText() {
-        tour(prefix: appearancePrefix + "xxl", extra: [:],
-             arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"])
+        tour(prefix: appearancePrefix + "xxl", extra: [:], arguments: Self.largeText)
+    }
+
+    private static let chinese = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+    private static let largeText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"]
+
+    /// Launches demo mode; relaunches once if the first launch lost its environment.
+    private func launchFresh(_ extra: [String: String], arguments: [String] = [], keepOnboarding: Bool = false) {
+        app = XCUIApplication()
+        app.configureDemoLaunch(extra)
+        app.launchArguments += arguments
+        app.launch()
+        if !keepOnboarding, app.textFields["server-url-field"].waitForExistence(timeout: 3) {
+            app.terminate()
+            app.launch()
+        }
+    }
+
+    private func openSettingsRow(_ title: String) {
+        let settings = app.tabBars.buttons.element(boundBy: 4)
+        XCTAssertTrue(settings.waitForExistence(timeout: 8))
+        settings.tap()
+        let row = app.buttons[title].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "missing Settings row \(title)")
+        row.tap()
+        settle()
     }
 
     private func tour(prefix: String, extra: [String: String], arguments: [String] = []) {
@@ -125,7 +214,8 @@ final class UXTourUITests: XCTestCase {
     }
 
     private func openFirstImage(prefix: String) {
-        let image = app.images.firstMatch
+        // The first feed image by its alt text: `app.images.firstMatch` can be a tab-bar glyph.
+        let image = app.images["wide landscape screenshot"].firstMatch
         guard image.waitForExistence(timeout: 4), image.isHittable else { return }
         image.tap()
         settle()

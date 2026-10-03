@@ -31,6 +31,8 @@ final class InboxStore: ObservableObject {
     /// Targeted responses stay available even when the message is older than the
     /// bounded history page loaded in parallel during a notification cold launch.
     @Published var openedMessages: [MessageID: MessageDetail] = [:]
+    /// The choice in flight per decision, so every surface disables its buttons until it lands.
+    @Published var replying: [MessageID: String] = [:]
 
     var api: (any BossServing)?
     let reconnectDelay: Duration

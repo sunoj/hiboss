@@ -20,6 +20,7 @@ struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
     let status: String?
+    var replying: [MessageID: String] = [:]
     let onChoose: (String, MessageID) -> Void
     let onOpenPanel: (String) -> Void
 
@@ -43,7 +44,7 @@ struct HomeAttentionSection: View {
                         .foregroundStyle(group.group == .blocked ? Theme.negative : Theme.ink2)
                         .accessibilityAddTraits(.isHeader)
                         ForEach(group.items) { item in
-                            HomeAttentionRow(item: item, onChoose: { onChoose($0, item.id) })
+                            HomeAttentionRow(item: item, submitting: replying[item.id], onChoose: { onChoose($0, item.id) })
                         }
                     }
                 }
@@ -127,6 +128,7 @@ struct HomeAttentionSection: View {
 
 struct HomeAttentionRow: View {
     let item: AttentionItem
+    var submitting: String?
     let onChoose: (String) -> Void
 
     var body: some View {
@@ -187,7 +189,7 @@ struct HomeAttentionRow: View {
             }
             .buttonStyle(.bordered)
         } else {
-            DecisionOptions(options: item.options, timing: timing, onChoose: onChoose)
+            DecisionOptions(options: item.options, timing: timing, submitting: submitting, onChoose: onChoose)
         }
     }
 }

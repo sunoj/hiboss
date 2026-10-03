@@ -41,8 +41,10 @@ struct MessageDetailView: View {
         option.trimmingCharacters(in: .whitespacesAndNewlines) == chosenAnswer
     }
 
-    /// Human label for where the decision was resolved, e.g. "iOS", "Telegram".
-    private var resolutionSourceLabel: String? { HibossKit.resolutionSourceLabel(reply?.metadata?.source) }
+    /// The recorded answer and its source, so a timeout default is never shown as a choice.
+    private var settlement: DecisionSettlement? {
+        chosenAnswer.map { DecisionSettlement(answer: $0, source: reply?.metadata?.source) }
+    }
 
     var body: some View {
         if let message {
@@ -228,8 +230,9 @@ struct MessageDetailView: View {
     }
 
     @ViewBuilder private func optionRow(_ text: String, chosen: Bool, custom: Bool = false) -> some View {
+        let automatic = chosen && settlement?.isAutoDefault == true
         HStack(spacing: 12) {
-            Image(systemName: chosen ? "checkmark.circle.fill" : "circle")
+            Image(systemName: chosen ? (settlement?.symbol ?? "checkmark.circle.fill") : "circle")
                 .foregroundStyle(chosen ? Theme.accent : Theme.ink2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: text).foregroundStyle(chosen ? Theme.ink : Theme.ink2)
@@ -237,15 +240,12 @@ struct MessageDetailView: View {
                 if custom { Text("Custom reply").font(.caption2).foregroundStyle(Theme.ink2) }
             }
             Spacer()
-            if chosen { Text("Selected").font(.caption).foregroundStyle(Theme.ink2) }
+            if chosen { (automatic ? Text("Auto-selected") : Text("Selected")).font(.caption).foregroundStyle(Theme.ink2) }
         }
     }
 
     private func decisionFooter(for message: HistoryMessage) -> Text? {
-        if chosenAnswer != nil {
-            if let source = resolutionSourceLabel { return Text("Answered on \(source)") }
-            return Text("Answered")
-        }
+        if let settlement { return settlement.attribution }
         let expired = message.status == "expired"
             || (message.expirationDate.map { $0 <= Date() } ?? false)
         if expired {

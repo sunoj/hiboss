@@ -1,9 +1,9 @@
 // Settled-decision lookup: keep an answered card visible and join session replies.
 // Exports: DecisionSettlement and InboxStore helpers for cards / threads.
-// Dependencies: HibossKit HistoryMessage, SessionGrouping, resolutionSourceLabel.
+// Dependencies: SwiftUI Text, HibossKit HistoryMessage, SessionGrouping, resolutionSourceLabel.
 
-import Foundation
 import HibossKit
+import SwiftUI
 
 /// The recorded choice for a decision, plus which surface produced it.
 struct DecisionSettlement: Equatable {
@@ -12,11 +12,24 @@ struct DecisionSettlement: Equatable {
 
     var sourceLabel: String? { resolutionSourceLabel(source) }
 
-    /// True when the answer did not come from this iOS client.
+    /// The server's timeout default: its reply is the only one written with source `system`.
+    var isAutoDefault: Bool { source?.lowercased() == "system" }
+
+    /// True when the answer came from another boss surface, not this iOS client.
     var answeredElsewhere: Bool {
-        guard let source else { return false }
+        guard let source, !isAutoDefault else { return false }
         return source.lowercased() != "ios"
     }
+
+    /// Who produced the answer. A timeout default is never worded as the boss's answer.
+    var attribution: Text {
+        if isAutoDefault { return Text("Auto-selected when time ran out") }
+        if answeredElsewhere, let sourceLabel { return Text("Answered on \(sourceLabel)") }
+        return Text("Answered")
+    }
+
+    /// The pending card's auto-select glyph, not the checkmark of a choice someone made.
+    var symbol: String { isAutoDefault ? "clock.arrow.circlepath" : "checkmark.circle.fill" }
 
     static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
         guard let reply = history.first(where: { $0.replyTo == id.rawValue }) else { return nil }

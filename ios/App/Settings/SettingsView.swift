@@ -17,6 +17,7 @@ struct SettingsView: View {
     var onReconnect: () -> Void = {}
     var onDecisionAlertsChanged: (Bool) -> Void = { _ in }
     @StateObject private var push = PushStatusStore()
+    @State private var confirmsSignOut = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -44,10 +45,10 @@ struct SettingsView: View {
                 }
             }
 
-            if let config = connection.config {
+            if connection.config != nil || isDemoMode {
                 Section {
                     NavigationLink {
-                        PairDeviceView(config: config)
+                        PairDeviceView(config: connection.config)
                     } label: {
                         Label("Pair another device", systemImage: "qrcode")
                     }
@@ -116,8 +117,15 @@ struct SettingsView: View {
             }
 
             Section {
-                Button("Sign Out", role: .destructive) { connection.signOut() }
+                Button("Sign Out", role: .destructive) { confirmsSignOut = true }
                     .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("settings-sign-out")
+                    // Signing out deletes this phone's token; getting back in needs another device or a Boss Token.
+                    .confirmationDialog("Sign out of HiBoss?", isPresented: $confirmsSignOut, titleVisibility: .visible) {
+                        Button("Sign Out", role: .destructive) { connection.signOut() }
+                    } message: {
+                        Text("This iPhone forgets its device token and signing key. To sign in again, pair it from another device or enter a Boss Token.")
+                    }
             }
         }
         .navigationTitle("Settings")
