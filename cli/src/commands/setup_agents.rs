@@ -67,6 +67,18 @@ pub(crate) fn apply_prompt_changes(path: &Path, remove: bool) -> Result<(), Box<
     Ok(())
 }
 
+pub(crate) fn apply_profile_prompt_changes(path: &Path, profile: &str) -> Result<(), Box<dyn Error>> {
+    let existing = if path.exists() { fs::read_to_string(path)? } else { String::new() };
+    let mut content = managed_content(&existing, false)?;
+    let end = content.find(END).ok_or("Missing HiBoss guidance marker")?;
+    content.insert_str(end, &format!(
+        "- For this runtime, prefix every HiBoss command with `HIBOSS_PROFILE={profile}`.\n"
+    ));
+    write_atomic(path, &content)?;
+    println!("Updated HiBoss instructions in {}", path.display());
+    Ok(())
+}
+
 fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {
     let parent = path.parent().ok_or("Invalid instruction destination")?;
     fs::create_dir_all(parent)?;

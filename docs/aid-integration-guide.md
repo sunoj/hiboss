@@ -18,7 +18,7 @@ aid task completes → notify_hiboss() → hiboss send "Task t-abc DONE: ..." �
 cd /path/to/hiboss/cli
 cargo build --release
 cp target/release/hiboss ~/.cargo/bin/
-hiboss init https://your-hiboss-server.workers.dev
+hiboss setup --server https://your-hiboss-server.workers.dev --invite <invite> --profile aid
 hiboss channel set telegram --bot-token <TOKEN> --chat-id <CHAT_ID>
 ```
 
@@ -158,15 +158,14 @@ Claude Code (orchestrator, has its own hiboss API key)
 **Setup**:
 
 ```bash
-# 1. Create API keys for orchestrator and sub-agents
-hiboss agent create orchestrator  # → hb_orch_key
-hiboss agent create codex-worker  # → hb_codex_key
+# 1. Set up runtime profiles with one approved machine invite
+hiboss setup --profile claude --profile aid
 
 # 2. Link orchestrator as a boss
-hiboss boss add "Orchestrator" --role admin --agent-id <orch-key-id>
+hiboss boss update <boss-id> --agent-id <orch-key-id>
 
-# 3. Sub-agents use their own keys
-# In sub-agent's hiboss config: key = hb_codex_key
+# 3. Dispatched agents select their saved aid profile via AID_TASK_ID
+# Runtime profiles are stored in the shared v2 config by setup
 
 # 4. Orchestrator polls for sub-agent messages
 hiboss boss inbox

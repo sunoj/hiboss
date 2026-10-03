@@ -96,7 +96,7 @@ pub fn resolve_credentials(config: &Config) -> Result<Credential, Box<dyn Error>
         .or_else(|| present(&config.server))
         .ok_or_else(|| format!("rule {source_rule}: server is not configured in {}; run `hiboss config set server <url>`", config_path().display()))?;
     let key = profile.and_then(|entry| present(&entry.key))
-        .ok_or_else(|| format!("rule {source_rule}: API key is missing for profile '{profile_name}' in {}; run `hiboss init <server-url>` or `hiboss setup --profile {profile_name}`", config_path().display()))?;
+        .ok_or_else(|| format!("rule {source_rule}: API key is missing for profile '{profile_name}' in {}; run `hiboss setup --server <server-url> --profile {profile_name}`", config_path().display()))?;
     Ok(Credential {
         profile: profile_name,
         source_rule,

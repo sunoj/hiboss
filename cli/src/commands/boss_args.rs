@@ -10,7 +10,6 @@ pub struct BossArgs {
 #[derive(Debug, Subcommand)]
 pub enum BossCommand {
     List,
-    Add(BossAddArgs),
     Remove(BossRemoveArgs),
     Update(BossUpdateArgs),
     Grant(BossGrantArgs),
@@ -22,19 +21,6 @@ pub enum BossCommand {
     Inbox(BossInboxArgs),
     /// Reply to a sub-agent message as boss
     Reply(BossReplyArgs),
-}
-#[derive(Debug, Args)]
-pub struct BossAddArgs {
-    pub name: String,
-    #[arg(long, default_value = "admin")]
-    pub role: String,
-    #[arg(long = "telegram-user-id")]
-    pub telegram_user_id: Option<String>,
-    #[arg(long = "discord-user-id")]
-    pub discord_user_id: Option<String>,
-    /// Link this boss to an agent (agent-as-boss)
-    #[arg(long = "agent-id")]
-    pub agent_id: Option<String>,
 }
 #[derive(Debug, Args)]
 pub struct BossRemoveArgs {

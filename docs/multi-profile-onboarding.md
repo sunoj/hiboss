@@ -17,7 +17,7 @@ comes from a path recorded under `$HOME`.
 | 5 | `init` names the agent `$USER`. A second machine collides and gets a 409, but only at approval time, after a 5-minute poll. It never sends the bootstrap secret. | `init.rs:167`; `boss-join.ts:31` |
 | 6 | `setup hooks --global` writes `$HOME/.claude/settings.json` and ignores `CLAUDE_CONFIG_DIR`. | `setup_hooks.rs:32` |
 | 7 | The CLI writes `{server,key}` under `dirs::config_dir()`. The MCP configure skill writes `{server_url,api_key}` to `~/.config`. On macOS the CLI does not read that file. | `mcp/server.ts:221`; `mcp/skills/configure/SKILL.md` |
-| 8 | `hiboss boss add` sends an agent key to a boss-only route, so it always fails. | `cli/src/client/bosses.rs:32` |
+| 8 | The removed boss-creation command sent an agent key to a boss-only route and failed. | `cli/src/client/bosses.rs` |
 | 9 | A Mac boss client cannot redeem a pairing code. Only an admin can issue one. The documented token route revokes every other device. | `pairing.ts:45`; `bosses.ts:212` |
 | 10 | Project aliases include the cwd basename, so worktree directories alias unrelated repos and cross-agent merges fail with 409. The hook hides the failure. | `project.rs:28`; `projects/index.ts:51` |
 
@@ -128,30 +128,28 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
 ## Agent onboarding: `hiboss setup`
 
 ```
-hiboss setup [--server <url>] [--profile <p>]... [--bootstrap-secret <s>] [--check] [--yes]
+hiboss setup [--server <url>] [--invite <invite>] [--profile <p>]... [--label <label>] [--bootstrap-secret <s>] [--check] [--yes]
 ```
-1. Resolve the server (flag, config, prompt).
+1. Resolve the server from a flag or config; otherwise require `--server <url>`.
 2. Detect installed runtimes on PATH (`claude`, `codex`, `gemini`, `aid`). Propose one profile
    for each. `--profile` overrides.
-3. Send one grouped join, show a single approval prompt, and poll. A 409 is printed at once.
+3. Pass the invite with `--invite`, send one grouped join, show
+   a single approval prompt, and poll. A 409 lists conflicting names and suggests
+   a distinct `--label`. `hiboss device invite` uses the active profile to mint an invite.
 4. Per profile:
    - claude: install hooks into `${CLAUDE_CONFIG_DIR:-~/.claude}` with `HIBOSS_PROFILE=claude`
      on every hook command.
-   - codex: write AGENTS.md guidance; install hooks if the installed codex supports them
-     (measured, not assumed).
-   - gemini: write GEMINI.md guidance.
+   - codex: write AGENTS.md guidance into `${CODEX_HOME:-~/.codex}`.
+   - gemini: write `~/.gemini/GEMINI.md` guidance.
    - aid: no hooks; dispatched mode applies.
-5. `--check`: for each profile run whoami and register then remove a probe session. Print a
+5. `--check`: verify each configured profile with `GET /api/agents/me`. Print a
    PASS/FAIL table. Exit non-zero on any FAIL.
 
-`hiboss init` is deleted; `setup` replaces it. `hiboss boss add` is deleted (see first-boss
-bootstrap below).
+`setup` replaces the removed `init` command. Boss management operates on existing
+bosses; `boss add` is removed.
 
 ## Boss device onboarding
 
-- **First boss:** `hiboss boss bootstrap --server <url> --bootstrap-secret <s>` succeeds only
-  while no boss exists. It creates an admin boss and prints a terminal QR plus a `hiboss://pair`
-  link carrying a single-use pairing code. The bearer token is never printed.
 - **Pairing issuer:** `admin` and `manager` may create pairing codes. The redeemed device
   receives the issuer's role or a lower one, never higher.
 - **macOS:** the first-run screen offers *Pair with code* first: paste a `hiboss://pair?…`

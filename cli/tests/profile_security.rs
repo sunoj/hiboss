@@ -182,7 +182,8 @@ fn saves_preserve_parent_permissions_other_profiles_and_default_server_override(
             0o600
         );
     }
-    assert_eq!(fs::read_dir(&sandbox.0).expect("directory").count(), 1);
+    assert_eq!(fs::read_dir(&sandbox.0).expect("directory").count(), 2);
+    assert!(sandbox.0.join("config.config-lock").is_file());
 }
 
 #[test]
@@ -198,7 +199,8 @@ fn a_relative_config_override_saves_without_temporary_files() {
         String::from_utf8_lossy(&relative.stderr)
     );
     assert!(sandbox.0.join("relative.json").is_file());
-    assert_eq!(fs::read_dir(&sandbox.0).expect("directory").count(), 1);
+    assert_eq!(fs::read_dir(&sandbox.0).expect("directory").count(), 2);
+    assert!(sandbox.0.join("relative.config-lock").is_file());
 }
 
 #[test]

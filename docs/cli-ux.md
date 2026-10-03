@@ -12,7 +12,7 @@ options and a short set of runnable examples:
 
 | Group | Commands |
 | --- | --- |
-| Get started | `init`, `doctor`, `config`, `setup` |
+| Get started | `setup`, `device`, `doctor`, `whoami`, `config` |
 | Talk to your boss | `send`, `ask`, `reply`, `inbox`, `read`, `react`, `edit`, `forward`, `status` |
 | Show work | `panel`, `request`, `progress`, `project` |
 | Coordinate sessions | `ss`, `agent`, `group` |
@@ -40,7 +40,13 @@ may independently attempt best-effort configuration reads:
   the CLI is not configured)
 - `hiboss setup hooks`, `hiboss setup agents`
 
-`config`, `init`, `doctor` and `daemon` need a readable config file, but not a
+Bare `setup` runs its onboarding handler before credential selection. It resolves
+the server from a flag or saved config, otherwise reports the required `--server` flag.
+It sends the `--invite` value or an existing device proof and requests one approval
+for all proposed profiles. `setup --check`
+verifies configured profiles with `GET /api/agents/me`.
+
+`config`, `doctor`, `whoami` and `daemon` need a readable config file, but not a
 configured server. A missing or empty file counts as an empty configuration.
 
 ## Configuration errors
@@ -52,15 +58,15 @@ configuration retains status 1.
 
 | State | Message ends with |
 | --- | --- |
-| No file, empty file, or `{}` | `server is not configured in <path>; run hiboss init <server-url> to join a server` |
+| No file, empty file, or `{}` | `server is not configured in <path>; run hiboss config set server <url>` |
 | Key set, server missing or blank | `run hiboss config set server <url>` |
-| Server set, key missing or blank | `API key is missing in <path>; run hiboss init <server-url> with your configured server to request one` |
-| File does not parse | `config file <path> is not valid hiboss configuration (line L, column C); move the file aside as a backup, then run hiboss init <server-url>` |
+| Server set, key missing or blank | `API key is missing for profile '<name>' in <path>; run hiboss setup --profile <name>` |
+| File does not parse | `config file <path> is not valid hiboss configuration (line L, column C); move the file aside as a backup, then run hiboss setup` |
 | File cannot be read | `cannot read config file <path> (<os error>); check the file's read permissions` |
 
 A parse error reports only the position. It does not include the parser message,
 because that message can quote stored values such as the API key. `config set` and
-`init` refuse to run against an unparseable file rather than overwriting it, which
+`setup` refuse to run against an unparseable file rather than overwriting it, which
 keeps whatever the user still has in it.
 
 The CLI checks for a missing or blank value before it builds an HTTP client, so

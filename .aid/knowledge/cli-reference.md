@@ -2,12 +2,14 @@
 
 ## Setup
 ```bash
-hiboss init https://hiboss-server.<user>.workers.dev  # bootstrap first key
-hiboss config set server https://hiboss-server.<user>.workers.dev
-hiboss config set key <api-key>
+hiboss setup --server https://hiboss-server.<user>.workers.dev --invite <invite>  # approve the printed code
+hiboss setup --profile claude --profile codex --label laptop  # one grouped approval
+hiboss setup --check                # GET /api/agents/me for each configured profile
+hiboss device invite                # mint an Add a machine invite using the active profile
 hiboss config set channel discord   # default channel
 hiboss setup hooks                  # configure Claude Code hooks (project)
 hiboss setup hooks --global         # configure for all Claude Code sessions
+hiboss setup agents                 # refresh global Codex and Claude guidance
 hiboss setup hooks --remove         # remove hiboss hooks
 hiboss setup telegram               # guided Telegram bot setup
 hiboss setup discord                # guided Discord bot setup
@@ -134,7 +136,6 @@ hiboss channel set discord --webhook-url <url> --bot-token <token> --channel-id 
 ## Boss Management
 ```bash
 hiboss boss list
-hiboss boss add "Ming" --role admin --telegram-user-id 123
 hiboss boss show <boss-id>
 hiboss boss update <boss-id> --discord-user-id 456
 hiboss boss grant <boss-id> <agent-id>
@@ -144,7 +145,7 @@ hiboss boss remove <boss-id>
 
 ## Agent-as-Boss
 ```bash
-hiboss boss add "Manager" --agent-id <agent-id>
+hiboss boss update <boss-id> --agent-id <agent-id>
 hiboss boss inbox
 hiboss boss inbox --priority critical,high
 hiboss boss inbox --count
@@ -173,6 +174,14 @@ hiboss doctor    # validate config, connectivity, channel setup, routing
 ```
 
 ## CLI Config
+`setup` accepts `--server`, `--invite`, repeated `--profile`, `--label`,
+`--bootstrap-secret`, `--yes`, and `--check`. First-device bootstrap uses
+`--bootstrap-secret` or `HIBOSS_BOOTSTRAP_SECRET`; adding profiles to a saved
+device uses its existing key as device proof. Existing configured profiles
+retain their keys. Name conflicts report 409; use a distinct `--label`.
+Claude and Codex destinations honor `CLAUDE_CONFIG_DIR` and `CODEX_HOME`;
+Gemini uses `~/.gemini/GEMINI.md`. Every managed Claude hook selects `HIBOSS_PROFILE=claude`.
+
 Stored in `$HIBOSS_CONFIG` if set, otherwise `dirs::config_dir()/hiboss/config.json`
 (`~/Library/Application Support/hiboss/config.json` on macOS,
 `${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json` on Linux). Saved files are

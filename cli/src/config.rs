@@ -2,9 +2,11 @@
 // Exports: Config, Profile, config_path, load_config, parse_config, save_config.
 // Dependencies: dirs, serde, serde_json, std::fs, std::path::PathBuf.
 
+mod locking;
 mod resolve;
 mod storage;
 use dirs::config_dir;
+pub use locking::ConfigLock;
 pub use resolve::{Credential, ProfileError, resolve_credentials};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -40,6 +42,7 @@ pub struct Config {
     pub version: u8,
     pub server: Option<String>,
     pub device_id: Option<String>,
+    #[serde(default)]
     pub default_profile: String,
     #[serde(skip)]
     pub key: Option<String>,
@@ -95,9 +98,22 @@ pub fn load_config() -> Result<Config, Box<dyn Error>> {
             ..Config::default()
         });
     }
+    let mut config = load_saved_config()?;
+    config.select_profile()?;
+    config.original_server = config.server.clone();
+    Ok(config)
+}
+
+/// Load persisted profiles without selecting a runtime or ephemeral credential.
+/// Onboarding needs this when the requested runtime has no profile yet.
+pub fn load_saved_config() -> Result<Config, Box<dyn Error>> {
+    read_saved_config(true)
+}
+
+fn read_saved_config(persist_migration: bool) -> Result<Config, Box<dyn Error>> {
     let path = config_path();
     if !path.is_file() {
-        return empty_config();
+        return Ok(Config::default());
     }
     let body = fs::read_to_string(&path).map_err(|err| {
         LoadError(format!(
@@ -106,29 +122,21 @@ pub fn load_config() -> Result<Config, Box<dyn Error>> {
         ))
     })?;
     if body.trim().is_empty() {
-        return empty_config();
+        return Ok(Config::default());
     }
     let value: serde_json::Value = serde_json::from_str(&body)
         .map_err(|err| invalid_config(&path, err.line(), err.column()))?;
-    let mut config = if value.is_object() && value.get("version").is_none() {
-        rewrite_legacy(value, &path)?
+    if value.is_object() && value.get("version").is_none() {
+        rewrite_legacy(value, &path, persist_migration)
     } else {
-        parse_config(&body, &path)?
-    };
-    config.select_profile()?;
-    config.original_server = config.server.clone();
-    Ok(config)
-}
-
-fn empty_config() -> Result<Config, Box<dyn Error>> {
-    let mut config = Config::default();
-    config.select_profile()?;
-    Ok(config)
+        parse_config(&body, &path)
+    }
 }
 
 fn rewrite_legacy(
     value: serde_json::Value,
     path: &std::path::Path,
+    persist: bool,
 ) -> Result<Config, Box<dyn Error>> {
     let legacy: LegacyConfig =
         serde_json::from_value(value).map_err(|_| invalid_config(path, 1, 1))?;
@@ -144,7 +152,9 @@ fn rewrite_legacy(
             ..Profile::default()
         },
     );
-    save_config(&migrated)?;
+    if persist {
+        save_config(&migrated)?;
+    }
     Ok(migrated)
 }
 
@@ -165,7 +175,7 @@ fn invalid_config(path: &std::path::Path, line: usize, column: usize) -> LoadErr
     // Serde errors may quote secret values. Report only the position.
     LoadError(format!(
         "config file {} is not valid hiboss configuration (line {line}, column {column}); \
-         move the file aside as a backup, then run `hiboss init <server-url>`",
+         move the file aside as a backup, then run `hiboss setup --server <server-url>`",
         path.display()
     ))
 }
@@ -177,7 +187,48 @@ pub fn save_config(config: &Config) -> Result<(), Box<dyn Error>> {
         );
     }
     let path = config_path();
-    storage::write_config(&stored_config(config), &path)
+    let _lock = ConfigLock::acquire(&path)?;
+    let mut stored = stored_config(config);
+    // Retain profiles added since this command loaded its config snapshot.
+    preserve_concurrent_credentials(config, &mut stored, read_saved_config(false)?);
+    storage::write_config(&stored, &path)
+}
+
+fn preserve_concurrent_credentials(original: &Config, stored: &mut Config, latest: Config) {
+    stored.device_id = latest.device_id.or(stored.device_id.take());
+    for (name, profile) in latest.profiles {
+        if let Some(proposed) = stored.profiles.get_mut(&name) {
+            if original
+                .profiles
+                .get(&name)
+                .and_then(|entry| entry.key.as_ref())
+                == proposed.key.as_ref()
+            {
+                proposed.key = profile.key;
+                proposed.agent_id = profile.agent_id;
+                proposed.name = profile.name;
+            }
+        } else {
+            stored.profiles.insert(name, profile);
+        }
+    }
+    if !stored.profiles.contains_key(&stored.default_profile) {
+        stored.default_profile = latest.default_profile;
+    }
+}
+
+/// Apply an update while holding the same lock used by all config writers.
+pub fn update_saved_config(
+    update: impl FnOnce(&mut Config) -> Result<(), Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
+    if resolve::environment_credential()?.is_some() {
+        return Err("Environment credentials are ephemeral; no config file was written".into());
+    }
+    let path = config_path();
+    let _lock = ConfigLock::acquire(&path)?;
+    let mut config = read_saved_config(false)?;
+    update(&mut config)?;
+    storage::write_config(&stored_config(&config), &path)
 }
 
 fn stored_config(config: &Config) -> Config {

@@ -54,6 +54,7 @@ impl RotationConfig {
         &self.backup
     }
     pub fn install(&mut self, key: &str) -> Result<(), Box<dyn Error>> {
+        let _lock = crate::config::ConfigLock::acquire(&self.path)?;
         if fs::read(&self.path)? != self.original {
             return Err("config changed during rotation; active config kept".into());
         }
@@ -70,6 +71,7 @@ impl RotationConfig {
         Ok(())
     }
     pub fn restore(&mut self) -> Result<(), Box<dyn Error>> {
+        let _lock = crate::config::ConfigLock::acquire(&self.path)?;
         if self.installed.as_ref() != Some(&fs::read(&self.path)?) {
             return Err("config changed after rotation; previous key remains in backup".into());
         }

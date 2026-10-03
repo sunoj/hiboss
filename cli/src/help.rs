@@ -9,7 +9,7 @@ use clap::Command;
 pub const COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Get started",
-        &["init", "doctor", "whoami", "config", "setup"],
+        &["setup", "device", "doctor", "whoami", "config"],
     ),
     (
         "Talk to your boss",
@@ -28,7 +28,8 @@ pub const COMMAND_GROUPS: &[(&str, &[&str])] = &[
 
 const EXAMPLES: &str = "\
 Examples:
-  hiboss init https://hiboss.example.com         Join a server; the boss approves the request
+  hiboss setup --server https://hiboss.example.com --invite <invite>  Join a machine for approval
+  hiboss device invite                           Create an Add a machine invite
   hiboss doctor                                  Check configuration and connectivity
   hiboss send \"Build finished: 42 tests passed\"  Notify the boss without waiting
   hiboss ask \"Deploy to staging?\" --option Yes --option No

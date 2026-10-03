@@ -26,7 +26,7 @@ fn help_lists_grouped_commands_and_examples_on_stdout() {
             out.stdout
         );
     }
-    assert!(out.stdout.contains("Examples:\n  hiboss init https://"));
+    assert!(out.stdout.contains("Examples:\n  hiboss setup --server https://"));
     assert!(
         out.stdout.contains("  inbox "),
         "commands keep their descriptions"
@@ -140,7 +140,7 @@ fn partial_config_names_the_missing_value() {
     let out = sandbox.run(&["send", "hello"]);
     assert_eq!(out.code, 3);
     assert!(
-        out.stderr.contains("hiboss init <server-url>"),
+        out.stderr.contains("hiboss setup --server <server-url> --profile"),
         "{}",
         out.stderr
     );

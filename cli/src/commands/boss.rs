@@ -16,7 +16,6 @@ pub async fn run(
 ) -> Result<(), Box<dyn Error>> {
     match &args.command {
         BossCommand::List => run_list(client).await,
-        BossCommand::Add(payload) => run_add(payload, client).await,
         BossCommand::Remove(payload) => run_remove(payload, client).await,
         BossCommand::Update(payload) => run_update(payload, client).await,
         BossCommand::Grant(payload) => run_grant(payload, client).await,
@@ -49,24 +48,6 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
             format_agents(b)
         );
     }
-    Ok(())
-}
-
-async fn run_add(args: &BossAddArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
-    let mut payload = Map::new();
-    payload.insert("name".into(), Value::String(args.name.clone()));
-    payload.insert("role".into(), Value::String(args.role.clone()));
-    insert_optional(&mut payload, "telegram_user_id", &args.telegram_user_id);
-    insert_optional(&mut payload, "discord_user_id", &args.discord_user_id);
-    insert_optional(&mut payload, "agent_id", &args.agent_id);
-    let boss = client.create_boss(&Value::Object(payload)).await?;
-    let id = boss["id"].as_str().unwrap_or("-");
-    eprintln!(
-        "Boss created: {} ({})",
-        boss["name"].as_str().unwrap_or("-"),
-        short_id(id)
-    );
-    print_boss_details(&boss);
     Ok(())
 }
 

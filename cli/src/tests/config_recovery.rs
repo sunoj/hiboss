@@ -81,7 +81,7 @@ fn require_key_names_the_configured_server() {
     assert!(
         err.contains("rule 4")
             && err.contains("API key is missing")
-            && err.contains("hiboss init <server-url>"),
+            && err.contains("hiboss setup --server <server-url> --profile"),
         "{err}"
     );
     let err = config(None, None)

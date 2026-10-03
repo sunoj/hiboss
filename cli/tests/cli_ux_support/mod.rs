@@ -3,6 +3,7 @@
 // Dependencies: std::process, std::fs; CARGO_BIN_EXE_hiboss from Cargo.
 
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -62,8 +63,46 @@ impl Sandbox {
         self.execute(args, &[("NO_PROXY", "127.0.0.1")])
     }
 
+    /// Drives interactive onboarding with a bounded process lifetime and synthetic input.
+    #[allow(dead_code)]
+    pub fn run_input(&self, args: &[&str], input: &str, extra: &[(&str, &str)]) -> Outcome {
+        let mut command = self.command(args, extra);
+        let mut child = command
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn hiboss");
+        child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(input.as_bytes())
+            .expect("write input");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        while child.try_wait().expect("child status").is_none() {
+            if std::time::Instant::now() >= deadline {
+                child.kill().expect("stop stalled hiboss");
+                let _ = child.wait();
+                panic!("hiboss exceeded the 20-second test deadline");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        Self::outcome(child.wait_with_output().expect("hiboss output"))
+    }
+
     fn execute(&self, args: &[&str], extra: &[(&str, &str)]) -> Outcome {
-        let output = Command::new(env!("CARGO_BIN_EXE_hiboss"))
+        let output = self
+            .command(args, extra)
+            .stdin(Stdio::null())
+            .output()
+            .expect("run hiboss binary");
+        Self::outcome(output)
+    }
+
+    fn command(&self, args: &[&str], extra: &[(&str, &str)]) -> Command {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_hiboss"));
+        command
             .args(args)
             .current_dir(&self.home)
             .env_clear()
@@ -74,10 +113,11 @@ impl Sandbox {
             // Any accidental HTTP request fails fast instead of leaving the box.
             .env("HTTPS_PROXY", "http://127.0.0.1:9")
             .env("HTTP_PROXY", "http://127.0.0.1:9")
-            .envs(extra.iter().copied())
-            .stdin(Stdio::null())
-            .output()
-            .expect("run hiboss binary");
+            .envs(extra.iter().copied());
+        command
+    }
+
+    fn outcome(output: std::process::Output) -> Outcome {
         Outcome {
             code: output.status.code().unwrap_or(-1),
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
