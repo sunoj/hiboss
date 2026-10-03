@@ -55,6 +55,7 @@ protocol MessageNotificationCenter: AnyObject {
 final class SystemMessageNotificationCenter: NSObject, MessageNotificationCenter {
     var isEnabled = true
     var onOpen: ((MessageID) -> Void)?
+    var onOpenJoinRequest: ((String) -> Void)?
     // Delay accessing current() until app launch; SwiftPM tests have no app bundle.
     private lazy var center = UNUserNotificationCenter.current()
 
@@ -102,8 +103,10 @@ extension SystemMessageNotificationCenter: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        await MainActor.run {
-            isEnabled ? [.banner, .list, .sound] : []
+        // Join requests are an admin security prompt, not a message; the message toggle does not mute them.
+        let isJoinRequest = notification.request.content.userInfo[JoinRequestNotice.userInfoKey] is String
+        return await MainActor.run {
+            isEnabled || isJoinRequest ? [.banner, .list, .sound] : []
         }
     }
 
@@ -111,10 +114,17 @@ extension SystemMessageNotificationCenter: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        let id = response.notification.request.content.userInfo["messageID"] as? String
+        let info = response.notification.request.content.userInfo
+        let id = info["messageID"] as? String
+        let joinRequestID = info[JoinRequestNotice.userInfoKey] as? String
         let isOpen = response.actionIdentifier == UNNotificationDefaultActionIdentifier
         await MainActor.run {
-            if isOpen, let id { onOpen?(MessageID(rawValue: id)) }
+            guard isOpen else { return }
+            if let joinRequestID {
+                onOpenJoinRequest?(joinRequestID)
+            } else if let id {
+                onOpen?(MessageID(rawValue: id))
+            }
         }
     }
 }

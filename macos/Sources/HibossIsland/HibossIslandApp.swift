@@ -14,7 +14,8 @@ struct HibossIslandApp: App {
     var body: some Scene {
         Window(productName, id: "main") {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow,
-                notificationNavigation: appDelegate.notificationNavigation)
+                notificationNavigation: appDelegate.notificationNavigation,
+                joinRequests: appDelegate.joinRequests)
         }
         .defaultSize(width: 1320, height: 820)
         .commands {
@@ -68,25 +69,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let notificationNavigation = MessageNotificationNavigation()
     let pairingLinks = PairingLinkRouter()
     let notifications: MessageNotificationStore
+    let joinRequests: JoinRequestsModel
+    var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
-    private var cancellables: Set<AnyCancellable> = []
+    var cancellables: Set<AnyCancellable> = []
 
     override init() {
         let settings = AppSettings()
         self.settings = settings
         notifications = MessageNotificationStore(center: notificationCenter)
         preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
+        joinRequests = JoinRequestsModel {
+            (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
+        }
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else { return }
         notificationCenter.onOpen = { [weak self] id in self?.notificationNavigation.open(id) }
+        notificationCenter.onOpenJoinRequest = { [weak self] id in
+            self?.notificationNavigation.openDeviceRequests(requestID: id)
+        }
         notificationCenter.start()
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
         panelController = IslandPanelController(flow: flow, settings: settings)
+        observeJoinRequests()
         Task { [weak self] in
             guard let self else { return }
             await settings.loadToken()
@@ -156,19 +166,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         refreshStatusMenu()
     }
 
-    private func refreshStatusMenu() {
+    func refreshStatusMenu() {
         guard let statusItem else { return }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: flow.connectionState.label, action: nil, keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(menuItem(L("Reconnect"), action: #selector(reconnect)))
         menu.addItem(menuItem(L("Open HiBoss…"), action: #selector(showMainWindow)))
+        menu.addItem(deviceRequestsMenuItem())
         menu.addItem(.separator())
         menu.addItem(menuItem(L("Quit HiBoss Island"), action: #selector(quit)))
         statusItem.menu = menu
     }
 
-    private func menuItem(_ title: String, action: Selector) -> NSMenuItem {
+    func menuItem(_ title: String, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
         return item

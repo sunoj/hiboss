@@ -47,6 +47,7 @@ enum OverviewDestination: Hashable {
     case category(OverviewCategory)
     case session(String)
     case dashboard
+    case deviceRequests
 }
 
 struct OverviewSnapshot {
@@ -70,6 +71,8 @@ struct OverviewSnapshot {
         switch destination {
         case .dashboard:
             return attention.map(\.message)
+        case .deviceRequests:
+            return []
         case let .session(id):
             return history.filter { SessionGrouping.sessionKey(for: $0) == id }
         case let .category(category) where category.isAttention:
@@ -89,6 +92,7 @@ struct OverviewSnapshot {
         case let .category(category): category.title
         case let .session(id): sessions.first { $0.id == id }?.label ?? L("Session")
         case .dashboard: L("Dashboard")
+        case .deviceRequests: L("Device Requests")
         }
     }
 

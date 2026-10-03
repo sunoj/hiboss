@@ -37,6 +37,7 @@ struct OverviewContentHeader: View {
         case .category(.completed): L("Answered and expired questions.")
         case .session: L("Recent messages in this session.")
         case .dashboard: L("Decisions and live panels.")
+        case .deviceRequests: L("Machines waiting to join.")
         }
     }
 }
