@@ -66,7 +66,14 @@ public struct PanelWebLeafSlot: View {
 }
 
 func resolvedWebLeafDefinition(_ definition: [String: PanelValue], state: PanelValue) -> [String: PanelValue] {
-    definition.mapValues { resolveWebLeafValue($0, state: state) }
+    var resolved = definition.mapValues { resolveWebLeafValue($0, state: state) }
+    // A Table binds its live rows through `rowsBinding`; the renderers read `rows`, so a bound
+    // array becomes the rows once resolved and literal rows keep precedence.
+    if resolved["rows"]?.array == nil, let rows = resolved["rowsBinding"]?.array {
+        resolved["rows"] = .array(rows)
+    }
+    resolved["rowsBinding"] = nil
+    return resolved
 }
 
 private func resolveWebLeafValue(_ value: PanelValue, state: PanelValue) -> PanelValue {

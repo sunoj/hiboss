@@ -31,6 +31,37 @@ final class PanelWebLeafTests: XCTestCase {
         XCTAssertEqual(rendered, definition)
     }
 
+    func testBoundTableRowsResolveIntoRowsBeforeRendering() {
+        let definition: [String: PanelValue] = [
+            "type": .string("Table"),
+            "columns": .array([.object(["id": .string("box"), "label": .string("Box")])]),
+            "rowsBinding": .object(["$state": .string("/task/rows")]),
+        ]
+        let rows: PanelValue = .array([.object(["box": .string("box-a")]), .object(["box": .string("box-b")])])
+        let state: PanelValue = .object(["task": .object(["rows": rows])])
+
+        let rendered = resolvedWebLeafDefinition(definition, state: state)
+
+        XCTAssertEqual(rendered["rows"], rows)
+        XCTAssertNil(rendered["rowsBinding"])
+    }
+
+    func testLiteralTableRowsKeepPrecedenceOverBoundRows() {
+        let literal: PanelValue = .array([.object(["box": .string("literal")])])
+        let definition: [String: PanelValue] = [
+            "type": .string("Table"),
+            "columns": .array([.object(["id": .string("box"), "label": .string("Box")])]),
+            "rows": literal,
+            "rowsBinding": .object(["$state": .string("/task/rows")]),
+        ]
+        let state: PanelValue = .object(["task": .object(["rows": .array([.object(["box": .string("bound")])])])])
+
+        let rendered = resolvedWebLeafDefinition(definition, state: state)
+
+        XCTAssertEqual(rendered["rows"], literal)
+        XCTAssertNil(rendered["rowsBinding"])
+    }
+
     func testWallDisplayDefinitionFindsChartWithoutSummaryMetadata() throws {
         let fixture = try XCTUnwrap(
             PanelExampleFixtures.load().first { $0.name == "download-progress.json" }
