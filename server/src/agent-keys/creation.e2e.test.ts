@@ -4,13 +4,9 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import { approveJoinRequest } from '../routes/join-helpers';
-import joinMigration from '../../migrations/0018_join_requests.sql?raw';
 
 beforeAll(async () => {
   await seedDatabase();
-  for (const statement of joinMigration.replace(/^--.*$/gm, '').split(';').filter(sql => sql.trim())) {
-    await env.DB.prepare(statement).run();
-  }
   await env.DB.prepare('DELETE FROM api_keys').run();
 });
 const base = 'https://test.local/api';
@@ -28,10 +24,11 @@ async function post(path: string, body: unknown, token?: string): Promise<Respon
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
 }
 
-it('bootstrap and admin creation write only independent credentials', async () => {
-  const response = await post('/bootstrap', {});
+it('first join and admin creation write only independent credentials', async () => {
+  const response = await post('/join', joinBody('bootstrap-agent'));
   expect(response.status).toBe(201);
-  const bootstrap = await response.json() as Grant;
+  const first = (await response.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
+  const bootstrap: Grant = { id: first.agent_id, key: first.key };
   await assertGrant(bootstrap);
   await env.DB.prepare('UPDATE api_keys SET is_admin = 1 WHERE id = ?').bind(bootstrap.id).run();
   const created = await post('/keys', { name: 'admin-created' }, bootstrap.key);
@@ -42,13 +39,13 @@ it('bootstrap and admin creation write only independent credentials', async () =
 it('boss and provider approvals create keys for new identities', async () => {
   await seedBossToken('Creation admin', 'admin', 'creation-boss');
   for (const provider of ['boss', 'callback']) {
-    const pending = await post('/join', { name: `approved-${provider}` });
+    const pending = await post('/join', joinBody(`approved-${provider}`));
     expect(pending.status).toBe(201);
     const { request_id, poll_token } = await pending.json() as { request_id: string; poll_token: string };
     if (provider === 'boss') expect((await post(`/boss/join-requests/${request_id}/approve`, {}, 'creation-boss')).status).toBe(200);
     else expect((await approveJoinRequest(env, request_id)).statusCode).toBe(200);
     const poll = await SELF.fetch(`${base}/join/status?token=${poll_token}`);
-    const grant = await poll.json() as { agent_id: string; key: string };
+    const grant = (await poll.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
     await assertGrant({ id: grant.agent_id, key: grant.key });
   }
 });
@@ -57,9 +54,13 @@ it('first-agent join creates an independent credential without enrolment changes
   await env.DB.prepare('DELETE FROM join_requests').run();
   await env.DB.prepare('DELETE FROM boss_agent_access').run();
   await env.DB.prepare('DELETE FROM api_keys').run();
-  const response = await post('/join', { name: 'first-join' });
+  const response = await post('/join', joinBody('first-join'));
   expect(response.status).toBe(201);
-  const grant = await response.json() as { agent_id: string; key: string; status: string };
-  expect(grant.status).toBe('approved');
-  await assertGrant({ id: grant.agent_id, key: grant.key });
+  const body = await response.json() as { status: string; profiles: Array<{ agent_id: string; key: string }> };
+  expect(body.status).toBe('approved');
+  await assertGrant({ id: body.profiles[0].agent_id, key: body.profiles[0].key });
 });
+
+function joinBody(name: string): Record<string, unknown> {
+  return { device: { label: `${name}-device` }, profiles: [{ profile: 'claude', name }] };
+}

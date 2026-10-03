@@ -5,16 +5,10 @@
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent-keys';
-import { seedBossToken, seedDatabase } from '../test-helpers';
+import { insertPendingJoin, seedBossToken, seedDatabase } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS join_requests (
-    id TEXT PRIMARY KEY, name TEXT NOT NULL, poll_token TEXT NOT NULL UNIQUE,
-    status TEXT NOT NULL DEFAULT 'pending', api_key_id TEXT REFERENCES api_keys(id),
-    api_key TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`).run();
 });
 const base = 'https://test.local';
 
@@ -43,8 +37,7 @@ async function sessionProject(id: string): Promise<string | null> {
 }
 
 async function join(id: string): Promise<void> {
-  await env.DB.prepare("INSERT INTO join_requests (id, name, poll_token, status) VALUES (?, ?, ?, 'pending')")
-    .bind(id, `audit-${id}`, `poll-${id}`).run();
+  await insertPendingJoin(id, `audit-${id}`);
 }
 
 async function joinStatus(id: string): Promise<string | null> {

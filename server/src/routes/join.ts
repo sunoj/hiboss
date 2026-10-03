@@ -1,110 +1,59 @@
-// Join route for device onboarding via pending approval or first-key bootstrap.
+// Join route for device enrolment: one request carries every runtime profile.
 // Exports POST /api/join and GET /api/join/status without auth.
-// Depends on Hono, D1, auth hashing, audit logging, and join notifications.
+// Depends on Hono, the devices module, bootstrap-secret policy and join notifications.
 
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { logAudit } from '../audit';
-import { createAgent } from '../agent-keys';
 import { hasValidBootstrapSecret } from '../middleware/bootstrap-secret';
+import { createJoinRequest, pollJoinRequest, resolveDeviceProof } from '../devices/enroll';
+import { parseJoinPayload } from '../devices/types';
 import { notifyJoinConnected, notifyJoinRequest } from './join-notify';
-
-type JoinCreateResponse =
-  | { request_id: string; poll_token: string; status: 'pending' }
-  | { request_id: string; poll_token: string; status: 'approved'; key: string; agent_id: string };
-
-type JoinStatusRow = {
-  id: string;
-  name: string;
-  status: 'pending' | 'approved' | 'rejected';
-  api_key: string | null;
-  api_key_id: string | null;
-};
 
 const router = new Hono<{ Bindings: Env }>({});
 
 router.post('/', async (c) => {
-  const payload = await c.req.json<{ name?: string }>().catch((): { name?: string } => ({}));
-  const name = payload.name?.trim() || 'new-agent';
-  const pollToken = `jt_${generateHex(16)}`;
-  const countRow = await c.env.DB.prepare('SELECT COUNT(*) AS cnt FROM api_keys').first<{ cnt: number }>();
-  const count = Number(countRow?.cnt ?? 0);
-  if (count === 0) {
-    if (!hasValidBootstrapSecret(c)) return c.text('unauthorized', 401);
-    const apiKey = await createAgent(c.env.DB, name, { type: 'system', id: 'join' }, true);
-    if (!apiKey) {
-      return c.text('failed to create api key', 500);
-    }
-    const joinRequest = await c.env.DB
-      .prepare('INSERT INTO join_requests (name, poll_token, status, api_key_id, api_key) VALUES (?, ?, ?, ?, ?) RETURNING id')
-      .bind(name, pollToken, 'approved', apiKey.id, apiKey.key)
-      .first<{ id: string }>();
-    if (!joinRequest) {
-      await c.env.DB.prepare('DELETE FROM api_keys WHERE id = ?').bind(apiKey.id).run();
-      return c.text('failed to create join request', 500);
-    }
-    c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', apiKey.id, 'join-auto-approve'));
-    c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.approve', 'join_request', joinRequest.id, name));
-    const response: JoinCreateResponse = {
-      request_id: joinRequest.id,
-      poll_token: pollToken,
-      status: 'approved',
-      key: apiKey.key,
-      agent_id: apiKey.id,
-    };
-    return c.json(response, 201);
+  const agents = await c.env.DB.prepare('SELECT COUNT(*) AS cnt FROM api_keys').first<{ cnt: number }>();
+  const bootstrap = Number(agents?.cnt ?? 0) === 0;
+  if (bootstrap && !hasValidBootstrapSecret(c)) return c.json({ error: 'bootstrap secret required' }, 401);
+  const payload = parseJoinPayload(await c.req.json<unknown>().catch(() => null));
+  if (typeof payload === 'string') return c.json({ error: payload }, 400);
+  const proof = c.req.header('X-Device-Proof');
+  const deviceId = proof ? await resolveDeviceProof(c.env.DB, proof) : null;
+  if (proof && !deviceId) return c.json({ error: 'invalid device proof' }, 401);
+  const outcome = await createJoinRequest(c.env.DB, payload, deviceId, bootstrap);
+  if (outcome.kind === 'conflict') {
+    return c.json({ error: 'agent name already exists', conflicts: outcome.names }, 409);
   }
-  const joinRequest = await c.env.DB
-    .prepare('INSERT INTO join_requests (name, poll_token, status) VALUES (?, ?, ?) RETURNING id')
-    .bind(name, pollToken, 'pending')
-    .first<{ id: string }>();
-  if (!joinRequest) {
-    return c.text('failed to create join request', 500);
+  const names = payload.profiles.map(p => p.name).join(', ');
+  c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.create', 'join_request', outcome.requestId, names));
+  if (outcome.status === 'pending') {
+    c.executionCtx.waitUntil(notifyJoinRequest(c.env, outcome.requestId, payload.device.label, payload.profiles));
+    return c.json({ request_id: outcome.requestId, poll_token: outcome.pollToken, status: 'pending' }, 201);
   }
-  c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.create', 'join_request', joinRequest.id, name));
-  c.executionCtx.waitUntil(notifyJoinRequest(c.env, joinRequest.id, name));
-  const response: JoinCreateResponse = { request_id: joinRequest.id, poll_token: pollToken, status: 'pending' };
-  return c.json(response, 201);
+  c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.approve', 'join_request', outcome.requestId, 'bootstrap'));
+  return c.json({ request_id: outcome.requestId, poll_token: outcome.pollToken, status: 'approved', ...outcome.delivery }, 201);
 });
 
 router.get('/status', async (c) => {
   const token = c.req.query('token');
-  if (!token) {
-    return c.text('missing token', 400);
-  }
-  const joinRequest = await c.env.DB
-    .prepare('SELECT id, name, status, api_key, api_key_id FROM join_requests WHERE poll_token = ?')
-    .bind(token)
-    .first<JoinStatusRow>();
-  if (!joinRequest) {
-    return c.text('not found', 404);
-  }
-  const response: Record<string, string> = {
-    status: joinRequest.status,
-    name: joinRequest.name,
-    request_id: joinRequest.id,
+  if (!token) return c.json({ error: 'missing token' }, 400);
+  const result = await pollJoinRequest(c.env.DB, token);
+  if (!result) return c.json({ error: 'not found' }, 404);
+  const body = {
+    request_id: result.requestId,
+    status: result.status,
+    device_label: result.deviceLabel,
+    profiles: result.profiles,
+    ...(result.delivered ? { delivered: true } : {}),
+    ...result.delivery,
   };
-  if (joinRequest.status === 'approved' && joinRequest.api_key && joinRequest.api_key_id) {
-    response.key = joinRequest.api_key;
-    response.agent_id = joinRequest.api_key_id;
-    const cleared = await c.env.DB
-      .prepare("UPDATE join_requests SET api_key = NULL, updated_at = datetime('now') WHERE id = ? AND api_key IS NOT NULL")
-      .bind(joinRequest.id)
-      .run();
-    if (cleared.meta.changes === 1) {
-      c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.key_delivered', 'join_request', joinRequest.id, joinRequest.name));
-      c.executionCtx.waitUntil(notifyJoinConnected(c.env, joinRequest.name, joinRequest.api_key_id).catch(() => {}));
-    }
+  if (result.delivery) {
+    const delivery = result.delivery;
+    c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'join_request.key_delivered', 'join_request', result.requestId, result.deviceLabel));
+    c.executionCtx.waitUntil(notifyJoinConnected(c.env, result.deviceLabel, delivery.profiles).catch(() => {}));
   }
-  return c.json(response);
+  return c.json(body);
 });
 
 export const joinRouter = router;
-
-function generateHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
-}

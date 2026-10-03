@@ -1,5 +1,5 @@
 // Broadcasts join approval prompts and key-delivery notices to enabled channels.
-// Exports notifyJoinRequest and notifyJoinConnected with shared target deduplication.
+// Exports notifyJoinRequest and notifyJoinConnected (device + profile names) with target deduplication.
 // Depends on D1 channel configs and the Telegram and Discord senders.
 
 import type { DiscordChannelConfig, Env, TelegramChannelConfig } from '../types';
@@ -11,12 +11,18 @@ type ChannelConfigRow = {
   config: string;
 };
 
-export function notifyJoinRequest(env: Env, requestId: string, name: string): Promise<void> {
-  return broadcastJoinMessage(env, `Join request for ${name}`, requestId);
+type NamedProfile = { profile: string; name: string; agent_id?: string };
+
+export function notifyJoinRequest(env: Env, requestId: string, deviceLabel: string, profiles: NamedProfile[]): Promise<void> {
+  return broadcastJoinMessage(env, `Join request from device ${deviceLabel}: ${profileList(profiles)}`, requestId);
 }
 
-export function notifyJoinConnected(env: Env, name: string, agentId: string): Promise<void> {
-  return broadcastJoinMessage(env, `Agent ${name} (${agentId.slice(0, 8)}) connected — key delivered`);
+export function notifyJoinConnected(env: Env, deviceLabel: string, profiles: NamedProfile[]): Promise<void> {
+  return broadcastJoinMessage(env, `Device ${deviceLabel} connected — keys delivered for ${profileList(profiles)}`);
+}
+
+function profileList(profiles: NamedProfile[]): string {
+  return profiles.map(p => `${p.name} (${p.profile})`).join(', ');
 }
 
 async function broadcastJoinMessage(env: Env, message: string, requestId?: string): Promise<void> {

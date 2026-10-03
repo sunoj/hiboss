@@ -10,6 +10,7 @@ import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
 import projectSurfacesMigration from '../migrations/0044_project_surfaces.sql?raw';
 import agentKeysMigration from '../migrations/0045_agent_keys.sql?raw';
+import devicesMigration from '../migrations/0046_devices.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
 import postsMigration from '../migrations/0026_progress_posts.sql?raw';
 import teamsMigration from '../migrations/0027_progress_teams_likes.sql?raw';
@@ -102,6 +103,8 @@ export async function seedDatabase(): Promise<void> {
   await seedPreAgentKeysDatabase();
   const statements = agentKeysMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(statements.map(sql => env.DB.prepare(sql)));
+  const deviceStatements = devicesMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
+  await env.DB.batch(deviceStatements.map(sql => env.DB.prepare(sql)));
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)
@@ -131,4 +134,11 @@ export async function seedBossToken(name: string, role: string, token: string, i
   await env.DB.prepare('INSERT OR REPLACE INTO boss_tokens (boss_id, label, token_hash) VALUES (?, ?, ?)')
     .bind(boss.id, 'test', tokenHash).run();
   return boss.id;
+}
+
+/** Inserts a pending single-profile device join request for approval-path tests. */
+export async function insertPendingJoin(id: string, name: string): Promise<void> {
+  await env.DB.prepare(`INSERT INTO join_requests (id, poll_token_hash, status, device_label, profiles)
+    VALUES (?, ?, 'pending', ?, ?)`)
+    .bind(id, `hash-${id}`, `device-${id}`, JSON.stringify([{ profile: 'claude', name }])).run();
 }

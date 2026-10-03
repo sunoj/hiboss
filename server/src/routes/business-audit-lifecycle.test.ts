@@ -7,7 +7,7 @@ import { createAgent } from '../agent-keys';
 import { persistDiscordReaction } from '../discord-gateway-reactions';
 import { resolveDestinations } from '../delivery/destinations';
 import { handleScheduled } from '../scheduled';
-import { seedBossToken, seedDatabase } from '../test-helpers';
+import { insertPendingJoin, seedBossToken, seedDatabase } from '../test-helpers';
 import type { Env } from '../types';
 
 const api = 'https://test.local/api';
@@ -16,12 +16,6 @@ const headers = (token: string): Record<string, string> => ({ Authorization: `Be
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS join_requests (
-    id TEXT PRIMARY KEY, name TEXT NOT NULL, poll_token TEXT NOT NULL UNIQUE,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    api_key_id TEXT REFERENCES api_keys(id), api_key TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')))` ).run();
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -46,8 +40,7 @@ async function insertMessage(id: string, agentId: string): Promise<void> {
 it('F10 concurrent approve and reject yield exactly one terminal decision', async () => {
   const admin = await boss('join-admin');
   const controlId = unique('join-control');
-  await env.DB.prepare("INSERT INTO join_requests (id, name, poll_token) VALUES (?, ?, ?)")
-    .bind(controlId, unique('rejected-agent'), unique('poll')).run();
+  await insertPendingJoin(controlId, unique('rejected-agent'));
   const control = await SELF.fetch(`${api}/boss/join-requests/${controlId}/reject`, { method: 'POST', headers: headers(admin.token) });
   expect(control.status).toBe(200);
   expect(await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(controlId).first()).toEqual({ status: 'rejected' });
@@ -55,16 +48,15 @@ it('F10 concurrent approve and reject yield exactly one terminal decision', asyn
   for (let index = 0; index < 8; index++) {
     const id = unique(`join-race-${index}`);
     const name = unique(`race-agent-${index}`);
-    await env.DB.prepare('INSERT INTO join_requests (id, name, poll_token) VALUES (?, ?, ?)')
-      .bind(id, name, unique('poll')).run();
+    await insertPendingJoin(id, name);
     expect(await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(id).first()).toEqual({ status: 'pending' });
     const [approval, rejection] = await Promise.all(['approve', 'reject'].map(action =>
       SELF.fetch(`${api}/boss/join-requests/${id}/${action}`, { method: 'POST', headers: headers(admin.token) })));
-    const row = await env.DB.prepare('SELECT status, api_key_id FROM join_requests WHERE id = ?').bind(id)
-      .first<{ status: string; api_key_id: string | null }>();
-    const created = await env.DB.prepare('SELECT id FROM api_keys WHERE name = ?').bind(name).first<{ id: string }>();
+    const row = await env.DB.prepare('SELECT status, device_id FROM join_requests WHERE id = ?').bind(id)
+      .first<{ status: string; device_id: string | null }>();
+    const created = await env.DB.prepare('SELECT device_id FROM api_keys WHERE name = ?').bind(name).first<{ device_id: string }>();
     expect([approval.status, rejection.status].filter(status => status === 200)).toHaveLength(1);
-    expect(row?.status === 'approved' ? row.api_key_id === created?.id : created === null).toBe(true);
+    expect(row?.status === 'approved' ? row.device_id === created?.device_id : created === null).toBe(true);
   }
 });
 

@@ -17,9 +17,6 @@ let discordPrivateKey: CryptoKey;
 
 beforeAll(async () => {
   await seedDatabase();
-  await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS join_requests (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), name TEXT NOT NULL, poll_token TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')), api_key_id TEXT REFERENCES api_keys(id), api_key TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))"
-  ).run();
   env.TELEGRAM_WEBHOOK_SECRET = TELEGRAM_SECRET;
   await env.DB.prepare(
     'INSERT OR IGNORE INTO channel_configs (agent_id, channel, config) VALUES (?, ?, ?), (?, ?, ?)'
@@ -40,9 +37,11 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
-  await env.DB.prepare("DELETE FROM join_requests WHERE name LIKE 'join-flow-%'").run();
+  await env.DB.prepare("DELETE FROM join_requests WHERE device_label LIKE 'join-flow-%'").run();
   await env.DB.prepare("DELETE FROM bosses WHERE name LIKE 'join-flow-%'").run();
+  await env.DB.prepare("DELETE FROM boss_agent_access WHERE agent_id IN (SELECT id FROM api_keys WHERE name LIKE 'join-flow-%')").run();
   await env.DB.prepare("DELETE FROM api_keys WHERE name LIKE 'join-flow-%'").run();
+  await env.DB.prepare("DELETE FROM devices WHERE label LIKE 'join-flow-%'").run();
 });
 
 describe('Join flow', () => {
@@ -51,10 +50,10 @@ describe('Join flow', () => {
 
     expect(res.status).toBe('pending');
     const stored = await env.DB
-      .prepare('SELECT status, poll_token FROM join_requests WHERE id = ?')
+      .prepare('SELECT status, poll_token_hash FROM join_requests WHERE id = ?')
       .bind(res.request_id)
-      .first<{ status: string; poll_token: string }>();
-    expect(stored).toEqual({ status: 'pending', poll_token: res.poll_token });
+      .first<{ status: string; poll_token_hash: string }>();
+    expect(stored).toEqual({ status: 'pending', poll_token_hash: await hashApiKey(res.poll_token) });
   });
 
   it('approves a pending join request from a Telegram callback and returns the key via polling', async () => {
@@ -70,8 +69,8 @@ describe('Join flow', () => {
     expect(await statusRes.json()).toMatchObject({
       status: 'approved',
       request_id: join.request_id,
-      key: expect.stringMatching(/^hb_/),
-      agent_id: expect.any(String),
+      device_id: expect.stringMatching(/^d_/),
+      profiles: [expect.objectContaining({ profile: 'claude', key: expect.stringMatching(/^hb_/), agent_id: expect.any(String) })],
     });
   });
 
@@ -94,11 +93,11 @@ describe('Join flow', () => {
     });
 
     const stored = await env.DB
-      .prepare('SELECT status, api_key_id FROM join_requests WHERE id = ?')
+      .prepare('SELECT status, device_id FROM join_requests WHERE id = ?')
       .bind(join.request_id)
-      .first<{ status: string; api_key_id: string | null }>();
+      .first<{ status: string; device_id: string | null }>();
     expect(stored?.status).toBe('approved');
-    expect(stored?.api_key_id).toBeTruthy();
+    expect(stored?.device_id).toBeTruthy();
   });
 
   it('rejects a join request through both Telegram and Discord callbacks', async () => {
@@ -141,8 +140,16 @@ describe('Join flow', () => {
     expect(await duplicateRes.text()).toBe('join request already approved');
   });
 
+  it('rejects a taken name when the request is created', async () => {
+    const res = await SELF.fetch(JOIN_BASE, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(joinBody('test-agent')) });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'agent name already exists', conflicts: ['test-agent'] });
+  });
+
   it('returns 409 text for duplicate names through boss, Telegram and Discord approval', async () => {
-    const join = await createJoinRequest('test-agent');
+    const join = await createJoinRequest('join-flow-late-duplicate');
+    await env.DB.prepare('INSERT INTO api_keys (id, name) VALUES (?, ?)').bind('join-flow-late-agent', 'join-flow-late-duplicate').run();
     await seedBossToken('join-flow-api-admin', 'admin', 'join-duplicate-token');
     await createBoss('join-flow-telegram-admin', 'telegram', '9001');
     await createBoss('join-flow-discord-admin', 'discord', '777');
@@ -156,7 +163,7 @@ describe('Join flow', () => {
     ];
     for (const response of responses) {
       expect(response.status).toBe(409);
-      expect(await response.text()).toBe('agent name already exists');
+      expect(await response.text()).toBe('an agent with one of these names already exists');
     }
     expect(await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(join.request_id).first('status')).toBe('pending');
   });
@@ -169,14 +176,13 @@ describe('Join flow', () => {
     const res = await SELF.fetch(JOIN_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'join-flow-bootstrap' }),
+      body: JSON.stringify(joinBody('join-flow-bootstrap')),
     });
 
     expect(res.status).toBe(201);
     expect(await res.json()).toMatchObject({
       status: 'approved',
-      key: expect.stringMatching(/^hb_/),
-      agent_id: expect.any(String),
+      profiles: [expect.objectContaining({ key: expect.stringMatching(/^hb_/), agent_id: expect.any(String) })],
     });
 
     await restoreDefaultAgent();
@@ -187,10 +193,14 @@ async function createJoinRequest(name: string): Promise<{ request_id: string; po
   const res = await SELF.fetch(JOIN_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(joinBody(name)),
   });
   expect(res.status).toBe(201);
   return res.json() as Promise<{ request_id: string; poll_token: string; status: string }>;
+}
+
+function joinBody(name: string): unknown {
+  return { device: { label: 'join-flow-device' }, profiles: [{ profile: 'claude', name }] };
 }
 
 async function createBoss(name: string, channel: 'telegram' | 'discord', userId: string): Promise<void> {

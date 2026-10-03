@@ -12,7 +12,7 @@ import type { Env } from './types';
 import { adminRouter } from './routes/admin';
 import { agentsRouter } from './routes/agents';
 import { agentKeysRouter, bossAgentKeysRouter } from './agent-keys';
-import { bootstrapRouter } from './routes/bootstrap';
+import { bootstrapBossRouter } from './devices/bootstrap-boss';
 import { joinRouter } from './routes/join';
 import { messagesRouter } from './routes/messages';
 import { streamRouter } from './routes/stream';
@@ -129,7 +129,7 @@ app.route('/api/panels', panelLifecycleRouter);
 app.route('/api/panels', panelsRouter);
 app.route('/api', panelRelayRouter);
 app.route('/api/join', joinRouter);
-app.route('/api/bootstrap', bootstrapRouter);
+app.route('/api/bootstrap', bootstrapBossRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
 // Public Sparkle update feed + signed builds (outside /api: no CORS/auth on GET).

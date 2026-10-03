@@ -1,9 +1,9 @@
 // Shared join approval helpers for Telegram and Discord callbacks.
 // Exports join callback parsing and approve/reject operations.
-// Depends on Env typings and auth hashing.
+// Depends on Env typings and the atomic device approval in devices/approve.
 
 import type { Env } from '../types';
-import { createAgent } from '../agent-keys';
+import { approveJoin, rejectJoin } from '../devices/approve';
 
 export type JoinCallbackAction = 'approve' | 'reject';
 
@@ -15,7 +15,7 @@ export type JoinCallbackResult = {
   messageText: string;
   statusCode: 200 | 404 | 409;
   error?: string;
-  apiKeyId?: string;
+  agentIds?: string[];
 };
 
 export function parseJoinCallbackData(data: string): { action: JoinCallbackAction; requestId: string } | null {
@@ -26,62 +26,31 @@ export function parseJoinCallbackData(data: string): { action: JoinCallbackActio
   return { action: match[1].toLowerCase() as JoinCallbackAction, requestId: match[2].toLowerCase() };
 }
 
-export async function approveJoinRequest(env: Env, requestId: string): Promise<JoinCallbackResult> {
-  const joinRequest = await env.DB
-    .prepare('SELECT id, name, status FROM join_requests WHERE id = ?')
-    .bind(requestId)
-    .first<{ id: string; name: string; status: string }>();
-  if (!joinRequest) {
-    return joinErrorResult('Not found', 'join request not found', 404);
-  }
-  if (joinRequest.status !== 'pending') {
-    return joinErrorResult(`Already ${joinRequest.status}`, `join request already ${joinRequest.status}`, 409);
-  }
-  const apiKey = await createAgent(env.DB, joinRequest.name, { type: 'system', id: 'join' });
-  if (!apiKey) {
-    return joinErrorResult('Name already exists', 'agent name already exists', 409);
-  }
-  const update = await env.DB
-    .prepare("UPDATE join_requests SET status = 'approved', api_key_id = ?, api_key = ?, updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
-    .bind(apiKey.id, apiKey.key, requestId)
-    .run();
-  if (!update.meta.changes) {
-    await env.DB.prepare('DELETE FROM api_keys WHERE id = ?').bind(apiKey.id).run();
-    return joinErrorResult('Already handled', 'join request no longer pending', 409);
+export async function approveJoinRequest(env: Env, requestId: string, approverBossId?: string): Promise<JoinCallbackResult> {
+  const actor = approverBossId ? { type: 'boss' as const, id: approverBossId } : { type: 'system' as const, id: 'join' };
+  const outcome = await approveJoin(env.DB, requestId, actor, { approverBossId });
+  if (!outcome.ok) {
+    const answer = outcome.status === 404 ? 'Not found' : outcome.error.includes('name') ? 'Name already exists' : 'Already handled';
+    return joinErrorResult(answer, outcome.error, outcome.status);
   }
   return {
     answerText: '✅ Approved',
     auditAction: 'join_request.approve',
-    auditDetails: joinRequest.name,
+    auditDetails: outcome.agents.map(agent => agent.name).join(', '),
     joinStatus: 'approved',
     messageText: '✅ Approved',
     statusCode: 200,
-    apiKeyId: apiKey.id,
+    agentIds: outcome.agents.map(agent => agent.agent_id),
   };
 }
 
 export async function rejectJoinRequest(env: Env, requestId: string): Promise<JoinCallbackResult> {
-  const joinRequest = await env.DB
-    .prepare('SELECT name, status FROM join_requests WHERE id = ?')
-    .bind(requestId)
-    .first<{ name: string; status: string }>();
-  if (!joinRequest) {
-    return joinErrorResult('Not found', 'join request not found', 404);
-  }
-  if (joinRequest.status !== 'pending') {
-    return joinErrorResult(`Already ${joinRequest.status}`, `join request already ${joinRequest.status}`, 409);
-  }
-  const update = await env.DB
-    .prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
-    .bind(requestId)
-    .run();
-  if (!update.meta.changes) {
-    return joinErrorResult('Already handled', 'join request no longer pending', 409);
-  }
+  const outcome = await rejectJoin(env.DB, requestId);
+  if (!outcome.ok) return joinErrorResult(outcome.status === 404 ? 'Not found' : 'Already handled', outcome.error, outcome.status);
   return {
     answerText: '❌ Rejected',
     auditAction: 'join_request.reject',
-    auditDetails: joinRequest.name,
+    auditDetails: requestId,
     joinStatus: 'rejected',
     messageText: '❌ Rejected',
     statusCode: 200,

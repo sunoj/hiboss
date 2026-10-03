@@ -167,7 +167,7 @@ async function handleJoinCallback(
   if (bossInfo?.role !== 'admin') {
     return replyWithAnswer(c, botToken, queryId, 'Admin required', c.text('admin required', 403));
   }
-  const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId) : await rejectJoinRequest(c.env, parsed.requestId);
+  const result = parsed.action === 'approve' ? await approveJoinRequest(c.env, parsed.requestId, bossInfo.id) : await rejectJoinRequest(c.env, parsed.requestId);
   if (result.error) return replyWithAnswer(c, botToken, queryId, result.answerText, c.text(result.error, result.statusCode));
   answer(result.answerText);
   const chatMsg = chatMessage(query);
@@ -176,7 +176,7 @@ async function handleJoinCallback(
     c.executionCtx.waitUntil(editMessageReplyMarkup(botToken, chatId, chatMsg.message_id, text));
   }
   c.executionCtx.waitUntil(logAudit(c.env, bossInfo ? 'boss' : 'system', bossInfo?.id ?? 'telegram', result.auditAction, 'join_request', parsed.requestId, result.auditDetails));
-  if (result.apiKeyId) c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', result.apiKeyId, 'join-approve'));
+  for (const agentId of result.agentIds ?? []) c.executionCtx.waitUntil(logAudit(c.env, 'system', 'join', 'api_key.create', 'api_key', agentId, 'join-approve'));
   return c.json({ status: result.joinStatus });
 }
 
