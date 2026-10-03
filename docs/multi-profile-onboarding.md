@@ -82,26 +82,38 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
 
 ## Session identity
 
-- State directory: `$TMPDIR/hiboss/<project_key>/<runtime>-<session_key>/`. `project_key` is
-  the FNV hash of the **git common dir**, so the main checkout and all its worktrees share it.
-  `session_key` is the per-session id from the table, falling back to `default` when the runtime
-  exposes none. SessionStart clears only its own directory.
+- State directory: `$TMPDIR/hiboss/<project_key>/<profile>-<session_key>/`. `project_key` is
+  the FNV-1a hash of the canonical **git common dir** (the project directory outside a
+  repository), so the main checkout and all its worktrees share it. `profile` is the resolved
+  credential profile (`environment` under rule 1, `unconfigured` when none resolves), so two
+  profiles in one checkout never share a session file. `session_key` is the per-session id from
+  the table, falling back to `default` when the runtime exposes none. Characters outside
+  `[A-Za-z0-9_-]` in either part become `_`. Every directory from `hiboss/` down is created
+  0700 and must be owned by the caller; otherwise the CLI warns on stderr. The session id,
+  markers, read queue, daemon pid/spool/log and panel epochs all live there. SessionStart clears
+  only its own directory's session markers. The old `/tmp/hiboss-*` files are not read.
 - `POST /api/sessions` gains optional fields: `host` (short hostname), `runtime`,
-  `parent_session_id`, `dispatch_ref` (e.g. the aid task id).
+  `parent_session_id`, `dispatch_ref` (e.g. the aid task id). The CLI sends `host`, `runtime`
+  and, for `aid`, `dispatch_ref`; `parent_session_id` is not sent yet.
+- **Foreign session self-heal:** when `send`, `ask`, a broadcast or `progress post` gets
+  `session does not belong to calling agent`, the CLI registers a fresh session for the current
+  profile in the current state directory, prints one line saying so, and retries the call once.
 - **Parent lookup for a dispatched agent:** in the same `project_key`, take the most recently
   touched non-dispatched session directory. If there is none, register without a parent.
 - **Server rule for `parent_session_id`:** accepted only if the parent session's agent has the
   same `device_id` as the caller. Otherwise the field is dropped and the response carries
   `parent_rejected: true`, so a foreign agent cannot claim a parent.
 - **Project identity:** derived from the repository: the remote URL's repo name, else the
-  basename of the git common dir's parent. It is never the worktree directory basename.
+  basename of the git common dir's parent. It is never the worktree directory basename, and the
+  worktree basename is not sent as an alias either.
   The registration error is printed on stderr from hooks instead of being swallowed.
 - **Display label:** `<project>/<branch> · <host> · <runtime>` in clients. A dispatched
   session nests under its parent where the client lists sessions.
 
 ## Dispatched mode (`runtime == aid`)
 
-- The Stop hook exits 0 without requiring a report or `ask`.
+- The Stop hook exits 0 without requiring a report or `ask`. It does not park the session as
+  waiting; it only stops the session's SSE daemon.
 - `hiboss ask` exits 4 with:
   `dispatched agents cannot ask the boss; return the question to your dispatcher`.
 - `send`, `progress`, `panel *` work, attributed via `dispatch_ref` + parent.
