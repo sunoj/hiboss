@@ -13,8 +13,9 @@ Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss reques
 --help`. Respect an explicit channel preference or notification opt-out.
 
 - Handle actual unread messages with `hiboss reply <id> "response"`.
-- Publish one live panel per execution, update meaningful milestones, and finish the
-  same card with actual results, artifact locations, and untested scope.
+- A panel only when the task has state the boss would watch change: a series, per-test
+  status, sweep counters, a monitor. A progress note, a result, or a final report is
+  `hiboss send`; a card holding only static text is a message in the wrong place.
 - One question, or one choice among a few labels, is `hiboss ask` with repeatable
   `--option`. Never publish a questionnaire for a single question or a single choice.
 - Use a `hiboss request` questionnaire only for an intake with two or more fields or
@@ -22,8 +23,7 @@ Read `hiboss panel guide`, then inspect `hiboss panel --help` and `hiboss reques
   optional one sends no push and is found only through the Needs input filter. Keep
   the request ID, consume the accepted JSON answers with `request wait`/`show`,
   deduplicate submission IDs, then acknowledge receipt.
-- Use `hiboss send` for a one-shot notice or urgent blocker and `hiboss progress post`
-  for visual milestones.
+- Use `hiboss progress post` for visual milestones.
 - A final report does not need a blocking question or an optional next-step poll.
 - Check server receipts before claiming delivery. Continue independent work when
   delivery is unavailable and report the limitation in the current conversation.
@@ -36,7 +36,7 @@ tab. It is a **low-noise** surface: a post sends no notification and never enter
 - `hiboss progress list [--project <name>] [--limit <n>] [--json]`, `hiboss progress rm <id>`
 
 Use it for something worth *showing* — a shipped feature, a screenshot, a short clip — not
-for routine status, which belongs on the current panel. Repeat the singular flags; there is no
+for routine status, which belongs in `hiboss send`. Repeat the singular flags; there is no
 plural form. Up to 4 media items, images ≤ 10 MB and video ≤ 50 MB. A `.gif` is converted to
 a muted looping MP4 when `ffmpeg` is present (iOS shows a still frame otherwise), and
 `ffprobe`/`sips` fill in dimensions when available — all of them degrade with a warning
@@ -132,8 +132,8 @@ check them with `hiboss status <id>` before claiming coordination happened.
 
 ### Before finishing
 
-Complete or fail the existing panel with the observed result and verify its receipt.
-For a short task without a panel, deliver the result with `hiboss send`. Summarize the
+Deliver the result with `hiboss send` and verify its receipt. If a live panel exists,
+complete or fail it with the observed result and verify its receipt. Summarize the
 outcome in the current conversation as well. Ask a follow-up only when the work needs
 an actual human decision; use repeated singular `--option` flags. For A/B comparisons,
 attach each image with `--option-image "LABEL=PATH"`. A timeout default is not evidence

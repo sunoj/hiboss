@@ -23,7 +23,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Send an async message to your boss")]
+    #[command(about = "Send a message, progress note, result or report to your boss")]
     Send(send::SendArgs),
     #[command(about = "Send a blocking message and wait for boss reply")]
     Ask(ask::AskArgs),
@@ -77,7 +77,7 @@ enum Commands {
     Progress(progress::ProgressArgs),
     #[command(about = "Manage project profiles and aliases")]
     Project(progress::progress_team::TeamArgs),
-    #[command(about = "Deliver dynamic notifications and task reports with live panels")]
+    #[command(about = "Display live state the boss can watch change in panels")]
     Panel(panel::PanelArgs),
     #[command(about = "Publish and receive durable structured questionnaire answers")]
     Request(request::RequestArgs),

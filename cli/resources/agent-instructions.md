@@ -11,8 +11,9 @@
 - Read `hiboss panel guide` (also installed at
   `~/.config/hiboss/panel-agent-guide.md`) and inspect `hiboss panel --help` and
   `hiboss request --help` before first use. Check capabilities and current recipient.
-- Use one `hiboss panel` per execution for ongoing progress and final test/report
-  delivery. Publish early, update at meaningful milestones, and finish the same card.
+- A panel only when the task has state the boss would watch change: a series, per-test
+  status, sweep counters, a monitor. A progress note, a result, or a final report is
+  `hiboss send`; a card holding only static text is a message in the wrong place.
   Renew visibility deliberately; streaming or lease renewal does not extend expiry.
 - One question, or one choice among a few labels, is `hiboss ask` with repeatable
   `--option` (and `--option-image` for A/B comparisons). Never publish a questionnaire
@@ -23,8 +24,7 @@
   Needs input filter. Retain requestId; use `request wait` or `show`, consume typed
   `answers`, deduplicate submissionId, then `request ack`. Defaults are drafts;
   timeout/expiry is not an answer. Never infer execution approval.
-- Use `hiboss send` for a one-shot notice or urgent blocker; use `hiboss progress
-  post` for a milestone with images/video in the quiet timeline. Do not add a
+- Use `hiboss progress post` for a milestone with images/video in the quiet timeline. Do not add a
   blocking question just to deliver a completion report or ask for optional next steps.
 - Use actual test counts, fixes, artifact locations, and untested scope. A panel
   does not upload report files. Never invent accessible artifact URLs or success.

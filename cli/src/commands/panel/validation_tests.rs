@@ -7,7 +7,50 @@ use super::*;
     }
 
     #[test]
-    fn accepts_valid_publication() { assert_eq!(validate_publication(&publication()), Ok(())); }
+    fn accepts_one_bound_metric() { assert_eq!(validate_publication(&publication()), Ok(())); }
+
+    #[test]
+    fn rejects_text_only_publication() {
+        let mut value = publication();
+        value["spec"]["elements"]["main"] = serde_json::json!({
+            "type": "Text", "props": {"text": "Execution finished"}, "children": []
+        });
+        let issue = validate_publication(&value).expect_err("static report");
+        assert_eq!(issue.code, "invalid_spec");
+        assert_eq!(issue.path, "/spec/elements");
+        assert_eq!(issue.message, "no live state is bound; a card with only static content is a message — use hiboss send");
+    }
+
+    #[test]
+    fn accepts_nested_binding_inside_grid_child() {
+        let mut value = publication();
+        value["spec"] = serde_json::json!({"root": "grid", "elements": {
+            "grid": {"type": "Grid", "props": {"columns": 1}, "children": ["table"]},
+            "table": {"type": "Table", "props": {
+                "label": "Tests", "columns": [{"key": "done", "label": "Done"}],
+                "rows": [{"done": {"$state": "/task/done"}}]
+            }, "children": []}
+        }});
+        assert_eq!(validate_publication(&value), Ok(()));
+    }
+
+    #[test]
+    fn rejects_bind_state_only_publication() {
+        let mut value = publication();
+        value["spec"]["elements"]["main"]["props"]["value"] = serde_json::json!({"$bindState": "/task/done"});
+        let issue = validate_publication(&value).expect_err("no read binding");
+        assert_eq!(issue.path, "/spec/elements");
+        assert!(issue.message.contains("no live state is bound"));
+    }
+
+    #[test]
+    fn live_state_detection_requires_a_binding_object() {
+        for value in [serde_json::json!("$state"), serde_json::json!({"$state": 1}),
+            serde_json::json!({"$state": "/task/done", "extra": true}), serde_json::json!([])] {
+            assert!(!has_live_state_binding(&value));
+        }
+        assert!(has_live_state_binding(&serde_json::json!({"rows": [{"value": {"$state": "/task/done"}}]})));
+    }
 
     #[test]
     fn accepts_explicit_expiry_window() {

@@ -84,7 +84,20 @@ fn validate_spec(value: &Value, schema: &Value) -> Result<(), ValidationError> {
     for (id, element) in elements {
         validate_element(id, element, &paths, schema)?;
     }
-    visit_element(root, elements, &mut visiting, &mut done, 1)
+    visit_element(root, elements, &mut visiting, &mut done, 1)?;
+    if !elements.values().filter_map(|element| element.get("props")).any(has_live_state_binding) {
+        return Err(error("invalid_spec", "/spec/elements", "no live state is bound; a card with only static content is a message — use hiboss send"));
+    }
+    Ok(())
+}
+
+fn has_live_state_binding(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => (object.len() == 1 && object.get("$state").is_some_and(Value::is_string))
+            || object.values().any(has_live_state_binding),
+        Value::Array(items) => items.iter().any(has_live_state_binding),
+        _ => false,
+    }
 }
 
 fn validate_element(id: &str, value: &Value, paths: &[String], state_schema: &Value) -> Result<(), ValidationError> {

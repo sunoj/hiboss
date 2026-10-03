@@ -32,11 +32,11 @@ pub struct PanelArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum PanelCommand {
-    #[command(about = "Read the built-in dynamic notification and test report delivery guide")]
+    #[command(about = "Read the built-in live panel and message delivery guide")]
     Guide,
     #[command(about = "Validate a panel publication document locally")]
     Validate(PanelFileArgs),
-    #[command(about = "Publish a panel publication document")]
+    #[command(about = "Publish a panel publication document", long_about = "Publish a panel publication document.\n\nFor live state only; a report is `hiboss send`.")]
     Publish(PanelPublishArgs),
     #[command(about = "List panels visible to this agent")]
     List(PanelListArgs),

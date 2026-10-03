@@ -19,7 +19,7 @@ none of these examples is a success rather than a mistake.
 
 `mixed-panel.json` happens to demonstrate an interactive decision form, while
 `metric-panel.json` happens to be a smallest display-only smoke test for one scalar.
-`research-intake.json` happens to combine free text, a longer text area, multiple
+`fixtures/questionnaires/research-intake.json` combines free text, a longer text area, multiple
 selection, a bounded slider, and submission. None of these arrangements is a template.
 
 ## The real boundaries

@@ -2,11 +2,14 @@
 
 Prefer HiBoss for boss-facing delivery during substantive tasks, without waiting
 for the user to name the channel. Honor an explicit channel preference or opt-out.
-Choose the surface by the work:
+A panel only when the task has state the boss would watch change: a series, per-test
+status, sweep counters, a monitor. A progress note, a result, or a final report is
+`hiboss send`; a card holding only static text is a message in the wrong place.
 
 | Need | Preferred command |
 | --- | --- |
-| Ongoing task progress, test run, final report | `hiboss panel` — one card per execution |
+| State the boss would watch change: a series, per-test status, sweep counters, a monitor | `hiboss panel` |
+| Progress note, result, final report | `hiboss send` |
 | One question, or one choice among a few labels (incl. A/B images) | `hiboss ask` — pushes, blocks until answered |
 | An intake with two or more fields, or a free-form typed value | `hiboss request` — durable, attached to the card; blocking pushes once, optional never |
 | One-shot notice or urgent blocker | `hiboss send` |
@@ -16,7 +19,6 @@ A single question is never a questionnaire. If the answer fits in one `--option`
 label, use `hiboss ask`; `hiboss request` earns its card only when the boss has to
 fill in several things at once.
 
-Publish the card early, update meaningful milestones, and finish it with evidence.
 A completion report does not require a blocking question or a next-step poll.
 If HiBoss is unavailable, explain the delivery failure in the current conversation
 and continue work that does not depend on the missing answer.
@@ -43,16 +45,16 @@ or the agent's sole admin boss when several resolve. Set an explicit value only 
 override the default or resolve ambiguity when no default exists. Do not create
 unrelated identities, guess a boss ID, or use a session owned by another agent.
 
-## Publish a report card
+## Publish a live test run
 
-Create `report-panel.json` with a stable task key and the actual session ID:
+Create `report-panel.json` for a running test suite with a stable task key and the actual session ID:
 
 ```json
 {
   "protocolVersion": 2,
   "sessionId": "SESSION_ID",
-  "taskKey": "remote-e2e-report",
-  "title": "Remote E2E report",
+  "taskKey": "remote-e2e-run",
+  "title": "Remote E2E run",
   "catalogId": "hiboss.panel",
   "catalogVersion": 1,
   "lifecycle": { "mode": "run", "expectedUpdateIntervalSeconds": 15, "ttlSeconds": 3600 },
@@ -64,8 +66,8 @@ Create `report-panel.json` with a stable task key and the actual session ID:
       "passed": { "type": "Metric", "props": { "label": "Passed", "value": { "$state": "/task/passed" } }, "children": [] },
       "skipped": { "type": "Metric", "props": { "label": "Skipped", "value": { "$state": "/task/skipped" } }, "children": [] },
       "failed": { "type": "Metric", "props": { "label": "Failed", "value": { "$state": "/task/failed" } }, "children": [] },
-      "fixes": { "type": "Text", "props": { "text": "Fixed modal focus cycling, initial avatar crop, and market connection state. Type check and build passed." }, "children": [] },
-      "scope": { "type": "Text", "props": { "text": "Remote UI E2E. On-chain settlement was not tested." }, "children": [] },
+      "fixes": { "type": "Text", "props": { "text": "Testing modal focus cycling, initial avatar crop, and market connection state." }, "children": [] },
+      "scope": { "type": "Text", "props": { "text": "Remote UI E2E. On-chain settlement is outside this run." }, "children": [] },
       "artifact": { "type": "Text", "props": { "text": "Report: output/playwright/remote-final/report/index.html (workspace-relative artifact)" }, "children": [] }
     }
   },
@@ -82,11 +84,11 @@ Create `report-panel.json` with a stable task key and the actual session ID:
       }
     }
   },
-  "initialState": { "task": { "passed": 13, "skipped": 1, "failed": 0 } }
+  "initialState": { "task": { "passed": 0, "skipped": 0, "failed": 0 } }
 }
 ```
 
-Use real report evidence. A workspace-relative HTML path is not a public link.
+Update counts as tests finish. Send a completed report with `hiboss send`. A workspace-relative HTML path is not a public link.
 Include its host/workspace location, or an already authorized accessible artifact
 URL. Do not invent a hosted URL or claim the report file was uploaded merely
 because the card was published. Put key fixes and material untested scope in the
