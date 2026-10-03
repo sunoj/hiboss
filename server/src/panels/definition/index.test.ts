@@ -54,7 +54,7 @@ async function publish(key: string, body = panelBody(), token?: string): Promise
 
 beforeAll(async () => {
   await seedDatabase();
-  await seedBossToken('Panels Boss', 'manager', BOSS_TOKEN, BOSS_ID);
+  await seedBossToken('Panels Boss', 'admin', BOSS_TOKEN, BOSS_ID);
   await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(BOSS_ID, getTestAgentId()).run();
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)').bind(OTHER_AGENT_ID, 'other-panels-agent', await hashApiKey(OTHER_AGENT_KEY)).run();
   await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(BOSS_ID, OTHER_AGENT_ID).run();
@@ -107,17 +107,39 @@ describe('panel publication and reads', () => {
     expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID, sessionId: 'panels-test-session' });
   });
 
-  it('requires an explicit target when an agent has several bosses', async () => {
+  it('defaults to the sole admin when an agent has several bosses', async () => {
     const secondBoss = 'panels-second-boss';
     await env.DB.prepare('INSERT OR IGNORE INTO bosses (id, name, role) VALUES (?, ?, ?)').bind(secondBoss, 'Second panels boss', 'manager').run();
     await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(secondBoss, getTestAgentId()).run();
+    await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ? AND agent_id = ?').bind(BOSS_ID, getTestAgentId()).run();
     try {
       const response = await publish('panel-ambiguous-default', panelBody({ targetBossId: undefined, taskKey: 'panel-ambiguous-default' }));
-      expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/targetBossId', message: 'targetBossId is required' } });
+      expect(response.status).toBe(201);
+      const { panelId } = await response.json() as { panelId: string };
+      const read = await SELF.fetch(`https://test.local/api/panels/${panelId}`, { headers: authHeaders() });
+      expect(await read.json()).toMatchObject({ targetBossId: BOSS_ID });
+      const override = await publish('panel-explicit-manager', panelBody({ targetBossId: secondBoss }));
+      expect(override.status).toBe(201);
+      const explicit = await override.json() as { panelId: string };
+      const explicitRead = await SELF.fetch(`https://test.local/api/panels/${explicit.panelId}`, { headers: authHeaders() });
+      expect(await explicitRead.json()).toMatchObject({ targetBossId: secondBoss });
     } finally {
+      await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(BOSS_ID, getTestAgentId()).run();
+      await env.DB.prepare('DELETE FROM panels WHERE target_boss_id = ?').bind(secondBoss).run();
       await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ?').bind(secondBoss).run();
       await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(secondBoss).run();
+    }
+  });
+
+  it('requires an explicit target when a second admin resolves without a grant row', async () => {
+    await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('second-admin', 'Other admin', 'admin')").run();
+    try {
+      const response = await publish('panel-two-admins', panelBody({ targetBossId: undefined }));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: { code: 'invalid_spec', path: '/targetBossId',
+        message: 'targetBossId is required: 2 bosses resolve and none is the sole admin' } });
+    } finally {
+      await env.DB.prepare("DELETE FROM bosses WHERE id = 'second-admin'").run();
     }
   });
 

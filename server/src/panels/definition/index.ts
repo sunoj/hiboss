@@ -2,7 +2,7 @@
 // Exports panelsRouter for metadata, immutable definitions, and scoped cursors.
 // Dependencies: Hono, D1, auth middleware, and panel-runtime helpers.
 
-import { bossCanAccessAgent, bossPanelScope } from '../access';
+import { bossCanAccessAgent, bossPanelScope, defaultBossId, resolvedBosses } from '../access';
 import { publicationLifecycle, readPreference } from '../lifecycle/repository';
 import { notifyWall } from '../relay/wall';
 import { DEFAULT_TTL_SECONDS, faultResponse, type Lifecycle } from '../lifecycle/types';
@@ -58,9 +58,12 @@ async function hasPublicationScope(c: PanelContext, agentId: string, bossId: str
   return row !== null && await bossCanAccessAgent(c.env.DB, bossId, agentId);
 }
 
-async function resolveBoss(c: PanelContext, agentId: string): Promise<string | null> {
-  const rows = await c.env.DB.prepare("SELECT b.id AS boss_id FROM bosses b WHERE b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?) ORDER BY b.id LIMIT 2").bind(agentId).all<{ boss_id: string }>();
-  return rows.results?.length === 1 ? rows.results[0]?.boss_id ?? null : null;
+async function resolveBoss(c: PanelContext, agentId: string, explicitId: string | null): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+  if (explicitId !== null) return { ok: true, id: explicitId };
+  const rows = await resolvedBosses(c.env.DB, agentId);
+  const id = defaultBossId(rows);
+  return id !== null ? { ok: true, id }
+    : { ok: false, message: `targetBossId is required: ${rows.length} bosses resolve and none is the sole admin` };
 }
 
 function publicationResponse(row: PanelMetadataRow): { panelId: string; definitionRevision: number; metadataVersion: number; catalogVersion: number; createdAt: string } {
@@ -93,9 +96,10 @@ routes.post('/', async (c) => {
   if (!fields.ok) return errorResponse(c, 400, 'invalid_spec', fields.message, fields.path);
   const validation = validatePublication(payload);
   if (!validation.ok) return errorResponse(c, validation.error.code === 'unsupported_catalog' ? 400 : 422, validation.error.code, validation.error.message, validation.error.path);
-  const targetBossId = stringField(payload, 'targetBossId') ?? await resolveBoss(c, agentId);
+  const boss = await resolveBoss(c, agentId, stringField(payload, 'targetBossId'));
+  if (!boss.ok) return errorResponse(c, 400, 'invalid_spec', boss.message, '/targetBossId');
+  const targetBossId = boss.id;
   const sessionId = stringField(payload, 'sessionId');
-  if (targetBossId === null) return errorResponse(c, 400, 'invalid_spec', 'targetBossId is required', '/targetBossId');
   if (sessionId === null) return errorResponse(c, 400, 'invalid_spec', 'sessionId is required', '/sessionId');
   if (!await hasPublicationScope(c, agentId, targetBossId, sessionId)) return errorResponse(c, 404, 'not_found', 'Publication target was not found');
   let lifecycle: Lifecycle;

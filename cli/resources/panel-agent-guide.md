@@ -36,19 +36,20 @@ silently fall back to an older protocol or claim the card was delivered.
 
 ## Choose the recipient and execution session
 
-Use the current authenticated agent and its actual session. Discover an existing
-boss and session with `hiboss boss --help` and `hiboss ss --help`, then their list
-commands. Do not create unrelated identities, guess a boss ID, or use a session
-owned by another agent. If more than one recipient is plausible, ask which one.
+Use the current authenticated agent and its actual session. `hiboss panel doctor`
+prints the server's default publication target and the named candidates with roles
+and full IDs. `targetBossId` is optional: omission selects the only resolved boss,
+or the agent's sole admin boss when several resolve. Set an explicit value only to
+override the default or resolve ambiguity when no default exists. Do not create
+unrelated identities, guess a boss ID, or use a session owned by another agent.
 
 ## Publish a report card
 
-Create `report-panel.json` with a stable task key and the actual boss/session IDs:
+Create `report-panel.json` with a stable task key and the actual session ID:
 
 ```json
 {
   "protocolVersion": 2,
-  "targetBossId": "BOSS_ID",
   "sessionId": "SESSION_ID",
   "taskKey": "remote-e2e-report",
   "title": "Remote E2E report",
@@ -210,8 +211,10 @@ It checks authentication, the resolved session and boss, and confirms a v2 relay
 ticket advertises `lease.release` before testing the subscribe handshake without
 claiming a lease. A non-zero
 result includes the corrective action.
-When several bosses are resolved, doctor reports all of them; publication still
-requires an explicit `targetBossId`.
+When several bosses resolve, doctor prints the default and all candidates. An
+explicit `targetBossId` is required only when no sole admin provides a default.
+Deploy the server's default-target support before installing the matching CLI;
+doctor reads `defaultBossId` from the server and does not derive it locally.
 
 Other actions are `pause`, `resume`, `fail`, and `cancel`. Failure needs a result
 with a stable `code` and `title`; cancellation needs a reason in `title`.

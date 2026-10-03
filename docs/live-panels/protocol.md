@@ -140,6 +140,10 @@ The full spec remains available from `Open panel`.
 Creation requires an `Idempotency-Key` header. The server derives `agentId` from
 credentials, checks the target boss relationship and session ownership, and assigns
 `panelId`, `definitionRevision: 1`, `metadataVersion: 1`, and server timestamps.
+`targetBossId` is optional: use the only resolved boss, or the sole admin among several.
+Candidates are all admins plus explicitly granted bosses, ordered admins first then by id.
+Without a default, return 400 `invalid_spec` at `/targetBossId` with the candidate count.
+An explicit target overrides the default; agent `GET /api/agents/me/bosses` returns `{ bosses: [{ id, name, role }], defaultBossId: string | null }` for doctor.
 `taskKey` is scoped to `(targetBossId, agentId)`; it supports discovery across sessions,
 not authorization. Project labels are presentation data and never tenant identifiers.
 

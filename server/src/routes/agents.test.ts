@@ -40,9 +40,42 @@ describe('GET /api/agents/me/bosses', () => {
     await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)').bind(bossId, getTestAgentId()).run();
     const res = await SELF.fetch('https://test.local/api/agents/me/bosses', { headers: authHeaders() });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ bosses: [{ id: bossId, name: 'Agent boss list test', role: 'manager' }] });
+    expect(await res.json()).toEqual({ bosses: [{ id: bossId, name: 'Agent boss list test', role: 'manager' }], defaultBossId: bossId });
     await env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id = ?').bind(bossId).run();
     await env.DB.prepare('DELETE FROM bosses WHERE id = ?').bind(bossId).run();
+  });
+
+  it('includes ungranted admins first, sorts each group by id, and excludes ungranted managers', async () => {
+    await env.DB.prepare(`INSERT INTO bosses (id, name, role) VALUES
+      ('z-admin', 'Ming', 'admin'), ('a-manager', 'Island', 'manager'),
+      ('b-viewer', 'Viewer', 'viewer'), ('hidden', 'Hidden', 'manager')`).run();
+    await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?), (?, ?)')
+      .bind('b-viewer', getTestAgentId(), 'a-manager', getTestAgentId()).run();
+    try {
+      const response = await SELF.fetch('https://test.local/api/agents/me/bosses', { headers: authHeaders() });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ bosses: [
+        { id: 'z-admin', name: 'Ming', role: 'admin' },
+        { id: 'a-manager', name: 'Island', role: 'manager' },
+        { id: 'b-viewer', name: 'Viewer', role: 'viewer' },
+      ], defaultBossId: 'z-admin' });
+      await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('c-admin', 'Other', 'admin')").run();
+      const ambiguous = await SELF.fetch('https://test.local/api/agents/me/bosses', { headers: authHeaders() });
+      expect(await ambiguous.json()).toEqual({ bosses: [
+        { id: 'c-admin', name: 'Other', role: 'admin' },
+        { id: 'z-admin', name: 'Ming', role: 'admin' },
+        { id: 'a-manager', name: 'Island', role: 'manager' },
+        { id: 'b-viewer', name: 'Viewer', role: 'viewer' },
+      ], defaultBossId: null });
+    } finally {
+      await env.DB.prepare("DELETE FROM boss_agent_access WHERE boss_id IN ('a-manager', 'b-viewer')").run();
+      await env.DB.prepare("DELETE FROM bosses WHERE id IN ('z-admin', 'c-admin', 'a-manager', 'b-viewer', 'hidden')").run();
+    }
+  });
+
+  it('returns an explicit null default when no bosses resolve', async () => {
+    const response = await SELF.fetch('https://test.local/api/agents/me/bosses', { headers: authHeaders() });
+    expect(await response.json()).toEqual({ bosses: [], defaultBossId: null });
   });
 });
 

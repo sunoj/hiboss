@@ -7,15 +7,14 @@ import type { Env } from '../types';
 import { agentConfigUpdates } from './agent-config';
 import { apiAuth, getAgentId, getAgentKeyId } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { defaultBossId, resolvedBosses } from '../panels/access';
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
 
 routes.get('/me/bosses', async (c) => {
-  const rows = await c.env.DB.prepare(
-    'SELECT b.id, b.name, b.role FROM bosses b JOIN boss_agent_access ba ON ba.boss_id = b.id WHERE ba.agent_id = ? ORDER BY b.id',
-  ).bind(getAgentId(c)).all<{ id: string; name: string; role: string }>();
-  return c.json({ bosses: rows.results ?? [] });
+  const bosses = await resolvedBosses(c.env.DB, getAgentId(c));
+  return c.json({ bosses, defaultBossId: defaultBossId(bosses) });
 });
 
 routes.get('/me', async (c) => {
