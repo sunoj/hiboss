@@ -149,7 +149,7 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
 ## Agent onboarding: `hiboss setup`
 
 ```
-hiboss setup [--server <url>] [--invite <invite>] [--profile <p>]... [--label <label>] [--bootstrap-secret <s>] [--check] [--yes]
+hiboss setup [--server <url>] [--invite <invite>] [--profile <p>]... [--label <label>] [--bootstrap-secret <s>] [--wait <seconds>] [--abandon] [--check] [--yes]
 ```
 1. Resolve the server from a flag or config; otherwise require `--server <url>`.
 2. Detect installed runtimes on PATH (`claude`, `codex`, `gemini`, `aid`). Propose one profile
@@ -157,6 +157,9 @@ hiboss setup [--server <url>] [--invite <invite>] [--profile <p>]... [--label <l
 3. Pass the invite with `--invite`, send one grouped join, show
    a single approval prompt, and poll. A 409 lists conflicting names and suggests
    a distinct `--label`. `hiboss device invite` uses the active profile to mint an invite.
+   The poll token waits in an owner-only `pending-enrollment.json` beside `config.json`, so a
+   wait timeout (`--wait`, 30 minutes by default) or Ctrl-C leaves the request resumable: the next
+   `hiboss setup` keeps polling without a new join or invite, and `--abandon` discards the file.
 4. Per profile:
    - claude: install hooks into `${CLAUDE_CONFIG_DIR:-~/.claude}` with `HIBOSS_PROFILE=claude`
      on every hook command.

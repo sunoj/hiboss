@@ -1,5 +1,5 @@
 // Resolves a machine's server, runtime profiles, hostname, and valid agent names.
-// Exports Plan, build_plan, sanitize_name, and server normalization within onboarding.
+// Exports Plan, build_plan, device_proof, sanitize_name, and server normalization.
 // Dependencies: persisted Config, setup args, and executable PATH inspection.
 
 use super::{SetupArgs, api::RequestedProfile};
@@ -53,20 +53,7 @@ pub(super) fn build_plan(args: &SetupArgs, config: &Config) -> Result<Plan, Box<
         return Err("--label must be 1–64 printable characters".into());
     }
     let profiles = requested_profiles(args, config, &label)?;
-    let proof = config.device_id.as_ref().and_then(|_| {
-        config
-            .profiles
-            .values()
-            .find(|profile| {
-                profile
-                    .server
-                    .as_deref()
-                    .map(|url| url.trim_end_matches('/') == server)
-                    .unwrap_or(true)
-                    && profile.key.as_ref().is_some_and(|key| !key.is_empty())
-            })
-            .and_then(|profile| profile.key.clone())
-    });
+    let proof = device_proof(config, &server);
     Ok(Plan {
         server,
         host,
@@ -74,6 +61,23 @@ pub(super) fn build_plan(args: &SetupArgs, config: &Config) -> Result<Plan, Box<
         profiles,
         proof,
     })
+}
+
+/// An existing key on this server proves the device; it is sent only as a header.
+pub(super) fn device_proof(config: &Config, server: &str) -> Option<String> {
+    config.device_id.as_ref()?;
+    config
+        .profiles
+        .values()
+        .find(|profile| {
+            profile
+                .server
+                .as_deref()
+                .map(|url| url.trim_end_matches('/') == server)
+                .unwrap_or(true)
+                && profile.key.as_ref().is_some_and(|key| !key.is_empty())
+        })
+        .and_then(|profile| profile.key.clone())
 }
 
 fn requested_profiles(

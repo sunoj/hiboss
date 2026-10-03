@@ -80,6 +80,7 @@ hiboss setup --server https://hiboss-server.<you>.workers.dev --invite <invite>
 One approval sets up the machine's profiles in a v2 config under `~/Library/Application Support/hiboss/config.json` on macOS or `${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json`
 on Linux. Set `HIBOSS_CONFIG` for a different file; `hiboss whoami --json` shows the local identity.
 Use `hiboss setup --check` to verify all profiles, or repeated `--profile` flags and `--label` to customize setup.
+If setup stops before approval, run `hiboss setup` again to resume the same request; `hiboss setup --abandon` discards it.
 Hooks and guidance honor `CLAUDE_CONFIG_DIR` and `CODEX_HOME`; Gemini uses `~/.gemini/GEMINI.md`.
 
 ### 4. Configure a channel

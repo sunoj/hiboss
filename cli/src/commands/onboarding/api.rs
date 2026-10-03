@@ -1,5 +1,5 @@
 // Typed machine enrollment API and bounded HTTP transport.
-// Exports join/status responses and helpers within onboarding.
+// Exports join/status responses, the NotFound error, and helpers within onboarding.
 // Dependencies: reqwest, serde, and setup arguments; responses never enter diagnostics.
 
 use super::{SetupArgs, selection::Plan};
@@ -47,6 +47,18 @@ pub(super) struct JoinState {
     pub profiles: Vec<ApprovedProfile>,
 }
 
+/// A 404; for a join status poll it means the poll token is dead.
+#[derive(Debug)]
+pub(super) struct NotFound;
+
+impl std::fmt::Display for NotFound {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("HiBoss request failed (404 Not Found)")
+    }
+}
+
+impl Error for NotFound {}
+
 #[derive(Deserialize, Default)]
 struct Failure {
     #[serde(default)]
@@ -74,6 +86,9 @@ pub(crate) async fn response<T: DeserializeOwned>(
                 "Invalid HiBoss response".into()
             }
         });
+    }
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Err(NotFound.into());
     }
     let failure: Failure = match response.json().await {
         Ok(failure) => failure,
