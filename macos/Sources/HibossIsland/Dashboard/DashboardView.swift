@@ -12,6 +12,7 @@ struct DashboardView: View {
     let snapshot: OverviewSnapshot
     let isPreview: Bool
     let onAllDecisions: () -> Void
+    let onHistory: () -> Void
     let onSettings: () -> Void
     @State private var selectedDecisionID: MessageID?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -28,19 +29,12 @@ struct DashboardView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    sections(wide: geometry.size.width >= 980)
+            workspace(compact: geometry.size.width < 900)
+                .inspector(isPresented: inspectorPresentation(compact: geometry.size.width < 900)) {
+                    inspector.inspectorColumnWidth(min: 340, ideal: 420, max: 560)
                 }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .inspector(isPresented: showsInspector) {
-            inspector.inspectorColumnWidth(min: 340, ideal: 420, max: 560)
-        }
         .task { await panels.loadIfNeeded() }
         .onChange(of: panels.selectedTileID) { _, id in
             if id != nil { selectedDecisionID = nil }
@@ -51,31 +45,39 @@ struct DashboardView: View {
         .accessibilityIdentifier("dashboard.home")
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(L("Dashboard")).font(.largeTitle.bold())
-            Text(L("Decisions and live panels."))
-                .font(.callout).foregroundStyle(.secondary)
-            if isPreview {
-                Label(L("Sample decisions · Local preview"), systemImage: "info.circle")
-                    .font(.caption).foregroundStyle(.secondary)
+    @ViewBuilder
+    private func workspace(compact: Bool) -> some View {
+        if compact && showsInspector.wrappedValue {
+            inspector.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    DashboardWorkspaceHeader(snapshot: snapshot,
+                        countsAvailable: isPreview || flow.historyState == .loaded || !snapshot.history.isEmpty,
+                        isPreview: isPreview, onHistory: onHistory)
+                    decisions
+                    Divider()
+                    DashboardPanelsSection(model: panels)
+                }
+                .padding(28)
+                .frame(maxWidth: 1440, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
         }
     }
 
-    private func sections(wide: Bool) -> some View {
-        let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 28))
-            : AnyLayout(VStackLayout(alignment: .leading, spacing: 24))
-        return layout {
-            DashboardDecisionsSection(items: snapshot.attention, now: snapshot.now,
-                historyState: isPreview ? .loaded : flow.historyState,
-                connectionState: isPreview ? .connected : flow.connectionState,
-                limit: wide ? 5 : 2, onSelect: openDecision, onAll: onAllDecisions,
-                onRetry: { Task { await flow.refreshHistory() } }, onSettings: onSettings)
-                .frame(width: wide ? 300 : nil, alignment: .topLeading)
-            DashboardPanelsSection(model: panels)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-        }
+    private func inspectorPresentation(compact: Bool) -> Binding<Bool> {
+        Binding(get: { !compact && showsInspector.wrappedValue }, set: { visible in
+            if !compact && !visible { showsInspector.wrappedValue = false }
+        })
+    }
+
+    private var decisions: some View {
+        DashboardDecisionsSection(items: snapshot.attention, now: snapshot.now,
+            historyState: isPreview ? .loaded : flow.historyState,
+            connectionState: isPreview ? .connected : flow.connectionState,
+            limit: 3, onSelect: openDecision, onAll: onAllDecisions,
+            onRetry: { Task { await flow.refreshHistory() } }, onSettings: onSettings)
     }
 
     @ViewBuilder

@@ -122,14 +122,6 @@ final class HistoryLogicTests: XCTestCase {
         XCTAssertEqual(result.map(\.id), [matching.id])
     }
 
-    func testHistoryDetailsRequireDoubleClick() {
-        XCTAssertEqual(HistoryMessageLogic.detailClickCount, 2)
-    }
-
-    func testHistoryPreviewReservesDoubleClickForOpeningDetails() {
-        XCTAssertFalse(HistoryMessageLogic.allowsPreviewTextSelection)
-    }
-
     func testHistoryDetailPrioritizesMessageOverSupportingMetadata() {
         XCTAssertEqual(
             HistoryDetailLayout.sections(hasChoices: true),

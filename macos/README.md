@@ -15,9 +15,16 @@ The app stores the server URL in user defaults and the Boss Token in the macOS
 Keychain. Its main window fetches the latest 100 messages from the server and does
 not persist a separate local history.
 
-Double-clicking a History row opens its detail sheet. Message content is the primary
-section, active choices follow it, and transport/session metadata is available in a
-collapsed **Details** disclosure. Text remains selectable inside the detail sheet.
+Session and history messages are readable directly in the main window. Ordinary
+messages show their full body and supporting content with selectable text. Messages
+longer than 1,200 characters or 14 explicit lines start with a short preview and
+expand or collapse in place. Search reveals the full matching message, including
+matches in supporting content. Message clicks and double-clicks never open details.
+
+Choices, option images, and custom replies stay inside each message. Reply drafts
+survive navigation; failed replies retain their text and show an inline retry error.
+Command-Return sends only from the focused reply editor. Transport metadata and
+closed choices remain available in inline disclosures.
 
 ## Build and run
 
@@ -27,23 +34,24 @@ cd macos
 open "dist/HiBoss Island.app"
 ```
 
-The build script uses a stable Apple Development identity. Set
-`HIBOSS_SIGNING_IDENTITY` to use a different installed code-signing identity.
+The build script defaults to ad-hoc signing. Set `HIBOSS_SIGNING_IDENTITY` to
+an installed code-signing identity; use the same identity as the installed app
+when replacing it locally to preserve its signing identity.
 The bundled app icon depicts a relaxed boss on a tiny tropical island and is
 compiled from the source asset catalog under `Resources/Assets.xcassets`.
 
-The app opens a resizable main window with a Reminders-inspired overview:
-**Needs You**, **Automatic**, **Waiting on you**, **High priority**, **All messages**,
-and **Completed**, followed by session lists. Counts match each destination and
-reflect recently loaded messages. Below 760 points, the **Overview** toolbar button
-switches between the overview and the selected surface. Attention areas narrower
-than 720 points show questions and details in a single column; **All questions**
-returns to the list. The minimum main window is 480 × 400.
+The app opens a native workspace with a compact sidebar: **Dashboard**, **Needs
+You**, **All messages**, **Completed**, decision filters, and searchable session
+history. The dashboard shows the next three decisions above the live task wall.
+Counts reflect loaded recent messages; overlapping filters are not additive.
+Below 760 points, **Overview** switches between navigation and content. Dashboard
+details use the full content area below 900 points of content width and an inspector
+above it. The minimum window is 480 × 400. Command-R refreshes the current surface.
 
 Question text wraps and scrolls above a persistent reply composer. Use **Send reply**
 or Command-Return to submit custom instructions. Drafts stay with their question
 when selecting another category or resizing, for the main window's lifetime.
-History detail shares those drafts and supports custom replies to pending questions.
+Inline history replies share those drafts and support custom replies to pending questions.
 Failed submissions retain the draft and show a retry message. See the
 [overview contract](../docs/macos-information-redesign.md) for count definitions.
 
@@ -114,13 +122,7 @@ echo "$TOKEN"
 
 ## Verify
 
-```bash
-cd macos
-swift test
-```
-
-The end-to-end tests cover option filtering, sequential presentation, successful
-replies, duplicate suppression, global resolution, exact expiry, recoverable reply
-failures, attention draft isolation, reply editor bounds at four window sizes,
-history decoding, persisted presentation preferences, and background
-survival after the last window closes.
+Build with `swift build --package-path macos` and test with
+`swift test --package-path macos`. See the
+[workspace contract](../docs/macos-information-redesign.md) for layout, decision
+rules, and verification scope.

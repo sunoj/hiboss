@@ -24,6 +24,10 @@ struct HistoryMessageDetail: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showsMetadata = HistoryDetailLayout.showsMetadataByDefault
 
+    @State private var now = Date()
+
+    private var canAnswer: Bool { message.canAnswerHistory(at: now) }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -35,7 +39,7 @@ struct HistoryMessageDetail: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if message.isBlockingHistoryMessage {
+            if canAnswer {
                 AttentionReplyComposer(text: Binding(
                     get: { reply.drafts[message.id] ?? "" }, set: { reply.drafts[message.id] = $0 }),
                     isSubmitting: reply.submitting.contains(message.id), error: reply.errors[message.id]?.text,
@@ -44,6 +48,7 @@ struct HistoryMessageDetail: View {
         }
         .frame(minWidth: 360, idealWidth: 520, minHeight: 320, idealHeight: 520)
         .navigationTitle(L("Message details"))
+        .task(id: message.expiresAt) { await observeDeadline() }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button(L("Close")) { dismiss() }
@@ -72,7 +77,7 @@ struct HistoryMessageDetail: View {
                         options: message.options,
                         media: media,
                         defaultOption: message.defaultOption,
-                        allowsChoosing: message.isBlockingHistoryMessage && !reply.submitting.contains(message.id),
+                        allowsChoosing: canAnswer && !reply.submitting.contains(message.id),
                         choose: { send($0) }
                     )
                 } else {
@@ -110,7 +115,7 @@ struct HistoryMessageDetail: View {
 
     @ViewBuilder
     private func choice(_ option: String) -> some View {
-        if message.isBlockingHistoryMessage {
+        if canAnswer {
             Button { send(option) } label: {
                 Text(option).fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -123,6 +128,7 @@ struct HistoryMessageDetail: View {
     }
 
     private func send(_ text: String) {
+        guard message.canAnswerHistory(at: .now) else { now = .now; return }
         Task {
             await reply.send(text, for: message.id) { text, _ in
                 let feedback = await onChoose(text)
@@ -130,6 +136,14 @@ struct HistoryMessageDetail: View {
                 return feedback
             }
         }
+    }
+
+    private func observeDeadline() async {
+        now = .now
+        guard let deadline = message.expirationDate, deadline > now else { return }
+        do { try await Task.sleep(for: .seconds(deadline.timeIntervalSinceNow)) }
+        catch { return }
+        now = .now
     }
 
     private func cleaned(_ value: String?) -> String? {

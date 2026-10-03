@@ -9,6 +9,7 @@ enum AttentionBand: Int, Comparable, CaseIterable, Identifiable, Sendable {
     case autoDecision = 0
     case blocked = 1
     case declaredPriority = 2
+    case question = 3
 
     var id: Int { rawValue }
 
@@ -19,6 +20,7 @@ enum AttentionBand: Int, Comparable, CaseIterable, Identifiable, Sendable {
         case .autoDecision: L("Decides itself")
         case .blocked: L("Waiting on you")
         case .declaredPriority: L("High priority")
+        case .question: L("Questions")
         }
     }
 }
@@ -91,7 +93,7 @@ enum AttentionRanking {
             let bExpiry = b.expirationDate ?? .distantFuture
             if aExpiry != bExpiry { return aExpiry < bExpiry }
             return olderThenStable(a, b)
-        case .blocked:
+        case .blocked, .question:
             return olderThenStable(a, b)
         case .declaredPriority:
             if a.priorityRank != b.priorityRank { return a.priorityRank < b.priorityRank }

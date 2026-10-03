@@ -55,11 +55,11 @@ struct AttentionItem: Identifiable, Equatable, Sendable {
     }
 
     func band(at now: Date) -> AttentionBand? {
-        guard isEligibleAsk else { return nil }
+        guard isEligibleAsk, expirationDate.map({ $0 > now }) ?? true else { return nil }
         if isRunningAutoDecision(at: now) { return .autoDecision }
         if isBlockedWithoutDeadline { return .blocked }
         if isDeclaredPriority { return .declaredPriority }
-        return nil
+        return .question
     }
 
     func remaining(at now: Date) -> String? {
@@ -75,16 +75,12 @@ struct AttentionItem: Identifiable, Equatable, Sendable {
     private var isEligibleAsk: Bool {
         message.metadata?.isExpired != true
             && !isResolved
-            && !isFromBoss
+            && normalizedDirection == "agent_to_boss"
             && hasChoices
     }
 
     private var isResolved: Bool {
         ["replied", "expired", "resolved"].contains(normalizedStatus)
-    }
-
-    private var isFromBoss: Bool {
-        normalizedDirection == "boss_to_agent"
     }
 
     private var hasChoices: Bool {

@@ -50,10 +50,14 @@ issuing macOS client polls the authenticated status endpoint and can therefore s
 adopts the QR server URL before redemption and only restores a token when a valid
 server URL is also present, preventing an orphan bearer from appearing as a session.
 
-### History Detail Hierarchy
-History exists to read the message first. Native detail views order message content,
-then actionable choices, then supporting metadata. Channel, mode, status, priority,
-session, and raw timestamps remain available through collapsed progressive disclosure.
+### Inline Session Reading (2026-09-22)
+History exists to read the message directly. Ordinary session/history messages show
+full selectable text and supporting content; particularly long messages expand or
+collapse in place. Do not restore popup or double-click reading. Choices, images,
+custom replies, and retry errors stay inline; metadata remains in a disclosure.
+Search reveals full matching messages and includes supporting content. Drafts and
+expansion state are keyed by message ID. Notification-specific detail lookup is
+separate. See [the macOS workspace design](../../docs/macos-information-redesign.md).
 
 ### Webhook Security (v1.1.0)
 Webhook endpoints validate request origin via optional secret tokens:

@@ -1,6 +1,6 @@
-// Reminders-inspired overview followed by native, selectable session rows.
-// Exports: OverviewSidebar with live category counts and contextual connection feedback.
-// Dependencies: SwiftUI, OverviewSnapshot, OptionFlowStore state types.
+// Native workspace navigation with decision filters and searchable session history.
+// Exports: OverviewSidebar with shared snapshot counts and connection recovery.
+// Dependencies: SwiftUI, HibossKit, OverviewSnapshot.
 
 import HibossKit
 import SwiftUI
@@ -14,54 +14,84 @@ struct OverviewSidebar: View {
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
     let onRefresh: () -> Void
-
-    private let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+    @State private var sessionSearch = ""
 
     var body: some View {
-        List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
-            Section {
-                Label(L("Dashboard"), systemImage: "square.grid.2x2")
-                    .font(.headline)
-                    .tag(OverviewDestination.dashboard)
-                    .accessibilityIdentifier("overview.dashboard")
-                Label(L("Device Requests"), systemImage: "desktopcomputer.and.arrow.down")
-                    .badge(deviceRequestCount)
-                    .tag(OverviewDestination.deviceRequests)
-                    .accessibilityIdentifier("overview.deviceRequests")
-            }
-            Section {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(OverviewCategory.allCases) { category in
-                        OverviewTile(category: category, count: snapshot.count(category),
-                            isSelected: selection == .category(category), countsAvailable: countsAvailable) {
-                            onSelect(.category(category))
-                        }
-                    }
+        VStack(spacing: 0) {
+            brand
+            List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
+                Section(L("Workspace")) {
+                    Label(L("Dashboard"), systemImage: "rectangle.3.group")
+                        .tag(OverviewDestination.dashboard)
+                        .accessibilityIdentifier("overview.dashboard")
+                    Label(L("Device Requests"), systemImage: "desktopcomputer.and.arrow.down")
+                        .badge(deviceRequestCount)
+                        .tag(OverviewDestination.deviceRequests)
+                        .accessibilityIdentifier("overview.deviceRequests")
+                    categoryRow(.needsYou)
+                    categoryRow(.all)
+                    categoryRow(.completed)
                 }
-                .listRowInsets(EdgeInsets(top: 12, leading: 8, bottom: 16, trailing: 8))
-                .selectionDisabled()
-            }
-            if let notice { connectionNotice(notice).selectionDisabled() }
-            Section(L("Sessions")) {
-                if snapshot.sessions.isEmpty {
-                    Text(L("Your sessions will appear here.")).foregroundStyle(.secondary)
+                Section(L("Decision filters")) {
+                    categoryRow(.automatic)
+                    categoryRow(.waiting)
+                    categoryRow(.urgent)
                 }
-                ForEach(snapshot.sessions) { session in
-                    sessionRow(session).tag(OverviewDestination.session(session.id))
-                }
+                Section(L("Sessions")) { sessions }
+                if let notice { connectionNotice(notice).selectionDisabled() }
             }
-            Text(L("Counts reflect recent messages."))
-                .font(.caption).foregroundStyle(.secondary)
-                .selectionDisabled()
+            .listStyle(.sidebar)
+            footer
         }
-        .listStyle(.sidebar)
-        .safeAreaInset(edge: .bottom, spacing: 0) { settingsFooter }
         .accessibilityIdentifier("overview.sidebar")
     }
 
-    private var countsAvailable: Bool {
-        historyState == .loaded || !snapshot.history.isEmpty
+    private var brand: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "capsule.tophalf.filled")
+                .font(.title2).foregroundStyle(Color.accentColor)
+            Text(verbatim: "HiBoss").font(.title2.weight(.bold))
+            Spacer()
+        }
+        .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 12)
     }
+
+    private func categoryRow(_ category: OverviewCategory) -> some View {
+        HStack(spacing: 8) {
+            Label(category.title, systemImage: category.symbol)
+            Spacer(minLength: 4)
+            Text(verbatim: countsAvailable ? snapshot.count(category).formatted() : "—")
+                .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+        }
+        .tag(OverviewDestination.category(category))
+        .accessibilityIdentifier("overview.\(category.rawValue)")
+    }
+
+    private var sessions: some View {
+        Group {
+            TextField(L("Find a session"), text: $sessionSearch)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("overview.sessionSearch")
+                .selectionDisabled()
+            if filteredSessions.isEmpty {
+                Text(sessionSearch.isEmpty ? L("Your sessions will appear here.") : L("No matching sessions"))
+                    .font(.callout).foregroundStyle(.secondary).selectionDisabled()
+            }
+            ForEach(filteredSessions) { session in
+                sessionRow(session).tag(OverviewDestination.session(session.id))
+            }
+        }
+    }
+
+    private var filteredSessions: [SessionGroup] {
+        let query = sessionSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return snapshot.sessions }
+        return snapshot.sessions.filter {
+            $0.label.localizedStandardContains(query) || ($0.agentName?.localizedStandardContains(query) ?? false)
+        }
+    }
+
+    private var countsAvailable: Bool { historyState == .loaded || !snapshot.history.isEmpty }
 
     private var notice: String? {
         if case let .failed(error) = historyState { return error }
@@ -75,49 +105,46 @@ struct OverviewSidebar: View {
 
     private func connectionNotice(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(text, systemImage: "antenna.radiowaves.left.and.right.slash")
-                .font(.callout).foregroundStyle(.secondary)
+            Text(text).font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if connectionState == .disconnected {
                 Button(L("Settings"), action: onSettings)
-            } else if case .failed = historyState {
+            } else {
                 Button(L("Try again"), action: onRefresh)
             }
-        }
-        .padding(.vertical, 8)
+        }.padding(.vertical, 8)
     }
 
     private func sessionRow(_ session: SessionGroup) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "list.bullet")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(DesignTokens.Overview.ink)
-                .frame(width: 30, height: 30)
-                .background(DesignTokens.Overview.needsYou, in: Circle())
+        HStack(spacing: 8) {
+            Image(systemName: "bubble.left.and.bubble.right").foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.id == SessionGrouping.directSessionID ? L("Direct") : session.label)
-                    .font(.body.weight(.medium)).lineLimit(1)
+                    .lineLimit(1)
                 if let agent = session.agentName {
                     Text(agent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 4)
-            Text(session.messages.count.formatted()).monospacedDigit().foregroundStyle(.secondary)
+            Text(verbatim: session.messages.count.formatted()).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 3)
+        .help(session.label)
         .accessibilityElement(children: .combine)
     }
 
-    private var settingsFooter: some View {
-        VStack(spacing: 0) {
+    private var footer: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Divider()
-            Button(action: onSettings) {
-                Label(L("Settings"), systemImage: "gear")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+            Label(connectionState.label, systemImage: connectionState == .connected
+                ? "checkmark.circle.fill" : "antenna.radiowaves.left.and.right.slash")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button(action: onSettings) { Label(L("Settings"), systemImage: "gearshape") }
+                    .buttonStyle(.plain)
+                Spacer()
+                Text(L("Recent messages")).font(.caption2).foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain).padding(14)
-        }
-        .background(.bar)
+        }.padding(16)
     }
 }

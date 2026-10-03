@@ -102,13 +102,13 @@ final class AttentionRankingTests: XCTestCase {
         )
     }
 
-    func testNormalPriorityWithoutDeadlineOrWaitingIsExcluded() {
+    func testOrdinaryQuestionFollowsDeclaredPriority() {
         let normal = ask(id: "normal", options: ["Ok"], sessionStatus: "working")
         let high = ask(id: "high", priority: "high", options: ["Look"], sessionStatus: "working")
 
         XCTAssertEqual(
             AttentionRanking.items(history: [normal, high], now: now).map(\.id.rawValue),
-            ["high"]
+            ["high", "normal"]
         )
     }
 
@@ -143,7 +143,7 @@ final class AttentionRankingTests: XCTestCase {
         XCTAssertTrue(after.isEmpty)
     }
 
-    func testExpiredHighPriorityFallsToPriorityUntilMarkedExpired() {
+    func testExpiredHighPriorityLeavesAttentionAtDeadline() {
         let message = ask(
             id: "was-auto",
             priority: "high",
@@ -161,7 +161,7 @@ final class AttentionRankingTests: XCTestCase {
         XCTAssertEqual(
             AttentionRanking.items(history: [message], now: now.addingTimeInterval(11))
                 .first?.band(at: now.addingTimeInterval(11)),
-            .declaredPriority
+            nil
         )
     }
 

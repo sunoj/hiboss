@@ -1,77 +1,78 @@
-# macOS Overview Information Architecture
+# macOS Workspace Design
 
-Implemented for the local 0.2.4 UI iteration, following the user reference supplied
-on 2026-09-05. The main window combines a two-column category overview, native
-session rows, and a selected message surface.
+The main window is a native workspace for answering agents and following task
+progress. The sidebar uses system selection, typography, and appearance; the
+workspace uses one accent color and plain decision rows.
 
-## User Reference
+## Information Hierarchy
 
-![Reminders information layout](references/macos-reminders-information-layout.png)
+- **Workspace:** Dashboard, Needs You, All messages, and Completed.
+- **Decision filters:** Automatic, Waiting on you, and High priority.
+- **Sessions:** searchable session history, identified by stable session IDs.
+- **Dashboard:** a ranked preview of three decisions followed by the live panel wall.
+  View all opens the complete queue. Panel filters retain Active, Needs input,
+  Results, and Archived, including their existing questionnaire workflows.
 
-The reference establishes compact icon/count tiles, clear separation between
-categories and grouped lists, and navigation that works in narrow windows.
-The implementation uses native SwiftUI buttons and lists, semantic typography,
-and bright, glazed category colors. Diagonal highlights and fine reflective edges
-provide the glass-like finish requested during review; dark ink keeps labels
-readable on the lighter colors in both appearances.
+These filters overlap. High priority can include timed and waiting questions; their
+counts must not be added to produce a total. Counts cover loaded recent messages,
+not lifetime activity. Unknown counts use a dash. Session search matches labels
+and agent names without changing destination counts or the selected session.
 
-## Categories and Counts
+## Decision Rules
 
-| Category | Included messages | Destination |
-| --- | --- | --- |
-| Needs You | The existing ranked attention set | Grouped questions and reply detail |
-| Automatic | Attention questions with a running default timer | Questions ordered by deadline |
-| Waiting on you | Attention questions waiting without a deadline | Questions ordered by waiting time |
-| High priority | High or critical questions in the attention set | Ranked questions, including timed and waiting questions |
-| All messages | All recently loaded messages, including replies | Searchable history |
-| Completed | Agent-to-boss messages marked replied, resolved, or expired, including expired metadata | Searchable completed history |
+An unanswered agent question with choices belongs in Needs You, even before its
+session heartbeat reports waiting. Ranking remains automatic deadlines first,
+explicitly waiting sessions second, declared priorities next, then other questions.
+An elapsed deadline removes a question from attention regardless of its priority.
+Completed includes locally elapsed question deadlines as well as server-reported
+replied, resolved, and expired states. Local expiry never asserts that a default
+was executed; that outcome still requires server confirmation.
 
-Counts and destination lists derive from the same snapshot. High priority can
-overlap Automatic or Waiting on you. Completed counts the original question,
-not the boss's reply. Counts cover the recent history returned by the existing
-API; they are not lifetime totals. Unknown counts use a dash while loading.
-A live question missing from history is merged once, and resolved history wins
-over an older live copy. A resolution event refreshes history even when the
-question is not the currently displayed popup.
+Counts and lists derive from one snapshot. Live messages merge once into history;
+resolved history wins over an older streamed copy. A cancellable deadline task
+updates the projection without rebuilding the window every second. History reply
+controls also stop accepting input when the question deadline passes.
 
-The overview snapshot updates only when history or the live question changes,
-or at the next attention deadline. One-second clocks are confined to time labels;
-they do not rebuild navigation, session groups, or the reply editor. Session sort
-keys and attention timestamps are parsed once per projection, and SQL timestamp
-formatters are reused.
+## Layout and Interaction
 
-## Sessions and Navigation
+The sidebar is 220–280 points wide, with a 244-point preferred width. Below a
+760-point window width, the Overview toolbar button switches navigation and content.
+The minimum window remains 480 × 400. Dashboard details use the full content area
+below 900 points of content width; larger workspaces show a side inspector. Closing
+a detail returns to the dashboard, and drafts remain keyed by question ID.
 
-Session rows use stable session IDs and the shared grouping rules, including
-`targetSessionId` for boss replies and a Direct bucket. Identical labels remain
-separate sessions. Each row opens exactly the messages counted beside it.
-Changing the selected scope clears the history search and segmented filter.
+Decision rows have a restrained hover transition; detail opening respects Reduce
+Motion. Native focus and selection remain visible. Replies keep the existing
+persistent composer and Command-Return shortcut. Command-R refreshes the current
+surface; returning to the app refreshes recent history and dashboard panels.
 
-At 760 points and above, the overview occupies a 280–340 point sidebar. Below
-760 points, the Overview toolbar button switches between the full-width overview
-and the selected destination. Within the attention area, 720 points enables the
-question list and detail side by side. Smaller areas show one surface at a time,
-with All questions returning to the list. The minimum window is 480 × 400.
+Disconnected, failed, loading, and empty states remain distinct. Cached questions
+remain available during connection failures. Panel errors appear once with a retry
+action; a failed fetch must not imply there are zero panels.
 
-## Replies and States
+## Inline Session Reading
 
-Question text wraps and scrolls within the available height. The reply composer
-stays at the bottom. Command-Return sends a custom instruction. Drafts are keyed
-by message ID and held for the main window's lifetime, including category changes.
-History detail shares those drafts, retains failed submissions, and closes only
-after a successful reply. Resolved questions show read-only choices.
+Session and history destinations use a single scrolling message stream with a
+900-point maximum reading width. Sender, date, and time precede selectable body
+text; message rows do not open modal details. Ordinary messages are fully visible.
+Long messages (over 1,200 characters or 14 explicit lines) have a preview bounded
+by 600 characters and eight explicit lines. Unicode grapheme boundaries are preserved.
+Full text remains available with Show full message; Collapse message returns the
+scroll position to that message. Expansion state is keyed by message ID.
 
-Disconnected, loading, empty-category, empty-completed, and failed-history states
-have separate feedback. Cached messages remain available during connection
-failures. Main-window text and backgrounds follow the system appearance.
+Search matches body and supporting content and expands matching messages while
+search is active. Clearing search restores the user's previous expansion state.
+Choices and images stay inline. Write a reply reveals a message-scoped editor;
+Command-Return is assigned only to its focused editor. Shared submission state
+prevents duplicate sends, preserves failed drafts, and displays errors next to the
+action. Resolved and expired messages keep read-only choices in a disclosure.
+Notification entry points retain their existing targeted lookup behavior.
 
 ## Verification
 
 Run `swift test --package-path macos` and `swift test --package-path HibossKit`.
-The suite covers tile/count agreement, same-label session isolation, live/history
-deduplication, local and remote reply transitions, custom drafts, and native editor
-bounds at four main-window sizes. History reply failures are rendered at 360 × 320
-in both light and dark appearances. Build and inspect the application bundle as
-required by the [native design contract](macos-design-v2.md).
-`OverviewStoreTests` verifies unchanged-input caching and deadline invalidation.
-`OverviewPerformanceTests` measures projection of 100 messages across 20 sessions.
+Pure regression tests cover ordinary questions, streamed questions, manual deadlines,
+priority expiry, count agreement, session isolation, deadline invalidation, and
+inline reading (collapse thresholds, search expansion, reply closure at the deadline).
+Native interaction, appearance, and narrow-window geometry need a macOS UI run; a
+build and pure logic tests do not constitute visual verification.

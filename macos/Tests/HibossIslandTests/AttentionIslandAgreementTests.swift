@@ -1,5 +1,5 @@
 // Unit tests for island/window agreement, live merge, clock, and auto-decided history.
-// Covers: IslandAttention front item, fallback, and History auto-decided labels.
+// Covers: IslandAttention front item, ordinary live questions, and History auto-decided labels.
 // Dependencies: XCTest, HibossKit fixtures, AttentionTestSupport.
 
 import HibossKit
@@ -84,13 +84,13 @@ final class AttentionIslandAgreementTests: XCTestCase {
         XCTAssertEqual(island?.message.id.rawValue, "live-auto")
     }
 
-    func testIslandFallsBackToLiveWhenNothingIsAttention() {
+    func testIslandAndWindowIncludeOrdinaryLiveQuestions() {
         let live = OptionMessage.fixture(id: "plain", options: ["Continue"])
         let island = IslandAttention.presentation(live: live, history: [], now: now)
 
         XCTAssertEqual(island?.message.id.rawValue, "plain")
-        XCTAssertNil(island?.item)
-        XCTAssertTrue(AttentionRanking.items(history: [], live: live, now: now).isEmpty)
+        XCTAssertEqual(island?.item?.band(at: now), .question)
+        XCTAssertEqual(AttentionRanking.items(history: [], live: live, now: now).map(\.id), ["plain"])
     }
 
     func testClockFormatsRemainingAndElapsed() {

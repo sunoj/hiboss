@@ -35,8 +35,6 @@ enum HistoryMessageLogic {
     }
 
     static let directSessionID = SessionGrouping.directSessionID
-    static let detailClickCount = 2
-    static let allowsPreviewTextSelection = false
 
     static func filtered(
         _ messages: [HistoryMessage],
@@ -110,7 +108,12 @@ extension HistoryMessage {
     }
 
     var isBlockingHistoryMessage: Bool {
-        hasActiveHistoryOptions && !isResolvedHistoryMessage
+        canAnswerHistory(at: .now)
+    }
+
+    func canAnswerHistory(at now: Date) -> Bool {
+        normalizedDirection == "agent_to_boss" && hasActiveHistoryOptions
+            && !isResolvedHistoryMessage && (expirationDate.map { $0 > now } ?? true)
     }
 
     /// Server auto-selected on timeout — history only, never as if the boss chose.
@@ -249,6 +252,7 @@ extension HistoryMessage {
     private var searchableHistoryText: String {
         [
             body,
+            content,
             agentName,
             direction,
             status,

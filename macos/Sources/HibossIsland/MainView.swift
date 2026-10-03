@@ -47,8 +47,8 @@ struct MainView: View {
         }
         .frame(minWidth: 480, minHeight: 400)
         .onAppear { updateOverview() }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-            Task { await panels.load() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refresh()
         }
         .onChange(of: notificationNavigation.target?.id, initial: true) { _, id in
             guard id != nil else { return }
@@ -77,7 +77,7 @@ struct MainView: View {
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             overview(snapshot)
-                .navigationSplitViewColumnWidth(min: 280, ideal: 300, max: 340)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
         } detail: {
             if compact && showsCompactOverview {
                 overview(snapshot).navigationTitle(L("Overview"))
@@ -107,6 +107,7 @@ struct MainView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .help(refreshHelp)
+                .keyboardShortcut("r", modifiers: .command)
                 .disabled(flow.historyState == .loading || (destination == .dashboard && panels.isLoading))
             }
         }
@@ -136,6 +137,7 @@ struct MainView: View {
                 DashboardView(flow: flow, reply: reply, panels: panels, snapshot: snapshot,
                     isPreview: previewHistory != nil,
                     onAllDecisions: { destination = .category(.needsYou) },
+                    onHistory: { destination = .category(.all) },
                     onSettings: { openWindow(id: "settings") })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if destination == .deviceRequests {

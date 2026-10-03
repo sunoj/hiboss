@@ -1,162 +1,108 @@
-// Native List row for one History message — Mail-style, no card chrome.
-// Exports: HistoryRow with avatar, unread dot, priority/direction glyphs, inline reply feedback.
-// Dependencies: SwiftUI, HibossKit HistoryMessage, DesignTokens.
+// Inline session message with readable text, in-place replies, and optional metadata.
+// Exports: HistoryRow; message text never opens a sheet or consumes double-clicks.
+// Dependencies: SwiftUI, HibossKit, HistoryMessageBody, HistoryReplyActions.
 
 import HibossKit
 import SwiftUI
 
 struct HistoryRow: View {
     let message: HistoryMessage
-    var error: String? = nil
-    var isSubmitting = false
-    var onChoose: ((String) -> Void)? = nil
+    @ObservedObject var reply: AttentionReplyState
+    @Binding var isExpanded: Bool
+    let isSearching: Bool
+    let onCollapse: () -> Void
+    let onChoose: (String) async -> ReplyFeedback?
+    @State private var now = Date()
+
+    private var content: HistoryReadingContent {
+        HistoryReadingContent(body: message.body, content: message.content)
+    }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            unreadDot
+        HStack(alignment: .top, spacing: 14) {
             avatar
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 12) {
                 header
-                messagePreview
-
-                if let autoDecided = message.historyAutoDecidedLabel {
-                    Text(autoDecided)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if !message.options.isEmpty {
-                    optionRow
+                HistoryMessageBody(content: content, isSearching: isSearching,
+                    isExpanded: $isExpanded, onCollapse: onCollapse)
+                if let outcome = message.historyAutoDecidedLabel {
+                    Label(outcome, systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
                 }
-                if let error {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
+                if !message.options.isEmpty {
+                    HistoryReplyActions(message: message, reply: reply,
+                        canAnswer: message.canAnswerHistory(at: now), onChoose: onChoose)
                 }
+                metadata
             }
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("history.message.\(message.id.rawValue)")
+        .task(id: message.expiresAt) { await observeDeadline() }
     }
 
-    @ViewBuilder
-    private var messagePreview: some View {
-        if HistoryMessageLogic.allowsPreviewTextSelection {
-            messagePreviewText.textSelection(.enabled)
-        } else {
-            messagePreviewText.textSelection(.disabled)
-        }
-    }
-
-    private var messagePreviewText: some View {
-        Text(message.body)
-            .font(.body)
-            .foregroundStyle(
-                message.isUnreadHistoryMessage ? Color.primary : Color.secondary
-            )
-            .lineLimit(2)
-    }
-
-    private var optionRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(message.options, id: \.self) { option in
-                    optionChip(option, isDefault: option == message.defaultOption)
-                }
-            }
-            .padding(.top, 2)
-        }
-        .disabled(isSubmitting)
-    }
-
-    @ViewBuilder
-    private func optionChip(_ option: String, isDefault: Bool) -> some View {
-        if message.isBlockingHistoryMessage {
-            if isDefault {
-                Button { onChoose?(option) } label: { defaultButtonLabel(option) }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .help(L("Default — runs automatically on timeout"))
-            } else {
-                Button(option) { onChoose?(option) }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-            }
-        } else {
-            HStack(spacing: 3) {
-                if isDefault { Image(systemName: "return").font(.caption2) }
-                Text(option).font(.caption)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                isDefault ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(.quaternary),
-                in: Capsule()
-            )
-            .foregroundStyle(isDefault ? Color.accentColor : Color.secondary)
-        }
-    }
-
-    private func defaultButtonLabel(_ option: String) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: "return")
-            Text(option)
-        }
-    }
-
-    private var unreadDot: some View {
-        Circle()
-            .fill(message.isUnreadHistoryMessage ? Color.accentColor : Color.clear)
-            .frame(width: 8, height: 8)
-            .padding(.top, 7)
-            .accessibilityLabel(message.isUnreadHistoryMessage ? L("Unread") : L("Read"))
-    }
-
-    /// Filled with `.quaternary` rather than `controlBackgroundColor`: the latter resolves to
-    /// the same white as the list itself in light appearance, leaving the monogram floating
-    /// with no visible tile. This stays a step off the background in both appearances.
     private var avatar: some View {
-        Text(message.historyMonogram)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(Color.secondary)
-            .frame(width: 28, height: 28)
-            .background(.quaternary, in: Circle())
+        Text(message.historyMonogram).font(.callout.weight(.semibold))
+            .foregroundStyle(message.isBossHistoryMessage ? Color.accentColor : .secondary)
+            .frame(width: 34, height: 34)
+            .background(message.isBossHistoryMessage ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.05),
+                in: RoundedRectangle(cornerRadius: 10))
             .accessibilityHidden(true)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(message.historyDisplayName)
-                .font(.headline)
-                .foregroundStyle(Color.primary)
-                .lineLimit(1)
-
-            if let glyph = message.historyPriorityGlyph {
-                Image(systemName: glyph)
-                    .font(.caption)
-                    .foregroundStyle(priorityColor)
-                    .accessibilityLabel(message.historyPriorityAccessibilityLabel)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                sender
+                Spacer(minLength: 12)
+                timestamp
             }
-
-            Image(systemName: message.historyDirectionGlyph)
-                .font(.caption)
-                .foregroundStyle(Color.secondary)
-                .accessibilityLabel(message.historyDirectionAccessibilityLabel)
-
-            Spacer(minLength: 8)
-
-            Text(message.historyTimestamp)
-                .font(.caption)
-                .monospaced()
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                sender
+                timestamp
+            }
         }
     }
 
-    private var priorityColor: Color {
-        switch message.priority.lowercased() {
-        case "critical": DesignTokens.Priority.critical
-        case "high": DesignTokens.Priority.high
-        case "low": DesignTokens.Priority.low
-        default: DesignTokens.Priority.normal
+    private var sender: some View {
+        HStack(spacing: 6) {
+            Text(message.historyDisplayName).font(.headline)
+            if message.isUnreadHistoryMessage {
+                Circle().fill(Color.accentColor).frame(width: 6, height: 6).accessibilityLabel(L("Unread"))
+            }
+            if let glyph = message.historyPriorityGlyph {
+                Image(systemName: glyph).foregroundStyle(.secondary)
+                    .accessibilityLabel(message.historyPriorityAccessibilityLabel)
+            }
         }
+    }
+
+    private var timestamp: some View {
+        Text(HistoryTimestamp.date(from: message.createdAt)?.formatted(date: .abbreviated, time: .shortened)
+            ?? L("Unknown"))
+            .font(.caption).foregroundStyle(.secondary)
+    }
+
+    private var metadata: some View {
+        DisclosureGroup(L("Details")) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L("Status") + ": " + message.status)
+                Text(L("Priority") + ": " + message.priority)
+                if let channel = message.channel { Text(L("Channel") + ": " + channel) }
+                if let mode = message.mode { Text(L("Mode") + ": " + mode) }
+                ForEach(message.metadata?.files ?? [], id: \.self) { Text($0) }
+            }
+            .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
+        }
+        .font(.caption).foregroundStyle(.secondary)
+    }
+
+    private func observeDeadline() async {
+        now = .now
+        guard let deadline = message.expirationDate, deadline > now else { return }
+        do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) }
+        catch { return }
+        now = .now
     }
 }

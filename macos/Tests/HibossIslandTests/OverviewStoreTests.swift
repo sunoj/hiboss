@@ -44,6 +44,7 @@ final class OverviewStoreTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         XCTAssertEqual(store.snapshot.count(.automatic), 0)
+        XCTAssertEqual(store.snapshot.count(.completed), 1)
         XCTAssertEqual(store.snapshot.count(.all), 1)
     }
 }

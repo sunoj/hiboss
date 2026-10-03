@@ -31,7 +31,7 @@ struct OverviewContentHeader: View {
         switch destination {
         case .category(.needsYou): L("Questions that need a decision.")
         case .category(.automatic): L("The default runs when the timer ends.")
-        case .category(.waiting): L("Agents waiting for your answer.")
+        case .category(.waiting): L("Questions waiting for your answer.")
         case .category(.urgent): L("Priority questions that need your attention.")
         case .category(.all): L("Recent messages across your sessions.")
         case .category(.completed): L("Answered and expired questions.")

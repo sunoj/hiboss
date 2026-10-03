@@ -11,8 +11,9 @@ struct DashboardPanelsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(L("Panels")).font(.title2.bold())
-                Text(model.visibleTiles.count.formatted()).foregroundStyle(.secondary).monospacedDigit()
+                Text(L("Live tasks")).font(.title2.bold())
+                Text(verbatim: model.tiles.isEmpty && model.loadState != .loaded ? "—" : model.visibleTiles.count.formatted())
+                    .foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
                 if model.isLoading { ProgressView().controlSize(.small) }
             }
@@ -29,7 +30,7 @@ struct DashboardPanelsSection: View {
             }
             if !model.visibleTiles.isEmpty {
                 PanelWall(model: model)
-            } else if !model.isLoading {
+            } else if !model.isLoading && model.failureMessage == nil {
                 PanelWallEmptyState(model: model).frame(minHeight: 180)
             }
         }

@@ -1,6 +1,6 @@
-// Native History window: searchable toolbar, segmented filter, and List.
-// Exports: HistoryView as the main macOS window surface.
-// Dependencies: SwiftUI, HibossKit OptionFlowStore, HistoryRow, DesignTokens.
+// Readable session stream with inline messages, search, and shared reply drafts.
+// Exports: HistoryView with per-message expansion and no detail sheet.
+// Dependencies: SwiftUI, HibossKit, HistoryRow, and OverviewSnapshot.
 
 import HibossKit
 import SwiftUI
@@ -14,8 +14,8 @@ struct HistoryView: View {
     private var scopedMessages: [HistoryMessage] { snapshot.messages(for: scope) }
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
-    @State private var selection: HistoryMessage.ID?
-    @State private var detailMessage: HistoryMessage?
+    @State private var expandedMessages: Set<MessageID> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var unreadCount: Int {
         HistoryMessageLogic.unreadCount(in: scopedMessages)
@@ -37,14 +37,9 @@ struct HistoryView: View {
         historyContent
             .background(Color(nsColor: .windowBackgroundColor))
             .navigationTitle(snapshot.title(for: scope))
-            .onChange(of: scope) { segment = .all; searchText = ""; selection = nil }
+            .onChange(of: scope) { segment = .all; searchText = "" }
             .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
             .toolbar { historyToolbar }
-            .sheet(item: $detailMessage) { message in
-                HistoryMessageDetail(message: message, reply: reply) { choice in
-                    await flow.answer(choice, for: message.id)
-                }
-            }
             .task {
                 if flow.historyState == .idle { await flow.refreshHistory() }
             }
@@ -69,7 +64,7 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var historyContent: some View {
-        if flow.historyMessages.isEmpty, flow.historyState == .loading {
+        if scopedMessages.isEmpty, flow.historyState == .loading {
             ProgressView(L("Loading messages…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if messages.isEmpty {
@@ -84,29 +79,53 @@ struct HistoryView: View {
     }
 
     private var groupedMessageList: some View {
-        List(selection: $selection) {
-            ForEach(sessionGroups) { group in
-                Section {
-                    ForEach(group.messages) { message in
-                        HistoryRow(
-                            message: message,
-                            error: reply.errors[message.id]?.choiceText,
-                            isSubmitting: reply.submitting.contains(message.id)
-                        ) { choice in
-                            Task { await reply.send(choice, for: message.id, using: flow.answer) }
-                        }
-                        .tag(message.id)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: HistoryMessageLogic.detailClickCount) {
-                            detailMessage = message
+        ScrollViewReader { reader in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    ForEach(sessionGroups) { group in
+                        Section {
+                            ForEach(group.messages) { message in
+                                messageRow(message, reader: reader)
+                                Divider()
+                            }
+                        } header: {
+                            sessionHeader(group)
                         }
                     }
-                } header: {
-                    SessionGroupHeader(group: group, session: flow.projectSessions.first { $0.id == group.id })
                 }
+                .frame(maxWidth: 900, alignment: .leading)
+                .padding(.horizontal, 24).padding(.bottom, 24)
+                .frame(maxWidth: .infinity)
             }
+            .id(scope)
+            .accessibilityIdentifier("history.stream")
         }
-        .listStyle(.inset)
+    }
+
+    @ViewBuilder
+    private func sessionHeader(_ group: SessionGroup) -> some View {
+        if case .session = scope {
+            EmptyView()
+        } else {
+            SessionGroupHeader(group: group, session: flow.projectSessions.first { $0.id == group.id })
+                .padding(.vertical, 12)
+                .background(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+
+    private func messageRow(_ message: HistoryMessage, reader: ScrollViewProxy) -> some View {
+        HistoryRow(message: message, reply: reply, isExpanded: Binding(
+            get: { expandedMessages.contains(message.id) },
+            set: { expanded in
+                if expanded { expandedMessages.insert(message.id) }
+                else { expandedMessages.remove(message.id) }
+            }), isSearching: !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            onCollapse: {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
+                    reader.scrollTo(message.id, anchor: .top)
+                }
+            }, onChoose: { choice in await flow.answer(choice, for: message.id) })
+            .id(message.id)
     }
 
     private var emptyTitle: String {

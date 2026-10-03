@@ -19,25 +19,17 @@ struct DashboardDecisionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(L("Decisions")).font(.title2.bold())
+                Text(L("Needs You")).font(.title2.bold())
                 Text(countLabel).foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
                 if !items.isEmpty { Button(L("View all"), action: onAll) }
             }
             status
-            ForEach(Array(items.prefix(limit))) { item in
-                Button { onSelect(item) } label: {
-                    HStack(alignment: .center, spacing: 12) {
-                        AttentionRow(item: item, now: now)
-                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+            VStack(spacing: 0) {
+                ForEach(Array(items.prefix(limit))) { item in
+                    DashboardDecisionRow(item: item, now: now, onSelect: { onSelect(item) })
+                    if item.id != items.prefix(limit).last?.id { Divider() }
                 }
-                .buttonStyle(.plain)
-                .background(.background, in: RoundedRectangle(cornerRadius: 12))
-                .accessibilityIdentifier("dashboard.decision.\(item.id.rawValue)")
             }
             if items.count > limit {
                 Button(L("View all \(items.count) decisions"), action: onAll)
@@ -61,6 +53,10 @@ struct DashboardDecisionsSection: View {
             Label(L("Connect to receive agent messages."), systemImage: "antenna.radiowaves.left.and.right.slash")
                 .font(.callout).foregroundStyle(.secondary)
             Button(L("Settings"), action: onSettings)
+        } else if case .failed = connectionState {
+            Label(L("Connection interrupted. Showing recent messages."), systemImage: "wifi.slash")
+                .font(.callout).foregroundStyle(.secondary)
+            Button(L("Try again"), action: onRetry)
         } else if items.isEmpty, historyState == .loading || historyState == .idle {
             ProgressView(L("Loading…")).controlSize(.small)
         } else if items.isEmpty {

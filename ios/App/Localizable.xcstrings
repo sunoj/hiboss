@@ -19416,6 +19416,148 @@
           }
         }
       }
+    },
+    "Panel unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "面板不可用"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แผงไม่พร้อมใช้งาน"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel no disponible"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पैनल उपलब्ध नहीं है"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اللوحة غير متاحة"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Painel indisponível"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panneau indisponible"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パネルを開けません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "패널을 사용할 수 없음"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Панель недоступна"
+          }
+        }
+      }
+    },
+    "Couldn't open this panel. Showing Needs input so you can find unanswered questions or refresh.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't open this panel. Showing Needs input so you can find unanswered questions or refresh."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法打开此面板。已切换到“待回答”，你可以在这里找到未回答的问题或刷新。"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดแผงนี้ไม่ได้ กำลังแสดง “รอคำตอบ” เพื่อให้คุณค้นหาคำถามที่ยังไม่ได้ตอบหรือรีเฟรช"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo abrir este panel. Se muestra Requiere respuesta para que encuentres preguntas sin responder o actualices."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह पैनल नहीं खुल सका। “इनपुट चाहिए” दिखाया जा रहा है ताकि आप अनुत्तरित प्रश्न ढूँढ सकें या रीफ़्रेश कर सकें।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر فتح هذه اللوحة. يتم عرض «بحاجة إلى إدخال» لتتمكن من العثور على الأسئلة غير المُجاب عنها أو التحديث."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível abrir este painel. Mostrando Requer resposta para você encontrar perguntas sem resposta ou atualizar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’ouvrir ce panneau. Affichage de Réponse requise pour retrouver les questions sans réponse ou actualiser."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このパネルを開けませんでした。未回答の質問を探したり更新したりできるよう「回答待ち」を表示しています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 패널을 열 수 없습니다. 답하지 않은 질문을 찾거나 새로 고칠 수 있도록 ‘응답 필요’를 표시합니다."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось открыть панель. Показан раздел «Нужен ответ», где можно найти вопросы без ответа или обновить данные."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -11,8 +11,7 @@ struct IslandPresentation: Equatable {
 }
 
 enum IslandAttention {
-    /// Ranked attention first so the island never leads with a different item
-    /// than the window. If nothing qualifies, fall back to the live interrupt.
+    /// Share the window queue, including ordinary live questions and exact expiry.
     static func presentation(
         live: OptionMessage?,
         history: [HistoryMessage],
@@ -20,9 +19,6 @@ enum IslandAttention {
     ) -> IslandPresentation? {
         if let first = AttentionRanking.items(history: history, live: live, now: now).first {
             return IslandPresentation(message: first.asOptionMessage, item: first)
-        }
-        if let live {
-            return IslandPresentation(message: live, item: nil)
         }
         return nil
     }

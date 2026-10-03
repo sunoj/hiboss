@@ -78,10 +78,11 @@ struct OverviewSnapshot {
         case let .category(category) where category.isAttention:
             return attention.filter {
                 if category == .urgent { return $0.priorityRank < 2 }
+                if category == .waiting { return [.blocked, .question].contains($0.band(at: now)) }
                 return category.band == nil || $0.band(at: now) == category.band
             }.map(\.message)
         case .category(.completed):
-            return history.filter(Self.isCompleted)
+            return history.filter { Self.isCompleted($0, at: now) }
         default:
             return history
         }
@@ -96,10 +97,13 @@ struct OverviewSnapshot {
         }
     }
 
-    private static func isCompleted(_ message: HistoryMessage) -> Bool {
+    private static func isCompleted(_ message: HistoryMessage, at now: Date) -> Bool {
         let direction = message.direction.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let status = message.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let hasChoices = !message.options.isEmpty || message.defaultOption != nil
+        let deadlineElapsed = hasChoices && (message.expirationDate.map { $0 <= now } ?? false)
         return direction == "agent_to_boss"
-            && (["replied", "resolved", "expired"].contains(status) || message.metadata?.isExpired == true)
+            && (["replied", "resolved", "expired"].contains(status)
+                || message.metadata?.isExpired == true || deadlineElapsed)
     }
 }

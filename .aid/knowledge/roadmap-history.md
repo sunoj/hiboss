@@ -7,6 +7,15 @@ All versions through v1.0 are complete and shipped.
 
 ## Current Unreleased — Convergent Options and Native macOS Client
 
+### macOS Workspace and Inline Reading (2026-09-22)
+- Grouped navigation, searchable sessions, a decision queue,
+  and the live task wall; session messages are read inline without popup details.
+- Ordinary text is fully visible; long messages expand/collapse, and search reveals
+  matching content. Choices, images, replies, and errors stay inside each message.
+- Ordinary questions enter attention; expired priority questions leave it. Local
+  expiry does not assert that a default option executed.
+- Pure logic suite covers the new behavior; native UI appearance remains unverified.
+
 ### Native Client Layout Corrections
 - macOS Settings uses the same `Window` and `NavigationSplitView` shell as the
   main window so the sidebar toggle stays in the native title-bar position.
@@ -34,7 +43,7 @@ All versions through v1.0 are complete and shipped.
   Telegram inline keyboards.
 
 ### HiBoss Island for macOS
-- The signed native app has a main History/Settings window and fetches the latest
+- The signed native app has a main workspace and Settings window and fetches the latest
   100 Boss-visible messages without maintaining a second local database.
 - The option UI supports top-screen island and standard window presentation.
 - Closing the main window leaves the SSE listener running; reopening the app
@@ -43,8 +52,8 @@ All versions through v1.0 are complete and shipped.
   loops when hidden. Keychain reads run asynchronously after launch.
 - Device pairing reports the connected device in the original QR sheet without
   exposing the newly issued bearer token to the Mac.
-- History rows reserve double-click for opening details. The detail sheet leads
-  with the message and keeps transport/session metadata collapsed by default.
+- History rows display messages inline with selectable text. Long content expands
+  in place; transport metadata remains collapsed by default.
 
 ### Native Pairing and Notification Reliability
 - The iOS QR flow adopts the encoded server URL before redemption and includes the
