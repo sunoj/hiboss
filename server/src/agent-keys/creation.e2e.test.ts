@@ -2,7 +2,7 @@
 // Verifies credentials authenticate while the retained identity hash stays NULL.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
-import { mintTestInvite, seedDatabase, seedBossToken } from '../test-helpers';
+import { approveAndCollect, mintTestInvite, seedDatabase, seedBossToken } from '../test-helpers';
 import { approveJoinRequest } from '../routes/join-helpers';
 
 beforeAll(async () => {
@@ -32,7 +32,7 @@ async function post(path: string, body: unknown, token?: string): Promise<Respon
 it('first join and admin creation write only independent credentials', async () => {
   const response = await post('/join', joinBody('bootstrap-agent'), BOOTSTRAP_SECRET);
   expect(response.status).toBe(201);
-  const first = (await response.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
+  const first = await approveAndCollect(response);
   const bootstrap: Grant = { id: first.agent_id, key: first.key };
   inviterKey = bootstrap.key;
   await assertGrant(bootstrap);
@@ -62,9 +62,8 @@ it('first-agent join creates an independent credential without enrolment changes
   await env.DB.prepare('DELETE FROM api_keys').run();
   const response = await post('/join', joinBody('first-join'), BOOTSTRAP_SECRET);
   expect(response.status).toBe(201);
-  const body = await response.json() as { status: string; profiles: Array<{ agent_id: string; key: string }> };
-  expect(body.status).toBe('approved');
-  await assertGrant({ id: body.profiles[0].agent_id, key: body.profiles[0].key });
+  const first = await approveAndCollect(response);
+  await assertGrant({ id: first.agent_id, key: first.key });
 });
 
 function joinBody(name: string): Record<string, unknown> {

@@ -1,16 +1,11 @@
 // Creates device join requests and delivers approved keys exactly once.
 // Exports createJoinRequest, pollJoinRequest and resolveDeviceProof.
-// Depends on D1, SHA-256 hashing and the atomic approval in approve.ts.
+// Depends on D1, SHA-256 hashing and invites; approval lives in approve.ts.
 import { hashApiKey } from '../middleware/auth';
-import { approveJoin } from './approve';
 import { verificationCode, type ConsumedInvite } from './invites';
 import { parseStoredProfiles, type Delivery, type JoinPayload, type JoinRequestRow } from './types';
 
-export type CreateOutcome =
-  | { kind: 'created'; requestId: string; pollToken: string; status: 'pending' | 'approved'; delivery?: Delivery;
-      verificationCode: string | null; deviceLabel: string }
-  | { kind: 'conflict'; names: string[] }
-  | { kind: 'bootstrap_lost' };
+export interface CreatedRequest { requestId: string; pollToken: string; verificationCode: string; deviceLabel: string }
 
 /** Names among `names` that already belong to an agent. */
 export async function takenNames(db: D1Database, names: string[]): Promise<string[]> {
@@ -19,34 +14,21 @@ export async function takenNames(db: D1Database, names: string[]): Promise<strin
   return taken.results.map(r => r.name);
 }
 
-export interface JoinContext { deviceId: string | null; invite: ConsumedInvite | null; bootstrap: boolean }
+export interface JoinContext { deviceId: string | null; invite: ConsumedInvite | null }
 
-/** Rejects up front when any requested name already belongs to an agent. */
-export async function createJoinRequest(db: D1Database, payload: JoinPayload, context: JoinContext): Promise<CreateOutcome> {
-  const conflicts = await takenNames(db, payload.profiles.map(p => p.name));
-  if (conflicts.length) return { kind: 'conflict', names: conflicts };
+/** Stores a pending request; every request, including an empty server's first, waits for a boss. */
+export async function createJoinRequest(db: D1Database, payload: JoinPayload, context: JoinContext): Promise<CreatedRequest> {
   const pollToken = `jt_${randomHex(24)}`;
-  const { deviceId, invite, bootstrap } = context;
+  const { deviceId, invite } = context;
   const label = deviceId ? await deviceLabel(db, deviceId) ?? payload.device.label : payload.device.label;
-  const code = bootstrap ? null : verificationCode();
+  const code = verificationCode();
   const row = await db.prepare(`INSERT INTO join_requests (poll_token_hash, device_label, device_host, device_id, profiles,
     invite_id, inviter_label, verification_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
     .bind(await hashApiKey(pollToken), label, payload.device.host, deviceId, JSON.stringify(payload.profiles),
       invite?.id ?? null, invite?.inviterLabel ?? null, code)
     .first<{ id: string }>();
   if (!row) throw new Error('join request insert returned no row');
-  const pending = { kind: 'created' as const, requestId: row.id, pollToken, status: 'pending' as const, verificationCode: code,
-    deviceLabel: label };
-  if (!bootstrap) return pending;
-  const approved = await approveJoin(db, row.id, { type: 'system', id: 'join' }, { firstOnly: true });
-  if (!approved.ok) {
-    // Another first join won the race; this one carried no invite, so it must not stay approvable.
-    await db.prepare("UPDATE join_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND status = 'pending'")
-      .bind(row.id).run();
-    return { kind: 'bootstrap_lost' };
-  }
-  const delivered = await pollJoinRequest(db, pollToken);
-  return { ...pending, status: 'approved', delivery: delivered?.delivery };
+  return { requestId: row.id, pollToken, verificationCode: code, deviceLabel: label };
 }
 
 export interface PollResult {

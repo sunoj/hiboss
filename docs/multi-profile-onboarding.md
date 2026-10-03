@@ -118,11 +118,13 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   to an agent. A name held only by another pending request is caught at approval: 409, and
   nothing is created. The CLI prints the 409 immediately. Without a live invite (when one is
   required) the 403 comes before the name check, so names cannot be probed.
-- Bootstrap (no agents yet) requires a configured `BOOTSTRAP_SECRET` and a matching
-  `X-Bootstrap-Secret`. Without a configured secret the first join gets a 403. A join that
-  loses the empty-server race is rejected, not left pending. The CLI sends the secret from
+- Nothing skips approval. On an empty server (no agents yet), a configured `BOOTSTRAP_SECRET`
+  and a matching `X-Bootstrap-Secret` stand in for an invite; without a configured secret the
+  join gets a 403. The request is still pending until a boss approves it, so the first boss
+  comes from `POST /api/bootstrap/boss` and pairing. The CLI sends the secret from
   `--bootstrap-secret` or `HIBOSS_BOOTSTRAP_SECRET`.
-- Approval creates every profile's agent atomically under one new `device_id`.
+- Approval creates every profile's agent atomically under one new `device_id`. The join
+  response itself is always `pending`.
 - `GET /api/join/status` returns
   `{status, device_id, profiles: [{profile, name, agent_id, key}]}`. The keys are delivered once.
 - Adding a profile to an existing device: `POST /api/join` with an `X-Device-Proof` header

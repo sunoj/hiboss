@@ -4,6 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { hashApiKey } from './middleware/auth';
+import { approveJoin } from './devices/approve';
 import targetMigration from '../migrations/0041_destination_targets_external_accounts.sql?raw';
 import credentialMigration from '../migrations/0042_provider_credentials.sql?raw';
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
@@ -150,4 +151,14 @@ export async function mintTestInvite(agentKey: string = TEST_API_KEY): Promise<s
   });
   if (response.status !== 201) throw new Error(`invite mint failed: ${response.status}`);
   return (await response.json() as { invite: string }).invite;
+}
+
+/** Approves a pending join as the system and returns the first delivered profile credential. */
+export async function approveAndCollect(join: Response): Promise<{ agent_id: string; key: string }> {
+  const { request_id, poll_token, status } = await join.json() as { request_id: string; poll_token: string; status: string };
+  if (status !== 'pending') throw new Error(`expected a pending join, got ${status}`);
+  const approved = await approveJoin(env.DB, request_id, { type: 'system', id: 'test' });
+  if (!approved.ok) throw new Error(approved.error);
+  const poll = await SELF.fetch(`https://test.local/api/join/status?token=${poll_token}`);
+  return (await poll.json() as { profiles: Array<{ agent_id: string; key: string }> }).profiles[0];
 }

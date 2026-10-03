@@ -5,7 +5,6 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
 import { joinRequestPayload } from './notify-push';
-import { createJoinRequest } from './enroll';
 
 const BASE = 'https://test.local';
 const ADMIN = 'devices-admin-token';
@@ -105,14 +104,6 @@ describe('device enrolment', () => {
     expect((await join({ ...request('dev-e3', { claude: 'dev-e3-claude' }), invite: stale })).status).toBe(403);
     const anonymous = await SELF.fetch(`${BASE}/api/devices/invites`, { method: 'POST' });
     expect(anonymous.status).toBe(401);
-  });
-
-  it('rejects a first join that loses the empty-server race instead of leaving it approvable', async () => {
-    const payload = { device: { label: 'dev-race', host: null }, profiles: [{ profile: 'claude', name: 'dev-race-claude' }], invite: null };
-    const lost = await createJoinRequest(env.DB, payload, { deviceId: null, invite: null, bootstrap: true });
-    expect(lost).toEqual({ kind: 'bootstrap_lost' });
-    expect(await env.DB.prepare("SELECT status FROM join_requests WHERE device_label = 'dev-race'").first('status')).toBe('rejected');
-    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM api_keys WHERE name = 'dev-race-claude'").first('n')).toBe(0);
   });
 
   it('builds a join push that names the device, profiles, inviter and code', () => {

@@ -1,7 +1,7 @@
 // Security regressions for foreign-session streams, active attachments, and bootstrap.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { authHeaders, mintTestInvite, seedDatabase } from '../test-helpers';
+import { approveAndCollect, authHeaders, mintTestInvite, seedDatabase } from '../test-helpers';
 import { createAgent } from '../agent-keys';
 import { buildStreamQuery } from './stream';
 
@@ -96,9 +96,7 @@ describe('Security review 2026-09-23 regressions', () => {
           ? 'Bearer review-bootstrap-secret' : 'review-bootstrap-secret' },
       });
       expect(join.status).toBe(201);
-      const joined = await join.json() as { status: string; profiles: Array<{ key: string; agent_id: string }> };
-      const grant = { status: joined.status, ...joined.profiles[0] };
-      expect(grant.status).toBe('approved');
+      const grant = await approveAndCollect(join);
       const profile = await SELF.fetch(`${base}/api/agents/me`, {
         headers: { Authorization: `Bearer ${grant.key}` },
       });

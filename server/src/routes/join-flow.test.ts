@@ -4,7 +4,7 @@
 
 import { env, SELF } from 'cloudflare:test';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { getTestAgentId, mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
+import { approveAndCollect, getTestAgentId, mintTestInvite, seedBossToken, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
 
 const JOIN_BASE = 'https://test.local/api/join';
@@ -168,7 +168,7 @@ describe('Join flow', () => {
     expect(await env.DB.prepare('SELECT status FROM join_requests WHERE id = ?').bind(join.request_id).first('status')).toBe('pending');
   });
 
-  it('auto-approves the first agent bootstrap request when no API keys exist', async () => {
+  it('keeps the first join of an empty server pending until a boss approves it', async () => {
     await env.DB.prepare('DELETE FROM channel_configs').run();
     await env.DB.prepare('DELETE FROM boss_agent_access').run();
     await env.DB.prepare('DELETE FROM api_keys').run();
@@ -181,15 +181,17 @@ describe('Join flow', () => {
     env.BOOTSTRAP_SECRET = '';
     const unconfigured = await firstJoin({});
     env.BOOTSTRAP_SECRET = 'join-flow-bootstrap-secret';
+    const wrong = await firstJoin({ 'X-Bootstrap-Secret': 'wrong' });
     const res = await firstJoin({ 'X-Bootstrap-Secret': 'join-flow-bootstrap-secret' });
     env.BOOTSTRAP_SECRET = previous;
 
     expect(unconfigured.status).toBe(403);
+    expect(wrong.status).toBe(401);
     expect(res.status).toBe(201);
-    expect(await res.json()).toMatchObject({
-      status: 'approved',
-      profiles: [expect.objectContaining({ key: expect.stringMatching(/^hb_/), agent_id: expect.any(String) })],
-    });
+    expect(await res.clone().json()).toMatchObject({ status: 'pending', verification_code: expect.stringMatching(/^[0-9]{6}$/) });
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM api_keys').first('n')).toBe(0);
+    const grant = await approveAndCollect(res);
+    expect(grant.key).toMatch(/^hb_/);
 
     await restoreDefaultAgent();
   });

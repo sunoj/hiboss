@@ -9,7 +9,7 @@ export type ApproveOutcome =
   | { ok: true; deviceId: string; agents: Array<{ profile: string; name: string; agent_id: string }> }
   | { ok: false; status: 404 | 409; error: string };
 
-export interface ApproveOptions { approverBossId?: string; firstOnly?: boolean }
+export interface ApproveOptions { approverBossId?: string }
 
 interface PreparedAgent extends DeliveredProfile { keyId: string; keyStatement: D1PreparedStatement }
 
@@ -34,8 +34,7 @@ export async function approveJoin(db: D1Database, requestId: string, actor: KeyA
   const deliveryJson = JSON.stringify(delivery);
   const statements = [
     db.prepare(`UPDATE join_requests SET status = 'approved', delivery = ?, updated_at = datetime('now')
-      WHERE id = ? AND status = 'pending' AND (? = 0 OR NOT EXISTS (SELECT 1 FROM api_keys))`)
-      .bind(deliveryJson, requestId, Number(options.firstOnly ?? false)),
+      WHERE id = ? AND status = 'pending'`).bind(deliveryJson, requestId),
     ...(row.device_id ? [] : [db.prepare(`INSERT INTO devices (id, label, host) SELECT ?, ?, ? WHERE ${CLAIMED}`)
       .bind(deviceId, row.device_label, row.device_host, requestId, deliveryJson)]),
     db.prepare('UPDATE join_requests SET device_id = ? WHERE id = ? AND delivery = ?').bind(deviceId, requestId, deliveryJson),
