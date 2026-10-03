@@ -9,12 +9,15 @@ import { PanelFault } from '../lifecycle/types';
 import { ACTIVE_PANEL, requireOpen, requestResponse, requestRow } from './repository';
 import type { Questionnaire, RequestRow } from './types';
 
-export async function publishRequest(db: D1Database, panelId: string, agent: string, key: string, form: Questionnaire): Promise<Record<string, unknown>> {
+interface PublicationReceipt { requestId: string; requestRevision: number }
+export interface RequestPublication { receipt: PublicationReceipt; fresh: boolean }
+
+export async function publishRequest(db: D1Database, panelId: string, agent: string, key: string, form: Questionnaire): Promise<RequestPublication> {
   if (!key || key.length > 128) throw new PanelFault('idempotency_key_required', 400);
   await authorize(db, await readRecord(db, panelId), agent, 'producer');
   const hash = await bodyHash(form);
   const prior = await publicationReceipt(db, panelId, key, hash);
-  if (prior) return prior;
+  if (prior) return { receipt: prior, fresh: false };
   if (form.expiresAt && Date.parse(form.expiresAt) <= Date.now()) throw new PanelFault('invalid_expiry', 422);
   const id = crypto.randomUUID(), now = new Date().toISOString();
   try {
@@ -27,10 +30,10 @@ export async function publishRequest(db: D1Database, panelId: string, agent: str
       db.prepare('INSERT INTO interaction_revisions SELECT ?, 1, ? WHERE EXISTS (SELECT 1 FROM interaction_requests WHERE request_id = ?)').bind(id, JSON.stringify(form), id),
     ]);
     if (result[0].meta.changes !== 1) throw new PanelFault('panel_ended');
-  } catch (error) { const raced = await publicationReceipt(db, panelId, key, hash); if (raced) return raced; throw error; }
-  return { requestId: id, requestRevision: 1 };
+  } catch (error) { const raced = await publicationReceipt(db, panelId, key, hash); if (raced) return { receipt: raced, fresh: false }; throw error; }
+  return { receipt: { requestId: id, requestRevision: 1 }, fresh: true };
 }
-async function publicationReceipt(db: D1Database, panelId: string, key: string, hash: string): Promise<Record<string, unknown> | null> {
+async function publicationReceipt(db: D1Database, panelId: string, key: string, hash: string): Promise<PublicationReceipt | null> {
   const prior = await db.prepare('SELECT * FROM interaction_requests WHERE panel_id = ? AND idempotency_key = ?').bind(panelId, key).first<RequestRow>();
   if (!prior) return null;
   if (prior.request_hash !== hash) throw new PanelFault('idempotency_conflict');

@@ -5,6 +5,7 @@
 import { Hono } from 'hono';
 import { dualAuth, getAgentId, getBossId, getBossName, getBossRole, getBossTokenId, isBossAuth } from '../../middleware/auth';
 import type { Env } from '../../types';
+import { notifyBossRequest } from '../../notify';
 import { isRecord, type PanelContext } from '../definition/helpers';
 import { authorize, readRecord } from '../lifecycle/repository';
 import { faultResponse, PanelFault } from '../lifecycle/types';
@@ -51,9 +52,11 @@ interactionRequestsRouter.get('/', route(async c => c.json(await pendingRequests
 
 panelRequestsRouter.post('/:id/requests', route(async c => {
   const agent = owner(c);
-  const result = await publishRequest(c.env.DB, c.req.param('id')!, agent, c.req.header('Idempotency-Key') ?? '', parseQuestionnaire(await body(c)));
-  await notifyRequestWall(c.env, c.req.param('id')!);
-  return c.json(result, 201);
+  const panelId = c.req.param('id')!, form = parseQuestionnaire(await body(c));
+  const result = await publishRequest(c.env.DB, panelId, agent, c.req.header('Idempotency-Key') ?? '', form);
+  await notifyRequestWall(c.env, panelId);
+  if (result.fresh && form.blocking) c.executionCtx.waitUntil(notifyBossRequest(c.env, panelId, result.receipt.requestId, form));
+  return c.json(result.receipt, 201);
 }));
 panelRequestsRouter.get('/:id/requests', route(async c => {
   const panelId = c.req.param('id')!;

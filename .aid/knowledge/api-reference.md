@@ -316,6 +316,8 @@ counts sessions seen in the last 15 minutes.
 Registers an iOS device's APNs token for push. Body:
 `{ "token": "<apns-hex>", "bundleId": "ai.hiboss.app", "environment": "sandbox"|"production", "platform": "ios" }`.
 Upserts by device token for the authenticated boss. Returns `{ "ok": true }`.
+Fresh blocking `POST /api/panels/:id/requests` publications send `HIBOSS_REQUEST` to the panel's target boss devices; retries, replace/withdraw, optional requests, `deliver:false`, and `DESTINATIONS_MODE=on` are silent.
+See the [questionnaire push contract](../../docs/live-panels/questionnaires.md#publication-push-contract) for payload, privacy, decision tiers, and best-effort delivery rules.
 
 ### DELETE /api/boss/devices/:token
 Unregisters a device token for the authenticated boss.

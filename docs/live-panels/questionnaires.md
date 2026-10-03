@@ -36,6 +36,33 @@ an accepted questionnaire is forbidden. Publish a new request for corrections.
 Reusing a publication key returns the original request ID; different content with
 that key is a conflict. Reusing a submission ID requires identical semantic content.
 
+## Publication push contract
+
+A fresh blocking publication schedules one best-effort APNs send per device of the
+panel's `target_boss_id`. Only an INSERT reporting `changes === 1` is fresh. The
+route schedules delivery with `executionCtx.waitUntil`; push failures cannot fail
+publication. Idempotent retries (including racing inserts), replacements,
+withdrawals, and `blocking: false` never push. Missing APNs configuration is silent.
+Invalid tokens and their APNs destinations are pruned through the shared device path.
+
+Both `aps.category` and top-level `category` are `HIBOSS_REQUEST`. The alert title
+is `<agentName> needs input`, subtitle is the panel title (omitted if unknown),
+and body is the questionnaire title, or `Needs input` in private-push mode.
+`aps.thread-id` is the target boss ID. Top-level fields are `panelId`, `requestId`,
+`agentName`, and the questionnaire's `priority`; there is no `messageId`.
+Clients should open the panel detail for this category, never the inbox.
+
+Questionnaires reuse the message decision tier defaults: audible active delivery
+at APNs priority 10, or time-sensitive for critical priority. `decision_alerts: false`
+uses status tier defaults. Per-priority `push` preferences override `deliver`,
+`sound`, and `level`, including `deliver: false`; sound and level determine APNs
+priority. Existing message push behavior is unchanged.
+
+As with existing direct boss-device pushes, `DESTINATIONS_MODE=on` suppresses this
+path to avoid duplicate delivery. Off and shadow modes allow it. The destination
+dispatcher currently handles messages only; questionnaire delivery in on mode is
+not implemented by this change. Publication retries do not retry failed pushes.
+
 ## Definition and answer contract
 
 The publication contains `kind: "intake"`, title, blocking flag, priority, catalog
@@ -127,7 +154,7 @@ insertion failure. The CLI runner applies real migrations and tests five flows:
 publication/retry, pending timeout, revision/readback, accepted answer/retry/ack,
 and withdrawal. It writes logs under `output/questionnaire-e2e` on the execution host.
 
-Shared attention/inbox ranking, discovery push, automatic agent callbacks, execution
+Shared attention/inbox ranking, automatic agent callbacks, execution
 authorization forms, multi-step forms, and Live Activity projections remain outside
 this slice. Native builds verify compilation; physical-device interaction, offline
 recovery, accessibility, and Secure Enclave UI flows still need device verification.

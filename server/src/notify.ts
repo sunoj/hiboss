@@ -1,5 +1,5 @@
 // Best-effort webhook notification to agent callback URLs.
-// Exports notifyAgentCallback and notifyBossAgents for push delivery.
+// Exports agent callbacks and boss message/questionnaire push delivery.
 // Depends on D1 for callback lookup and global fetch for delivery.
 
 import {
@@ -7,8 +7,10 @@ import {
   sendPush,
   type ApnsEnvironment,
 } from './apns';
-import { prepareBossPush, type BossPushSession } from './push/boss-payload';
+import { prepareBossPush, type BossPushSession, type PreparedBossPush } from './push/boss-payload';
 import { deleteBossDevice } from './push/devices';
+import { prepareRequestPush } from './push/request-payload';
+import type { Questionnaire } from './panels/requests/types';
 import type { Env, MessageRow } from './types';
 
 interface BossRecipientRow {
@@ -99,21 +101,44 @@ async function notifyBossDevices(
     const prefs = preferencesByBoss.get(device.boss_id);
     const prepared = prepareBossPush(message, agentName, session, device.boss_id, prefs);
     if (!prepared) continue;
-    try {
-      const result = await sendPush(
-        env,
-        device.device_token,
-        device.environment,
-        device.bundle_id,
-        prepared.payload,
-        prepared.apnsPriority,
-      );
-      if (result.prune) {
-        await deleteBossDevice(env, device.boss_id, device.device_token);
-      }
-    } catch {
-      // Best-effort per device.
+    await sendBossDevicePush(env, device, prepared);
+  }
+}
+
+export async function notifyBossRequest(env: Env, panelId: string, requestId: string, form: Questionnaire): Promise<void> {
+  if (!form.blocking || env.DESTINATIONS_MODE === 'on' || !hasApnsConfig(env)) return;
+  try {
+    const panel = await env.DB.prepare(`SELECT p.target_boss_id, p.agent_id, p.title, b.preferences
+      FROM panels p JOIN bosses b ON b.id = p.target_boss_id WHERE p.panel_id = ?`).bind(panelId)
+      .first<{ target_boss_id: string; agent_id: string; title: string | null; preferences: string | null }>();
+    if (!panel) return;
+    const agentName = await fetchAgentName(env, panel.agent_id) ?? 'HiBoss';
+    const prepared = prepareRequestPush({ panelId, requestId, bossId: panel.target_boss_id, agentName,
+      panelTitle: panel.title, title: form.title, priority: form.priority }, panel.preferences);
+    if (!prepared) return;
+    const devices = await env.DB.prepare('SELECT boss_id, device_token, bundle_id, environment FROM boss_devices WHERE boss_id = ?')
+      .bind(panel.target_boss_id).all<BossDeviceRow>();
+    for (const device of devices.results ?? []) await sendBossDevicePush(env, device, prepared);
+  } catch {
+    // Best-effort: publication remains successful even if push preparation fails.
+  }
+}
+
+async function sendBossDevicePush(env: Env, device: BossDeviceRow, prepared: PreparedBossPush): Promise<void> {
+  try {
+    const result = await sendPush(
+      env,
+      device.device_token,
+      device.environment,
+      device.bundle_id,
+      prepared.payload,
+      prepared.apnsPriority,
+    );
+    if (result.prune) {
+      await deleteBossDevice(env, device.boss_id, device.device_token);
     }
+  } catch {
+    // Best-effort per device.
   }
 }
 

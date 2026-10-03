@@ -1,5 +1,5 @@
 // Builds boss APNs payloads and applies per-boss delivery preferences.
-// Exports: prepareBossPush and its session/result contracts.
+// Exports: message preparation, decision tiers, privacy, and session/result contracts.
 // Dependencies: message snapshots, APNs delivery types, and message priorities.
 
 import type {
@@ -131,12 +131,21 @@ function extractOptions(metadata: string | null): string[] | undefined {
   }
 }
 
-function isPrivatePush(preferences: string | null | undefined): boolean {
+export function isPrivatePush(preferences: string | null | undefined): boolean {
   return readPreferences(preferences)?.private_push === true;
 }
 
 function decisionAlertsEnabled(preferences: string | null | undefined): boolean {
   return readPreferences(preferences)?.decision_alerts !== false;
+}
+
+export function decisionPushTier(priority: Priority, preferences: string | null | undefined): PushTier {
+  const base = pushTier(priority, decisionAlertsEnabled(preferences), preferences);
+  const override = statusPushOverride(priority, preferences);
+  if (!override) return base;
+  const sound = override.sound ?? base.sound;
+  const level = normalizeInterruptionLevel(override.level ?? base.level);
+  return { deliver: override.deliver ?? base.deliver, sound, level, apnsPriority: apnsPriorityFor(sound, level) };
 }
 
 function readPreferences(preferences: string | null | undefined): Record<string, unknown> | null {
