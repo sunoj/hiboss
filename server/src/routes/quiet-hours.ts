@@ -86,7 +86,7 @@ export async function getAgentQuietHoursEnd(
          COALESCE(json_extract(preferences, '$.quiet_hours.timezone'), json_extract(preferences, '$.timezone')) AS timezone,
          json_extract(preferences, '$.quiet_hours.enabled') AS enabled
        FROM bosses
-       WHERE preferences IS NOT NULL
+       WHERE archived_at IS NULL AND preferences IS NOT NULL
          AND (
            role = 'admin'
            OR agent_id = ?

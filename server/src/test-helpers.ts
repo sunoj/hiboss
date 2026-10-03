@@ -10,6 +10,7 @@ import credentialMigration from '../migrations/0042_provider_credentials.sql?raw
 import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
 import projectSurfacesMigration from '../migrations/0044_project_surfaces.sql?raw';
+import bossArchiveMigration from '../migrations/0047_boss_archive.sql?raw';
 import agentKeysMigration from '../migrations/0045_agent_keys.sql?raw';
 import devicesMigration from '../migrations/0046_devices.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
@@ -106,6 +107,7 @@ export async function seedDatabase(): Promise<void> {
   await env.DB.batch(statements.map(sql => env.DB.prepare(sql)));
   const deviceStatements = devicesMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(deviceStatements.map(sql => env.DB.prepare(sql)));
+  await env.DB.prepare(bossArchiveMigration).run();
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)

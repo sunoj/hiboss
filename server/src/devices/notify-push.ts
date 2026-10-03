@@ -39,7 +39,7 @@ export function joinRequestPayload(notice: JoinNotice): ApnsPayload {
 export async function pushJoinRequest(env: Env, notice: JoinNotice): Promise<void> {
   if (!hasApnsConfig(env)) return;
   const devices = await env.DB.prepare(`SELECT d.boss_id, d.device_token, d.bundle_id, d.environment FROM boss_devices d
-    JOIN bosses b ON b.id = d.boss_id WHERE b.role = 'admin'`)
+    JOIN bosses b ON b.id = d.boss_id WHERE b.role = 'admin' AND b.archived_at IS NULL`)
     .all<{ boss_id: string; device_token: string; bundle_id: string; environment: ApnsEnvironment }>();
   const payload = joinRequestPayload(notice);
   for (const device of devices.results ?? []) {

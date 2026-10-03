@@ -11,6 +11,10 @@ pub struct BossArgs {
 pub enum BossCommand {
     List,
     Remove(BossRemoveArgs),
+    /// Disable a boss while preserving all history
+    Archive(BossShowArgs),
+    /// Re-enable an archived boss
+    Restore(BossShowArgs),
     Update(BossUpdateArgs),
     Grant(BossGrantArgs),
     Revoke(BossRevokeArgs),

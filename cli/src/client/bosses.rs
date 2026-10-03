@@ -45,6 +45,16 @@ impl HiBossClient {
             .await?;
         Self::parse_response(resp).await
     }
+    pub async fn archive_boss(&self, id: &str) -> Result<Value, Box<dyn Error>> {
+        let response = self.http.post(format!("{}/api/bosses/{}/archive", self.base_url, id))
+            .bearer_auth(&self.api_key).send().await?;
+        Self::parse_response(response).await
+    }
+    pub async fn restore_boss(&self, id: &str) -> Result<Value, Box<dyn Error>> {
+        let response = self.http.post(format!("{}/api/bosses/{}/restore", self.base_url, id))
+            .bearer_auth(&self.api_key).send().await?;
+        Self::parse_response(response).await
+    }
     pub async fn delete_boss(&self, id: &str) -> Result<(), Box<dyn Error>> {
         let resp = self
             .http

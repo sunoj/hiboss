@@ -51,7 +51,7 @@ function safeParse(value: string | null | undefined): Record<string, unknown> | 
 routes.get('/me', async (c) => {
   const bossId = getBossId(c);
   const boss = await c.env.DB
-    .prepare('SELECT id, name, role, telegram_user_id, discord_user_id, agent_id, preferences, created_at FROM bosses WHERE id = ?')
+    .prepare('SELECT id, name, role, telegram_user_id, discord_user_id, agent_id, preferences, created_at FROM bosses WHERE id = ? AND archived_at IS NULL')
     .bind(bossId)
     .first<Record<string, unknown>>();
   if (!boss) return c.text('not found', 404);
@@ -76,7 +76,7 @@ routes.get('/home', async (c) => {
 /** GET /api/boss/me/preferences — get boss preferences */
 routes.get('/me/preferences', async (c) => {
   const bossId = getBossId(c);
-  const row = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ?').bind(bossId).first<{ preferences: string | null }>();
+  const row = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ? AND archived_at IS NULL').bind(bossId).first<{ preferences: string | null }>();
   if (!row) return c.text('not found', 404);
   return c.json(safeParse(row.preferences) ?? {});
 });
@@ -85,7 +85,7 @@ routes.get('/me/preferences', async (c) => {
 routes.put('/me/preferences', async (c) => {
   const bossId = getBossId(c);
   const payload = await c.req.json<Record<string, unknown>>();
-  const existing = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ?').bind(bossId).first<{ preferences: string | null }>();
+  const existing = await c.env.DB.prepare('SELECT preferences FROM bosses WHERE id = ? AND archived_at IS NULL').bind(bossId).first<{ preferences: string | null }>();
   if (!existing) return c.text('not found', 404);
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return c.text('preferences must be an object', 400);
   const error = validatePreferences(payload);

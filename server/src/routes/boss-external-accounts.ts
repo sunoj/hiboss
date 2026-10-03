@@ -30,7 +30,9 @@ function accountRouter(admin: boolean): Hono<{ Bindings: Env }> {
     if (c.req.method !== 'GET' && getBossRole(c) === 'viewer') return c.json({ error: 'viewer is read-only' }, 403);
     const bossId = admin ? c.req.param('bossId') : getBossId(c);
     if (!bossId) return next();
-    if (!await c.env.DB.prepare('SELECT id FROM bosses WHERE id = ?').bind(bossId).first()) return c.json({ error: 'boss not found' }, 404);
+    const boss = await c.env.DB.prepare('SELECT archived_at FROM bosses WHERE id = ?').bind(bossId).first<{ archived_at: string | null }>();
+    if (!boss) return c.json({ error: 'boss not found' }, 404);
+    if (c.req.method !== 'GET' && boss.archived_at !== null) return c.json({ error: 'boss is archived' }, 409);
     await next();
   };
   router.use(base, authorize);

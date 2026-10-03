@@ -159,7 +159,7 @@ function findBoss(db: D1Database, keyHash: string) {
   return db.prepare(`SELECT b.id, b.name, b.role, bt.id AS token_id,
     bt.client_id, bc.last_seen_at FROM boss_tokens bt JOIN bosses b ON b.id = bt.boss_id
     LEFT JOIN boss_clients bc ON bc.id = bt.client_id
-    WHERE bt.token_hash = ? AND bt.revoked_at IS NULL AND bc.revoked_at IS NULL`)
+    WHERE b.archived_at IS NULL AND bt.token_hash = ? AND bt.revoked_at IS NULL AND bc.revoked_at IS NULL`)
     .bind(keyHash).first<{ id: string; name: string; role: string; token_id: string;
       client_id: ClientId | null; last_seen_at: string | null }>();
 }

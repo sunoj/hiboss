@@ -27,7 +27,7 @@ export async function resolveDestinations(env: Env, message: DestinationMessage,
     FROM boss_destinations d JOIN bosses b ON b.id = d.boss_id
     LEFT JOIN channel_providers p ON p.id = d.provider_id
     LEFT JOIN boss_clients c ON c.id = d.client_id
-    WHERE d.enabled = 1 AND (d.client_id IS NULL OR (c.revoked_at IS NULL AND c.boss_id = d.boss_id))
+    WHERE b.archived_at IS NULL AND d.enabled = 1 AND (d.client_id IS NULL OR (c.revoked_at IS NULL AND c.boss_id = d.boss_id))
     AND (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?))
     AND (d.kind != 'apns' OR EXISTS (SELECT 1 FROM boss_devices dev
       WHERE dev.id = json_extract(d.target, '$.device_id') AND dev.boss_id = d.boss_id

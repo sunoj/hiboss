@@ -49,7 +49,7 @@ async function persistAnswer(db: D1Database, row: RequestRow, actor: Submitter, 
     db.prepare(`UPDATE interaction_requests SET state = 'accepted', submission_id = ? WHERE request_id = ? AND revision = ? AND state = 'open'
       AND (expires_at IS NULL OR julianday(expires_at) > julianday('now')) AND EXISTS (${ACTIVE_PANEL})
       AND EXISTS (SELECT 1 FROM panels p JOIN bosses b ON b.id = p.target_boss_id JOIN boss_tokens t ON t.boss_id = b.id
-        WHERE p.panel_id = interaction_requests.panel_id AND b.id = ? AND b.role IN ('admin', 'manager') AND t.id = ? AND t.revoked_at IS NULL)`)
+        WHERE p.panel_id = interaction_requests.panel_id AND b.id = ? AND b.archived_at IS NULL AND b.role IN ('admin', 'manager') AND t.id = ? AND t.revoked_at IS NULL)`)
       .bind(input.submissionId, row.request_id, input.requestRevision, actor.bossId, actor.tokenId),
     db.prepare(`INSERT INTO interaction_submissions SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (${guard})`)
       .bind(input.submissionId, row.request_id, input.requestRevision, actor.bossId, hash, JSON.stringify(input.answers), JSON.stringify(provenance), now, row.request_id, input.submissionId),

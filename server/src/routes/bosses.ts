@@ -8,6 +8,7 @@ import type { Env } from '../types';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { identityConflict } from './boss-external-accounts';
+import { archiveBoss, restoreBoss } from './boss-archive';
 import { buildBossUpdate } from './boss-updates';
 import { issueBossToken } from '../boss-token';
 import { inFlightDeliveryGuard, isDeliveryInProgressError, preserveMergedDeliveries } from '../delivery/delete-destination';
@@ -23,6 +24,7 @@ export interface BossRow {
   agent_id: string | null;
   preferences: string | null;
   created_at: string;
+  archived_at: string | null;
 }
 
 interface AgentRow {
@@ -50,6 +52,19 @@ function safeParse(value: string | null): Record<string, unknown> | null {
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', bossAuth);
+routes.use('*', async (c, next) => {
+  const path = c.req.path.replace(/^\/api\/bosses\/?/, '').split('/');
+  const [id, action] = path;
+  if (!id || c.req.method === 'GET' || action === 'restore' || action === 'archive'
+    || (c.req.method === 'DELETE' && path.length === 1)) return next();
+  const denied = requireAdmin(c);
+  if (denied) return denied;
+  const boss = await findBoss(c.env, id);
+  if (boss?.archived_at != null) return c.text('boss is archived', 409);
+  await next();
+});
+routes.post('/:id/archive', archiveBoss);
+routes.post('/:id/restore', restoreBoss);
 
 routes.get('/', async (c) => {
   const rows = await c.env.DB
@@ -66,6 +81,7 @@ routes.get('/', async (c) => {
     agent_id: row.agent_id,
     preferences: safeParse(row.preferences),
     created_at: row.created_at,
+    archived_at: row.archived_at,
     agent_ids: row.agent_ids ? row.agent_ids.split(',').filter(Boolean) : [],
   }));
   return c.json({ bosses });

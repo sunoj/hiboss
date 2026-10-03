@@ -62,7 +62,7 @@ export async function notifyBossAgents(env: Env, subAgentId: string, message: Me
     const rows = await env.DB
       .prepare(
         `SELECT b.id, b.agent_id, b.preferences FROM bosses b
-         WHERE (
+         WHERE b.archived_at IS NULL AND (
            b.role = 'admin'
            OR b.id IN (SELECT boss_id FROM boss_agent_access WHERE agent_id = ?)
          )`
@@ -109,7 +109,7 @@ export async function notifyBossRequest(env: Env, panelId: string, requestId: st
   if (!form.blocking || env.DESTINATIONS_MODE === 'on' || !hasApnsConfig(env)) return;
   try {
     const panel = await env.DB.prepare(`SELECT p.target_boss_id, p.agent_id, p.title, b.preferences
-      FROM panels p JOIN bosses b ON b.id = p.target_boss_id WHERE p.panel_id = ?`).bind(panelId)
+      FROM panels p JOIN bosses b ON b.id = p.target_boss_id WHERE p.panel_id = ? AND b.archived_at IS NULL`).bind(panelId)
       .first<{ target_boss_id: string; agent_id: string; title: string | null; preferences: string | null }>();
     if (!panel) return;
     const agentName = await fetchAgentName(env, panel.agent_id) ?? 'HiBoss';

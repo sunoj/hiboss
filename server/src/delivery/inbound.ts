@@ -18,7 +18,7 @@ export async function findInboundRoute(env: Env, channel: 'telegram' | 'discord'
     JOIN channel_providers p ON p.id = d.provider_id
     LEFT JOIN destination_routes r ON r.destination_id = d.id
       AND r.external_thread_id = COALESCE(?, ?)
-    WHERE d.enabled = 1 AND p.provider = ?
+    WHERE b.archived_at IS NULL AND d.enabled = 1 AND p.provider = ?
     AND (CAST(COALESCE(json_extract(d.target, '$.chat_id'), json_extract(d.target, '$.channel_id')) AS TEXT) = ?
       OR (? = 'discord' AND r.external_thread_id = ?))
     AND (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = i.target_agent_id))

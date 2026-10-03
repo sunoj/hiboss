@@ -24,7 +24,7 @@ routes.use('*', apiAuth);
 /** Resolve the boss record for the current agent. */
 async function findBossByAgentId(env: Env, agentId: string): Promise<BossRecord | null> {
   return env.DB
-    .prepare('SELECT id, name, role FROM bosses WHERE agent_id = ?')
+    .prepare('SELECT id, name, role FROM bosses WHERE agent_id = ? AND archived_at IS NULL')
     .bind(agentId)
     .first<BossRecord>();
 }

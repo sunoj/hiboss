@@ -13,7 +13,7 @@ export interface ResolvedBoss {
 
 export async function resolvedBosses(db: D1Database, agentId: string): Promise<ResolvedBoss[]> {
   const rows = await db.prepare(`SELECT b.id, b.name, b.role FROM bosses b
-    WHERE b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?)
+    WHERE b.archived_at IS NULL AND (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?))
     ORDER BY (b.role = 'admin') DESC, b.id`).bind(agentId).all<ResolvedBoss>();
   return rows.results ?? [];
 }
@@ -25,7 +25,7 @@ export function defaultBossId(rows: readonly ResolvedBoss[]): string | null {
 }
 
 export async function bossCanAccessAgent(db: D1Database, bossId: string, agentId: string): Promise<boolean> {
-  const row = await db.prepare(`SELECT 1 FROM bosses b WHERE b.id = ? AND
+  const row = await db.prepare(`SELECT 1 FROM bosses b WHERE b.id = ? AND b.archived_at IS NULL AND
     (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access a WHERE a.boss_id = b.id AND a.agent_id = ?))`)
     .bind(bossId, agentId).first();
   return row !== null;
@@ -39,7 +39,7 @@ export function bossPanelScope(c: Context<{ Bindings: Env }>): { sql: string; bi
 
 // Keep mutation-time permission checks aligned with preflight authorization.
 export function panelTargetAccessSql(table: 'p' | 'panels'): string {
-  return `EXISTS (SELECT 1 FROM bosses b WHERE b.id = ${table}.target_boss_id AND
+  return `EXISTS (SELECT 1 FROM bosses b WHERE b.id = ${table}.target_boss_id AND b.archived_at IS NULL AND
     (b.role = 'admin' OR EXISTS (SELECT 1 FROM boss_agent_access ba
       WHERE ba.boss_id = b.id AND ba.agent_id = ${table}.agent_id)))`;
 }

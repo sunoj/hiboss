@@ -22,7 +22,7 @@ export async function authorize(db: D1Database, row: PanelRecord, identity: stri
   const boss = role === 'producer' ? row.target_boss_id : identity;
   if (agent !== row.agent_id) throw new PanelFault('not_found', 404);
   if (boss !== row.target_boss_id) {
-    const admin = await db.prepare("SELECT 1 FROM bosses WHERE id = ? AND role = 'admin'").bind(boss).first();
+    const admin = await db.prepare("SELECT 1 FROM bosses WHERE id = ? AND archived_at IS NULL AND role = 'admin'").bind(boss).first();
     if (!admin) throw new PanelFault('not_found', 404);
   }
   const access = await bossCanAccessAgent(db, boss, agent);

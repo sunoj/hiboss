@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0046; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0047; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -167,7 +167,8 @@ CREATE TABLE IF NOT EXISTS bosses (
   discord_user_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   agent_id TEXT REFERENCES api_keys(id),
-  preferences TEXT DEFAULT NULL
+  preferences TEXT DEFAULT NULL,
+  archived_at TEXT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_bosses_telegram ON bosses(telegram_user_id) WHERE telegram_user_id IS NOT NULL;

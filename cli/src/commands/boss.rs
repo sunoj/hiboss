@@ -4,6 +4,7 @@
 use crate::{client::HiBossClient, config::Config, helpers::short_id};
 #[path = "boss_args.rs"]
 mod args;
+mod archive;
 pub use args::*;
 use colored::Colorize;
 use serde_json::{Map, Value};
@@ -17,6 +18,8 @@ pub async fn run(
     match &args.command {
         BossCommand::List => run_list(client).await,
         BossCommand::Remove(payload) => run_remove(payload, client).await,
+        BossCommand::Archive(payload) => archive::run(client, &payload.id, true, &mut std::io::stderr()).await,
+        BossCommand::Restore(payload) => archive::run(client, &payload.id, false, &mut std::io::stderr()).await,
         BossCommand::Update(payload) => run_update(payload, client).await,
         BossCommand::Grant(payload) => run_grant(payload, client).await,
         BossCommand::Revoke(payload) => run_revoke(payload, client).await,
@@ -34,17 +37,18 @@ async fn run_list(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         return Ok(());
     };
     println!(
-        "{:<10} {:<20} {:<12} {:<16} {:<16} {}",
-        "ID", "Name", "Role", "Telegram", "Discord", "Agents"
+        "{:<10} {:<20} {:<12} {:<16} {:<16} {:<10} {}",
+        "ID", "Name", "Role", "Telegram", "Discord", "Archived", "Agents"
     );
     for b in list {
         println!(
-            "{:<10} {:<20} {:<12} {:<16} {:<16} {}",
+            "{:<10} {:<20} {:<12} {:<16} {:<16} {:<10} {}",
             short_id(b["id"].as_str().unwrap_or("")),
             b["name"].as_str().unwrap_or("-"),
             color_role(b["role"].as_str().unwrap_or("viewer")),
             b["telegram_user_id"].as_str().unwrap_or("-"),
             b["discord_user_id"].as_str().unwrap_or("-"),
+            archive::archived_date(b),
             format_agents(b)
         );
     }

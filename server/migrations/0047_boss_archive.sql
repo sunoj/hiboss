@@ -1,0 +1,1 @@
+ALTER TABLE bosses ADD COLUMN archived_at TEXT NULL;

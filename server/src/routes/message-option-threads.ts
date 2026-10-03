@@ -50,7 +50,7 @@ export async function ensureThreadForSession(
       .run();
     // Bot-created threads do not automatically include the bosses.
     const bosses = await env.DB
-      .prepare('SELECT b.discord_user_id FROM bosses b JOIN boss_agent_access ba ON ba.boss_id = b.id WHERE ba.agent_id = ? AND b.discord_user_id IS NOT NULL')
+      .prepare('SELECT b.discord_user_id FROM bosses b JOIN boss_agent_access ba ON ba.boss_id = b.id WHERE b.archived_at IS NULL AND ba.agent_id = ? AND b.discord_user_id IS NOT NULL')
       .bind(agentId)
       .all<{ discord_user_id: string }>();
     for (const boss of bosses.results ?? []) {
