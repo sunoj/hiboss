@@ -6,11 +6,18 @@ use crate::config::{Config, parse_config};
 use std::path::Path;
 
 fn config(server: Option<&str>, key: Option<&str>) -> Config {
-    Config {
+    let mut config = Config {
         server: server.map(str::to_string),
-        key: key.map(str::to_string),
-        channel: None,
-    }
+        ..Config::default()
+    };
+    config.profiles.insert(
+        "default".into(),
+        crate::config::Profile {
+            key: key.map(str::to_string),
+            ..Default::default()
+        },
+    );
+    config
 }
 
 #[test]
@@ -21,7 +28,7 @@ fn parse_config_treats_blank_body_as_default() {
 
 #[test]
 fn parse_config_reports_path_position_and_recovery_without_values() {
-    let body = r#"{"key": "synthetic-secret", "server": 5}"#;
+    let body = r#"{"version":2,"server": 5, "profiles":{"default":{"key":"synthetic-secret"}}}"#;
     let err = parse_config(body, Path::new("/tmp/c.json"))
         .expect_err("malformed")
         .to_string();
@@ -36,18 +43,22 @@ fn parse_config_reports_path_position_and_recovery_without_values() {
 
 #[test]
 fn parse_config_reads_valid_body() {
-    let parsed = parse_config(r#"{"server":"https://a"}"#, Path::new("c.json")).expect("valid");
+    let parsed = parse_config(
+        r#"{"version":2,"server":"https://a","default_profile":"default","profiles":{}}"#,
+        Path::new("c.json"),
+    )
+    .expect("valid");
     assert_eq!(parsed.server.as_deref(), Some("https://a"));
 }
 
 #[test]
-fn require_server_points_fresh_install_to_init() {
+fn require_server_points_fresh_install_to_config_set() {
     let err = config(None, None)
         .require_server()
         .expect_err("missing")
         .to_string();
     assert!(
-        err.contains("not configured") && err.contains("hiboss init <server-url>"),
+        err.contains("rule 4") && err.contains("hiboss config set server <url>"),
         "{err}"
     );
 }
@@ -68,12 +79,14 @@ fn require_key_names_the_configured_server() {
         .expect_err("blank")
         .to_string();
     assert!(
-        err.contains("API key is missing") && err.contains("hiboss init <server-url>"),
+        err.contains("rule 4")
+            && err.contains("API key is missing")
+            && err.contains("hiboss init <server-url>"),
         "{err}"
     );
     let err = config(None, None)
         .require_key()
         .expect_err("missing")
         .to_string();
-    assert!(err.contains("hiboss init <server-url>"), "{err}");
+    assert!(err.contains("rule 4") && err.contains("server is not configured"), "{err}");
 }

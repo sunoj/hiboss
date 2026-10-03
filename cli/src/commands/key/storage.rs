@@ -1,19 +1,47 @@
 // Durable atomic config swaps with an owner-only previous-key backup.
 // Exports RotationConfig; depends only on std filesystem and serde_json.
-use std::{error::Error, fs::{self, File, OpenOptions}, io::Write, path::{Path, PathBuf}};
+use std::{
+    error::Error,
+    fs::{self, File, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+};
+
+#[cfg(test)]
+mod storage_tests;
 
 pub struct RotationConfig {
-    path: PathBuf, backup: PathBuf, lock: PathBuf, original: Vec<u8>, installed: Option<Vec<u8>>,
+    path: PathBuf,
+    backup: PathBuf,
+    lock: PathBuf,
+    original: Vec<u8>,
+    installed: Option<Vec<u8>>,
+    profile: String,
 }
 impl RotationConfig {
-    pub fn open(path: &Path, key: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn open(path: &Path, profile: &str, key: &str) -> Result<Self, Box<dyn Error>> {
         let lock = path.with_extension("key-lock");
-        private_file(&lock).map_err(|_| "rotation already running or stale .key-lock exists; active config unchanged")?;
-        let mut result = Self { path: path.into(), backup: path.with_extension("key-previous"), lock,
-            original: Vec::new(), installed: None };
+        private_file(&lock).map_err(
+            |_| "rotation already running or stale .key-lock exists; active config unchanged",
+        )?;
+        let mut result = Self {
+            path: path.into(),
+            backup: path.with_extension("key-previous"),
+            lock,
+            original: Vec::new(),
+            installed: None,
+            profile: profile.into(),
+        };
         result.original = fs::read(path)?;
         let value: serde_json::Value = serde_json::from_slice(&result.original)?;
-        if value.get("key").and_then(|k| k.as_str()) != Some(key) {
+        if value.get("version").and_then(|v| v.as_u64()) != Some(2)
+            || value
+                .get("profiles")
+                .and_then(|p| p.get(profile))
+                .and_then(|p| p.get("key"))
+                .and_then(|k| k.as_str())
+                != Some(key)
+        {
             return Err("config changed; previous active key kept".into());
         }
         let mut backup = private_file(&result.backup)
@@ -22,11 +50,20 @@ impl RotationConfig {
         backup.sync_all()?;
         Ok(result)
     }
-    pub fn backup_path(&self) -> &Path { &self.backup }
+    pub fn backup_path(&self) -> &Path {
+        &self.backup
+    }
     pub fn install(&mut self, key: &str) -> Result<(), Box<dyn Error>> {
-        if fs::read(&self.path)? != self.original { return Err("config changed during rotation; active config kept".into()); }
+        if fs::read(&self.path)? != self.original {
+            return Err("config changed during rotation; active config kept".into());
+        }
         let mut value: serde_json::Value = serde_json::from_slice(&self.original)?;
-        value["key"] = key.into();
+        let profile = value
+            .get_mut("profiles")
+            .and_then(|p| p.get_mut(&self.profile))
+            .and_then(|p| p.as_object_mut())
+            .ok_or("selected profile is missing; active config unchanged")?;
+        profile.insert("key".into(), key.into());
         let bytes = serde_json::to_vec_pretty(&value)?;
         atomic_write(&self.path, &bytes)?;
         self.installed = Some(bytes);
@@ -40,15 +77,24 @@ impl RotationConfig {
         self.installed = None;
         Ok(())
     }
-    pub fn finish(&self) -> Result<(), Box<dyn Error>> { fs::remove_file(&self.backup)?; Ok(()) }
+    pub fn finish(&self) -> Result<(), Box<dyn Error>> {
+        fs::remove_file(&self.backup)?;
+        Ok(())
+    }
 }
 impl Drop for RotationConfig {
-    fn drop(&mut self) { let _ = fs::remove_file(&self.lock); }
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.lock);
+    }
 }
 fn private_file(path: &Path) -> std::io::Result<File> {
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
-    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; options.mode(0o600); }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
     options.open(path)
 }
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
@@ -60,9 +106,15 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
         fs::rename(&temporary, path)?;
         Ok(())
     })();
-    if result.is_err() { let _ = fs::remove_file(temporary); }
+    if result.is_err() {
+        let _ = fs::remove_file(temporary);
+    }
     result?;
     // Best effort directory fsync after rename; never report a pre-swap failure after a swap.
-    if let Some(parent) = path.parent() { if let Ok(dir) = File::open(parent) { let _ = dir.sync_all(); } }
+    if let Some(parent) = path.parent() {
+        if let Ok(dir) = File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
     Ok(())
 }

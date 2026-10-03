@@ -38,3 +38,4 @@ pub mod ss;
 pub mod status;
 mod status_result;
 pub mod watch;
+pub mod whoami;

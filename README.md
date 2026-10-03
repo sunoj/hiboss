@@ -73,8 +73,11 @@ hiboss setup agents    # install/refresh Codex and Claude global delivery and qu
 hiboss init https://hiboss-server.<you>.workers.dev
 ```
 
-This bootstraps the first API key and saves your config to
-`~/.config/hiboss/config.json`.
+This bootstraps the first API key and saves a v2 profile config under
+`~/Library/Application Support/hiboss/config.json` on macOS or
+`${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json` on Linux. Set
+`HIBOSS_CONFIG` to choose a different file. Run `hiboss whoami --json` to
+inspect the active local identity without making a network request.
 
 ### 4. Configure a channel
 
@@ -209,7 +212,7 @@ Each Claude Code session gets a unique session ID. Messages are scoped per sessi
 
 ```bash
 claude --channels plugin:hiboss    # launch with hiboss channel
-/hiboss:configure <server_url> <api_key>  # one-time setup
+/hiboss:configure status           # inspect local configuration
 ```
 
 The MCP plugin connects via SSE for instant message delivery. Messages appear as
@@ -254,16 +257,18 @@ server via SSE streaming. It provides real-time message delivery and native MCP 
       "args": ["start"],
       "cwd": "/path/to/hiboss/mcp",
       "env": {
-        "HIBOSS_SERVER_URL": "https://hiboss-server.<you>.workers.dev",
-        "HIBOSS_API_KEY": "hb_your_api_key"
+        "HIBOSS_SERVER": "https://hiboss-server.<you>.workers.dev",
+        "HIBOSS_KEY": "hb_your_api_key"
       }
     }
   }
 }
 ```
 
-Or configure via the shared config file (`~/.config/hiboss/config.json`) used by both
-the CLI and MCP plugin.
+The environment pair is ephemeral and never reads or writes the shared config.
+For saved credentials, use the CLI's v2 config and select the `claude` profile
+(or set `HIBOSS_PROFILE`). Do not hand-write a separate MCP config file.
+A migrated v1 file contains `default`; set `HIBOSS_PROFILE=default` to use it in MCP.
 
 ## Security & Performance
 

@@ -73,8 +73,8 @@ name, server, config path and runtime. Every friendly error names the rule that 
 |---|---|---|
 | `aid` (dispatched) | `AID_TASK_ID` non-empty | `AID_TASK_ID` |
 | `claude` | `CLAUDECODE=1` | `CLAUDE_CODE_SESSION_ID` (measured: exported to child processes) |
-| `codex` | to be measured: run `codex exec 'env'` and record the result here | to be measured |
-| `gemini` | to be measured; report ambiguous if not verifiable | — |
+| `codex` | unverified; not detected | unverified |
+| `gemini` | unverified; not detected | unverified |
 | none | — | — |
 
 The `aid` check runs first: a dispatched Claude agent is a dispatched agent before it is a

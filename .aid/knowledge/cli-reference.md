@@ -11,6 +11,7 @@ hiboss setup hooks --global         # configure for all Claude Code sessions
 hiboss setup hooks --remove         # remove hiboss hooks
 hiboss setup telegram               # guided Telegram bot setup
 hiboss setup discord                # guided Discord bot setup
+hiboss whoami --json                # offline resolved identity, masked key
 ```
 
 ## Send (async)
@@ -172,11 +173,33 @@ hiboss doctor    # validate config, connectivity, channel setup, routing
 ```
 
 ## CLI Config
-Stored in `~/.config/hiboss/config.json`:
+Stored in `$HIBOSS_CONFIG` if set, otherwise `dirs::config_dir()/hiboss/config.json`
+(`~/Library/Application Support/hiboss/config.json` on macOS,
+`${XDG_CONFIG_HOME:-~/.config}/hiboss/config.json` on Linux). Saved files are
+owner-only (0600). A v1 `{server,key,channel}` file migrates once to v2.
+
+Credential resolution, first match wins:
+1. `HIBOSS_SERVER` and `HIBOSS_KEY` together: ephemeral, no config read or write.
+   A partial pair fails and names the missing variable.
+2. `HIBOSS_PROFILE`: that saved profile, or exit 3 if it is absent.
+3. Detected runtime profile, if present (`aid` from nonempty `AID_TASK_ID` before
+   `claude` from `CLAUDECODE=1`).
+4. `default_profile`.
+
+Codex and Gemini runtime signals are unverified and are not detected. When
+neither supported runtime matches, the default profile applies. MCP requires
+`claude` by default unless `HIBOSS_PROFILE` is set.
+A migrated v1 config contains `default`; MCP can select it with `HIBOSS_PROFILE=default`.
+
 ```json
 {
+  "version": 2,
   "server": "https://hiboss-server.xxx.workers.dev",
-  "key": "hb_xxxxxxxxxxxx",
-  "channel": "discord"
+  "device_id": null,
+  "default_profile": "claude",
+  "channel": "discord",
+  "profiles": {
+    "claude": { "key": "hb_xxxxxxxxxxxx", "agent_id": null, "name": "agent-claude@host" }
+  }
 }
 ```

@@ -5,10 +5,10 @@ mod storage;
 #[cfg(test)]
 mod tests;
 
-use clap::{Args, Subcommand};
-use crate::config::Config;
-use std::{error::Error, path::Path};
+use crate::config::{Config, resolve_credentials};
 use api::KeyApi;
+use clap::{Args, Subcommand};
+use std::{error::Error, path::Path};
 use storage::RotationConfig;
 
 #[derive(Args)]
@@ -22,7 +22,10 @@ pub enum KeyCommand {
     /// List credential metadata for this agent
     List,
     /// Verify and install a new credential, then revoke the previous one
-    Rotate { #[arg(long)] label: Option<String> },
+    Rotate {
+        #[arg(long)]
+        label: Option<String>,
+    },
     /// Revoke one credential by its full ID
     Revoke { id: String },
 }
@@ -36,7 +39,12 @@ pub async fn run(args: &KeyArgs, config: &Config) -> Result<(), Box<dyn Error>> 
             println!("Revoked key {id}");
         }
         KeyCommand::Rotate { label } => {
-            let id = rotate(config, &crate::config::config_path(), label.as_deref().unwrap_or("rotated")).await?;
+            let id = rotate(
+                config,
+                &crate::config::config_path(),
+                label.as_deref().unwrap_or("rotated"),
+            )
+            .await?;
             println!("Installed key {id}; previous key revoked.");
         }
     }
@@ -44,28 +52,52 @@ pub async fn run(args: &KeyArgs, config: &Config) -> Result<(), Box<dyn Error>> 
 }
 
 async fn rotate(config: &Config, path: &Path, label: &str) -> Result<String, Box<dyn Error>> {
-    let mut storage = RotationConfig::open(path, &config.require_key()?)
-        .map_err(|error| format!("rotation not started: {error}; previous active configuration unchanged"))?;
+    let credential = resolve_credentials(config)?;
+    if credential.source_rule == 1 {
+        return Err("rule 1: ephemeral credentials cannot be rotated into a config file; select a saved profile with HIBOSS_PROFILE".into());
+    }
+    let mut storage =
+        RotationConfig::open(path, &credential.profile, &credential.key).map_err(|error| {
+            format!("rotation not started: {error}; previous active configuration unchanged")
+        })?;
     let old = KeyApi::new(&config.require_server()?, &config.require_key()?);
     let result = rotate_saved(&old, config, label, &mut storage).await;
     match result {
         Ok(id) => {
-            storage.finish().map_err(|error| format!("new key installed and previous key revoked; backup retained at {}: {error}", storage.backup_path().display()))?;
+            storage.finish().map_err(|error| {
+                format!(
+                    "new key installed and previous key revoked; backup retained at {}: {error}",
+                    storage.backup_path().display()
+                )
+            })?;
             Ok(id)
         }
-        Err(error) => Err(format!("{error}; previous key retained at {}", storage.backup_path().display()).into()),
+        Err(error) => Err(format!(
+            "{error}; previous key retained at {}",
+            storage.backup_path().display()
+        )
+        .into()),
     }
 }
 
-async fn rotate_saved(old: &KeyApi, config: &Config, label: &str,
-    storage: &mut RotationConfig) -> Result<String, Box<dyn Error>> {
+async fn rotate_saved(
+    old: &KeyApi,
+    config: &Config,
+    label: &str,
+    storage: &mut RotationConfig,
+) -> Result<String, Box<dyn Error>> {
     let identity = old.me().await?;
-    let old_id = identity.agent_key_id.ok_or("migration incomplete: current credential has no key ID")?;
+    let old_id = identity
+        .agent_key_id
+        .ok_or("migration incomplete: current credential has no key ID")?;
     let grant = old.mint(label).await?;
     let new = KeyApi::new(&config.require_server()?, &grant.key);
     let verified = new.me().await?;
     if verified.id != identity.id || verified.agent_key_id.as_deref() != Some(&grant.id) {
-        return Err("new key verification did not match the agent and credential; active config unchanged".into());
+        return Err(
+            "new key verification did not match the agent and credential; active config unchanged"
+                .into(),
+        );
     }
     storage.install(&grant.key)?;
     if new.revoke(&old_id).await.is_err() {

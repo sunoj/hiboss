@@ -6,7 +6,8 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
     agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
-    hook, inbox, init, key, panel, progress, react, read, reply, request, route, send, setup, ss, status, watch,
+    hook, inbox, init, key, panel, progress, react, read, reply, request, route, send, setup, ss,
+    status, watch, whoami,
 };
 use hiboss::config;
 use hiboss::help;
@@ -58,6 +59,8 @@ enum Commands {
     Setup(setup::SetupArgs),
     #[command(about = "Validate local configuration and connectivity")]
     Doctor(doctor::DoctorArgs),
+    #[command(about = "Show the active local credential identity")]
+    Whoami(whoami::WhoamiArgs),
     #[command(about = "Configure messaging channels (Discord, Telegram)")]
     Channel(channel::ChannelArgs),
     #[command(about = "Manage routing rules for incoming messages")]
@@ -84,9 +87,15 @@ enum Commands {
 async fn main() {
     if let Err(err) = run().await {
         let msg = err.to_string();
-        eprintln!("Error: {}", msg);
+        if err.is::<config::ProfileError>() {
+            eprintln!("{msg}");
+        } else {
+            eprintln!("Error: {msg}");
+        }
         // Typed failures first: their messages can contain classifier words like "missing".
-        let code = if err.is::<config::LoadError>() || err.is::<MessageVerificationError>() {
+        let code = if err.is::<config::ProfileError>() {
+            3
+        } else if err.is::<config::LoadError>() || err.is::<MessageVerificationError>() {
             1
         } else if msg.contains("not configured")
             || msg.contains("missing")
@@ -115,10 +124,17 @@ async fn run() -> Result<(), Box<dyn Error>> {
     if run_local(&cli.command, &mut config).await? {
         return Ok(());
     }
-    let server = config.require_server()?;
-    let key = config.require_key()?;
-    let client = client::HiBossClient::new(&server, &key);
-    match &cli.command {
+    let credential = config::resolve_credentials(&config)?;
+    let client = client::HiBossClient::new(&credential.server, &credential.key);
+    run_remote(&cli.command, &config, &client).await
+}
+
+async fn run_remote(
+    command: &Commands,
+    config: &config::Config,
+    client: &client::HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    match command {
         Commands::Send(args) => send::run(args, &config, &client).await?,
         Commands::Ask(args) => ask::run(args, &config, &client).await?,
         Commands::Inbox(args) => inbox::run(args, &config, &client).await?,
@@ -147,6 +163,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         Commands::Init(_) => unreachable!(),
         Commands::Doctor(_) => unreachable!(),
         Commands::Daemon(_) => unreachable!(),
+        Commands::Whoami(_) => unreachable!(),
     }
     Ok(())
 }
@@ -177,6 +194,7 @@ async fn run_local(
         Commands::Config(command) => config_cmd::run(&command.command, config).await?,
         Commands::Init(command) => init::run(command, config).await?,
         Commands::Doctor(args) => doctor::run(args, config).await?,
+        Commands::Whoami(args) => whoami::run(args, config)?,
         Commands::Daemon(args) => daemon::run(args).await?,
         _ => return Ok(false),
     }

@@ -7,7 +7,10 @@ use clap::Command;
 /// Root subcommands grouped by what the user is trying to do. Every visible
 /// subcommand appears in exactly one group; a unit test enforces that.
 pub const COMMAND_GROUPS: &[(&str, &[&str])] = &[
-    ("Get started", &["init", "doctor", "config", "setup"]),
+    (
+        "Get started",
+        &["init", "doctor", "whoami", "config", "setup"],
+    ),
     (
         "Talk to your boss",
         &[
