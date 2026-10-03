@@ -32,20 +32,20 @@ pub(crate) fn start_daemon_if_needed() {
         Ok(e) => e,
         Err(_) => return,
     };
-    let log_path = format!("/tmp/hiboss-daemon-{}.log", session::project_hash());
+    let log_path = session::state_file("daemon.log");
     let child = Command::new(&exe)
         .args(["daemon", "run"])
-        .stdout(
-            fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()),
-        )
-        .stderr(
-            fs::File::create(&log_path).unwrap_or_else(|_| fs::File::create("/dev/null").unwrap()),
-        )
+        .stdout(log_stdio(&log_path))
+        .stderr(log_stdio(&log_path))
         .stdin(std::process::Stdio::null())
         .spawn();
     if let Ok(child) = child {
         let _ = fs::write(session::daemon_pid_path(), child.id().to_string());
     }
+}
+
+fn log_stdio(path: &std::path::Path) -> std::process::Stdio {
+    fs::File::create(path).map(Into::into).unwrap_or_else(|_| std::process::Stdio::null())
 }
 
 /// Build an HiBossClient from config (best-effort, returns Err if not configured).
@@ -69,11 +69,6 @@ pub(crate) fn get_git_branch() -> Option<String> {
                 None
             }
         })
-}
-
-/// Get repo name from git remote origin URL, falling back to directory name.
-pub(crate) fn get_repo_name() -> Option<String> {
-    Some(crate::session::resolve_project(None).slug)
 }
 
 /// Show active peer sessions for cross-session collaboration. Returns true if peers exist.

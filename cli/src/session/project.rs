@@ -1,4 +1,5 @@
 // Resolves one project identity for hooks, session labels, and progress posts.
+// The name comes from the origin URL, else the repository root; never a worktree directory.
 // Exports ProjectIdentity and resolve_project; depends on git, environment, serde.
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -15,11 +16,15 @@ pub fn resolve_project(explicit: Option<&str>) -> ProjectIdentity {
         .args(["-C", &directory, "remote", "get-url", "origin"])
         .output().ok().filter(|output| output.status.success())
         .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned());
-    identity(origin.as_deref(), &directory, std::env::var("HIBOSS_PROJECT").ok().as_deref(), explicit)
+    // The repository root is the common dir's parent, so a worktree's own directory name never leaks in.
+    let root = super::git_common_dir()
+        .and_then(|common| common.parent().map(|parent| parent.to_string_lossy().into_owned()))
+        .unwrap_or(directory);
+    identity(origin.as_deref(), &root, std::env::var("HIBOSS_PROJECT").ok().as_deref(), explicit)
 }
 
-fn identity(origin: Option<&str>, directory: &str, override_alias: Option<&str>, explicit: Option<&str>) -> ProjectIdentity {
-    let cwd = Path::new(directory).file_name().and_then(|name| name.to_str()).unwrap_or("project");
+fn identity(origin: Option<&str>, root: &str, override_alias: Option<&str>, explicit: Option<&str>) -> ProjectIdentity {
+    let cwd = Path::new(root).file_name().and_then(|name| name.to_str()).unwrap_or("project");
     let repo = origin.map(|url| url.trim_end_matches('/').trim_end_matches(".git"))
         .and_then(|url| url.rsplit(['/', ':']).next()).filter(|name| !name.is_empty());
     let explicit = explicit.filter(|name| !name.trim().is_empty());

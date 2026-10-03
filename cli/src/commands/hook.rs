@@ -35,6 +35,11 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
         HookEvent::SessionStart => super::hook_start::run().await,
         HookEvent::PostToolUse => run_post_tool_use(),
         HookEvent::BgCheck => run_bg_check().await,
+        // A dispatched agent reports to its dispatcher; Stop never waits on the boss.
+        HookEvent::Stop if crate::runtime::RuntimeIdentity::detect().is_dispatched() => {
+            stop_daemon();
+            Ok(())
+        }
         HookEvent::Stop => run_stop().await,
     };
     Ok(())
@@ -216,10 +221,14 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         // resumed) will flip this back to "working".
         session::mark_resume_pending();
     }
-    // Kill SSE daemon if running
+    stop_daemon();
+    Ok(())
+}
+
+/// Kill this session's SSE daemon if it is running.
+fn stop_daemon() {
     if let Some(pid) = session::is_daemon_running() {
         let _ = Command::new("kill").arg(pid.to_string()).output();
         let _ = fs::remove_file(session::daemon_pid_path());
     }
-    Ok(())
 }

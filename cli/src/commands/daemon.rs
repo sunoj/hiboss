@@ -44,7 +44,7 @@ fn start_daemon() -> Result<(), Box<dyn Error>> {
     }
     let exe = std::env::current_exe()?;
     let cwd = std::env::current_dir()?;
-    let log_path = format!("/tmp/hiboss-daemon-{}.log", session::project_hash());
+    let log_path = session::state_file("daemon.log");
     // Fork: launch self with `daemon run` in background
     let child = Command::new(&exe)
         .args(["daemon", "run"])
@@ -55,7 +55,7 @@ fn start_daemon() -> Result<(), Box<dyn Error>> {
         .spawn()?;
     let pid = child.id();
     fs::write(session::daemon_pid_path(), pid.to_string())?;
-    eprintln!("Daemon started (pid {}, log: {})", pid, log_path);
+    eprintln!("Daemon started (pid {}, log: {})", pid, log_path.display());
     Ok(())
 }
 

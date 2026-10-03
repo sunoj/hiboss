@@ -107,6 +107,16 @@ pub fn resolve_credentials(config: &Config) -> Result<Credential, Box<dyn Error>
     })
 }
 
+/// Name of the profile credential resolution would pick, without persisting anything.
+/// Session state is keyed by it, so it must not migrate or rewrite the config file.
+pub fn active_profile_name() -> Option<String> {
+    if environment_credential().ok()?.is_some() {
+        return Some("environment".into());
+    }
+    let config = super::read_saved_config(false).ok()?;
+    selected(&config, &RuntimeIdentity::detect()).ok().map(|(name, _)| name)
+}
+
 fn present(value: &Option<String>) -> Option<String> {
     value.clone().filter(|found| !found.trim().is_empty())
 }

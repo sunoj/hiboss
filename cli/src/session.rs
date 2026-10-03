@@ -1,17 +1,19 @@
-// Purpose: Read/write per-project session IDs for message isolation.
-// Exports: session_file_path, read_session_id, write_session_id, project_hash.
+// Purpose: Read/write per-session IDs and markers in the session state directory.
+// Exports: session_file_path, read_session_id, write_session_id, state_dir, resolve_project.
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
 mod project;
 mod markers;
+mod state;
 pub use project::{ProjectIdentity, resolve_project};
 pub use markers::*;
+pub use state::{git_common_dir, project_key, short_host, state_dir, state_file};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// Write a file owner-only (0600), refusing to follow a symlink planted at the
-/// (predictable) /tmp path. On multi-user hosts a co-resident user could otherwise
+/// (predictable) temporary path. On multi-user hosts a co-resident user could otherwise
 /// pre-create these paths as symlinks to redirect the write, or leave them
 /// world-readable. `O_NOFOLLOW` makes open() fail if the final component is a
 /// symlink; the 0600 mode + owner check on read close the confidentiality and
@@ -39,7 +41,7 @@ pub fn write_private(path: &Path, content: &str) -> std::io::Result<()> {
 
 /// True only if `path` is a regular file we exclusively own (not a symlink, owned
 /// by the current euid, no group/other permission bits). Used to refuse injecting
-/// content from a /tmp file a co-resident user may have planted or tampered with.
+/// content from a temporary file a co-resident user may have planted or tampered with.
 /// Non-unix: best-effort true (no shared-/tmp threat model there).
 pub fn is_own_regular_file(path: &Path) -> bool {
     #[cfg(unix)]
@@ -87,13 +89,6 @@ fn resolve_project_dir() -> String {
         .unwrap_or_default()
 }
 
-/// Derive a short project hash for per-project session files.
-/// Uses git root (cached) for deterministic results regardless of cwd.
-pub fn project_hash() -> String {
-    let dir = PROJECT_DIR.get_or_init(resolve_project_dir);
-    fnv1a_hash(dir)
-}
-
 /// Return the resolved project directory path (git root, env override, or cwd).
 pub fn project_dir() -> String {
     PROJECT_DIR.get_or_init(resolve_project_dir).clone()
@@ -113,34 +108,34 @@ fn fnv1a_hash(s: &str) -> String {
     format!("{:016x}", h)
 }
 
-/// Path to the session file: /tmp/hiboss-session-<project_hash>
+/// Path to the file holding this session's registered id.
 pub fn session_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-session-{}", project_hash()))
+    state_file("session")
 }
 
 /// Path to per-session TTL file for urgent boss checks (5 min).
 pub fn ttl_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-urgent-check-{}", project_hash()))
+    state_file("urgent-check")
 }
 
 /// Path to per-session TTL file for agent-to-agent checks (30 sec).
 pub fn a2a_ttl_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-a2a-check-{}", project_hash()))
+    state_file("a2a-check")
 }
 
 /// Path to the daemon PID file for this project session.
 pub fn daemon_pid_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-daemon-{}.pid", project_hash()))
+    state_file("daemon.pid")
 }
 
 /// Path to the daemon's pending messages file (JSON lines).
 pub fn daemon_pending_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-daemon-{}.pending", project_hash()))
+    state_file("daemon.pending")
 }
 
 /// Path to the urgent message file (written by bg-check, read by post-tool-use).
 pub fn urgent_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-urgent-{}", project_hash()))
+    state_file("urgent")
 }
 
 /// Check if the daemon is running by reading the PID file and testing the process.
@@ -198,7 +193,7 @@ pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
 
 /// Path to the session-local producer epoch held for one panel.
 pub fn panel_epoch_file_path(panel_id: &str) -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-session-{}-panel-{panel_id}-epoch", project_hash()))
+    state_file(&format!("panel-{panel_id}-epoch"))
 }
 
 /// Read the epoch last claimed by this session for one panel.

@@ -128,13 +128,29 @@ async fn run_post(
         agent_label,
         model,
     };
-    let post = client.post_progress(&req).await?;
+    let post = post_with_session_heal(client, req, args.session.is_none()).await?;
     eprintln!("Posted");
     println!("{}", post.id);
     // Lazy sync: push team.json to server if it changed since last sync.
     let _ = progress_team::sync_team_to_server(&post.project, client).await;
     maybe_hint_team_register(&post.project, &post);
     Ok(())
+}
+
+/// Post once; a stored session the server attributes to another agent is replaced and retried once.
+async fn post_with_session_heal(
+    client: &HiBossClient,
+    mut req: ProgressPostRequest,
+    stored_session: bool,
+) -> Result<ProgressPost, Box<dyn Error>> {
+    use super::session_register::{heal_foreign_session, is_foreign_session};
+    match client.post_progress(&req).await {
+        Err(err) if stored_session && req.session_id.is_some() && is_foreign_session(err.as_ref()) => {
+            req.session_id = Some(heal_foreign_session(client).await?);
+            client.post_progress(&req).await
+        }
+        outcome => outcome,
+    }
 }
 
 /// Print a one-line team-registration hint to stderr when the server reports an

@@ -4,7 +4,7 @@ use super::*;
 
 /// Marker file: written by `hiboss ask`, checked by Stop hook.
 pub fn asked_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-asked-{}", project_hash()))
+    state_file("asked")
 }
 
 /// Record that `hiboss ask` was called this session.
@@ -19,7 +19,7 @@ pub fn has_asked() -> bool {
 
 /// Marker: stop hook already warned once this session — don't block again.
 pub fn stop_warned_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-stop-warned-{}", project_hash()))
+    state_file("stop-warned")
 }
 
 pub fn mark_stop_warned() {
@@ -35,7 +35,7 @@ pub fn has_stop_warned() -> bool {
 /// that resumed work is flipped back to "working" instead of lingering as
 /// waiting. Existence flag only — never printed into agent context.
 pub fn resume_pending_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-resume-pending-{}", project_hash()))
+    state_file("resume-pending")
 }
 
 /// Record that the Stop hook parked this session as waiting.
@@ -65,7 +65,7 @@ pub fn clear_resume_pending() {
 
 /// Marker file: written by send/reply/react after an ask, checked by Stop hook.
 pub fn replied_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-replied-{}", project_hash()))
+    state_file("replied")
 }
 
 /// Record that agent sent a reply/reaction after asking.
@@ -82,7 +82,7 @@ pub fn has_replied() -> bool {
 
 /// Marker file: written when agent broadcasts to peers, checked by Stop hook.
 pub fn broadcast_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-broadcast-{}", project_hash()))
+    state_file("broadcast")
 }
 
 /// Record that agent broadcast to peers this session.
@@ -97,7 +97,7 @@ pub fn has_broadcast() -> bool {
 
 /// Marker file: tracks whether peers were active during this session.
 pub fn peers_active_marker_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-peers-active-{}", project_hash()))
+    state_file("peers-active")
 }
 
 /// Record that peer sessions were detected during this session.
@@ -112,12 +112,12 @@ pub fn had_peers_active() -> bool {
 
 /// TTL file for broadcast reminders (avoid spamming every PostToolUse).
 pub fn broadcast_remind_ttl_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-broadcast-remind-{}", project_hash()))
+    state_file("broadcast-remind")
 }
 
 /// Queue file for message IDs to be marked as read by bg-check.
 pub fn read_queue_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-read-queue-{}", project_hash()))
+    state_file("read-queue")
 }
 
 /// Append message IDs to the read queue (one per line).
@@ -150,7 +150,7 @@ pub fn drain_read_queue() -> Vec<String> {
 
 /// Marker file: tracks whether the ack hint has been shown this session.
 pub fn ack_hint_shown_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-ack-hint-{}", project_hash()))
+    state_file("ack-hint")
 }
 
 /// Show ack hint only once per session; returns true if hint should be printed.
