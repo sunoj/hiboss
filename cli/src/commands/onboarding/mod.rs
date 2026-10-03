@@ -1,10 +1,12 @@
 // Orchestrates grouped machine enrollment, approval persistence, and runtime guidance.
-// Exports async run for bare `hiboss setup`; integrations occur after credentials are saved.
+// Exports async run for bare `hiboss setup`; a pending request is resumed, never re-sent.
 // Dependencies: typed enrollment API, config v2, existing Claude hooks and agent guidance.
 
 pub(crate) mod api;
+mod pending;
 mod persistence;
 mod poll;
+mod resume;
 pub(crate) mod selection;
 
 use super::setup::SetupArgs;
@@ -13,7 +15,6 @@ use std::{
     error::Error,
     io::{self, Write},
     path::PathBuf,
-    time::Duration,
 };
 
 pub async fn run(args: &SetupArgs) -> Result<(), Box<dyn Error>> {
@@ -21,6 +22,9 @@ pub async fn run(args: &SetupArgs) -> Result<(), Box<dyn Error>> {
         return check(&config::load_saved_config()?).await;
     }
     let _enrollment = config::ConfigLock::begin_enrollment(&config::config_path())?;
+    if args.abandon {
+        return resume::abandon();
+    }
     let config = config::load_saved_config()?;
     if std::env::var_os("HIBOSS_KEY").is_some() || std::env::var_os("HIBOSS_SERVER").is_some() {
         return Err(
@@ -28,35 +32,43 @@ pub async fn run(args: &SetupArgs) -> Result<(), Box<dyn Error>> {
                 .into(),
         );
     }
-    let plan = selection::build_plan(args, &config)?;
+    let plan = match pending::load()? {
+        Some(entry) => resume::resume(args, &config, entry).await?,
+        None => match enroll(args, &config).await? {
+            Some(plan) => plan,
+            None => return Ok(()),
+        },
+    };
+    println!("Approved. Saved credentials for every requested profile.");
+    install_profiles(&plan)
+}
+
+/// Sends a new join request; None means there was nothing to enroll.
+async fn enroll(
+    args: &SetupArgs,
+    config: &config::Config,
+) -> Result<Option<selection::Plan>, Box<dyn Error>> {
+    let plan = selection::build_plan(args, config)?;
     if plan.profiles.is_empty() {
         println!("No new profiles to enroll; use --profile <name> or install a supported runtime");
-        return Ok(());
+        return Ok(None);
     }
     confirm(&plan, args.yes)?;
-    let http = api::http()?;
-    let joined = api::join(&http, &plan, args).await?;
+    let joined = api::join(&api::http()?, &plan, args).await?;
     if joined.request_id.is_empty() || joined.poll_token.is_empty() {
         return Err("Invalid join receipt".into());
     }
-    let approval = match joined.state.status.as_str() {
-        "approved" => joined.state,
+    match joined.state.status.as_str() {
+        "approved" => resume::settle(&plan, joined.state)?,
         "pending" => {
             show_code(joined.state.verification_code.as_deref())?;
-            poll::wait_for_approval(
-                || api::status(&http, &plan.server, &joined.poll_token),
-                Duration::from_secs(3),
-                Duration::from_secs(30 * 60),
-            )
-            .await?
+            resume::record(&plan, &joined);
+            resume::wait_and_save(&plan, &joined.poll_token, args.wait).await?;
         }
         "rejected" => return Err("The boss rejected this machine's join request".into()),
         _ => return Err("Invalid join status from HiBoss".into()),
-    };
-    persistence::persist(&plan, approval)?;
-    println!("Approved. Saved credentials for every requested profile.");
-    install_profiles(&plan)?;
-    Ok(())
+    }
+    Ok(Some(plan))
 }
 
 fn confirm(plan: &selection::Plan, yes: bool) -> Result<(), Box<dyn Error>> {

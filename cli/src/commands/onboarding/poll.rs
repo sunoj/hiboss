@@ -1,5 +1,5 @@
 // Polls device approval on a fixed interval with a bounded overall deadline.
-// Exports wait_for_approval; generic fetch allows short deterministic deadline tests.
+// Exports wait_for_approval, which returns the first approved or rejected state.
 // Dependencies: tokio time and typed JoinState, with no testing runtime flags.
 
 use super::api::JoinState;
@@ -25,8 +25,7 @@ where
             .await
             .map_err(|_| timed_out())??;
         match state.status.as_str() {
-            "approved" => return Ok(state),
-            "rejected" => return Err("The boss rejected this machine's join request".into()),
+            "approved" | "rejected" => return Ok(state),
             "pending" => {}
             _ => return Err("Invalid join status from HiBoss".into()),
         }
@@ -34,7 +33,8 @@ where
 }
 
 fn timed_out() -> Box<dyn Error> {
-    "Timed out waiting for approval after 30 minutes; mint a new invite and run setup again".into()
+    "Still waiting for approval; run `hiboss setup` again to keep waiting (the request stays valid)."
+        .into()
 }
 
 #[cfg(test)]
@@ -56,7 +56,7 @@ mod tests {
             .await
             .err()
             .unwrap();
-        assert!(error.to_string().contains("Timed out waiting for approval"));
+        assert!(error.to_string().contains("Still waiting for approval"));
         let stalled =
             || async { std::future::pending::<Result<JoinState, Box<dyn Error>>>().await };
         assert!(

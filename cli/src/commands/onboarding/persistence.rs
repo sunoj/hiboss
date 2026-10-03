@@ -11,7 +11,7 @@ use std::{collections::BTreeSet, error::Error};
 
 pub(super) fn persist(plan: &Plan, state: JoinState) -> Result<(), Box<dyn Error>> {
     if state.delivered {
-        return Err("Approval keys were already delivered; request setup again".into());
+        return Err("The approved keys were already delivered and cannot be fetched again; run hiboss setup to request approval again".into());
     }
     let device_id = state
         .device_id

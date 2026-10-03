@@ -22,6 +22,16 @@ pub struct SetupArgs {
     pub yes: bool,
     #[arg(long, help = "Verify each configured profile against the server")]
     pub check: bool,
+    #[arg(long, help = "Discard a pending join request without polling")]
+    pub abandon: bool,
+    #[arg(
+        long,
+        value_name = "SECONDS",
+        default_value_t = 1800,
+        value_parser = clap::value_parser!(u64).range(1..=86_400),
+        help = "How long to wait for approval; rerun setup to keep waiting"
+    )]
+    pub wait: u64,
 }
 
 #[derive(Debug, Subcommand)]
