@@ -98,6 +98,27 @@ describe('parent_session_id', () => {
     expect(await storedParent('ident-root')).toBeNull();
   });
 
+  it('refuses a parent to a session that already has children', async () => {
+    await register('ident-main', { id: 'ident-other-root' });
+    const data = await (await register('ident-main', { id: 'ident-root', parent_session_id: 'ident-other-root' })).json() as Record<string, unknown>;
+    expect(data).toMatchObject({ parent_session_id: null, parent_rejected: true });
+    expect(await storedParent('ident-child')).toBe('ident-root');
+  });
+
+  it('forms no cycle when two sessions name each other concurrently', async () => {
+    for (let round = 0; round < 10; round++) {
+      const [a, b] = [`ident-race-a-${round}`, `ident-race-b-${round}`];
+      await register('ident-main', { id: a });
+      await register('ident-sibling', { id: b });
+      await Promise.all([
+        register('ident-main', { id: a, parent_session_id: b }),
+        register('ident-sibling', { id: b, parent_session_id: a }),
+      ]);
+      const parents = [await storedParent(a), await storedParent(b)];
+      expect(parents.filter(p => p !== null).length, `round ${round}`).toBeLessThanOrEqual(1);
+    }
+  });
+
   it('clears a child pointer when the parent is deleted', async () => {
     await register('ident-main', { id: 'ident-root-2' });
     await register('ident-sibling', { id: 'ident-child-2', parent_session_id: 'ident-root-2' });

@@ -1,6 +1,6 @@
 // Parses the optional session identity fields of POST /api/sessions and
 // admits a parent session only when its agent shares the caller's device.
-// Exports parseSessionIdentity and admitParent.
+// Exports parseSessionIdentity and ADMITTED_PARENT_SQL.
 
 export interface SessionIdentity {
   host: string | null;
@@ -34,19 +34,15 @@ export function parseSessionIdentity(payload: Record<string, unknown>): SessionI
 }
 
 /**
- * True when `parentId` may be stored as the parent of session `sessionId`: the parent
- * exists, is not the session itself, and has no parent of its own — a parent is always
- * a root, so no chain can loop back — and its agent has the same non-null device as the
- * calling agent.
+ * SQL for the parent to store, evaluated inside the session upsert so the check and the
+ * write are one statement. Binds (agentId, parentId, sessionId, sessionId). It yields the
+ * parent id only when the parent exists, is not the session itself, has no parent of its
+ * own, the session has no children, and the parent's agent has the caller's non-null
+ * device; otherwise NULL. Parents are roots and children are leaves, so depth stays 1.
  */
-export async function admitParent(db: D1Database, agentId: string, sessionId: string, parentId: string): Promise<boolean> {
-  if (parentId === sessionId) return false;
-  const row = await db.prepare(
-    `SELECT 1 AS ok FROM sessions ps
-       JOIN api_keys pa ON pa.id = ps.agent_id
-       JOIN api_keys me ON me.id = ?
-      WHERE ps.id = ? AND ps.parent_session_id IS NULL
-        AND pa.device_id IS NOT NULL AND pa.device_id = me.device_id`,
-  ).bind(agentId, parentId).first<{ ok: number }>();
-  return row !== null;
-}
+export const ADMITTED_PARENT_SQL = `(SELECT ps.id FROM sessions ps
+    JOIN api_keys pa ON pa.id = ps.agent_id
+    JOIN api_keys me ON me.id = ?
+   WHERE ps.id = ? AND ps.id <> ? AND ps.parent_session_id IS NULL
+     AND pa.device_id IS NOT NULL AND pa.device_id = me.device_id
+     AND NOT EXISTS (SELECT 1 FROM sessions k WHERE k.parent_session_id = ?))`;

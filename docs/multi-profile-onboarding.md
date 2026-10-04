@@ -113,8 +113,15 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
 - **Parent lookup for a dispatched agent:** in the same `project_key`, take the most recently
   touched non-dispatched session directory. If there is none, register without a parent.
 - **Server rule for `parent_session_id`:** accepted only if the parent session's agent has the
-  same `device_id` as the caller. Otherwise the field is dropped and the response carries
-  `parent_rejected: true`, so a foreign agent cannot claim a parent.
+  same non-null `device_id` as the caller, the parent has no parent of its own, and the
+  registering session has no children. The check runs inside the registration upsert, so
+  concurrent registrations cannot form a cycle; parents are roots and children are leaves.
+  Otherwise the field is dropped and the response carries `parent_rejected: true`, so a
+  foreign agent cannot claim a parent. A re-registration replaces `host`, `runtime`,
+  `dispatch_ref` and `parent_session_id` with what it sends. Deleting a session clears its
+  children's pointer. `host` must be 1–64 printable ASCII characters without spaces, and
+  `runtime` must match `[a-z][a-z0-9_-]{0,15}`; a malformed field is a 400. Migration 0048
+  must be applied before the Worker that writes these columns is deployed.
 - **Project identity:** derived from the repository: the remote URL's repo name, else the
   repository name: for a checkout whose common dir is `.git`, the basename of its parent; for a
   bare repository (`core.bare` true, or a common dir not named `.git`), the common dir's own
@@ -122,7 +129,9 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   worktree basename is not sent as an alias either.
   The registration error is printed on stderr from hooks instead of being swallowed.
 - **Display label:** `<project>/<branch> · <host> · <runtime>` in clients. A dispatched
-  session nests under its parent where the client lists sessions.
+  session nests under its parent where the client lists sessions. A child whose parent is
+  missing from the list (stale past 15 minutes, or on an agent the boss cannot access)
+  renders as a root.
 
 ## Dispatched mode (`runtime == aid`)
 

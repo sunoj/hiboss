@@ -10,7 +10,7 @@ import type { Env } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api';
 import { expireSessionAsks } from '../abandoned-asks';
-import { admitParent, parseSessionIdentity, type SessionIdentity } from './session-identity';
+import { ADMITTED_PARENT_SQL, parseSessionIdentity, type SessionIdentity } from './session-identity';
 
 const STALE_MINUTES = 15;
 
@@ -64,8 +64,6 @@ routes.post('/', async (c) => {
   const project = resolved?.ok ? resolved.project : (owner?.id && owner.slug ? { id: owner.id, slug: owner.slug } : null);
   if (!project) return c.text('project is required', 400);
   if (project && (payload.project_identity !== undefined || payload.project !== undefined || !label)) label = branch ? `${project.slug}/${branch}` : (label?.includes('/') ? `${project.slug}/${label.split('/').slice(1).join('/')}` : project.slug);
-  const parentRejected = identity.parentSessionId !== null && !(await admitParent(c.env.DB, agentId, id, identity.parentSessionId));
-  if (parentRejected) identity.parentSessionId = null;
   const result = await upsertSession(c.env.DB, { id, agentId, label, branch, cwd, status, statusText, projectId: project.id, identity });
   if (!result) {
     const existing = await c.env.DB.prepare('SELECT agent_id FROM sessions WHERE id = ?').bind(id).first<{ agent_id: string }>();
@@ -74,9 +72,10 @@ routes.post('/', async (c) => {
     }
     return c.text('failed to persist session', 500);
   }
+  const parentRejected = identity.parentSessionId !== null && result.parent_session_id !== identity.parentSessionId;
   const displayName = await c.env.DB.prepare('SELECT display_name FROM projects WHERE id = ?').bind(project.id).first<string>('display_name');
   const body = mapSessionProject({ id, label, branch, cwd, status, status_text: statusText, project_id: project.id, project_slug: project.slug, project_display_name: displayName,
-    host: identity.host, runtime: identity.runtime, dispatch_ref: identity.dispatchRef, parent_session_id: identity.parentSessionId });
+    host: identity.host, runtime: identity.runtime, dispatch_ref: identity.dispatchRef, parent_session_id: result.parent_session_id });
   return c.json(parentRejected ? { ...body, parent_rejected: true } : body, 201);
 });
 
@@ -86,19 +85,21 @@ interface SessionUpsert {
 }
 
 // Inserts the session, or updates it when the caller already owns that id. A
-// re-registration replaces the identity fields with what the caller sends now.
-function upsertSession(db: D1Database, s: SessionUpsert): Promise<{ id: string } | null> {
+// re-registration replaces the identity fields with what the caller sends now; the
+// parent is admitted inside this one statement (see ADMITTED_PARENT_SQL).
+function upsertSession(db: D1Database, s: SessionUpsert): Promise<{ id: string; parent_session_id: string | null } | null> {
   const { host, runtime, dispatchRef, parentSessionId } = s.identity;
   return db.prepare(
     `INSERT INTO sessions (id, agent_id, label, branch, cwd, status, status_text, project_id, host, runtime, dispatch_ref, parent_session_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${parentSessionId === null ? 'NULL' : ADMITTED_PARENT_SQL})
      ON CONFLICT(id) DO UPDATE SET project_id = COALESCE(excluded.project_id, sessions.project_id), label = excluded.label, branch = excluded.branch,
        cwd = excluded.cwd, status = excluded.status, status_text = excluded.status_text, host = excluded.host, runtime = excluded.runtime,
        dispatch_ref = excluded.dispatch_ref, parent_session_id = excluded.parent_session_id, last_seen_at = datetime('now')
      WHERE sessions.agent_id = excluded.agent_id
-     RETURNING id`,
-  ).bind(s.id, s.agentId, s.label, s.branch, s.cwd, s.status, s.statusText, s.projectId, host, runtime, dispatchRef, parentSessionId)
-    .first<{ id: string }>();
+     RETURNING id, parent_session_id`,
+  ).bind(s.id, s.agentId, s.label, s.branch, s.cwd, s.status, s.statusText, s.projectId, host, runtime, dispatchRef,
+    ...(parentSessionId === null ? [] : [s.agentId, parentSessionId, s.id, s.id]))
+    .first<{ id: string; parent_session_id: string | null }>();
 }
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
