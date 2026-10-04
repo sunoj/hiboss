@@ -7,13 +7,15 @@ import HibossKit
 
 enum AttentionGroup: Int, CaseIterable, Equatable, Hashable {
     case autoDecision
-    case blocked
+    /// An agent stopped until the boss answers: the same words and glyph as the Sessions
+    /// tab's `waiting` status, from the one `SessionStatus` mapping.
+    case waitingOnYou
     case priority
 
     var title: LocalizedStringResource {
         switch self {
         case .autoDecision: "Decides for you soon"
-        case .blocked: "Stopped on you"
+        case .waitingOnYou: SessionStatus.waiting.title
         case .priority: "Other decisions"
         }
     }
@@ -22,7 +24,7 @@ enum AttentionGroup: Int, CaseIterable, Equatable, Hashable {
     var symbol: String {
         switch self {
         case .autoDecision: "timer"
-        case .blocked: "hand.raised.fill"
+        case .waitingOnYou: SessionStatus.waiting.icon
         case .priority: "tray.full"
         }
     }
@@ -69,13 +71,13 @@ enum AttentionModel {
 
         if message.options.isEmpty {
             return needsTextReply(message, now: now)
-                ? AttentionItem(message: message, group: .blocked) : nil
+                ? AttentionItem(message: message, group: .waitingOnYou) : nil
         }
         if message.expirationDate != nil, nonEmpty(message.defaultOption) != nil {
             return AttentionItem(message: message, group: .autoDecision)
         }
-        if message.expirationDate == nil, message.sessionStatus?.lowercased() == "waiting" {
-            return AttentionItem(message: message, group: .blocked)
+        if message.expirationDate == nil, SessionStatus(word: message.sessionStatus) == .waiting {
+            return AttentionItem(message: message, group: .waitingOnYou)
         }
         return AttentionItem(message: message, group: .priority)
     }

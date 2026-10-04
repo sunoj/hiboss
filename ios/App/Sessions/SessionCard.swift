@@ -1,6 +1,7 @@
 // One session summary card: status, agent, branch, pending + activity.
 // Exports: SessionCard rendering a SessionGroup; SessionGroup summary helpers.
-// Dependencies: SwiftUI, HibossKit SessionGroup, theme tokens. Accessibility sizes stack, never truncate.
+// Dependencies: SwiftUI, HibossKit SessionGroup, SessionStatusStyle, theme tokens. Accessibility
+// sizes stack, never truncate.
 
 import HibossKit
 import SwiftUI
@@ -19,43 +20,6 @@ extension SessionGroup {
     /// Normalised status word, lowercased, empty when unknown.
     var statusWord: String {
         status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-    }
-}
-
-/// Localized status word, glyph, and tint for a session board card.
-struct SessionStatusStyle {
-    let label: String
-    let icon: String
-    let tint: Color
-
-    init?(word: String) {
-        guard !word.isEmpty else { return nil }
-        switch word {
-        case "working":
-            label = String(localized: "Working")
-            icon = "ellipsis.circle.fill"
-            tint = Theme.ink2
-        case "blocked":
-            label = String(localized: "Blocked")
-            icon = "exclamationmark.octagon.fill"
-            tint = Theme.negative
-        case "waiting":
-            label = String(localized: "Waiting")
-            icon = "clock.fill"
-            tint = Theme.warn
-        case "idle":
-            label = String(localized: "Idle")
-            icon = "pause.circle.fill"
-            tint = Theme.ink2
-        case "completed":
-            label = String(localized: "Completed")
-            icon = "checkmark.circle.fill"
-            tint = Theme.ink2
-        default:
-            label = word.capitalized
-            icon = "circle.fill"
-            tint = Theme.ink2
-        }
     }
 }
 
