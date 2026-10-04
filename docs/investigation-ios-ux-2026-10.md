@@ -128,13 +128,17 @@ unchanged source.
 
 ### P2 — polish
 
-**P2-1. Two side-by-side options take different heights at large text.** Open.
+**P2-1. Two side-by-side options take different heights at large text.** Fixed.
 Screenshots `xxl-02-home-scrolled.png`, `xxl-09-sessions-detail.png`: "Coarse grid"
 wraps to two lines and its button is taller than "Fine grid". Code:
 `ios/App/Decision/DecisionOptions.swift:15` places the two buttons in an `HStack`
 sized by each label; the labels do not fill the row height.
+Fix: in the two-option row each label also takes `.frame(maxHeight: .infinity)`, so both
+fill the height the `fixedSize` row takes from its tallest label. Tests:
+`HomeDecisionDetailUITests.testTwoChoicesShareTheRowHeightAtAccessibilitySize`; every
+`assertSideBySide` now also asserts equal heights.
 
-**P2-2. Session status words disagree between Home and Sessions.** Open.
+**P2-2. Session status words disagree between Home and Sessions.** Fixed.
 Home groups `sessionStatus == "waiting"` under a red "Stopped on you"
 (`ios/App/Home/HomeAttentionModel.swift:77`, `HomeAttentionRow.swift:43`); Sessions
 shows the same word as an orange "Waiting" and `blocked` as a red "Blocked"
@@ -142,15 +146,30 @@ shows the same word as an orange "Waiting" and `blocked` as a red "Blocked"
 red "Blocked" while `en-02-home-scrolled.png` lists its decision under "Decides for you
 soon", and nightly-export is orange "Waiting" in Sessions but red "Stopped on you" on
 Home.
+Fix: `SessionStatus` (`ios/App/Sessions/SessionStatus.swift`) is the one mapping from a
+status word to label, glyph and tint. `waiting` reads "Waiting on you" (the macOS band's
+words) with `hand.raised.fill` in orange; only `blocked` is red. Home's group, now
+`AttentionGroup.waitingOnYou`, takes its title, glyph and tint from it. A blocked session's
+timed decision stays under "Decides for you soon": that group names what the decision
+does, not the session's state. Tests: `SessionStatusStyleTests`,
+`HomeAttentionModelTests.testWaitingSessionGroupsUnderWaitingOnYouAndBlockedSessionDoesNot`.
 
-**P2-3. Copy Link gives no confirmation.** Open. `en-13-pair-device.png`;
+**P2-3. Copy Link gives no confirmation.** Fixed. `en-13-pair-device.png`;
 `ios/App/Settings/PairDeviceView.swift:96` writes the pasteboard with no visible or
 haptic feedback.
+Fix: the button reads "Copied" with a checkmark for two seconds (`CopyFeedback`), plays a
+success `sensoryFeedback`, and posts a VoiceOver announcement "Link copied". Tests:
+`SettingsFeedbackTests.testCopyShowsConfirmationUntilItsOwnWindowExpires`,
+`DecisionStateUITests.testCopyLinkConfirmsTheCopy`.
 
-**P2-4. A device request that cannot be approved looks like one that can.** Open.
+**P2-4. A device request that cannot be approved looks like one that can.** Fixed.
 `en-14-device-requests.png`: `ci-runner` has no verification code; the row
 (`ios/App/Settings/DeviceRequestsView.swift:66`) is identical to an approvable one and
 the reason appears only in the review sheet.
+Fix: the row adds "No verification code — can’t be approved" with a warning glyph, and its
+VoiceOver hint no longer promises a code. Tests:
+`SettingsFeedbackTests.testOnlyARequestWithoutACodeCarriesTheCannotApproveNote`,
+`DecisionStateUITests.testDeviceRequestWithoutACodeSaysWhyOnItsRow`.
 
 **P2-5. The iOS i18n audit reported two findings.** Fixed.
 `ios/App/Shell/RootTabView.swift:76` rendered a `String` through `Text(_:)` (catalog
@@ -158,6 +177,9 @@ lookup of runtime text), and an allowlist entry for `HomePanelWall.swift` no lon
 matched any code. With `--stringsdata`, the `HiBossBrandIcon.swift` entry was also
 stale: neither target's compiler output extracts that key.
 `ios/scripts/i18n-audit.py` now reports 0 findings in both modes.
+A clean `SWIFT_EMIT_LOC_STRINGS=YES` build does extract `HiBoss` from
+`HiBossBrandIcon.swift`; the label is now `Text(verbatim:)`, so neither the key nor an
+allowlist entry is needed.
 
 **P2-6. `MessageCard` has no call sites.** Fixed. `MessageCard` and `ReplySheet` had no
 call sites; each carried its own answer wording, and `ReplySheet` its own in-flight
