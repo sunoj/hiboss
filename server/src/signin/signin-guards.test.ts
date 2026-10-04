@@ -6,6 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedBossToken, seedDatabase } from '../test-helpers';
 import { approvedCode, complete, open, registration, status, act } from './test-support';
+import { originNetwork } from '../routes/signin';
 import { MAX_CODE_ATTEMPTS, MAX_OPEN_PER_ORIGIN, MAX_OPEN_REQUESTS, completeRequest, findById } from './store';
 
 const ADMIN = 'hb_boss_signin_guard_admin_0000001';
@@ -101,6 +102,7 @@ describe('sign-in request admission', () => {
   it('refuses invisible format characters in the label', async () => {
     expect((await post({ 'Content-Type': 'application/json' }, 'Mac\u202Eexe')).status).toBe(400);
     expect((await post({ 'Content-Type': 'application/json' }, 'Ma\u200Bc')).status).toBe(400);
+    expect((await post({ 'Content-Type': 'application/json' }, 'Mac\u2028Approved')).status).toBe(400);
   });
 
   it('caps open requests from one network', async () => {
@@ -108,6 +110,22 @@ describe('sign-in request admission', () => {
     for (let i = 0; i < MAX_OPEN_PER_ORIGIN; i++) expect((await post(from('203.0.113.7'))).status).toBe(201);
     expect((await post(from('203.0.113.7'))).status).toBe(429);
     expect((await post(from('198.51.100.9'))).status).toBe(201);
+  });
+
+  it('treats an IPv6 /64 as one network', async () => {
+    const from = (ip: string) => ({ 'Content-Type': 'application/json', 'CF-Connecting-IP': ip });
+    for (let i = 1; i <= MAX_OPEN_PER_ORIGIN; i++) expect((await post(from(`2001:db8:a:b::${i}`))).status).toBe(201);
+    expect((await post(from('2001:db8:a:b:ffff:1:2:3'))).status).toBe(429);
+    expect((await post(from('2001:db8:a:c::1'))).status).toBe(201);
+  });
+});
+
+describe('originNetwork', () => {
+  it('keeps IPv4 and reduces IPv6 to its /64', () => {
+    expect(originNetwork('203.0.113.7')).toBe('203.0.113.7');
+    expect(originNetwork('2001:DB8:0a:000b::1')).toBe('2001:db8:a:b::/64');
+    expect(originNetwork('2001:db8:a:b:1:2:3:4')).toBe('2001:db8:a:b::/64');
+    expect(originNetwork('::1')).toBe('0:0:0:0::/64');
   });
 });
 

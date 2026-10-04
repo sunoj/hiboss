@@ -23,8 +23,9 @@ it with no one. The device label shown for review is chosen by the requester.
    Returns 201 `{"request_id", "poll_token", "expires_at"}`. `request_id` is 32 lowercase hex
    characters; `poll_token` is `st_` plus 64 hex characters and is a credential.
    429 when 200 requests are already open server-wide, or 3 from the same network
-   (keyed by a hash of the client IP address). The label is at most 100
-   characters with no `<>&`, control or invisible format characters.
+   (a hash of the client's IPv4 address, or of its IPv6 /64 prefix). The label is
+   at most 100 UTF-16 code units with no `<>&`, control, format (bidi,
+   zero-width), line or paragraph separator, private-use or surrogate characters.
 2. **Mac shows the QR code** for `hiboss://signin?server=<server URL>&request=<request_id>`
    (HTTPS, or plain HTTP only for a loopback server).
 3. **Mac polls** `GET /api/signin/status` with header `X-Signin-Token: <poll_token>`.

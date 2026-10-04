@@ -26,8 +26,8 @@ export const bossSigninRouter = createBossSigninRouter();
 
 function parseDeviceLabel(value: unknown): string | null {
   const label = typeof value === 'string' ? value.trim() : '';
-  // The approver reads this label, so no markup, controls or invisible format characters (bidi, zero-width).
-  if (!label || label.length > MAX_DEVICE_LABEL_LENGTH || /[<>&\p{Cc}\p{Cf}]/u.test(label)) return null;
+  // The approver reads this label, so no markup, controls, format (bidi, zero-width), line/paragraph separators, private-use or lone surrogates.
+  if (!label || label.length > MAX_DEVICE_LABEL_LENGTH || /[<>&\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cs}]/u.test(label)) return null;
   return label;
 }
 
@@ -38,10 +38,20 @@ function originHint(c: AppContext): string | null {
   return parts.length ? parts.join(' · ').slice(0, 100) : null;
 }
 
-/** A hash of the opener's address, used only to cap open requests per network; null off Cloudflare. */
+/** The network an address belongs to: an IPv4 address itself, an IPv6 address's /64 prefix. */
+export function originNetwork(ip: string): string {
+  if (!ip.includes(':')) return ip;
+  const [head, tail = ''] = ip.toLowerCase().split('::');
+  const left = head ? head.split(':') : [];
+  const right = tail ? tail.split(':') : [];
+  const groups = ip.includes('::') ? [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill('0'), ...right] : left;
+  return groups.slice(0, 4).map(group => group.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
+
+/** A hash of the opener's network, used only to cap open requests per network; null off Cloudflare. */
 async function originKey(c: AppContext): Promise<string | null> {
   const ip = c.req.header('CF-Connecting-IP')?.trim();
-  return ip ? hashApiKey(`signin-origin:${ip}`) : null;
+  return ip ? hashApiKey(`signin-origin:${originNetwork(ip)}`) : null;
 }
 
 async function readJson(c: AppContext): Promise<Record<string, unknown> | null> {
