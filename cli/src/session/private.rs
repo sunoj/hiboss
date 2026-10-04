@@ -78,7 +78,7 @@ fn write_private(path: &Path, content: &str) -> io::Result<()> {
     renamed
 }
 
-fn read_private(path: &Path) -> Option<String> {
+pub(super) fn read_private(path: &Path) -> Option<String> {
     let file = open_private(path, OpenOptions::new().read(true)).ok()?;
     let mut content = String::new();
     (&file).read_to_string(&mut content).ok()?;
