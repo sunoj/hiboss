@@ -57,6 +57,15 @@ struct SettingsView: View {
                 }
                 Section {
                     NavigationLink {
+                        MacSigninView(config: connection.config, api: connection.makeAPI())
+                    } label: {
+                        Label("Sign in a Mac", systemImage: "laptopcomputer.and.iphone")
+                    }
+                } footer: {
+                    Text("Scan the code a Mac shows under Sign in with iPhone, then type the code this iPhone shows on the Mac.")
+                }
+                Section {
+                    NavigationLink {
                         DeviceRequestsView(model: joinRequests)
                     } label: {
                         Label("Device Requests", systemImage: "desktopcomputer.and.arrow.down")
