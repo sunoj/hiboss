@@ -7,7 +7,7 @@ mod resolve;
 mod storage;
 use dirs::config_dir;
 pub use locking::ConfigLock;
-pub use resolve::{Credential, ProfileError, resolve_credentials};
+pub use resolve::{Credential, ProfileError, active_profile_name, resolve_credentials};
 pub use storage::write_private;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

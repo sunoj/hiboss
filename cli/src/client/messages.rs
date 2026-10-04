@@ -67,7 +67,7 @@ pub(crate) async fn parse_send_response(
         .map(str::to_owned);
     let body = resp.text().await.unwrap_or_default();
     let body = format_target_error(status, &body).unwrap_or(body);
-    Err(super::format_http_error("request failed", status, req_id, body).into())
+    Err(super::http_error("request failed", status, req_id, body).into())
 }
 
 impl HiBossClient {

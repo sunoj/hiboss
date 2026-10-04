@@ -217,7 +217,7 @@ pub async fn run(
     let choices = args.choice_payload()?;
     let option_media = resolve_option_media(client, &args.option_images, &choices).await?;
     let file_url = upload_attachment(client, args.file.as_deref()).await?;
-    let request = SendRequest {
+    let mut request = SendRequest {
         body: unescape_body(&args.body),
         mode: "blocking".to_owned(),
         priority: args.priority.clone(),
@@ -236,7 +236,7 @@ pub async fn run(
         to: args.to.clone(),
     };
     session::mark_asked();
-    let submission = client.send_message(&request).await?;
+    let submission = super::session_register::send_with_session_heal(client, &mut request).await?;
     eprintln!(
         "[ask {}] sent, waiting up to {}s for reply (recover anytime via: hiboss status {})",
         submission.id, args.timeout, submission.id

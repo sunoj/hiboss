@@ -65,7 +65,7 @@ impl HiBossClient {
                 .map(|s| s.to_string());
             let body = resp.text().await.unwrap_or_default();
             return Err(
-                super::format_http_error("delete progress failed", status, req_id, body).into(),
+                super::http_error("delete progress failed", status, req_id, body).into(),
             );
         }
         Ok(())

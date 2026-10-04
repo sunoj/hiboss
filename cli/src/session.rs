@@ -1,63 +1,16 @@
-// Purpose: Read/write per-project session IDs for message isolation.
-// Exports: session_file_path, read_session_id, write_session_id, project_hash.
+// Purpose: Read/write per-session IDs, daemon files and markers in the session state directory.
+// Exports: read_session_id, write_session_id, daemon pid/spool helpers, state I/O, resolve_project.
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
-mod project;
 mod markers;
-pub use project::{ProjectIdentity, resolve_project};
+mod private;
+mod project;
+mod state;
 pub use markers::*;
-use std::fs;
-use std::path::{Path, PathBuf};
+pub use private::{append_state, open_log, read_state, remove_state, state_file, take_state, write_state};
+pub use project::{ProjectIdentity, resolve_project};
+pub use state::{git_common_dir, project_key, short_host, state_dir};
 use std::sync::OnceLock;
-
-/// Write a file owner-only (0600), refusing to follow a symlink planted at the
-/// (predictable) /tmp path. On multi-user hosts a co-resident user could otherwise
-/// pre-create these paths as symlinks to redirect the write, or leave them
-/// world-readable. `O_NOFOLLOW` makes open() fail if the final component is a
-/// symlink; the 0600 mode + owner check on read close the confidentiality and
-/// injection surface. Falls back to a plain write on non-unix platforms.
-pub fn write_private(path: &Path, content: &str) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        use std::io::Write;
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(path)?;
-        file.write_all(content.as_bytes())?;
-        Ok(())
-    }
-    #[cfg(not(unix))]
-    {
-        fs::write(path, content)
-    }
-}
-
-/// True only if `path` is a regular file we exclusively own (not a symlink, owned
-/// by the current euid, no group/other permission bits). Used to refuse injecting
-/// content from a /tmp file a co-resident user may have planted or tampered with.
-/// Non-unix: best-effort true (no shared-/tmp threat model there).
-pub fn is_own_regular_file(path: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        match fs::symlink_metadata(path) {
-            Ok(meta) => {
-                let euid = unsafe { libc::geteuid() };
-                meta.file_type().is_file() && meta.uid() == euid && (meta.mode() & 0o077) == 0
-            }
-            Err(_) => false,
-        }
-    }
-    #[cfg(not(unix))]
-    {
-        path.is_file()
-    }
-}
 
 /// Cached project directory — resolved once per process via env var, git root, or cwd.
 static PROJECT_DIR: OnceLock<String> = OnceLock::new();
@@ -87,13 +40,6 @@ fn resolve_project_dir() -> String {
         .unwrap_or_default()
 }
 
-/// Derive a short project hash for per-project session files.
-/// Uses git root (cached) for deterministic results regardless of cwd.
-pub fn project_hash() -> String {
-    let dir = PROJECT_DIR.get_or_init(resolve_project_dir);
-    fnv1a_hash(dir)
-}
-
 /// Return the resolved project directory path (git root, env override, or cwd).
 pub fn project_dir() -> String {
     PROJECT_DIR.get_or_init(resolve_project_dir).clone()
@@ -113,40 +59,19 @@ fn fnv1a_hash(s: &str) -> String {
     format!("{:016x}", h)
 }
 
-/// Path to the session file: /tmp/hiboss-session-<project_hash>
-pub fn session_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-session-{}", project_hash()))
-}
-
-/// Path to per-session TTL file for urgent boss checks (5 min).
-pub fn ttl_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-urgent-check-{}", project_hash()))
-}
-
-/// Path to per-session TTL file for agent-to-agent checks (30 sec).
-pub fn a2a_ttl_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-a2a-check-{}", project_hash()))
-}
-
-/// Path to the daemon PID file for this project session.
-pub fn daemon_pid_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-daemon-{}.pid", project_hash()))
-}
-
-/// Path to the daemon's pending messages file (JSON lines).
-pub fn daemon_pending_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-daemon-{}.pending", project_hash()))
-}
-
-/// Path to the urgent message file (written by bg-check, read by post-tool-use).
-pub fn urgent_file_path() -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-urgent-{}", project_hash()))
-}
+pub const SESSION: &str = "session";
+/// TTL for urgent boss checks (5 min) and agent-to-agent checks (30 sec).
+pub const URGENT_CHECK: &str = "urgent-check";
+pub const A2A_CHECK: &str = "a2a-check";
+pub const DAEMON_PID: &str = "daemon.pid";
+pub const DAEMON_PENDING: &str = "daemon.pending";
+pub const DAEMON_LOG: &str = "daemon.log";
+/// Urgent notice written by bg-check and printed by post-tool-use.
+pub const URGENT: &str = "urgent";
 
 /// Check if the daemon is running by reading the PID file and testing the process.
 pub fn is_daemon_running() -> Option<u32> {
-    let pid_str = fs::read_to_string(daemon_pid_path()).ok()?;
-    let pid: u32 = pid_str.trim().parse().ok()?;
+    let pid: u32 = read_state(DAEMON_PID)?.trim().parse().ok()?;
     // Check if process is alive (signal 0 = test existence)
     let status = std::process::Command::new("kill")
         .args(["-0", &pid.to_string()])
@@ -157,25 +82,12 @@ pub fn is_daemon_running() -> Option<u32> {
     if status.success() { Some(pid) } else { None }
 }
 
-/// Read and clear pending messages from the daemon file. Returns JSON lines.
+/// Read and clear pending messages from the daemon spool. Returns JSON lines.
+/// These lines are injected into the agent context as trusted [boss]/[peer] messages,
+/// so only a spool that passes the private-file check is drained.
 pub fn drain_pending_messages() -> Vec<String> {
-    let path = daemon_pending_path();
-    // Atomic read-and-truncate: rename then read. The rename moves the inode, so
-    // the post-rename ownership check applies to the exact bytes we will read
-    // (closing the TOCTOU window). These lines are injected into the agent context
-    // as trusted [boss]/[peer] messages, so a spool a co-resident user planted or
-    // tampered with must never be drained.
-    let tmp = path.with_extension("draining");
-    if fs::rename(&path, &tmp).is_err() {
-        return vec![];
-    }
-    if !is_own_regular_file(&tmp) {
-        let _ = fs::remove_file(&tmp);
-        return vec![];
-    }
-    let content = fs::read_to_string(&tmp).unwrap_or_default();
-    let _ = fs::remove_file(&tmp);
-    content
+    take_state(DAEMON_PENDING)
+        .unwrap_or_default()
         .lines()
         .filter(|l| !l.is_empty())
         .map(|l| l.to_owned())
@@ -184,44 +96,32 @@ pub fn drain_pending_messages() -> Vec<String> {
 
 /// Read session_id from the session file, if it exists.
 pub fn read_session_id() -> Option<String> {
-    let path = session_file_path();
-    fs::read_to_string(path)
-        .ok()
+    read_state(SESSION)
         .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
 }
 
 /// Write a new session_id to the session file.
 pub fn write_session_id(id: &str) -> Result<(), std::io::Error> {
-    write_private(&session_file_path(), id)
+    write_state(SESSION, id)
 }
 
-/// Path to the session-local producer epoch held for one panel.
-pub fn panel_epoch_file_path(panel_id: &str) -> PathBuf {
-    PathBuf::from(format!("/tmp/hiboss-session-{}-panel-{panel_id}-epoch", project_hash()))
+fn panel_epoch_name(panel_id: &str) -> String {
+    format!("panel-{panel_id}-epoch")
 }
 
 /// Read the epoch last claimed by this session for one panel.
 pub fn read_panel_epoch(panel_id: &str) -> Option<String> {
-    let path = panel_epoch_file_path(panel_id);
-    if !is_own_regular_file(&path) {
-        return None;
-    }
-    fs::read_to_string(path).ok().map(|body| body.trim().to_owned()).filter(|body| !body.is_empty())
+    read_state(&panel_epoch_name(panel_id))
+        .map(|body| body.trim().to_owned())
+        .filter(|body| !body.is_empty())
 }
 
-/// Record or clear a panel epoch in the same private temporary area as session state.
+/// Record or clear a panel epoch in the session state directory.
 pub fn write_panel_epoch(panel_id: &str, epoch: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
-    let path = panel_epoch_file_path(panel_id);
     match epoch {
-        Some(epoch) => write_private(&path, epoch)?,
-        None => {
-            if let Err(error) = fs::remove_file(path) {
-                if error.kind() != std::io::ErrorKind::NotFound {
-                    return Err(error.into());
-                }
-            }
-        }
+        Some(epoch) => write_state(&panel_epoch_name(panel_id), epoch)?,
+        None => remove_state(&panel_epoch_name(panel_id)),
     }
     Ok(())
 }
@@ -250,17 +150,4 @@ mod tests {
         write_panel_epoch(&panel_id, None).expect("clear epoch");
         assert_eq!(read_panel_epoch(&panel_id), None);
     }
-
-    #[cfg(unix)]
-    #[test]
-    fn panel_epoch_rejects_non_private_files() {
-        use std::os::unix::fs::PermissionsExt;
-        let panel_id = format!("session-permission-{}", std::process::id());
-        let path = panel_epoch_file_path(&panel_id);
-        write_private(&path, "foreign").expect("write epoch");
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("chmod epoch");
-        assert_eq!(read_panel_epoch(&panel_id), None);
-        let _ = fs::remove_file(path);
-    }
-
 }

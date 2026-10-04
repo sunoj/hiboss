@@ -32,6 +32,7 @@ pub mod progress;
 pub mod panel;
 pub mod request;
 pub mod send;
+pub(crate) mod session_register;
 pub mod setup;
 pub mod setup_agents;
 pub mod setup_hooks;

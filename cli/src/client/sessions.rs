@@ -1,6 +1,6 @@
 // Session registration, discovery and heartbeat HTTP methods.
 // Exports HiBossClient session methods; depends on reqwest and project resolution.
-use super::{HiBossClient, format_http_error};
+use super::{HiBossClient, http_error};
 use std::error::Error;
 use serde_json::Value;
 
@@ -16,6 +16,7 @@ impl HiBossClient {
     ) -> Result<(), Box<dyn Error>> {
         let project = crate::session::resolve_project(None);
         let mut body = session_body(id, project);
+        runtime_fields(&mut body, &crate::runtime::RuntimeIdentity::detect(), crate::session::short_host());
         if let Some(b) = branch {
             body["branch"] = serde_json::Value::String(b.to_owned());
         }
@@ -46,7 +47,7 @@ impl HiBossClient {
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.to_string());
             let text = resp.text().await.unwrap_or_default();
-            return Err(format_http_error("session register failed", status, req_id, text).into());
+            return Err(http_error("session register failed", status, req_id, text).into());
         }
         Ok(())
     }
@@ -100,4 +101,33 @@ impl HiBossClient {
 
 pub(super) fn session_body(id: &str, project: crate::session::ProjectIdentity) -> Value {
     serde_json::json!({ "id": id, "project": project.slug, "project_identity": project })
+}
+
+/// Adds `host`, `runtime` and, for a dispatched agent, `dispatch_ref` (its aid task id).
+pub(super) fn runtime_fields(body: &mut Value, runtime: &crate::runtime::RuntimeIdentity, host: Option<String>) {
+    if let Some(host) = host {
+        body["host"] = Value::String(host);
+    }
+    body["runtime"] = Value::String(runtime.runtime.clone());
+    if runtime.is_dispatched() {
+        body["dispatch_ref"] = Value::String(runtime.session_key.clone());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime::RuntimeIdentity;
+
+    #[test]
+    fn dispatch_ref_is_sent_only_for_aid() {
+        let aid = RuntimeIdentity { runtime: "aid".into(), session_key: "task-9".into() };
+        let mut body = serde_json::json!({});
+        runtime_fields(&mut body, &aid, Some("mac".into()));
+        assert_eq!(body, serde_json::json!({"host": "mac", "runtime": "aid", "dispatch_ref": "task-9"}));
+        let claude = RuntimeIdentity { runtime: "claude".into(), session_key: "s".into() };
+        let mut body = serde_json::json!({});
+        runtime_fields(&mut body, &claude, None);
+        assert_eq!(body, serde_json::json!({"runtime": "claude"}));
+    }
 }

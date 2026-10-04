@@ -1,6 +1,18 @@
 // Purpose: Identify the supported agent runtime from process environment.
-// Exports: RuntimeIdentity and detection for credential profile selection.
+// Exports: RuntimeIdentity, detection for credential profile selection, DispatchedAsk.
 // Dependencies: std::env only.
+
+/// `hiboss ask` refused because a dispatched agent's questions go to its dispatcher.
+#[derive(Debug)]
+pub struct DispatchedAsk;
+
+impl std::fmt::Display for DispatchedAsk {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("dispatched agents cannot ask the boss; return the question to your dispatcher")
+    }
+}
+
+impl std::error::Error for DispatchedAsk {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeIdentity {
@@ -11,6 +23,11 @@ pub struct RuntimeIdentity {
 impl RuntimeIdentity {
     pub fn detect() -> Self {
         Self::from_env(|name| std::env::var(name).ok())
+    }
+
+    /// A dispatched (aid) agent reports to its dispatcher and never blocks on the boss.
+    pub fn is_dispatched(&self) -> bool {
+        self.runtime == "aid"
     }
 
     fn from_env(get: impl Fn(&str) -> Option<String>) -> Self {

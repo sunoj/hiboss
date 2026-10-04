@@ -5,7 +5,6 @@
 use crate::session;
 use clap::{Args, Subcommand};
 use std::error::Error;
-use std::fs;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -35,170 +34,147 @@ pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
         HookEvent::SessionStart => super::hook_start::run().await,
         HookEvent::PostToolUse => run_post_tool_use(),
         HookEvent::BgCheck => run_bg_check().await,
+        // A dispatched agent reports to its dispatcher; Stop never waits on the boss.
+        HookEvent::Stop if crate::runtime::RuntimeIdentity::detect().is_dispatched() => {
+            stop_daemon();
+            Ok(())
+        }
         HookEvent::Stop => run_stop().await,
     };
     Ok(())
 }
 
-/// PostToolUse: purely local I/O, no HTTP, no subprocess. Returns in ~5ms.
+/// PostToolUse: purely local I/O, no HTTP; at most one detached bg-check. Returns in ~5ms.
 fn run_post_tool_use() -> Result<(), Box<dyn Error>> {
-    // 1. Drain pending messages from daemon's local file (fast, no I/O beyond file read)
-    let pending = session::drain_pending_messages();
-    if !pending.is_empty() {
-        println!(
-            "REAL-TIME: {} new messages arrived via SSE daemon:",
-            pending.len()
-        );
-        let mut ids_to_mark: Vec<String> = Vec::new();
-        for line in &pending {
-            if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
-                let direction = msg["direction"].as_str().unwrap_or("");
-                let body = msg["body"].as_str().unwrap_or("");
-                let agent = msg["agent_name"].as_str().unwrap_or("-");
-                let id = msg["id"].as_str().unwrap_or("");
-                let id_short = &id[..8.min(id.len())];
-                if direction == "agent_to_agent" {
-                    println!("  [peer] {} ({}): {}", agent, id_short, body);
-                } else {
-                    println!("  [boss] {} ({}): {}", agent, id_short, body);
-                }
-                if !id.is_empty() {
-                    ids_to_mark.push(id.to_owned());
-                }
-            }
-        }
-        // Queue displayed messages for auto-read marking (bg-check will process)
-        let id_refs: Vec<&str> = ids_to_mark.iter().map(|s| s.as_str()).collect();
-        session::queue_mark_read(&id_refs);
-        println!("Reply with: hiboss reply <id> \"response\"");
+    // Without a usable state directory there is no spool, TTL or session to work with.
+    if session::state_dir().is_none() {
+        return Ok(());
     }
-
-    // 2. Check if any urgent messages were flagged by bg-check (local file).
-    // Its content is printed into the agent context, so only trust a file we
-    // exclusively own — never one a co-resident user planted at this /tmp path.
-    let urgent_file = session::urgent_file_path();
-    if session::is_own_regular_file(&urgent_file) {
-        if let Ok(content) = fs::read_to_string(&urgent_file) {
-            let content = content.trim();
-            if !content.is_empty() {
-                print!("{}", content);
-                let _ = session::write_private(&urgent_file, "");
-            }
-        }
+    print_pending_messages();
+    // Urgent notices enter the agent context, so they come only from the private state dir.
+    if let Some(content) = session::take_urgent() {
+        print!("{}", content.trim());
     }
-
-    // 3. Remind about broadcasting if peers are active and no recent broadcast
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    if session::had_peers_active() {
-        let remind_expired = is_ttl_expired(
-            &session::broadcast_remind_ttl_path(),
-            now,
-            BROADCAST_REMIND_TTL_SECONDS,
-        );
-        if remind_expired {
-            let _ = fs::write(session::broadcast_remind_ttl_path(), now.to_string());
-            println!("BROADCAST REMINDER: You have active peer sessions. Share your progress:");
-            println!("  hiboss send --broadcast \"<what you're working on and current status>\"");
-        }
-    }
-
-    // 4. Spawn bg-check in background if any TTL expired (non-blocking)
-    let a2a_expired = is_ttl_expired(&session::a2a_ttl_file_path(), now, A2A_TTL_SECONDS);
-    let boss_expired = is_ttl_expired(&session::ttl_file_path(), now, BOSS_TTL_SECONDS);
-    if a2a_expired || boss_expired {
-        // Claim TTL immediately to prevent concurrent spawns
-        if a2a_expired {
-            let _ = fs::write(session::a2a_ttl_file_path(), now.to_string());
-        }
-        if boss_expired {
-            let _ = fs::write(session::ttl_file_path(), now.to_string());
-        }
-        // Spawn bg-check detached — fire and forget
-        if let Ok(exe) = std::env::current_exe() {
-            let _ = Command::new(exe)
-                .args(["hook", "bg-check"])
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn();
-        }
-    }
+    remind_broadcast(now);
+    spawn_bg_check_if_due(now);
     Ok(())
 }
 
-/// Background HTTP checks: heartbeat + urgent inbox. Runs as detached process.
+/// Print messages the daemon spooled and queue them for read marking by bg-check.
+fn print_pending_messages() {
+    let pending = session::drain_pending_messages();
+    if pending.is_empty() {
+        return;
+    }
+    println!("REAL-TIME: {} new messages arrived via SSE daemon:", pending.len());
+    let mut ids_to_mark: Vec<String> = Vec::new();
+    for line in &pending {
+        if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
+            let body = msg["body"].as_str().unwrap_or("");
+            let agent = msg["agent_name"].as_str().unwrap_or("-");
+            let id = msg["id"].as_str().unwrap_or("");
+            let id_short = &id[..8.min(id.len())];
+            let from = match msg["direction"].as_str() {
+                Some("agent_to_agent") => "peer",
+                _ => "boss",
+            };
+            println!("  [{from}] {agent} ({id_short}): {body}");
+            if !id.is_empty() {
+                ids_to_mark.push(id.to_owned());
+            }
+        }
+    }
+    let id_refs: Vec<&str> = ids_to_mark.iter().map(|s| s.as_str()).collect();
+    session::queue_mark_read(&id_refs);
+    println!("Reply with: hiboss reply <id> \"response\"");
+}
+
+/// Remind about broadcasting if peers are active and no recent reminder was shown.
+fn remind_broadcast(now: u64) {
+    if !session::had_peers_active()
+        || !session::is_ttl_expired(session::BROADCAST_REMIND, now, BROADCAST_REMIND_TTL_SECONDS)
+    {
+        return;
+    }
+    session::stamp_ttl(session::BROADCAST_REMIND, now);
+    println!("BROADCAST REMINDER: You have active peer sessions. Share your progress:");
+    println!("  hiboss send --broadcast \"<what you're working on and current status>\"");
+}
+
+/// Spawn a detached bg-check when either TTL expired, claiming the TTLs first.
+fn spawn_bg_check_if_due(now: u64) {
+    let a2a_expired = session::is_ttl_expired(session::A2A_CHECK, now, A2A_TTL_SECONDS);
+    let boss_expired = session::is_ttl_expired(session::URGENT_CHECK, now, BOSS_TTL_SECONDS);
+    if !a2a_expired && !boss_expired {
+        return;
+    }
+    if a2a_expired {
+        session::stamp_ttl(session::A2A_CHECK, now);
+    }
+    if boss_expired {
+        session::stamp_ttl(session::URGENT_CHECK, now);
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = Command::new(exe)
+            .args(["hook", "bg-check"])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+    }
+}
+
+/// Background HTTP checks: read marks, heartbeat, urgent inbox. Runs as detached process.
 async fn run_bg_check() -> Result<(), Box<dyn Error>> {
     let client = match build_client() {
         Ok(c) => c,
         Err(_) => return Ok(()),
     };
-
-    // Process read queue: mark displayed messages as read
-    let read_ids = session::drain_read_queue();
-    for id in &read_ids {
+    for id in &session::drain_read_queue() {
         let _ = client.update_status(id, "read").await;
     }
-
-    // Heartbeat. If a Stop parked this session as "waiting" and work has since
-    // resumed (this bg-check only runs off PostToolUse activity), flip it back to
-    // "working". Otherwise leave status untouched so a manually set status
-    // (e.g. blocked) is preserved.
-    if let Some(sid) = session::read_session_id() {
-        let status = if session::take_resume_pending() {
-            Some("working")
-        } else {
-            None
-        };
-        let _ = client.heartbeat_session(&sid, status, None).await;
+    let session_id = session::read_session_id();
+    // Heartbeat. If a Stop parked this session as "waiting" and work has since resumed
+    // (bg-check only runs off PostToolUse activity), flip it back to "working". Otherwise
+    // leave status untouched so a manually set status (e.g. blocked) is preserved.
+    if let Some(sid) = &session_id {
+        let status = session::take_resume_pending().then_some("working");
+        let _ = client.heartbeat_session(sid, status, None).await;
     }
+    flag_unread_messages(&client, session_id.as_deref()).await;
+    if let Some(sid) = &session_id {
+        if let Some(warning) = unacknowledged_outbound_warning(&client, sid).await {
+            session::append_urgent(&format!("{warning}\n"));
+        }
+    }
+    Ok(())
+}
 
-    // Urgent boss message check
-    let count = match client
-        .inbox_count(Some("critical,high"), session::read_session_id().as_deref())
-        .await
-    {
-        Ok(c) => c,
-        Err(_) => 0,
-    };
+/// Leave an urgent notice for the next PostToolUse: urgent boss messages, and peer messages
+/// when no daemon is delivering them.
+async fn flag_unread_messages(client: &crate::client::HiBossClient, session_id: Option<&str>) {
+    let count = client.inbox_count(Some("critical,high"), session_id).await.unwrap_or(0);
     if count > 0 {
-        // Write to urgent file for next post-tool-use to pick up
         let msg = format!(
             "URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high\n",
             count
         );
-        let _ = session::write_private(&session::urgent_file_path(), &msg);
+        let _ = session::write_state(session::URGENT, &msg);
     }
-
-    // A2A message check (only when daemon not running)
-    if session::is_daemon_running().is_none() {
-        let a2a_count = match client
-            .inbox_count_a2a(session::read_session_id().as_deref())
-            .await
-        {
-            Ok(c) => c,
-            Err(_) => 0,
-        };
-        if a2a_count > 0 {
-            let msg = format!(
-                "PEER MESSAGE: You have {} unread agent-to-agent messages. Run: hiboss inbox --direction agent_to_agent\n",
-                a2a_count
-            );
-            let urgent_file = session::urgent_file_path();
-            let existing = fs::read_to_string(&urgent_file).unwrap_or_default();
-            let _ = session::write_private(&urgent_file, &format!("{}{}", existing, msg));
-        }
+    if session::is_daemon_running().is_some() {
+        return;
     }
-    if let Some(sid) = session::read_session_id() {
-        if let Some(warning) = unacknowledged_outbound_warning(&client, &sid).await {
-            let urgent_file = session::urgent_file_path();
-            let existing = fs::read_to_string(&urgent_file).unwrap_or_default();
-            let _ = session::write_private(&urgent_file, &format!("{}{}\n", existing, warning));
-        }
+    let a2a_count = client.inbox_count_a2a(session_id).await.unwrap_or(0);
+    if a2a_count > 0 {
+        session::append_urgent(&format!(
+            "PEER MESSAGE: You have {} unread agent-to-agent messages. Run: hiboss inbox --direction agent_to_agent\n",
+            a2a_count
+        ));
     }
-    Ok(())
 }
 
 async fn run_stop() -> Result<(), Box<dyn Error>> {
@@ -216,10 +192,6 @@ async fn run_stop() -> Result<(), Box<dyn Error>> {
         // resumed) will flip this back to "working".
         session::mark_resume_pending();
     }
-    // Kill SSE daemon if running
-    if let Some(pid) = session::is_daemon_running() {
-        let _ = Command::new("kill").arg(pid.to_string()).output();
-        let _ = fs::remove_file(session::daemon_pid_path());
-    }
+    stop_daemon();
     Ok(())
 }

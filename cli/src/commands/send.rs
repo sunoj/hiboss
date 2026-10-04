@@ -6,6 +6,7 @@ use crate::{
     client::HiBossClient, config::Config, helpers::{short_id, unescape_body}, session,
     types::{SendRequest, SendTarget},
 };
+use super::session_register::send_with_session_heal;
 use clap::Args;
 use colored::Colorize;
 use serde_json::Value;
@@ -81,7 +82,7 @@ pub async fn run(
     };
     // Build task_context metadata from --task, --files, --branch flags
     let metadata = build_metadata(args)?;
-    let request = SendRequest {
+    let mut request = SendRequest {
         body: unescape_body(&args.body),
         mode: "async".to_owned(),
         priority: args.priority.clone(),
@@ -93,7 +94,7 @@ pub async fn run(
         session_id: session::read_session_id(),
         to: args.to.clone(),
     };
-    let mut response = client.send_message(&request).await?;
+    let mut response = send_with_session_heal(client, &mut request).await?;
     if args.wait_ack {
         response.status = client
             .wait_for_delivery(&response.id, Duration::from_secs(30))
@@ -137,9 +138,9 @@ async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box
     let mut failures = 0u32;
 
     for peer in &peers {
-        let request = broadcast_request(args, &body, metadata.as_ref(), &peer.id);
+        let mut request = broadcast_request(args, &body, metadata.as_ref(), &peer.id);
         let label = peer.label.as_deref().filter(|label| !label.is_empty());
-        let outcome = match client.send_message(&request).await {
+        let outcome = match send_with_session_heal(client, &mut request).await {
             Ok(_) => {
                 sent += 1;
                 "succeeded".to_owned()

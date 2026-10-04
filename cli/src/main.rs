@@ -12,6 +12,7 @@ use hiboss::commands::{
 use hiboss::config;
 use hiboss::help;
 use hiboss::message_security::MessageVerificationError;
+use hiboss::runtime::{DispatchedAsk, RuntimeIdentity};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -87,6 +88,10 @@ enum Commands {
 async fn main() {
     if let Err(err) = run().await {
         let msg = err.to_string();
+        if err.is::<DispatchedAsk>() {
+            eprintln!("{msg}");
+            std::process::exit(4);
+        }
         if err.is::<config::ProfileError>() {
             eprintln!("{msg}");
         } else {
@@ -171,6 +176,7 @@ async fn run_remote(
 /// Commands that do not require parseable configuration in the top-level dispatcher.
 async fn run_offline(command: &Commands) -> Result<bool, Box<dyn Error>> {
     match command {
+        Commands::Ask(_) if RuntimeIdentity::detect().is_dispatched() => return Err(DispatchedAsk.into()),
         Commands::Hook(args) => hook::run(args).await?,
         Commands::Setup(args) if args.command.is_none() => onboarding::run(args).await?,
         Commands::Setup(args) if !setup::needs_client(args) => setup::run(args)?,
