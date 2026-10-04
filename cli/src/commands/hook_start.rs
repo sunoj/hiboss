@@ -3,13 +3,22 @@
 // Dependencies: session storage, hook helpers, and the embedded agent prompt.
 
 use crate::session;
-use std::{error::Error, fs, process::Command};
+use std::{error::Error, process::Command};
 use super::{hook_helpers::*, hook_unacked::unacknowledged_outbound_warning, session_register::register_new_session, setup_agents::PROMPT};
 
 pub(super) async fn run() -> Result<(), Box<dyn Error>> {
-    clear_previous_session();
-    let session_id = register_session().await;
-    start_daemon_if_needed();
+    // Without a usable state directory nothing could hold the session id, spool or pid.
+    let session_id = match session::state_dir() {
+        Some(_) => {
+            session::clear_session_markers();
+            let session_id = register_session().await;
+            if let Err(err) = start_daemon_if_needed() {
+                eprintln!("hiboss: daemon start failed: {err}");
+            }
+            session_id
+        }
+        None => String::new(),
+    };
     println!("{PROMPT}");
     println!("CHOICES: Repeat singular --option or --action for each choice. Use --option-image LABEL=PATH for image comparisons. A timeout default is not a human decision or execution authorization.");
     println!("NOTIFY CONTEXT: send/ask accept --content for useful context and --summary for a non-sensitive private-mode push summary.");
@@ -25,16 +34,6 @@ pub(super) async fn run() -> Result<(), Box<dyn Error>> {
         }
     }
     Ok(())
-}
-
-fn clear_previous_session() {
-    for path in [
-        session::session_file_path(), session::asked_marker_path(), session::replied_marker_path(),
-        session::ack_hint_shown_path(), session::stop_warned_marker_path(), session::broadcast_marker_path(),
-        session::peers_active_marker_path(), session::broadcast_remind_ttl_path(), session::read_queue_path(),
-        session::urgent_file_path(), session::daemon_pending_path(), session::ttl_file_path(),
-        session::a2a_ttl_file_path(), session::resume_pending_marker_path(),
-    ] { let _ = fs::remove_file(path); }
 }
 
 async fn register_session() -> String {

@@ -1,5 +1,5 @@
 // Purpose: Utility functions for hiboss CLI hook events.
-// Exports: is_ttl_expired, start_daemon_if_needed, build_client, get_git_branch,
+// Exports: start/stop/restart of the session daemon, build_client, get_git_branch,
 //          show_peer_sessions, generate_session_id, get_inbox_count, get_a2a_inbox_count.
 
 use crate::{client::HiBossClient, config, session};
@@ -12,40 +12,40 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub(crate) const BOSS_TTL_SECONDS: u64 = 300;
 pub(crate) const A2A_TTL_SECONDS: u64 = 30;
 
-pub(crate) fn is_ttl_expired(path: &std::path::Path, now: u64, ttl: u64) -> bool {
-    match fs::read_to_string(path) {
-        Ok(content) => match content.trim().parse::<u64>() {
-            Ok(last) => now.saturating_sub(last) >= ttl,
-            Err(_) => true,
-        },
-        Err(_) => true,
+/// Start this session's SSE daemon unless one is running; returns its pid.
+pub(crate) fn start_daemon_if_needed() -> Result<u32, Box<dyn Error>> {
+    if let Some(pid) = session::is_daemon_running() {
+        return Ok(pid);
     }
-}
-
-/// Start the SSE daemon if not already running.
-pub(crate) fn start_daemon_if_needed() {
-    if session::is_daemon_running().is_some() {
-        return;
-    }
-    // Best-effort: start daemon in background
-    let exe = match std::env::current_exe() {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    let log_path = session::state_file("daemon.log");
+    let exe = std::env::current_exe()?;
+    let log = session::open_log(session::DAEMON_LOG)?;
     let child = Command::new(&exe)
         .args(["daemon", "run"])
-        .stdout(log_stdio(&log_path))
-        .stderr(log_stdio(&log_path))
+        .stdout(log.try_clone()?)
+        .stderr(log)
         .stdin(std::process::Stdio::null())
-        .spawn();
-    if let Ok(child) = child {
-        let _ = fs::write(session::daemon_pid_path(), child.id().to_string());
-    }
+        .spawn()?;
+    session::write_state(session::DAEMON_PID, &child.id().to_string())?;
+    Ok(child.id())
 }
 
-fn log_stdio(path: &std::path::Path) -> std::process::Stdio {
-    fs::File::create(path).map(Into::into).unwrap_or_else(|_| std::process::Stdio::null())
+/// Kill this session's SSE daemon if it is running; returns the pid it stopped.
+pub(crate) fn stop_daemon() -> Option<u32> {
+    let pid = session::is_daemon_running();
+    if let Some(pid) = pid {
+        let _ = Command::new("kill").arg(pid.to_string()).output();
+    }
+    session::remove_state(session::DAEMON_PID);
+    pid
+}
+
+/// Restart a running daemon so its SSE subscription carries the current session id.
+pub(crate) fn restart_daemon_if_running() {
+    if stop_daemon().is_some() {
+        if let Err(err) = start_daemon_if_needed() {
+            eprintln!("hiboss: daemon restart failed: {err}");
+        }
+    }
 }
 
 /// Build an HiBossClient from config (best-effort, returns Err if not configured).

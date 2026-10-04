@@ -31,17 +31,34 @@ fn mime_from_ext(filename: &str) -> String {
     .to_owned()
 }
 
-fn format_http_error(
-    prefix: &str,
+/// A non-success HTTP response, kept typed so callers can match the exact server rejection.
+#[derive(Debug)]
+pub struct HttpError {
+    pub prefix: &'static str,
+    pub status: reqwest::StatusCode,
+    pub request_id: Option<String>,
+    pub body: String,
+}
+
+impl std::fmt::Display for HttpError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({}): {}", self.prefix, self.status, self.body)?;
+        match self.request_id.as_deref().filter(|id| !id.is_empty()) {
+            Some(id) => write!(f, " [req-id={id}]"),
+            None => Ok(()),
+        }
+    }
+}
+
+impl Error for HttpError {}
+
+fn http_error(
+    prefix: &'static str,
     status: reqwest::StatusCode,
-    req_id: Option<String>,
+    request_id: Option<String>,
     body: String,
-) -> String {
-    let suffix = req_id
-        .filter(|id| !id.is_empty())
-        .map(|id| format!(" [req-id={id}]"))
-        .unwrap_or_default();
-    format!("{prefix} ({status}): {body}{suffix}")
+) -> HttpError {
+    HttpError { prefix, status, request_id, body }
 }
 
 pub struct HiBossClient {
@@ -210,7 +227,7 @@ impl HiBossClient {
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.to_string());
             let body = resp.text().await.unwrap_or_default();
-            return Err(format_http_error("react failed", status, req_id, body).into());
+            return Err(http_error("react failed", status, req_id, body).into());
         }
         Ok(())
     }
@@ -262,7 +279,7 @@ impl HiBossClient {
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.to_string());
             let body = resp.text().await.unwrap_or_default();
-            Err(format_http_error("request failed", status, req_id, body).into())
+            Err(http_error("request failed", status, req_id, body).into())
         }
     }
 }

@@ -1,6 +1,6 @@
 // Session registration, discovery and heartbeat HTTP methods.
 // Exports HiBossClient session methods; depends on reqwest and project resolution.
-use super::{HiBossClient, format_http_error};
+use super::{HiBossClient, http_error};
 use std::error::Error;
 use serde_json::Value;
 
@@ -47,7 +47,7 @@ impl HiBossClient {
                 .and_then(|v| v.to_str().ok())
                 .map(|s| s.to_string());
             let text = resp.text().await.unwrap_or_default();
-            return Err(format_http_error("session register failed", status, req_id, text).into());
+            return Err(http_error("session register failed", status, req_id, text).into());
         }
         Ok(())
     }

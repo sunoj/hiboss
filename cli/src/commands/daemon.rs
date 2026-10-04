@@ -2,12 +2,10 @@
 // Exports: DaemonArgs with start/stop/status subcommands.
 // Dependencies: clap, tokio, crate::config, crate::session, crate::sse.
 
+use super::hook_helpers::{start_daemon_if_needed, stop_daemon};
 use crate::{config, session, sse};
 use clap::{Args, Subcommand};
 use std::error::Error;
-use std::fs;
-use std::io::Write;
-use std::process::Command;
 use tokio::time::{Duration, sleep};
 
 #[derive(Debug, Args)]
@@ -31,7 +29,7 @@ pub enum DaemonCommand {
 pub async fn run(args: &DaemonArgs) -> Result<(), Box<dyn Error>> {
     match &args.command {
         DaemonCommand::Start => start_daemon(),
-        DaemonCommand::Stop => stop_daemon(),
+        DaemonCommand::Stop => stop_daemon_command(),
         DaemonCommand::Status => show_status(),
         DaemonCommand::Run => run_daemon().await,
     }
@@ -42,35 +40,16 @@ fn start_daemon() -> Result<(), Box<dyn Error>> {
         eprintln!("Daemon already running (pid {})", pid);
         return Ok(());
     }
-    let exe = std::env::current_exe()?;
-    let cwd = std::env::current_dir()?;
-    let log_path = session::state_file("daemon.log");
-    // Fork: launch self with `daemon run` in background
-    let child = Command::new(&exe)
-        .args(["daemon", "run"])
-        .current_dir(&cwd)
-        .stdout(fs::File::create(&log_path)?)
-        .stderr(fs::File::create(&log_path)?)
-        .stdin(std::process::Stdio::null())
-        .spawn()?;
-    let pid = child.id();
-    fs::write(session::daemon_pid_path(), pid.to_string())?;
-    eprintln!("Daemon started (pid {}, log: {})", pid, log_path.display());
+    let pid = start_daemon_if_needed()?;
+    let log = session::state_file(session::DAEMON_LOG).unwrap_or_default();
+    eprintln!("Daemon started (pid {}, log: {})", pid, log.display());
     Ok(())
 }
 
-fn stop_daemon() -> Result<(), Box<dyn Error>> {
-    let pid_path = session::daemon_pid_path();
-    match session::is_daemon_running() {
-        Some(pid) => {
-            let _ = Command::new("kill").arg(pid.to_string()).status();
-            let _ = fs::remove_file(&pid_path);
-            eprintln!("Daemon stopped (pid {})", pid);
-        }
-        None => {
-            let _ = fs::remove_file(&pid_path);
-            eprintln!("Daemon not running");
-        }
+fn stop_daemon_command() -> Result<(), Box<dyn Error>> {
+    match stop_daemon() {
+        Some(pid) => eprintln!("Daemon stopped (pid {})", pid),
+        None => eprintln!("Daemon not running"),
     }
     Ok(())
 }
@@ -78,8 +57,7 @@ fn stop_daemon() -> Result<(), Box<dyn Error>> {
 fn show_status() -> Result<(), Box<dyn Error>> {
     match session::is_daemon_running() {
         Some(pid) => {
-            let pending = session::daemon_pending_path();
-            let count = fs::read_to_string(&pending)
+            let count = session::read_state(session::DAEMON_PENDING)
                 .map(|c| c.lines().filter(|l| !l.is_empty()).count())
                 .unwrap_or(0);
             println!("running (pid {}, {} pending messages)", pid, count);
@@ -100,7 +78,6 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
         sse_url = format!("{}?session={}", sse_url, sid);
     }
     let sse_client = reqwest::Client::new();
-    let pending_path = session::daemon_pending_path();
     eprintln!("Daemon SSE connecting to {}", sse_url);
 
     let mut backoff = 5u64;
@@ -113,24 +90,12 @@ async fn run_daemon() -> Result<(), Box<dyn Error>> {
             let _ = sse::connect_sse(&client, &url, &k, tx).await;
         });
 
-        // Process received messages until channel closes (SSE disconnected)
-        let path = pending_path.clone();
+        // Process received messages until channel closes (SSE disconnected). The spool
+        // holds message bodies the hook injects into the agent context, so it is only ever
+        // appended as a private file in the validated state directory.
         while let Some(event) = rx.recv().await {
             if event.event_type == "message" {
-                // Spool holds boss/peer message bodies the hook injects into the agent
-                // context; create it owner-only so other users can't read or seed it.
-                let mut opts = fs::OpenOptions::new();
-                opts.create(true).append(true);
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::OpenOptionsExt;
-                    // Owner-only, and never append through a symlink a co-resident
-                    // user planted at this predictable path (O_NOFOLLOW).
-                    opts.mode(0o600).custom_flags(libc::O_NOFOLLOW);
-                }
-                if let Ok(mut f) = opts.open(&path) {
-                    let _ = writeln!(f, "{}", event.data);
-                }
+                let _ = session::append_state(session::DAEMON_PENDING, &format!("{}\n", event.data));
             }
             backoff = 5;
         }

@@ -1,6 +1,6 @@
 // Isolated git checkouts, TMPDIR and config for session-identity tests of the built binary.
-// Exports Fixture, Run and fnv; a mock server comes from onboarding_support/http.rs.
-// Dependencies: git on PATH, std::process, std::fs.
+// Exports Fixture, Run, fnv, leaf, write_private and wait_until; the mock server comes from
+// onboarding_support/http.rs. Dependencies: git, kill and ps on PATH, std::process, std::fs.
 
 #![allow(dead_code)]
 #[path = "../onboarding_support/http.rs"]
@@ -8,8 +8,9 @@ pub mod http;
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
@@ -23,7 +24,6 @@ pub struct Run {
 pub struct Fixture {
     pub root: PathBuf,
     pub repo: PathBuf,
-    sleepers: Vec<Child>,
 }
 
 impl Fixture {
@@ -34,11 +34,7 @@ impl Fixture {
         let repo = root.join(repo_name);
         fs::create_dir_all(&repo).expect("repo dir");
         fs::create_dir_all(root.join("tmp")).expect("tmp dir");
-        let fixture = Self {
-            root,
-            repo,
-            sleepers: Vec::new(),
-        };
+        let fixture = Self { root, repo };
         fixture.git(&fixture.repo, &["init", "-q", "-b", "main"]);
         fixture.git(
             &fixture.repo,
@@ -96,22 +92,30 @@ impl Fixture {
         fnv(&common.to_string_lossy())
     }
 
-    pub fn state_dir(&self, leaf: &str) -> PathBuf {
+    pub fn state_dir(&self, profile: &str, session: &str) -> PathBuf {
         self.root
             .join("tmp")
             .join("hiboss")
             .join(self.project_key())
-            .join(leaf)
+            .join(leaf(profile, session))
     }
 
-    /// Creates a state directory whose daemon pid names a live sleeper, so no daemon starts.
-    pub fn prepare(&mut self, leaf: &str) -> PathBuf {
-        let dir = self.state_dir(leaf);
+    /// Creates this session's private state directory ahead of the CLI and returns it.
+    pub fn prepare(&self, profile: &str, session: &str) -> PathBuf {
+        let dir = self.state_dir(profile, session);
         private_dirs(&dir);
-        let sleeper = Command::new("sleep").arg("60").spawn().expect("sleeper");
-        fs::write(dir.join("daemon.pid"), sleeper.id().to_string()).expect("pid file");
-        self.sleepers.push(sleeper);
         dir
+    }
+
+    /// Every daemon pid file the CLI left in this sandbox, with its pid.
+    pub fn daemon_pids(&self) -> Vec<u32> {
+        let pattern = self.root.join("tmp/hiboss");
+        let projects = fs::read_dir(pattern).into_iter().flatten().flatten();
+        let leaves = projects.flat_map(|project| fs::read_dir(project.path()).into_iter().flatten().flatten());
+        leaves
+            .filter_map(|leaf| fs::read_to_string(leaf.path().join("daemon.pid")).ok())
+            .filter_map(|pid| pid.trim().parse().ok())
+            .collect()
     }
 
     pub fn run(&self, dir: &Path, args: &[&str], env: &[(&str, &str)]) -> Run {
@@ -139,13 +143,48 @@ impl Fixture {
 }
 
 impl Drop for Fixture {
+    /// Stops the daemons this sandbox's CLI runs started, by the pid each one recorded.
     fn drop(&mut self) {
-        for sleeper in &mut self.sleepers {
-            let _ = sleeper.kill();
-            let _ = sleeper.wait();
+        for pid in self.daemon_pids() {
+            if is_hiboss(pid) {
+                let _ = Command::new("kill").arg(pid.to_string()).status();
+            }
         }
         let _ = fs::remove_dir_all(&self.root);
     }
+}
+
+/// True while `pid` is a live (not zombie) hiboss process; guards against a reused pid.
+pub fn is_hiboss(pid: u32) -> bool {
+    let Ok(out) = Command::new("ps").args(["-p", &pid.to_string(), "-o", "stat=,comm="]).output() else {
+        return false;
+    };
+    let line = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+    !line.starts_with('Z') && line.contains("hiboss")
+}
+
+/// The leaf directory name the CLI derives for (profile, session).
+pub fn leaf(profile: &str, session: &str) -> String {
+    format!("{profile}-{session}-{}", fnv(&format!("{profile}\0{session}")))
+}
+
+/// Writes a state file the way the CLI does: owner-only 0600.
+pub fn write_private(path: &Path, content: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    fs::write(path, content).expect("state file");
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("chmod state file");
+}
+
+/// Polls `check` for up to ten seconds.
+pub fn wait_until(mut check: impl FnMut() -> bool) -> bool {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        if check() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    check()
 }
 
 fn private_dirs(dir: &Path) {

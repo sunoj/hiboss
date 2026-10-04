@@ -5,7 +5,7 @@
 mod session_identity_support;
 use serde_json::{Value, json};
 use session_identity_support::http::{Http, Request, Response};
-use session_identity_support::{Fixture, read};
+use session_identity_support::{Fixture, read, write_private};
 
 const FOREIGN: &str = "session does not belong to calling agent";
 
@@ -53,9 +53,9 @@ fn env<'a>(pairs: &'a [(&'static str, String)]) -> Vec<(&'static str, &'a str)> 
 #[test]
 fn two_profiles_in_one_checkout_get_separate_state_directories() {
     let http = server();
-    let mut fixture = Fixture::new("repo", &http.url);
-    let claude_dir = fixture.prepare("claude-s1");
-    let codex_dir = fixture.prepare("codex-s1");
+    let fixture = Fixture::new("repo", &http.url);
+    let claude_dir = fixture.prepare("claude", "s1");
+    let codex_dir = fixture.prepare("codex", "s1");
     for profile in ["claude", "codex"] {
         let run = fixture.run(
             &fixture.repo,
@@ -103,10 +103,10 @@ fn two_profiles_in_one_checkout_get_separate_state_directories() {
 #[test]
 fn worktree_shares_project_key_and_takes_project_identity_from_the_repository() {
     let http = server();
-    let mut fixture = Fixture::new("alpha-repo", &http.url);
+    let fixture = Fixture::new("alpha-repo", &http.url);
     let worktree = fixture.worktree("zzz-unrelated");
-    let main_dir = fixture.prepare("claude-main");
-    let tree_dir = fixture.prepare("claude-tree");
+    let main_dir = fixture.prepare("claude", "main");
+    let tree_dir = fixture.prepare("claude", "tree");
     let main = fixture.run(
         &fixture.repo,
         &["hook", "session-start"],
@@ -153,7 +153,7 @@ fn worktree_shares_project_key_and_takes_project_identity_from_the_repository() 
 #[test]
 fn worktree_project_comes_from_the_remote_name() {
     let http = server();
-    let mut fixture = Fixture::new("checkout", &http.url);
+    let fixture = Fixture::new("checkout", &http.url);
     fixture.git(
         &fixture.repo,
         &[
@@ -164,7 +164,7 @@ fn worktree_project_comes_from_the_remote_name() {
         ],
     );
     let worktree = fixture.worktree("feature-x");
-    fixture.prepare("claude-s");
+    fixture.prepare("claude", "s");
     let run = fixture.run(
         &worktree,
         &["hook", "session-start"],
@@ -181,8 +181,8 @@ fn hook_prints_session_registration_errors() {
         "/api/sessions" if request.method == "POST" => Response::json(500, json!("boom")),
         _ => Response::json(200, json!({"sessions": [], "messages": [], "total": 0})),
     });
-    let mut fixture = Fixture::new("repo", &http.url);
-    fixture.prepare("claude-s");
+    let fixture = Fixture::new("repo", &http.url);
+    fixture.prepare("claude", "s");
     let run = fixture.run(
         &fixture.repo,
         &["hook", "session-start"],
@@ -199,9 +199,9 @@ fn hook_prints_session_registration_errors() {
 #[test]
 fn foreign_session_is_replaced_and_the_send_retried_once() {
     let http = server();
-    let mut fixture = Fixture::new("repo", &http.url);
-    let dir = fixture.prepare("claude-s");
-    std::fs::write(dir.join("session"), "foreign-session").expect("stale session");
+    let fixture = Fixture::new("repo", &http.url);
+    let dir = fixture.prepare("claude", "s");
+    write_private(&dir.join("session"), "foreign-session");
     let run = fixture.run(
         &fixture.repo,
         &["send", "hello"],
@@ -231,8 +231,8 @@ fn foreign_session_is_replaced_and_the_send_retried_once() {
 #[test]
 fn dispatched_mode_never_blocks_on_the_boss() {
     let http = server();
-    let mut fixture = Fixture::new("repo", &http.url);
-    fixture.prepare("claude-task-7");
+    let fixture = Fixture::new("repo", &http.url);
+    fixture.prepare("claude", "task-7");
     let aid = [
         ("AID_TASK_ID", "task-7"),
         ("CLAUDECODE", "1"),

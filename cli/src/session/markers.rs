@@ -1,164 +1,151 @@
-// Session markers and read queues used by CLI hooks.
-// Exports marker helpers; depends on private session paths and filesystem access.
+// Session markers, TTL stamps, the urgent notice and the read queue used by CLI hooks.
+// Exports marker helpers and the names SessionStart clears; depends on private state I/O.
 use super::*;
 
-/// Marker file: written by `hiboss ask`, checked by Stop hook.
-pub fn asked_marker_path() -> PathBuf {
-    state_file("asked")
+const ASKED: &str = "asked";
+const STOP_WARNED: &str = "stop-warned";
+const RESUME_PENDING: &str = "resume-pending";
+const REPLIED: &str = "replied";
+const BROADCAST: &str = "broadcast";
+const PEERS_ACTIVE: &str = "peers-active";
+pub const BROADCAST_REMIND: &str = "broadcast-remind";
+const READ_QUEUE: &str = "read-queue";
+const ACK_HINT: &str = "ack-hint";
+
+/// Everything SessionStart clears, so a resumed session id never inherits stale markers.
+pub fn clear_session_markers() {
+    for name in [
+        SESSION, ASKED, REPLIED, ACK_HINT, STOP_WARNED, BROADCAST, PEERS_ACTIVE, BROADCAST_REMIND,
+        READ_QUEUE, URGENT, DAEMON_PENDING, URGENT_CHECK, A2A_CHECK, RESUME_PENDING,
+    ] {
+        remove_state(name);
+    }
+}
+
+fn mark(name: &str) {
+    let _ = write_state(name, "1");
+}
+
+fn is_marked(name: &str) -> bool {
+    read_state(name).is_some()
 }
 
 /// Record that `hiboss ask` was called this session.
 pub fn mark_asked() {
-    let _ = fs::write(asked_marker_path(), "1");
+    mark(ASKED);
 }
 
 /// Check whether `hiboss ask` was called this session.
 pub fn has_asked() -> bool {
-    asked_marker_path().exists()
+    is_marked(ASKED)
 }
 
 /// Marker: stop hook already warned once this session — don't block again.
-pub fn stop_warned_marker_path() -> PathBuf {
-    state_file("stop-warned")
-}
-
 pub fn mark_stop_warned() {
-    let _ = fs::write(stop_warned_marker_path(), "1");
+    mark(STOP_WARNED);
 }
 
 pub fn has_stop_warned() -> bool {
-    stop_warned_marker_path().exists()
+    is_marked(STOP_WARNED)
 }
 
-/// Marker: the Stop hook parked this session as "waiting" (idle, awaiting the
-/// boss). Set on Stop, consumed by the next background heartbeat so a session
-/// that resumed work is flipped back to "working" instead of lingering as
-/// waiting. Existence flag only — never printed into agent context.
-pub fn resume_pending_marker_path() -> PathBuf {
-    state_file("resume-pending")
-}
-
-/// Record that the Stop hook parked this session as waiting.
+/// Record that the Stop hook parked this session as "waiting" (idle, awaiting the boss).
+/// The next background heartbeat consumes it so a session that resumed work is flipped back
+/// to "working". Existence flag only — never printed into agent context.
 pub fn mark_resume_pending() {
-    let _ = fs::write(resume_pending_marker_path(), "1");
+    mark(RESUME_PENDING);
 }
 
-/// Consume the resume-pending marker: returns true (and deletes it) when the
-/// session was parked as waiting and should now be reset to working. The next
-/// bg-check only runs because active work resumed, so consuming it there is the
-/// resume signal.
+/// Consume the resume-pending marker: true (and deleted) when the session was parked as
+/// waiting. The next bg-check only runs because active work resumed, so consuming it there
+/// is the resume signal.
 pub fn take_resume_pending() -> bool {
-    let path = resume_pending_marker_path();
-    if path.exists() {
-        let _ = fs::remove_file(&path);
-        true
-    } else {
-        false
-    }
+    take_state(RESUME_PENDING).is_some()
 }
 
 /// Clear the resume-pending marker without acting on it — a manually set status
 /// (`hiboss ss`) wins, so bg-check must not later override it with "working".
 pub fn clear_resume_pending() {
-    let _ = fs::remove_file(resume_pending_marker_path());
-}
-
-/// Marker file: written by send/reply/react after an ask, checked by Stop hook.
-pub fn replied_marker_path() -> PathBuf {
-    state_file("replied")
+    remove_state(RESUME_PENDING);
 }
 
 /// Record that agent sent a reply/reaction after asking.
 pub fn mark_replied() {
     if has_asked() {
-        let _ = fs::write(replied_marker_path(), "1");
+        mark(REPLIED);
     }
 }
 
 /// Check whether agent replied after asking.
 pub fn has_replied() -> bool {
-    replied_marker_path().exists()
-}
-
-/// Marker file: written when agent broadcasts to peers, checked by Stop hook.
-pub fn broadcast_marker_path() -> PathBuf {
-    state_file("broadcast")
+    is_marked(REPLIED)
 }
 
 /// Record that agent broadcast to peers this session.
 pub fn mark_broadcast() {
-    let _ = fs::write(broadcast_marker_path(), "1");
+    mark(BROADCAST);
 }
 
 /// Check whether agent has broadcast to peers this session.
 pub fn has_broadcast() -> bool {
-    broadcast_marker_path().exists()
-}
-
-/// Marker file: tracks whether peers were active during this session.
-pub fn peers_active_marker_path() -> PathBuf {
-    state_file("peers-active")
+    is_marked(BROADCAST)
 }
 
 /// Record that peer sessions were detected during this session.
 pub fn mark_peers_active() {
-    let _ = fs::write(peers_active_marker_path(), "1");
+    mark(PEERS_ACTIVE);
 }
 
 /// Check whether peer sessions were active during this session.
 pub fn had_peers_active() -> bool {
-    peers_active_marker_path().exists()
+    is_marked(PEERS_ACTIVE)
 }
 
-/// TTL file for broadcast reminders (avoid spamming every PostToolUse).
-pub fn broadcast_remind_ttl_path() -> PathBuf {
-    state_file("broadcast-remind")
+/// True when the epoch-seconds stamp in `name` is missing, unreadable or older than `ttl`.
+pub fn is_ttl_expired(name: &str, now: u64, ttl: u64) -> bool {
+    match read_state(name).and_then(|content| content.trim().parse::<u64>().ok()) {
+        Some(last) => now.saturating_sub(last) >= ttl,
+        None => true,
+    }
 }
 
-/// Queue file for message IDs to be marked as read by bg-check.
-pub fn read_queue_path() -> PathBuf {
-    state_file("read-queue")
+/// Stamp `name` with the current epoch seconds.
+pub fn stamp_ttl(name: &str, now: u64) {
+    let _ = write_state(name, &now.to_string());
+}
+
+/// Take the urgent notice for printing, leaving it empty.
+pub fn take_urgent() -> Option<String> {
+    take_state(URGENT).filter(|content| !content.trim().is_empty())
+}
+
+/// Append to the urgent notice the next PostToolUse prints.
+pub fn append_urgent(notice: &str) {
+    let _ = append_state(URGENT, notice);
 }
 
 /// Append message IDs to the read queue (one per line).
 pub fn queue_mark_read(ids: &[&str]) {
-    if ids.is_empty() {
-        return;
+    if !ids.is_empty() {
+        let _ = append_state(READ_QUEUE, &(ids.join("\n") + "\n"));
     }
-    let content = ids.join("\n") + "\n";
-    // Append to file
-    let path = read_queue_path();
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    let _ = write_private(&path, &format!("{}{}", existing, content));
 }
 
 /// Drain message IDs from the read queue. Returns IDs to mark.
 pub fn drain_read_queue() -> Vec<String> {
-    let path = read_queue_path();
-    let tmp = path.with_extension("draining");
-    if fs::rename(&path, &tmp).is_err() {
-        return vec![];
-    }
-    let content = fs::read_to_string(&tmp).unwrap_or_default();
-    let _ = fs::remove_file(&tmp);
-    content
+    take_state(READ_QUEUE)
+        .unwrap_or_default()
         .lines()
         .filter(|l| !l.is_empty())
         .map(|l| l.to_owned())
         .collect()
 }
 
-/// Marker file: tracks whether the ack hint has been shown this session.
-pub fn ack_hint_shown_path() -> PathBuf {
-    state_file("ack-hint")
-}
-
 /// Show ack hint only once per session; returns true if hint should be printed.
 pub fn should_show_ack_hint() -> bool {
-    let path = ack_hint_shown_path();
-    if path.exists() {
+    if is_marked(ACK_HINT) {
         return false;
     }
-    let _ = fs::write(&path, "1");
+    mark(ACK_HINT);
     true
 }

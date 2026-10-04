@@ -1,10 +1,12 @@
 // Runs a synthetic HTTP server that captures onboarding requests in memory.
-// Exports Http, Request, and Response for built-binary tests.
+// Exports Http, Request, and Response for built-binary tests. A JSON string body is sent
+// as raw text, the way the server answers with c.text().
 // Dependencies: only std networking, synchronization, and threads.
 
 use serde_json::Value;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -44,6 +46,7 @@ impl Response {
 pub struct Http {
     pub url: String,
     requests: Arc<Mutex<Vec<Request>>>,
+    stopping: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
 
@@ -53,18 +56,27 @@ impl Http {
         let url = format!("http://{}", listener.local_addr().expect("mock address"));
         let requests: Arc<Mutex<Vec<Request>>> = Arc::default();
         let log = requests.clone();
+        let stopping: Arc<AtomicBool> = Arc::default();
+        let stop = stopping.clone();
         let worker = thread::spawn(move || {
             for stream in listener.incoming().flatten() {
                 let mut reader = BufReader::new(stream);
+                // A client that hangs up without a request (a killed daemon) is skipped.
                 let Some(request) = read_request(&mut reader) else {
-                    break;
+                    match stop.load(Ordering::SeqCst) {
+                        true => break,
+                        false => continue,
+                    }
                 };
                 let response = handler(&request);
                 log.lock().expect("request log").push(request);
                 thread::sleep(response.delay);
-                let body = response.body.to_string();
+                let (kind, body) = match response.body {
+                    Value::String(text) => ("text/plain", text),
+                    body => ("application/json", body.to_string()),
+                };
                 let wire = format!(
-                    "HTTP/1.1 {} Synthetic\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    "HTTP/1.1 {} Synthetic\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     response.status,
                     body.len()
                 );
@@ -74,8 +86,15 @@ impl Http {
         Self {
             url,
             requests,
+            stopping,
             worker: Some(worker),
         }
+    }
+
+    /// Paths requested so far, leaving the server running.
+    pub fn paths(&self) -> Vec<String> {
+        let log = self.requests.lock().expect("request log");
+        log.iter().map(|request| format!("{} {}", request.method, request.path)).collect()
     }
 
     pub fn requests(mut self) -> Vec<Request> {
@@ -85,6 +104,7 @@ impl Http {
 
     fn stop(&mut self) {
         if let Some(worker) = self.worker.take() {
+            self.stopping.store(true, Ordering::SeqCst);
             let address = self.url.trim_start_matches("http://");
             let mut stream = TcpStream::connect(address).expect("stop mock server");
             let _ = stream.write_all(b"STOP\r\n");
