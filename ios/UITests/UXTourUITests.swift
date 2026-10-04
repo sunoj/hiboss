@@ -29,8 +29,9 @@ final class UXTourUITests: XCTestCase {
 
     /// One extra language per run, chosen by `UX_TOUR_LANG` (e.g. `ar`, `pt-BR`); skipped when unset.
     func testTourLanguage() throws {
-        let language = try XCTUnwrap(ProcessInfo.processInfo.environment["UX_TOUR_LANG"].flatMap { $0.isEmpty ? nil : $0 },
-                                     "set UX_TOUR_LANG to run this tour")
+        guard let language = ProcessInfo.processInfo.environment["UX_TOUR_LANG"].flatMap({ $0.isEmpty ? nil : $0 }) else {
+            throw XCTSkip("set UX_TOUR_LANG to run this tour")
+        }
         tour(prefix: appearancePrefix + language, extra: [:],
              arguments: ["-AppleLanguages", "(\(language))", "-AppleLocale", language.replacingOccurrences(of: "-", with: "_")])
     }

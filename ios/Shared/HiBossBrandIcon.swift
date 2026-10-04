@@ -14,7 +14,7 @@ struct HiBossBrandIcon: View {
             .scaledToFill()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
-            .accessibilityLabel("HiBoss")
+            .accessibilityLabel(Text(verbatim: "HiBoss")) // Product name: never translated.
             .accessibilityIdentifier("hiboss-brand-icon")
     }
 }
