@@ -1,5 +1,5 @@
 // Shared Live Activity contract, safe countdown ranges, and storage config.
-// Exports: DecisionActivityAttributes, DecisionTimerRange, and HiBossStore.
+// Exports: DecisionActivityAttributes, DecisionCompletion, DecisionTimerRange, and HiBossStore.
 // Dependencies: ActivityKit, HibossKit. iOS-only (not part of HibossKit).
 
 import ActivityKit
@@ -14,14 +14,34 @@ struct DecisionActivityAttributes: ActivityAttributes {
         var options: [String]
         var priority: String
         var deadline: Date?
-        var resolved: Bool
         var content: String?
+        /// The choice a reply is sending; the buttons stay disabled until it lands.
+        var submitting: String?
+        /// How the decision settled; nil while it is still open.
+        var completion: DecisionCompletion?
     }
 
     var messageID: String
     var project: String
     var agentName: String
     var meta: String
+}
+
+/// The recorded outcome shown when a decision's Live Activity ends.
+enum DecisionCompletion: Codable, Hashable {
+    /// This device's reply was recorded.
+    case answered(String)
+    /// The server's timeout default won: its reply carries `auto_default: true`.
+    case autoSelected(String)
+    /// Another surface's answer won; nil when the recorded reply could not be read.
+    case answeredElsewhere(String?)
+
+    /// The winning reply from message detail, attributed by the automatic marker.
+    static func recorded(in detail: MessageDetail?) -> DecisionCompletion {
+        guard let reply = detail?.replies.first else { return .answeredElsewhere(nil) }
+        let answer = reply.body.trimmingCharacters(in: .whitespacesAndNewlines)
+        return reply.metadata?.isAutoDefault == true ? .autoSelected(answer) : .answeredElsewhere(answer)
+    }
 }
 
 /// ClosedRange traps when its lower bound is later than its upper bound. Widget

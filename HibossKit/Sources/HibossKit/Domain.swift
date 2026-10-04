@@ -212,6 +212,10 @@ public struct OptionResolution: Codable, Equatable, Sendable {
 
     /// Human label for the resolving surface, e.g. "iOS", "Mac", "Telegram".
     public var sourceLabel: String? { resolutionSourceLabel(source) }
+
+    /// The stream event carries no metadata: the server encodes a reply marked
+    /// `auto_default: true` as source `system`, and emits `system` for nothing else.
+    public var isAutoDefault: Bool { status == .replied && source == "system" }
 }
 
 /// Maps a raw resolution-source tag to a display label. Shared so the option

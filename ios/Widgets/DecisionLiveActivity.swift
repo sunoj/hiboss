@@ -109,6 +109,7 @@ private struct ActionButtons: View {
 
     var body: some View {
         let options = context.state.options
+        let sending = context.state.submitting
         HStack(spacing: 9) {
             ForEach(Array(options.prefix(2).enumerated()), id: \.offset) { index, option in
                 Button(intent: RespondDecisionIntent(messageID: context.attributes.messageID, choice: option)) {
@@ -121,7 +122,52 @@ private struct ActionButtons: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .opacity(sending == nil || sending == option.trimmingCharacters(in: .whitespacesAndNewlines) ? 1 : 0.4)
             }
+        }
+        // The shared reply gate is sending a choice from some surface: no second answer.
+        .disabled(sending != nil || context.state.completion != nil)
+    }
+}
+
+/// The recorded outcome: a timeout default is never worded as the boss's answer.
+private struct CompletionLine: View {
+    let completion: DecisionCompletion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label { title } icon: { Image(systemName: symbol) }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(isOwnAnswer ? LA.approve : LA.ink)
+            if let answer {
+                Text(verbatim: answer).font(.footnote).foregroundStyle(LA.ink2).lineLimit(2)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var title: Text {
+        switch completion {
+        case .answered: Text("Answered")
+        case .autoSelected: Text("Auto-selected when time ran out")
+        case .answeredElsewhere: Text("Already answered elsewhere.")
+        }
+    }
+
+    private var symbol: String {
+        if case .autoSelected = completion { return "clock.arrow.circlepath" }
+        return "checkmark.circle.fill"
+    }
+
+    private var isOwnAnswer: Bool {
+        if case .answered = completion { return true }
+        return false
+    }
+
+    private var answer: String? {
+        switch completion {
+        case let .answered(text), let .autoSelected(text): text
+        case let .answeredElsewhere(text): text
         }
     }
 }
@@ -168,11 +214,10 @@ private struct LockScreenCard: View {
                     .font(.system(size: 14.5)).foregroundStyle(LA.ink.opacity(0.92))
                     .lineLimit(3)
             }
-            if !context.state.resolved {
-                ActionButtons(context: context)
+            if let completion = context.state.completion {
+                CompletionLine(completion: completion)
             } else {
-                Text("Answered")
-                    .font(.system(size: 13, design: .monospaced)).foregroundStyle(LA.approve)
+                ActionButtons(context: context)
             }
         }
         .padding(15)

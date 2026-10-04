@@ -22,6 +22,7 @@ extension XCUIApplication {
         "HIBOSS_DEMO_HISTORY_DELAY_MS",
         "HIBOSS_DEMO_MESSAGE_DELAY_MS",
         "HIBOSS_DEMO_REFRESH_FAILS",
+        "HIBOSS_DEMO_REPLY_DELAY_MS",
         "HIBOSS_DEMO_PAIRING_TTL",
         "HIBOSS_TAB",
     ]

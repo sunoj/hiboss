@@ -57,7 +57,10 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
         }
     }
 
+    /// `HIBOSS_DEMO_REPLY_DELAY_MS` holds each reply in flight so its disabled state can be seen.
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
+        let delay = Int(ProcessInfo.processInfo.environment["HIBOSS_DEMO_REPLY_DELAY_MS"] ?? "") ?? 0
+        if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
         guard let index = messages.firstIndex(where: { $0.id == messageID }) else {
             return .accepted
         }
@@ -114,7 +117,7 @@ private enum DemoFixtures {
     }
 
     static let messages: [HistoryMessage] = deploy + payments + data + direct
-        + [bossReply(to: data[1], choice: "Keep current key", source: "system", at: iso(-6_600))]
+        + [bossReply(to: data[1], choice: "Keep current key", source: "api", automatic: true, at: iso(-6_600))]
 
     static func answered(_ parent: HistoryMessage) -> HistoryMessage {
         HistoryMessage(
@@ -128,14 +131,16 @@ private enum DemoFixtures {
         )
     }
 
+    /// `automatic` is the historical timeout shape: `auto_default: true` with source `api`.
     static func bossReply(
-        to parent: HistoryMessage, choice: String, source: String, at created: String = Date().ISO8601Format()
+        to parent: HistoryMessage, choice: String, source: String, automatic: Bool = false,
+        at created: String = Date().ISO8601Format()
     ) -> HistoryMessage {
         HistoryMessage(
             id: MessageID(rawValue: "r-\(parent.id.rawValue)"), body: choice, agentName: parent.agentName,
             direction: "boss_to_agent", status: "sent", priority: "normal",
             channel: "api", mode: "async", replyTo: parent.id.rawValue,
-            metadata: MessageMetadata(options: [], source: source),
+            metadata: MessageMetadata(options: [], source: source, isAutoDefault: automatic),
             createdAt: created,
             sessionId: parent.sessionId, targetSessionId: parent.sessionId ?? parent.targetSessionId,
             sessionLabel: parent.sessionLabel, sessionBranch: parent.sessionBranch,

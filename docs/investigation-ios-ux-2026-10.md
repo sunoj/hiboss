@@ -31,7 +31,7 @@ unchanged source.
 | Onboarding | No tour stop launched `HIBOSS_DEMO_ONBOARDING=1`. | `en-00-onboarding`, `xxl-00-onboarding` |
 | Connection states on Home | `testTourConnectionStates` captured Messages only. | `conn-failed-01-home`, `conn-connecting-01-home` |
 | Failed refresh over loaded rows | No demo state. | `HIBOSS_DEMO_REFRESH_FAILS=1`; `conn-stale-04-messages` |
-| Auto-decided history | No demo fixture resolved by a timeout default. | Fixture `a1` with a `system` reply; `en-18-auto-decided-detail`, `en-19-resolved-auto-decided` |
+| Auto-decided history | No demo fixture resolved by a timeout default. | Fixture `a1` with a reply in the historical timeout shape (`auto_default: true`, `source: "api"`); `en-18-auto-decided-detail`, `en-19-resolved-auto-decided` |
 | Sign Out | Not reached. | `en-16-sign-out` |
 | Progress media | `ios/UITests/UXTourUITests.swift:128` tapped `app.images.firstMatch`, which matched a tab-bar glyph: `en-07-progress-media.png` shows Home. | The stop taps the first feed image by its alt text. |
 
@@ -48,17 +48,18 @@ unchanged source.
 - Code: `ios/App/Inbox/MessageDetailView.swift:240` marks the recorded answer
   "Selected"; `:246` words it "Answered on \(source)". `ResolvedDecisionsView.swift:135`
   and `SessionDecisionBubble.swift:51` use the same wording.
-- Property: the server records a timeout default as a reply whose metadata `source`
-  is `system` (`server/src/routes/message-options.ts:117`, the only writer of that
-  source). `DecisionSettlement.answeredElsewhere`
+- Property: the server records a timeout default as a reply whose metadata carries
+  `auto_default: true` (`server/src/routes/message-options.ts:117`). Current replies also
+  carry `source: "system"`; replies written before commit `5563a7a` carry
+  `source: "api"`, so the source does not identify them. `DecisionSettlement.answeredElsewhere`
   (`ios/App/Inbox/InboxSettlement.swift:16`) treats every source other than `ios` as
   another boss surface, and `resolutionSourceLabel` capitalizes unknown sources
   (`HibossKit/Sources/HibossKit/Domain.swift:226`), producing "Answered on System"
   next to a checkmark. The attention model requires auto-decided items to be labelled
   as such and never rendered as if the boss had chosen.
 - Fix: `DecisionSettlement.isAutoDefault`, `attribution` and `symbol` drive all three
-  surfaces. Tests: `DecisionStateTests.testSystemReplyIsAnAutoDefaultNotAnAnswerFromElsewhere`,
-  `DecisionStateUITests.testTimeoutDefaultIsNotShownAsTheBossChoice`.
+  surfaces. The first version classified by `source == "system"`; see audit fix round 1
+  for the marker-based version and the remaining surfaces.
 
 **P0-2. Home and transcript choice buttons stay live while a reply is in flight.** Fixed.
 
@@ -75,10 +76,10 @@ unchanged source.
   `ios/App/Inbox/InboxStore+ReplyFeedback.swift:18` shows "That decision was already
   answered elsewhere." although both taps came from this phone. Message detail already
   guarded this with local state (`MessageDetailView.swift:261`).
-- Fix: `InboxStore.replying` holds the in-flight choice per decision;
-  `replyWithFeedback` ignores a second tap; Home and transcript pass the choice to
-  `DecisionOptions`, which disables every option and shows progress on the chosen one.
-  Test: `DecisionStateTests.testSecondTapWhileReplyIsInFlightSendsNothing`.
+- Fix: `InboxStore.replying` holds the in-flight choice per decision; Home and
+  transcript pass the choice to `DecisionOptions`, which disables every option and shows
+  progress on the chosen one. The first version guarded only `replyWithFeedback`; see
+  audit fix round 1 for the single admission point.
 
 ### P1 — missing information or a flow a boss will hit
 
@@ -122,7 +123,8 @@ unchanged source.
 - Fix: `ListStatePhase.content(staleError:)` and a banner in the bottom safe-area
   inset; a top inset covered the large navigation title.
   Tests: `DecisionStateTests.testListPhaseKeepsRowsAndReportsAFailedRefresh`,
-  `DecisionStateUITests.testFailedRefreshKeepsRowsAndSaysTheyAreStale`.
+  `DecisionStateUITests.testFailedRefreshKeepsRowsAndSaysTheyAreStale`. Progress passed
+  its error only when it had no posts until audit fix round 1.
 
 ### P2 — polish
 
@@ -157,13 +159,65 @@ matched any code. With `--stringsdata`, the `HiBossBrandIcon.swift` entry was al
 stale: neither target's compiler output extracts that key.
 `ios/scripts/i18n-audit.py` now reports 0 findings in both modes.
 
-**P2-6. `MessageCard` has no call sites.** Open. `ios/App/Inbox/MessageCard.swift`
-still carries its own "Answered on" wording; no view constructs it.
+**P2-6. `MessageCard` has no call sites.** Fixed. `MessageCard` and `ReplySheet` had no
+call sites; each carried its own answer wording, and `ReplySheet` its own in-flight
+state. Both are deleted.
 
 ### Needs server
 
 No finding in this audit requires a server change. P0-1 relies on the existing
-`source: "system"` marker of timeout-default replies.
+`auto_default: true` marker of timeout-default replies.
+
+## Audit fix round 1
+
+An independent audit of commit `bc0fd81` returned FIX. Changes:
+
+**Automatic marker (audit P0-1, P0-3).** `MessageMetadata.isAutoDefault` decodes
+`auto_default` (`HibossKit/Sources/HibossKit/MessageMetadata.swift`); the source is not
+consulted. `SessionEvent.isAutoDefaultReply` reads the same key from the transcript
+payload's message metadata (`server/src/session-events.ts:29` includes it). The live
+option stream carries no metadata: the server maps `auto_default: true` to source
+`system` and emits `system` for nothing else
+(`server/src/routes/boss-option-stream.ts:183`), so `OptionResolution.isAutoDefault`
+reads that encoding until the persisted reply replaces it on the next history load.
+`DecisionSettlement` stores the flag and is built only through `init?(reply:)` and
+`init?(resolution:)`, which message detail, the Resolved list, transcript settlements
+and history reloads all use. The transcript draws an automatic reply as
+`SessionTranscriptItem.automatic` with the settlement's glyph and attribution instead of
+an outgoing boss bubble. Tests: `AutoDefaultMarkerTests` (HibossKit: historical
+`{auto_default: true, source: "api"}`, current `{auto_default: true, source: "system"}`,
+`source` alone, transcript payload), `DecisionStateTests` (history reload, a boss choice
+equal to the default), `DecisionStateUITests.testTimeoutDefaultIsNotShownAsTheBossChoice`
+and `testAutomaticReplyInTheTranscriptIsNotTheBossSpeaking`.
+
+**One admission point (audit P0-2).** `DecisionReplyGate`
+(`ios/Shared/DecisionReplyGate.swift`) admits at most one reply per decision id. It
+records the choice before it suspends and releases it with `defer` on success,
+already-resolved, failure and cancellation. `InboxStore.reply` (Home, transcript,
+detail), notification actions (`PushManager`) and `RespondDecisionIntent` all submit
+through `DecisionReplyGate.shared`; a refused submission returns `.busy` and sends
+nothing. `InboxStore.replying` reads the gate, so a reply started from a notification
+also disables the in-app buttons. Message detail has no local in-flight state.
+
+**Live Activity outcome (audit P0-3).** `DecisionActivityLink` mirrors the gate onto the
+decision's activity: `ContentState.submitting` disables both buttons while any surface
+sends, a failure re-enables them, and a settled reply ends the activity with
+`DecisionCompletion`. An already-resolved reply reads the recorded winner from message
+detail and shows "Auto-selected when time ran out" when it carries the marker, else
+"Already answered elsewhere." The intent no longer ends the activity unconditionally.
+
+**Progress stale banner (audit P1-4).** `ProgressFeedView` passes `loadError` for
+populated lists. Test: `DecisionStateUITests.testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale`.
+
+**Tests (audit P1-5).** `HeldReplyAPI` holds each reply in its own slot until released.
+`DecisionReplyGateTests` cover a second tap, detail during a Home reply, a
+notification/intent submission while the app replies, independent decision ids, failure
+with retry, cancellation, and republishing to observers. Each waits on a bounded poll and
+releases the fake before awaiting, so removing the guard fails three tests in under a
+second instead of hanging (checked by deleting the guard line).
+`DecisionStateUITests.testInFlightReplyDisablesTheButtonsOnHomeAndInDetail` holds a demo
+reply for eight seconds (`HIBOSS_DEMO_REPLY_DELAY_MS`) and asserts the options are
+disabled on Home and in detail.
 
 ## Verification
 

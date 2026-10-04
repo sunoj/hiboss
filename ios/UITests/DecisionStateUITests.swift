@@ -1,4 +1,5 @@
-// Visible decision and account states: auto-selected history, pairing expiry, sign-out and stale lists.
+// Visible decision and account states: auto-selected history and transcript, in-flight replies,
+// pairing expiry, sign-out and stale lists (Messages and Progress).
 // Exports: DecisionStateUITests (demo mode, English).
 // Dependencies: XCTest, DemoLaunchSupport.
 
@@ -34,6 +35,40 @@ final class DecisionStateUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Auto-selected"].exists)
         XCTAssertFalse(app.staticTexts["Selected"].exists, "a server default is not a selection")
         XCTAssertFalse(app.staticTexts["Answered on System"].exists)
+        XCTAssertFalse(app.staticTexts["Answered on API"].exists, "the demo reply is the historical api-source shape")
+    }
+
+    func testAutomaticReplyInTheTranscriptIsNotTheBossSpeaking() {
+        launch(["HIBOSS_DEMO_OPEN": "a1"])
+        let session = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'View session'")).firstMatch
+        XCTAssertTrue(session.waitForExistence(timeout: 10))
+        session.tap()
+        let automatic = app.descendants(matching: .any)["session-automatic-reply"]
+        XCTAssertTrue(automatic.waitForExistence(timeout: 8), "the timeout default has its own row")
+        XCTAssertTrue(automatic.label.contains("Auto-selected when time ran out"), automatic.label)
+        let answer = app.descendants(matching: .any)["transcript-answer-a1"]
+        XCTAssertTrue(answer.label.contains("Auto-selected when time ran out"), answer.label)
+        XCTAssertFalse(app.descendants(matching: .any)["session-bubble-outgoing"].exists,
+                       "no boss bubble claims the automatic answer")
+    }
+
+    func testInFlightReplyDisablesTheButtonsOnHomeAndInDetail() {
+        launch(["HIBOSS_DEMO_REPLY_DELAY_MS": "8000"])
+        let fine = app.buttons["Fine grid"].firstMatch
+        XCTAssertTrue(fine.waitForExistence(timeout: 10))
+        XCTAssertTrue(fine.isEnabled)
+        fine.tap()
+        let coarse = app.buttons["Coarse grid"].firstMatch
+        let disabled = NSPredicate(format: "isEnabled == false")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: disabled, evaluatedWith: coarse)], timeout: 3), .completed,
+                       "Home disables every option while the reply is in flight")
+        XCTAssertFalse(fine.isEnabled)
+
+        app.buttons["home-message-c5"].tap()
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Coarse grid"].firstMatch.isEnabled, "detail reads the same in-flight state")
+        XCTAssertFalse(app.buttons["Fine grid"].firstMatch.isEnabled)
+        XCTAssertTrue(app.staticTexts["Selected"].waitForExistence(timeout: 15), "the one reply lands")
     }
 
     func testExpiredPairingCodeOffersAFreshCode() {
@@ -74,5 +109,18 @@ final class DecisionStateUITests: XCTestCase {
         pullToRefresh(app)
         XCTAssertTrue(app.descendants(matching: .any)["list-stale-banner"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.cells.firstMatch.exists, "earlier rows stay visible")
+    }
+
+    func testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale() {
+        launch(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
+        let progress = app.tabBars.buttons["Progress"]
+        XCTAssertTrue(progress.waitForExistence(timeout: 10))
+        progress.tap()
+        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["list-stale-banner"].exists)
+        Thread.sleep(forTimeInterval: 5)
+        pullToRefresh(app)
+        XCTAssertTrue(app.descendants(matching: .any)["list-stale-banner"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.firstMatch.exists, "earlier posts stay visible")
     }
 }

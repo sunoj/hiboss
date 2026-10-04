@@ -42,7 +42,7 @@ struct SessionsView: View {
         }
     }
 
-    /// Same list-row treatment as Inbox pending `MessageCard` rows: the card
+    /// Same list-row treatment as pending decision rows: the card
     /// draws its own material tile; the list supplies no separator or fill.
     private func sessionRow(_ group: SessionGroup) -> some View {
         NavigationLink(value: SessionRoute(id: group.id, label: group.localizedLabel)) {

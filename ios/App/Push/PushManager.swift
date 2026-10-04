@@ -236,8 +236,9 @@ extension PushManager: UNUserNotificationCenterDelegate {
         guard let choice, !choice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         if let api = HiBossStore.bossAPI() {
-            _ = try? await api.reply(to: MessageID(rawValue: request.messageID), with: choice)
-            pushLog.info("replied to \(request.messageID) from notification action")
+            let id = MessageID(rawValue: request.messageID)
+            let outcome = await DecisionReplyGate.shared.submit(choice, to: id, via: api)
+            pushLog.info("notification action for \(request.messageID): \(String(describing: outcome))")
         }
     }
 }

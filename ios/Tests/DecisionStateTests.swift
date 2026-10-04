@@ -1,6 +1,6 @@
-// Decision-state tests: timeout defaults are attributed to the server, one reply per decision
-// is in flight, and a failed refresh over loaded rows is reported as stale.
-// Exports: DecisionStateTests. Dependencies: XCTest, HiBoss app target, HibossKit BossServing.
+// Decision-state tests: a timeout default is attributed by its `auto_default` marker, never by
+// its source, through history reloads; a failed refresh over loaded rows is reported as stale.
+// Exports: DecisionStateTests. Dependencies: XCTest, HiBoss app target, HibossKit, HeldReplyAPI.
 
 import HibossKit
 import XCTest
@@ -8,19 +8,63 @@ import XCTest
 
 @MainActor
 final class DecisionStateTests: XCTestCase {
-    func testSystemReplyIsAnAutoDefaultNotAnAnswerFromElsewhere() {
-        let automatic = DecisionSettlement(answer: "Keep current key", source: "system")
-        XCTAssertTrue(automatic.isAutoDefault)
-        XCTAssertFalse(automatic.answeredElsewhere)
-        XCTAssertEqual(automatic.symbol, "clock.arrow.circlepath")
+    private func metadata(_ json: String) throws -> MessageMetadata {
+        try JSONDecoder().decode(MessageMetadata.self, from: Data(json.utf8))
+    }
 
-        let telegram = DecisionSettlement(answer: "Hold", source: "telegram")
-        XCTAssertFalse(telegram.isAutoDefault)
-        XCTAssertTrue(telegram.answeredElsewhere)
-        XCTAssertEqual(telegram.symbol, "checkmark.circle.fill")
+    private func reply(_ body: String, _ metadata: MessageMetadata) -> HistoryMessage {
+        HistoryMessage(
+            id: "r-q1", body: body, agentName: "agent", direction: "boss_to_agent", status: "sent",
+            priority: "normal", replyTo: "q1", metadata: metadata, createdAt: "2026-10-04T10:01:00Z"
+        )
+    }
 
-        XCTAssertFalse(DecisionSettlement(answer: "Ship", source: "ios").answeredElsewhere)
-        XCTAssertFalse(DecisionSettlement(answer: "Ship", source: nil).isAutoDefault)
+    private static let question = HistoryMessage(
+        id: "q1", body: "Rotate the key?", agentName: "agent", direction: "agent_to_boss",
+        status: "replied", priority: "normal", mode: "blocking",
+        metadata: MessageMetadata(options: ["Rotate", "Keep"], defaultOption: "Keep"),
+        createdAt: "2026-10-04T10:00:00Z"
+    )
+
+    func testMarkerNotSourceMakesAReplyAutomatic() throws {
+        for json in [#"{"auto_default":true,"source":"api"}"#, #"{"auto_default":true,"source":"system"}"#] {
+            let settled = try XCTUnwrap(DecisionSettlement(reply: reply("Keep", try metadata(json))))
+            XCTAssertTrue(settled.isAutoDefault, json)
+            XCTAssertFalse(settled.answeredElsewhere, "a timeout default is not an answer from \(json)")
+            XCTAssertEqual(settled.symbol, "clock.arrow.circlepath")
+        }
+        let api = try XCTUnwrap(DecisionSettlement(reply: reply("Keep", try metadata(#"{"source":"api"}"#))))
+        XCTAssertFalse(api.isAutoDefault)
+        XCTAssertTrue(api.answeredElsewhere)
+        XCTAssertEqual(api.symbol, "checkmark.circle.fill")
+    }
+
+    func testBossChoosingTheDefaultIsNotAutomatic() throws {
+        let chosen = try XCTUnwrap(DecisionSettlement(reply: reply("Keep", try metadata(#"{"source":"ios"}"#))))
+        XCTAssertEqual(chosen.answer, Self.question.defaultOption)
+        XCTAssertFalse(chosen.isAutoDefault, "equal to the default is still the boss's choice")
+        XCTAssertFalse(chosen.answeredElsewhere)
+    }
+
+    func testHistoryReloadKeepsAHistoricalTimeoutDefaultAutomatic() async throws {
+        let historical = reply("Keep", try metadata(#"{"auto_default":true,"source":"api"}"#))
+        let api = HeldReplyAPI(history: [Self.question, historical])
+        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false,
+                               replyGate: DecisionReplyGate())
+        store.start(api: api)
+        await store.refresh()
+        let settled = try XCTUnwrap(store.settlement(for: "q1"))
+        XCTAssertTrue(settled.isAutoDefault, "history must not turn an automatic answer into one from API")
+        XCTAssertFalse(settled.answeredElsewhere)
+        XCTAssertEqual(store.settledCards.map(\.id), ["q1"], "the Resolved list reads this settlement")
+    }
+
+    func testStreamResolutionThenHistoryStayAutomatic() throws {
+        let streamed = try XCTUnwrap(DecisionSettlement(resolution: OptionResolution(
+            id: "q1", status: .replied, answer: "Keep", source: "system"
+        )))
+        XCTAssertTrue(streamed.isAutoDefault)
+        XCTAssertNil(DecisionSettlement(resolution: OptionResolution(id: "q1", status: .expired)))
     }
 
     func testListPhaseKeepsRowsAndReportsAFailedRefresh() {
@@ -31,68 +75,5 @@ final class DecisionStateTests: XCTestCase {
                        .content(staleError: "down"))
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: nil, isEmpty: false),
                        .content(staleError: nil))
-    }
-
-    func testSecondTapWhileReplyIsInFlightSendsNothing() async {
-        let api = SlowReplyAPI()
-        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
-        store.start(api: api)
-        let first = Task { await store.replyWithFeedback("Approve", to: "q1") }
-        for _ in 0..<200 where store.replying["q1"] == nil { await Task.yield() }
-        XCTAssertEqual(store.replying["q1"], "Approve", "the in-flight choice is published for the buttons")
-
-        let second = await store.replyWithFeedback("Reject", to: "q1")
-        XCTAssertNil(second, "an ignored tap shows no note")
-        api.release()
-        let firstNote = await first.value
-
-        XCTAssertNil(firstNote)
-        XCTAssertEqual(api.replies, ["Approve"])
-        XCTAssertNil(store.replying["q1"])
-    }
-}
-
-/// Holds every reply until `release()`, so a test can act while one is in flight.
-private final class SlowReplyAPI: BossServing, @unchecked Sendable {
-    private let lock = NSLock()
-    private var recorded: [String] = []
-    private var gate: CheckedContinuation<Void, Never>?
-    private var released = false
-
-    var replies: [String] { lock.withLock { recorded } }
-
-    func release() {
-        let waiting: CheckedContinuation<Void, Never>? = lock.withLock {
-            released = true
-            defer { gate = nil }
-            return gate
-        }
-        waiting?.resume()
-    }
-
-    func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
-        AsyncThrowingStream { continuation in continuation.onTermination = { _ in } }
-    }
-
-    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {
-        AsyncThrowingStream { $0.finish() }
-    }
-
-    func fetchHistory() async throws -> [HistoryMessage] { [] }
-
-    func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail {
-        throw HibossAPIError.requestFailed(status: 404, message: "")
-    }
-
-    func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let resumeNow: Bool = lock.withLock {
-                recorded.append(choice)
-                if !released { gate = continuation }
-                return released
-            }
-            if resumeNow { continuation.resume() }
-        }
-        return .accepted
     }
 }

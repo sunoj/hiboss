@@ -10,7 +10,6 @@ struct MessageDetailView: View {
     @ObservedObject var store: InboxStore
     let messageID: MessageID
     @State private var replyDraft = ""
-    @State private var submitting: String?
     @State private var actionNote: String?
     @State private var fallback: Fallback = .loading
     @State private var loadAttempt = 0
@@ -20,6 +19,9 @@ struct MessageDetailView: View {
     private enum Fallback { case loading, missing, failed(String) }
 
     private var message: HistoryMessage? { store.message(for: messageID) }
+
+    /// The reply in flight for this decision from any surface (Home, transcript, a notification).
+    private var submitting: String? { store.replying[messageID] }
 
     /// The boss reply that resolved this decision, if it's in the loaded history.
     private var reply: HistoryMessage? {
@@ -43,7 +45,7 @@ struct MessageDetailView: View {
 
     /// The recorded answer and its source, so a timeout default is never shown as a choice.
     private var settlement: DecisionSettlement? {
-        chosenAnswer.map { DecisionSettlement(answer: $0, source: reply?.metadata?.source) }
+        reply.flatMap(DecisionSettlement.init(reply:))
     }
 
     var body: some View {
@@ -257,13 +259,12 @@ struct MessageDetailView: View {
 
     private func submit(_ choice: String, for id: MessageID) {
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, submitting == nil else { return }
-        submitting = text
+        guard !text.isEmpty, store.replying[id] == nil else { return }
         actionNote = nil
         Task {
-            let result = await store.reply(text, to: id)
-            submitting = nil
-            switch result {
+            switch await store.reply(text, to: id) {
+            case .busy:
+                break
             case .sent:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 dismiss()

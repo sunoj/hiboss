@@ -9,11 +9,10 @@ import SwiftUI
 struct DecisionSettlement: Equatable {
     let answer: String
     let source: String?
+    /// The server's timeout default, from the reply's `auto_default` marker, never from `source`.
+    var isAutoDefault = false
 
     var sourceLabel: String? { resolutionSourceLabel(source) }
-
-    /// The server's timeout default: its reply is the only one written with source `system`.
-    var isAutoDefault: Bool { source?.lowercased() == "system" }
 
     /// True when the answer came from another boss surface, not this iOS client.
     var answeredElsewhere: Bool {
@@ -30,12 +29,26 @@ struct DecisionSettlement: Equatable {
 
     /// The pending card's auto-select glyph, not the checkmark of a choice someone made.
     var symbol: String { isAutoDefault ? "clock.arrow.circlepath" : "checkmark.circle.fill" }
+}
 
-    static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
-        guard let reply = history.first(where: { $0.replyTo == id.rawValue }) else { return nil }
+extension DecisionSettlement {
+    /// The persisted reply's answer, source and automatic marker; nil for an empty reply.
+    init?(reply: HistoryMessage) {
         let text = reply.body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
-        return DecisionSettlement(answer: text, source: reply.metadata?.source)
+        self.init(answer: text, source: reply.metadata?.source,
+                  isAutoDefault: reply.metadata?.isAutoDefault == true)
+    }
+
+    /// A live stream resolution, until the persisted reply arrives with history.
+    init?(resolution: OptionResolution) {
+        guard let text = resolution.answer?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else { return nil }
+        self.init(answer: text, source: resolution.source, isAutoDefault: resolution.isAutoDefault)
+    }
+
+    static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
+        history.first(where: { $0.replyTo == id.rawValue }).flatMap(DecisionSettlement.init(reply:))
     }
 }
 

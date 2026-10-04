@@ -2,12 +2,19 @@
 // Exports DemoProgressAPI; preserves fixture paging and local like behavior.
 // Dependencies: HibossKit and DemoProgressFixtures.
 
+import Foundation
 import HibossKit
 
 final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
     private var posts = DemoProgressFixtures.posts
+    private let started = Date()
 
+    /// `HIBOSS_DEMO_REFRESH_FAILS=1`: launch-time fetches succeed; any after five seconds fail.
     func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage {
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REFRESH_FAILS"] == "1",
+           Date().timeIntervalSince(started) > 5 {
+            throw URLError(.notConnectedToInternet)
+        }
         var posts = self.posts
         if let project { posts = posts.filter { $0.project == project } }
         if let before {

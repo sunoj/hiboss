@@ -78,6 +78,12 @@ public struct SessionEvent: Codable, Identifiable, Equatable, Sendable {
         return kind
     }
 
+    /// A reply the server wrote on timeout: its message metadata has `auto_default: true`,
+    /// the same marker `MessageMetadata.isAutoDefault` decodes.
+    public var isAutoDefaultReply: Bool {
+        payload?.objectValue?["metadata"]?.objectValue?["auto_default"] == .bool(true)
+    }
+
     public var isRawOutput: Bool {
         kind == "raw" || kind == "tool_result"
     }

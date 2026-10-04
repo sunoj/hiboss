@@ -1,8 +1,7 @@
 // App Intent behind the Live Activity's Approve/Reject buttons.
-// Exports: RespondDecisionIntent — replies via the boss API, then ends the activity.
-// Dependencies: AppIntents, ActivityKit, HibossKit. iOS 17+.
+// Exports: RespondDecisionIntent — replies through DecisionReplyGate, which settles the activity.
+// Dependencies: AppIntents, HibossKit, DecisionReplyGate. iOS 17+.
 
-import ActivityKit
 import AppIntents
 import Foundation
 import HibossKit
@@ -20,23 +19,13 @@ struct RespondDecisionIntent: LiveActivityIntent {
         self.choice = choice
     }
 
+    /// Replies through the shared gate, which marks the activity as sending and then ends
+    /// it with the recorded outcome. A tap while another reply is in flight sends nothing.
+    @MainActor
     func perform() async throws -> some IntentResult {
         if let api = HiBossStore.bossAPI() {
-            _ = try? await api.reply(to: MessageID(rawValue: messageID), with: choice)
+            _ = await DecisionReplyGate.shared.submit(choice, to: MessageID(rawValue: messageID), via: api)
         }
-        await endActivity()
         return .result()
-    }
-
-    private func endActivity() async {
-        for activity in Activity<DecisionActivityAttributes>.activities
-        where activity.attributes.messageID == messageID {
-            var state = activity.content.state
-            state.resolved = true
-            await activity.end(
-                ActivityContent(state: state, staleDate: nil),
-                dismissalPolicy: .after(.now + 2)
-            )
-        }
     }
 }

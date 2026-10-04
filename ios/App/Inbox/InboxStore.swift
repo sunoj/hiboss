@@ -6,9 +6,9 @@ import Combine
 import Foundation
 import HibossKit
 
-/// Outcome of submitting a boss reply, so callers can tell a real send apart
-/// from a decision that was already resolved elsewhere or a transport failure.
-enum ReplyResult: Equatable { case sent, alreadyResolved, failed }
+/// Outcome of submitting a boss reply, so callers can tell a real send apart from a
+/// decision already resolved elsewhere, a transport failure, or a reply already in flight.
+enum ReplyResult: Equatable { case sent, alreadyResolved, failed, busy }
 
 @MainActor
 final class InboxStore: ObservableObject {
@@ -31,8 +31,9 @@ final class InboxStore: ObservableObject {
     /// Targeted responses stay available even when the message is older than the
     /// bounded history page loaded in parallel during a notification cold launch.
     @Published var openedMessages: [MessageID: MessageDetail] = [:]
-    /// The choice in flight per decision, so every surface disables its buttons until it lands.
-    @Published var replying: [MessageID: String] = [:]
+    /// The one per-decision admission point, shared with notification actions and intents.
+    let replyGate: DecisionReplyGate
+    private var gateObservation: AnyCancellable?
 
     var api: (any BossServing)?
     let reconnectDelay: Duration
@@ -50,11 +51,17 @@ final class InboxStore: ObservableObject {
 
     init(
         reconnectDelay: Duration = AppConstants.API.reconnectDelay,
-        decisionAlertsEnabled: Bool = true
+        decisionAlertsEnabled: Bool = true,
+        replyGate: DecisionReplyGate = .shared
     ) {
         self.reconnectDelay = reconnectDelay
         self.decisionAlertsEnabled = decisionAlertsEnabled
+        self.replyGate = replyGate
+        gateObservation = replyGate.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
+
+    /// The choice in flight per decision, from any entry point; every button surface reads it.
+    var replying: [MessageID: String] { replyGate.inFlight }
 
     /// Pending decisions, soonest-to-expire first, then critical > high > normal.
     var pending: [HistoryMessage] {
@@ -179,34 +186,19 @@ final class InboxStore: ObservableObject {
         rescheduleExpiries()
     }
 
-    @discardableResult
-    func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
-        guard let api else { return .failed }
-        let epoch = requiredEpoch
-        do {
-            let outcome = try await api.reply(to: id, with: choice)
-            guard epoch == requiredEpoch else {
-                return outcome == .alreadyResolved ? .alreadyResolved : .sent
-            }
-            if outcome == .alreadyResolved {
-                withdrawn.remove(id)
-                settledIDs.remove(id)
-                localResolutions[id] = nil
-            } else {
-                withdrawn.insert(id)
-                settledIDs.insert(id)
-                localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
-            }
-            refreshHistory()
-            return outcome == .alreadyResolved ? .alreadyResolved : .sent
-        } catch {
-            guard epoch == requiredEpoch else { return .failed }
+    /// Commit how a reply landed: a sent choice settles the card; nil rolls back the
+    /// optimistic state so the recorded outcome, or the still-open decision, shows instead.
+    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil) {
+        if let choice {
+            withdrawn.insert(id)
+            settledIDs.insert(id)
+            localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
+        } else {
             withdrawn.remove(id)
             settledIDs.remove(id)
             localResolutions[id] = nil
-            loadError = error.localizedDescription
-            return .failed
         }
+        if let error { loadError = error }
     }
 
     private func consume(_ api: any BossServing) async {
@@ -247,18 +239,14 @@ final class InboxStore: ObservableObject {
         case let .resolved(resolution):
             withdrawn.insert(resolution.id)
             settledIDs.insert(resolution.id)
-            if let answer = resolution.answer?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !answer.isEmpty {
-                localResolutions[resolution.id] = DecisionSettlement(
-                    answer: answer,
-                    source: resolution.source
-                )
+            if let settled = DecisionSettlement(resolution: resolution) {
+                localResolutions[resolution.id] = settled
             }
             refreshHistory()
         }
     }
 
-    /// Prefer the persisted boss reply (body + source) over an optimistic guess.
+    /// Prefer the persisted reply (body, source, automatic marker) over an optimistic guess.
     private func adoptHistoryReplies() {
         for message in history where message.isDecision {
             guard let found = DecisionSettlement.fromReply(in: history, for: message.id) else { continue }
