@@ -17,6 +17,12 @@ public struct SigninTicket: Equatable, Sendable {
     public let link: SigninLink
     public let pollToken: String
     public let expiresAt: Date
+
+    public init(link: SigninLink, pollToken: String, expiresAt: Date) {
+        self.link = link
+        self.pollToken = pollToken
+        self.expiresAt = expiresAt
+    }
 }
 
 public enum SigninProgress: String, Equatable, Sendable, Decodable {

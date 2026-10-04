@@ -25,6 +25,13 @@ final class SigninTests: XCTestCase {
         XCTAssertNotNil(SigninLink(serverURL: URL(string: "http://127.0.0.1:8787")!, requestID: Self.requestID))
     }
 
+    func testSigninLinkRendersAsAQRCode() throws {
+        let link = try XCTUnwrap(SigninLink(serverURL: Self.server, requestID: Self.requestID))
+        let image = try XCTUnwrap(PairingQRCode.cgImage(for: try XCTUnwrap(link.url)))
+        XCTAssertGreaterThan(image.width, 0)
+        XCTAssertEqual(image.width, image.height)
+    }
+
     func testOpenPostsLabelWithoutAuthorizationAndReturnsTicket() async throws {
         SigninURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.absoluteString, "https://hiboss.example/team/api/signin/requests")
