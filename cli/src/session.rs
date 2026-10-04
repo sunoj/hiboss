@@ -117,7 +117,7 @@ pub fn read_panel_epoch(panel_id: &str) -> Option<String> {
         .filter(|body| !body.is_empty())
 }
 
-/// Record or clear a panel epoch in the same private temporary area as session state.
+/// Record or clear a panel epoch in the session state directory.
 pub fn write_panel_epoch(panel_id: &str, epoch: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     match epoch {
         Some(epoch) => write_state(&panel_epoch_name(panel_id), epoch)?,
@@ -149,17 +149,5 @@ mod tests {
         assert_eq!(read_panel_epoch(&panel_id).as_deref(), Some("epoch-test"));
         write_panel_epoch(&panel_id, None).expect("clear epoch");
         assert_eq!(read_panel_epoch(&panel_id), None);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn panel_epoch_rejects_non_private_files() {
-        use std::os::unix::fs::PermissionsExt;
-        let panel_id = format!("session-permission-{}", std::process::id());
-        write_panel_epoch(&panel_id, Some("foreign")).expect("write epoch");
-        let path = state_file(&panel_epoch_name(&panel_id)).expect("state dir");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("chmod epoch");
-        assert_eq!(read_panel_epoch(&panel_id), None);
-        let _ = std::fs::remove_file(path);
     }
 }

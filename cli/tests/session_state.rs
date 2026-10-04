@@ -6,7 +6,6 @@ mod session_identity_support;
 use serde_json::{Value, json};
 use session_identity_support::http::{Http, Request, Response};
 use session_identity_support::{Fixture, Run, is_hiboss, read, wait_until, write_private};
-use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -59,19 +58,21 @@ fn running_daemon(fixture: &Fixture, dir: &std::path::Path) -> u32 {
 }
 
 #[test]
-fn exposed_state_hierarchy_falls_back_to_unscoped_operation() {
+fn linked_state_directory_falls_back_to_unscoped_operation() {
     let http = server(foreign_400());
     let fixture = Fixture::new("repo", &http.url);
-    let hiboss = fixture.root.join("tmp/hiboss");
-    std::fs::create_dir(&hiboss).expect("hiboss dir");
-    std::fs::set_permissions(&hiboss, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    let leaf = fixture.state_dir("claude", "s");
+    let elsewhere = fixture.root.join("elsewhere");
+    std::fs::create_dir_all(leaf.parent().expect("project dir")).expect("project dir");
+    std::fs::create_dir(&elsewhere).expect("link target");
+    std::os::unix::fs::symlink(&elsewhere, &leaf).expect("symlink");
     let start = claude(&fixture, &["hook", "session-start"], "claude");
     assert_eq!(start.code, 0, "{}", start.stderr);
     let send = claude(&fixture, &["send", "hello"], "claude");
     assert_eq!(send.code, 0, "{}", send.stderr);
     assert_eq!(lines_with(&send.stderr, "is unusable"), 1, "{}", send.stderr);
-    assert!(send.stderr.contains(&hiboss.display().to_string()), "{}", send.stderr);
-    assert_eq!(std::fs::read_dir(&hiboss).expect("hiboss dir").count(), 0, "nothing created inside");
+    assert!(send.stderr.contains(&leaf.display().to_string()), "{}", send.stderr);
+    assert_eq!(std::fs::read_dir(&elsewhere).expect("target").count(), 0, "nothing created through the link");
     let requests = http.requests();
     assert!(posts(&requests, "/api/sessions").is_empty(), "no session without state");
     let sends = posts(&requests, "/api/messages");
@@ -79,19 +80,37 @@ fn exposed_state_hierarchy_falls_back_to_unscoped_operation() {
 }
 
 #[test]
-fn exposed_session_file_is_refused_and_left_untouched() {
+fn linked_session_file_is_refused_and_left_untouched() {
     let http = server(foreign_400());
     let fixture = Fixture::new("repo", &http.url);
     let session = fixture.prepare("claude", "s").join("session");
-    std::fs::write(&session, "planted-session").expect("plant");
-    std::fs::set_permissions(&session, std::fs::Permissions::from_mode(0o644)).expect("chmod");
+    let planted = fixture.root.join("planted");
+    write_private(&planted, "planted-session");
+    std::os::unix::fs::symlink(&planted, &session).expect("symlink");
     let send = claude(&fixture, &["send", "hello"], "claude");
     assert_eq!(send.code, 0, "{}", send.stderr);
     assert_eq!(lines_with(&send.stderr, "refusing session state file"), 1, "{}", send.stderr);
     assert!(send.stderr.contains(&session.display().to_string()), "{}", send.stderr);
-    assert_eq!(read(&session), "planted-session");
+    assert_eq!(read(&planted), "planted-session");
     let requests = http.requests();
     assert!(posts(&requests, "/api/messages")[0]["session_id"].is_null());
+}
+
+#[test]
+fn refused_pid_file_starts_no_listener() {
+    let http = server(foreign_400());
+    let fixture = Fixture::new("repo", &http.url);
+    let dir = fixture.prepare("claude", "s");
+    std::fs::create_dir(dir.join("daemon.pid")).expect("unwritable pid file");
+    let start = claude(&fixture, &["hook", "session-start"], "claude");
+    assert_eq!(start.code, 0, "{}", start.stderr);
+    assert_eq!(lines_with(&start.stderr, "daemon start failed"), 1, "{}", start.stderr);
+    let direct = claude(&fixture, &["daemon", "start"], "claude");
+    assert_ne!(direct.code, 0, "{}", direct.stderr);
+    assert!(!dir.join("daemon.log").exists(), "nothing was spawned");
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let subscribed = http.paths().into_iter().filter(|path| path.contains("/api/messages/stream"));
+    assert_eq!(subscribed.count(), 0, "no listener subscribed");
 }
 
 #[test]

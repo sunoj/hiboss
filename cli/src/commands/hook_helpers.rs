@@ -12,20 +12,26 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub(crate) const BOSS_TTL_SECONDS: u64 = 300;
 pub(crate) const A2A_TTL_SECONDS: u64 = 30;
 
-/// Start this session's SSE daemon unless one is running; returns its pid.
+/// Start this session's SSE daemon unless one is running; returns its pid. The pid file is
+/// reserved before the spawn, and a child whose pid cannot be recorded is killed.
 pub(crate) fn start_daemon_if_needed() -> Result<u32, Box<dyn Error>> {
     if let Some(pid) = session::is_daemon_running() {
         return Ok(pid);
     }
+    session::write_state(session::DAEMON_PID, "")?;
     let exe = std::env::current_exe()?;
     let log = session::open_log(session::DAEMON_LOG)?;
-    let child = Command::new(&exe)
+    let mut child = Command::new(&exe)
         .args(["daemon", "run"])
         .stdout(log.try_clone()?)
         .stderr(log)
         .stdin(std::process::Stdio::null())
         .spawn()?;
-    session::write_state(session::DAEMON_PID, &child.id().to_string())?;
+    if let Err(err) = session::write_state(session::DAEMON_PID, &child.id().to_string()) {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(err.into());
+    }
     Ok(child.id())
 }
 

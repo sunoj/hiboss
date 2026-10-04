@@ -129,7 +129,7 @@ fn worktree_shares_project_key_and_takes_project_identity_from_the_repository() 
         !read(&tree_dir.join("session")).is_empty(),
         "worktree must use the main checkout's key"
     );
-    let keys = std::fs::read_dir(fixture.root.join("tmp/hiboss"))
+    let keys = std::fs::read_dir(fixture.sessions_root())
         .expect("state root")
         .count();
     assert_eq!(keys, 1, "one project_key for the checkout and its worktree");

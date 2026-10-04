@@ -1,4 +1,4 @@
-// Isolated git checkouts, TMPDIR and config for session-identity tests of the built binary.
+// Isolated git checkouts, HOME and config for session-identity tests of the built binary.
 // Exports Fixture, Run, fnv, leaf, write_private and wait_until; the mock server comes from
 // onboarding_support/http.rs. Dependencies: git, kill and ps on PATH, std::process, std::fs.
 
@@ -20,7 +20,7 @@ pub struct Run {
     pub stderr: String,
 }
 
-/// A sandbox holding a git repository, its TMPDIR and a two-profile config.
+/// A sandbox holding a git repository, its HOME and a two-profile config.
 pub struct Fixture {
     pub root: PathBuf,
     pub repo: PathBuf,
@@ -33,7 +33,6 @@ impl Fixture {
         let _ = fs::remove_dir_all(&root);
         let repo = root.join(repo_name);
         fs::create_dir_all(&repo).expect("repo dir");
-        fs::create_dir_all(root.join("tmp")).expect("tmp dir");
         let fixture = Self { root, repo };
         fixture.git(&fixture.repo, &["init", "-q", "-b", "main"]);
         fixture.git(
@@ -92,12 +91,14 @@ impl Fixture {
         fnv(&common.to_string_lossy())
     }
 
+    /// Where `dirs::cache_dir` puts `hiboss/sessions` under the sandbox HOME.
+    pub fn sessions_root(&self) -> PathBuf {
+        let cache = if cfg!(target_os = "macos") { "Library/Caches" } else { ".cache" };
+        self.root.join(cache).join("hiboss/sessions")
+    }
+
     pub fn state_dir(&self, profile: &str, session: &str) -> PathBuf {
-        self.root
-            .join("tmp")
-            .join("hiboss")
-            .join(self.project_key())
-            .join(leaf(profile, session))
+        self.sessions_root().join(self.project_key()).join(leaf(profile, session))
     }
 
     /// Creates this session's private state directory ahead of the CLI and returns it.
@@ -109,8 +110,7 @@ impl Fixture {
 
     /// Every daemon pid file the CLI left in this sandbox, with its pid.
     pub fn daemon_pids(&self) -> Vec<u32> {
-        let pattern = self.root.join("tmp/hiboss");
-        let projects = fs::read_dir(pattern).into_iter().flatten().flatten();
+        let projects = fs::read_dir(self.sessions_root()).into_iter().flatten().flatten();
         let leaves = projects.flat_map(|project| fs::read_dir(project.path()).into_iter().flatten().flatten());
         leaves
             .filter_map(|leaf| fs::read_to_string(leaf.path().join("daemon.pid")).ok())
@@ -124,7 +124,6 @@ impl Fixture {
             .current_dir(dir)
             .env_clear()
             .env("HOME", &self.root)
-            .env("TMPDIR", self.root.join("tmp"))
             .env("HIBOSS_CONFIG", self.config())
             // git and kill only: an installed `hiboss` must not answer the hook's subprocesses.
             .env("PATH", "/usr/bin:/bin")
@@ -163,9 +162,10 @@ pub fn is_hiboss(pid: u32) -> bool {
     !line.starts_with('Z') && line.contains("hiboss")
 }
 
-/// The leaf directory name the CLI derives for (profile, session).
+/// The leaf directory name the CLI derives for (profile, session): hex of each, joined by `-`.
 pub fn leaf(profile: &str, session: &str) -> String {
-    format!("{profile}-{session}-{}", fnv(&format!("{profile}\0{session}")))
+    let hex = |value: &str| value.bytes().map(|byte| format!("{byte:02x}")).collect::<String>();
+    format!("{}-{}", hex(profile), hex(session))
 }
 
 /// Writes a state file the way the CLI does: owner-only 0600.

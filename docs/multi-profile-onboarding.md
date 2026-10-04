@@ -82,23 +82,26 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
 
 ## Session identity
 
-- State directory: `$TMPDIR/hiboss/<project_key>/<profile>-<session_key>-<hash>/`. `project_key` is
-  the FNV-1a hash of the canonical **git common dir** (the project directory outside a
-  repository), so the main checkout and all its worktrees share it. `profile` is the resolved
-  credential profile (`environment` under rule 1, `unconfigured` when none resolves), so two
-  profiles in one checkout never share a session file. `session_key` is the per-session id from
-  the table, falling back to `default` when the runtime exposes none. The readable prefix keeps
-  up to 48 characters of each part, with characters outside `[A-Za-z0-9_-]` replaced by `_`;
-  `hash` is the FNV-1a hash of `profile + "\0" + session_key`, so two distinct pairs never
-  share a directory. Every directory from `hiboss/` down is created 0700, must be a real
-  directory (not a symlink) owned by the caller, and must have no group or other permission
-  bits. If any component fails, the CLI prints one warning naming it and runs without session
-  state: `send` and `progress` go out unscoped, and hooks neither register nor start a daemon.
-  Every state file is opened without following symlinks and used only if it is a regular 0600
-  file owned by the caller; anything else is refused with one warning naming the path, and is
-  never truncated. The session id, markers, read queue, daemon pid/spool/log and panel epochs
-  all live there. SessionStart clears only its own directory's session markers. The old
-  `/tmp/hiboss-*` files are not read.
+- State directory: `<cache_dir>/hiboss/sessions/<project_key>/<leaf>/`, where `<cache_dir>` is
+  the user's cache directory (`~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on
+  Linux). `project_key` is the FNV-1a hash of the canonical **git common dir** (the project
+  directory outside a repository), so the main checkout and all its worktrees share it.
+  `<leaf>` is `<hex(profile)>-<hex(session_key)>`: the lowercase hex of each part's UTF-8
+  bytes, untruncated. Hex contains no `-`, so the separator is unambiguous and two distinct
+  pairs never share a directory. `profile` is the resolved credential profile (`environment`
+  under rule 1, `unconfigured` when none resolves), so two profiles in one checkout never share
+  a session file. `session_key` is the per-session id from the table, falling back to
+  `default` when the runtime exposes none. A leaf longer than 200 bytes is refused. Missing
+  directories are created 0700; existing ones are used as they are. The leaf must be a real
+  directory (not a symlink) owned by the caller. If it cannot be created or fails that check,
+  the CLI prints one warning and runs without session state: `send` and `progress` go out
+  unscoped, and hooks neither register nor start a daemon. Every state file is opened without
+  following symlinks and used only if it is a regular file owned by the caller; anything else
+  is refused with one warning naming the path, and is never truncated. Writes go to a fresh
+  0600 file renamed into place. The session id, markers, read queue, daemon pid/spool/log and
+  panel epochs all live there. The daemon's pid file is written before the listener is
+  spawned, and a listener whose pid cannot be recorded is killed. SessionStart clears only its
+  own directory's session markers. `$TMPDIR` and the old `/tmp/hiboss-*` files are not read.
 - `POST /api/sessions` gains optional fields: `host` (short hostname), `runtime`,
   `parent_session_id`, `dispatch_ref` (e.g. the aid task id). The CLI sends `host`, `runtime`
   and, for `aid`, `dispatch_ref`; `parent_session_id` is not sent yet.

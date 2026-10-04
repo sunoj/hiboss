@@ -1,6 +1,6 @@
-// Locates per-session state at $TMPDIR/hiboss/<project_key>/<profile>-<session>-<hash>/.
+// Locates per-session state at <cache_dir>/hiboss/sessions/<project_key>/<hex profile>-<hex session>/.
 // Exports git_common_dir, project_key, state_dir, short_host.
-// Dependencies: git, config profile resolution, runtime detection, std::fs, libc.
+// Dependencies: git, dirs, config profile resolution, runtime detection, std::fs, libc.
 
 use crate::runtime::RuntimeIdentity;
 use std::fs;
@@ -34,8 +34,9 @@ pub fn project_key() -> String {
     super::fnv1a_hash(&source)
 }
 
-/// This session's private state directory, created owner-only on first use. None, after one
-/// warning, when any component fails validation: the caller then runs without session state.
+/// This session's state directory, created on first use. None, after one warning, when it
+/// cannot be created or is not a real directory owned by the caller: the caller then runs
+/// without session state.
 pub fn state_dir() -> Option<PathBuf> {
     STATE_DIR.get_or_init(init_state_dir).clone()
 }
@@ -43,62 +44,51 @@ pub fn state_dir() -> Option<PathBuf> {
 fn init_state_dir() -> Option<PathBuf> {
     let profile = crate::config::active_profile_name().unwrap_or_else(|| "unconfigured".into());
     let session_key = RuntimeIdentity::detect().session_key;
-    let mut dir = std::env::temp_dir();
-    // Each component is validated before anything is created inside it, so a descendant is
-    // never reached through an untrusted ancestor.
-    for part in ["hiboss".to_owned(), project_key(), leaf_name(&profile, &session_key)] {
-        dir.push(part);
-        if let Err(err) = create_private_dir(&dir) {
-            eprintln!(
-                "hiboss: session state directory {} is unusable ({err}); continuing without session state",
-                dir.display()
-            );
-            return None;
+    let dir = leaf_name(&profile, &session_key).and_then(|leaf| {
+        let root = dirs::cache_dir().ok_or_else(|| io::Error::other("no user cache directory"))?;
+        let dir = root.join("hiboss").join("sessions").join(project_key()).join(leaf);
+        create_private_dir(&dir).map(|()| dir)
+    });
+    match dir {
+        Ok(dir) => Some(dir),
+        Err(err) => {
+            eprintln!("hiboss: session state directory is unusable ({err}); continuing without session state");
+            None
         }
     }
-    Some(dir)
 }
 
-/// Readable prefix plus a hash of the exact pair, so distinct (profile, session) never share a name.
-fn leaf_name(profile: &str, session_key: &str) -> String {
-    let hash = super::fnv1a_hash(&format!("{profile}\0{session_key}"));
-    format!("{}-{}-{hash}", path_safe(profile), path_safe(session_key))
-}
+/// Longest leaf name; real session keys (UUIDs, aid task ids) stay far below it.
+const MAX_LEAF: usize = 200;
 
-fn path_safe(value: &str) -> String {
-    value
-        .chars()
-        .take(48)
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
-                ch
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-#[cfg(unix)]
-fn create_private_dir(path: &Path) -> io::Result<()> {
-    use std::os::unix::fs::{DirBuilderExt, MetadataExt};
-    match fs::DirBuilder::new().mode(0o700).create(path) {
-        Err(err) if err.kind() != io::ErrorKind::AlreadyExists => return Err(err),
-        _ => {}
+/// Lowercase hex of each part's UTF-8 bytes joined by `-`. Hex has no `-`, so the mapping is
+/// injective: distinct (profile, session) pairs never share a directory.
+fn leaf_name(profile: &str, session_key: &str) -> io::Result<String> {
+    let hex = |value: &str| value.bytes().map(|byte| format!("{byte:02x}")).collect::<String>();
+    let leaf = format!("{}-{}", hex(profile), hex(session_key));
+    if leaf.len() > MAX_LEAF {
+        let reason = format!("the hex-encoded profile and session key exceed {MAX_LEAF} bytes");
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
     }
-    let meta = fs::symlink_metadata(path)?;
-    let euid = unsafe { libc::geteuid() };
-    if !meta.file_type().is_dir() || meta.uid() != euid || meta.mode() & 0o077 != 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "not a 0700 directory owned by the current user",
-        ));
-    }
-    Ok(())
+    Ok(leaf)
 }
 
-#[cfg(not(unix))]
+/// Creates missing directories 0700 and leaves existing ones as they are; the leaf must be a
+/// real directory, not a symlink, owned by the caller.
 fn create_private_dir(path: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+        let named = |err: io::Error| io::Error::new(err.kind(), format!("{}: {err}", path.display()));
+        fs::DirBuilder::new().recursive(true).mode(0o700).create(path).map_err(named)?;
+        let meta = fs::symlink_metadata(path).map_err(named)?;
+        if meta.file_type().is_dir() && meta.uid() == unsafe { libc::geteuid() } {
+            return Ok(());
+        }
+        let reason = "not a directory owned by the current user";
+        Err(named(io::Error::new(io::ErrorKind::PermissionDenied, reason)))
+    }
+    #[cfg(not(unix))]
     fs::create_dir_all(path)
 }
 
@@ -128,32 +118,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn path_safe_replaces_separators() {
-        assert_eq!(path_safe("a/b..c d"), "a_b__c_d");
-        assert_eq!(path_safe("claude-1_x"), "claude-1_x");
-    }
-
-    #[test]
-    fn leaf_name_is_unambiguous() {
-        assert_ne!(leaf_name("a.b", "s"), leaf_name("a_b", "s"));
-        assert_ne!(leaf_name("a-b", "c"), leaf_name("a", "b-c"));
-        assert!(leaf_name("claude", "s1").starts_with("claude-s1-"));
+    fn leaf_name_is_injective() {
+        let leaf = |profile, session| leaf_name(profile, session).expect("short leaf");
+        assert_ne!(leaf("a.b", "s"), leaf("a_b", "s"));
+        assert_eq!((leaf("a-b", "c").as_str(), leaf("a", "b-c").as_str()), ("612d62-63", "61-622d63"));
+        let long = "k".repeat(64);
+        assert_ne!(leaf("p", &format!("{long}a")), leaf("p", &format!("{long}b")), "no truncation");
+        assert!(leaf_name("p", &"k".repeat(100)).is_err(), "over 200 bytes is refused");
     }
 
     #[cfg(unix)]
     #[test]
-    fn rejects_exposed_and_linked_directories() {
+    fn rejects_linked_directories_and_keeps_existing_modes() {
         use std::os::unix::fs::PermissionsExt;
         let root = std::env::temp_dir().join(format!("hiboss-state-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let dir = root.join("open");
-        create_private_dir(&root).expect("private root");
+        let (dir, link) = (root.join("a/b"), root.join("link"));
         create_private_dir(&dir).expect("private dir");
-        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).expect("chmod");
-        assert!(create_private_dir(&dir).is_err(), "0755 is not private");
-        let link = root.join("link");
+        assert_eq!(fs::metadata(&root).expect("root").permissions().mode() & 0o777, 0o700);
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o750)).expect("chmod");
+        create_private_dir(&dir).expect("an existing directory is used as it is");
+        assert_eq!(fs::metadata(&dir).expect("dir").permissions().mode() & 0o777, 0o750);
         std::os::unix::fs::symlink(&dir, &link).expect("symlink");
-        assert!(create_private_dir(&link).is_err(), "a symlink is never followed");
+        assert!(create_private_dir(&link).is_err(), "a symlink is never used");
         let _ = fs::remove_dir_all(root);
     }
 
