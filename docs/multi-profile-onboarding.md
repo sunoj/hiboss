@@ -120,7 +120,9 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   foreign agent cannot claim a parent. A re-registration replaces `host`, `runtime`,
   `dispatch_ref` and `parent_session_id` with what it sends. Deleting a session clears its
   children's pointer. `host` must be 1–64 printable ASCII characters without spaces, and
-  `runtime` must match `[a-z][a-z0-9_-]{0,15}`; a malformed field is a 400. Migration 0048
+  `runtime` must match `[a-z][a-z0-9_-]{0,15}`; `dispatch_ref` and `parent_session_id` are at
+  most 128 printable ASCII characters. A malformed field is a 400; a blank one is treated as
+  absent. A session naming itself as parent is rejected. Migration 0048
   must be applied before the Worker that writes these columns is deployed.
 - **Project identity:** derived from the repository: the remote URL's repo name, else the
   repository name: for a checkout whose common dir is `.git`, the basename of its parent; for a
