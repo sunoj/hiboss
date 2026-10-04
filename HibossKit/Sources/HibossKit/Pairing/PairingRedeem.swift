@@ -94,7 +94,7 @@ public struct PairingRedeemRequest: Encodable, Sendable {
     }
 }
 
-private struct PairingRedeemResponse: Decodable {
+struct PairingRedeemResponse: Decodable {
     let token: String
     let boss: Boss
     let signingKeyID: String?

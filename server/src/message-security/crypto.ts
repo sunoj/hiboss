@@ -5,6 +5,7 @@
 import type { RegisteredSigningKey, SigningKeyId, SigningRegistration } from './types';
 
 const PAIRING_DOMAIN = 'hiboss-pair-v1';
+const SIGNIN_DOMAIN = 'hiboss-signin-v1';
 const P256_PUBLIC_KEY_BYTES = 65;
 const ES256_SIGNATURE_BYTES = 64;
 
@@ -26,12 +27,28 @@ export async function verifyPairingRegistration(
   code: string,
   registration: SigningRegistration,
 ): Promise<RegisteredSigningKey | null> {
+  return verifyRegistration(PAIRING_DOMAIN, code, registration);
+}
+
+/** Sign-in proofs sign the request id under their own domain, so neither proof replays as the other. */
+export async function verifySigninRegistration(
+  requestId: string,
+  registration: SigningRegistration,
+): Promise<RegisteredSigningKey | null> {
+  return verifyRegistration(SIGNIN_DOMAIN, requestId, registration);
+}
+
+async function verifyRegistration(
+  domain: string,
+  subject: string,
+  registration: SigningRegistration,
+): Promise<RegisteredSigningKey | null> {
   const publicKey = decodeBase64Url(registration.publicKey);
   const proof = decodeBase64Url(registration.proof);
   if (!publicKey || publicKey.length !== P256_PUBLIC_KEY_BYTES) return null;
   if (!proof || proof.length !== ES256_SIGNATURE_BYTES) return null;
   const input = new TextEncoder().encode(
-    `${PAIRING_DOMAIN}\n${code}\n${registration.clientKind}\n${registration.publicKey}`,
+    `${domain}\n${subject}\n${registration.clientKind}\n${registration.publicKey}`,
   );
   if (!(await verifyEs256(publicKey, proof, input))) return null;
   const id = await deriveSigningKeyId(publicKey);

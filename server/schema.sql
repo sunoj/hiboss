@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0048; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0049; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -231,6 +231,26 @@ CREATE TABLE IF NOT EXISTS boss_pairing_codes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_boss_pairing_codes_expiry ON boss_pairing_codes(expires_at);
+
+-- Sign in with iPhone: a signed-out Mac's request, approved on a signed-in iPhone,
+-- completed with the 6-digit code the iPhone displays. Hashes only; ten-minute life.
+CREATE TABLE IF NOT EXISTS signin_requests (
+  id TEXT PRIMARY KEY,
+  poll_token_hash TEXT NOT NULL UNIQUE,
+  device_label TEXT NOT NULL,
+  origin TEXT,
+  origin_key TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
+  boss_id TEXT REFERENCES bosses(id) ON DELETE CASCADE,
+  approved_by_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL,
+  code_hash TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  issued_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_signin_requests_expires ON signin_requests(expires_at);
+CREATE INDEX IF NOT EXISTS idx_signin_requests_origin ON signin_requests(origin_key) WHERE origin_key IS NOT NULL;
 
 -- Boss-agent access control
 CREATE TABLE IF NOT EXISTS boss_agent_access (

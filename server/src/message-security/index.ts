@@ -3,7 +3,7 @@
 // Depends on focused modules within this feature directory.
 
 export { authenticateBossReply } from './boss-message';
-export { parseSigningRegistration, verifyPairingRegistration } from './crypto';
+export { parseSigningRegistration, verifyPairingRegistration, verifySigninRegistration } from './crypto';
 export {
   agentApiMetadata,
   bearerApiMetadata,
