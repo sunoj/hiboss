@@ -10,6 +10,7 @@ import type { Env } from '../types';
 import { dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
 import { getAccessibleAgentIds } from './boss-api';
 import { expireSessionAsks } from '../abandoned-asks';
+import { admitParent, parseSessionIdentity, type SessionIdentity } from './session-identity';
 
 const STALE_MINUTES = 15;
 
@@ -30,6 +31,10 @@ interface SessionRow {
   status_text: string | null;
   discord_thread_id: string | null;
   telegram_topic_id: number | null;
+  host: string | null;
+  runtime: string | null;
+  dispatch_ref: string | null;
+  parent_session_id: string | null;
   started_at: string;
   last_seen_at: string;
 }
@@ -48,6 +53,8 @@ routes.post('/', async (c) => {
   const rawStatus = typeof payload.status === 'string' ? payload.status.trim() : '';
   const status: SessionStatus = SESSION_STATUSES.includes(rawStatus as SessionStatus) ? (rawStatus as SessionStatus) : 'working';
   const statusText = typeof payload.status_text === 'string' ? payload.status_text.trim() || null : null;
+  const identity = parseSessionIdentity(payload);
+  if (typeof identity === 'string') return c.text(identity, 400);
   const input = parseProject(payload.project_identity ?? payload.project ?? (typeof payload.label === 'string' ? payload.label.split('/')[0] : cwd?.replace(/\/+$/, '').split('/').pop()));
   if (typeof input === 'string') return c.text(input, 400);
   const owner = await c.env.DB.prepare('SELECT s.agent_id, p.id, p.slug FROM sessions s LEFT JOIN projects p ON p.id = s.project_id WHERE s.id = ?').bind(id).first<{ agent_id: string; id: import('../projects').ProjectId | null; slug: string | null }>();
@@ -57,16 +64,9 @@ routes.post('/', async (c) => {
   const project = resolved?.ok ? resolved.project : (owner?.id && owner.slug ? { id: owner.id, slug: owner.slug } : null);
   if (!project) return c.text('project is required', 400);
   if (project && (payload.project_identity !== undefined || payload.project !== undefined || !label)) label = branch ? `${project.slug}/${branch}` : (label?.includes('/') ? `${project.slug}/${label.split('/').slice(1).join('/')}` : project.slug);
-  // Upsert: insert or update on conflict
-  const result = await c.env.DB
-    .prepare(
-      `INSERT INTO sessions (id, agent_id, label, branch, cwd, status, status_text, project_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET project_id = COALESCE(excluded.project_id, sessions.project_id), label = excluded.label, branch = excluded.branch, cwd = excluded.cwd, status = excluded.status, status_text = excluded.status_text, last_seen_at = datetime('now')
-       WHERE sessions.agent_id = excluded.agent_id
-       RETURNING id`
-    )
-    .bind(id, agentId, label, branch, cwd, status, statusText, project.id)
-    .first<{ id: string }>();
+  const parentRejected = identity.parentSessionId !== null && !(await admitParent(c.env.DB, agentId, id, identity.parentSessionId));
+  if (parentRejected) identity.parentSessionId = null;
+  const result = await upsertSession(c.env.DB, { id, agentId, label, branch, cwd, status, statusText, projectId: project.id, identity });
   if (!result) {
     const existing = await c.env.DB.prepare('SELECT agent_id FROM sessions WHERE id = ?').bind(id).first<{ agent_id: string }>();
     if (existing && existing.agent_id !== agentId) {
@@ -75,8 +75,31 @@ routes.post('/', async (c) => {
     return c.text('failed to persist session', 500);
   }
   const displayName = await c.env.DB.prepare('SELECT display_name FROM projects WHERE id = ?').bind(project.id).first<string>('display_name');
-  return c.json(mapSessionProject({ id, label, branch, cwd, status, status_text: statusText, project_id: project.id, project_slug: project.slug, project_display_name: displayName }), 201);
+  const body = mapSessionProject({ id, label, branch, cwd, status, status_text: statusText, project_id: project.id, project_slug: project.slug, project_display_name: displayName,
+    host: identity.host, runtime: identity.runtime, dispatch_ref: identity.dispatchRef, parent_session_id: identity.parentSessionId });
+  return c.json(parentRejected ? { ...body, parent_rejected: true } : body, 201);
 });
+
+interface SessionUpsert {
+  id: string; agentId: string; label: string | null; branch: string | null; cwd: string | null;
+  status: SessionStatus; statusText: string | null; projectId: string; identity: SessionIdentity;
+}
+
+// Inserts the session, or updates it when the caller already owns that id. A
+// re-registration replaces the identity fields with what the caller sends now.
+function upsertSession(db: D1Database, s: SessionUpsert): Promise<{ id: string } | null> {
+  const { host, runtime, dispatchRef, parentSessionId } = s.identity;
+  return db.prepare(
+    `INSERT INTO sessions (id, agent_id, label, branch, cwd, status, status_text, project_id, host, runtime, dispatch_ref, parent_session_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET project_id = COALESCE(excluded.project_id, sessions.project_id), label = excluded.label, branch = excluded.branch,
+       cwd = excluded.cwd, status = excluded.status, status_text = excluded.status_text, host = excluded.host, runtime = excluded.runtime,
+       dispatch_ref = excluded.dispatch_ref, parent_session_id = excluded.parent_session_id, last_seen_at = datetime('now')
+     WHERE sessions.agent_id = excluded.agent_id
+     RETURNING id`,
+  ).bind(s.id, s.agentId, s.label, s.branch, s.cwd, s.status, s.statusText, s.projectId, host, runtime, dispatchRef, parentSessionId)
+    .first<{ id: string }>();
+}
 
 // GET /api/sessions — list active sessions (within STALE_MINUTES)
 routes.get('/', async (c) => {
@@ -137,6 +160,8 @@ routes.delete('/:id', async (c) => {
     c.env.DB.prepare(`DELETE FROM session_events WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
     c.env.DB.prepare(`DELETE FROM destination_routes WHERE session_id IN (${ownedSession})`).bind(sessionId, agentId),
     c.env.DB.prepare('UPDATE sessions SET telegram_topic_id = NULL WHERE id = ? AND agent_id = ?').bind(sessionId, agentId),
+    // A child must not keep pointing at an id that a later registration could claim.
+    c.env.DB.prepare(`UPDATE sessions SET parent_session_id = NULL WHERE parent_session_id IN (${ownedSession})`).bind(sessionId, agentId),
     c.env.DB.prepare('DELETE FROM sessions WHERE id = ? AND agent_id = ?').bind(sessionId, agentId),
   ]);
   return c.json({ ok: true });
