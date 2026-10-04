@@ -104,6 +104,16 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertLessThanOrEqual(detailQuestion.frame.width, app.frame.width)
     }
 
+    /// "Coarse grid" wraps at this size and "Fine grid" does not; both buttons still match.
+    func testTwoChoicesShareTheRowHeightAtAccessibilitySize() {
+        launch(arguments: Self.accessibilityXXXL)
+        let coarse = app.buttons["Coarse grid"].firstMatch
+        XCTAssertTrue(coarse.waitForExistence(timeout: 10))
+        for _ in 0..<8 where !coarse.isHittable { app.swipeUp() }
+        keepScreenshot("accessibility-two-choices")
+        assertSideBySide("Coarse grid", "Fine grid")
+    }
+
     func testNoPanelControlsWithoutPanels() {
         launch()
         XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
@@ -163,6 +173,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(left.height, 44)
         XCTAssertGreaterThanOrEqual(right.height, 44)
         XCTAssertEqual(left.midY, right.midY, accuracy: 2, "two choices share the same row")
+        XCTAssertEqual(left.height, right.height, accuracy: 1, "two choices share the row height")
         XCTAssertLessThanOrEqual(left.maxX, right.minX, "choice buttons do not overlap")
         XCTAssertGreaterThanOrEqual(left.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(right.maxX, app.frame.maxX)
