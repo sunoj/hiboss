@@ -23,6 +23,8 @@ and agent names without changing destination counts or the selected session.
 An unanswered agent question with choices belongs in Needs You, even before its
 session heartbeat reports waiting. Ranking remains automatic deadlines first,
 explicitly waiting sessions second, declared priorities next, then other questions.
+The island shows the same front item for the first three bands; among other
+questions it keeps the live question, so its reply field and draft stay in place.
 An elapsed deadline removes a question from attention regardless of its priority.
 Completed includes locally elapsed question deadlines as well as server-reported
 replied, resolved, and expired states. Local expiry never asserts that a default
