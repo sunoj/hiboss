@@ -104,7 +104,7 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   own directory's session markers. `$TMPDIR` and the old `/tmp/hiboss-*` files are not read.
 - `POST /api/sessions` gains optional fields: `host` (short hostname), `runtime`,
   `parent_session_id`, `dispatch_ref` (e.g. the aid task id). The CLI sends `host`, `runtime`
-  and, for `aid`, `dispatch_ref`; `parent_session_id` is not sent yet.
+  and, for `aid`, `dispatch_ref` and `parent_session_id` when a parent is found.
 - **Foreign session self-heal:** when `send`, `ask`, a broadcast or `progress post` gets an HTTP
   400 whose body is exactly `session does not belong to calling agent`, the CLI registers a
   fresh session for the current profile in the current state directory, restarts the session's
@@ -112,6 +112,9 @@ Claude agent. Unverified signals are reported as unverified. Nobody guesses them
   so, and retries the call once.
 - **Parent lookup for a dispatched agent:** in the same `project_key`, take the most recently
   touched non-dispatched session directory. If there is none, register without a parent.
+  Each registration writes a `runtime` file next to `session`; a directory counts only when
+  that file names a runtime other than `aid`, and "touched" is the `session` file's mtime. A
+  `parent_rejected: true` response prints one warning on stderr; registration still succeeds.
 - **Server rule for `parent_session_id`:** accepted only if the parent session's agent has the
   same non-null `device_id` as the caller, the parent has no parent of its own, and the
   registering session has no children. The check runs inside the registration upsert, so

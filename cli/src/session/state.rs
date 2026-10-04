@@ -63,7 +63,7 @@ const MAX_LEAF: usize = 200;
 
 /// Lowercase hex of each part's UTF-8 bytes joined by `-`. Hex has no `-`, so the mapping is
 /// injective: distinct (profile, session) pairs never share a directory.
-fn leaf_name(profile: &str, session_key: &str) -> io::Result<String> {
+pub(super) fn leaf_name(profile: &str, session_key: &str) -> io::Result<String> {
     let hex = |value: &str| value.bytes().map(|byte| format!("{byte:02x}")).collect::<String>();
     let leaf = format!("{}-{}", hex(profile), hex(session_key));
     if leaf.len() > MAX_LEAF {
@@ -71,6 +71,25 @@ fn leaf_name(profile: &str, session_key: &str) -> io::Result<String> {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, reason));
     }
     Ok(leaf)
+}
+
+/// Inverse of `leaf_name`: the (profile, session_key) a leaf directory name encodes, or None
+/// for any name the CLI would not have produced.
+pub(super) fn decode_leaf(leaf: &str) -> Option<(String, String)> {
+    let unhex = |part: &str| {
+        let bytes = part.as_bytes();
+        let lower_hex = |byte: &u8| matches!(byte, b'0'..=b'9' | b'a'..=b'f');
+        if bytes.is_empty() || !bytes.len().is_multiple_of(2) || !bytes.iter().all(lower_hex) {
+            return None;
+        }
+        let decoded = bytes.chunks(2).map(|pair| {
+            let digits = std::str::from_utf8(pair).ok()?;
+            u8::from_str_radix(digits, 16).ok()
+        });
+        String::from_utf8(decoded.collect::<Option<Vec<u8>>>()?).ok()
+    };
+    let (profile, session_key) = leaf.split_once('-')?;
+    Some((unhex(profile)?, unhex(session_key)?))
 }
 
 /// Creates missing directories 0700 and leaves existing ones as they are; the leaf must be a
@@ -125,6 +144,15 @@ mod tests {
         let long = "k".repeat(64);
         assert_ne!(leaf("p", &format!("{long}a")), leaf("p", &format!("{long}b")), "no truncation");
         assert!(leaf_name("p", &"k".repeat(100)).is_err(), "over 200 bytes is refused");
+    }
+
+    #[test]
+    fn decode_leaf_inverts_leaf_name_and_rejects_other_names() {
+        let leaf = leaf_name("cl-aude", "task-1").expect("short leaf");
+        assert_eq!(decode_leaf(&leaf), Some(("cl-aude".into(), "task-1".into())));
+        for name in ["", "61", "61-", "-61", "6-61", "61-zz", "61-62-63", "ff-61", "+6-61", "4A-61"] {
+            assert_eq!(decode_leaf(name), None, "{name}");
+        }
     }
 
     #[cfg(unix)]

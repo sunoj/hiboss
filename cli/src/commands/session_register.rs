@@ -14,6 +14,8 @@ const FOREIGN_SESSION: &str = "session does not belong to calling agent";
 /// Generate, persist and register a fresh session id in this session's state directory.
 pub(crate) async fn register_new_session(client: &HiBossClient) -> Result<String, Box<dyn Error>> {
     let id = generate_session_id();
+    // The runtime marker is what lets a dispatched sibling tell this directory apart.
+    session::write_state(session::RUNTIME, &crate::runtime::RuntimeIdentity::detect().runtime)?;
     session::write_session_id(&id)?;
     let branch = get_git_branch();
     let project = session::resolve_project(None).slug;

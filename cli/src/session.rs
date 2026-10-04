@@ -1,12 +1,15 @@
 // Purpose: Read/write per-session IDs, daemon files and markers in the session state directory.
-// Exports: read_session_id, write_session_id, daemon pid/spool helpers, state I/O, resolve_project.
+// Exports: read_session_id, write_session_id, daemon pid/spool helpers, state I/O, resolve_project,
+// parent_session_id.
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
 mod markers;
+mod parent;
 mod private;
 mod project;
 mod state;
 pub use markers::*;
+pub use parent::{RUNTIME, parent_session_id};
 pub use private::{append_state, open_log, read_state, remove_state, state_file, take_state, write_state};
 pub use project::{ProjectIdentity, resolve_project};
 pub use state::{git_common_dir, project_key, short_host, state_dir};
