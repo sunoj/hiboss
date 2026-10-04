@@ -75,6 +75,7 @@ struct HomeView: View {
             ),
             hasPanels: !panels.visibleTiles.isEmpty,
             status: attentionStatus,
+            replying: inbox.replying,
             onChoose: handleReply,
             onOpenPanel: openPanel
         )

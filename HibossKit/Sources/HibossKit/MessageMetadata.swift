@@ -1,4 +1,4 @@
-// Option lists, resolution source, and task-context files on a message.
+// Option lists, resolution source, automatic-answer marker and task-context files on a message.
 // Exports: MessageMetadata decoded from the boss API payload.
 // Dependencies: Foundation Codable.
 
@@ -26,6 +26,10 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let defaultOption: String?
     /// On a reply's metadata, where the answer came from: "ios", "telegram", etc.
     public let source: String?
+    /// On a reply's metadata: the server wrote this answer when the decision timed out.
+    /// `auto_default: true` is the only marker of an automatic answer. `source` is not:
+    /// older timeout replies carry `source: "api"`, newer ones `source: "system"`.
+    public let isAutoDefault: Bool
     public let content: String?
     /// Related file paths from `files` or nested `task_context.files`.
     public let files: [String]
@@ -36,6 +40,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         case isExpired = "options_expired"
         case defaultOption = "default_option"
         case source
+        case isAutoDefault = "auto_default"
         case content
         case files
         case taskContext = "task_context"
@@ -47,6 +52,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isExpired: Bool = false,
         defaultOption: String? = nil,
         source: String? = nil,
+        isAutoDefault: Bool = false,
         content: String? = nil,
         files: [String] = []
     ) {
@@ -55,6 +61,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         self.isExpired = isExpired
         self.defaultOption = defaultOption
         self.source = source
+        self.isAutoDefault = isAutoDefault
         self.content = content
         self.files = files
     }
@@ -66,6 +73,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
         source = try values.decodeIfPresent(String.self, forKey: .source)
+        isAutoDefault = (try? values.decodeIfPresent(Bool.self, forKey: .isAutoDefault)) == true
         content = try values.decodeIfPresent(String.self, forKey: .content)
         let direct = try values.decodeIfPresent([String].self, forKey: .files) ?? []
         let nested = try values.decodeIfPresent(TaskContext.self, forKey: .taskContext)
@@ -79,6 +87,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         try values.encode(isExpired, forKey: .isExpired)
         try values.encodeIfPresent(defaultOption, forKey: .defaultOption)
         try values.encodeIfPresent(source, forKey: .source)
+        if isAutoDefault { try values.encode(true, forKey: .isAutoDefault) }
         try values.encodeIfPresent(content, forKey: .content)
         if !files.isEmpty { try values.encode(files, forKey: .files) }
     }

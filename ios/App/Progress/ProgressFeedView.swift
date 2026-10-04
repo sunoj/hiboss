@@ -13,7 +13,7 @@ struct ProgressFeedView: View {
     var body: some View {
         ListStateView(
             isLoading: !store.didLoad && store.posts.isEmpty,
-            error: store.posts.isEmpty ? store.loadError : nil,
+            error: store.loadError,
             isEmpty: store.posts.isEmpty,
             emptyIcon: "calendar.day.timeline.leading",
             emptyTitle: String(localized: "No progress yet"),

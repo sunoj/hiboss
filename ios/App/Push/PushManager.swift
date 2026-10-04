@@ -39,7 +39,7 @@ enum PushAction {
     static let reply = "HIBOSS_REPLY"
 }
 
-private struct PushActionRequest: Sendable {
+struct PushActionRequest: Sendable {
     let messageID: String
     let cachedMessage: PushCachedMessage?
     let options: [String]
@@ -222,7 +222,7 @@ extension PushManager: UNUserNotificationCenterDelegate {
         ))
     }
 
-    private func handle(_ request: PushActionRequest) async {
+    func handle(_ request: PushActionRequest) async {
         let choice: String?
         switch request.actionIdentifier {
         case PushAction.approve: choice = request.options.first
@@ -235,9 +235,10 @@ extension PushManager: UNUserNotificationCenterDelegate {
         }
         guard let choice, !choice.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        if let api = HiBossStore.bossAPI() {
-            _ = try? await api.reply(to: MessageID(rawValue: request.messageID), with: choice)
-            pushLog.info("replied to \(request.messageID) from notification action")
+        if let api = HiBossStore.replyAPI() {
+            let id = MessageID(rawValue: request.messageID)
+            let outcome = await DecisionReplyGate.shared.submit(choice, to: id, via: api)
+            pushLog.info("notification action for \(request.messageID): \(String(describing: outcome))")
         }
     }
 }

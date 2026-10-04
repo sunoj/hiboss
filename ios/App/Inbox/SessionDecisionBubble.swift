@@ -34,7 +34,8 @@ struct SessionDecisionBubble: View {
         let timing = DecisionTiming(message: message)
         return VStack(alignment: .leading, spacing: 10) {
             DecisionTimingView(timing: timing, messageID: message.id)
-            DecisionOptions(options: message.options, timing: timing, onChoose: onChoose)
+            DecisionOptions(options: message.options, timing: timing,
+                            submitting: store.replying[message.id], onChoose: onChoose)
         }
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -42,19 +43,13 @@ struct SessionDecisionBubble: View {
 
     private func answered(_ settlement: DecisionSettlement) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: "checkmark.circle.fill") }
+            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: settlement.symbol) }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.ink)
                 .symbolRenderingMode(.hierarchical)
-            Group {
-                if settlement.answeredElsewhere, let source = settlement.sourceLabel {
-                    Text("Answered on \(source)")
-                } else {
-                    Text("Answered")
-                }
-            }
-            .font(.caption)
-            .foregroundStyle(Theme.ink2)
+            settlement.attribution
+                .font(.caption)
+                .foregroundStyle(Theme.ink2)
         }
         .padding(.horizontal, 12)
         .fixedSize(horizontal: false, vertical: true)

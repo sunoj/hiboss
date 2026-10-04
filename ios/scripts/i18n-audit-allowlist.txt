@@ -4,7 +4,6 @@
 
 # Values typed LocalizedStringResource: Text(resource) resolves through the catalog.
 App/Home/HomeAttentionRow.swift | unlocalized-var | Text(group.group.title) | AttentionGroup.title is LocalizedStringResource
-App/Home/HomePanelWall.swift | unlocalized-var | Text(model.freshness(for: tile).localizedTitle) | PanelFreshness.localizedTitle is LocalizedStringResource
 App/Inbox/MessageAttributeStyle.swift | unlocalized-var | Text(label) | AttributeRow.label is LocalizedStringResource
 
 # Strings already resolved by String(localized:) or error.localizedDescription before they reach the view.
@@ -12,7 +11,6 @@ App/Home/HomePanelWall.swift | unlocalized-var | Label(failure, | PanelsModel fa
 App/Inbox/ListStateView.swift | unlocalized-var | ContentUnavailableView(emptyTitle, | callers pass String(localized:) title and detail
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(actionNote, | actionNote is set only from String(localized:)
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(title, systemImage: icon) | callers pass String(localized:) titles
-App/Inbox/ReplySheet.swift | unlocalized-var | Label(note, | note is set only from String(localized:)
 App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLabel(accessibilityCaption) | built with String(localized:)
 App/Sessions/SessionCard.swift | unlocalized-var | Label(statusStyle.label, | SessionStatusStyle.label is String(localized:); unknown server words show as sent
 App/Settings/SettingsView.swift | unlocalized-var | Label(message, | preference/registration failure: error.localizedDescription or String(localized:)
@@ -29,6 +27,3 @@ App/Onboarding/ConnectView.swift | unlocalized-var | TextField(placeholder, | pl
 # Machine formats, never shown as prose.
 App/Push/PushManager.swift | hand-format | String(format: "%02x", $0) | APNs device token hex encoding sent to the server
 App/Settings/QuietHoursSection.swift | hand-format | String(format: "%02d:%02d" | wire format for quiet hours ("HH:mm"); the picker renders the locale time
-
-# Brand name compiled from ios/Shared (outside this audit's source scope) into both targets.
-Shared/HiBossBrandIcon.swift | extracted-key | HiBoss | product name; not translated

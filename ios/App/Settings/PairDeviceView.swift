@@ -9,25 +9,30 @@ import UIKit
 struct PairDeviceView: View {
     @StateObject private var model: DevicePairingModel
 
-    init(config: ConnectionConfig) {
-        _model = StateObject(wrappedValue: DevicePairingModel(config: config))
+    init(config: ConnectionConfig?) {
+        _model = StateObject(wrappedValue: isDemoMode
+            ? DevicePairingModel(serverURL: DemoDevices.serverURL, issuer: DemoPairingIssuer())
+            : DevicePairingModel(config: config))
     }
 
     var body: some View {
-        Form {
-            Section {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    content(at: context.date)
+        // One clock drives the code, its countdown and the action below it: expiry changes
+        // no published state, so anything outside the timeline would keep its stale state.
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let state = model.state(at: context.date)
+            Form {
+                Section {
+                    content(state, now: context.date)
+                } footer: {
+                    if case .ready = state {
+                        Text("On the other iPhone, scan this code. On a Mac, paste the link into Pair with Code. The code works once and expires in five minutes.")
+                    }
                 }
-            } footer: {
-                if model.grant != nil, model.pairedDeviceLabel == nil {
-                    Text("On the other iPhone, scan this code. On a Mac, paste the link into Pair with Code. The code works once and expires in five minutes.")
+                if let message = model.failureMessage {
+                    Section { Text(verbatim: message).foregroundStyle(Theme.ink2) }
                 }
+                actionSection(state)
             }
-            if let message = model.failureMessage {
-                Section { Text(verbatim: message).foregroundStyle(Theme.ink2) }
-            }
-            actionSection
         }
         .navigationTitle("Pair another device")
         .navigationBarTitleDisplayMode(.inline)
@@ -36,8 +41,8 @@ struct PairDeviceView: View {
     }
 
     @ViewBuilder
-    private func content(at now: Date) -> some View {
-        switch model.state(at: now) {
+    private func content(_ state: PairingContentState, now: Date) -> some View {
+        switch state {
         case let .ready(grant, link):
             readyContent(grant: grant, link: link, now: now)
         case let .paired(deviceLabel):
@@ -112,8 +117,8 @@ struct PairDeviceView: View {
     }
 
     @ViewBuilder
-    private var actionSection: some View {
-        switch model.state(at: .now) {
+    private func actionSection(_ state: PairingContentState) -> some View {
+        switch state {
         case .paired:
             retryButton { Label("Pair another device", systemImage: "qrcode") }
         case .expired:

@@ -1,4 +1,4 @@
-// SMS-style rows for a session stream: bubbles, decisions, step runs, time stamps.
+// SMS-style rows for a session stream: bubbles, decisions, automatic replies, step runs, time stamps.
 // Exports: SessionTranscriptItemView and the bubble / system / time subviews.
 // Dependencies: SwiftUI, HibossKit SessionEvent, SessionTranscriptLayout, InboxStore.
 
@@ -27,6 +27,8 @@ struct SessionTranscriptItemView: View {
         case let .notice(event):
             SessionSystemLine(event: event)
                 .foregroundStyle(Theme.negative)
+        case let .automatic(event):
+            SessionAutomaticReplyLine(event: event)
         }
     }
 
@@ -36,6 +38,30 @@ struct SessionTranscriptItemView: View {
               let message = store.message(for: MessageID(rawValue: raw)),
               message.isDecision else { return nil }
         return message
+    }
+}
+
+/// A timeout default in the transcript, worded and marked like every other settled decision.
+struct SessionAutomaticReplyLine: View {
+    let event: SessionEvent
+
+    var body: some View {
+        let settlement = DecisionSettlement(answer: event.displayBody, source: nil, isAutoDefault: true)
+        VStack(spacing: 2) {
+            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: settlement.symbol) }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.ink)
+                .symbolRenderingMode(.hierarchical)
+            settlement.attribution
+                .font(.caption)
+                .foregroundStyle(Theme.ink2)
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("session-automatic-reply")
     }
 }
 

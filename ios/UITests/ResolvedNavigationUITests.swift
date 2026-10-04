@@ -82,8 +82,20 @@ final class HomeAttentionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
         let option = app.buttons["Fail over to Adyen"]
         for _ in 0..<12 where !option.isHittable { app.swipeUp() }
+        // `isHittable` already holds for a sliver above the floating tab bar, and XCTest then
+        // taps that sliver's corner, outside the capsule: drag the option fully clear of the
+        // bar in short steps that end held, so no momentum is left when it is tapped.
+        let tabBar = app.tabBars.firstMatch
+        for _ in 0..<6 where option.frame.maxY > tabBar.frame.minY {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).press(
+                forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)),
+                withVelocity: .slow, thenHoldForDuration: 0.2
+            )
+        }
         XCTAssertTrue(option.isHittable)
+        XCTAssertLessThanOrEqual(option.frame.maxY, tabBar.frame.minY, "the tap must reach the option, not the tab bar")
         option.tap()
+        XCTAssertTrue(option.waitForNonExistence(timeout: 5), "the answered decision leaves Home")
         for _ in 0..<12 where !app.staticTexts["3 items waiting on your call"].isHittable { app.swipeDown() }
         XCTAssertTrue(app.staticTexts["3 items waiting on your call"].exists)
     }

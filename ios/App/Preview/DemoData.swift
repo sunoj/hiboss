@@ -32,7 +32,14 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
         }
     }
 
+    private let started = Date()
+
+    /// `HIBOSS_DEMO_REFRESH_FAILS=1`: launch-time fetches succeed; any after five seconds fail.
     func fetchHistory() async throws -> [HistoryMessage] {
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REFRESH_FAILS"] == "1",
+           Date().timeIntervalSince(started) > 5 {
+            throw DemoConnectionError.failed
+        }
         let rawDelay = ProcessInfo.processInfo.environment["HIBOSS_DEMO_HISTORY_DELAY_MS"] ?? "0"
         let delay = UInt64(rawDelay) ?? 0
         if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
@@ -50,7 +57,10 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
         }
     }
 
+    /// `HIBOSS_DEMO_REPLY_DELAY_MS` holds each reply in flight so its disabled state can be seen.
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
+        let delay = Int(ProcessInfo.processInfo.environment["HIBOSS_DEMO_REPLY_DELAY_MS"] ?? "") ?? 0
+        if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
         guard let index = messages.firstIndex(where: { $0.id == messageID }) else {
             return .accepted
         }
@@ -107,6 +117,7 @@ private enum DemoFixtures {
     }
 
     static let messages: [HistoryMessage] = deploy + payments + data + direct
+        + [bossReply(to: data[1], choice: "Keep current key", source: "api", automatic: true, at: iso(-6_600))]
 
     static func answered(_ parent: HistoryMessage) -> HistoryMessage {
         HistoryMessage(
@@ -120,13 +131,17 @@ private enum DemoFixtures {
         )
     }
 
-    static func bossReply(to parent: HistoryMessage, choice: String, source: String) -> HistoryMessage {
+    /// `automatic` is the historical timeout shape: `auto_default: true` with source `api`.
+    static func bossReply(
+        to parent: HistoryMessage, choice: String, source: String, automatic: Bool = false,
+        at created: String = Date().ISO8601Format()
+    ) -> HistoryMessage {
         HistoryMessage(
             id: MessageID(rawValue: "r-\(parent.id.rawValue)"), body: choice, agentName: parent.agentName,
             direction: "boss_to_agent", status: "sent", priority: "normal",
             channel: "api", mode: "async", replyTo: parent.id.rawValue,
-            metadata: MessageMetadata(options: [], source: source),
-            createdAt: Date().ISO8601Format(),
+            metadata: MessageMetadata(options: [], source: source, isAutoDefault: automatic),
+            createdAt: created,
             sessionId: parent.sessionId, targetSessionId: parent.sessionId ?? parent.targetSessionId,
             sessionLabel: parent.sessionLabel, sessionBranch: parent.sessionBranch,
             sessionStatus: parent.sessionStatus
@@ -256,6 +271,17 @@ private enum DemoFixtures {
             priority: "normal", channel: "api", mode: "async", type: "steer_command",
             metadata: MessageMetadata(options: ["Provide", "Later"]),
             expiresAt: nil, createdAt: iso(-300),
+            sessionId: "sess-data", sessionLabel: "nightly-export", sessionBranch: "main",
+            sessionStatus: "waiting"
+        ),
+        // Timed out: the server recorded its default as a `system` reply.
+        HistoryMessage(
+            id: "a1", body: "Rotate the export bucket key before tonight's run?",
+            agentName: "worker-data", direction: "agent_to_boss", status: "replied",
+            priority: "normal", channel: "api", mode: "blocking", type: "approval_request",
+            metadata: MessageMetadata(options: ["Rotate now", "Keep current key"], isExpired: true,
+                                      defaultOption: "Keep current key"),
+            expiresAt: iso(-6_600), createdAt: iso(-7_200),
             sessionId: "sess-data", sessionLabel: "nightly-export", sessionBranch: "main",
             sessionStatus: "waiting"
         ),

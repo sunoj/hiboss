@@ -40,7 +40,9 @@ struct RootTabView: View {
             guard let config = connection.config else { throw PanelClientError.notConfigured }
             return config
         }))
-        _joinRequests = StateObject(wrappedValue: JoinRequestsModel { isDemoMode ? nil : connection.makeAPI() })
+        _joinRequests = StateObject(wrappedValue: JoinRequestsModel { () -> (any JoinRequestServing)? in
+            isDemoMode ? DemoJoinRequestsAPI.shared : connection.makeAPI()
+        })
     }
 
     private var sessionStreamAPI: (any SessionStreamServing)? {
@@ -73,7 +75,7 @@ struct RootTabView: View {
         )) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(panelRouteNote ?? "")
+            Text(verbatim: panelRouteNote ?? "")
         }
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so

@@ -127,19 +127,13 @@ struct ResolvedDecisionRow: View {
 
     private func settlementBlock(_ settlement: DecisionSettlement) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: "checkmark.circle.fill") }
+            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: settlement.symbol) }
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
                 .symbolRenderingMode(.hierarchical)
-            if settlement.answeredElsewhere, let source = settlement.sourceLabel {
-                Text("Answered on \(source)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Answered")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            settlement.attribution
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }

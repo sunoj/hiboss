@@ -34,7 +34,8 @@ enum DecisionActivityManager {
 
         let state = DecisionActivityAttributes.ContentState(
             body: top.body, options: top.options, priority: top.priority,
-            deadline: top.expirationDate, resolved: false, content: top.content
+            deadline: top.expirationDate, content: top.content,
+            submitting: DecisionReplyGate.shared.inFlight[top.id]
         )
         let attributes = DecisionActivityAttributes(
             messageID: top.id.rawValue, project: top.project ?? top.displayName,

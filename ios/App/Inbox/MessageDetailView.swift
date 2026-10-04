@@ -10,7 +10,6 @@ struct MessageDetailView: View {
     @ObservedObject var store: InboxStore
     let messageID: MessageID
     @State private var replyDraft = ""
-    @State private var submitting: String?
     @State private var actionNote: String?
     @State private var fallback: Fallback = .loading
     @State private var loadAttempt = 0
@@ -20,6 +19,9 @@ struct MessageDetailView: View {
     private enum Fallback { case loading, missing, failed(String) }
 
     private var message: HistoryMessage? { store.message(for: messageID) }
+
+    /// The reply in flight for this decision from any surface (Home, transcript, a notification).
+    private var submitting: String? { store.replying[messageID] }
 
     /// The boss reply that resolved this decision, if it's in the loaded history.
     private var reply: HistoryMessage? {
@@ -41,8 +43,10 @@ struct MessageDetailView: View {
         option.trimmingCharacters(in: .whitespacesAndNewlines) == chosenAnswer
     }
 
-    /// Human label for where the decision was resolved, e.g. "iOS", "Telegram".
-    private var resolutionSourceLabel: String? { HibossKit.resolutionSourceLabel(reply?.metadata?.source) }
+    /// The recorded answer and its source, so a timeout default is never shown as a choice.
+    private var settlement: DecisionSettlement? {
+        reply.flatMap(DecisionSettlement.init(reply:))
+    }
 
     var body: some View {
         if let message {
@@ -228,8 +232,9 @@ struct MessageDetailView: View {
     }
 
     @ViewBuilder private func optionRow(_ text: String, chosen: Bool, custom: Bool = false) -> some View {
+        let automatic = chosen && settlement?.isAutoDefault == true
         HStack(spacing: 12) {
-            Image(systemName: chosen ? "checkmark.circle.fill" : "circle")
+            Image(systemName: chosen ? (settlement?.symbol ?? "checkmark.circle.fill") : "circle")
                 .foregroundStyle(chosen ? Theme.accent : Theme.ink2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: text).foregroundStyle(chosen ? Theme.ink : Theme.ink2)
@@ -237,15 +242,12 @@ struct MessageDetailView: View {
                 if custom { Text("Custom reply").font(.caption2).foregroundStyle(Theme.ink2) }
             }
             Spacer()
-            if chosen { Text("Selected").font(.caption).foregroundStyle(Theme.ink2) }
+            if chosen { (automatic ? Text("Auto-selected") : Text("Selected")).font(.caption).foregroundStyle(Theme.ink2) }
         }
     }
 
     private func decisionFooter(for message: HistoryMessage) -> Text? {
-        if chosenAnswer != nil {
-            if let source = resolutionSourceLabel { return Text("Answered on \(source)") }
-            return Text("Answered")
-        }
+        if let settlement { return settlement.attribution }
         let expired = message.status == "expired"
             || (message.expirationDate.map { $0 <= Date() } ?? false)
         if expired {
@@ -257,13 +259,12 @@ struct MessageDetailView: View {
 
     private func submit(_ choice: String, for id: MessageID) {
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, submitting == nil else { return }
-        submitting = text
+        guard !text.isEmpty, store.replying[id] == nil else { return }
         actionNote = nil
         Task {
-            let result = await store.reply(text, to: id)
-            submitting = nil
-            switch result {
+            switch await store.reply(text, to: id) {
+            case .busy:
+                break
             case .sent:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 dismiss()

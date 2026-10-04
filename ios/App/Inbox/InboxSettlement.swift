@@ -1,28 +1,54 @@
 // Settled-decision lookup: keep an answered card visible and join session replies.
 // Exports: DecisionSettlement and InboxStore helpers for cards / threads.
-// Dependencies: HibossKit HistoryMessage, SessionGrouping, resolutionSourceLabel.
+// Dependencies: SwiftUI Text, HibossKit HistoryMessage, SessionGrouping, resolutionSourceLabel.
 
-import Foundation
 import HibossKit
+import SwiftUI
 
 /// The recorded choice for a decision, plus which surface produced it.
 struct DecisionSettlement: Equatable {
     let answer: String
     let source: String?
+    /// The server's timeout default, from the reply's `auto_default` marker, never from `source`.
+    var isAutoDefault = false
 
     var sourceLabel: String? { resolutionSourceLabel(source) }
 
-    /// True when the answer did not come from this iOS client.
+    /// True when the answer came from another boss surface, not this iOS client.
     var answeredElsewhere: Bool {
-        guard let source else { return false }
+        guard let source, !isAutoDefault else { return false }
         return source.lowercased() != "ios"
     }
 
-    static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
-        guard let reply = history.first(where: { $0.replyTo == id.rawValue }) else { return nil }
+    /// Who produced the answer. A timeout default is never worded as the boss's answer.
+    var attribution: Text {
+        if isAutoDefault { return Text("Auto-selected when time ran out") }
+        if answeredElsewhere, let sourceLabel { return Text("Answered on \(sourceLabel)") }
+        return Text("Answered")
+    }
+
+    /// The pending card's auto-select glyph, not the checkmark of a choice someone made.
+    var symbol: String { isAutoDefault ? "clock.arrow.circlepath" : "checkmark.circle.fill" }
+}
+
+extension DecisionSettlement {
+    /// The persisted reply's answer, source and automatic marker; nil for an empty reply.
+    init?(reply: HistoryMessage) {
         let text = reply.body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
-        return DecisionSettlement(answer: text, source: reply.metadata?.source)
+        self.init(answer: text, source: reply.metadata?.source,
+                  isAutoDefault: reply.metadata?.isAutoDefault == true)
+    }
+
+    /// A live stream resolution, until the persisted reply arrives with history.
+    init?(resolution: OptionResolution) {
+        guard let text = resolution.answer?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else { return nil }
+        self.init(answer: text, source: resolution.source, isAutoDefault: resolution.isAutoDefault)
+    }
+
+    static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
+        history.first(where: { $0.replyTo == id.rawValue }).flatMap(DecisionSettlement.init(reply:))
     }
 }
 

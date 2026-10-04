@@ -1,5 +1,5 @@
 // Shared XCUIApplication launch helpers for demo-mode UI tests.
-// Exports: XCUIApplication.configureDemoLaunch.
+// Exports: XCUIApplication.configureDemoLaunch and pullToRefresh.
 // Dependencies: XCTest.
 
 import XCTest
@@ -21,6 +21,9 @@ extension XCUIApplication {
         "HIBOSS_PANELS_DEMO",
         "HIBOSS_DEMO_HISTORY_DELAY_MS",
         "HIBOSS_DEMO_MESSAGE_DELAY_MS",
+        "HIBOSS_DEMO_REFRESH_FAILS",
+        "HIBOSS_DEMO_REPLY_DELAY_MS",
+        "HIBOSS_DEMO_PAIRING_TTL",
         "HIBOSS_TAB",
     ]
 
@@ -35,4 +38,10 @@ extension XCUIApplication {
             launchEnvironment[key] = value
         }
     }
+}
+
+/// A slow drag from the top of the content, which a quick `swipeDown()` does not reliably make.
+func pullToRefresh(_ app: XCUIApplication) {
+    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+    start.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)))
 }

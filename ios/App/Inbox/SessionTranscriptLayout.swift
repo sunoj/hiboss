@@ -19,6 +19,8 @@ enum SessionTranscriptItem: Identifiable, Equatable {
     case steps(id: String, events: [SessionEvent])
     /// An agent error: the boss sees it, so it is never folded into steps.
     case notice(SessionEvent)
+    /// The server's timeout default (`auto_default: true`): never drawn as the boss's bubble.
+    case automatic(SessionEvent)
 
     var id: String {
         switch self {
@@ -26,6 +28,7 @@ enum SessionTranscriptItem: Identifiable, Equatable {
         case let .bubble(event, _): return event.id
         case let .steps(id, _): return id
         case let .notice(event): return event.id
+        case let .automatic(event): return event.id
         }
     }
 }
@@ -54,7 +57,9 @@ enum SessionTranscriptLayout {
         return result
     }
 
-    static func isBubble(_ event: SessionEvent) -> Bool { event.kind == "message" }
+    static func isBubble(_ event: SessionEvent) -> Bool {
+        event.kind == "message" && !event.isAutoDefaultReply
+    }
 
     static func isOutgoing(_ event: SessionEvent) -> Bool {
         event.direction == "boss_to_agent"
@@ -117,6 +122,10 @@ extension SessionTranscriptLayout {
     ) {
         if event.kind == "error" {
             result.append(.notice(event))
+            return
+        }
+        if event.kind == "message", event.isAutoDefaultReply {
+            result.append(.automatic(event))
             return
         }
         guard isBubble(event) else {
