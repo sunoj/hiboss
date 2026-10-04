@@ -93,6 +93,26 @@ final class AttentionIslandAgreementTests: XCTestCase {
         XCTAssertEqual(AttentionRanking.items(history: [], live: live, now: now).map(\.id), ["plain"])
     }
 
+    func testLiveQuestionKeepsIslandOverOlderOrdinaryQuestion() {
+        let older = ask(id: "older", options: ["Ok"], createdAt: iso(now.addingTimeInterval(-300)))
+        let live = OptionMessage.fixture(id: "live", options: ["Ship"])
+
+        let island = IslandAttention.presentation(live: live, history: [older], now: now)
+
+        XCTAssertEqual(AttentionRanking.frontID(history: [older], live: live, now: now), "older")
+        XCTAssertEqual(island?.message.id.rawValue, "live")
+        XCTAssertEqual(island?.item?.band(at: now), .question)
+    }
+
+    func testUrgentQuestionStillLeadsIslandOverLiveQuestion() {
+        let blocked = ask(id: "blocked", options: ["Approve"], sessionStatus: "waiting")
+        let live = OptionMessage.fixture(id: "live", options: ["Ship"])
+
+        let island = IslandAttention.presentation(live: live, history: [blocked], now: now)
+
+        XCTAssertEqual(island?.message.id.rawValue, "blocked")
+    }
+
     func testClockFormatsRemainingAndElapsed() {
         let en = Locale(identifier: "en_US")
         XCTAssertEqual(AttentionClock.format(seconds: 0, locale: en), "0s")

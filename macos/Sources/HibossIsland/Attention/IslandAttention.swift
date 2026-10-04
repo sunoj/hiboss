@@ -11,16 +11,21 @@ struct IslandPresentation: Equatable {
 }
 
 enum IslandAttention {
-    /// Share the window queue, including ordinary live questions and exact expiry.
+    /// Share the window queue, including ordinary live questions and exact expiry. An urgent
+    /// band leads as in the window; among ordinary questions the live interrupt keeps the
+    /// island, so an older pending question never takes over its reply field and draft.
     static func presentation(
         live: OptionMessage?,
         history: [HistoryMessage],
         now: Date
     ) -> IslandPresentation? {
-        if let first = AttentionRanking.items(history: history, live: live, now: now).first {
-            return IslandPresentation(message: first.asOptionMessage, item: first)
+        let items = AttentionRanking.items(history: history, live: live, now: now)
+        guard let first = items.first else { return nil }
+        if first.band(at: now) == .question, let live,
+           let current = items.first(where: { $0.id == live.id }) {
+            return IslandPresentation(message: current.asOptionMessage, item: current)
         }
-        return nil
+        return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 
     static func autoDecisionCaption(for item: AttentionItem, now: Date) -> String? {
