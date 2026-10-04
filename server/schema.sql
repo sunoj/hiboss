@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0047; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0048; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -289,6 +289,10 @@ CREATE TABLE IF NOT EXISTS sessions (
   discord_thread_id TEXT,
   telegram_topic_id INTEGER,
   project_id TEXT REFERENCES projects(id),
+  host TEXT,
+  runtime TEXT,
+  dispatch_ref TEXT,
+  parent_session_id TEXT,
   FOREIGN KEY (agent_id) REFERENCES api_keys(id)
 );
 
@@ -584,5 +588,7 @@ CREATE INDEX idx_project_aliases_project ON project_aliases(project_id);
 
 CREATE UNIQUE INDEX idx_api_keys_name ON api_keys(name);
 CREATE INDEX idx_sessions_project ON sessions(project_id);
+-- A dispatched session points at the same-device session that dispatched it.
+CREATE INDEX idx_sessions_parent ON sessions(parent_session_id) WHERE parent_session_id IS NOT NULL;
 CREATE INDEX idx_progress_project_id ON progress_posts(project_id, created_at DESC, id DESC);
 CREATE INDEX idx_destination_routes_project ON destination_routes(project_id);
