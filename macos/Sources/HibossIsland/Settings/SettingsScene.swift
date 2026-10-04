@@ -76,7 +76,8 @@ struct SettingsScene: View {
                 flow: flow,
                 pairingLinks: pairingLinks,
                 isConnecting: isConnecting,
-                reconnect: connect
+                reconnect: connect,
+                onSignedIn: didPair
             )
         case .devices:
             DevicesSettingsPane(settings: settings, reconnect: reconnectStreams)
@@ -147,7 +148,7 @@ struct SettingsScene: View {
         notifications.connect(api: api)
     }
 
-    /// A paired device starts from the server's preferences instead of saving local defaults.
+    /// A paired or signed-in device starts from the server's preferences, not local defaults.
     private func didPair(_ config: ConnectionConfig) {
         statusMessage = ""
         reconnectStreams(config)

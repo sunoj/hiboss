@@ -173,19 +173,28 @@ final class AppSettings: ObservableObject {
     /// Redeems a one-time pairing code and stores the returned token as a manual login does.
     func pair(with payload: PairingPayload) async -> Result<ConnectionConfig, Error> {
         do {
-            let label = DeviceLabel.sanitize(deviceLabel, fallback: "Mac") // i18n-exempt: fallback device name sent to the server
-            let grant = try await redeemer.redeem(payload: payload, deviceLabel: label, signing: nil)
-            let accepted = ConnectionConfig(serverURL: payload.serverURL, bossToken: grant.token)
-            try keychain.write(accepted.bossToken)
-            defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
-            serverAddress = accepted.serverURL.absoluteString
-            bossToken = accepted.bossToken
-            clientExchangeNotice = nil
-            activeClientConfig = accepted
-            return .success(accepted)
+            let grant = try await redeemer.redeem(payload: payload, deviceLabel: outgoingDeviceLabel, signing: nil)
+            return .success(try adopt(grant, server: payload.serverURL))
         } catch {
             return .failure(error)
         }
+    }
+
+    /// The device label as sent to the server by pairing and by Sign in with iPhone.
+    var outgoingDeviceLabel: String {
+        DeviceLabel.sanitize(deviceLabel, fallback: "Mac") // i18n-exempt: fallback device name sent to the server
+    }
+
+    /// Stores a token granted by a pairing code or by Sign in with iPhone, as a manual login does.
+    func adopt(_ grant: PairingRedemptionGrant, server: URL) throws -> ConnectionConfig {
+        let accepted = ConnectionConfig(serverURL: server, bossToken: grant.token)
+        try keychain.write(accepted.bossToken)
+        defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+        serverAddress = accepted.serverURL.absoluteString
+        bossToken = accepted.bossToken
+        clientExchangeNotice = nil
+        activeClientConfig = accepted
+        return accepted
     }
 
     func sound(for priority: MessagePriority) -> OptionSound {

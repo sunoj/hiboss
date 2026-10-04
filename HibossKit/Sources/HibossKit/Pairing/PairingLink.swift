@@ -51,8 +51,13 @@ public enum PairingValidity {
 public enum PairingQRCode {
     /// Renders the link as a crisp QR bitmap; nil when CoreImage cannot produce one.
     public static func cgImage(for link: PairingLink) -> CGImage? {
+        cgImage(for: link.url)
+    }
+
+    /// Renders any hiboss:// link, such as a sign-in request, the same way.
+    public static func cgImage(for url: URL) -> CGImage? {
         guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-        filter.setValue(Data(link.url.absoluteString.utf8), forKey: "inputMessage")
+        filter.setValue(Data(url.absoluteString.utf8), forKey: "inputMessage")
         filter.setValue("M", forKey: "inputCorrectionLevel")
         guard let output = filter.outputImage?.transformed(
             by: CGAffineTransform(scaleX: 12, y: 12)
