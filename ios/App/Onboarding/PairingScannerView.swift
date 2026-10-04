@@ -1,5 +1,5 @@
-// Presents the system camera and recognizes one HiBoss pairing QR code.
-// Exports: PairingScannerView.
+// Presents the system camera and recognizes one HiBoss QR code; the caller decides what it accepts.
+// Exports: PairingScannerView (pairing by default, or any caller-supplied recognizer), QRScanOutcome.
 // Dependencies: SwiftUI, AVFoundation, and UIKit camera preview.
 
 import AVFoundation
@@ -7,11 +7,40 @@ import HibossKit
 import SwiftUI
 import UIKit
 
+/// What a scanner does with one decoded QR value.
+enum QRScanOutcome: Equatable {
+    case accepted
+    case rejected(String)
+}
+
 struct PairingScannerView: View {
-    let onPairingPayload: (PairingPayload) -> Void
+    let title: String
+    let cameraPurpose: String
+    /// Called per decoded value; `.accepted` stops the camera, `.rejected` shows its message.
+    let recognize: (String) -> QRScanOutcome
     @Environment(\.dismiss) private var dismiss
     @State private var permission = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var cameraError: String?
+
+    init(title: String, cameraPurpose: String, recognize: @escaping (String) -> QRScanOutcome) {
+        self.title = title
+        self.cameraPurpose = cameraPurpose
+        self.recognize = recognize
+    }
+
+    /// The onboarding scanner: accepts only a `hiboss://pair` link.
+    init(onPairingPayload: @escaping (PairingPayload) -> Void) {
+        self.init(
+            title: String(localized: "Scan pairing code"),
+            cameraPurpose: String(localized: "Camera access is needed to scan a pairing code.")
+        ) { rawValue in
+            guard case let .success(payload) = PairingPayload.parse(rawValue) else {
+                return .rejected(String(localized: "That QR code is not a valid HiBoss pairing code."))
+            }
+            onPairingPayload(payload)
+            return .accepted
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,7 +56,7 @@ struct PairingScannerView: View {
                     permissionDenied
                 }
             }
-            .navigationTitle(String(localized: "Scan pairing code"))
+            .navigationTitle(Text(verbatim: title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -41,12 +70,13 @@ struct PairingScannerView: View {
     private var camera: some View {
         ZStack {
             QRScannerCameraView { rawValue in
-                guard case let .success(payload) = PairingPayload.parse(rawValue) else {
-                    cameraError = String(localized: "That QR code is not a valid HiBoss pairing code.")
+                switch recognize(rawValue) {
+                case .accepted:
+                    return true
+                case let .rejected(message):
+                    cameraError = message
                     return false
                 }
-                onPairingPayload(payload)
-                return true
             }
             .ignoresSafeArea()
             RoundedRectangle(cornerRadius: 20)
@@ -71,7 +101,7 @@ struct PairingScannerView: View {
             Image(systemName: "camera.fill")
                 .font(.largeTitle)
                 .foregroundStyle(Theme.ink2)
-            Text("Camera access is needed to scan a pairing code.")
+            Text(verbatim: cameraPurpose)
                 .font(.hbBody)
                 .multilineTextAlignment(.center)
             Button("Open Settings") {

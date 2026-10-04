@@ -1,5 +1,5 @@
-// Demo pairing issuer and join-request service so device screens render without a server.
-// Exports: DemoPairingIssuer, DemoJoinRequestsAPI and DemoDevices.serverURL.
+// Demo pairing issuer, join-request and Mac sign-in services so device screens render without a server.
+// Exports: DemoPairingIssuer, DemoJoinRequestsAPI, DemoSigninAPI and DemoDevices.serverURL.
 // Dependencies: Foundation, HibossKit pairing and join-request contracts. Demo runs only.
 
 import Foundation
@@ -51,4 +51,21 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
     func rejectJoinRequest(id: String) async throws {
         requests.removeAll { $0.id == id }
     }
+}
+
+/// One pending Mac sign-in request for any well-formed id; approval returns a fixed code.
+struct DemoSigninAPI: SigninApproving {
+    func signinRequest(id: String) async throws -> SigninRequestSummary {
+        let expiry = Date().addingTimeInterval(600).ISO8601Format()
+        let json = #"{"request_id":"\#(id)","device_label":"Studio MacBook Pro","origin":"NL · Amsterdam","#
+            + #""status":"pending","created_at":"\#(Date().ISO8601Format())","expires_at":"\#(expiry)"}"#
+        return try JSONDecoder().decode(SigninRequestSummary.self, from: Data(json.utf8))
+    }
+
+    func approveSignin(id: String) async throws -> SigninApproval {
+        let json = #"{"code":"306142","expires_at":"\#(Date().addingTimeInterval(540).ISO8601Format())"}"#
+        return try JSONDecoder().decode(SigninApproval.self, from: Data(json.utf8))
+    }
+
+    func rejectSignin(id: String) async throws {}
 }
