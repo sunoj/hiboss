@@ -59,6 +59,25 @@ xcodebuild -project HiBoss.xcodeproj -scheme HiBoss \
   build CODE_SIGNING_ALLOWED=NO
 ```
 
+Install a development build on a connected iPhone. The Debug configuration disables signing
+and leaves the identity empty so simulator builds need no certificate, so a device build
+overrides all three settings. `DEVELOPMENT_TEAM` must be global because HibossKit's package
+targets are signed too:
+
+```bash
+xcodebuild -project HiBoss.xcodeproj -scheme HiBoss -configuration Debug \
+  -destination "platform=iOS,id=<device UDID>" -derivedDataPath build/device \
+  -allowProvisioningUpdates \
+  CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY="Apple Development" DEVELOPMENT_TEAM=JHH9GC8Y8C build
+xcrun devicectl device install app --device <device UDID> \
+  build/device/Build/Products/Debug-iphoneos/HiBoss.app
+```
+
+`xcrun devicectl list devices` prints the UDID. Start from a clean `-derivedDataPath`: an
+incremental build made without signing is not re-signed. A Debug build registers for the
+sandbox APNs environment, and it replaces a TestFlight or App Store install of the same bundle
+identifier.
+
 Run with sample data (no live server):
 
 ```bash
