@@ -4,8 +4,9 @@
 
 import { Hono, type Context } from 'hono';
 import type { Env } from '../types';
-import { bossAuth, getBossId, getBossRole, getBossTokenId } from '../middleware/auth';
+import { bossAuth, getBossId, getBossRole, getBossTokenId, hashApiKey } from '../middleware/auth';
 import { issueBossToken } from '../boss-token';
+import { logAudit } from '../audit';
 import { parseSigningRegistration, verifySigninRegistration } from '../message-security';
 import {
   approveRequest, completeRequest, findById, findByPollToken, openRequest, recordIssuedToken, rejectRequest, toView,
@@ -25,7 +26,8 @@ export const bossSigninRouter = createBossSigninRouter();
 
 function parseDeviceLabel(value: unknown): string | null {
   const label = typeof value === 'string' ? value.trim() : '';
-  if (!label || label.length > MAX_DEVICE_LABEL_LENGTH || /[<>&\u0000-\u001f]/.test(label)) return null;
+  // The approver reads this label, so no markup, controls or invisible format characters (bidi, zero-width).
+  if (!label || label.length > MAX_DEVICE_LABEL_LENGTH || /[<>&\p{Cc}\p{Cf}]/u.test(label)) return null;
   return label;
 }
 
@@ -34,6 +36,12 @@ function originHint(c: AppContext): string | null {
   const cf = (c.req.raw as Request & { cf?: { country?: unknown; city?: unknown } }).cf;
   const parts = [cf?.country, cf?.city].filter((part): part is string => typeof part === 'string' && part.length > 0);
   return parts.length ? parts.join(' · ').slice(0, 100) : null;
+}
+
+/** A hash of the opener's address, used only to cap open requests per network; null off Cloudflare. */
+async function originKey(c: AppContext): Promise<string | null> {
+  const ip = c.req.header('CF-Connecting-IP')?.trim();
+  return ip ? hashApiKey(`signin-origin:${ip}`) : null;
 }
 
 async function readJson(c: AppContext): Promise<Record<string, unknown> | null> {
@@ -49,9 +57,13 @@ async function polledRequest(c: AppContext) {
 function createSigninRouter(): Hono<{ Bindings: Env }> {
   const routes = new Hono<{ Bindings: Env }>({});
   routes.post('/requests', async (c) => {
+    // A JSON content type keeps a cross-site form or text/plain POST from opening requests.
+    if (!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json')) {
+      return c.text('content type must be application/json', 415);
+    }
     const label = parseDeviceLabel((await readJson(c))?.device_label);
     if (!label) return c.text('device_label is required', 400);
-    const opened = await openRequest(c.env.DB, label, originHint(c));
+    const opened = await openRequest(c.env.DB, label, originHint(c), await originKey(c));
     if (!opened) return c.text('too many open sign-in requests', 429);
     return c.json(opened, 201);
   });
@@ -83,7 +95,9 @@ async function completeHandler(c: AppContext): Promise<Response> {
   const grant = await issueBossToken(c.env, boss.id, row.device_label, signingKey ?? undefined, {
     kind: signingKey?.clientKind ?? 'web', label: row.device_label,
   });
-  await recordIssuedToken(c.env.DB, row.id, grant.tokenId);
+  // The token already exists; a failed bookkeeping write must not withhold it.
+  await recordIssuedToken(c.env.DB, row.id, grant.tokenId).catch(() => console.error('signin: issued token not recorded'));
+  await logAudit(c.env, 'boss', boss.id, 'signin.complete', 'boss_token', grant.tokenId, row.id);
   return c.json({ token: grant.token, boss, ...(signingKey ? { signing_key_id: signingKey.id } : {}) });
 }
 
@@ -105,6 +119,7 @@ function createBossSigninRouter(): Hono<{ Bindings: Env }> {
     const id = c.req.param('id');
     const code = REQUEST_ID.test(id) ? await approveRequest(c.env.DB, id, getBossId(c), getBossTokenId(c)) : null;
     if (!code) return c.text('sign-in request is not pending', 409);
+    await logAudit(c.env, 'boss', getBossId(c), 'signin.approve', 'signin_request', id);
     const row = await findById(c.env.DB, id);
     return c.json({ code, expires_at: row?.expires_at ?? null, device_label: row?.device_label ?? null });
   });

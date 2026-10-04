@@ -239,6 +239,7 @@ CREATE TABLE IF NOT EXISTS signin_requests (
   poll_token_hash TEXT NOT NULL UNIQUE,
   device_label TEXT NOT NULL,
   origin TEXT,
+  origin_key TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
   boss_id TEXT REFERENCES bosses(id) ON DELETE CASCADE,
   approved_by_token_id TEXT REFERENCES boss_tokens(id) ON DELETE SET NULL,
@@ -249,6 +250,7 @@ CREATE TABLE IF NOT EXISTS signin_requests (
   expires_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_signin_requests_expires ON signin_requests(expires_at);
+CREATE INDEX IF NOT EXISTS idx_signin_requests_origin ON signin_requests(origin_key) WHERE origin_key IS NOT NULL;
 
 -- Boss-agent access control
 CREATE TABLE IF NOT EXISTS boss_agent_access (

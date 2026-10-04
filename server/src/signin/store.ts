@@ -9,6 +9,8 @@ export const SIGNIN_TTL_MS = 10 * 60 * 1000;
 export const MAX_CODE_ATTEMPTS = 5;
 /** Open requests across the whole server; creation is unauthenticated, so this bounds the table. */
 export const MAX_OPEN_REQUESTS = 200;
+/** Open requests from one network, so one client cannot exhaust the server-wide cap alone. */
+export const MAX_OPEN_PER_ORIGIN = 3;
 
 export type SigninStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'expired';
 
@@ -48,8 +50,8 @@ export function toView(row: SigninRow, now: string): SigninView {
   return { request_id: id, device_label, origin, status, created_at, expires_at };
 }
 
-/** Opens a request; null when too many requests are already open. */
-export async function openRequest(db: D1Database, deviceLabel: string, origin: string | null):
+/** Opens a request; null when too many requests are already open, overall or from `originKey`. */
+export async function openRequest(db: D1Database, deviceLabel: string, origin: string | null, originKey: string | null):
   Promise<{ request_id: string; poll_token: string; expires_at: string } | null> {
   const now = new Date();
   const nowIso = now.toISOString();
@@ -58,9 +60,12 @@ export async function openRequest(db: D1Database, deviceLabel: string, origin: s
   const pollToken = `st_${randomHex(32)}`;
   const expiresAt = new Date(now.getTime() + SIGNIN_TTL_MS).toISOString();
   const inserted = await db.prepare(
-    `INSERT INTO signin_requests (id, poll_token_hash, device_label, origin, created_at, expires_at)
-     SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM signin_requests WHERE status IN ('pending', 'approved')) < ?`,
-  ).bind(id, await hashApiKey(pollToken), deviceLabel, origin, nowIso, expiresAt, MAX_OPEN_REQUESTS).run();
+    `INSERT INTO signin_requests (id, poll_token_hash, device_label, origin, origin_key, created_at, expires_at)
+     SELECT ?, ?, ?, ?, ?, ?, ?
+     WHERE (SELECT COUNT(*) FROM signin_requests WHERE status IN ('pending', 'approved')) < ?
+       AND (? IS NULL OR (SELECT COUNT(*) FROM signin_requests WHERE origin_key = ? AND status IN ('pending', 'approved')) < ?)`,
+  ).bind(id, await hashApiKey(pollToken), deviceLabel, origin, originKey, nowIso, expiresAt,
+    MAX_OPEN_REQUESTS, originKey, originKey, MAX_OPEN_PER_ORIGIN).run();
   if (!inserted.meta.changes) return null;
   return { request_id: id, poll_token: pollToken, expires_at: expiresAt };
 }
@@ -95,25 +100,28 @@ export async function rejectRequest(db: D1Database, id: string, bossId: string):
 }
 
 /**
- * Consumes an approved request when `code` matches, in one statement: the request must be
- * unexpired, under the attempt limit, its boss unarchived and its approving token unrevoked.
- * A wrong code counts an attempt; the last allowed miss rejects the request.
+ * Checks `code` and counts the attempt in one statement, so concurrent guesses cannot
+ * outrun the limit: every SET expression sees the row as it was before this update. A
+ * match completes the request only while the boss is unarchived and the approving token
+ * unrevoked, and rejects it otherwise; the last allowed miss rejects it too. Returns the
+ * boss id on success.
  */
 export async function completeRequest(db: D1Database, row: SigninRow, code: string): Promise<string | null> {
-  const consumed = await db.prepare(
-    `UPDATE signin_requests SET status = 'completed', code_hash = NULL
-     WHERE id = ? AND status = 'approved' AND expires_at > ? AND attempts < ? AND code_hash = ?
-       AND EXISTS (SELECT 1 FROM bosses b WHERE b.id = signin_requests.boss_id AND b.archived_at IS NULL)
-       AND EXISTS (SELECT 1 FROM boss_tokens bt WHERE bt.id = signin_requests.approved_by_token_id AND bt.revoked_at IS NULL)
-     RETURNING boss_id`,
-  ).bind(row.id, new Date().toISOString(), MAX_CODE_ATTEMPTS, await codeHash(row.id, code)).first<{ boss_id: string }>();
-  if (consumed) return consumed.boss_id;
-  await db.prepare(
+  const hash = await codeHash(row.id, code);
+  const updated = await db.prepare(
     `UPDATE signin_requests SET attempts = attempts + 1,
-       status = CASE WHEN attempts + 1 >= ? THEN 'rejected' ELSE status END
-     WHERE id = ? AND status = 'approved'`,
-  ).bind(MAX_CODE_ATTEMPTS, row.id).run();
-  return null;
+       status = CASE
+         WHEN code_hash = ?1
+           AND EXISTS (SELECT 1 FROM bosses b WHERE b.id = signin_requests.boss_id AND b.archived_at IS NULL)
+           AND EXISTS (SELECT 1 FROM boss_tokens bt WHERE bt.id = signin_requests.approved_by_token_id AND bt.revoked_at IS NULL)
+         THEN 'completed'
+         WHEN code_hash = ?1 OR attempts + 1 >= ?2 THEN 'rejected'
+         ELSE status END,
+       code_hash = CASE WHEN code_hash = ?1 THEN NULL ELSE code_hash END
+     WHERE id = ?3 AND status = 'approved' AND expires_at > ?4 AND attempts < ?2
+     RETURNING status, boss_id`,
+  ).bind(hash, MAX_CODE_ATTEMPTS, row.id, new Date().toISOString()).first<{ status: string; boss_id: string }>();
+  return updated?.status === 'completed' ? updated.boss_id : null;
 }
 
 export async function recordIssuedToken(db: D1Database, id: string, tokenId: string): Promise<void> {

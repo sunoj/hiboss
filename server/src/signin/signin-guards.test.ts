@@ -6,7 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { describe, it, expect, beforeAll } from 'vitest';
 import { seedBossToken, seedDatabase } from '../test-helpers';
 import { approvedCode, complete, open, registration, status, act } from './test-support';
-import { MAX_CODE_ATTEMPTS, MAX_OPEN_REQUESTS } from './store';
+import { MAX_CODE_ATTEMPTS, MAX_OPEN_PER_ORIGIN, MAX_OPEN_REQUESTS, completeRequest, findById } from './store';
 
 const ADMIN = 'hb_boss_signin_guard_admin_0000001';
 const SECOND = 'hb_boss_signin_guard_second_000001';
@@ -32,6 +32,18 @@ describe('sign-in limits', () => {
     expect((await complete(opened.poll_token, { code })).status).toBe(400);
   });
 
+  it('counts concurrent wrong guesses before the right code is checked', async () => {
+    const opened = await open();
+    const code = await approvedCode(opened.request_id, ADMIN);
+    const row = await findById(env.DB, opened.request_id);
+    if (!row) throw new Error('missing row');
+    const guesses = Array.from({ length: 40 }, () => completeRequest(env.DB, row, wrong(code)));
+    const results = await Promise.all([...guesses, completeRequest(env.DB, row, code)]);
+    expect(results.every(result => result === null)).toBe(true);
+    const stored = await env.DB.prepare('SELECT status, attempts FROM signin_requests WHERE id = ?').bind(opened.request_id).first();
+    expect(stored).toEqual({ status: 'rejected', attempts: MAX_CODE_ATTEMPTS });
+  });
+
   it('refuses an expired request on both sides', async () => {
     const opened = await open();
     const code = await approvedCode(opened.request_id, ADMIN);
@@ -49,6 +61,7 @@ describe('sign-in limits', () => {
     await env.DB.prepare("UPDATE boss_tokens SET revoked_at = datetime('now') WHERE id = (SELECT approved_by_token_id FROM signin_requests WHERE id = ?)")
       .bind(opened.request_id).run();
     expect((await complete(opened.poll_token, { code })).status).toBe(400);
+    expect(await (await status(opened.poll_token)).json()).toMatchObject({ status: 'rejected' });
   });
 });
 
@@ -71,6 +84,30 @@ describe('sign-in signing registration', () => {
     const signing = await registration('hiboss-pair-v1', opened.request_id);
     expect((await complete(opened.poll_token, { code, signing })).status).toBe(400);
     expect((await complete(opened.poll_token, { code })).status).toBe(200);
+  });
+});
+
+describe('sign-in request admission', () => {
+  async function post(headers: Record<string, string>, label = 'Mac'): Promise<Response> {
+    return SELF.fetch('http://localhost/api/signin/requests', {
+      method: 'POST', headers, body: JSON.stringify({ device_label: label }),
+    });
+  }
+
+  it('requires a JSON content type', async () => {
+    expect((await post({ 'Content-Type': 'text/plain' })).status).toBe(415);
+  });
+
+  it('refuses invisible format characters in the label', async () => {
+    expect((await post({ 'Content-Type': 'application/json' }, 'Mac\u202Eexe')).status).toBe(400);
+    expect((await post({ 'Content-Type': 'application/json' }, 'Ma\u200Bc')).status).toBe(400);
+  });
+
+  it('caps open requests from one network', async () => {
+    const from = (ip: string) => ({ 'Content-Type': 'application/json', 'CF-Connecting-IP': ip });
+    for (let i = 0; i < MAX_OPEN_PER_ORIGIN; i++) expect((await post(from('203.0.113.7'))).status).toBe(201);
+    expect((await post(from('203.0.113.7'))).status).toBe(429);
+    expect((await post(from('198.51.100.9'))).status).toBe(201);
   });
 });
 

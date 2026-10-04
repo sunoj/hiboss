@@ -11,16 +11,20 @@ Approving a QR code alone would let anyone who shows the boss a QR code collect
 a token: the boss would be approving a request opened on someone else's machine.
 The code is generated at approval and displayed only on the approving iPhone,
 and the server releases the token only to the request whose poll token comes
-with that code. Typing the code on the Mac proves that the person approving is
-at that Mac.
+with that code. This defeats blind approval: a requester who never sees the code
+gets nothing. It does not stop a boss who reads the code out to the requester,
+so the iPhone says to type the code only on a Mac in front of you and to share
+it with no one. The device label shown for review is chosen by the requester.
 
 ## Flow
 
 1. **Mac opens a request.** `POST /api/signin/requests` with `{"device_label"}`,
-   no authentication. Returns 201
-   `{"request_id", "poll_token", "expires_at"}`. `request_id` is 32 lowercase hex
+   no authentication; the body must be sent as `application/json` (415 otherwise).
+   Returns 201 `{"request_id", "poll_token", "expires_at"}`. `request_id` is 32 lowercase hex
    characters; `poll_token` is `st_` plus 64 hex characters and is a credential.
-   429 when 200 requests are already open server-wide.
+   429 when 200 requests are already open server-wide, or 3 from the same network
+   (keyed by a hash of the client IP address). The label is at most 100
+   characters with no `<>&`, control or invisible format characters.
 2. **Mac shows the QR code** for `hiboss://signin?server=<server URL>&request=<request_id>`
    (HTTPS, or plain HTTP only for a loopback server).
 3. **Mac polls** `GET /api/signin/status` with header `X-Signin-Token: <poll_token>`.
@@ -38,15 +42,20 @@ at that Mac.
    request, or one the same boss approved.
 6. **Mac completes** with `POST /api/signin/complete`, header `X-Signin-Token`, body
    `{"code": "123456", "signing"?: {...}}`. Returns
-   `{"token", "boss": {"id", "name", "role"}, "signing_key_id"?}`. Every failure
-   is a 400 that does not say which check failed.
+   `{"token", "boss": {"id", "name", "role"}, "signing_key_id"?}`. An unknown poll
+   token is a 404; a wrong code, or a request that is not approved, expired,
+   used, or whose approver was archived or revoked, is the same 400.
 
 ## Limits
 
 - A request lives ten minutes from creation; approval does not extend it.
-- Five wrong codes reject the request.
+- Five wrong codes reject the request. The code check and the attempt count are
+  one statement, so concurrent guesses cannot exceed the limit.
 - Completion succeeds once. It also requires that the approving boss is not
-  archived and that the token the iPhone approved with has not been revoked.
+  archived and that the token the iPhone approved with has not been revoked;
+  otherwise the right code rejects the request.
+- Approval and completion are written to the audit log (`signin.approve`,
+  `signin.complete`).
 - The server stores SHA-256 hashes of the poll token and of the code (salted
   with the request id), never the values. Expired rows are deleted by the cron
   sweep and when a new request is opened.
