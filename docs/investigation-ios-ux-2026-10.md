@@ -219,6 +219,47 @@ second instead of hanging (checked by deleting the guard line).
 reply for eight seconds (`HIBOSS_DEMO_REPLY_DELAY_MS`) and asserts the options are
 disabled on Home and in detail.
 
+## Re-audit round: accessibility-size test and guard-test quality
+
+KB consulted: `kb isHittable tab bar floating swipe` — no direct match.
+
+**`testManyOptionsRemainReachableAtAccessibilityTextSize` failure.** The tap never
+reached the button, so the reply gate was never entered. Evidence is from the failing
+run's result bundle (iPhone 18 Pro, 85 s): the synthesized tap was at (29.0, 778.7) on
+a 402 × 874 screen. That is the top-left corner of a sliver of about 12 pt of "Fail over to
+Adyen" left above the floating tab bar, outside the capsule's hit shape. Screen-recording
+frames at the tap (36.75 s) and 0.8 s later are identical. The sibling options of the
+same decision stay at full contrast, and `DecisionOptions` disables every option of a
+decision while the gate holds a reply for it. The swipe loop stopped at the first swipe
+that made the option "hittable", which is the moment it enters at the bottom edge,
+under the bar. Where it lands depends on swipe distance, so the same build passed
+on iPhone 17 (single and full suite) and on iPhone 18 Pro (single). No product change
+was needed. The test now drags the option fully above the tab bar with held,
+momentum-free steps. It asserts the option is clear of the bar and that the answered
+decision leaves Home within 5 s, then keeps its original count assertion.
+
+**Release race in `HeldReplyAPI`.** `release()` now resolves every reply recorded so far,
+including one recorded but not yet suspended (kept as an early result). Every gate test
+releases only after the fake has recorded the reply, and awaits through `Pending.settled()`.
+That call waits about two seconds, then cancels the work and fails instead of hanging.
+
+**Real entry points.** `DecisionEntryPointTests` calls `PushManager.handle(_:)` and
+`RespondDecisionIntent.perform()` unmodified. Both now obtain their API from
+`HiBossStore.replyAPI`, which defaults to `bossAPI()` and is replaced only by tests, because
+the unit-test host cannot write the Keychain (`-34018`). `PushActionRequest` and
+`handle(_:)` became internal for the test. `DecisionActivityLink.completion(of:after:choice:api:)`
+is the extracted choice of Live Activity outcome. `DecisionStateTests` checks it against a
+recorded `auto_default` marker, a marker-less `system` source, an unreadable detail, this
+device's choice of the default, and a failure.
+
+Mutation checks (reverted): routing either entry point around the gate fails both entry
+tests; checking `source == "system"` instead of the marker fails the completion test;
+deleting the gate's guard fails four tests. Every failure took under 0.1 s.
+
+Verification for this round: the single test passes on iPhone 18 Pro (60.1 s);
+`HiBossTests` 126 tests, 0 failures; `HiBossUITests` without the tour 33 tests, 0 failures
+(iPhone 17). HibossKit and the Mac app are unchanged.
+
 ## Verification
 
 - `HiBossTests`: 115 tests, 0 failures.

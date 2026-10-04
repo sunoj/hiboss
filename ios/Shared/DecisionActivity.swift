@@ -59,6 +59,10 @@ enum HiBossStore {
     static let keychainAccount = "boss-token"
     static let signingKeychainAccount = "boss-message-signer"
 
+    /// What notification actions and the Live Activity intent reply through. Only tests
+    /// assign it, to hold replies; the app always uses the persisted connection.
+    @MainActor static var replyAPI: () -> (any BossServing)? = { bossAPI() }
+
     /// Rebuilds the boss API from persisted server URL + Keychain token.
     static func bossAPI() -> HibossAPI? {
         let server = UserDefaults.standard.string(forKey: AppConstants.Storage.serverURL) ?? ""

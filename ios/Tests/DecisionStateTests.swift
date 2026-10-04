@@ -1,5 +1,6 @@
 // Decision-state tests: a timeout default is attributed by its `auto_default` marker, never by
-// its source, through history reloads; a failed refresh over loaded rows is reported as stale.
+// its source, through history reloads and Live Activity completion; a failed refresh over
+// loaded rows is reported as stale.
 // Exports: DecisionStateTests. Dependencies: XCTest, HiBoss app target, HibossKit, HeldReplyAPI.
 
 import HibossKit
@@ -65,6 +66,26 @@ final class DecisionStateTests: XCTestCase {
         )))
         XCTAssertTrue(streamed.isAutoDefault)
         XCTAssertNil(DecisionSettlement(resolution: OptionResolution(id: "q1", status: .expired)))
+    }
+
+    /// The Live Activity ends with the recorded reply's attribution: the marker, never the
+    /// source or equality with the default, makes it "Auto-selected when time ran out".
+    func testLiveActivityCompletionIsAttributedByTheRecordedMarker() async throws {
+        func completion(_ submission: DecisionSubmission, recorded json: String?) async throws -> DecisionCompletion? {
+            let detail = try json.map { MessageDetail(message: Self.question, replies: [reply("Keep", try metadata($0))]) }
+            return await DecisionActivityLink.completion(of: "q1", after: submission, choice: "Keep",
+                                                         api: HeldReplyAPI(detail: detail))
+        }
+        let automatic = try await completion(.alreadyResolved, recorded: #"{"auto_default":true,"source":"api"}"#)
+        XCTAssertEqual(automatic, .autoSelected("Keep"))
+        let unmarked = try await completion(.alreadyResolved, recorded: #"{"source":"system"}"#)
+        XCTAssertEqual(unmarked, .answeredElsewhere("Keep"), "a source alone is not the marker")
+        let unreadable = try await completion(.alreadyResolved, recorded: nil)
+        XCTAssertEqual(unreadable, .answeredElsewhere(nil))
+        let mine = try await completion(.accepted, recorded: #"{"auto_default":true}"#)
+        XCTAssertEqual(mine, .answered("Keep"), "this device's choice of the default is the boss's answer")
+        let failed = try await completion(.failed("down"), recorded: nil)
+        XCTAssertNil(failed, "a failed send keeps the activity open")
     }
 
     func testListPhaseKeepsRowsAndReportsAFailedRefresh() {

@@ -27,12 +27,7 @@ enum DecisionActivityLink {
     ) async {
         let running = activities(for: id)
         guard !running.isEmpty else { return }
-        let completion: DecisionCompletion?
-        switch submission {
-        case .accepted: completion = .answered(choice)
-        case .alreadyResolved: completion = .recorded(in: try? await api.fetchMessage(id))
-        case .failed, .busy: completion = nil
-        }
+        let completion = await completion(of: id, after: submission, choice: choice, api: api)
         for activity in running {
             var state = activity.content.state
             state.submitting = nil
@@ -42,6 +37,18 @@ enum DecisionActivityLink {
             } else {
                 await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .after(.now + 2))
             }
+        }
+    }
+
+    /// The outcome an activity ends with; nil keeps it open. This device's accepted reply is
+    /// `answered` even when it equals the default; only the recorded marker makes it automatic.
+    static func completion(
+        of id: MessageID, after submission: DecisionSubmission, choice: String, api: any BossServing
+    ) async -> DecisionCompletion? {
+        switch submission {
+        case .accepted: return .answered(choice)
+        case .alreadyResolved: return .recorded(in: try? await api.fetchMessage(id))
+        case .failed, .busy: return nil
         }
     }
 }
