@@ -1,6 +1,6 @@
 // Settings screen that issues a one-time pairing code and shows its QR plus copyable link.
 // Exports: PairDeviceView.
-// Dependencies: SwiftUI, UIKit pasteboard, and HibossKit's DevicePairingModel.
+// Dependencies: SwiftUI, UIKit pasteboard, HibossKit's DevicePairingModel, and CopyFeedback.
 
 import HibossKit
 import SwiftUI
@@ -8,6 +8,7 @@ import UIKit
 
 struct PairDeviceView: View {
     @StateObject private var model: DevicePairingModel
+    @State private var copyFeedback = CopyFeedback()
 
     init(config: ConnectionConfig?) {
         _model = StateObject(wrappedValue: isDemoMode
@@ -38,6 +39,12 @@ struct PairDeviceView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.requestCode() }
         .task(id: model.grant?.code) { await model.monitorRedemption() }
+        .sensoryFeedback(.success, trigger: copyFeedback.count)
+        .task(id: copyFeedback.count) {
+            let copy = copyFeedback.count
+            guard copy > 0, (try? await Task.sleep(for: CopyFeedback.duration)) != nil else { return }
+            copyFeedback.expire(copy: copy)
+        }
     }
 
     @ViewBuilder
@@ -97,15 +104,26 @@ struct PairDeviceView: View {
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
-            Button {
-                UIPasteboard.general.string = link.url.absoluteString
-            } label: {
-                Label("Copy Link", systemImage: "doc.on.doc")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+            Button { copy(link) } label: {
+                Group {
+                    if copyFeedback.isShowing {
+                        Label("Copied", systemImage: "checkmark")
+                    } else {
+                        Label("Copy Link", systemImage: "doc.on.doc")
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.bordered)
         }
         .padding(.vertical, 8)
+    }
+
+    /// Copies the link, then confirms it on screen, by haptic, and to VoiceOver.
+    private func copy(_ link: PairingLink) {
+        UIPasteboard.general.string = link.url.absoluteString
+        copyFeedback.copied()
+        AccessibilityNotification.Announcement(String(localized: "Link copied")).post()
     }
 
     private func failureContent(_ failure: PairingRequestFailure, systemImage: String) -> some View {

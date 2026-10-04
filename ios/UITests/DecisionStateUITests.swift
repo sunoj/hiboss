@@ -1,5 +1,5 @@
 // Visible decision and account states: auto-selected history and transcript, in-flight replies,
-// pairing expiry, sign-out and stale lists (Messages and Progress).
+// pairing expiry and copy confirmation, device requests, sign-out and stale lists.
 // Exports: DecisionStateUITests (demo mode, English).
 // Dependencies: XCTest, DemoLaunchSupport.
 
@@ -79,6 +79,26 @@ final class DecisionStateUITests: XCTestCase {
         XCTAssertTrue(fresh.waitForExistence(timeout: 6), "expiry offers a fresh code without leaving the screen")
         fresh.tap()
         XCTAssertTrue(app.buttons["Copy Link"].waitForExistence(timeout: 5), "a fresh code replaces the expired one")
+    }
+
+    func testCopyLinkConfirmsTheCopy() {
+        launch()
+        openSettingsRow("Pair another device")
+        let copy = app.buttons["Copy Link"]
+        XCTAssertTrue(copy.waitForExistence(timeout: 5))
+        copy.tap()
+        XCTAssertTrue(app.buttons["Copied"].waitForExistence(timeout: 2), "the button confirms the copy")
+        XCTAssertTrue(app.buttons["Copy Link"].waitForExistence(timeout: 5), "the confirmation is transient")
+    }
+
+    func testDeviceRequestWithoutACodeSaysWhyOnItsRow() {
+        launch()
+        openSettingsRow("Device Requests")
+        let legacy = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'ci-runner'")).firstMatch
+        XCTAssertTrue(legacy.waitForExistence(timeout: 5))
+        XCTAssertTrue(legacy.label.contains("No verification code"), legacy.label)
+        let approvable = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'")).firstMatch
+        XCTAssertFalse(approvable.label.contains("No verification code"), approvable.label)
     }
 
     func testSignOutAsksBeforeDeletingTheToken() {

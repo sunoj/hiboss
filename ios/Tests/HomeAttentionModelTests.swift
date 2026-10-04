@@ -90,6 +90,15 @@ final class HomeAttentionModelTests: XCTestCase {
                        AttentionModel.items(from: decisions, now: now).map(\.id))
     }
 
+    func testWaitingSessionGroupsUnderWaitingOnYouAndBlockedSessionDoesNot() {
+        let groups = AttentionModel.grouped(from: [
+            message("waiting", sessionStatus: " Waiting "),
+            message("blocked", sessionStatus: "blocked"),
+        ], now: now)
+        XCTAssertEqual(groups.map(\.group), [.waitingOnYou, .priority])
+        XCTAssertEqual(groups.first?.items.map(\.id), ["waiting"])
+    }
+
     private func message(
         _ id: String,
         priority: String = "normal",

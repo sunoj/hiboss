@@ -1,5 +1,6 @@
 // Native choice buttons for a pending decision, shared by the Home card and message detail.
-// Exports: DecisionOptions. Two options sit side by side, three or more stack vertically.
+// Exports: DecisionOptions. Two options sit side by side at one shared row height; three or
+// more stack vertically.
 // Dependencies: SwiftUI, DecisionTiming (which option is the live timeout default).
 
 import SwiftUI
@@ -12,6 +13,8 @@ struct DecisionOptions: View {
 
     var body: some View {
         if options.count == 2 {
+            // The row takes its tallest label's height and both buttons fill it, so a label that
+            // wraps at large text never leaves its neighbour shorter.
             HStack(spacing: 8) {
                 ForEach(options, id: \.self) { button($0, alignment: .center) }
             }
@@ -52,5 +55,6 @@ struct DecisionOptions: View {
             }
         }
         .frame(minWidth: 44, minHeight: 44)
+        .frame(maxHeight: alignment == .center ? .infinity : nil)
     }
 }

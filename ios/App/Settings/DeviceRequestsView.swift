@@ -71,6 +71,12 @@ struct DeviceRequestsView: View {
                 if let detail = detail(request) {
                     Text(verbatim: detail).font(.hbSmall).foregroundStyle(Theme.ink2).lineLimit(1)
                 }
+                if let note = Self.approvalNote(request) {
+                    // Words and a glyph, not color alone, say this row cannot be approved.
+                    Label { Text(note) } icon: { Image(systemName: "exclamationmark.triangle") }
+                        .font(.hbSmall)
+                        .foregroundStyle(Theme.ink2)
+                }
             }
             Spacer(minLength: 8)
             if let created = request.createdDate {
@@ -80,7 +86,12 @@ struct DeviceRequestsView: View {
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityHint(Text("Shows the verification code"))
+        .accessibilityHint(request.canApprove ? Text("Shows the verification code") : Text("Shows the request details"))
+    }
+
+    /// Why a request cannot be approved, shown on its row; nil when it can be.
+    nonisolated static func approvalNote(_ request: JoinRequest) -> LocalizedStringResource? {
+        request.canApprove ? nil : "No verification code — can’t be approved"
     }
 
     private func detail(_ request: JoinRequest) -> String? {

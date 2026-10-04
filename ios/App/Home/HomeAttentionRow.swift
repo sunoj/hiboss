@@ -16,6 +16,13 @@ enum HomeAttentionLayout {
     }
 }
 
+extension AttentionGroup {
+    /// Header tint: the waiting group takes the session status tint so Home and Sessions agree.
+    var tint: Color {
+        self == .waitingOnYou ? SessionStatus.waiting.tint : Theme.ink2
+    }
+}
+
 struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
@@ -41,7 +48,7 @@ struct HomeAttentionSection: View {
                             Image(systemName: group.group.symbol)
                         }
                         .font(.hbSmall.weight(.semibold))
-                        .foregroundStyle(group.group == .blocked ? Theme.negative : Theme.ink2)
+                        .foregroundStyle(group.group.tint)
                         .accessibilityAddTraits(.isHeader)
                         ForEach(group.items) { item in
                             HomeAttentionRow(item: item, submitting: replying[item.id], onChoose: { onChoose($0, item.id) })
