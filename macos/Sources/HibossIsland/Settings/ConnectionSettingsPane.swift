@@ -1,4 +1,4 @@
-// Connection pane: live state, then Pair with Code first and a Boss Token second.
+// Connection pane: live state, then Sign in with iPhone, Pair with Code, and a Boss Token.
 // Exports: ConnectionSettingsPane.
 // Dependencies: SwiftUI, AppSettings, OptionFlowStore, PairingLinkRouter, and DesignTokens.
 
@@ -11,7 +11,8 @@ struct ConnectionSettingsPane: View {
     let pairingLinks: PairingLinkRouter
     let isConnecting: Bool
     let reconnect: () -> Void
-    @State private var isPairingPresented = false
+    let onSignedIn: (ConnectionConfig) -> Void
+    @State private var sheet: ConnectionSheet?
 
     var body: some View {
         Form {
@@ -46,6 +47,16 @@ struct ConnectionSettingsPane: View {
             }
 
             Section {
+                signinWithPhoneButton
+            } header: {
+                Text(L("Sign in with iPhone"))
+            } footer: {
+                Text(L("Show a QR code here, approve it in HiBoss on a signed-in iPhone, then type the code the iPhone shows."))
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(isConnecting)
+
+            Section {
                 pairWithCodeButton
             } header: {
                 Text(L("Pair with code"))
@@ -74,7 +85,7 @@ struct ConnectionSettingsPane: View {
 
             Section {
                 Button {
-                    isPairingPresented = true
+                    sheet = .devicePairing
                 } label: {
                     Label(L("Pair a new device…"), systemImage: "qrcode")
                 }
@@ -87,22 +98,33 @@ struct ConnectionSettingsPane: View {
             }
         }
         .formStyle(.grouped)
-        .sheet(isPresented: $isPairingPresented) {
-            DevicePairingSheet(settings: settings)
+        .sheet(item: $sheet) { sheet in
+            switch sheet {
+            case .devicePairing: DevicePairingSheet(settings: settings)
+            case .signinWithPhone: SigninWithPhoneSheet(settings: settings, onSignedIn: onSignedIn)
+            }
         }
     }
 
     @ViewBuilder
-    private var pairWithCodeButton: some View {
+    private var signinWithPhoneButton: some View {
         let button = Button {
-            pairingLinks.request = PairingSheetRequest(link: "")
+            sheet = .signinWithPhone
         } label: {
-            Label(L("Pair with Code…"), systemImage: "link.badge.plus")
+            Label(L("Sign in with iPhone…"), systemImage: "iphone")
         }
         if settings.isConfigured {
             button
         } else {
             button.buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var pairWithCodeButton: some View {
+        Button {
+            pairingLinks.request = PairingSheetRequest(link: "")
+        } label: {
+            Label(L("Pair with Code…"), systemImage: "link.badge.plus")
         }
     }
 
@@ -116,4 +138,12 @@ struct ConnectionSettingsPane: View {
         }
         return config.serverURL.host ?? config.serverURL.absoluteString
     }
+}
+
+/// The sheets the Connection pane presents; one at a time.
+enum ConnectionSheet: String, Identifiable {
+    case devicePairing
+    case signinWithPhone
+
+    var id: String { rawValue }
 }
