@@ -201,6 +201,11 @@ struct MessageDetailView: View {
     private func resolvedDecision(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Options").hbLabel().foregroundStyle(Theme.ink2)
+            OptionMediaComparison(
+                options: message.options,
+                media: message.metadata?.optionMedia ?? [],
+                settlement: settlement
+            )
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(message.options, id: \.self) { option in
                     optionRow(option, chosen: isChosen(option))
