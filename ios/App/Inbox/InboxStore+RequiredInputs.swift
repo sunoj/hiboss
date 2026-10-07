@@ -122,9 +122,8 @@ extension InboxStore {
             cancelRequiredFetch()
             requiredInputReady = false
             requiredInputLoaded = false
-            if requiredInputError == nil {
-                requiredInputError = String(localized: "Requests connection ended. Reconnecting…")
-            }
+            // The server rotates this stream every few minutes; a clean end is routine. The
+            // coverage watchdog escalates only if the reconnect does not restore coverage.
             try? await Task<Never, Never>.sleep(for: reconnectDelay)
         }
     }

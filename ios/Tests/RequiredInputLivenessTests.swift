@@ -21,7 +21,7 @@ final class RequiredInputLivenessTests: XCTestCase {
         XCTAssertNotNil(store.requiredInputError, "Missing ready must become an actionable source failure")
     }
 
-    func testCleanRequiredStreamEndReportsLostCoverage() async {
+    func testCleanRequiredStreamEndReconnectsWithoutAnImmediateError() async {
         let api = ControlledInputAPI()
         let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
         store.start(api: api)
@@ -32,7 +32,22 @@ final class RequiredInputLivenessTests: XCTestCase {
         await api.waitForStream(1)
         XCTAssertEqual(store.connectionState, .connected)
         XCTAssertFalse(store.hasCompleteRequiredInputs)
-        XCTAssertNotNil(store.requiredInputError, "A clean stream end is still lost coverage")
+        XCTAssertNil(store.requiredInputError, "a routine stream rotation is not a failure")
+    }
+
+    func testRoutineMessageStreamRotationStaysConnected() async {
+        let api = ControlledInputAPI()
+        await api.endMessageStreamsCleanly()
+        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
+        store.start(api: api)
+        defer { store.stop() }
+        var states: [ConnectionState] = []
+        for _ in 0..<25 {
+            await wait(0.02)
+            states.append(store.connectionState)
+        }
+        XCTAssertTrue(states.allSatisfy { $0 == .connected },
+                      "a clean server rotation must not show a reconnect state: \(states)")
     }
 
     private func loaded(_ store: InboxStore) async {

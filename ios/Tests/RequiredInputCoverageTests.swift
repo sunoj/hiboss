@@ -195,7 +195,10 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     private var heldReply: CheckedContinuation<ReplyOutcome, Never>?
     private var replyWaiter: CheckedContinuation<Void, Never>?
 
+    private var messageStreamEndsCleanly = false
+
     func setResponse(_ messages: [HistoryMessage]) { response = messages }
+    func endMessageStreamsCleanly() { messageStreamEndsCleanly = true }
     func failNextFetch() { fail = true }
 
     func waitForStream(_ index: Int) async {
@@ -253,7 +256,8 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     }
 
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
-        AsyncThrowingStream { $0.onTermination = { _ in } }
+        if messageStreamEndsCleanly { return AsyncThrowingStream { $0.finish() } }
+        return AsyncThrowingStream { $0.onTermination = { _ in } }
     }
 
     func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> {

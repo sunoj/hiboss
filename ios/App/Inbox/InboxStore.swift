@@ -178,11 +178,13 @@ final class InboxStore: ObservableObject {
             connectionState = .connecting
             let stream = await api.messageStream()
             connectionState = .connected
+            var endedCleanly = false
             do {
                 for try await event in stream {
                     failures = 0            // a live stream delivering data
                     handle(event)
                 }
+                endedCleanly = true
             } catch where !Task.isCancelled {
                 if (error as? HibossAPIError)?.isAuthFailure == true {
                     // A rejected token won't fix itself — stop reconnecting and
@@ -195,7 +197,13 @@ final class InboxStore: ObservableObject {
                 return
             }
             guard !Task.isCancelled else { return }
-            if connectionState == .connected { connectionState = .connecting }
+            // The server rotates the stream every few minutes: a clean end stays connected
+            // and reconnects promptly. Only an error backs off and shows a reconnect state.
+            if endedCleanly {
+                failures = 0
+                try? await Task<Never, Never>.sleep(for: reconnectDelay)
+                continue
+            }
             failures += 1
             // Capped exponential backoff so a persistent outage doesn't hammer
             // the server / drain the battery at a fixed cadence.

@@ -529,22 +529,6 @@
         }
       }
     },
-    "Requests connection ended. Reconnecting…": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Requests connection ended. Reconnecting…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请求连接已断开，正在重新连接…"
-          }
-        }
-      }
-    },
     "Requests are still loading. Retry to check for unanswered requests.": {
       "localizations": {
         "en": {
