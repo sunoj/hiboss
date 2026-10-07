@@ -51,6 +51,11 @@ struct IslandView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(surfaceShape)
             .overlay(ExpiryBand(expiresAt: message.expirationDate, surfaceStyle: surfaceStyle))
+        } else if surfaceStyle == .island {
+            Label(L("Drop into Box"), systemImage: "tray.and.arrow.down")
+                .font(.caption)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(surfaceShape)
         }
     }
 

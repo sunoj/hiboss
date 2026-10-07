@@ -39,7 +39,11 @@ extension HibossAPI: BoxUploading {
         header.append(metadata)
         header.append(Data(("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; "
             + "filename=\"attachment\"\r\nContent-Type: \(media.contentType)\r\n\r\n").utf8))
+        #if os(macOS)
+        try header.write(to: url, options: .atomic)
+        #else
         try header.write(to: url, options: [.atomic, .completeFileProtection])
+        #endif
         do {
             let output = try FileHandle(forWritingTo: url)
             defer { try? output.close() }

@@ -178,6 +178,7 @@ final class ConnectionStore: ObservableObject {
     }
 
     func signOut() {
+        try? legacyKeychain?.delete()
         try? keychain.write("")
         try? signerStore.delete()
         bossToken = ""
