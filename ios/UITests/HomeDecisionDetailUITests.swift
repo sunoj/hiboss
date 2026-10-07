@@ -27,7 +27,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL",
         ]
         app.launchArguments += Self.chinese + textSize + arguments
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     private func timing(_ id: String) -> XCUIElement {

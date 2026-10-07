@@ -7,27 +7,9 @@ import HibossKit
 
 enum AttentionGroup: Int, CaseIterable, Equatable, Hashable {
     case autoDecision
-    /// An agent stopped until the boss answers: the same words and glyph as the Sessions
-    /// tab's `waiting` status, from the one `SessionStatus` mapping.
+    /// An agent stopped until the boss answers, matching the session's `waiting` status.
     case waitingOnYou
     case priority
-
-    var title: LocalizedStringResource {
-        switch self {
-        case .autoDecision: "Decides for you soon"
-        case .waitingOnYou: SessionStatus.waiting.title
-        case .priority: "Other decisions"
-        }
-    }
-
-    /// State glyph for the section header; the header, not a colored stripe, carries state.
-    var symbol: String {
-        switch self {
-        case .autoDecision: "timer"
-        case .waitingOnYou: SessionStatus.waiting.icon
-        case .priority: "tray.full"
-        }
-    }
 }
 
 struct AttentionItem: Identifiable, Equatable {

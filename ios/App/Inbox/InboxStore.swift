@@ -48,15 +48,20 @@ final class InboxStore: ObservableObject {
     /// `pending` on time instead of waiting for the next unrelated stream event.
     private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
     private var decisionAlertsEnabled: Bool
+    private let decisionActivitySync: @MainActor ([HistoryMessage], Bool) async -> Void
 
     init(
         reconnectDelay: Duration = AppConstants.API.reconnectDelay,
         decisionAlertsEnabled: Bool = true,
-        replyGate: DecisionReplyGate = .shared
+        replyGate: DecisionReplyGate = .shared,
+        decisionActivitySync: @escaping @MainActor ([HistoryMessage], Bool) async -> Void = {
+            await DecisionActivityManager.sync(pending: $0, alertsEnabled: $1)
+        }
     ) {
         self.reconnectDelay = reconnectDelay
         self.decisionAlertsEnabled = decisionAlertsEnabled
         self.replyGate = replyGate
+        self.decisionActivitySync = decisionActivitySync
         gateObservation = replyGate.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
     }
 
@@ -101,8 +106,9 @@ final class InboxStore: ObservableObject {
     }
 
     func syncDecisionActivity() async {
+        guard requiredInputLoaded else { return }
         let candidates = requiredInputs.filter { !withdrawn.contains($0.id) }
-        await DecisionActivityManager.sync(pending: candidates, alertsEnabled: decisionAlertsEnabled)
+        await decisionActivitySync(candidates, decisionAlertsEnabled)
     }
 
     func start(api: any BossServing) {

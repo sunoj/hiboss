@@ -16,13 +16,6 @@ enum HomeAttentionLayout {
     }
 }
 
-extension AttentionGroup {
-    /// Header tint: the waiting group takes the session status tint so Home and Sessions agree.
-    var tint: Color {
-        self == .waitingOnYou ? SessionStatus.waiting.tint : Theme.ink2
-    }
-}
-
 struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool

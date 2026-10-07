@@ -1,4 +1,4 @@
-// Messages tab: the full message history as a native list.
+// Full message history as a native list in Activity's messages segment.
 // Exports: MessagesView bound to the shared InboxStore.
 // Dependencies: SwiftUI, HibossKit, MessageThreading, HistoryRow.
 

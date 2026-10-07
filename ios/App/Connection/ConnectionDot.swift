@@ -1,5 +1,5 @@
 // Toolbar connection status: silent when connected, a small localized label otherwise.
-// Exports: ConnectionDot used on the Messages, Sessions and session transcript toolbars.
+// Exports: ConnectionDot used on the Activity and session transcript toolbars.
 // Dependencies: SwiftUI, HibossKit ConnectionState.
 
 import HibossKit
