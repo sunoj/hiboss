@@ -43,6 +43,8 @@ describe('consolidated schema', () => {
     ['CHECK', "CHECK (blocking IN (0, 1))", "CHECK (blocking IN (0, 1, 2))"],
     ['foreign key', 'REFERENCES panels(panel_id)', 'REFERENCES panels(title)'],
     ['unique constraint', 'key_hash TEXT NOT NULL UNIQUE', 'key_hash TEXT NOT NULL'],
+    ['search columns', 'USING fts5(text, note, url, tags)', 'USING fts5(text, note, url)'],
+    ['search trigger', 'WHERE new.deleted_at IS NULL', 'WHERE new.deleted_at IS NOT NULL'],
   ])('rejects %s drift with a SQL diff', (_label, before, after) => {
     expect(schema).toContain(before);
     const result = check(schema.replace(before, after));
