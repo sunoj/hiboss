@@ -43,11 +43,7 @@ export interface BoxUpload {
   file: File | null;
 }
 
-export interface BoxCursor {
-  created_at: string;
-  id: string;
-  score?: number;
-}
+export type BoxCursor = { created_at: string; id: string } | { offset: number };
 
 export interface BoxFilter {
   sql: string;

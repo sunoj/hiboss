@@ -204,3 +204,26 @@ it('rejects malformed metadata, cursors and filters without changing data', asyn
   }
   expect((await request('/search?q=')).status).toBe(400);
 });
+
+it.each([
+  { url: 'é'.repeat(4097) },
+  { project: 'x'.repeat(129) },
+  { tags: Array.from({ length: 21 }, () => 'tag') },
+  { tags: ['x'.repeat(65)] },
+])('rejects oversized JSON metadata with 400: %j', async body => {
+  expect((await request('', 'POST', { text: 'valid', ...body })).status).toBe(400);
+  const item = await create({ text: 'unchanged' });
+  expect((await request(`/${item.id}`, 'PATCH', body)).status).toBe(400);
+  expect(await (await request(`/${item.id}`)).json())
+    .toMatchObject({ text: 'unchanged', project: null, tags: [] });
+});
+
+it('accepts JSON metadata at its URL, project and tag limits', async () => {
+  const body = { url: 'é'.repeat(4096), project: 'x'.repeat(128),
+    tags: Array.from({ length: 20 }, () => 'x'.repeat(64)) };
+  const item = await create(body);
+  expect(item).toMatchObject(body);
+  const patched = await request(`/${item.id}`, 'PATCH', { project: body.project, tags: body.tags });
+  expect(patched.status).toBe(200);
+  expect(await patched.json()).toMatchObject(body);
+});

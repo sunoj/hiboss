@@ -124,3 +124,31 @@ it('paginates equal-ranked results without repeats and hides deleted search entr
     .bind('tieneedle').all();
   expect(index.results).toEqual([]);
 });
+
+it('keeps search cursor bytes independent of matching items in another boss box', async () => {
+  await create({ text: 'cursornostat cursornostat cursornostat' });
+  await create({ text: 'cursornostat with extra words' });
+  const query = '/search?q=cursornostat&limit=1';
+  const before = await page(query);
+  expect(before.next_cursor).toMatch(/^[A-Za-z0-9_-]+$/);
+  expect(JSON.parse(atob(before.next_cursor!))).toEqual({ offset: 1 });
+  await create({ text: 'cursornostat' }, OTHER);
+  await create({ text: 'cursornostat cursornostat' }, OTHER);
+  const after = await page(query);
+  expect(after.next_cursor).toBe(before.next_cursor);
+  expect(after.items.map(item => item.id)).toEqual(before.items.map(item => item.id));
+  const next = await page(`${query}&cursor=${after.next_cursor}`);
+  expect(next.items).toHaveLength(1);
+  expect(next.items[0].id).not.toBe(after.items[0].id);
+  expect(next.next_cursor).toBeNull();
+});
+
+it('rejects NUL queries and invalid search offsets with 400', async () => {
+  for (const query of ['%00', 'needle%00suffix']) {
+    expect((await request(`/search?q=${query}`)).status).toBe(400);
+  }
+  for (const offset of [-1, 1.5, '1', Number.MAX_SAFE_INTEGER + 1]) {
+    const cursor = btoa(JSON.stringify({ offset })).replace(/=+$/, '');
+    expect((await request(`/search?q=needle&cursor=${cursor}`)).status).toBe(400);
+  }
+});

@@ -1,5 +1,6 @@
 // Persists scoped Box items and serializes idempotent creation in D1 batches.
 // Exports row loading, creation, editable fields and soft/purge deletion.
+import type { Blob as R2Blob } from '@cloudflare/workers-types';
 import { getBossId } from '../middleware/auth';
 import { boxBossIds } from './access';
 import type { BoxContext, BoxRow, BoxUpload, BoxMetadata } from './types';
@@ -42,7 +43,7 @@ export async function createItem(c: BoxContext, upload: BoxUpload,
   const id = `bx_${crypto.randomUUID().replaceAll('-', '')}`;
   const mediaKey = upload.file ? `box/${getBossId(c)}/${id}` : null;
   if (upload.file && mediaKey) {
-    await c.env.ATTACHMENTS.put(mediaKey, await upload.file.arrayBuffer(), {
+    await c.env.ATTACHMENTS.put(mediaKey, upload.file as unknown as R2Blob, {
       httpMetadata: { contentType: upload.file.type || 'application/octet-stream' },
       customMetadata: { filename: upload.file.name, boss_id: getBossId(c) },
     });

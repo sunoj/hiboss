@@ -1,11 +1,10 @@
 // Validates Box JSON and multipart metadata without fetching supplied URLs.
 // Exports ingestion and patch parsing with byte-based text and media limits.
 import { HTTPException } from 'hono/http-exception';
+import { multipartForm, IMAGE_BYTES, FILE_BYTES } from './multipart';
 import { SOURCES, type BoxContext, type BoxMetadata, type BoxUpload } from './types';
 
 const TEXT_BYTES = 16 * 1024;
-const IMAGE_BYTES = 10 * 1024 * 1024;
-const FILE_BYTES = 50 * 1024 * 1024;
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -20,6 +19,10 @@ function optionalText(value: unknown, field: string): string | null {
   if ((field === 'text' || field === 'note') && new TextEncoder().encode(value).length > TEXT_BYTES) {
     throw new HTTPException(413, { message: `${field} exceeds 16 KB` });
   }
+  if ((field === 'url' && new TextEncoder().encode(value).length > 8 * 1024)
+    || (field === 'project' && value.length > 128)) {
+    throw new HTTPException(400, { message: `${field} too long` });
+  }
   return value;
 }
 
@@ -27,6 +30,9 @@ function tags(value: unknown): string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || !value.every(tag => typeof tag === 'string')) {
     throw new HTTPException(400, { message: 'tags must be an array of strings' });
+  }
+  if (value.length > 20 || value.some(tag => tag.length > 64)) {
+    throw new HTTPException(400, { message: 'tags exceed 20 entries or 64 characters' });
   }
   return value as string[];
 }
@@ -59,7 +65,7 @@ async function parseBody(c: BoxContext): Promise<{ value: unknown; file: File | 
     if (!(c.req.header('content-type') ?? '').includes('multipart/form-data')) {
       return { value: await c.req.json<unknown>(), file: null };
     }
-    const form = await c.req.formData();
+    const form = await multipartForm(c.req.raw);
     const file = form.get('file');
     const meta = form.get('meta');
     if (!(file instanceof File) || typeof meta !== 'string') {

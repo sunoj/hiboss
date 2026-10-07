@@ -7,11 +7,12 @@ import { itemResponse, type BoxContext, type BoxCursor, type BoxRow } from './ty
 
 type RankedRow = BoxRow & { score: number };
 
-function respond(c: BoxContext, rows: (BoxRow & { score?: number })[], limit: number): Response {
+function respond(c: BoxContext, rows: (BoxRow & { score?: number })[], limit: number,
+  offset?: number): Response {
   const visible = rows.slice(0, limit);
   const last = visible.at(-1);
   const cursor: BoxCursor | null = rows.length > limit && last
-    ? { created_at: last.created_at, id: last.id, ...('score' in last ? { score: last.score } : {}) }
+    ? offset === undefined ? { created_at: last.created_at, id: last.id } : { offset: offset + limit }
     : null;
   return c.json({ items: visible.map(row => {
     const { score, ...item } = row;
@@ -37,27 +38,17 @@ export async function boxLatest(c: BoxContext): Promise<Response> {
 }
 
 export async function boxSearch(c: BoxContext): Promise<Response> {
-  const filter = await boxFilter(c);
+  const filter = await boxFilter(c, true);
   const query = c.req.query('q')?.trim();
   if (!query) throw new HTTPException(400, { message: 'q is required' });
+  if (query.includes('\0')) throw new HTTPException(400, { message: 'invalid q' });
   const match = query.split(/\s+/).map(term => `"${term.replaceAll('"', '""')}"`).join(' AND ');
-  let after = '';
-  if (filter.cursor) {
-    if (filter.cursor.score === undefined) {
-      throw new HTTPException(400, { message: 'search cursor needs score' });
-    }
-    after = `WHERE (score > ? OR (score = ? AND (created_at < ? OR (created_at = ? AND id < ?))))`;
-  }
-  const binds: (string | number)[] = [match, ...filter.binds];
-  if (filter.cursor) {
-    const { score, created_at, id } = filter.cursor;
-    binds.push(score as number, score as number, created_at, created_at, id);
-  }
+  const offset = filter.cursor && 'offset' in filter.cursor ? filter.cursor.offset : 0;
   const rows = await c.env.DB.prepare(`WITH matches AS MATERIALIZED (
     SELECT i.*, b.name AS boss_name, bm25(box_items_fts) AS score
     FROM box_items_fts JOIN box_items i ON i.rowid = box_items_fts.rowid
     JOIN bosses b ON b.id = i.boss_id WHERE box_items_fts MATCH ? AND ${filter.sql}
-    ) SELECT * FROM matches ${after} ORDER BY score, created_at DESC, id DESC LIMIT ?`)
-    .bind(...binds, filter.limit + 1).all<RankedRow>();
-  return respond(c, rows.results, filter.limit);
+    ) SELECT * FROM matches ORDER BY score, created_at DESC, id DESC LIMIT ? OFFSET ?`)
+    .bind(match, ...filter.binds, filter.limit + 1, offset).all<RankedRow>();
+  return respond(c, rows.results, filter.limit, offset);
 }
