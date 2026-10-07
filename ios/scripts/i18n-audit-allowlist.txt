@@ -10,7 +10,6 @@ App/Settings/DeviceRequestsView.swift | unlocalized-var | Text(note) | approvalN
 App/Home/HomePanelWall.swift | unlocalized-var | Label(failure, | PanelsModel failure message, resolved in HibossKit
 App/Inbox/ListStateView.swift | unlocalized-var | ContentUnavailableView(emptyTitle, | callers pass String(localized:) title and detail
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(actionNote, | actionNote is set only from String(localized:)
-App/Inbox/MessageDetailView.swift | unlocalized-var | Label(title, systemImage: icon) | callers pass String(localized:) titles
 App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLabel(accessibilityCaption) | built with String(localized:)
 App/Settings/SettingsView.swift | unlocalized-var | Label(message, | preference/registration failure: error.localizedDescription or String(localized:)
 App/Settings/SettingsView.swift | unlocalized-var | Button(actionTitle) | actionTitle is String(localized:)

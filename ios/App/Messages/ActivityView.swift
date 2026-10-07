@@ -57,12 +57,14 @@ struct ActivityView: View {
 
     private var sessions: some View {
         ListStateView(
-            isLoading: !store.didLoad && store.history.isEmpty,
+            isLoading: !store.didLoad || store.isRefreshing,
             error: store.loadError,
             isEmpty: groups.isEmpty,
             emptyIcon: "square.stack.3d.up",
             emptyTitle: String(localized: "No sessions yet"),
             emptyDetail: String(localized: "Agent sessions appear here as they report in."),
+            loadingTitle: String(localized: "Loading sessions…"),
+            hasLoaded: store.didLoad,
             onRetry: { await store.refresh() }
         ) {
             List(groups) { group in

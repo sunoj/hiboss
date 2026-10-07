@@ -76,7 +76,7 @@ struct ProgressMediaView: View {
         aspect: CGFloat,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        Color(.secondarySystemFill)
+        Theme.surface2
             .aspectRatio(aspect, contentMode: .fit)
             .frame(maxWidth: .infinity)
             .fixedSize(horizontal: false, vertical: true)
@@ -112,10 +112,10 @@ struct ProgressImageCell: View {
     @State private var image: UIImage?
     @State private var failed = false
     @State private var showAlt = false
+    @State private var attempt = 0
 
     var body: some View {
-        Color(.secondarySystemFill)
-            .overlay { imageFill }
+        Theme.surface2
             .overlay {
                 Button(action: onOpen) {
                     Color.clear.contentShape(Rectangle())
@@ -123,9 +123,11 @@ struct ProgressImageCell: View {
                 .buttonStyle(.plain)
                 .accessibilityHidden(true)
             }
+            .overlay { imageFill }
             .overlay(alignment: .bottomLeading) { altButton }
             .clipped()
-            .task(id: media.url) { await load() }
+            .task(id: "\(media.url)-\(attempt)") { await load() }
+            .accessibilityElement(children: .contain)
             .accessibilityLabel(media.alt ?? String(localized: "Image"))
             .accessibilityAddTraits(.isImage)
             .accessibilityHint(String(localized: "Open full screen"))
@@ -139,12 +141,18 @@ struct ProgressImageCell: View {
     @ViewBuilder
     private var imageFill: some View {
         if let image {
-            Image(uiImage: image).resizable().scaledToFill().allowsHitTesting(false)
+            GeometryReader { geometry in
+                Image(uiImage: image).resizable().scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped().allowsHitTesting(false)
+                    .accessibilityLabel(media.alt ?? String(localized: "Image"))
+            }
         } else if failed {
-            Image(systemName: "photo").font(.title).foregroundStyle(.secondary)
-                .allowsHitTesting(false)
+            Button("Retry image", systemImage: "arrow.clockwise", action: retry)
+                .font(.hbCaption).frame(minWidth: 44, minHeight: 44)
+                .accessibilityValue("Image unavailable")
         } else {
-            ProgressView()
+            CompactImageWait(onRetry: retry).id(attempt)
         }
     }
 
@@ -172,7 +180,9 @@ struct ProgressImageCell: View {
             return
         }
         do {
+            try await DemoDelay.wait("MEDIA")
             let (data, _) = try await URLSession.shared.data(from: url)
+            guard !Task.isCancelled else { return }
             guard let loaded = UIImage(data: data), loaded.size.height > 0 else {
                 failed = true
                 return
@@ -181,8 +191,14 @@ struct ProgressImageCell: View {
                 onRatio?(loaded.size.width / loaded.size.height)
             }
             image = loaded
-        } catch {
+        } catch where Task.isCancelled { return }
+        catch {
             failed = true
         }
+    }
+
+    private func retry() {
+        failed = false
+        attempt += 1
     }
 }

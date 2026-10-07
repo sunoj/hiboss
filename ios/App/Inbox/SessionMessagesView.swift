@@ -13,6 +13,7 @@ struct SessionMessagesView: View {
 
     @StateObject private var stream: SessionStreamStore
     @Environment(\.scenePhase) private var scenePhase
+    @State private var hasLoaded = false
     @State private var actionNote: String?
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore) {
@@ -40,6 +41,9 @@ struct SessionMessagesView: View {
             if let api { stream.start(api: api) }
         }
         .onDisappear { stream.stop() }
+        .onChange(of: stream.isLoading) { _, loading in
+            if !loading { hasLoaded = true }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream.resumeFromForeground() }
         }
@@ -66,24 +70,23 @@ struct SessionMessagesView: View {
         }
     }
 
-    @ViewBuilder
     private var content: some View {
-        if stream.isLoading && stream.events.isEmpty {
-            ProgressView().controlSize(.large).frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let error = stream.loadError, stream.events.isEmpty {
-            ContentUnavailableView(
-                String(localized: "Couldn't load transcript"),
-                systemImage: "exclamationmark.triangle",
-                description: Text(verbatim: error)
-            )
-        } else if stream.events.isEmpty {
-            ContentUnavailableView(
-                String(localized: "No events yet"),
-                systemImage: "text.alignleft",
-                description: Text(String(localized: "This session has no transcript events yet."))
-            )
-        } else {
-            transcript
+        ListStateView(
+            isLoading: !hasLoaded || stream.isLoading, error: stream.loadError,
+            isEmpty: stream.events.isEmpty,
+            emptyIcon: "text.alignleft", emptyTitle: String(localized: "No events yet"),
+            emptyDetail: String(localized: "This session has no transcript events yet."),
+            loadingTitle: String(localized: "Loading transcript…"),
+            hasLoaded: hasLoaded,
+            onRetry: { await stream.refresh() }
+        ) { transcript }
+        .safeAreaInset(edge: .bottom) {
+            if !stream.events.isEmpty, stream.connectionState != .connected {
+                PendingStateView(
+                    title: String(localized: "Reconnecting transcript. Showing earlier events."),
+                    onRetry: { await stream.refresh() }
+                ).padding(12).background(.bar)
+            }
         }
     }
 
@@ -92,11 +95,7 @@ struct SessionMessagesView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     if stream.hasEarlier {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .onAppear { Task { await stream.loadEarlier() } }
+                        earlierEvents
                     }
                     ForEach(SessionTranscriptLayout.items(from: stream.events)) { item in
                         SessionTranscriptItemView(item: item, store: store, onChoose: handleReply)
@@ -123,6 +122,19 @@ struct SessionMessagesView: View {
                 if following { scrollToLive(proxy) }
             }
         }
+    }
+
+    private var earlierEvents: some View {
+        VStack(alignment: .leading) {
+            if stream.isBackfilling {
+                PendingStateView(title: String(localized: "Loading earlier events…"),
+                                 onRetry: { await stream.refresh() })
+            } else {
+                Button("Load earlier events") { Task { await stream.loadEarlier() } }
+                    .buttonStyle(.bordered).frame(minHeight: 44)
+            }
+        }.padding(.vertical, 8)
+            .onAppear { Task { await stream.loadEarlier() } }
     }
 
     private var jumpToLiveButton: some View {

@@ -20,6 +20,9 @@ struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
     let status: String?
+    var statusIsFailure = false
+    var onRetry: (() async -> Void)? = nil
+    var onSettings: (() -> Void)? = nil
     var replying: [MessageID: String] = [:]
     let onChoose: (String, MessageID) -> Void
     let onOpenPanel: (String) -> Void
@@ -30,8 +33,11 @@ struct HomeAttentionSection: View {
         VStack(alignment: .leading, spacing: 8) {
             title
             if let status {
-                Text(verbatim: status).font(.hbCallout).foregroundStyle(Theme.ink2)
-                    .accessibilityIdentifier("home-connection-status")
+                PendingStateView(
+                    title: status, showsPlaceholder: snapshot.count == 0 && !hasPanels,
+                    escalated: statusIsFailure, statusIdentifier: "home-connection-status",
+                    onRetry: onRetry, onSettings: onSettings
+                )
             }
             if snapshot.count == 0 && status == nil {
                 allClear
@@ -137,6 +143,7 @@ struct HomeAttentionRow: View {
     var submitting: String?
     let onChoose: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
+    @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
         let timing = DecisionTiming(message: item.message)
@@ -161,6 +168,7 @@ struct HomeAttentionRow: View {
                 media: item.message.metadata?.optionMedia ?? []
             )
             choices(timing: timing)
+            if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
         }
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))

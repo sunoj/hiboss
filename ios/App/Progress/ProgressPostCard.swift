@@ -9,6 +9,8 @@ import UIKit
 
 struct ProgressPostCard: View {
     let post: ProgressPost
+    var isLiking = false
+    var likeError: String? = nil
     var onOpenMedia: (ProgressMedia) -> Void
     var onToggleLike: () -> Void
 
@@ -32,12 +34,27 @@ struct ProgressPostCard: View {
                 ProgressLikeButton(
                     liked: post.liked,
                     count: post.likeCount,
+                    isSending: isLiking,
                     action: onToggleLike
                 )
+                if isLiking {
+                    PendingStateView(title: String(localized: "Updating like…"),
+                                     onSettings: openSettings)
+                }
+                if let likeError {
+                    Label {
+                        Text(verbatim: likeError)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
+                        .font(.hbCaption).foregroundStyle(Theme.warn)
+                }
             }
         }
         .accessibilityElement(children: .contain)
     }
+
+    @Environment(\.openConnectionSettings) private var openSettings
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -75,6 +92,7 @@ struct ProgressPostCard: View {
 struct ProgressLikeButton: View {
     let liked: Bool
     let count: Int
+    var isSending = false
     var action: () -> Void
 
     var body: some View {
@@ -86,6 +104,7 @@ struct ProgressLikeButton: View {
                 Image(systemName: liked ? "heart.fill" : "heart")
                     .contentTransition(.symbolEffect(.replace))
                     .symbolEffect(.bounce, value: liked)
+                if isSending { DelayedProgressView() }
                 if count > 0 {
                     Text(count, format: .number)
                         .font(.subheadline)
@@ -94,9 +113,11 @@ struct ProgressLikeButton: View {
                 }
             }
             .font(.subheadline)
-            .foregroundStyle(liked ? Color.red : Color.secondary)
+            .foregroundStyle(liked ? Theme.negative : Theme.ink2)
+            .frame(minHeight: 44)
         }
         .buttonStyle(.plain)
+        .disabled(isSending)
         .animation(.snappy, value: liked)
         .animation(.snappy, value: count)
         .accessibilityLabel(liked ? String(localized: "Unlike") : String(localized: "Like"))

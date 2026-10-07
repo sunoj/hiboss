@@ -10,7 +10,9 @@ struct ConnectView: View {
     @State private var connecting = false
     @State private var error: String?
     @State private var showingScanner = false
+    @State private var pairing = false
     @FocusState private var focus: Field?
+    @Environment(\.openURL) private var openURL
 
     enum Field { case server, token, deviceLabel }
 
@@ -28,7 +30,7 @@ struct ConnectView: View {
                     .foregroundStyle(Theme.ink2)
                     .padding(.top, 4)
 
-                credentialFields.disabled(connecting)
+                credentialFields
 
                 scanButton.padding(.top, 16)
 
@@ -40,6 +42,15 @@ struct ConnectView: View {
                 }
 
                 connectButton.padding(.top, 22)
+                if connecting {
+                    PendingStateView(
+                        title: pendingTitle,
+                        detail: String(localized:
+            "Still waiting for the server. Your credentials are kept here. Check your connection."
+                        ),
+                        onSettings: openNetworkSettings
+                    ).padding(.top, 12)
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 24)
@@ -106,17 +117,14 @@ struct ConnectView: View {
     private var connectButton: some View {
         Button(action: connect) {
             HStack(spacing: 8) {
-                if connecting { ProgressView().tint(.white) }
-                Text(connecting ? String(localized: "Connecting…") : String(localized: "Connect"))
+                if connecting { DelayedProgressView(tint: Theme.onAccent) }
+                Text(verbatim: connecting ? pendingTitle : String(localized: "Connect"))
                     .font(.hbBodyStrong)
             }
-            .foregroundStyle(Theme.paper)
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Theme.ink)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .frame(minHeight: 44)
         }
-        .buttonStyle(.plain)
+        .prominentAction()
         .disabled(connecting)
     }
 
@@ -154,7 +162,9 @@ struct ConnectView: View {
         focus = nil
         error = nil
         connecting = true
+        pairing = false
         Task {
+            try? await DemoDelay.wait("CONNECT")
             let result = await connection.connect()
             connecting = false
             if case let .failure(failure) = result {
@@ -168,13 +178,24 @@ struct ConnectView: View {
         error = nil
         connection.serverAddress = payload.serverURL.absoluteString
         connecting = true
+        pairing = true
         Task {
+            try? await DemoDelay.wait("CONNECT")
             let result = await connection.pair(payload: payload, deviceLabel: DeviceLabel.current())
             connecting = false
             if case let .failure(failure) = result {
                 error = failure.localizedDescription
             }
         }
+    }
+
+    private var pendingTitle: String {
+        pairing ? String(localized: "Pairing this iPhone…") : String(localized: "Connecting…")
+    }
+
+    private func openNetworkSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
     }
 
     private func pairDemoPayloadIfPresent() {

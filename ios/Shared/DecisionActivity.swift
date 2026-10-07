@@ -17,6 +17,9 @@ struct DecisionActivityAttributes: ActivityAttributes {
         var content: String?
         /// The choice a reply is sending; the buttons stay disabled until it lands.
         var submitting: String?
+        var submissionProgressVisible: Bool?
+        var submissionIsSlow: Bool?
+        var replyFailed: Bool?
         /// How the decision settled; nil while it is still open.
         var completion: DecisionCompletion?
     }
@@ -67,7 +70,8 @@ enum HiBossStore {
     static func bossAPI() -> HibossAPI? {
         let server = UserDefaults.standard.string(forKey: AppConstants.Storage.serverURL) ?? ""
         let token = (try? KeychainStore(service: keychainService, account: keychainAccount).read()) ?? nil
-        guard case let .success(config) = makeConnectionConfig(serverAddress: server, bossToken: token ?? "") else {
+        guard case let .success(config) = makeConnectionConfig(serverAddress: server, bossToken: token ?? "")
+        else {
             return nil
         }
         let signer = try? KeychainMessageSignerStore(

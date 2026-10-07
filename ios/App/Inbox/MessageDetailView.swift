@@ -11,12 +11,13 @@ struct MessageDetailView: View {
     let messageID: MessageID
     @State private var replyDraft = ""
     @State private var actionNote: String?
-    @State private var fallback: Fallback = .loading
-    @State private var loadAttempt = 0
+    @State var fallback: Fallback = .loading
+    @State var loadAttempt = 0
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openConnectionSettings) private var openSettings
 
     /// What to show when the message isn't (yet) in history.
-    private enum Fallback { case loading, missing, failed(String) }
+    enum Fallback { case loading, missing, failed(String) }
 
     private var message: HistoryMessage? { store.message(for: messageID) }
 
@@ -107,68 +108,6 @@ struct MessageDetailView: View {
         return !session.isEmpty ? session : (!project.isEmpty ? project : message.displayName)
     }
 
-    /// Shown while the message hasn't landed in history. Holds a spinner until the
-    /// store is connected and a clean refresh has run — a live-stream arrival or a
-    /// successful fetch re-renders into the message branch above. Only a genuinely
-    /// absent message (after a clean load) or exhausted retries shows "not found".
-    @ViewBuilder private var fallbackView: some View {
-        switch fallback {
-        case .loading:
-            ProgressView()
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle("Loading…")
-                .navigationBarTitleDisplayMode(.inline)
-                .task(id: loadAttempt) { await load() }
-        case .missing:
-            unavailableView(
-                title: String(localized: "Message not found"),
-                icon: "questionmark.circle",
-                description: String(localized: "It may have been cleared or expired.")
-            )
-        case .failed(let reason):
-            unavailableView(
-                title: String(localized: "Couldn't load message"),
-                icon: "wifi.exclamationmark",
-                description: reason
-            )
-        }
-    }
-
-    private func unavailableView(title: String, icon: String, description: String) -> some View {
-        ContentUnavailableView {
-            Label(title, systemImage: icon)
-        } description: {
-            Text(verbatim: description)
-        } actions: {
-            Button("Retry") { fallback = .loading; loadAttempt += 1 }
-        }
-    }
-
-    /// Waits briefly for restored credentials, then fetches only the notification
-    /// target. Full history may continue loading independently in the background.
-    private func load() async {
-        if message != nil { return }
-        for _ in 0..<AppConstants.API.notificationReadinessChecks where !store.isReady {
-            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
-            if Task.isCancelled { return }
-        }
-        guard store.isReady else {
-            fallback = .failed(String(localized: "Connection isn't ready."))
-            return
-        }
-        let result = await store.loadMessage(messageID)
-        guard !Task.isCancelled else { return }
-        switch result {
-        case .loaded:
-            break
-        case .missing:
-            fallback = .missing
-        case .failed(let reason):
-            fallback = .failed(reason)
-        }
-    }
-
     /// Pending: shared timing, choices, and a free-text reply. Resolved: a read-only
     /// picked/others list, with the chosen option checked and its source noted.
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
@@ -195,6 +134,7 @@ struct MessageDetailView: View {
                 }
             }
             replyField(for: message)
+            if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
         }
     }
 
@@ -224,12 +164,14 @@ struct MessageDetailView: View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField("Reply…", text: $replyDraft, axis: .vertical)
                 .accessibilityIdentifier("message-reply-draft")
-                .disabled(submitting != nil)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             Button { submit(replyDraft, for: message.id) } label: {
-                Text("Send").frame(minWidth: 44, minHeight: 44)
+                HStack {
+                    Text("Send")
+                    if submitting != nil { DelayedProgressView() }
+                }.frame(minWidth: 44, minHeight: 44)
             }
             .buttonStyle(.bordered)
             .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -247,7 +189,10 @@ struct MessageDetailView: View {
                 if custom { Text("Custom reply").font(.caption2).foregroundStyle(Theme.ink2) }
             }
             Spacer()
-            if chosen { (automatic ? Text("Auto-selected") : Text("Selected")).font(.caption).foregroundStyle(Theme.ink2) }
+            if chosen {
+                (automatic ? Text("Auto-selected") : Text("Selected")).font(.caption).foregroundStyle(
+                    Theme.ink2)
+            }
         }
     }
 

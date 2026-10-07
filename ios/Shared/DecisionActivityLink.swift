@@ -12,10 +12,15 @@ enum DecisionActivityLink {
         Activity<DecisionActivityAttributes>.activities.filter { $0.attributes.messageID == id.rawValue }
     }
 
-    static func showSubmitting(_ choice: String, for id: MessageID) async {
+    static func showSubmitting(_ choice: String, for id: MessageID,
+                               progressVisible: Bool = false, slow: Bool = false) async {
+        guard !Task.isCancelled, DecisionReplyGate.shared.inFlight[id] == choice else { return }
         for activity in activities(for: id) {
             var state = activity.content.state
             state.submitting = choice
+            state.submissionProgressVisible = progressVisible
+            state.submissionIsSlow = slow
+            state.replyFailed = false
             await activity.update(ActivityContent(state: state, staleDate: activity.content.staleDate))
         }
     }
@@ -31,11 +36,15 @@ enum DecisionActivityLink {
         for activity in running {
             var state = activity.content.state
             state.submitting = nil
+            state.submissionProgressVisible = false
+            state.submissionIsSlow = false
+            if case .failed = submission { state.replyFailed = true }
             state.completion = completion
             if completion == nil {
                 await activity.update(ActivityContent(state: state, staleDate: activity.content.staleDate))
             } else {
-                await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .after(.now + 2))
+                await activity.end(
+                    ActivityContent(state: state, staleDate: nil), dismissalPolicy: .after(.now + 2))
             }
         }
     }

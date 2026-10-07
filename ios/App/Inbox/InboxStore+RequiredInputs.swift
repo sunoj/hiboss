@@ -11,10 +11,21 @@ extension InboxStore {
         requiredInputReady && requiredInputLoaded && requiredInputError == nil
     }
 
+    func retryRequiredInputConnection() {
+        guard let api else { return }
+        requiredStreamTask?.cancel()
+        cancelRequiredFetch()
+        startRequiredInputs(api)
+    }
+
     func startRequiredInputs(_ api: any BossServing) {
-        guard let service = api as? any RequiredInputServing else { return }
+        guard let service = api as? any RequiredInputServing else {
+            requiredInputError = String(localized: "Requests are unavailable on this connection.")
+            return
+        }
         requiredEpoch += 1
         let epoch = requiredEpoch
+        watchRequiredInputCoverage()
         requiredStreamTask = Task { [weak self] in
             await self?.consumeRequiredInputs(service, epoch: epoch)
         }
@@ -25,6 +36,8 @@ extension InboxStore {
         cancelRequiredFetch()
         requiredStreamTask?.cancel()
         requiredStreamTask = nil
+        requiredCoverageTask?.cancel()
+        requiredCoverageTask = nil
         requiredInputs = []
         requiredInputReady = false
         requiredInputLoaded = false
@@ -38,12 +51,17 @@ extension InboxStore {
         requiredFetchVersion += 1
         let version = requiredFetchVersion
         requiredInputLoaded = false
+        watchRequiredInputCoverage()
         do {
             let messages = try await service.fetchRequiredInputs()
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
             requiredInputs = messages
-            requiredInputError = nil
+            if requiredInputReady {
+                requiredInputError = nil
+                requiredCoverageTask?.cancel()
+                requiredCoverageTask = nil
+            }
             requiredInputLoaded = true
             let pending = Set(messages.map(\.id))
             withdrawn.formIntersection(pending)
@@ -61,6 +79,7 @@ extension InboxStore {
         requiredInputLoaded = false
         requiredFetchTask?.cancel()
         requiredFetchTask = nil
+        watchRequiredInputCoverage()
     }
 
     private func reconcileRequiredInputs() {
@@ -103,7 +122,22 @@ extension InboxStore {
             cancelRequiredFetch()
             requiredInputReady = false
             requiredInputLoaded = false
+            if requiredInputError == nil {
+                requiredInputError = String(localized: "Requests connection ended. Reconnecting…")
+            }
             try? await Task<Never, Never>.sleep(for: reconnectDelay)
+        }
+    }
+
+    private func watchRequiredInputCoverage() {
+        guard requiredCoverageTask == nil else { return }
+        requiredCoverageTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(8)) }
+            catch { return }
+            guard let self, !self.hasCompleteRequiredInputs else { return }
+            self.requiredInputError = self.requiredInputReady
+                ? String(localized: "Requests are still loading. Retry to check for unanswered requests.")
+                : String(localized: "Requests connection is not ready. Retry to reconnect.")
         }
     }
 }

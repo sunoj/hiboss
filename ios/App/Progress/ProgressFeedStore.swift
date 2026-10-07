@@ -14,10 +14,14 @@ final class ProgressFeedStore: ObservableObject {
     @Published private(set) var loadError: String?
     @Published private(set) var didLoad = false
     @Published private(set) var isLoadingMore = false
+    @Published private(set) var isRefreshing = false
+    @Published private(set) var likingIDs: Set<String> = []
+    @Published private(set) var likeErrors: [String: String] = [:]
 
     private var api: (any ProgressServing)?
     private var nextCursor: ProgressCursor?
     private var operation: Task<Void, Never>?
+    private var refreshGeneration = 0
     private static let pageSize = 20
 
     func start(api: any ProgressServing) {
@@ -35,6 +39,10 @@ final class ProgressFeedStore: ObservableObject {
         didLoad = false
         loadError = nil
         isLoadingMore = false
+        isRefreshing = false
+        likingIDs = []
+        likeErrors = [:]
+        refreshGeneration += 1
     }
 
     static func groupProjects(_ rows: [ProgressProject]) -> [ProgressProject] {
@@ -61,8 +69,18 @@ final class ProgressFeedStore: ObservableObject {
         await current.value
     }
 
+    func retryRefresh() async {
+        operation?.cancel()
+        operation = nil
+        await refresh()
+    }
+
     private func performRefresh() async {
         guard let api else { return }
+        refreshGeneration += 1
+        let generation = refreshGeneration
+        isRefreshing = true
+        defer { if generation == refreshGeneration { isRefreshing = false } }
         do {
             let feed = try await api.progressFeed(
                 project: selectedProject, limit: Self.pageSize, before: nil
@@ -117,7 +135,10 @@ final class ProgressFeedStore: ObservableObject {
     }
 
     func toggleLike(id: String) async {
-        guard api != nil else { return }
+        guard api != nil, !likingIDs.contains(id) else { return }
+        likingIDs.insert(id)
+        likeErrors[id] = nil
+        defer { likingIDs.remove(id) }
         let previous = operation
         let current = Task { @MainActor [weak self] in
             await previous?.value
@@ -145,6 +166,7 @@ final class ProgressFeedStore: ObservableObject {
         } catch is CancellationError {
             return
         } catch {
+            likeErrors[id] = String(localized: "Couldn't update this like. Try again.")
             if let index = posts.firstIndex(where: { $0.id == id }) {
                 posts[index] = original
             }

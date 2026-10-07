@@ -41,7 +41,8 @@ final class DecisionStateTests: XCTestCase {
     }
 
     func testBossChoosingTheDefaultIsNotAutomatic() throws {
-        let chosen = try XCTUnwrap(DecisionSettlement(reply: reply("Keep", try metadata(#"{"source":"ios"}"#))))
+        let chosen = try XCTUnwrap(
+            DecisionSettlement(reply: reply("Keep", try metadata(#"{"source":"ios"}"#))))
         XCTAssertEqual(chosen.answer, Self.question.defaultOption)
         XCTAssertFalse(chosen.isAutoDefault, "equal to the default is still the boss's choice")
         XCTAssertFalse(chosen.answeredElsewhere)
@@ -71,12 +72,17 @@ final class DecisionStateTests: XCTestCase {
     /// The Live Activity ends with the recorded reply's attribution: the marker, never the
     /// source or equality with the default, makes it "Auto-selected when time ran out".
     func testLiveActivityCompletionIsAttributedByTheRecordedMarker() async throws {
-        func completion(_ submission: DecisionSubmission, recorded json: String?) async throws -> DecisionCompletion? {
-            let detail = try json.map { MessageDetail(message: Self.question, replies: [reply("Keep", try metadata($0))]) }
+        func completion(_ submission: DecisionSubmission, recorded json: String?) async throws
+            -> DecisionCompletion?
+        {
+            let detail = try json.map {
+                MessageDetail(message: Self.question, replies: [reply("Keep", try metadata($0))])
+            }
             return await DecisionActivityLink.completion(of: "q1", after: submission, choice: "Keep",
                                                          api: HeldReplyAPI(detail: detail))
         }
-        let automatic = try await completion(.alreadyResolved, recorded: #"{"auto_default":true,"source":"api"}"#)
+        let automatic = try await completion(
+            .alreadyResolved, recorded: #"{"auto_default":true,"source":"api"}"#)
         XCTAssertEqual(automatic, .autoSelected("Keep"))
         let unmarked = try await completion(.alreadyResolved, recorded: #"{"source":"system"}"#)
         XCTAssertEqual(unmarked, .answeredElsewhere("Keep"), "a source alone is not the marker")
@@ -90,8 +96,11 @@ final class DecisionStateTests: XCTestCase {
 
     func testListPhaseKeepsRowsAndReportsAFailedRefresh() {
         XCTAssertEqual(ListStatePhase.resolve(isLoading: true, error: nil, isEmpty: true), .loading)
-        XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: true), .unreachable("down"))
+        XCTAssertEqual(
+            ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: true), .unreachable("down"))
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: nil, isEmpty: true), .empty)
+        XCTAssertEqual(ListStatePhase.resolve(isLoading: true, error: nil, isEmpty: true, hasLoaded: true),
+                       .empty, "Refreshing a previously empty result must retain the cached state")
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: false),
                        .content(staleError: "down"))
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: nil, isEmpty: false),

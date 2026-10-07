@@ -41,7 +41,8 @@ final class ProgressFeedStoreTests: XCTestCase {
         await loadMore.value
 
         XCTAssertEqual(store.posts.map(\.id), ["first", "second"])
-        XCTAssertEqual(api.beforeCursors, [nil, ProgressCursor(createdAt: "2026-08-14T09:00:00Z", id: "first")])
+        XCTAssertEqual(
+            api.beforeCursors, [nil, ProgressCursor(createdAt: "2026-08-14T09:00:00Z", id: "first")])
     }
 
     func testToggleLikeIsOptimisticAndRollsBackOnFailure() async {
@@ -54,19 +55,26 @@ final class ProgressFeedStoreTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(20))
         XCTAssertTrue(store.posts[0].liked)
         XCTAssertEqual(store.posts[0].likeCount, 1)
+        XCTAssertTrue(store.likingIDs.contains("first"))
+        await store.toggleLike(id: "first")
+        XCTAssertEqual(api.likeCalls, 1, "The active control must not admit a second write")
 
         await task.value
 
         XCTAssertFalse(store.posts[0].liked)
         XCTAssertEqual(store.posts[0].likeCount, 0)
         XCTAssertEqual(api.likeCalls, 1)
+        XCTAssertFalse(store.likingIDs.contains("first"))
+        XCTAssertNotNil(store.likeErrors["first"], "A failed optimistic action needs visible feedback")
     }
 }
 
 private final class DelayedProgressAPI: ProgressServing, @unchecked Sendable {
     var beforeCursors: [ProgressCursor?] = []
 
-    func progressFeed(project _: String?, limit _: Int, before: ProgressCursor?) async throws -> ProgressFeedPage {
+    func progressFeed(project _: String?, limit _: Int, before: ProgressCursor?) async throws
+        -> ProgressFeedPage
+    {
         beforeCursors.append(before)
         if before == nil {
             try await Task.sleep(for: .milliseconds(40))
@@ -91,14 +99,18 @@ private final class DelayedProgressAPI: ProgressServing, @unchecked Sendable {
     }
 
     private func post(id: String, body: String) -> ProgressPost {
-        ProgressPost(id: id, project: "hiboss", agentId: "agent", agentName: "cli", body: body, createdAt: "2026-08-14T09:00:00Z")
+        ProgressPost(
+            id: id, project: "hiboss", agentId: "agent", agentName: "cli", body: body,
+            createdAt: "2026-08-14T09:00:00Z")
     }
 }
 
 private final class FailingLikeAPI: ProgressServing, @unchecked Sendable {
     var likeCalls = 0
 
-    func progressFeed(project _: String?, limit _: Int, before _: ProgressCursor?) async throws -> ProgressFeedPage {
+    func progressFeed(project _: String?, limit _: Int, before _: ProgressCursor?) async throws
+        -> ProgressFeedPage
+    {
         ProgressFeedPage(posts: [
             ProgressPost(
                 id: "first", project: "hiboss", agentId: "agent", agentName: "cli",

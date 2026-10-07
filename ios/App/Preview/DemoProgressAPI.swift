@@ -10,7 +10,10 @@ final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
     private let started = Date()
 
     /// `HIBOSS_DEMO_REFRESH_FAILS=1`: launch-time fetches succeed; any after five seconds fail.
-    func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage {
+    func progressFeed(project: String?, limit: Int, before: ProgressCursor?) async throws -> ProgressFeedPage
+    {
+        if Date().timeIntervalSince(started) > 5 { try await DemoDelay.wait("REFRESH") }
+        try await DemoDelay.wait(before == nil ? "PROGRESS" : "PROGRESS_MORE")
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REFRESH_FAILS"] == "1",
            Date().timeIntervalSince(started) > 5 {
             throw URLError(.notConnectedToInternet)
@@ -22,8 +25,12 @@ final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
                 $0.createdAt < before.createdAt || ($0.createdAt == before.createdAt && $0.id < before.id)
             }
         }
-        let page = Array(posts.prefix(limit))
-        let next = posts.count > limit ? page.last.map { ProgressCursor(createdAt: $0.createdAt, id: $0.id) } : nil
+        let heldPage =
+            ProcessInfo.processInfo.environment["HIBOSS_DEMO_PROGRESS_MORE_DELAY_MS"]?.isEmpty == false
+        let size = heldPage ? 1 : limit
+        let page = Array(posts.prefix(size))
+        let next =
+            posts.count > size ? page.last.map { ProgressCursor(createdAt: $0.createdAt, id: $0.id) } : nil
         return ProgressFeedPage(posts: page, nextCursor: next)
     }
 
@@ -34,7 +41,8 @@ final class DemoProgressAPI: ProgressServing, @unchecked Sendable {
     func deleteProgressPost(id _: String) async throws {}
 
     func likeProgressPost(id: String) async throws -> ProgressLikeState {
-        applyLike(id: id, liked: true)
+        try await DemoDelay.wait("LIKE")
+        return applyLike(id: id, liked: true)
     }
 
     func unlikeProgressPost(id: String) async throws -> ProgressLikeState {

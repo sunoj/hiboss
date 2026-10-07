@@ -36,7 +36,12 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if ProcessInfo.processInfo.environment["HIBOSS_DEMO_ONBOARDING"] == "1" {
+            if isDemoMode && ProcessInfo.processInfo.environment["HIBOSS_DEMO_ACTIVITY"] == "1" {
+                DemoActivityStateView()
+            } else if connection.isRestoring && isDemoMode
+                && ProcessInfo.processInfo.environment["HIBOSS_DEMO_RESTORE_DELAY_MS"]?.isEmpty == false {
+                restoringView
+            } else if ProcessInfo.processInfo.environment["HIBOSS_DEMO_ONBOARDING"] == "1" {
                 ConnectView(connection: connection)
             } else if isDemoMode || connection.isConfigured {
                 RootTabView(
@@ -46,7 +51,7 @@ struct RootView: View {
                     progress: progress
                 )
             } else if connection.isRestoring {
-                ProgressView().controlSize(.large)
+                restoringView
             } else {
                 ConnectView(connection: connection)
             }
@@ -66,19 +71,33 @@ struct RootView: View {
         } message: {
             Text(verbatim: connection.clientExchangeNotice ?? "")
         }
-        .onAppear {
-            if isDemoMode {
-                preferences.loadDemo()
-                inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
-                if ProcessInfo.processInfo.environment["HIBOSS_DEMO_CONNECTION"] != "disconnected" {
-                    let demo = DemoBossAPI()
-                    inbox.start(api: demo)
-                }
-                progress.start(api: DemoProgressAPI())
-            } else if connection.isConfigured, let api = connection.makeAPI() {
-                startConnectedServices(api)
+        .onAppear(perform: startInitialServices)
+    }
+
+    private func startInitialServices() {
+        if isDemoMode {
+            if !DemoDelay.isHeld("PREFERENCES") { preferences.loadDemo() }
+            let flags = ProcessInfo.processInfo.environment
+            if flags["HIBOSS_DEMO_PREFERENCES_DELAY_MS"]?.isEmpty == false
+                || flags["HIBOSS_DEMO_PREFERENCES_SAVE_DELAY_MS"]?.isEmpty == false {
+                Task { await preferences.load(api: DemoPreferencesAPI.make()) }
             }
+            inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
+            if ProcessInfo.processInfo.environment["HIBOSS_DEMO_CONNECTION"] != "disconnected" {
+                let demo = DemoBossAPI()
+                inbox.start(api: demo)
+            }
+            progress.start(api: DemoProgressAPI())
+        } else if connection.isConfigured, let api = connection.makeAPI() {
+            startConnectedServices(api)
         }
+    }
+
+    private var restoringView: some View {
+        PendingStateView(
+            title: String(localized: "Restoring your connection…"), showsPlaceholder: true,
+            onRetry: { await connection.restore() }
+        ).padding(16)
     }
 
     /// Start message loading immediately; preferences are not on the critical

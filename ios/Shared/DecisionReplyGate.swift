@@ -32,6 +32,15 @@ final class DecisionReplyGate: ObservableObject {
         inFlight[id] = text
         defer { inFlight[id] = nil }
         await DecisionActivityLink.showSubmitting(text, for: id)
+        let progress = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true)
+                try await Task.sleep(for: .milliseconds(7_700))
+                await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true, slow: true)
+            } catch { return }
+        }
+        defer { progress.cancel() }
         let submission: DecisionSubmission
         do {
             switch try await api.reply(to: id, with: choice) {
@@ -41,6 +50,7 @@ final class DecisionReplyGate: ObservableObject {
         } catch {
             submission = .failed(error.localizedDescription)
         }
+        progress.cancel()
         await DecisionActivityLink.settle(id, after: submission, choice: text, api: api)
         return submission
     }

@@ -17,7 +17,8 @@ struct HomePanelWall: View {
                 if model.isDemoMode {
                     Text("Sample data").font(.caption).foregroundStyle(Theme.ink2)
                 } else {
-                    Text(model.visibleTiles.count, format: .number).font(.headline).foregroundStyle(Theme.ink2)
+                    Text(model.visibleTiles.count, format: .number).font(.headline).foregroundStyle(
+                        Theme.ink2)
                 }
             }
             PanelWallFilter(model: model)
@@ -28,7 +29,8 @@ struct HomePanelWall: View {
                 }
                 wall
             } else if model.isLoading {
-                ProgressView("Loading panels…").frame(maxWidth: .infinity, alignment: .leading)
+                PendingStateView(title: String(localized: "Loading panels…"),
+                                 onRetry: { await model.retryLoading() })
             } else {
                 emptyState
             }
@@ -43,7 +45,10 @@ struct HomePanelWall: View {
     private var wall: some View {
         PanelWallLayout {
             ForEach(model.visibleTiles) { tile in
-                PanelDashboardCard(tile: tile, freshness: model.freshness(for: tile), pendingCount: model.pendingCount(for: tile)) { model.open(tile.id) }
+                PanelDashboardCard(
+                    tile: tile, freshness: displayedPanelFreshness(tile, model: model),
+                    pendingCount: model.pendingCount(for: tile)
+                ) { model.open(tile.id) }
                     .contextMenu { PanelLifecycleMenu(tile: tile, model: model) }
                     .layoutValue(key: PanelTileSizeLayoutValueKey.self, value: tile.fixture.spec.tileSize)
                 }
@@ -56,6 +61,8 @@ struct HomePanelDetail: View {
     let tile: PanelTile
     @ObservedObject var model: PanelsModel
     @ObservedObject private var store: PanelStore
+    @Environment(\.openConnectionSettings) private var openSettings
+    @State private var preferenceConfirmed = false
 
     init(tile: PanelTile, model: PanelsModel) {
         self.tile = tile
@@ -68,11 +75,13 @@ struct HomePanelDetail: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(verbatim: tile.sourceLabel).font(.callout).foregroundStyle(Theme.ink2)
-                    PanelFreshnessLabel(freshness: model.freshness(for: tile))
+                    PanelFreshnessLabel(freshness: displayedPanelFreshness(tile, model: model))
                         .font(.caption)
+                    PanelPendingNotice(freshness: displayedPanelFreshness(tile, model: model),
+                                       retry: { await model.retryLoading() })
                     PanelOutcomeView(tile: tile)
                     PanelQuestionnairesView(tile: tile, panels: model)
-                    Menu("Panel actions") { PanelLifecycleMenu(tile: tile, model: model) }
+                    panelActions
                     PanelRenderer(spec: tile.fixture.spec, store: store, webModel: model.webModel)
                         .disabled(tile.lifecycle.taskState != .running)
                     if let answer = store.submittedAnswerText {
@@ -88,7 +97,32 @@ struct HomePanelDetail: View {
             }
             .navigationTitle(Text(verbatim: tile.fixture.title))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { model.closeDetail() } } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { model.closeDetail() } }
+            }
+        }
+    }
+
+    private var panelActions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Menu { PanelLifecycleMenu(tile: tile, model: model) } label: {
+                HStack {
+                    Text("Panel actions")
+                    if model.pendingPreferenceIDs.contains(tile.id) { DelayedProgressView() }
+                }.frame(minHeight: 44)
+            }.disabled(model.pendingPreferenceIDs.contains(tile.id))
+                .accessibilityLabel("Panel actions")
+            if model.pendingPreferenceIDs.contains(tile.id) {
+                PendingStateView(title: String(localized: "Updating panel…"), onSettings: openSettings)
+            }
+            if preferenceConfirmed { Text("Panel updated.").font(.hbCallout).foregroundStyle(Theme.ink2) }
+            if let error = model.preferenceError {
+                Label { Text(verbatim: error) } icon: { Image(systemName: "exclamationmark.triangle") }
+                    .foregroundStyle(Theme.warn).font(.hbCallout)
+            }
+        }.onChange(of: model.pendingPreferenceIDs) { previous, current in
+            if current.contains(tile.id) { preferenceConfirmed = false }
+            else if previous.contains(tile.id) { preferenceConfirmed = model.preferenceError == nil }
         }
     }
 }

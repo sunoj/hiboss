@@ -10,12 +10,13 @@ struct MessagesView: View {
 
     var body: some View {
         ListStateView(
-            isLoading: !store.didLoad && store.history.isEmpty,
+            isLoading: !store.didLoad || store.isRefreshing,
             error: store.loadError,
             isEmpty: store.history.isEmpty,
             emptyIcon: "tray",
             emptyTitle: String(localized: "No messages yet"),
             emptyDetail: String(localized: "Agent messages will appear here."),
+            hasLoaded: store.didLoad,
             onRetry: { await store.refresh() }
         ) {
             List {

@@ -50,6 +50,7 @@ final class ConnectionStore: ObservableObject {
 
     /// Loads a persisted token and, if valid, restores the active config.
     func restore() async {
+        try? await DemoDelay.wait("RESTORE")
         let keychain = keychain
         let signerStore = signerStore
         let stored = await Task.detached(priority: .userInitiated) {

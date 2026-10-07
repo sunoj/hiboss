@@ -37,9 +37,16 @@ extension PanelsModel {
         guard let service else { return }
         let generation = questionnaireGeneration
         isLoadingQuestions = true
+        #if os(iOS)
+        questionnaireOperation += 1
+        let operation = questionnaireOperation
+        #endif
         defer {
-            isLoadingQuestions = false
-            if needsReconcile, !isFetching { needsReconcile = false; reconcileSoon() }
+            #if os(iOS)
+            if operation == questionnaireOperation { finishQuestionnaireFetch() }
+            #else
+            finishQuestionnaireFetch()
+            #endif
         }
         do {
             let fetched = try await service.fetchPendingQuestionnaires()
@@ -56,6 +63,11 @@ extension PanelsModel {
             if (error as? HibossAPIError)?.isAuthFailure == true { pendingQuestionnaires = [] }
             questionnaireError = error.localizedDescription
         }
+    }
+
+    private func finishQuestionnaireFetch() {
+        isLoadingQuestions = false
+        if needsReconcile, !isFetching { needsReconcile = false; reconcileSoon() }
     }
 
     func invalidateQuestionnaireCoverage() {

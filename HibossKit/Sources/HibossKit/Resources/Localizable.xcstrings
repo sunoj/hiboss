@@ -1,6 +1,102 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Retry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
+          }
+        }
+      }
+    },
+    "This is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这比预期需要更长时间。"
+          }
+        }
+      }
+    },
+    "Waiting for the submission receipt…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the submission receipt…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待提交确认…"
+          }
+        }
+      }
+    },
+    "Your answer isn't confirmed. Your draft is saved. Close this panel and check again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your answer isn't confirmed. Your draft is saved. Close this panel and check again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "答案尚未确认，草稿已保存。请关闭此面板后重新检查提交状态。"
+          }
+        }
+      }
+    },
+    "Loading display…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading display…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载图表…"
+          }
+        }
+      }
+    },
+    "Retry display": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry display"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试加载图表"
+          }
+        }
+      }
+    },
     "Device name": {
       "localizations": {
         "en": {

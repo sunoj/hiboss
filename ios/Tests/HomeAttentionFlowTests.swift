@@ -21,8 +21,15 @@ final class HomeAttentionFlowTests: XCTestCase {
         await panels.load()
         XCTAssertTrue(inbox.hasCompleteRequiredInputs)
         XCTAssertNil(home.attentionStatus)
+        inbox.isRefreshing = true
+        XCTAssertEqual(home.attentionStatus, "Waiting for: Messages.")
+        inbox.isRefreshing = false
+        inbox.loadError = "Unavailable"
+        XCTAssertTrue(home.attentionStatus?.contains("Messages") == true)
+        inbox.loadError = nil
+        XCTAssertNil(home.attentionStatus)
         panels.receiveWall(.wallChanged)
-        XCTAssertEqual(home.attentionStatus, "Checking for requests…")
+        XCTAssertEqual(home.attentionStatus, "Waiting for: Questionnaires.")
         await panels.reconciliationTask?.value
         XCTAssertNil(home.attentionStatus)
         let config = ConnectionConfig(serverURL: URL(string: "https://example.invalid")!, bossToken: "test")
@@ -31,7 +38,7 @@ final class HomeAttentionFlowTests: XCTestCase {
         panels.wallConnectivityChanged(false)
         await panels.reconciliationTask?.value
         XCTAssertEqual(panels.loadState, .loaded)
-        XCTAssertEqual(home.attentionStatus, "Checking for requests…")
+        XCTAssertEqual(home.attentionStatus, "Waiting for: Questionnaires.")
         panels.wallConnectivityChanged(true)
         XCTAssertNotNil(home.attentionStatus)
         await panels.reconciliationTask?.value
@@ -49,7 +56,9 @@ final class HomeAttentionFlowTests: XCTestCase {
                                              terminalPanelIDs: ["done"], now: now)
         XCTAssertEqual(snapshot.count, 2)
         XCTAssertEqual(Set(snapshot.questionnaires.map(\.requestId)), ["shared"])
-        XCTAssertEqual(HomeAttentionSnapshot(messages: [], questionnaires: [request("optional", blocking: false)],
+        XCTAssertEqual(
+            HomeAttentionSnapshot(
+                messages: [], questionnaires: [request("optional", blocking: false)],
                                              now: now).count, 0)
         XCTAssertEqual(snapshot.questionnaires.first { $0.requestId == "shared" }?.panelId, "a")
         XCTAssertEqual(HomeAttentionSnapshot(messages: [], questionnaires: Array(requests.reversed()),
@@ -91,7 +100,8 @@ final class HomeAttentionFlowTests: XCTestCase {
         let tile = try XCTUnwrap(panels.tiles.first)
         panels.section = .archived
         XCTAssertTrue(panels.visibleTiles.isEmpty)
-        let snapshot = HomeAttentionSnapshot(messages: [], questionnaires: [request("form", panel: tile.id)], now: now)
+        let snapshot = HomeAttentionSnapshot(
+            messages: [], questionnaires: [request("form", panel: tile.id)], now: now)
         let row = try XCTUnwrap(snapshot.questionnaires.first)
         panels.open(row.panelId)
         XCTAssertEqual(panels.selectedTile?.id, tile.id)
@@ -155,7 +165,8 @@ final class HomeAttentionFlowTests: XCTestCase {
     }
 
     private func snapshot(_ store: InboxStore) -> HomeAttentionSnapshot {
-        HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn, questionnaires: [], now: now)
+        HomeAttentionSnapshot(
+            messages: store.requiredInputs, withdrawn: store.withdrawn, questionnaires: [], now: now)
     }
 
     private var ask: HistoryMessage {

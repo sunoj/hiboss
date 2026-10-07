@@ -12,13 +12,16 @@ struct ProgressFeedView: View {
 
     var body: some View {
         ListStateView(
-            isLoading: !store.didLoad && store.posts.isEmpty,
+            isLoading: !store.didLoad || store.isRefreshing,
             error: store.loadError,
             isEmpty: store.posts.isEmpty,
             emptyIcon: "calendar.day.timeline.leading",
             emptyTitle: String(localized: "No progress yet"),
-            emptyDetail: String(localized: "Agents post here with hiboss progress post \"…\" — no push, no inbox."),
-            onRetry: { await store.refresh() }
+            emptyDetail: String(
+                localized: "Agents post here with hiboss progress post \"…\" — no push, no inbox."),
+            loadingTitle: String(localized: "Loading progress…"),
+            hasLoaded: store.didLoad,
+            onRetry: { await store.retryRefresh() }
         ) {
             feedList
         }
@@ -41,7 +44,8 @@ struct ProgressFeedView: View {
     private var feedList: some View {
         List {
             ForEach(store.posts) { post in
-                ProgressPostCard(post: post, onOpenMedia: { media in
+                ProgressPostCard(post: post, isLiking: store.likingIDs.contains(post.id),
+                                 likeError: store.likeErrors[post.id], onOpenMedia: { media in
                     let index = post.media.firstIndex(where: { $0.url == media.url }) ?? 0
                     opened = ProgressMediaSession(items: post.media, index: index)
                 }) {
@@ -56,11 +60,8 @@ struct ProgressFeedView: View {
                 }
             }
             if store.isLoadingMore {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
+                PendingStateView(title: String(localized: "Loading more progress…"),
+                                 onRetry: { await store.retryRefresh() })
                 .listRowSeparator(.hidden)
             }
         }

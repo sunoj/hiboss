@@ -32,7 +32,7 @@ struct DecisionOptions: View {
         let control = Button { onChoose(option) } label: { label(option, alignment: alignment) }
             .frame(maxWidth: .infinity)
             .accessibilityValue(isDefault ? Text("Default") : Text(verbatim: ""))
-            .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
+        .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
         Group {
             if isDefault {
                 control.prominentAction()
@@ -51,7 +51,7 @@ struct DecisionOptions: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: alignment)
             if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) {
-                ProgressView().tint(Theme.ink)
+                DelayedProgressView(tint: timing.isAutoDefault(option) ? Theme.onAccent : Theme.ink)
             }
         }
         .frame(minWidth: 44, minHeight: 44)

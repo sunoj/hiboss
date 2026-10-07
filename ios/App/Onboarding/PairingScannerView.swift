@@ -117,6 +117,8 @@ struct PairingScannerView: View {
 
     private func requestCameraAccessIfNeeded() async {
         guard permission == .notDetermined else { return }
+        do { try await DemoDelay.wait("CAMERA") }
+        catch { return }
         let granted = await AVCaptureDevice.requestAccess(for: .video)
         permission = granted ? .authorized : .denied
     }
@@ -175,7 +177,9 @@ private final class QRScannerViewController: UIViewController, AVCaptureMetadata
 
     private func configureSession() {
         guard let device = AVCaptureDevice.default(for: .video) else { return }
-        guard let input = try? AVCaptureDeviceInput(device: device), session.canAddInput(input) else { return }
+        guard let input = try? AVCaptureDeviceInput(device: device), session.canAddInput(input) else {
+            return
+        }
         let output = AVCaptureMetadataOutput()
         guard session.canAddOutput(output) else { return }
         session.beginConfiguration()

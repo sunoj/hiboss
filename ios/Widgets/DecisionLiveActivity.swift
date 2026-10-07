@@ -108,25 +108,11 @@ private struct ActionButtons: View {
     let context: ActivityViewContext<DecisionActivityAttributes>
 
     var body: some View {
-        let options = context.state.options
-        let sending = context.state.submitting
-        HStack(spacing: 9) {
-            ForEach(Array(options.prefix(2).enumerated()), id: \.offset) { index, option in
-                Button(intent: RespondDecisionIntent(messageID: context.attributes.messageID, choice: option)) {
-                    Text(verbatim: option)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(index == 0 ? LA.approve : Color.white.opacity(0.14))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .opacity(sending == nil || sending == option.trimmingCharacters(in: .whitespacesAndNewlines) ? 1 : 0.4)
-            }
-        }
-        // The shared reply gate is sending a choice from some surface: no second answer.
-        .disabled(sending != nil || context.state.completion != nil)
+        DecisionActivityControls(
+            messageID: context.attributes.messageID, state: context.state,
+            foreground: LA.ink, primaryBackground: LA.approve,
+            secondaryBackground: Color.white.opacity(0.14)
+        )
     }
 }
 
