@@ -3,7 +3,6 @@
 # A stale entry (nothing matches it any more) fails the audit, so remove it with the code.
 
 # Values typed LocalizedStringResource: Text(resource) resolves through the catalog.
-App/Home/HomeAttentionRow.swift | unlocalized-var | Text(group.group.title) | AttentionGroup.title is LocalizedStringResource
 App/Inbox/MessageAttributeStyle.swift | unlocalized-var | Text(label) | AttributeRow.label is LocalizedStringResource
 App/Settings/DeviceRequestsView.swift | unlocalized-var | Text(note) | approvalNote is LocalizedStringResource
 

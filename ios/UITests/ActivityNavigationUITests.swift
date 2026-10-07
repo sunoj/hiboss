@@ -37,8 +37,11 @@ final class ActivityNavigationUITests: XCTestCase {
         XCTAssertTrue(app.segmentedControls.buttons["Messages"].isSelected)
     }
 
-    func testHomeSessionLinkOpensTranscriptInOneTap() {
+    func testHomeSessionMenuOpensTranscriptWithoutOpeningDetail() {
         launch()
+        let row = app.buttons["home-message-c5"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.press(forDuration: 1)
         let session = app.buttons["home-session-c5"]
         XCTAssertTrue(session.waitForExistence(timeout: 10))
         session.tap()
@@ -47,7 +50,7 @@ final class ActivityNavigationUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Home"].isSelected)
         screenshot("home-direct-transcript")
         app.navigationBars.buttons.firstMatch.tap()
-        XCTAssertTrue(session.waitForExistence(timeout: 5))
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
     }
 
     func testUnhealthyEmptyHomeNeverClaimsAllClear() {

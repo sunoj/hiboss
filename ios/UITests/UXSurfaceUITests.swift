@@ -46,9 +46,13 @@ final class UXSurfaceUITests: XCTestCase {
         launch(["HIBOSS_DEMO_OPTION_MEDIA": "1"])
         let image = app.buttons["Open image for Coarse grid"]
         XCTAssertTrue(image.waitForExistence(timeout: 10))
+        for label in ["Coarse grid", "Fine grid"] {
+            XCTAssertEqual(app.buttons["Open image for \(label)"].value as? String, "Image available")
+        }
         shot("en-24-home-option-images")
         image.tap()
         XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.images["option-image-loaded-Coarse grid"].exists)
         shot("en-25-option-image-zoom")
         app.buttons["Done"].tap()
         app.buttons["home-message-c5"].tap()

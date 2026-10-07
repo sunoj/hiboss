@@ -51,8 +51,8 @@ Reading options or comparing option images does not require tapping.
 3. **Home spends space repeating its job.**
    `ios/App/Home/HomeAttentionRow.swift:73` has a title, a count subtitle and group
    headings before the question. Baseline `xxl-01-home` shows the cost at accessibility L.
-   Keep the count, meaningful deadline group and decision context, but use a smaller
-   semantic title. The attention contract requires the content subtitle on the row;
+   Keep the count beside the title and deadline information on each card.
+   The attention contract requires the content subtitle on the row;
    reducing reading must not hide information needed to choose safely.
 4. **Loaded empty data can mask an unhealthy stream.**
    `ios/App/Home/HomeView.swift:101` checks fetch coverage but not `connectionState`.
@@ -75,7 +75,7 @@ Use four native tabs, each with one purpose:
 
 - **Home:** requests that need the boss and the live panel wall. Options and option
   images stay inline. Message detail remains for full context and custom/text replies.
-  Each request offers a direct session link. The all-clear island stays here and appears
+  Each request offers a session context-menu action. The all-clear island stays here and appears
   only after healthy, complete message and questionnaire coverage.
 - **Activity:** one browser for Sessions and Messages using a system picker. Sessions
   is the initial selection; native list rows show session, status and latest activity.
@@ -92,7 +92,7 @@ a menu at accessibility sizes so its labels remain readable.
 | --- | --- | ---: |
 | Answer option / compare option images | Home → option | 1 → 1 |
 | Custom or text reply | Home → detail → field → Send | 3 → 3 |
-| Follow request's session | Home → session link | 2 → 1 |
+| Follow request's session | Home → long-press card → View session | 2 → 2 |
 | Browse session | Activity → session | 2 → 2 |
 | Read message (fresh Activity selection) | Activity → Messages → message | 2 → 3 |
 | Read message (Messages already selected) | Activity → message | 2 → 2 |
@@ -113,7 +113,7 @@ Home's panel sheet; join requests open their review sheet over the current tab.
 | SessionsView | Deleted; session list belongs to Activity |
 | Session tiles and message/branch counts | Removed from summaries; transcript/detail retain context |
 | Home request subtitle | Retained beside the question, as required by the attention contract |
-| Request's session context | Direct link on Home; existing detail link retained |
+| Request's session context | Home context menu and named VoiceOver action; detail link retained |
 | Options, custom replies, option images | Home options/images; full reply composer in detail |
 | Transcripts and in-transcript decisions | Activity session destination and Home session links |
 | Progress and media | Progress tab and full-screen viewer |
@@ -231,3 +231,59 @@ Their dark counterparts have the same filename with a `dark-` prefix.
 [a-zoom]: /private/tmp/hiboss-ios-v3-after/shots/small/en-25-option-image-zoom.png
 [a-detailimages]: /private/tmp/hiboss-ios-v3-after/shots/small/en-26-detail-option-images.png
 [a-signout]: /private/tmp/hiboss-ios-v3-after/shots/small/en-16-sign-out.png
+
+## Compact Home and offline comparisons
+
+KB consulted: `kb ios accessibility NavigationLink Home card` returned
+“A view the platform silently drops looks exactly like a view you forgot to write”.
+The missing `home-message-c1` button at accessibility XXXL is CONFIRMED: the unchanged
+test failed before the fix (0 passed, 1 failed) and passed after it without assertion changes.
+Attention groups now instantiate their request rows together, preserving offscreen question
+accessibility. The extra session link row is removed; the question still opens message detail.
+Long-press its context/question area for the native **View session** menu, or use the named
+VoiceOver **View session** action. Message detail retains its session link.
+
+The title and count share a baseline; group headings repeated information already on cards.
+Each live default and countdown shares one caption line at default text size. At larger sizes
+or with longer option labels, it wraps without truncating either value. Full questions,
+content subtitles, inline choices, default markers and countdown urgency colors remain.
+
+| Home flow | Main | Previous version | Compact Home |
+| --- | ---: | ---: | ---: |
+| Answer an option / compare images | 1 / 0 | 1 / 0 | 1 / 0 |
+| Open decision detail | 1 | 1 | 1 |
+| Follow the request's session | 2 taps | 1 tap | 1 long-press + 1 tap |
+| Follow session with VoiceOver | Detail + link | Session link | 1 named action |
+| Custom reply | 3 | 3 | 3 |
+
+iPhone 17, default text size, identical demo data: the first two cards measure **239.33 pt**
+each in both English and Chinese, versus approximately **267.67 pt** each on main
+(803 pixels at 3× in the baseline Chinese screenshot). Both complete cards and all four
+option buttons are visible: the second card ends at **595 pt**, above the tab bar at **791 pt**.
+The geometry test checks card height, full bottom edges, 44 pt options and single-line timing.
+
+| Home comparison | Main | Previous version | Compact Home |
+| --- | --- | --- | --- |
+| Chinese, light | [image][b-zh] | [image][a-zh] | [image][r2-zh] |
+| English, light | [image][b-en] | [image][a-en] | [image][r2-en] |
+| Chinese, dark | [image][b-dzh] | [image][a-dzh] | [image][r2-dzh] |
+| English, dark | [image][b-den] | [image][a-den] | [image][r2-den] |
+
+Demo option comparisons use two bundled, distinct 320×200 PNGs (about 1 KB each), generated
+by `python3 ios/scripts/generate-demo-option-media.py`. Local image decoding is used in the
+pending comparison and zoom viewer; remote message images retain their existing loader.
+Tests verify bundled URLs, decoding, two distinct images and visible images in Home and zoom.
+No resolved-decision view is changed.
+
+Additional captures: [dark all-clear][r2-empty], [offline Home images][r2-images],
+[offline image zoom][r2-zoom], and [accessibility XXXL question][r2-ax].
+
+[r2-zh]: /private/tmp/hiboss-ios-v3-round2/shots/small/zh-01-home.png
+[r2-en]: /private/tmp/hiboss-ios-v3-round2/shots/small/en-01-home.png
+[r2-dzh]: /private/tmp/hiboss-ios-v3-round2/shots/small/dark-zh-01-home.png
+[r2-den]: /private/tmp/hiboss-ios-v3-round2/shots/small/dark-en-01-home.png
+
+[r2-empty]: /private/tmp/hiboss-ios-v3-round2/shots/small/dark-zh-empty-home.png
+[r2-images]: /private/tmp/hiboss-ios-v3-round2/shots/small/dark-en-24-home-option-images.png
+[r2-zoom]: /private/tmp/hiboss-ios-v3-round2/shots/small/dark-en-25-option-image-zoom.png
+[r2-ax]: /private/tmp/hiboss-ios-v3-round2/shots/small/accessibility-home-question.png

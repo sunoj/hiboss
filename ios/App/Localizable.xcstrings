@@ -12339,6 +12339,38 @@
         }
       }
     },
+    "Image available": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image available"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片可用"
+          }
+        }
+      }
+    },
+    "Auto-selects “%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-selects “%@”"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到时自动选择「%@」"
+          }
+        }
+      }
+    },
     "Auto-selects “%@” when time runs out": {
       "localizations": {
         "en": {

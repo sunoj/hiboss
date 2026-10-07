@@ -38,7 +38,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         launch()
         XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["4 项等你决定"].exists, "count uses the localized plural")
-        XCTAssertTrue(app.staticTexts["即将自动决定"].exists, "section header is localized")
+        XCTAssertFalse(app.staticTexts["即将自动决定"].exists, "cards already describe their deadlines")
 
         XCTAssertTrue(timing("c5").waitForExistence(timeout: 5))
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), timing("c5").label)
@@ -98,7 +98,9 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(detailQuestion.waitForExistence(timeout: 5))
         XCTAssertEqual(detailQuestion.label, Self.c1Question)
         keepScreenshot("accessibility-detail-question")
-        XCTAssertGreaterThan(detailQuestion.frame.height, reply.frame.height * 5, "detail question must not truncate")
+        XCTAssertGreaterThan(
+            detailQuestion.frame.height, reply.frame.height * 5, "detail question must not truncate"
+        )
         XCTAssertGreaterThanOrEqual(app.buttons["Approve"].frame.height, 44)
         assertSideBySide("Approve", "Reject")
         XCTAssertLessThanOrEqual(detailQuestion.frame.width, app.frame.width)

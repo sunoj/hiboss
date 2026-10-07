@@ -22,7 +22,8 @@ struct DecisionTiming: Equatable {
 
     /// Whether an agent option is the live timeout default (trim-normalized).
     func isAutoDefault(_ option: String) -> Bool {
-        autoDefault != nil && option.trimmingCharacters(in: .whitespacesAndNewlines) == autoDefault?.trimmingCharacters(in: .whitespacesAndNewlines)
+        autoDefault != nil && option.trimmingCharacters(in: .whitespacesAndNewlines)
+            == autoDefault?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// "Waiting 3 min" — a duration, not a relative date, so it reads naturally in every locale.
@@ -39,16 +40,21 @@ struct DecisionTiming: Equatable {
 struct DecisionTimingView: View {
     let timing: DecisionTiming
     let messageID: MessageID
+    var compact: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let deadline = timing.expiresAt, let option = timing.autoDefault {
-                Label {
-                    Text("Auto-selects “\(option)” when time runs out")
-                } icon: {
-                    Image(systemName: "clock.arrow.circlepath")
+                if compact {
+                    compactCountdown(deadline: deadline, option: option)
+                } else {
+                    Label {
+                        Text("Auto-selects “\(option)” when time runs out")
+                    } icon: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                    Label { CountdownText(deadline: deadline) } icon: { Image(systemName: "timer") }
                 }
-                Label { CountdownText(deadline: deadline) } icon: { Image(systemName: "timer") }
             } else {
                 TimelineView(.everyMinute) { context in
                     Label { DecisionTiming.waitedText(since: timing.createdAt, now: context.date) } icon: {
@@ -64,10 +70,25 @@ struct DecisionTimingView: View {
                 }
             }
         }
-        .font(.hbCallout)
+        .font(compact ? .hbCaption : .hbCallout)
         .foregroundStyle(Theme.ink2)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("decision-timing-\(messageID.rawValue)")
+    }
+
+    private func compactCountdown(deadline: Date, option: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 4) {
+                Text("Auto-selects “\(option)”")
+                Text(verbatim: "·")
+                CountdownText(deadline: deadline)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Auto-selects “\(option)”")
+                CountdownText(deadline: deadline)
+            }
+        }
     }
 }
