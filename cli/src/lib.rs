@@ -3,6 +3,7 @@
 // Dependencies: all CLI module dependencies.
 
 pub mod attribution;
+pub mod box_types;
 pub mod client;
 pub mod commands;
 pub mod config;

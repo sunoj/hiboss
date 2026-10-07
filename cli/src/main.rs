@@ -5,7 +5,7 @@
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use hiboss::client;
 use hiboss::commands::{
-    agent, ask, boss, bot, channel, config as config_cmd, daemon, doctor, edit, forward, group,
+    agent, ask, boss, bot, box_cmd, channel, config as config_cmd, daemon, doctor, edit, forward, group,
     device, hook, inbox, key, onboarding, panel, progress, react, read, reply, request, route, send, setup, ss,
     status, watch, whoami,
 };
@@ -76,6 +76,8 @@ enum Commands {
     Daemon(daemon::DaemonArgs),
     #[command(about = "Post and browse project progress updates")]
     Progress(progress::ProgressArgs),
+    #[command(about = "Add and read boss-shared Box reference material")]
+    Box(box_cmd::BoxArgs),
     #[command(about = "Manage project profiles and aliases")]
     Project(progress::progress_team::TeamArgs),
     #[command(about = "Display live state the boss can watch change in panels")]
@@ -161,6 +163,7 @@ async fn run_remote(
         Commands::Ss(args) => ss::run(args, &config, &client).await?,
         Commands::Setup(args) => setup::run_with_client(args, &config, &client).await?,
         Commands::Progress(args) => progress::run(args, &config, &client).await?,
+        Commands::Box(args) => box_cmd::run(args, &config, &client).await?,
         Commands::Project(args) => progress::progress_team::run(args, &config, &client).await?,
         Commands::Panel(args) => panel::run(args, &client).await?,
         Commands::Request(args) => request::run(args, &client).await?,

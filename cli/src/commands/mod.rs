@@ -8,6 +8,8 @@ pub(crate) mod ask_media;
 mod ask_support;
 mod ask_result;
 pub mod boss;
+#[path = "box/mod.rs"]
+pub mod box_cmd;
 pub mod bot;
 pub mod channel;
 pub mod config;
