@@ -12,7 +12,7 @@ final class NotificationDeepLinkUITests: XCTestCase {
             "HIBOSS_DEMO_HISTORY_DELAY_MS": "10000",
             "HIBOSS_DEMO_MESSAGE_DELAY_MS": "10000",
         ])
-        app.launch()
+        app.launchConfiguredDemo()
 
         XCTAssertTrue(
             app.staticTexts["Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?"]
@@ -28,7 +28,7 @@ final class NotificationDeepLinkUITests: XCTestCase {
             "HIBOSS_DEMO_HISTORY_DELAY_MS": "10000",
             "HIBOSS_DEMO_MESSAGE_DELAY_MS": "10000",
         ])
-        app.launch()
+        app.launchConfiguredDemo()
 
         XCTAssertTrue(
             app.staticTexts["Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?"]

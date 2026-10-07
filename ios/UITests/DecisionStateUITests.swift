@@ -120,9 +120,10 @@ final class DecisionStateUITests: XCTestCase {
 
     func testFailedRefreshKeepsRowsAndSaysTheyAreStale() {
         launch(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
-        let messages = app.tabBars.buttons["Messages"]
-        XCTAssertTrue(messages.waitForExistence(timeout: 10))
-        messages.tap()
+        let activity = app.tabBars.buttons["Activity"]
+        XCTAssertTrue(activity.waitForExistence(timeout: 10))
+        activity.tap()
+        app.segmentedControls.buttons["Messages"].tap()
         XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["list-stale-banner"].exists)
         Thread.sleep(forTimeInterval: 5)

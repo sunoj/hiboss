@@ -101,7 +101,8 @@ final class InboxStore: ObservableObject {
     }
 
     func syncDecisionActivity() async {
-        await DecisionActivityManager.sync(pending: pending, alertsEnabled: decisionAlertsEnabled)
+        let candidates = requiredInputs.filter { !withdrawn.contains($0.id) }
+        await DecisionActivityManager.sync(pending: candidates, alertsEnabled: decisionAlertsEnabled)
     }
 
     func start(api: any BossServing) {

@@ -36,6 +36,7 @@ struct HomeAttentionSection: View {
             title
             if let status {
                 Text(verbatim: status).font(.hbCallout).foregroundStyle(Theme.ink2)
+                    .accessibilityIdentifier("home-connection-status")
             }
             if snapshot.count == 0 && status == nil {
                 allClear
@@ -68,9 +69,9 @@ struct HomeAttentionSection: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Needs you now")
                 .fixedSize(horizontal: false, vertical: true)
-                .font(.hbLargeTitle)
+                .font(.hbH2)
                 .foregroundStyle(Theme.ink)
-            if snapshot.count > 0 || status != nil || hasPanels {
+            if snapshot.count > 0 || (status == nil && hasPanels) {
                 titleSubtitle
                     .font(.hbCallout)
                     .foregroundStyle(Theme.ink2)
@@ -150,6 +151,15 @@ struct HomeAttentionRow: View {
                 media: item.message.metadata?.optionMedia ?? []
             )
             choices(timing: timing)
+            if let sessionID = item.message.sessionId,
+               !sessionID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                NavigationLink(value: SessionRoute(message: item.message)) {
+                    Label("View session", systemImage: "text.alignleft")
+                        .font(.hbCallout)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .accessibilityIdentifier("home-session-\(item.id.rawValue)")
+            }
         }
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))

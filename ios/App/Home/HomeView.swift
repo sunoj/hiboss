@@ -32,6 +32,12 @@ struct HomeView: View {
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI, store: inbox) }
+            .sheet(isPresented: Binding(
+                get: { panels.selectedTile != nil },
+                set: { if !$0 { panels.closeDetail() } }
+            )) {
+                if let tile = panels.selectedTile { HomePanelDetail(tile: tile, model: panels) }
+            }
             .alert(
                 "Heads up",
                 isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
@@ -82,6 +88,9 @@ struct HomeView: View {
     }
 
     var attentionStatus: String? {
+        if let connectionNotice = HomeConnectionStatus.notice(for: inbox.connectionState) {
+            return connectionNotice
+        }
         if let error = inbox.requiredInputError ?? inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
             return String(localized: "Couldn't check all requests. \(error) Pull to refresh.")
         }

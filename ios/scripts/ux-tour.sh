@@ -1,5 +1,5 @@
 #!/bin/bash
-# Screenshot tour of the demo app for UX review (light + dark, en + zh-Hans, empty, XXL text).
+# Screenshot tour of Home, Activity, Progress and Settings (light/dark, en/zh, accessibility L).
 # Usage: scripts/ux-tour.sh <output-dir> [simulator-name]   (run from ios/)
 # Writes <output-dir>/shots/<appearance><variant>-<nn>-<surface>.png and a 900px copy in small/.
 set -euo pipefail
@@ -20,9 +20,11 @@ run() { # $1 appearance, $2 prefix, $3.. -only-testing filters
       return 1
     }
 }
-run light "" -only-testing:HiBossUITests/UXTourUITests -skip-testing:HiBossUITests/UXTourUITests/testTourLanguage
+run light "" -only-testing:HiBossUITests/UXTourUITests -only-testing:HiBossUITests/UXSurfaceUITests \
+  -only-testing:HiBossUITests/ActivityNavigationUITests -skip-testing:HiBossUITests/UXTourUITests/testTourLanguage
 mv "$OUT/light.xcresult" "$OUT/base-light.xcresult"
-run dark "dark-" -only-testing:HiBossUITests/UXTourUITests/testTourChinese
+run dark "dark-" -only-testing:HiBossUITests/UXTourUITests -only-testing:HiBossUITests/UXSurfaceUITests \
+  -only-testing:HiBossUITests/ActivityNavigationUITests -skip-testing:HiBossUITests/UXTourUITests/testTourLanguage
 # Extra languages: TOUR_LANGS="ar th hi" scripts/ux-tour.sh <dir>
 for lang in ${TOUR_LANGS:-}; do
   TEST_RUNNER_UX_TOUR_LANG="$lang" run light "" -only-testing:HiBossUITests/UXTourUITests/testTourLanguage

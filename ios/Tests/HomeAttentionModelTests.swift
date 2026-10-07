@@ -90,6 +90,32 @@ final class HomeAttentionModelTests: XCTestCase {
                        AttentionModel.items(from: decisions, now: now).map(\.id))
     }
 
+    @MainActor
+    func testLiveActivityAndHomeAgreeAcrossDeadlineWaitingPriorityAndTimeout() {
+        let messages = [
+            message("priority", priority: "critical", createdOffset: -20),
+            message("blocked", priority: "low", sessionStatus: "waiting", createdOffset: -40),
+            message("auto", priority: "low", expiresOffset: 60, defaultOption: "No"),
+            message("text", options: []),
+            message("expired", isExpired: true),
+        ]
+        let home = AttentionModel.items(from: messages, now: now).filter { !$0.options.isEmpty }.map(\.id)
+        XCTAssertEqual(home, ["auto", "blocked", "priority"])
+        XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: now).map(\.id), home)
+        let later = now.addingTimeInterval(60)
+        XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: later).map(\.id),
+                       ["blocked", "priority"])
+    }
+
+    @MainActor
+    func testMissingLiveActivityDoesNotClaimAnUpdate() async {
+        let state = DecisionActivityAttributes.ContentState(
+            body: "Choose a path", options: ["Yes", "No"], priority: "normal", deadline: nil, content: nil
+        )
+        let updated = await DecisionActivityManager.updateExisting(id: UUID().uuidString, state: state, deadline: nil)
+        XCTAssertFalse(updated)
+    }
+
     func testWaitingSessionGroupsUnderWaitingOnYouAndBlockedSessionDoesNot() {
         let groups = AttentionModel.grouped(from: [
             message("waiting", sessionStatus: " Waiting "),

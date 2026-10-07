@@ -64,7 +64,7 @@ final class ActivityNavigationUITests: XCTestCase {
 
     private func screenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
+        attachment.name = (ProcessInfo.processInfo.environment["UX_TOUR_PREFIX"] ?? "") + name
         attachment.lifetime = .keepAlways
         add(attachment)
     }

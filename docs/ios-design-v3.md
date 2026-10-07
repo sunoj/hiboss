@@ -61,7 +61,13 @@ Reading options or comparing option images does not require tapping.
 5. **Two ranking implementations can disagree.**
    `ios/App/Inbox/InboxStore.swift:77` sorts Live Activity candidates by deadline and
    priority; Home uses `AttentionModel`, which also ranks agents waiting without a
-   deadline. Use Home's ranking for Live Activity candidates and test agreement.
+   deadline. Use Home's authoritative required-input set and ranking for Live Activity
+   candidates and test agreement. Keep only the first option decision active and update
+   it in place; lower-ranked activities must not replace it on the Island.
+6. **A panel push can select a panel without presenting it.** The baseline sheet is
+   attached to `HomePanelWall`, inside Home's lazy stack. A cold-launch panel route
+   fails while the wall is offscreen (`hiboss-ios-v3-focused.log`, panel notification
+   test). Move sheet ownership to Home's persistent root; keep the detail itself intact.
 
 ## New information architecture
 
@@ -129,7 +135,8 @@ Automatic outcomes retain their source labels and never become the boss's choice
   resolved history and their tests. Only Live Activity candidate ranking changes.
 - `DecisionSettlement`: InboxSettlement, store detail/feedback, MessageThreading,
   MessageDetailView, history and transcript rows, tests and macOS. No changes.
-- `HomePanelWall`: Home only; keep panel sheet ownership, including deep links.
+- `HomePanelWall`: Home only; move its sheet modifier to HomeView so lazy wall mounting
+  cannot prevent a notification opening HomePanelDetail. Inspect wall and form routes.
 
 ## Screenshot comparison
 

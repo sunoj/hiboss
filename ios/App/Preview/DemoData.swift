@@ -155,6 +155,7 @@ private enum DemoFixtures {
             priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
                 options: ["Coarse grid", "Fine grid"],
+                optionMedia: DemoOptionMedia.images,
                 defaultOption: "Coarse grid",
                 content: "Choose the density for the banner layout."
             ),
