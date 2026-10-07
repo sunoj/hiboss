@@ -74,13 +74,14 @@ All routes live under `/api/box`.
 | `POST /api/box/items` | boss | Create an item. JSON for `link`/`text`; `multipart/form-data` (`meta` + `file`) for media. Idempotent on an `Idempotency-Key` header, so a share-extension retry does not duplicate the item |
 | `GET /api/box/items` | boss or agent | List, newest first. Query: `kind`, `since`, `project`, `boss`, `limit` (≤ 100), `cursor` |
 | `GET /api/box/items/latest` | boss or agent | The newest item, optionally filtered by `kind` |
-| `GET /api/box/items/search?q=` | boss or agent | FTS5 match, ranked, with the same filters |
+| `GET /api/box/items/search?q=` | boss or agent | FTS5 match, newest first, with the same filters |
 | `GET /api/box/items/:id` | boss or agent | One item's metadata |
 | `GET /api/box/items/:id/media` | boss or agent | The item's media bytes, with range support |
 | `PATCH /api/box/items/:id` | boss | Edit the note, tags or project |
 | `DELETE /api/box/items/:id` | boss | Soft delete. `?purge=1` also removes the R2 object |
 
 Every response that carries an item includes `boss_id` and `boss_name`.
+Ranking is not used because FTS5 rank statistics span every boss's items.
 
 ## CLI
 

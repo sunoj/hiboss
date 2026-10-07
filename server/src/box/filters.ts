@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import { KINDS, type BoxContext, type BoxCursor, type BoxFilter } from './types';
 import { boxBossIds } from './access';
 
-function cursor(value: string | undefined, search: boolean): BoxCursor | null {
+function cursor(value: string | undefined): BoxCursor | null {
   if (value === undefined) return null;
   try {
     if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('invalid base64url');
@@ -14,10 +14,7 @@ function cursor(value: string | undefined, search: boolean): BoxCursor | null {
     }
     const parsed: unknown = JSON.parse(json);
     if (parsed && typeof parsed === 'object') {
-      if (search && 'offset' in parsed && typeof parsed.offset === 'number'
-        && Number.isSafeInteger(parsed.offset) && parsed.offset >= 0
-        && Object.keys(parsed).length === 1) return { offset: parsed.offset };
-      if (!search && 'created_at' in parsed && 'id' in parsed
+      if ('created_at' in parsed && 'id' in parsed
         && typeof parsed.created_at === 'string' && typeof parsed.id === 'string'
         && Number.isFinite(Date.parse(parsed.created_at)) && parsed.id
         && Object.keys(parsed).length === 2) {
@@ -38,7 +35,7 @@ function since(value: string): string {
   return new Date(time).toISOString();
 }
 
-export async function boxFilter(c: BoxContext, search = false): Promise<BoxFilter> {
+export async function boxFilter(c: BoxContext): Promise<BoxFilter> {
   const bosses = await boxBossIds(c);
   if (!bosses.length) throw new HTTPException(404, { message: 'not found' });
   const params = c.req.query();
@@ -64,11 +61,11 @@ export async function boxFilter(c: BoxContext, search = false): Promise<BoxFilte
     throw new HTTPException(400, { message: 'invalid limit' });
   }
   return { sql: clauses.join(' AND '), binds, limit: Math.min(requested, 100),
-    cursor: cursor(params.cursor, search) };
+    cursor: cursor(params.cursor) };
 }
 
 export function recencyCursor(filter: BoxFilter): void {
-  if (!filter.cursor || !('created_at' in filter.cursor)) return;
+  if (!filter.cursor) return;
   filter.sql += ' AND (i.created_at < ? OR (i.created_at = ? AND i.id < ?))';
   filter.binds.push(filter.cursor.created_at, filter.cursor.created_at, filter.cursor.id);
 }
