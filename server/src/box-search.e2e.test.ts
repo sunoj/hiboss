@@ -73,14 +73,14 @@ it('rejects raw JSON, malformed base64url and invalid cursor payloads', async ()
 });
 
 it('orders FTS matches by recency and applies every list filter before pagination', async () => {
-  const older = await dated('rankingneedle rankingneedle rankingneedle', '2024-01-02T00:00:00.000Z');
+  const older = await dated('rankingneedle rankingneedle rankingneedle', '2024-01-02T00:00:00.000Z', 'recency');
   const newer = await dated('rankingneedle with many additional words diluting this match',
-    '2024-01-03T00:00:00.000Z');
-  await dated('rankingneedle', '2023-01-01T00:00:00.000Z');
-  await create({ url: 'https://example.invalid/rankingneedle', project: 'filter' });
+    '2024-01-03T00:00:00.000Z', 'recency');
+  await dated('rankingneedle', '2023-01-01T00:00:00.000Z', 'recency');
+  await create({ url: 'https://example.invalid/rankingneedle', project: 'recency' });
   await create({ text: 'rankingneedle', project: 'elsewhere' });
-  await create({ text: 'rankingneedle', project: 'filter' }, OTHER);
-  const query = '/search?q=rankingneedle&kind=text&project=filter&boss=box-owner'
+  await create({ text: 'rankingneedle', project: 'recency' }, OTHER);
+  const query = '/search?q=rankingneedle&kind=text&project=recency&boss=box-owner'
     + '&since=2024-01-01T00:00:00Z&limit=1';
   const first = await page(query, 'agent');
   expect(first.items.map(item => item.id)).toEqual([newer.id]);
