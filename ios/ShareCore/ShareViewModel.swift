@@ -40,13 +40,16 @@ final class ShareViewModel: ObservableObject {
     var isBusy: Bool { [.loading, .compressing, .uploading].contains(state) }
 
     func load(_ providers: [NSItemProvider], directory: URL) async {
-        guard api != nil else { return }
+        guard api != nil, !Task.isCancelled else { return }
         state = .loading
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             attachments = try await ShareAttachmentLoader.load(providers, directory: directory)
             state = .ready
-        } catch { fail(error) }
+        } catch {
+            guard !Task.isCancelled else { return }
+            fail(error)
+        }
     }
 
     func loadProjects(using api: any ProgressServing) async {
