@@ -33,12 +33,18 @@ Result bundles and command-header logs use the prefix
 | regression-green | 3 | 0 | Both fixes restored; delivery menu also exercised |
 | baseline-intro | 1 | 0 | Mac introduction from unchanged baseline app sources |
 | final-focused | 9 | 0 | Final permission/preference unit tests and delivery UI test |
+| full | 0 | 1 startup error | Committed `3646f74`; host launched without XCTest |
+| full-retry | 235 | 1 | `3646f74`; Progress initial data missed the demo's startup window |
+| permission-red | 0 | 1 startup error | Canceled host with no XCTest library loaded |
+| permission-red2 | 1 | 1 expected | Old permission wait detected; corrected Progress test passed |
+| permission-green | 0 | 1 startup error | Canceled host with no XCTest library loaded |
+| permission-green2 | 10 | 0 | Nine Settings unit tests and the Progress refresh UI test |
 
 The canceled runs report a synthetic “Testing was canceled” failure in
 xcresult, rather than an executed failing test. Stack samples of the two
 later hosts contained neither XCTest nor `HiBossTests`. Retrying the same test
-configuration started XCTest successfully. No test or environment configuration
-was changed to bypass a failure.
+configuration started XCTest successfully. No test was skipped to bypass a
+failure.
 
 ## Commands
 
@@ -158,3 +164,37 @@ The localization audit, shell syntax check and diff check pass. All 60 added
 localization keys have both English and Simplified Chinese values. The artifact
 scan passed with zero findings. Final staged/artifact checks and full-suite
 counts are recorded after the implementation commit.
+
+## Full-suite follow-up
+
+The full suite on `3646f74a75a84df7199da5f2929a50e13606ce87` executed
+167 unit tests and 69 UI tests. One UI test failed on both attempts before its
+refresh action: `DecisionStateUITests.testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale`.
+Its initial Progress feed opened after the demo API's five-second success window
+(`DemoProgressAPI.swift:10–16`). Starting that test on Progress using the existing
+`HIBOSS_TAB` hook loads its initial data during that window. Its stale-banner,
+retained-post and refresh assertions remain unchanged; production Progress code
+and the demo API were not modified.
+
+The same review found that permission feedback remained visible during phone
+registration. `PushStatusStore.isWaitingForPermission` now ends that feedback
+after authorization, while registration continues with its own status. Restoring
+the previous predicate makes the new unit test fail.
+
+Follow-up commands, from the repo root, using the aliases above:
+
+```sh
+ios/scripts/settings-tests.sh "$OUT-full" HiBoss-UX-17 \
+  -skip-testing:$UI/UXTourUITests -retry-tests-on-failure -test-iterations 2
+# Repeated as OUT-full-retry after the canceled startup, with the same HEAD.
+
+ios/scripts/settings-tests.sh "$OUT-permission-red" HiBoss-UX-17 \
+  -only-testing:$PERM/testPermissionWaitEndsBeforePhoneRegistrationFinishes \
+  -only-testing:$UI/DecisionStateUITests/testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale
+# Repeated as OUT-permission-red2 after the canceled startup.
+
+ios/scripts/settings-tests.sh "$OUT-permission-green" HiBoss-UX-17 \
+  -only-testing:$PERM -only-testing:$PREF \
+  -only-testing:$UI/DecisionStateUITests/testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale
+# Repeated as OUT-permission-green2 after the canceled startup.
+```

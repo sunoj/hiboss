@@ -134,7 +134,8 @@ final class DecisionStateUITests: XCTestCase {
     }
 
     func testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale() {
-        launch(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
+        // Initial posts must load during the demo's five-second success window.
+        launch(["HIBOSS_DEMO_REFRESH_FAILS": "1", "HIBOSS_TAB": "progress"])
         let progress = app.tabBars.buttons["Progress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 10))
         progress.tap()

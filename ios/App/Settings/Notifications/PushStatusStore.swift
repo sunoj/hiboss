@@ -84,6 +84,8 @@ final class PushStatusStore: ObservableObject {
         }
     }
 
+    var isWaitingForPermission: Bool { isRequesting && !isEnabled }
+
     /// True when the app must defer to the system Settings app to change state.
     var mustOpenSystemSettings: Bool { status == .denied }
 }

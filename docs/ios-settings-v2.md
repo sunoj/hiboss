@@ -113,6 +113,9 @@ details, Close and navigation remain usable. Pairing
 expiry keeps its fresh-code action. Device review retains all identity and code
 information during approval. Permission state distinguishes OS authorization
 from registration and refreshes when returning from system Settings.
+The permission wait ends once authorization is granted, even while registration
+continues with its own status. Decision alerts retain their existing immediate
+effect on local presentation; their server preference still uses Save Changes.
 
 The Mac model has no polling loop: it loads the scanned request and approves or
 rejects it. It drops review state on approval failure; presentation can retain

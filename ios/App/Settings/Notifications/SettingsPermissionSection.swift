@@ -27,7 +27,7 @@ struct SettingsPermissionSection: View {
                 }
                 .disabled(push.isRequesting || !push.hasLoaded)
             }
-            if push.isRequesting {
+            if push.isWaitingForPermission {
                 SettingsWaitView(title: "Waiting for notification permission…", actionTitle: "Check again") {
                     Task { await push.refresh() }
                 }

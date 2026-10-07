@@ -35,10 +35,29 @@ final class SettingsPermissionTests: XCTestCase {
         XCTAssertTrue(store.isEnabled)
         XCTAssertEqual(store.label, String(localized: "Delivering quietly"))
     }
+
+    func testPermissionWaitEndsBeforePhoneRegistrationFinishes() async {
+        var registration: CheckedContinuation<Void, Never>?
+        let store = PushStatusStore(
+            permission: PermissionService(status: .authorized, shouldFail: false),
+            register: { await withCheckedContinuation { registration = $0 } }
+        )
+        store.request()
+        while registration == nil { await Task.yield() }
+        XCTAssertTrue(store.isRequesting)
+        XCTAssertTrue(store.isEnabled)
+        XCTAssertFalse(store.isWaitingForPermission)
+        registration?.resume()
+        while store.isRequesting { await Task.yield() }
+    }
 }
 
 private struct PermissionService: SettingsNotificationPermission {
     let status: UNAuthorizationStatus
+    var shouldFail = true
     func authorizationStatus() async -> UNAuthorizationStatus { status }
-    func requestAuthorization() async throws -> Bool { throw URLError(.notConnectedToInternet) }
+    func requestAuthorization() async throws -> Bool {
+        if shouldFail { throw URLError(.notConnectedToInternet) }
+        return status == .authorized
+    }
 }
