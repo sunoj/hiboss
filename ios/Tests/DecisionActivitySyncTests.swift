@@ -84,7 +84,7 @@ final class DecisionActivitySyncTests: XCTestCase {
         XCTAssertEqual(sink.requestCount, 0)
     }
 
-    func testAlertPreferenceChangeWaitsForLoadedInputs() async {
+    func testTurningAlertsOffEndsTheActivityBeforeInputsLoad() async {
         let api = ControlledInputAPI()
         await api.holdNextFetch(returning: [Self.ask])
         let sink = ActivitySink(running: Self.ask.id)
@@ -95,7 +95,8 @@ final class DecisionActivitySyncTests: XCTestCase {
         await api.waitForHeldFetch()
         store.setDecisionAlertsEnabled(false)
         await store.syncDecisionActivity()
-        XCTAssertEqual(sink.syncCount, 0, "preference sync must also wait for authoritative inputs")
+        XCTAssertNil(sink.running, "turning alerts off must not wait for inputs")
+        XCTAssertEqual(sink.endCount, 1)
         await api.releaseFetch()
         await fetch.value
         XCTAssertNil(sink.running)

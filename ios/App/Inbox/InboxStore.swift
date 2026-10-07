@@ -106,7 +106,9 @@ final class InboxStore: ObservableObject {
     }
 
     func syncDecisionActivity() async {
-        guard requiredInputLoaded else { return }
+        // Wait for the authoritative inputs before ranking, but turning alerts off ends
+        // every activity regardless of inputs, so it must not wait.
+        guard requiredInputLoaded || !decisionAlertsEnabled else { return }
         let candidates = requiredInputs.filter { !withdrawn.contains($0.id) }
         await decisionActivitySync(candidates, decisionAlertsEnabled)
     }
