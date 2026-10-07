@@ -9,7 +9,7 @@ use reqwest::Client;
 use serde_json::Value;
 use std::error::Error;
 use std::time::Duration;
-fn mime_from_ext(filename: &str) -> String {
+pub(crate) fn mime_from_ext(filename: &str) -> String {
     let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
         "png" => "image/png",
@@ -293,6 +293,7 @@ mod groups;
 mod messages;
 mod panels;
 mod progress;
+pub(crate) mod box_items;
 mod projects;
 mod routing;
 

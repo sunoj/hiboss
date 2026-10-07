@@ -14,7 +14,7 @@ pub const COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Talk to your boss",
         &[
-            "send", "ask", "reply", "inbox", "read", "react", "edit", "forward", "status",
+            "send", "ask", "reply", "inbox", "read", "box", "react", "edit", "forward", "status",
         ],
     ),
     ("Show work", &["panel", "request", "progress", "project"]),

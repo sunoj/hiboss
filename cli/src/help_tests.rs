@@ -70,3 +70,12 @@ fn grouped_command_still_parses_subcommands() {
     let cli = Cli::from_arg_matches(&matches).expect("matches convert");
     assert!(matches!(cli.command, Commands::Request(_)));
 }
+
+#[test]
+fn grouped_command_parses_box_reference_reads() {
+    let matches = grouped_root_command(Cli::command())
+        .try_get_matches_from(["hiboss", "box", "latest", "--kind", "image", "--json"])
+        .expect("Box reference read parses");
+    let cli = Cli::from_arg_matches(&matches).expect("matches convert");
+    assert!(matches!(cli.command, Commands::Box(_)));
+}
