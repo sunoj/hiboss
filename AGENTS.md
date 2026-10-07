@@ -10,3 +10,8 @@ fixtures; this rule does not require removing supported product languages.
 Publish technical facts about the code and product only. Do not publish internal
 organization arrangements, process notes, plans, or accepted-risk decisions.
 Describe limitations as properties of the code.
+
+# Verification
+
+Before running iOS tests, read "iOS verification tiers" in `CLAUDE.md` and run only the
+tier that matches the changed paths.

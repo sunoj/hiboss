@@ -180,6 +180,30 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 ### Both
 - Files ≤ 300 lines, functions ≤ 50 lines
 
+### iOS verification tiers
+
+Run the checks the change can break. A full iOS unit and UI run takes about 15 minutes
+on a simulator, so pick the tier from the changed paths:
+
+| Tier | Change | Checks |
+|---|---|---|
+| T0 | Docs, comments, or string copy only | `python3 ios/scripts/i18n-audit.py`; no build |
+| T1 | Non-UI logic in one type (store, model, ranking) | The focused unit test fails before the fix and passes after it; then the `HiBossTests` target |
+| T2 | One screen's views | Build, `HiBossTests`, the UI test classes for that screen, and a simulator screenshot of the screen |
+| T3 | Shared components, navigation, deep links, demo routing, `project.yml`, or `HibossKit/` | One full unit and UI run on the final commit, skipping only `UXTourUITests`; `cd macos && swift build` when `HibossKit/` changed |
+| T4 | A merge into `main` of branches that touch shared files (for example `Localizable.xcstrings` or `project.pbxproj`) | One full run on `main` after the merge |
+| — | A device install of a commit that was already tested | Build only |
+
+- Iterate on the focused tests and run the tier's suites once, on the final commit.
+- A reviewer checks the implementer's result bundle: the commit hash and the counts from
+  `xcrun xcresulttool get test-results summary`. Rerun only when that evidence is missing
+  or does not match the commit, or when a merge changed code.
+- A read-only audit runs the tests that cover its questions, not the full suite.
+- A known flaky test is rerun once on its own; the suite is not repeated for it.
+- Concurrent runs on one Mac use different simulators.
+- UI tests launch through `app.launchConfiguredDemo()`, because a cold simulator launch
+  can drop the demo environment.
+
 ## Reference
 
 Detailed docs moved to `.aid/knowledge/`:
