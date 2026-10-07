@@ -116,6 +116,10 @@ routes.post('/upload', apiAuth, async (c) => {
   return c.json({ key, url: attachmentUrl, filename, content_type: mimeType, size }, 201);
 });
 
-routes.on(['GET', 'HEAD'], '/:key', (c) => serveAttachment(c.req.raw, c.env.ATTACHMENTS, c.req.param('key')));
+routes.on(['GET', 'HEAD'], '/:key', (c) => {
+  const key = c.req.param('key');
+  if (key.startsWith('box/')) return c.text('not found', 404);
+  return serveAttachment(c.req.raw, c.env.ATTACHMENTS, key);
+});
 
 export const attachmentsRouter = routes;
