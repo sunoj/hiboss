@@ -1,0 +1,39 @@
+// Native share-extension labels and attachment errors.
+"Save to Box" = "Save to Box";
+"Open HiBoss to connect" = "Open HiBoss to connect";
+"Optional note" = "Optional note";
+"No project" = "No project";
+"Projects unavailable. You can save without a project."
+= "Projects unavailable. You can save without a project.";
+"Saved to Box" = "Saved to Box";
+"Retry keeps the original note and project for items already submitted."
+= "Retry keeps the original note and project for items already submitted.";
+"Compressing attachments…" = "Compressing attachments…";
+"Uploading to Box…" = "Uploading to Box…";
+"Loading attachments…" = "Loading attachments…";
+"This is taking longer than usual. You can retry or cancel."
+= "This is taking longer than usual. You can retry or cancel.";
+"Share a link, text, image, or video." = "Share a link, text, image, or video.";
+"Share up to 4 attachments at a time." = "Share up to 4 attachments at a time.";
+"This image cannot fit within 10 MB. Choose a smaller image."
+= "This image cannot fit within 10 MB. Choose a smaller image.";
+"This video is still over 50 MB. Trim the clip and share it again."
+= "This video is still over 50 MB. Trim the clip and share it again.";
+"This text or note is too long. Keep it within 16 KB."
+= "This text or note is too long. Keep it within 16 KB.";
+"Could not prepare this attachment. Try sharing it again."
+= "Could not prepare this attachment. Try sharing it again.";
+"Could not save to Box. Check your connection and retry."
+= "Could not save to Box. Check your connection and retry.";
+"Preview" = "Preview";
+"Note" = "Note";
+"Project" = "Project";
+"Save" = "Save";
+"Retry" = "Retry";
+"Cancel" = "Cancel";
+"OK" = "OK";
+"Link" = "Link";
+"Text" = "Text";
+"Image" = "Image";
+"Video" = "Video";
+"File" = "File";

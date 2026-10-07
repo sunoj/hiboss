@@ -36,6 +36,37 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["HIBOSS_DEMO_SHARE"]?.isEmpty == false {
+                DemoShareHost()
+            } else {
+                connectedRoot
+            }
+            #else
+            connectedRoot
+            #endif
+        }
+        .onChange(of: connection.config) { _, config in
+            showsClientNotice = config != nil && connection.clientExchangeNotice != nil
+            guard !isDemoMode else { return }
+            preferences.connectionDidChange()
+            if config != nil, let api = connection.makeAPI() {
+                startConnectedServices(api)
+            } else {
+                inbox.stop()
+                progress.stop()
+            }
+        }
+        .alert("Device token notice", isPresented: $showsClientNotice) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(verbatim: connection.clientExchangeNotice ?? "")
+        }
+        .onAppear(perform: startInitialServices)
+    }
+
+    private var connectedRoot: some View {
+        Group {
             if isDemoMode && ProcessInfo.processInfo.environment["HIBOSS_DEMO_ACTIVITY"] == "1" {
                 DemoActivityStateView()
             } else if connection.isRestoring && isDemoMode
@@ -56,23 +87,6 @@ struct RootView: View {
                 ConnectView(connection: connection)
             }
         }
-        .onChange(of: connection.config) { _, config in
-            showsClientNotice = config != nil && connection.clientExchangeNotice != nil
-            guard !isDemoMode else { return }
-            preferences.connectionDidChange()
-            if config != nil, let api = connection.makeAPI() {
-                startConnectedServices(api)
-            } else {
-                inbox.stop()
-                progress.stop()
-            }
-        }
-        .alert("Device token notice", isPresented: $showsClientNotice) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(verbatim: connection.clientExchangeNotice ?? "")
-        }
-        .onAppear(perform: startInitialServices)
     }
 
     private func startInitialServices() {
