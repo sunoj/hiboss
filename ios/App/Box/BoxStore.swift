@@ -26,6 +26,11 @@ final class BoxStore: ObservableObject {
         self.api = api
     }
 
+    static func connectionIdentity(_ config: ConnectionConfig?) -> [String] {
+        guard let config else { return [] }
+        return [config.serverURL.absoluteString, config.bossToken]
+    }
+
     func refresh() async {
         read?.cancel()
         generation += 1

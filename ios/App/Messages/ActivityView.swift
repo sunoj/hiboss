@@ -32,7 +32,7 @@ struct ActivityView: View {
             case .messages: MessagesView(store: store)
             case .box:
                 BoxListView(api: isDemoMode ? DemoBoxAPI.shared : connection.makeAPI())
-                    .id(connection.bossToken)
+                    .id(BoxStore.connectionIdentity(connection.config))
             }
         }
         .navigationTitle("Activity")

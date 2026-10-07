@@ -9,6 +9,18 @@ import XCTest
 
 @MainActor
 final class BoxStoreTests: XCTestCase {
+    func testConnectionChangeResetsBoxForEitherServerOrCredential() throws {
+        let server = try XCTUnwrap(URL(string: "https://one.example"))
+        let otherServer = try XCTUnwrap(URL(string: "https://two.example"))
+        let first = ConnectionConfig(serverURL: server, bossToken: "fixture-one")
+        let changedServer = ConnectionConfig(serverURL: otherServer, bossToken: first.bossToken)
+        let changedToken = ConnectionConfig(serverURL: server, bossToken: "fixture-two")
+        XCTAssertNotEqual(BoxStore.connectionIdentity(first), BoxStore.connectionIdentity(changedServer))
+        XCTAssertNotEqual(BoxStore.connectionIdentity(first), BoxStore.connectionIdentity(changedToken))
+        XCTAssertNotEqual(BoxStore.connectionIdentity(first), BoxStore.connectionIdentity(nil))
+        XCTAssertEqual(BoxStore.connectionIdentity(first), BoxStore.connectionIdentity(first))
+    }
+
     func testPagesKeepOpaqueCursorDeduplicateAndRetainRowsOnRefreshFailure() async {
         let api = BoxStateAPI()
         let store = BoxStore(api: api)
