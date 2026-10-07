@@ -13,7 +13,8 @@ final class BoxDropAPITests: XCTestCase {
     func testJSONDropPostsSourceNoteAndIdempotencyHeader() async throws {
         let api = try client()
         let item = try await api.createBoxItem(
-            BoxCreate(text: "Reference text", note: "Use this", source: .macDrop), idempotencyKey: "json-key"
+            BoxUpload(text: "Reference text", note: "Use this", source: .macDrop),
+            idempotencyKey: "json-key", progress: { _ in }
         )
         XCTAssertEqual(item.id, "bx_test")
         XCTAssertEqual(item.source, .macDrop)
@@ -21,18 +22,21 @@ final class BoxDropAPITests: XCTestCase {
 
     func testMultipartDropPostsOneFileWithMetadata() async throws {
         let api = try client()
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("image bytes".utf8).write(to: url)
         let item = try await api.createBoxItem(
-            BoxCreate(note: "Use this", source: .macDrop),
-            upload: BoxUpload(data: Data("image bytes".utf8), mediaType: "image/png"),
-            idempotencyKey: "media-key"
+            BoxUpload(note: "Use this", source: .macDrop,
+                media: BoxUpload.Media(fileURL: url, contentType: "image/png")),
+            idempotencyKey: "media-key", progress: { _ in }
         )
         XCTAssertEqual(item.kind, .image)
     }
 
     func testWebURLDropPostsURLInsteadOfText() async throws {
         let item = try await client().createBoxItem(
-            BoxCreate(url: "https://example.com/reference", note: "Use this", source: .macDrop),
-            idempotencyKey: "link-key"
+            BoxUpload(url: "https://example.com/reference", note: "Use this", source: .macDrop),
+            idempotencyKey: "link-key", progress: { _ in }
         )
         XCTAssertEqual(item.kind, .link)
     }
@@ -40,9 +44,9 @@ final class BoxDropAPITests: XCTestCase {
     func testHTTPFailureKeepsDraftAndRepeatsSameRequestOnRetry() async throws {
         let api = try client(host: "retry.box-test.invalid")
         var attempts = 0
-        let store = BoxDropStore { item, upload, key in
+        let store = BoxDropStore { upload, key in
             attempts += 1
-            _ = try await api.createBoxItem(item, upload: upload, idempotencyKey: key)
+            _ = try await api.createBoxItem(upload, idempotencyKey: key, progress: { _ in })
         }
         await store.prepare([.text("Reference text")])
         store.note = "Use this"

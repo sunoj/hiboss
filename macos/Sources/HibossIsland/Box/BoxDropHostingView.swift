@@ -43,12 +43,12 @@ final class BoxDropHostingView: NSHostingView<IslandView> {
     func receive(_ pasteboard: NSPasteboard) {
         guard dropStore == nil else { return }
         var api: HibossAPI?
-        let store = BoxDropStore { [settings] item, upload, key in
+        let store = BoxDropStore { [settings] upload, key in
             if api == nil {
                 let config = try settings.activeClientConfig ?? settings.connectionConfig().get()
                 api = HibossAPI(config: config)
             }
-            _ = try await api?.createBoxItem(item, upload: upload, idempotencyKey: key)
+            _ = try await api?.createBoxItem(upload, idempotencyKey: key, progress: { _ in })
         }
         dropStore = store
         let hosting = NSHostingController(rootView: BoxDropPopover(store: store) { [weak self] in

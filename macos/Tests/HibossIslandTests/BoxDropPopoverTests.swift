@@ -85,7 +85,7 @@ final class BoxDropPopoverTests: XCTestCase {
     }
 
     func testPopoverRendersNativeNoteAndSaveCancelControls() async throws {
-        let store = BoxDropStore { _, _, _ in }
+        let store = BoxDropStore { _, _ in }
         await store.prepare([.text("https://example.com/reference"), .text("A passage to keep")])
         store.note = "Use this layout"
         let host = NSHostingView(rootView: BoxDropPopover(store: store, close: {}))

@@ -53,6 +53,29 @@ final class ConnectionStoreTests: XCTestCase {
         XCTAssertNil(old.value)
     }
 
+    func testSignOutDeletesLegacyTokenAfterFailedMigration() async throws {
+        let suiteName = "ConnectionSignOut.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set("https://example.com", forKey: AppConstants.Storage.serverURL)
+        let old = MigrationTokenStore("fixture")
+        let shared = MigrationTokenStore(nil)
+        shared.failWrite = true
+        let store = ConnectionStore(defaults: defaults, keychain: shared, legacyKeychain: old,
+            sharedDefaults: nil, signerStore: StubSignerStore())
+        await store.restore()
+        XCTAssertTrue(store.isConfigured)
+        XCTAssertEqual(old.deletes, 0)
+        store.signOut()
+        XCTAssertNil(old.value)
+        XCTAssertEqual(old.deletes, 1)
+        XCTAssertFalse(store.isConfigured)
+        shared.failWrite = false
+        await store.restore()
+        XCTAssertFalse(store.isConfigured)
+        XCTAssertNil(shared.value)
+    }
+
     func testRestoreDoesNotExposeOrphanTokenWithoutServerURL() async throws {
         let suiteName = "ConnectionStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

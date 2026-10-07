@@ -56,7 +56,12 @@ struct BoxDropPayload: Sendable {
     let kind: BoxItem.Kind
     let text: String?
     let url: String?
-    let upload: BoxUpload?
+    struct Media: Sendable {
+        let data: Data
+        let mediaType: String
+    }
+
+    let upload: Media?
     let label: String
 
     static func validateSize(_ bytes: Int, kind: BoxItem.Kind) throws {
@@ -75,7 +80,7 @@ struct BoxDropPayload: Sendable {
             case let .image(data, mime):
                 try validateSize(data.count, kind: .image)
                 return BoxDropPayload(kind: .image, text: nil, url: nil,
-                    upload: BoxUpload(data: data, mediaType: mime), label: L("Image"))
+                    upload: Media(data: data, mediaType: mime), label: L("Image"))
             case let .text(value): return try plainText(value)
             }
         }
@@ -105,7 +110,7 @@ struct BoxDropPayload: Sendable {
         let data = try Data(contentsOf: url)
         try validateSize(data.count, kind: kind)
         return BoxDropPayload(kind: kind, text: nil, url: nil,
-            upload: BoxUpload(data: data, mediaType: type?.preferredMIMEType ?? "application/octet-stream"),
+            upload: Media(data: data, mediaType: type?.preferredMIMEType ?? "application/octet-stream"),
             label: url.lastPathComponent)
     }
 }

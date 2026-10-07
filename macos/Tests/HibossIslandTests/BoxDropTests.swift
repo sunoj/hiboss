@@ -87,7 +87,7 @@ final class BoxDropTests: XCTestCase {
 
     func testOversizedBatchNeverInvokesUpload() async {
         var calls = 0
-        let store = BoxDropStore { _, _, _ in calls += 1 }
+        let store = BoxDropStore { _, _ in calls += 1 }
         await store.prepare([.text("valid"), .image(Data(count: 10 * 1024 * 1024 + 1), "image/png")])
         await store.save()
         XCTAssertEqual(store.phase, .rejected)
@@ -103,7 +103,7 @@ final class BoxDropTests: XCTestCase {
         try file.truncate(atOffset: 50 * 1024 * 1024 + 1)
         try file.close()
         var calls = 0
-        let store = BoxDropStore { _, _, _ in calls += 1 }
+        let store = BoxDropStore { _, _ in calls += 1 }
         await store.prepare([.file(url)])
         await store.save()
         XCTAssertEqual(store.phase, .rejected)
@@ -111,8 +111,8 @@ final class BoxDropTests: XCTestCase {
     }
 
     func testRetryKeepsNoteKeysAndSkipsSuccessfulItems() async {
-        var requests: [(BoxCreate, String)] = []
-        let store = BoxDropStore { item, _, key in
+        var requests: [(BoxUpload, String)] = []
+        let store = BoxDropStore { item, key in
             requests.append((item, key))
             if requests.count == 2 { throw TestError.rejected }
         }
@@ -134,9 +134,35 @@ final class BoxDropTests: XCTestCase {
         XCTAssertEqual(requests.count, 3, "Save after confirmation cannot duplicate items")
     }
 
+    func testMediaRetryUsesSnapshotAndRemovesTemporaryFiles() async throws {
+        let original = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: original) }
+        try Data([1, 2, 3]).write(to: original)
+        var files: [URL] = []
+        let store = BoxDropStore { upload, _ in
+            let media = try XCTUnwrap(upload.media)
+            files.append(media.fileURL)
+            XCTAssertEqual(media.contentType, "image/png")
+            XCTAssertEqual(try Data(contentsOf: media.fileURL), Data([1, 2, 3]))
+            if files.count == 1 { throw TestError.rejected }
+        }
+        await store.prepare([.file(original)])
+        try Data([9]).write(to: original)
+        await store.save()
+        XCTAssertEqual(store.phase, .failed)
+        XCTAssertEqual(files.count, 1)
+        let first = try XCTUnwrap(files.first)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: first.path))
+        await store.save()
+        XCTAssertEqual(store.phase, .saved)
+        XCTAssertEqual(files.count, 2)
+        XCTAssertTrue(files.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
+
     func testNoteLimitBlocksUploadAndAllowsCorrection() async {
         var calls = 0
-        let store = BoxDropStore { _, _, _ in calls += 1 }
+        let store = BoxDropStore { _, _ in calls += 1 }
         await store.prepare([.text("reference")])
         store.note = String(repeating: "界", count: 6000)
         await store.save()

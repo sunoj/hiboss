@@ -9,7 +9,7 @@ import HibossKit
 @MainActor
 final class BoxDropStore: ObservableObject {
     enum Phase: Equatable { case loading, ready, uploading, failed, rejected, saved }
-    typealias Sender = @MainActor (BoxCreate, BoxUpload?, String) async throws -> Void
+    typealias Sender = @MainActor (BoxUpload, String) async throws -> Void
 
     @Published private(set) var phase: Phase = .loading
     @Published var note = ""
@@ -43,6 +43,18 @@ final class BoxDropStore: ObservableObject {
 
     var noteLocked: Bool { savedNote != nil || phase != .ready }
 
+    private func upload(_ payload: BoxDropPayload, key: String) async throws {
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        var media: BoxUpload.Media?
+        if let snapshot = payload.upload {
+            try snapshot.data.write(to: fileURL, options: .atomic)
+            media = BoxUpload.Media(fileURL: fileURL, contentType: snapshot.mediaType)
+        }
+        try await send(BoxUpload(text: payload.text, url: payload.url,
+            note: savedNote?.isEmpty == false ? savedNote : nil, source: .macDrop, media: media), key)
+    }
+
     func save() async {
         guard phase == .ready || phase == .failed else { return }
         guard note.utf8.count <= 16 * 1024 else {
@@ -55,9 +67,7 @@ final class BoxDropStore: ObservableObject {
         do {
             while completed < payloads.count {
                 let payload = payloads[completed]
-                try await send(BoxCreate(text: payload.text, url: payload.url,
-                    note: savedNote?.isEmpty == false ? savedNote : nil, source: .macDrop),
-                    payload.upload, keys[completed])
+                try await upload(payload, key: keys[completed])
                 completed += 1
             }
             phase = .saved
