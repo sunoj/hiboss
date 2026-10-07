@@ -29,6 +29,39 @@ final class SettingsPreferencesTests: XCTestCase {
         XCTAssertTrue(store.didSave)
     }
 
+    func testConnectionChangeDropsTheDraftAndTheOldAPI() async {
+        let old = ControlledPreferencesAPI()
+        let store = PreferencesStore()
+        await store.load(api: old)
+        store.setPrivatePush(true)
+        store.connectionDidChange()
+        let new = ControlledPreferencesAPI()
+        await store.load(api: new)
+        XCTAssertFalse(store.isDirty, "the previous login's draft must not survive")
+        await store.save()
+        XCTAssertEqual(old.saves, 0, "nothing may be sent with the previous credentials")
+        store.setPrivatePush(true)
+        await store.save()
+        XCTAssertEqual(new.saves, 1)
+        XCTAssertEqual(old.saves, 0)
+    }
+
+    func testASaveInFlightDoesNotLandInTheNextConnection() async {
+        let old = ControlledPreferencesAPI()
+        let store = PreferencesStore()
+        await store.load(api: old)
+        store.setPrivatePush(true)
+        old.pause = true
+        let save = Task { await store.save() }
+        while old.continuation == nil { await Task.yield() }
+        store.connectionDidChange()
+        old.continuation?.resume()
+        await save.value
+        XCTAssertFalse(store.isSaving)
+        XCTAssertFalse(store.didSave, "the old response must not mark the new login saved")
+        XCTAssertFalse(store.hasLoaded)
+    }
+
     func testAnEditDuringSavingRemainsUnsavedAfterTheResponse() async {
         let api = ControlledPreferencesAPI()
         let store = PreferencesStore()
@@ -79,7 +112,10 @@ private final class ControlledPreferencesAPI: BossPreferencesServing {
 
     func fetchPreferences() async throws -> BossPreferences { BossPreferences() }
 
+    var saves = 0
+
     func updatePreferences(_ preferences: BossPreferences) async throws -> BossPreferences {
+        saves += 1
         if pause { await withCheckedContinuation { continuation = $0 } }
         if shouldFail { throw URLError(.notConnectedToInternet) }
         return preferences

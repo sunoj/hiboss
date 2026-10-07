@@ -54,6 +54,7 @@ struct RootView: View {
         .onChange(of: connection.config) { _, config in
             showsClientNotice = config != nil && connection.clientExchangeNotice != nil
             guard !isDemoMode else { return }
+            preferences.connectionDidChange()
             if config != nil, let api = connection.makeAPI() {
                 startConnectedServices(api)
             } else {

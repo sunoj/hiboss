@@ -18,6 +18,9 @@ final class PreferencesStore: ObservableObject {
 
     private var api: (any BossPreferencesServing)?
     private var saved = BossPreferences()
+    /// Bumped on a connection change so a load or save started for the previous login
+    /// cannot write its result into the next one.
+    private var generation = 0
 
     var isDirty: Bool { prefs != saved }
 
@@ -49,19 +52,35 @@ final class PreferencesStore: ObservableObject {
         hasLoaded = true
     }
 
+    /// A different login or server: drop the old API and any unsaved draft, so a save can
+    /// never send the previous account's edits with the previous credentials.
+    func connectionDidChange() {
+        generation += 1
+        api = nil
+        prefs = BossPreferences()
+        saved = BossPreferences()
+        state = .idle
+        isSaving = false
+        hasLoaded = false
+        didSave = false
+    }
+
     func load(api: (any BossPreferencesServing)?) async {
         guard !isDirty, !isSaving else { return }
         guard let api else { state = .unavailable; return }
         self.api = api
         if case .loading = state { return }
         state = .loading
+        let started = generation
         do {
             let loaded = try await api.fetchPreferences()
+            guard started == generation else { return }
             prefs = loaded
             saved = loaded
             state = .loaded
             hasLoaded = true
         } catch {
+            guard started == generation else { return }
             state = .failed(error.localizedDescription)
         }
     }
@@ -71,14 +90,17 @@ final class PreferencesStore: ObservableObject {
         isSaving = true
         didSave = false
         let submitted = prefs
-        defer { isSaving = false }
+        let started = generation
+        defer { if started == generation { isSaving = false } }
         do {
             let stored = try await api.updatePreferences(submitted)
+            guard started == generation else { return }
             if prefs == submitted { prefs = stored }
             saved = stored
             state = .loaded
             didSave = true
         } catch {
+            guard started == generation else { return }
             state = .failed(error.localizedDescription)
         }
     }
