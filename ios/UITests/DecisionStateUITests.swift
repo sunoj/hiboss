@@ -16,13 +16,14 @@ final class DecisionStateUITests: XCTestCase {
     private func launch(_ extra: [String: String] = [:]) {
         app.configureDemoLaunch(extra)
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     private func openSettingsRow(_ title: String) {
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
+        app.buttons["settings-devices"].tap()
         let row = app.buttons[title].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "missing Settings row \(title)")
         row.tap()
@@ -133,7 +134,8 @@ final class DecisionStateUITests: XCTestCase {
     }
 
     func testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale() {
-        launch(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
+        // Initial posts must load during the demo's five-second success window.
+        launch(["HIBOSS_DEMO_REFRESH_FAILS": "1", "HIBOSS_TAB": "progress"])
         let progress = app.tabBars.buttons["Progress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 10))
         progress.tap()

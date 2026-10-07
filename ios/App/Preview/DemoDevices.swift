@@ -13,6 +13,7 @@ enum DemoDevices {
 /// shortens its life so the expired state can be reached in a UI test.
 struct DemoPairingIssuer: PairingIssuing {
     func requestPairingCode() async throws -> PairingGrant {
+        try await DemoSettingsOperation.run("pairing")
         let raw = ProcessInfo.processInfo.environment["HIBOSS_DEMO_PAIRING_TTL"] ?? ""
         let ttl = TimeInterval(raw) ?? 300
         return try PairingGrant(code: "hb_pair_" + String(repeating: "0123456789abcdef", count: 4),
@@ -40,15 +41,21 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
         ),
     ]
 
-    func listPendingJoinRequests() async throws -> [JoinRequest] { requests }
+    func listPendingJoinRequests() async throws -> [JoinRequest] {
+        try await DemoSettingsOperation.run("requests")
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REQUESTS_EMPTY"] == "1" { return [] }
+        return requests
+    }
 
     func approveJoinRequest(id: String) async throws -> JoinApproval {
+        try await DemoSettingsOperation.run("approval")
         requests.removeAll { $0.id == id }
         let json = #"{"id":"\#(id)","status":"approved","agents":[]}"#
         return try JSONDecoder().decode(JoinApproval.self, from: Data(json.utf8))
     }
 
     func rejectJoinRequest(id: String) async throws {
+        try await DemoSettingsOperation.run("approval")
         requests.removeAll { $0.id == id }
     }
 }
@@ -56,6 +63,7 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
 /// One pending Mac sign-in request for any well-formed id; approval returns a fixed code.
 struct DemoSigninAPI: SigninApproving {
     func signinRequest(id: String) async throws -> SigninRequestSummary {
+        try await DemoSettingsOperation.run("signin")
         let expiry = Date().addingTimeInterval(600).ISO8601Format()
         let json = #"{"request_id":"\#(id)","device_label":"Studio MacBook Pro","origin":"NL · Amsterdam","#
             + #""status":"pending","created_at":"\#(Date().ISO8601Format())","expires_at":"\#(expiry)"}"#
@@ -63,9 +71,27 @@ struct DemoSigninAPI: SigninApproving {
     }
 
     func approveSignin(id: String) async throws -> SigninApproval {
+        try await DemoSettingsOperation.run("signin-approval")
         let json = #"{"code":"306142","expires_at":"\#(Date().addingTimeInterval(540).ISO8601Format())"}"#
         return try JSONDecoder().decode(SigninApproval.self, from: Data(json.utf8))
     }
 
-    func rejectSignin(id: String) async throws {}
+    func rejectSignin(id: String) async throws { try await DemoSettingsOperation.run("signin-approval") }
+}
+
+enum DemoSettingsOperation {
+    static func run(_ operation: String) async throws {
+        let environment = ProcessInfo.processInfo.environment
+        let delay = Int(environment["HIBOSS_DEMO_SETTINGS_DELAY_MS"] ?? "") ?? 0
+        let delayedOperation = environment["HIBOSS_DEMO_SETTINGS_DELAY_OPERATION"] ?? ""
+        if delay > 0, delayedOperation.isEmpty || delayedOperation == operation {
+            try await Task.sleep(for: .milliseconds(delay))
+        }
+        let failure = environment["HIBOSS_DEMO_SETTINGS_FAILURE"]
+        if failure == operation { throw URLError(.notConnectedToInternet) }
+        if failure == "pairing-denied", operation == "pairing" {
+            throw HibossAPIError.requestFailed(status: 403, message: "")
+        }
+        if failure == "requests-forbidden", operation == "requests" { throw JoinRequestError.forbidden }
+    }
 }

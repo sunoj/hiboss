@@ -1,4 +1,4 @@
-// Settings tab: connection, notifications, boss preferences, and sign-out.
+// Settings root: five summary rows with native navigation to connection, devices and notifications.
 // Exports: SettingsView bound to the ConnectionStore, rendered as a native Form.
 // Dependencies: SwiftUI, HibossKit, Push/Preferences stores.
 
@@ -23,117 +23,30 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Server", value: connection.config?.serverURL.host() ?? "—")
-                LabeledContent("Status") {
-                    if connection.isConfigured {
-                        Text(verbatim: connectionState.label)
-                    } else {
-                        Text("Not connected").foregroundStyle(.secondary)
-                    }
-                }
-                if connection.isConfigured, case .failed = connectionState {
-                    Button("Reconnect", action: onReconnect)
-                }
-            } header: {
-                Text("Connection")
-            } footer: {
-                if let notice = connection.clientExchangeNotice {
-                    Label { Text(verbatim: notice) } icon: { Image(systemName: "exclamationmark.triangle") }
-                }
-                if let detail = connectionState.detail {
-                    Text(verbatim: detail).foregroundStyle(.red)
-                }
+                connectionLink
+                devicesLink
+                notificationsLink
             }
-
-            if connection.config != nil || isDemoMode {
-                Section {
-                    NavigationLink {
-                        PairDeviceView(config: connection.config)
-                    } label: {
-                        Label("Pair another device", systemImage: "qrcode")
-                    }
-                } footer: {
-                    Text("Show a one-time code that signs in another iPhone or Mac. No token leaves this phone.")
+            Section {
+                NavigationLink {
+                    SettingsAboutView()
+                } label: {
+                    Text("About")
                 }
-                Section {
-                    NavigationLink {
-                        MacSigninView(config: connection.config, api: connection.makeAPI())
-                    } label: {
-                        Label("Sign in a Mac", systemImage: "laptopcomputer.and.iphone")
-                    }
-                } footer: {
-                    Text("Scan the code a Mac shows under Sign in with iPhone, then type the code this iPhone shows on the Mac.")
-                }
-                Section {
-                    NavigationLink {
-                        DeviceRequestsView(model: joinRequests)
-                    } label: {
-                        Label("Device Requests", systemImage: "desktopcomputer.and.arrow.down")
-                    }
-                    .badge(joinRequests.pendingCount)
-                } footer: {
-                    Text("Machines that run hiboss setup with an invite wait here until an admin approves them.")
-                }
-            }
-
-            if let api = connection.makeAPI(), let config = connection.config {
-                BossClientsSection(api: api, kind: .ios, deviceLabel: connection.deviceLabel) { token in
-                    try connection.activateDeviceToken(token, replacing: config)
-                }
-                    .id(connection.config?.bossToken)
-            }
-
-            NotificationsSection(push: push)
-
-            if prefs.state != .unavailable {
-                RoutingSection(store: prefs)
-                QuietHoursSection(store: prefs)
-                PushTieringSection(store: prefs)
-                Section {
-                    Toggle("Private Notifications", isOn: Binding(
-                        get: { prefs.privatePush },
-                        set: { prefs.setPrivatePush($0) }
-                    ))
-                    Toggle("Alert on decisions", isOn: Binding(
-                        get: { prefs.decisionAlerts },
-                        set: {
-                            prefs.setDecisionAlerts($0)
-                            onDecisionAlertsChanged($0)
-                        }
-                    ))
-                } footer: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Keep message content off Apple's servers: pushes show only a generic alert, and the app fetches the body from your server when opened.")
-                        Text("Requests that need a decision light up the Dynamic Island and lock screen even at normal priority. Turn off to let them follow normal priority tiering.")
-                    }
-                }
-                preferencesStatus
-            }
-
-            if prefs.isDirty {
-                Section {
-                    Button {
-                        Task { await prefs.save() }
-                    } label: {
-                        HStack {
-                            if prefs.isSaving { ProgressView() }
-                            Text(prefs.isSaving ? String(localized: "Saving…") : String(localized: "Save Changes"))
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .disabled(prefs.isSaving)
-                }
+                .accessibilityIdentifier("settings-about")
             }
 
             Section {
                 Button("Sign Out", role: .destructive) { confirmsSignOut = true }
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("settings-sign-out")
-                    // Signing out deletes this phone's token; getting back in needs another device or a Boss Token.
-                    .confirmationDialog("Sign out of HiBoss?", isPresented: $confirmsSignOut, titleVisibility: .visible) {
+                    // Signing out deletes this phone's token; returning needs another device or a Boss Token.
+                    .confirmationDialog("Sign out of HiBoss?", isPresented: $confirmsSignOut,
+                                        titleVisibility: .visible) {
                         Button("Sign Out", role: .destructive) { connection.signOut() }
                     } message: {
-                        Text("This iPhone forgets its device token and signing key. To sign in again, pair it from another device or enter a Boss Token.")
+                        Text("This iPhone forgets its device token and signing key.")
+                            + Text(" To sign in again, pair it from another device or enter a Boss Token.")
                     }
             }
         }
@@ -157,57 +70,47 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
-    private var preferencesStatus: some View {
-        switch prefs.state {
-        case .loading:
-            Section { Label("Loading preferences…", systemImage: "arrow.clockwise").foregroundStyle(.secondary) }
-        case let .failed(message):
-            Section { Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red) }
-        default:
-            EmptyView()
+    private var connectionLink: some View {
+        NavigationLink {
+            SettingsConnectionView(connection: connection, connectionState: connectionState,
+                                   onReconnect: onReconnect)
+        } label: {
+            SettingsConnectionSummary(
+                server: connection.config?.serverURL.host() ?? (isDemoMode
+                    ? String(localized: "Sample server") : String(localized: "Sign in to connect")),
+                status: connection.isConfigured || isDemoMode
+                    ? connectionState.label : String(localized: "Not connected")
+            )
         }
+        .accessibilityIdentifier("settings-connection")
     }
-}
 
-private struct NotificationsSection: View {
-    @ObservedObject var push: PushStatusStore
-    @ObservedObject private var manager = PushManager.shared
+    private var devicesLink: some View {
+        NavigationLink {
+            SettingsDevicesView(connection: connection, joinRequests: joinRequests)
+        } label: {
+            Text("Devices")
+        }
+        .badge(joinRequests.pendingCount)
+        .accessibilityValue(Text("\(joinRequests.pendingCount) pending"))
+        .accessibilityIdentifier("settings-devices")
+    }
 
-    var body: some View {
-        Section("Notifications") {
-            LabeledContent("Push") {
-                Text(verbatim: push.label).foregroundStyle(push.isEnabled ? .green : .secondary)
-            }
-            // OS authorization ≠ the server actually has a live device token; show
-            // the registration result so "Enabled" can't hide a device that
-            // receives nothing.
-            if push.isEnabled {
-                LabeledContent("Device") { deviceStatus }
-            }
-            if !push.isEnabled {
-                Button(actionTitle) {
-                    if push.mustOpenSystemSettings { push.openSystemSettings() } else { push.request() }
+    private var notificationsLink: some View {
+        NavigationLink {
+            SettingsNotificationsView(store: prefs, push: push, api: connection.makeAPI(),
+                                      onDecisionAlertsChanged: onDecisionAlertsChanged)
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Notifications")
+                Text(verbatim: prefs.isDirty ? String(localized: "Unsaved changes") : push.label)
+                    .font(.subheadline).foregroundStyle(Theme.ink2)
+                if prefs.hasLoaded, prefs.quietHours.enabled {
+                    Text("Quiet hours \(prefs.quietHours.start)–\(prefs.quietHours.end)")
+                        .font(.subheadline).foregroundStyle(Theme.ink2)
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private var deviceStatus: some View {
-        switch manager.registration {
-        case .idle:
-            Text("Not registered").foregroundStyle(.secondary)
-        case .registering:
-            HStack(spacing: 6) { ProgressView(); Text("Registering…").foregroundStyle(.secondary) }
-        case .registered:
-            Label("Registered", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-        case let .failed(message):
-            Label(message, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-        }
-    }
-
-    private var actionTitle: String {
-        push.mustOpenSystemSettings ? String(localized: "Open Settings to Enable") : String(localized: "Enable Notifications")
+        .accessibilityIdentifier("settings-notifications")
     }
 }

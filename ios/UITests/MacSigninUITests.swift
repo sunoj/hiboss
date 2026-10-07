@@ -17,10 +17,11 @@ final class MacSigninUITests: XCTestCase {
         let link = "hiboss://signin?server=\(server)&request=\(requestID)"
         app.configureDemoLaunch(["HIBOSS_DEMO_SIGNIN_SCAN": link])
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
+        app.launchConfiguredDemo()
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
+        app.buttons["settings-devices"].tap()
         let row = app.buttons["Sign in a Mac"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()
