@@ -116,7 +116,7 @@ final class IslandPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
-        panel.contentView = NSHostingView(rootView: IslandView(flow: flow, reply: reply))
+        panel.contentView = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
     }
 
     /// The rounded surface is drawn in SwiftUI, so the window itself must be transparent.
@@ -183,7 +183,7 @@ final class IslandPanelController {
         mode: OptionPresentationMode
     ) {
         guard let message else {
-            hideIsland()
+            if mode == .island { showDropTarget() } else { panel.orderOut(nil) }
             optionWindow.orderOut(nil)
             return
         }
@@ -226,31 +226,28 @@ final class IslandPanelController {
         optionWindow.makeKeyAndOrderFront(nil)
     }
 
-    private func hideIsland() {
-        guard panel.isVisible else { return }
+    private func showDropTarget() {
         let collapsed = frame(
             on: targetScreen,
             width: AppConstants.Island.collapsedWidth,
             height: AppConstants.Island.collapsedHeight
         )
+        if !panel.isVisible { panel.setFrame(collapsed, display: false) }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = AppConstants.Island.animationDuration * 0.7
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().setFrame(collapsed, display: true)
-            panel.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
-            Task { @MainActor in
-                guard let self,
-                      self.flow.activeMessage == nil
-                        || self.settings.presentationMode != .island else { return }
-                self.panel.orderOut(nil)
-            }
+            panel.animator().alphaValue = 1
         }
+        panel.orderFrontRegardless()
     }
 
     private func reposition() {
-        guard settings.presentationMode == .island,
-              let message = flow.activeMessage else { return }
+        guard settings.presentationMode == .island else { return }
+        guard let message = flow.activeMessage else {
+            showDropTarget()
+            return
+        }
         let height = expandedHeight(for: message)
         panel.setFrame(
             frame(on: targetScreen, width: AppConstants.Island.width, height: height),
