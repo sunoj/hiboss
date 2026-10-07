@@ -51,8 +51,9 @@ Reading options or comparing option images does not require tapping.
 3. **Home spends space repeating its job.**
    `ios/App/Home/HomeAttentionRow.swift:73` has a title, a count subtitle and group
    headings before the question. Baseline `xxl-01-home` shows the cost at accessibility L.
-   Keep the count and meaningful deadline group, but use a smaller semantic title and
-   remove repeated contextual prose from each attention row (full context stays in detail).
+   Keep the count, meaningful deadline group and decision context, but use a smaller
+   semantic title. The attention contract requires the content subtitle on the row;
+   reducing reading must not hide information needed to choose safely.
 4. **Loaded empty data can mask an unhealthy stream.**
    `ios/App/Home/HomeView.swift:101` checks fetch coverage but not `connectionState`.
    The all-clear invariant must explicitly require a connected stream. Cached requests
@@ -105,7 +106,7 @@ Home's panel sheet; join requests open their review sheet over the current tab.
 | Separate Messages and Sessions tabs | Merged into Activity; no data capability removed |
 | SessionsView | Deleted; session list belongs to Activity |
 | Decorative session tiles and message/branch counts | Removed from summaries; transcript/detail retain context |
-| Repeated Home request subtitle | Moved to message detail |
+| Home request subtitle | Retained beside the question, as required by the attention contract |
 | Request's session context | Direct link on Home; existing detail link retained |
 | Options, custom replies, option images | Home options/images; full reply composer in detail |
 | Transcripts and in-transcript decisions | Activity session destination and Home session links |
