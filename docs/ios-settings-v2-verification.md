@@ -8,8 +8,9 @@ startup remedy.
 All builds and tests ran locally on `HiBoss-UX-17`, an iPhone 17 simulator
 running iOS 27.0. There was no remote build HEAD. Baseline runs used `8bafbf1`
 with screenshot-test additions; implementation iterations used `93685a0` plus
-uncommitted changes. Only a run against the final committed source establishes
-the final suite result.
+uncommitted changes. Follow-up iterations used `3646f74` plus uncommitted changes.
+The final suite ran on clean, committed source at
+`c83d58cbc0ff31d41db4c903ea437307825079e9`.
 
 ## Iteration results
 
@@ -39,6 +40,7 @@ Result bundles and command-header logs use the prefix
 | permission-red2 | 1 | 1 expected | Old permission wait detected; corrected Progress test passed |
 | permission-green | 0 | 1 startup error | Canceled host with no XCTest library loaded |
 | permission-green2 | 10 | 0 | Nine Settings unit tests and the Progress refresh UI test |
+| final-full | 237 | 0 | `c83d58c`; 168 unit tests and 69 UI tests, without retries |
 
 The canceled runs report a synthetic “Testing was canceled” failure in
 xcresult, rather than an executed failing test. Stack samples of the two
@@ -162,8 +164,7 @@ security-guard artifact "$OUT-after/dd/Build/Products/Debug-iphonesimulator/HiBo
 
 The localization audit, shell syntax check and diff check pass. All 60 added
 localization keys have both English and Simplified Chinese values. The artifact
-scan passed with zero findings. Final staged/artifact checks and full-suite
-counts are recorded after the implementation commit.
+scan passed with zero findings. Final checks and full-suite counts follow below.
 
 ## Full-suite follow-up
 
@@ -198,3 +199,34 @@ ios/scripts/settings-tests.sh "$OUT-permission-green" HiBoss-UX-17 \
   -only-testing:$UI/DecisionStateUITests/testFailedProgressRefreshKeepsPostsAndSaysTheyAreStale
 # Repeated as OUT-permission-green2 after the canceled startup.
 ```
+
+## Final verification
+
+The final full suite passed on
+`c83d58cbc0ff31d41db4c903ea437307825079e9`: 237 passed, zero failed,
+zero skipped and zero retries. The log records 168 unit tests and 69 UI tests.
+Only `UXTourUITests` was excluded; the four Settings tour cases ran in this suite.
+The known copy-link and media-viewer flakes passed on their first attempts.
+
+Exact final command, from the repository root:
+
+```sh
+ios/scripts/settings-tests.sh /private/tmp/hiboss-settings-final-full HiBoss-UX-17 \
+  -skip-testing:HiBossUITests/UXTourUITests \
+  -retry-tests-on-failure -test-iterations 2
+xcrun xcresulttool get test-results summary \
+  --path /private/tmp/hiboss-settings-final-full.xcresult
+python3 ios/scripts/i18n-audit.py
+bash -n ios/scripts/ux-tour.sh ios/scripts/settings-tests.sh
+git diff --check
+security-guard artifact \
+  /private/tmp/hiboss-settings-v2-dd/Build/Products/Debug-iphonesimulator/HiBoss.app \
+  --repo "$PWD"
+security-guard staged --repo "$PWD"
+git status --porcelain
+```
+
+The result bundle is `/private/tmp/hiboss-settings-final-full.xcresult`.
+Its `.head`, `.command` and `.log` siblings retain the tested commit and invocation.
+Localization, shell syntax and diff checks passed; artifact and staged scans had
+zero findings. The final documentation commit changes no executable source.
