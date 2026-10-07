@@ -16,7 +16,8 @@ function respond(c: BoxContext, rows: (BoxRow & { score?: number })[], limit: nu
   return c.json({ items: visible.map(row => {
     const { score, ...item } = row;
     return itemResponse(item);
-  }), next_cursor: cursor });
+  }), next_cursor: cursor === null ? null
+    : btoa(JSON.stringify(cursor)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '') });
 }
 
 export async function boxList(c: BoxContext): Promise<Response> {

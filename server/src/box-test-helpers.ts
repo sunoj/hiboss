@@ -4,13 +4,13 @@ import { env, SELF } from 'cloudflare:test';
 import { expect } from 'vitest';
 import migration from '../migrations/0050_box_items.sql?raw';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
-import type { BoxRow, BoxCursor } from './box/types';
+import type { BoxItem } from './box/types';
 
 export const OWNER = 'box-owner';
 export const OTHER = 'box-other';
 export const ADMIN = 'box-admin';
-export type Item = Omit<BoxRow, 'tags'> & { tags: string[] };
-export interface Page { items: Item[]; next_cursor: BoxCursor | null }
+export type Item = BoxItem;
+export interface Page { items: Item[]; next_cursor: string | null }
 
 export async function seedBox(): Promise<void> {
   await seedDatabase();

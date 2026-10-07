@@ -5,9 +5,14 @@ import { KINDS, type BoxContext, type BoxCursor, type BoxFilter } from './types'
 import { boxBossIds } from './access';
 
 function cursor(value: string | undefined): BoxCursor | null {
-  if (!value) return null;
+  if (value === undefined) return null;
   try {
-    const parsed: unknown = JSON.parse(value);
+    if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('invalid base64url');
+    const json = atob(value.replaceAll('-', '+').replaceAll('_', '/'));
+    if (btoa(json).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '') !== value) {
+      throw new Error('invalid base64url');
+    }
+    const parsed: unknown = JSON.parse(json);
     if (parsed && typeof parsed === 'object' && 'created_at' in parsed && 'id' in parsed
       && typeof parsed.created_at === 'string' && typeof parsed.id === 'string'
       && Number.isFinite(Date.parse(parsed.created_at)) && parsed.id

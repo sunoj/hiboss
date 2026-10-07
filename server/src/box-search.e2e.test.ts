@@ -22,8 +22,8 @@ it('filters lists by kind, since, project and boss with stable recency cursors',
   const query = '?kind=text&project=filter&boss=Box%20Owner&since=2024-01-02T00:00:00Z&limit=1';
   const one = await page(query, 'agent');
   expect(one.items.map(item => item.id)).toEqual([third.id]);
-  expect(one.next_cursor).toMatchObject({ id: third.id, created_at: third.created_at });
-  const two = await page(`${query}&cursor=${encodeURIComponent(JSON.stringify(one.next_cursor))}`, 'agent');
+  expect(one.next_cursor).toMatch(/^[A-Za-z0-9_-]+$/);
+  const two = await page(`${query}&cursor=${one.next_cursor}`, 'agent');
   expect(two.items.map(item => item.id)).toEqual([second.id]);
   expect(two.next_cursor).toBeNull();
   const all = await page('?kind=text&project=filter');
@@ -34,12 +34,13 @@ it('filters lists by kind, since, project and boss with stable recency cursors',
 
 it('breaks equal timestamp ties by id and caps list limits at 100', async () => {
   const date = '2024-01-01T00:00:00.000Z';
-  const items = await Promise.all([dated('one', date), dated('two', date), dated('three', date)]);
+  const items = await Promise.all(['one', 'two', 'three'].map(text => dated(text, date, 'ties')));
   const sorted = items.map(item => item.id).sort().reverse();
-  const first = await page('?limit=2');
+  const first = await page('?project=ties&limit=2');
   expect(first.items.map(item => item.id)).toEqual(sorted.slice(0, 2));
-  const second = await page(`?limit=2&cursor=${encodeURIComponent(JSON.stringify(first.next_cursor))}`);
+  const second = await page(`?project=ties&limit=2&cursor=${first.next_cursor}`);
   expect(second.items.map(item => item.id)).toEqual(sorted.slice(2));
+  expect(second.next_cursor).toBeNull();
   const many = Array.from({ length: 102 }, (_, n) => env.DB.prepare(`INSERT INTO box_items
     (id, boss_id, kind, text, source, created_at) VALUES (?, ?, 'text', 'cap', 'cli', ?)`)
     .bind(`bx_limit_${n}`, OWNER, date));
@@ -56,6 +57,21 @@ it('returns the newest matching item and 404 for an empty latest result', async 
   expect((await request('/latest?kind=video')).status).toBe(404);
 });
 
+it('rejects raw JSON, malformed base64url and invalid cursor payloads', async () => {
+  const raw = JSON.stringify({ created_at: '2024-01-01T00:00:00.000Z', id: 'bx_cursor' });
+  const encoded = btoa(raw).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+  const invalid = ['', raw, `${encoded}=`, `${encoded}+`, 'a', btoa('not json'),
+    btoa('{}'), btoa(JSON.stringify({ created_at: 'bad', id: 'bx_cursor' })),
+    btoa(JSON.stringify({ created_at: '2024-01-01T00:00:00.000Z', id: '', score: 'bad' }))];
+  for (const value of invalid) {
+    for (const path of ['', '/search?q=needle']) {
+      expect((await request(`${path}${path ? '&' : '?'}cursor=${encodeURIComponent(value)}`)).status)
+        .toBe(400);
+    }
+  }
+  expect((await request(`/search?q=needle&cursor=${encoded}`)).status).toBe(400);
+});
+
 it('ranks FTS matches and applies every list filter before ranked pagination', async () => {
   const best = await dated('rankingneedle rankingneedle rankingneedle', '2024-01-02T00:00:00.000Z');
   const weak = await dated('rankingneedle with many additional words diluting this match',
@@ -68,8 +84,8 @@ it('ranks FTS matches and applies every list filter before ranked pagination', a
     + '&since=2024-01-01T00:00:00Z&limit=1';
   const first = await page(query, 'agent');
   expect(first.items.map(item => item.id)).toEqual([best.id]);
-  expect(first.next_cursor?.score).toBeTypeOf('number');
-  const cursor = encodeURIComponent(JSON.stringify(first.next_cursor));
+  expect(first.next_cursor).toMatch(/^[A-Za-z0-9_-]+$/);
+  const cursor = first.next_cursor;
   const second = await page(`${query}&cursor=${cursor}`, 'agent');
   expect(second.items.map(item => item.id)).toEqual([weak.id]);
   expect(second.next_cursor).toBeNull();
@@ -97,7 +113,7 @@ it('paginates equal-ranked results without repeats and hides deleted search entr
   const first = await page('/search?q=tieneedle&limit=1');
   expect(first.items[0].id).toBe(sorted[0]);
   const next = await page('/search?q=tieneedle&limit=1&cursor='
-    + encodeURIComponent(JSON.stringify(first.next_cursor)));
+    + first.next_cursor);
   expect(next.items[0].id).toBe(sorted[1]);
   expect(next.next_cursor).toBeNull();
   expect((await request(`/${sorted[0]}`, 'DELETE')).status).toBe(204);

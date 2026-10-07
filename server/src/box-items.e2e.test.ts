@@ -4,6 +4,7 @@ import { env } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { ADMIN, OWNER, OTHER, create, page, request, seedBox, upload, type Item } from './box-test-helpers';
 import { getTestAgentId } from './test-helpers';
+import type { BoxRow } from './box/types';
 
 beforeAll(seedBox);
 
@@ -11,7 +12,7 @@ it('creates JSON link and text items with owner identity and supplied metadata',
   const url = 'https://example.invalid/reference?verbatim=%2F';
   const link = await create({ url, text: 'title', note: 'use this', tags: ['layout'], source: 'mac-share' });
   expect(link).toMatchObject({ kind: 'link', url, text: 'title', boss_id: OWNER,
-    boss_name: 'Box Owner', tags: ['layout'], media_key: null, source: 'mac-share' });
+    boss_name: 'Box Owner', tags: ['layout'], has_media: false, source: 'mac-share' });
   expect(link.id).toMatch(/^bx_[a-f0-9]+$/);
   const text = await create({ text: 'a passage', project: 'design', source: 'cli' });
   expect(text).toMatchObject({ kind: 'text', text: 'a passage', project: 'design', url: null });
@@ -22,8 +23,10 @@ it('creates private multipart media and serves correctly ranged bytes', async ()
   expect(response.status).toBe(201);
   const item = await response.json() as Item;
   expect(item).toMatchObject({ kind: 'image', media_bytes: 10, media_type: 'image/png',
-    width: 2, height: 5, boss_id: OWNER, boss_name: 'Box Owner' });
-  expect(item.media_key).toBe(`box/${OWNER}/${item.id}`);
+    width: 2, height: 5, boss_id: OWNER, boss_name: 'Box Owner', has_media: true });
+  expect(item).not.toHaveProperty('media_key');
+  expect(item).not.toHaveProperty('deleted_at');
+  expect(await env.ATTACHMENTS.head(`box/${OWNER}/${item.id}`)).not.toBeNull();
   const media = await request(`/${item.id}/media`, 'GET', undefined, 'agent', { Range: 'bytes=2-5' });
   expect(media.status).toBe(206);
   expect(media.headers.get('Content-Range')).toBe('bytes 2-5/10');
@@ -33,6 +36,38 @@ it('creates private multipart media and serves correctly ranged bytes', async ()
   expect(head.status).toBe(200);
   expect(head.headers.get('Content-Length')).toBe('10');
   expect(await head.text()).toBe('');
+});
+
+it('keeps every public field across item responses and replaces storage fields with has_media', async () => {
+  for (const media of [false, true]) {
+    const key = `response-${media}`;
+    const meta = { text: 'responseneedle', project: key, tags: ['reference'], note: 'caption' };
+    const created = media ? await upload('image/png', 3, meta, OWNER, key)
+      : await request('', 'POST', meta, OWNER, { 'Idempotency-Key': key });
+    expect(created.status).toBe(201);
+    const item = await created.json() as Item;
+    const row = await env.DB.prepare(`SELECT i.*, b.name AS boss_name FROM box_items i
+      JOIN bosses b ON b.id = i.boss_id WHERE i.id = ?`).bind(item.id).first<BoxRow>();
+    expect(row).not.toBeNull();
+    if (!row) throw new Error('created item missing');
+    const { media_key, deleted_at, ...stored } = row;
+    const expected = { ...stored, tags: ['reference'], has_media: media };
+    expect(item).toEqual(expected);
+    const replay = await request('', 'POST', { text: 'ignored' }, OWNER, { 'Idempotency-Key': key });
+    expect(replay.status).toBe(201);
+    expect(await replay.json()).toEqual(expected);
+    for (const path of [`/${item.id}`, `/latest?project=${key}`]) {
+      const response = await request(path);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual(expected);
+    }
+    for (const path of [`?project=${key}`, `/search?q=responseneedle&project=${key}`]) {
+      expect((await page(path)).items).toEqual([expected]);
+    }
+    const patched = await request(`/${item.id}`, 'PATCH', { note: 'edited' });
+    expect(patched.status).toBe(200);
+    expect(await patched.json()).toEqual({ ...expected, note: 'edited' });
+  }
 });
 
 it.each(['text', 'note'])('enforces the 16 KB %s byte limit with 413', async field => {
@@ -153,10 +188,10 @@ it('hides soft-deleted items everywhere and purges the row and private object', 
   const latest = await request('/latest?kind=image');
   if (latest.status === 200) expect((await latest.json() as Item).id).not.toBe(item.id);
   else expect(latest.status).toBe(404);
-  expect(await env.ATTACHMENTS.head(item.media_key ?? '')).not.toBeNull();
+  expect(await env.ATTACHMENTS.head(`box/${OWNER}/${item.id}`)).not.toBeNull();
   expect((await request(`/${item.id}?purge=1`, 'DELETE')).status).toBe(204);
   expect(await env.DB.prepare('SELECT id FROM box_items WHERE id = ?').bind(item.id).first()).toBeNull();
-  expect(await env.ATTACHMENTS.head(item.media_key ?? '')).toBeNull();
+  expect(await env.ATTACHMENTS.head(`box/${OWNER}/${item.id}`)).toBeNull();
   expect((await upload('image/png', 6, {}, OWNER, 'delete-retry')).status).toBe(404);
 });
 

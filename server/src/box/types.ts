@@ -34,6 +34,9 @@ export interface BoxRow extends Omit<BoxMetadata, 'tags'> {
   deleted_at: string | null;
 }
 
+export type BoxItem = Omit<BoxRow, 'tags' | 'media_key' | 'deleted_at'>
+  & { tags: string[]; has_media: boolean };
+
 export interface BoxUpload {
   meta: BoxMetadata;
   kind: BoxKind;
@@ -53,6 +56,7 @@ export interface BoxFilter {
   cursor: BoxCursor | null;
 }
 
-export function itemResponse(row: BoxRow): Omit<BoxRow, 'tags'> & { tags: string[] } {
-  return { ...row, tags: JSON.parse(row.tags) as string[] };
+export function itemResponse(row: BoxRow): BoxItem {
+  const { media_key, deleted_at, ...item } = row;
+  return { ...item, tags: JSON.parse(row.tags) as string[], has_media: media_key !== null };
 }
