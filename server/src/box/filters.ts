@@ -53,7 +53,8 @@ export async function boxFilter(c: BoxContext): Promise<BoxFilter> {
   if (!Number.isInteger(requested) || requested <= 0) {
     throw new HTTPException(400, { message: 'invalid limit' });
   }
-  return { sql: clauses.join(' AND '), binds, limit: Math.min(requested, 100), cursor: cursor(params.cursor) };
+  return { sql: clauses.join(' AND '), binds, limit: Math.min(requested, 100),
+    cursor: cursor(params.cursor) };
 }
 
 export function recencyCursor(filter: BoxFilter): void {

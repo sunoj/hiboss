@@ -87,7 +87,8 @@ export async function parseUpload(c: BoxContext): Promise<BoxUpload> {
   return { meta, file, kind };
 }
 
-export async function parsePatch(c: BoxContext): Promise<Partial<Pick<BoxMetadata, 'note' | 'tags' | 'project'>>> {
+export async function parsePatch(c: BoxContext):
+  Promise<Partial<Pick<BoxMetadata, 'note' | 'tags' | 'project'>>> {
   let value: unknown;
   try { value = await c.req.json<unknown>(); }
   catch { throw new HTTPException(400, { message: 'invalid JSON body' }); }

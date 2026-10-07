@@ -4,7 +4,8 @@ import { getBossId } from '../middleware/auth';
 import { boxBossIds } from './access';
 import type { BoxContext, BoxRow, BoxUpload, BoxMetadata } from './types';
 
-export const BOX_SELECT = 'SELECT i.*, b.name AS boss_name FROM box_items i JOIN bosses b ON b.id = i.boss_id';
+export const BOX_SELECT = 'SELECT i.*, b.name AS boss_name FROM box_items i '
+  + 'JOIN bosses b ON b.id = i.boss_id';
 
 export async function findItem(c: BoxContext, id: string, includeDeleted = false): Promise<BoxRow | null> {
   const ids = await boxBossIds(c);
@@ -27,7 +28,8 @@ function insertItem(c: BoxContext, upload: BoxUpload, id: string, mediaKey: stri
     mediaKey, file ? file.type || 'application/octet-stream' : null, file?.size ?? null,
     file ? meta.width : null, file ? meta.height : null, file ? meta.duration_ms : null,
     meta.project, JSON.stringify(meta.tags), meta.source, new Date().toISOString()];
-  const guard = key ? ' WHERE NOT EXISTS (SELECT 1 FROM box_idempotency WHERE boss_id = ? AND idempotency_key = ?)' : '';
+  const guard = key ? ' WHERE NOT EXISTS (SELECT 1 FROM box_idempotency '
+    + 'WHERE boss_id = ? AND idempotency_key = ?)' : '';
   if (key) binds.push(getBossId(c), key);
   return c.env.DB.prepare(`INSERT INTO box_items
     (id, boss_id, kind, text, url, note, media_key, media_type, media_bytes, width, height,
@@ -35,7 +37,8 @@ function insertItem(c: BoxContext, upload: BoxUpload, id: string, mediaKey: stri
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${guard}`).bind(...binds);
 }
 
-export async function createItem(c: BoxContext, upload: BoxUpload, key: string | undefined): Promise<BoxRow | null> {
+export async function createItem(c: BoxContext, upload: BoxUpload,
+  key: string | undefined): Promise<BoxRow | null> {
   const id = `bx_${crypto.randomUUID().replaceAll('-', '')}`;
   const mediaKey = upload.file ? `box/${getBossId(c)}/${id}` : null;
   if (upload.file && mediaKey) {

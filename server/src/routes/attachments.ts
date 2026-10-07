@@ -12,6 +12,14 @@ const FIFTY_MB = 50 * 1024 * 1024;
 const routes = new Hono<{ Bindings: Env }>({});
 type AttachmentBody = Parameters<Env['ATTACHMENTS']['put']>[1];
 
+routes.on(['GET', 'HEAD'], '*', async (c, next) => {
+  let key: string;
+  try { key = decodeURIComponent(c.req.path.slice('/api/attachments/'.length)); }
+  catch { return c.text('not found', 404); }
+  if (key.startsWith('box/')) return c.text('not found', 404);
+  return next();
+});
+
 interface AttachmentMetadata {
   httpMetadata: { contentType: string };
   customMetadata: Record<string, string>;
@@ -118,7 +126,6 @@ routes.post('/upload', apiAuth, async (c) => {
 
 routes.on(['GET', 'HEAD'], '/:key', (c) => {
   const key = c.req.param('key');
-  if (key.startsWith('box/')) return c.text('not found', 404);
   return serveAttachment(c.req.raw, c.env.ATTACHMENTS, key);
 });
 

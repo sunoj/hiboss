@@ -44,8 +44,10 @@ def declarations(document: str) -> list[tuple[int, int, str]]:
             start = match.start()
         if token == ';' and start is not None:
             sql = document[start:match.end()]
+            if not sqlite3.complete_statement(sql):
+                continue
             words = normalize(sql).split()
-            offset = 3 if words[1] == 'unique' else 2
+            offset = 3 if words[1] in ('unique', 'virtual') else 2
             result.append((start, match.end(), words[offset]))
             start = None
     return result
@@ -53,6 +55,11 @@ def declarations(document: str) -> list[tuple[int, int, str]]:
 
 def regenerated(document: str, rows: list[SchemaRow], version: str) -> str:
     expected = {name: sql for _, name, _, sql in rows if sql is not None}
+    virtual_tables = [name for name, sql in expected.items()
+                      if normalize(sql).startswith('create virtual table ')]
+    for name in virtual_tables:
+        for suffix in ('data', 'idx', 'content', 'docsize', 'config'):
+            expected.pop(f'{name}_{suffix}', None)
     replacements: list[tuple[int, int, str]] = []
     for start, end, name in declarations(document):
         sql = expected.pop(name, None)
