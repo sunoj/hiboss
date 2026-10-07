@@ -64,6 +64,26 @@ final class BoxDropPopoverTests: XCTestCase {
         XCTAssertTrue(store.payloads.isEmpty)
     }
 
+    func testNativeDragCallbacksAcceptCopyAndDeliverOneDrop() async throws {
+        let controller = try controller()
+        defer { controller.panel.close() }
+        let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
+        defer { host.popover.close() }
+        let pasteboard = NSPasteboard(name: .init(UUID().uuidString))
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.setString("A dragged passage", forType: .string)
+        let drag = DropDraggingInfo(pasteboard: pasteboard)
+        XCTAssertEqual(host.draggingEntered(drag), .copy)
+        XCTAssertEqual(host.draggingUpdated(drag), .copy)
+        XCTAssertTrue(host.prepareForDragOperation(drag))
+        XCTAssertTrue(host.performDragOperation(drag))
+        let store = try XCTUnwrap(host.dropStore)
+        try await waitForCondition { store.phase == .ready }
+        XCTAssertEqual(store.payloads.first?.text, "A dragged passage")
+        XCTAssertEqual(host.draggingEntered(drag), [])
+        XCTAssertFalse(host.performDragOperation(drag))
+    }
+
     func testPopoverRendersNativeNoteAndSaveCancelControls() async throws {
         let store = BoxDropStore { _, _, _ in }
         await store.prepare([.text("https://example.com/reference"), .text("A passage to keep")])
@@ -101,4 +121,33 @@ final class BoxDropPopoverTests: XCTestCase {
 private struct DropNoTokenStore: TokenStoring {
     func read() throws -> String? { nil }
     func write(_ token: String) throws {}
+}
+
+@MainActor
+private final class DropDraggingInfo: NSObject, NSDraggingInfo {
+    let draggingPasteboard: NSPasteboard
+    var draggingDestinationWindow: NSWindow? { nil }
+    var draggingSourceOperationMask: NSDragOperation { .copy }
+    var draggingLocation: NSPoint { .zero }
+    var draggedImageLocation: NSPoint { .zero }
+    nonisolated var draggedImage: NSImage? { nil }
+    var draggingSource: Any? { nil }
+    var draggingSequenceNumber: Int { 1 }
+    var draggingFormation: NSDraggingFormation = .default
+    var animatesToDestination = false
+    var numberOfValidItemsForDrop = 1
+    var springLoadingHighlight: NSSpringLoadingHighlight { .none }
+
+    init(pasteboard: NSPasteboard) { draggingPasteboard = pasteboard }
+
+    func slideDraggedImage(to screenPoint: NSPoint) {}
+    nonisolated override func namesOfPromisedFilesDropped(atDestination dropDestination: URL) -> [String]? {
+        nil
+    }
+    func resetSpringLoading() {}
+    func enumerateDraggingItems(
+        options enumOpts: NSDraggingItemEnumerationOptions, for view: NSView?, classes classArray: [AnyClass],
+        searchOptions: [NSPasteboard.ReadingOptionKey: Any],
+        using block: (NSDraggingItem, Int, UnsafeMutablePointer<ObjCBool>) -> Void
+    ) {}
 }
