@@ -142,7 +142,7 @@ struct RootTabView: View {
 
     private var activityTabView: some View {
         NavigationStack(path: $activityPath) {
-            ActivityView(store: inbox, section: $activitySection)
+            ActivityView(store: inbox, section: $activitySection, connection: connection)
                 .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                 .navigationDestination(for: SessionRoute.self) {
                     SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox)

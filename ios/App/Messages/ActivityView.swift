@@ -1,4 +1,4 @@
-// One history browser with native session and message selections.
+// One Activity browser with native session, message and Box selections.
 // Exports: ActivityView and ActivitySection; the shell owns selection for deep links.
 // Dependencies: SwiftUI, HibossKit SessionGrouping, InboxStore, MessagesView and SessionRow.
 
@@ -8,11 +8,13 @@ import SwiftUI
 enum ActivitySection: Hashable {
     case sessions
     case messages
+    case box
 }
 
 struct ActivityView: View {
     @ObservedObject var store: InboxStore
     @Binding var section: ActivitySection
+    @ObservedObject var connection: ConnectionStore
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var groups: [SessionGroup] {
@@ -28,6 +30,9 @@ struct ActivityView: View {
             switch section {
             case .sessions: sessions
             case .messages: MessagesView(store: store)
+            case .box:
+                BoxListView(api: isDemoMode ? DemoBoxAPI.shared : connection.makeAPI())
+                    .id(connection.bossToken)
             }
         }
         .navigationTitle("Activity")
@@ -52,6 +57,7 @@ struct ActivityView: View {
         Picker("Activity", selection: $section) {
             Text("Sessions").tag(ActivitySection.sessions)
             Text("Messages").tag(ActivitySection.messages)
+            Text("Box").tag(ActivitySection.box)
         }
     }
 

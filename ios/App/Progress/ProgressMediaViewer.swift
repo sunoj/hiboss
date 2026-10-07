@@ -14,6 +14,7 @@ struct ProgressMediaSession: Identifiable {
 struct ProgressMediaViewer: View {
     let items: [ProgressMedia]
     let startIndex: Int
+    let localImages: [String: UIImage]
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentID: String?
@@ -21,9 +22,10 @@ struct ProgressMediaViewer: View {
     @State private var zoomed = false
     @State private var unmuted = false
 
-    init(items: [ProgressMedia], startIndex: Int) {
+    init(items: [ProgressMedia], startIndex: Int, localImages: [String: UIImage] = [:]) {
         self.items = items
         self.startIndex = startIndex
+        self.localImages = localImages
         _currentID = State(initialValue: items[startIndex].url)
     }
 
@@ -75,10 +77,15 @@ struct ProgressMediaViewer: View {
     private func pageContent(_ item: ProgressMedia) -> some View {
         switch item.kind {
         case .image:
-            RemoteImage(url: URL(string: item.url)) { image in
+            if let image = localImages[item.url] {
+                Image(uiImage: image).resizable().scaledToFit()
+                    .accessibilityLabel(item.alt ?? String(localized: "Image"))
+            } else {
+                RemoteImage(url: URL(string: item.url)) { image in
                     image.resizable().scaledToFit()
+                }
+                .accessibilityLabel(item.alt ?? String(localized: "Image"))
             }
-            .accessibilityLabel(item.alt ?? String(localized: "Image"))
         case .video:
             videoPage(item)
         }
