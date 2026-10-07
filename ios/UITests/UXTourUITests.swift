@@ -77,7 +77,7 @@ final class UXTourUITests: XCTestCase {
     /// First run: the connect screen, at the default and the largest tour text size.
     func testTourOnboarding() {
         for (name, arguments) in [("en", [String]()), ("xxl", Self.largeText)] {
-            launchFresh(["HIBOSS_DEMO_ONBOARDING": "1"], arguments: arguments, keepOnboarding: true)
+            launchFresh(["HIBOSS_DEMO_ONBOARDING": "1"], arguments: arguments)
             XCTAssertTrue(app.textFields["server-url-field"].waitForExistence(timeout: 8))
             settle()
             shot("\(appearancePrefix)\(name)-00-onboarding")
@@ -89,23 +89,24 @@ final class UXTourUITests: XCTestCase {
     func testTourDevices() {
         launchFresh([:])
         openSettingsRow("Pair another device")
-        shot("\(appearancePrefix)en-13-pair-device")
+        shot("\(appearancePrefix)en-14-pair-device")
         app.navigationBars.buttons.firstMatch.tap()
         openSettingsRow("Device Requests")
-        shot("\(appearancePrefix)en-14-device-requests")
+        shot("\(appearancePrefix)en-17-device-requests")
         let request = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'")).firstMatch
         if request.waitForExistence(timeout: 4) {
             request.tap()
             settle()
-            shot("\(appearancePrefix)en-15-device-request-review")
+            shot("\(appearancePrefix)en-18-device-review")
             app.buttons["Close"].firstMatch.tap()
             settle()
         }
         app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
         for _ in 0..<6 where !app.buttons["settings-sign-out"].isHittable { app.swipeUp() }
         app.buttons["settings-sign-out"].tap()
         settle()
-        shot("\(appearancePrefix)en-16-sign-out")
+        shot("\(appearancePrefix)en-19-sign-out")
     }
 
     /// A pairing code that runs out while the screen is open.
@@ -113,7 +114,7 @@ final class UXTourUITests: XCTestCase {
         launchFresh(["HIBOSS_DEMO_PAIRING_TTL": "3"])
         openSettingsRow("Pair another device")
         Thread.sleep(forTimeInterval: 4)
-        shot("\(appearancePrefix)en-17-pair-expired")
+        shot("\(appearancePrefix)en-21-pair-expired")
     }
 
     /// A decision the server settled with its timeout default, in detail and in Resolved.
@@ -144,21 +145,18 @@ final class UXTourUITests: XCTestCase {
     private static let largeText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL"]
 
     /// Launches demo mode; relaunches once if the first launch lost its environment.
-    private func launchFresh(_ extra: [String: String], arguments: [String] = [], keepOnboarding: Bool = false) {
+    private func launchFresh(_ extra: [String: String], arguments: [String] = []) {
         app = XCUIApplication()
         app.configureDemoLaunch(extra)
         app.launchArguments += arguments
-        app.launch()
-        if !keepOnboarding, app.textFields["server-url-field"].waitForExistence(timeout: 3) {
-            app.terminate()
-            app.launch()
-        }
+        app.launchConfiguredDemo()
     }
 
     private func openSettingsRow(_ title: String) {
         let settings = app.tabBars.buttons.element(boundBy: 3)
         XCTAssertTrue(settings.waitForExistence(timeout: 8))
         settings.tap()
+        if app.buttons["settings-devices"].exists { app.buttons["settings-devices"].tap() }
         let row = app.buttons[title].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "missing Settings row \(title)")
         row.tap()
@@ -168,15 +166,7 @@ final class UXTourUITests: XCTestCase {
     private func tour(prefix: String, extra: [String: String], arguments: [String] = []) {
         app.configureDemoLaunch(extra)
         app.launchArguments += arguments
-        app.launch()
-        // The first launch of a run sometimes starts without the demo environment and
-        // shows onboarding; the app itself is fine (a manual demo launch renders Home),
-        // so relaunch once and record that it happened.
-        if app.textFields["server-url-field"].waitForExistence(timeout: 3) {
-            XCTContext.runActivity(named: "relaunch: first launch lost its environment") { _ in }
-            app.terminate()
-            app.launch()
-        }
+        app.launchConfiguredDemo()
         settle()
         shot("\(prefix)-01-home")
         app.swipeUp()
@@ -194,7 +184,7 @@ final class UXTourUITests: XCTestCase {
             shot("\(prefix)-\(name == "progress" ? "06" : "10")-\(name)")
             switch name {
             case "progress": openFirstImage(prefix: prefix)
-            default: scrollAndShoot(prefix: prefix, name: name)
+            default: tourSettingsDetails(prefix: prefix)
             }
         }
     }
@@ -258,13 +248,14 @@ final class UXTourUITests: XCTestCase {
         settle()
     }
 
-    private func scrollAndShoot(prefix: String, name: String) {
-        app.swipeUp()
+    private func tourSettingsDetails(prefix: String) {
+        app.buttons["settings-connection"].tap()
         settle()
-        shot("\(prefix)-11-\(name)-scrolled")
-        app.swipeUp()
+        shot("\(prefix)-11-settings-connection")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["settings-notifications"].tap()
         settle()
-        shot("\(prefix)-12-\(name)-bottom")
+        shot("\(prefix)-12-settings-notifications")
     }
 
     private func settle() { _ = app.wait(for: .runningForeground, timeout: 3); Thread.sleep(forTimeInterval: 1.2) }

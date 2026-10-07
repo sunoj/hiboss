@@ -1,5 +1,5 @@
 // Shared XCUIApplication launch helpers for demo-mode UI tests.
-// Exports: XCUIApplication.configureDemoLaunch and pullToRefresh.
+// Exports: XCUIApplication.configureDemoLaunch, launchConfiguredDemo and pullToRefresh.
 // Dependencies: XCTest.
 
 import XCTest
@@ -31,6 +31,12 @@ extension XCUIApplication {
         "HIBOSS_DEMO_REPLY_DELAY_MS",
         "HIBOSS_DEMO_PAIRING_TTL",
         "HIBOSS_DEMO_SIGNIN_SCAN",
+        "HIBOSS_DEMO_SETTINGS_DELAY_MS",
+        "HIBOSS_DEMO_SETTINGS_DELAY_OPERATION",
+        "HIBOSS_DEMO_SETTINGS_FAILURE",
+        "HIBOSS_DEMO_REQUESTS_EMPTY",
+        "HIBOSS_DEMO_PREFERENCES_DELAY_MS",
+        "HIBOSS_DEMO_PREFERENCES_FAIL",
         "HIBOSS_TAB",
     ]
 

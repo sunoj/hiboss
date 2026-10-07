@@ -16,13 +16,14 @@ final class DecisionStateUITests: XCTestCase {
     private func launch(_ extra: [String: String] = [:]) {
         app.configureDemoLaunch(extra)
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     private func openSettingsRow(_ title: String) {
         let settings = app.tabBars.buttons["Settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
+        app.buttons["settings-devices"].tap()
         let row = app.buttons[title].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "missing Settings row \(title)")
         row.tap()

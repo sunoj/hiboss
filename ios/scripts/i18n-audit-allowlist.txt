@@ -4,7 +4,7 @@
 
 # Values typed LocalizedStringResource: Text(resource) resolves through the catalog.
 App/Inbox/MessageAttributeStyle.swift | unlocalized-var | Text(label) | AttributeRow.label is LocalizedStringResource
-App/Settings/DeviceRequestsView.swift | unlocalized-var | Text(note) | approvalNote is LocalizedStringResource
+App/Settings/Devices/DeviceRequestsView.swift | unlocalized-var | Text(note) | approvalNote is LocalizedStringResource
 
 # Strings already resolved by String(localized:) or error.localizedDescription before they reach the view.
 App/Home/HomePanelWall.swift | unlocalized-var | Label(failure, | PanelsModel failure message, resolved in HibossKit
@@ -12,8 +12,6 @@ App/Inbox/ListStateView.swift | unlocalized-var | ContentUnavailableView(emptyTi
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(actionNote, | actionNote is set only from String(localized:)
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(title, systemImage: icon) | callers pass String(localized:) titles
 App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLabel(accessibilityCaption) | built with String(localized:)
-App/Settings/SettingsView.swift | unlocalized-var | Label(message, | preference/registration failure: error.localizedDescription or String(localized:)
-App/Settings/SettingsView.swift | unlocalized-var | Button(actionTitle) | actionTitle is String(localized:)
 
 # Content, not UI copy: agent-authored alt text (with a localized fallback) and field placeholders.
 App/Progress/ProgressMediaView.swift | unlocalized-var | .accessibilityLabel(media.alt ?? | agent-authored alt text; fallback is localized
@@ -25,4 +23,9 @@ App/Onboarding/ConnectView.swift | unlocalized-var | TextField(placeholder, | pl
 
 # Machine formats, never shown as prose.
 App/Push/PushManager.swift | hand-format | String(format: "%02x", $0) | APNs device token hex encoding sent to the server
-App/Settings/QuietHoursSection.swift | hand-format | String(format: "%02d:%02d" | wire format for quiet hours ("HH:mm"); the picker renders the locale time
+App/Settings/Notifications/QuietHoursSection.swift | hand-format | String(format: "%02d:%02d" | wire format for quiet hours ("HH:mm"); the picker renders the locale time
+
+# Settings controls with typed, localized labels.
+App/Settings/SettingsWaitView.swift | unlocalized-var | Text(title) | LocalizedStringKey passed to SwiftUI.
+App/Settings/SettingsWaitView.swift | unlocalized-var | Button(actionTitle, | LocalizedStringKey passed to SwiftUI.
+App/Settings/Devices/DeviceRequestsView.swift | unlocalized-var | .accessibilityHint(request.canApprove | Both branches are localized Text values.
