@@ -17,8 +17,14 @@ enum DemoTextAsk {
 struct DemoHomePanelsAPI: PanelsServing, QuestionnaireServing {
     let questionnaireScope = "home-demo"
 
-    func fetchPanels() async throws -> [PanelMetadata] { [] }
-    func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire] { [] }
+    func fetchPanels() async throws -> [PanelMetadata] {
+        try await DemoDelay.wait("PANELS")
+        return []
+    }
+    func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire] {
+        try await DemoDelay.wait("QUESTIONNAIRES")
+        return []
+    }
     func fetchQuestionnaires(panelID: String) async throws -> [QuestionnaireRecord] { [] }
 
     func fetchPanel(_ panelID: String) async throws -> PanelDetail {
@@ -29,7 +35,9 @@ struct DemoHomePanelsAPI: PanelsServing, QuestionnaireServing {
         throw HibossAPIError.invalidResponse
     }
 
-    func updatePanelPreference(_ panelID: String, command: PanelPreferenceCommand) async throws -> PanelPreference {
+    func updatePanelPreference(_ panelID: String, command: PanelPreferenceCommand) async throws
+        -> PanelPreference
+    {
         throw HibossAPIError.invalidResponse
     }
 
@@ -37,7 +45,9 @@ struct DemoHomePanelsAPI: PanelsServing, QuestionnaireServing {
         throw HibossAPIError.invalidResponse
     }
 
-    func fetchQuestionnaireSubmission(requestID: String, submissionID: String) async throws -> QuestionnaireSubmission {
+    func fetchQuestionnaireSubmission(requestID: String, submissionID: String) async throws
+        -> QuestionnaireSubmission
+    {
         throw HibossAPIError.invalidResponse
     }
 

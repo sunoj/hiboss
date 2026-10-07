@@ -19,18 +19,33 @@ private final class DisplayWebView: WKWebView {
 public final class PanelWebModel: ObservableObject {
     @Published private(set) var contentHeight: CGFloat = 48
     @Published private(set) var failureMessage: String?
-    fileprivate var sendMessage: ((PanelHostMessage) -> Void)?
+    #if os(iOS)
+    @Published private(set) var isReady = false
+    @Published private(set) var reloadGeneration = 0
+
+    public func retryDisplay() {
+        isReady = false
+        failureMessage = nil
+        reloadGeneration += 1
+    }
+    #endif
+    var sendMessage: ((PanelHostMessage) -> Void)?
 
     public func mount(definition: [String: PanelValue]) {
-        sendMessage?(PanelHostMessage(kind: .mount, panelId: "panels-demo", definition: definition, state: nil, sequence: 0))
+        sendMessage?(
+            PanelHostMessage(
+                kind: .mount, panelId: "panels-demo", definition: definition, state: nil, sequence: 0))
     }
 
-    fileprivate func handle(_ message: PanelViewMessage) {
+    func handle(_ message: PanelViewMessage) {
         guard message.panelId == "panels-demo" else { return }
         switch message.kind {
         case .contentSizeChanged:
             guard let height = message.contentHeight, height.isFinite else { return }
             contentHeight = max(48, min(800, CGFloat(height)))
+            #if os(iOS)
+            isReady = true
+            #endif
         case .renderFailed:
             failureMessage = message.message ?? kitL("Display renderer failed")
         }
@@ -43,6 +58,9 @@ public struct PanelWebLeafSlot: View {
     public let definition: [String: PanelValue]
     @ObservedObject private var store: PanelStore
     @StateObject private var model = PanelWebModel()
+    #if os(iOS)
+    @ScaledMetric(relativeTo: .callout) private var pendingHeight: CGFloat = 180
+    #endif
 
     public init(definition: [String: PanelValue], store: PanelStore) {
         self.definition = definition
@@ -53,19 +71,44 @@ public struct PanelWebLeafSlot: View {
         let resolvedDefinition = resolvedWebLeafDefinition(definition, state: store.state)
         ZStack {
             PanelWebView(model: model, definition: resolvedDefinition)
+                #if os(iOS)
+                .id(model.reloadGeneration)
+                #endif
             if let failure = model.failureMessage {
+                #if os(iOS)
+                VStack {
+                    Text(verbatim: failure).foregroundStyle(NativePendingTheme.secondary)
+                    Button(kitL("Retry display")) { model.retryDisplay() }.frame(minHeight: 44)
+                }.padding().background(.regularMaterial)
+                #else
                 Text(verbatim: failure).foregroundStyle(.secondary).padding()
                     .frame(maxWidth: .infinity, minHeight: 96)
                     .background(.regularMaterial)
+                #endif
             }
+            #if os(iOS)
+            if model.failureMessage == nil && !model.isReady {
+                NativePendingNotice(title: kitL("Loading display…"), retry: { model.retryDisplay() })
+                    .id(model.reloadGeneration)
+                    .padding().background(.regularMaterial)
+            }
+            #endif
         }
+        #if os(iOS)
+        .frame(maxWidth: .infinity)
+        .frame(height: model.isReady ? model.contentHeight : max(model.contentHeight, pendingHeight))
+        .accessibilityElement(children: .contain)
+        #else
         .frame(maxWidth: .infinity, minHeight: 48, idealHeight: model.contentHeight, maxHeight: 800)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(resolvedDefinition["type"]?.string == "Table" ? kitL("Display table") : kitL("Display chart"))
+        #endif
+        .accessibilityLabel(
+            resolvedDefinition["type"]?.string == "Table" ? kitL("Display table") : kitL("Display chart"))
     }
 }
 
-func resolvedWebLeafDefinition(_ definition: [String: PanelValue], state: PanelValue) -> [String: PanelValue] {
+func resolvedWebLeafDefinition(_ definition: [String: PanelValue], state: PanelValue) -> [String: PanelValue]
+{
     var resolved = definition.mapValues { resolveWebLeafValue($0, state: state) }
     // A Table binds its live rows through `rowsBinding`; the renderers read `rows`, so a bound
     // array becomes the rows once resolved and literal rows keep precedence.
@@ -100,7 +143,9 @@ public struct PanelWebView: NSViewRepresentable {
         self.definition = definition
     }
 
-    public func makeCoordinator() -> PanelWebCoordinator { PanelWebCoordinator(model: model, definition: definition) }
+        public func makeCoordinator() -> PanelWebCoordinator {
+            PanelWebCoordinator(model: model, definition: definition)
+        }
 
     public func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -133,7 +178,9 @@ public struct PanelWebView: UIViewRepresentable {
         self.definition = definition
     }
 
-    public func makeCoordinator() -> PanelWebCoordinator { PanelWebCoordinator(model: model, definition: definition) }
+        public func makeCoordinator() -> PanelWebCoordinator {
+            PanelWebCoordinator(model: model, definition: definition)
+        }
 
     public func makeUIView(context: Context) -> WKWebView {
         let webView = makeWebView(context: context)
@@ -149,51 +196,6 @@ public struct PanelWebView: UIViewRepresentable {
     }
 }
 #endif
-
-@MainActor
-public final class PanelWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        let model: PanelWebModel
-        var definition: [String: PanelValue]
-        weak var webView: WKWebView?
-        private var didLoad = false
-        fileprivate var mountSent = false
-
-    public init(model: PanelWebModel, definition: [String: PanelValue]) {
-            self.model = model
-            self.definition = definition
-        }
-
-    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            didLoad = true
-            scheduleMount()
-        }
-
-        func scheduleMount() {
-            guard didLoad, !mountSent else { return }
-            DispatchQueue.main.async { [weak self] in
-                guard let self, !self.mountSent else { return }
-                self.mountSent = true
-                self.model.mount(definition: self.definition)
-            }
-        }
-
-    public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { model.markTerminated() }
-
-    public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
-            let url = navigationAction.request.url
-            decisionHandler(url?.scheme == "hiboss-panel" && url?.host == "panel" ? .allow : .cancel)
-        }
-
-    public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "hiboss", JSONSerialization.isValidJSONObject(message.body), let data = try? JSONSerialization.data(withJSONObject: message.body), let decoded = try? JSONDecoder().decode(PanelViewMessage.self, from: data) else { return }
-            Task { @MainActor [weak self] in self?.model.handle(decoded) }
-        }
-
-    fileprivate func send(_ message: PanelHostMessage) {
-            guard let webView, let data = try? JSONEncoder().encode(message), let object = try? JSONSerialization.jsonObject(with: data) else { return }
-            webView.callAsyncJavaScript("window.__hibossBridge.receive(message)", arguments: ["message": object], in: nil, in: WKContentWorld.page) { _ in }
-    }
-}
 
 #if os(iOS)
 private extension PanelWebView {
@@ -213,35 +215,3 @@ private extension PanelWebView {
     }
 }
 #endif
-
-private enum PanelHostMessageKind: String, Encodable { case mount }
-private enum PanelViewMessageKind: String, Decodable { case contentSizeChanged, renderFailed }
-
-private struct PanelHostMessage: Encodable {
-    let kind: PanelHostMessageKind
-    let panelId: String
-    let definition: [String: PanelValue]?
-    let state: [String: PanelValue]?
-    let sequence: Int
-}
-
-private struct PanelViewMessage: Decodable {
-    let kind: PanelViewMessageKind
-    let panelId: String
-    let contentHeight: Double?
-    let message: String?
-}
-
-private final class PanelSchemeHandler: NSObject, WKURLSchemeHandler {
-    func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
-        guard let url = urlSchemeTask.request.url, url.scheme == "hiboss-panel", url.host == "panel", url.path == "/index.html" else {
-            urlSchemeTask.didFailWithError(URLError(.unsupportedURL)); return
-        }
-        let data = Data(PanelWebAssets.document.utf8)
-        urlSchemeTask.didReceive(URLResponse(url: url, mimeType: "text/html", expectedContentLength: data.count, textEncodingName: "utf-8"))
-        urlSchemeTask.didReceive(data)
-        urlSchemeTask.didFinish()
-    }
-
-    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
-}

@@ -12,6 +12,7 @@ var isDemoMode: Bool {
 /// A static BossServing replaying sample decisions across a few agent sessions.
 final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing, @unchecked Sendable {
     var messages: [HistoryMessage]
+    var sessionFetchCount = 0
 
     init() {
         messages = ProcessInfo.processInfo.environment["HIBOSS_DEMO_TEXT_ASK"] == "1"
@@ -36,6 +37,7 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
 
     /// `HIBOSS_DEMO_REFRESH_FAILS=1`: launch-time fetches succeed; any after five seconds fail.
     func fetchHistory() async throws -> [HistoryMessage] {
+        if Date().timeIntervalSince(started) > 5 { try await DemoDelay.wait("REFRESH") }
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REFRESH_FAILS"] == "1",
            Date().timeIntervalSince(started) > 5 {
             throw DemoConnectionError.failed
@@ -47,12 +49,17 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
     }
 
     func fetchRequiredInputs() async throws -> [HistoryMessage] {
-        messages.filter { $0.isPendingDecision || AttentionModel.needsTextReply($0) }
+        if Date().timeIntervalSince(started) > 5 { try await DemoDelay.wait("REFRESH") }
+        try await DemoDelay.wait("REQUESTS")
+        return messages.filter { $0.isPendingDecision || AttentionModel.needsTextReply($0) }
     }
 
     func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {
-        AsyncThrowingStream { continuation in
-            continuation.yield(.ready)
+        try? await DemoDelay.wait("REQUESTS_READY")
+        let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_REQUESTS_STREAM"]
+        return AsyncThrowingStream { continuation in
+            if mode == "ends" { continuation.finish(); return }
+            if mode != "silent" { continuation.yield(.ready) }
             continuation.onTermination = { _ in }
         }
     }
@@ -61,6 +68,9 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome {
         let delay = Int(ProcessInfo.processInfo.environment["HIBOSS_DEMO_REPLY_DELAY_MS"] ?? "") ?? 0
         if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REPLY_FAILS"] == "1" {
+            throw DemoConnectionError.failed
+        }
         guard let index = messages.firstIndex(where: { $0.id == messageID }) else {
             return .accepted
         }
@@ -70,30 +80,7 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
         return .accepted
     }
 
-    func fetchSessionEvents(
-        sessionID: String,
-        after: Int?,
-        limit: Int
-    ) async throws -> SessionEventsPage {
-        let all = DemoSessionStream.events(for: sessionID, from: messages)
-        let start = (after ?? -1) + 1
-        let slice = all.filter { $0.sequence >= start }.prefix(limit)
-        let events = Array(slice)
-        return SessionEventsPage(
-            events: events,
-            nextAfter: events.last?.sequence,
-            resync: false
-        )
-    }
 
-    func sessionEventStream(
-        sessionID: String,
-        after: Int
-    ) async -> AsyncThrowingStream<SessionStreamFrame, Error> {
-        AsyncThrowingStream { continuation in
-            continuation.onTermination = { _ in }
-        }
-    }
 }
 
 private enum DemoConnectionError: Error, LocalizedError {
@@ -117,7 +104,10 @@ private enum DemoFixtures {
     }
 
     static let messages: [HistoryMessage] = deploy + payments + data + direct
-        + [bossReply(to: data[1], choice: "Keep current key", source: "api", automatic: true, at: iso(-6_600))]
+        + [
+            bossReply(
+                to: data[1], choice: "Keep current key", source: "api", automatic: true, at: iso(-6_600))
+        ]
 
     static func answered(_ parent: HistoryMessage) -> HistoryMessage {
         HistoryMessage(
@@ -221,7 +211,9 @@ private enum DemoFixtures {
             sessionStatus: "working"
         ),
         HistoryMessage(
-            id: "c1", body: "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
+            id: "c1",
+            body:
+                "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "delivered",
             priority: "critical", channel: "discord", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
@@ -236,7 +228,8 @@ private enum DemoFixtures {
             id: "h1", body: "Deployment to staging complete. All 214 tests green.",
             agentName: "orchestrator-01", direction: "agent_to_boss", status: "replied",
             priority: "normal", channel: "discord", mode: "async", type: "task_update",
-            metadata: MessageMetadata(options: [], files: ["server/migrations/003.sql", "cli/src/commands/send.rs"]),
+            metadata: MessageMetadata(
+                options: [], files: ["server/migrations/003.sql", "cli/src/commands/send.rs"]),
             expiresAt: nil, createdAt: iso(-1800),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionBranch: "release/v2.4",
             sessionStatus: "waiting"
@@ -250,7 +243,8 @@ private enum DemoFixtures {
             priority: "high", channel: "telegram", mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(options: [
                 "Retry now (same gateway)", "Retry with exponential backoff", "Fail over to Adyen",
-            ], defaultOption: "Retry with exponential backoff", content: "The agent is waiting for a retry policy."),
+                ], defaultOption: "Retry with exponential backoff",
+                content: "The agent is waiting for a retry policy."),
             expiresAt: iso(760), createdAt: iso(-90),
             sessionId: "sess-pay", sessionLabel: "payments-hotfix", sessionBranch: "fix/stripe-retry",
             sessionStatus: "blocked"

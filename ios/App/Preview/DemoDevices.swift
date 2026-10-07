@@ -14,13 +14,17 @@ enum DemoDevices {
 struct DemoPairingIssuer: PairingIssuing {
     func requestPairingCode() async throws -> PairingGrant {
         try await DemoSettingsOperation.run("pairing")
+        try await DemoDelay.wait("PAIRING")
         let raw = ProcessInfo.processInfo.environment["HIBOSS_DEMO_PAIRING_TTL"] ?? ""
         let ttl = TimeInterval(raw) ?? 300
         return try PairingGrant(code: "hb_pair_" + String(repeating: "0123456789abcdef", count: 4),
                                 expiresAt: Date().addingTimeInterval(ttl))
     }
 
-    func pairingStatus(code: String) async throws -> PairingStatus { .pending }
+    func pairingStatus(code: String) async throws -> PairingStatus {
+        try await DemoDelay.wait("PAIRING_POLL")
+        return .pending
+    }
 }
 
 /// Two pending machines: one approvable, one without a verification code.
@@ -44,11 +48,13 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
     func listPendingJoinRequests() async throws -> [JoinRequest] {
         try await DemoSettingsOperation.run("requests")
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REQUESTS_EMPTY"] == "1" { return [] }
+        try await DemoDelay.wait("DEVICES")
         return requests
     }
 
     func approveJoinRequest(id: String) async throws -> JoinApproval {
         try await DemoSettingsOperation.run("approval")
+        try await DemoDelay.wait("DEVICE_ACTION")
         requests.removeAll { $0.id == id }
         let json = #"{"id":"\#(id)","status":"approved","agents":[]}"#
         return try JSONDecoder().decode(JoinApproval.self, from: Data(json.utf8))
@@ -56,6 +62,7 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
 
     func rejectJoinRequest(id: String) async throws {
         try await DemoSettingsOperation.run("approval")
+        try await DemoDelay.wait("DEVICE_ACTION")
         requests.removeAll { $0.id == id }
     }
 }
@@ -64,6 +71,7 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
 struct DemoSigninAPI: SigninApproving {
     func signinRequest(id: String) async throws -> SigninRequestSummary {
         try await DemoSettingsOperation.run("signin")
+        try await DemoDelay.wait("SIGNIN")
         let expiry = Date().addingTimeInterval(600).ISO8601Format()
         let json = #"{"request_id":"\#(id)","device_label":"Studio MacBook Pro","origin":"NL · Amsterdam","#
             + #""status":"pending","created_at":"\#(Date().ISO8601Format())","expires_at":"\#(expiry)"}"#
@@ -72,6 +80,7 @@ struct DemoSigninAPI: SigninApproving {
 
     func approveSignin(id: String) async throws -> SigninApproval {
         try await DemoSettingsOperation.run("signin-approval")
+        try await DemoDelay.wait("SIGNIN_ACTION")
         let json = #"{"code":"306142","expires_at":"\#(Date().addingTimeInterval(540).ISO8601Format())"}"#
         return try JSONDecoder().decode(SigninApproval.self, from: Data(json.utf8))
     }
@@ -94,4 +103,5 @@ enum DemoSettingsOperation {
         }
         if failure == "requests-forbidden", operation == "requests" { throw JoinRequestError.forbidden }
     }
+    func rejectSignin(id: String) async throws { try await DemoDelay.wait("SIGNIN_ACTION") }
 }

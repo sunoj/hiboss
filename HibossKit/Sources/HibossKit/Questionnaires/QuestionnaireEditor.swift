@@ -11,13 +11,17 @@ struct QuestionnaireEditor: View {
     let changed: @MainActor () async -> Void
     @StateObject private var model: QuestionnaireModel
 
-    init(record: QuestionnaireRecord, bossID: String, service: any QuestionnaireServing, webModel: PanelWebModel,
+    init(
+        record: QuestionnaireRecord, bossID: String, service: any QuestionnaireServing,
+        webModel: PanelWebModel,
          currentTime: @escaping @MainActor () -> Date, changed: @escaping @MainActor () async -> Void) {
         self.record = record
         self.webModel = webModel
         self.currentTime = currentTime
         self.changed = changed
-        _model = StateObject(wrappedValue: QuestionnaireModel(record: record, bossID: bossID, service: service, currentTime: currentTime))
+        _model = StateObject(
+            wrappedValue: QuestionnaireModel(
+                record: record, bossID: bossID, service: service, currentTime: currentTime))
     }
 
     var body: some View {
@@ -48,7 +52,9 @@ struct QuestionnaireEditor: View {
 
     private var metadata: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(model.editing.definition.blocking ? kitL("Agent needs your answers to continue") : kitL("Optional feedback"),
+            Label(
+                model.editing.definition.blocking
+                    ? kitL("Agent needs your answers to continue") : kitL("Optional feedback"),
                   systemImage: model.editing.definition.blocking ? "text.bubble" : "bubble.left")
             if let deadline = panelDate(model.latest.expiresAt) {
                 Text(kitL("Answer by \(deadline.formatted(date: .abbreviated, time: .shortened))"))
@@ -59,7 +65,7 @@ struct QuestionnaireEditor: View {
 
     @ViewBuilder private func status(at now: Date) -> some View {
         if model.isSending {
-            ProgressView(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submitting answers…"))
+            sendingState
         } else if model.pendingID != nil {
             Text(kitL("Submission status is unconfirmed. Check before retrying.")).font(.callout)
             Button(kitL("Check submission")) { Task { await model.recover() } }
@@ -67,7 +73,9 @@ struct QuestionnaireEditor: View {
             Text(kitL("This questionnaire changed. Your previous draft is preserved.")).font(.callout)
             Button(kitL("Start revised questionnaire")) { model.restart() }
         } else if model.latest.isOpen(at: now) {
-            if !model.editing.definition.formSpec.elements.values.contains(where: { $0.on?["press"]?.action == "submitRequest" }) {
+            if !model.editing.definition.formSpec.elements.values.contains(where: {
+                $0.on?["press"]?.action == "submitRequest"
+            }) {
                 Button(kitL("Submit answers")) { Task { await model.submit() } }
                     #if os(iOS)
                     .modifier(ProminentActionModifier(labelColor: Color(uiColor: .systemBackground)))
@@ -76,6 +84,34 @@ struct QuestionnaireEditor: View {
                     #endif
                     .disabled(!model.canEdit)
             }
+        }
+    }
+
+    @ViewBuilder private var sendingState: some View {
+            #if os(iOS)
+            if !hasSubmitControl || model.isRecovering {
+                Button {} label: {
+                    HStack {
+                        Text(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submit answers"))
+                        NativeDelayedProgress()
+                    }.frame(minHeight: 44)
+                }.buttonStyle(.bordered).disabled(true)
+            }
+            NativePendingNotice(
+                title: kitL("Waiting for the submission receipt…"),
+                detail: kitL(
+                    "Your answer isn't confirmed. Your draft is saved. Close this panel and check again."
+                ),
+                retry: { await changed() }
+            )
+            #else
+            ProgressView(model.isRecovering ? kitL("Checking saved answer…") : kitL("Submitting answers…"))
+            #endif
+    }
+
+    private var hasSubmitControl: Bool {
+        model.editing.definition.formSpec.elements.values.contains {
+            $0.on?["press"]?.action == "submitRequest"
         }
     }
 
@@ -95,6 +131,9 @@ private struct QuestionnaireFields: View {
 
     var body: some View {
         PanelRenderer(spec: model.editing.definition.formSpec, store: store, webModel: webModel)
+            #if os(iOS)
+            .environment(\.nativeSubmissionPending, model.isSending)
+            #endif
             .disabled(!enabled)
             .onChange(of: store.state) { _, _ in model.save() }
     }

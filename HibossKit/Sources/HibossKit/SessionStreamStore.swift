@@ -30,6 +30,8 @@ public final class SessionStreamStore: ObservableObject {
     private var batchTask: Task<Void, Never>?
     private var pendingBatch: [SessionEvent] = []
     private var knownIDs: Set<String> = []
+    private var loadGeneration = 0
+    private var backfillGeneration = 0
 
     public init(
         sessionID: String,
@@ -52,6 +54,10 @@ public final class SessionStreamStore: ObservableObject {
     }
 
     public func stop() {
+        loadGeneration += 1
+        backfillGeneration += 1
+        isLoading = false
+        isBackfilling = false
         streamTask?.cancel()
         streamTask = nil
         batchTask?.cancel()
@@ -87,14 +93,17 @@ public final class SessionStreamStore: ObservableObject {
 
     public func loadEarlier() async {
         guard let api, hasEarlier, !isBackfilling, let oldest = events.first?.sequence else { return }
+        backfillGeneration += 1
+        let generation = backfillGeneration
         isBackfilling = true
-        defer { isBackfilling = false }
+        defer { if generation == backfillGeneration { isBackfilling = false } }
         let after = max(-1, oldest - pageSize - 1)
         let cursor: Int? = after >= 0 ? after : nil
         do {
             let page = try await api.fetchSessionEvents(
                 sessionID: sessionID, after: cursor, limit: pageSize
             )
+            guard !Task.isCancelled, generation == backfillGeneration else { return }
             if page.resync {
                 await reloadWindow(reason: .resync)
                 return
@@ -103,6 +112,7 @@ public final class SessionStreamStore: ObservableObject {
             events = Array((older + events).suffix(maxWindow))
             hasEarlier = older.count >= pageSize || (events.first?.sequence ?? 1) > 1
         } catch {
+            guard !Task.isCancelled, generation == backfillGeneration else { return }
             loadError = error.localizedDescription
         }
     }
@@ -117,12 +127,17 @@ public final class SessionStreamStore: ObservableObject {
 
     private func reloadWindow(reason: ReloadReason) async {
         guard let api else { return }
+        loadGeneration += 1
+        backfillGeneration += 1
+        isBackfilling = false
+        let generation = loadGeneration
         isLoading = true
         loadError = nil
         if reason == .resync { needsResyncNotice = true }
-        defer { isLoading = false }
+        defer { if generation == loadGeneration { isLoading = false } }
         do {
             let loaded = try await fetchThroughTail(api: api)
+            guard !Task.isCancelled, generation == loadGeneration else { return }
             knownIDs = Set(loaded.map(\.id))
             let window = Array(loaded.suffix(maxWindow))
             events = window
@@ -133,6 +148,7 @@ public final class SessionStreamStore: ObservableObject {
             streamTask?.cancel()
             streamTask = Task { await runStreamLoop() }
         } catch {
+            guard !Task.isCancelled, generation == loadGeneration else { return }
             loadError = error.localizedDescription
             connectionState = .failed(error.localizedDescription)
         }
@@ -165,6 +181,7 @@ public final class SessionStreamStore: ObservableObject {
         while !Task.isCancelled {
             connectionState = .connecting
             let stream = await api.sessionEventStream(sessionID: sessionID, after: lastAppliedSequence)
+            guard !Task.isCancelled else { return }
             connectionState = .connected
             do {
                 for try await frame in stream {

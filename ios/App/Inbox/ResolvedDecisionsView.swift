@@ -48,17 +48,14 @@ struct ResolvedDecisionsView: View {
     }
 
     var body: some View {
-        Group {
-            if cards.isEmpty {
-                ContentUnavailableView(
-                    "No handled decisions",
-                    systemImage: "checkmark.circle",
-                    description: Text("Handled decisions will appear here.")
-                )
-            } else {
-                list
-            }
-        }
+        ListStateView(
+            isLoading: !store.didLoad || store.isRefreshing, error: store.loadError,
+            isEmpty: cards.isEmpty, emptyIcon: "checkmark.circle",
+            emptyTitle: String(localized: "No handled decisions"),
+            emptyDetail: String(localized: "Handled decisions will appear here."),
+            hasLoaded: store.didLoad,
+            onRetry: { await store.refresh() }
+        ) { list }
         .navigationTitle("Resolved")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await store.refresh() }

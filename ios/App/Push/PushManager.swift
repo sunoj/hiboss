@@ -22,8 +22,11 @@ struct PushPanelRequest: Hashable, Sendable {
     let requestID: String
 
     nonisolated static func decode(from info: [AnyHashable: Any]) -> PushPanelRequest? {
-        guard let panelID = info["panelId"] as? String, !panelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let requestID = info["requestId"] as? String, !requestID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard let panelID = info["panelId"] as? String,
+            !panelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            let requestID = info["requestId"] as? String,
+            !requestID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return nil }
         return PushPanelRequest(panelID: panelID, requestID: requestID)
     }
 }
@@ -80,10 +83,27 @@ final class PushManager: NSObject, ObservableObject {
         Task { await registerIfAuthorized() }
     }
 
+    private var isHoldingDemoRegistration: Bool {
+        isDemoMode && (Int(ProcessInfo.processInfo.environment["HIBOSS_DEMO_PUSH_DELAY_MS"] ?? "") ?? 0) > 0
+    }
+
+    func holdDemoRegistration() async {
+        guard isDemoMode else { return }
+        let granted = try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge])
+        guard granted == true else { return }
+        registration = .registering
+        try? await DemoDelay.wait("PUSH")
+    }
+
     /// Re-registers for APNs on every launch when already authorized, so a
     /// reinstall / restore / OS token rotation refreshes the server's token.
     /// The grant-time path in `requestAuthorization` only covers first consent.
     func registerIfAuthorized() async {
+        if isHoldingDemoRegistration {
+            await holdDemoRegistration()
+            return
+        }
         let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
         guard status == .authorized || status == .provisional || status == .ephemeral else {
             registration = .idle
@@ -119,11 +139,13 @@ final class PushManager: NSObject, ObservableObject {
 
     /// APNs failed to hand us a token (no network, provisioning, etc.).
     func registrationFailed(_ error: Error) {
+        guard !isHoldingDemoRegistration else { return }
         registration = .failed(error.localizedDescription)
     }
 
     /// Called from the app delegate with the raw APNs token; forwards it to the server.
     func register(deviceToken: Data) {
+        guard !isHoldingDemoRegistration else { return }
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
         guard let bundleId = Bundle.main.bundleIdentifier, let api = HiBossStore.bossAPI() else {
             pushLog.info("skipping token registration — not configured")
@@ -144,11 +166,14 @@ final class PushManager: NSObject, ObservableObject {
     }
 
     private func optionsCategory() -> UNNotificationCategory {
-        let approve = UNNotificationAction(identifier: PushAction.approve, title: String(localized: "Approve"), options: [.foreground])
-        let reject = UNNotificationAction(identifier: PushAction.reject, title: String(localized: "Reject"), options: [.destructive])
+        let approve = UNNotificationAction(
+            identifier: PushAction.approve, title: String(localized: "Approve"), options: [.foreground])
+        let reject = UNNotificationAction(
+            identifier: PushAction.reject, title: String(localized: "Reject"), options: [.destructive])
         let reply = UNTextInputNotificationAction(
             identifier: PushAction.reply, title: String(localized: "Reply…"), options: [],
-            textInputButtonTitle: String(localized: "Send"), textInputPlaceholder: String(localized: "Type a reply")
+            textInputButtonTitle: String(localized: "Send"),
+            textInputPlaceholder: String(localized: "Type a reply")
         )
         return UNNotificationCategory(
             identifier: PushCategory.options, actions: [approve, reject, reply],
@@ -159,7 +184,8 @@ final class PushManager: NSObject, ObservableObject {
     private func messageCategory() -> UNNotificationCategory {
         let reply = UNTextInputNotificationAction(
             identifier: PushAction.reply, title: String(localized: "Reply…"), options: [],
-            textInputButtonTitle: String(localized: "Send"), textInputPlaceholder: String(localized: "Type a reply")
+            textInputButtonTitle: String(localized: "Send"),
+            textInputPlaceholder: String(localized: "Type a reply")
         )
         return UNNotificationCategory(
             identifier: PushCategory.message, actions: [reply],
@@ -178,7 +204,8 @@ extension PushManager: UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
+        withCompletionHandler completionHandler:
+            @escaping @Sendable (UNNotificationPresentationOptions) -> Void
     ) {
         DispatchQueue.main.async { completionHandler([.banner, .sound, .list]) }
     }
@@ -204,10 +231,14 @@ extension PushManager: UNUserNotificationCenterDelegate {
         }
     }
 
-    private nonisolated static func actionRequest(from response: UNNotificationResponse) -> PushNotificationRequest? {
+    private nonisolated static func actionRequest(from response: UNNotificationResponse)
+        -> PushNotificationRequest?
+    {
         let content = response.notification.request.content
         let info = content.userInfo
-        if content.categoryIdentifier == PushCategory.request || info["category"] as? String == PushCategory.request {
+        if content.categoryIdentifier == PushCategory.request
+            || info["category"] as? String == PushCategory.request
+        {
             guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
                   let panel = PushPanelRequest.decode(from: info) else { return nil }
             return .panel(panel)

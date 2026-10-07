@@ -1,17 +1,18 @@
 // Home tab: a glanceable, actionable attention surface.
 // Exports: HomeView bound to InboxStore and message/session detail destinations.
 // Dependencies: SwiftUI, InboxStore, AttentionModel, HomeAttentionSection, and PanelsModel.
-// Message rows push MessageID onto the Home tab's own NavigationStack.
 
 import HibossKit
 import SwiftUI
 import UIKit
 
+// Message rows push MessageID onto the Home tab's own NavigationStack.
 struct HomeView: View {
     @ObservedObject var inbox: InboxStore
     let sessionAPI: (any SessionStreamServing)?
     @ObservedObject var panels: PanelsModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openConnectionSettings) private var openSettings
     @State private var actionNote: String?
     @State private var sessionRoute: SessionRoute?
 
@@ -87,6 +88,9 @@ struct HomeView: View {
             ),
             hasPanels: !panels.visibleTiles.isEmpty,
             status: attentionStatus,
+            statusIsFailure: hasCoverageFailure,
+            onRetry: retryCoverage,
+            onSettings: openSettings,
             replying: inbox.replying,
             onChoose: handleReply,
             onOpenPanel: openPanel,
@@ -100,13 +104,53 @@ struct HomeView: View {
         }
         if let error = inbox.requiredInputError ?? inbox.loadError
             ?? panels.questionnaireError ?? panels.failureMessage {
-            return String(localized: "Couldn't check all requests. \(error) Pull to refresh.")
+            if !inbox.requiredInputs.isEmpty || !panels.visibleTiles.isEmpty {
+                let failure = String(
+                    localized: "Couldn't check all requests. Showing earlier results. \(error)")
+                return namedFailure(failure)
+            }
+            return namedFailure(String(localized: "Couldn't check all requests. \(error)"))
         }
-        if !inbox.didLoad || !inbox.hasCompleteRequiredInputs
-            || panels.loadState != .loaded || !panels.hasCompleteQuestionnaires {
-            return String(localized: "Checking for requests…")
+        let sources = outstandingSources
+        guard !sources.isEmpty else { return nil }
+        return String(localized: "Waiting for: \(sources.formatted(.list(type: .and))).")
+    }
+
+    private func namedFailure(_ failure: String) -> String {
+        let sources = outstandingSources.formatted(.list(type: .and))
+        let waiting = String(localized: "Waiting for: \(sources).")
+        return waiting + " " + failure
+    }
+
+    private var outstandingSources: [String] {
+        var sources: [String] = []
+        if !inbox.requiredInputReady { sources.append(String(localized: "Requests connection")) }
+        else if !inbox.hasCompleteRequiredInputs { sources.append(String(localized: "Requests")) }
+        if !inbox.didLoad || inbox.isRefreshing || inbox.loadError != nil {
+            sources.append(String(localized: "Messages"))
         }
-        return nil
+        if panels.loadState != .loaded || panels.isRefreshing
+            || panels.tiles.contains(where: { displayedPanelFreshness($0, model: panels).isPending }) {
+            sources.append(String(localized: "Panels"))
+        }
+        if !panels.hasCompleteQuestionnaires || panels.questionnaireError != nil {
+            sources.append(String(localized: "Questionnaires"))
+        }
+        return sources
+    }
+
+    private var hasCoverageFailure: Bool {
+        inbox.requiredInputError != nil || inbox.loadError != nil
+            || panels.questionnaireError != nil || panels.failureMessage != nil
+            || inbox.connectionState == .disconnected
+    }
+
+    private func retryCoverage() async {
+        if inbox.connectionState != .connected { inbox.retryConnection() }
+        else { inbox.retryRequiredInputConnection() }
+        async let messages: Void = inbox.refresh()
+        async let wall: Void = panels.retryLoading()
+        _ = await (messages, wall)
     }
 
     private func openPanel(_ id: String) {

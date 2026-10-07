@@ -37,10 +37,15 @@ public final class PanelsModel: ObservableObject {
     var lastReconciled = Date.distantPast
     @Published public var section: PanelWallSection = .active
     @Published public internal(set) var preferenceError: String?
+    @Published public internal(set) var pendingPreferenceIDs: Set<String> = []
     @Published public internal(set) var pendingQuestionnaires: [PendingQuestionnaire] = []
     @Published public internal(set) var questionnaireError: String?
     @Published public internal(set) var isLoadingQuestions = false
     @Published public internal(set) var hasCompleteQuestionnaires = false
+    #if os(iOS)
+    var loadOperation = 0
+    var questionnaireOperation = 0
+    #endif
     var questionnaireGeneration: UInt64 = 0
     var producerTasks: [Task<Void, Never>] = []
     var clockTask: Task<Void, Never>?
@@ -63,7 +68,10 @@ public final class PanelsModel: ObservableObject {
             self.fixtures = fixtures
             tiles = fixtures.all.enumerated().map { index, fixture in
                 let producer = PanelDemoProducer.catalog[index]
-                return PanelTile(id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture), producer: producer, agentID: nil, agentName: nil, sessionLabel: nil, definitionRevision: nil, order: index)
+                return PanelTile(
+                    id: fixture.name, fixture: fixture, store: PanelStore(fixture: fixture),
+                    producer: producer, agentID: nil, agentName: nil, sessionLabel: nil,
+                    definitionRevision: nil, order: index)
             }
             lastUpdated = Dictionary(uniqueKeysWithValues: tiles.map { ($0.id, Date()) })
             loadState = .loaded
@@ -75,6 +83,10 @@ public final class PanelsModel: ObservableObject {
         }
     }
 
+    #if os(iOS)
+    public var isRefreshing: Bool { isFetching && loadState == .loaded }
+    #endif
+
     public var selectedTile: PanelTile? { tiles.first { $0.id == selectedTileID } }
     public var isLoading: Bool { if case .loading = loadState { true } else { false } }
     public var failureMessage: String? { if case let .failed(message) = loadState { message } else { nil } }
@@ -85,7 +97,12 @@ public final class PanelsModel: ObservableObject {
     }
 
     public func positions(for width: CGFloat) -> [PanelTilePosition] {
-        PanelWallLayout.arrange(visibleTiles.map { PanelLayoutPanel(id: $0.id, size: $0.fixture.spec.tileSize, order: $0.order, isPinned: $0.preference.placement == .pinned) }, width: width)
+        PanelWallLayout.arrange(
+            visibleTiles.map {
+                PanelLayoutPanel(
+                    id: $0.id, size: $0.fixture.spec.tileSize, order: $0.order,
+                    isPinned: $0.preference.placement == .pinned)
+            }, width: width)
     }
 
     public nonisolated func wallHeight(of positions: [PanelTilePosition]) -> CGFloat {
@@ -95,7 +112,9 @@ public final class PanelsModel: ObservableObject {
     public func open(_ tileID: String) {
         selectedTileID = tileID
         guard let tile = tiles.first(where: { $0.id == tileID }), let metadata = tile.metadata,
-              tile.lifecycle.taskState.isTerminal, tile.preference.seenTerminalVersion != metadata.metadataVersion else { return }
+            tile.lifecycle.taskState.isTerminal,
+            tile.preference.seenTerminalVersion != metadata.metadataVersion
+        else { return }
         Task { await setPreference(tile, seen: metadata.metadataVersion) }
     }
     public func closeDetail() { selectedTileID = nil }
@@ -119,7 +138,9 @@ public final class PanelsModel: ObservableObject {
 
     func startSimulation() {
         startClock()
-        producerTasks = tiles.indices.map { index in Task { [weak self] in await self?.runProducer(at: index) } }
+        producerTasks = tiles.indices.map { index in
+            Task { [weak self] in await self?.runProducer(at: index) }
+        }
     }
 
     private struct WallSignature: Equatable {
@@ -144,7 +165,9 @@ public final class PanelsModel: ObservableObject {
                     self?.objectWillChange.send()
                     signature = current
                 }
-                guard let self, !self.isDemoMode, !self.isFetching, Date().timeIntervalSince(self.lastReconciled) > 10 else { continue }
+                guard let self, !self.isDemoMode, !self.isFetching,
+                    Date().timeIntervalSince(self.lastReconciled) > 10
+                else { continue }
                 await self.load()
             }
         }
@@ -152,7 +175,9 @@ public final class PanelsModel: ObservableObject {
 
     func runProducer(at index: Int) async {
         guard let producer = tiles[index].producer else { return }
-        if producer.startDelayNanoseconds > 0 { try? await Task.sleep(nanoseconds: producer.startDelayNanoseconds) }
+        if producer.startDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: producer.startDelayNanoseconds)
+        }
         var pushes = 0
         while !Task.isCancelled, producer.pushLimit.map({ pushes < $0 }) ?? true {
             try? await Task.sleep(nanoseconds: producer.intervalNanoseconds)

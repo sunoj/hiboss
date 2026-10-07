@@ -29,7 +29,7 @@ struct ProgressMediaViewer: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Theme.mediaBackground.ignoresSafeArea()
             pager
                 .offset(y: offset)
         }
@@ -75,15 +75,8 @@ struct ProgressMediaViewer: View {
     private func pageContent(_ item: ProgressMedia) -> some View {
         switch item.kind {
         case .image:
-            AsyncImage(url: URL(string: item.url)) { phase in
-                switch phase {
-                case let .success(image):
+            RemoteImage(url: URL(string: item.url)) { image in
                     image.resizable().scaledToFit()
-                case .failure:
-                    Image(systemName: "photo").font(.largeTitle).foregroundStyle(.secondary)
-                default:
-                    ProgressView()
-                }
             }
             .accessibilityLabel(item.alt ?? String(localized: "Image"))
         case .video:
@@ -128,7 +121,7 @@ struct ProgressMediaViewer: View {
             Image(systemName: "xmark.circle.fill")
                 .font(.title)
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.ink)
         }
         .padding()
         .accessibilityLabel("Close")

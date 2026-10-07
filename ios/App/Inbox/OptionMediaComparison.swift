@@ -54,21 +54,22 @@ private struct OptionMediaTile: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Button(action: open) {
                 // A flexible surface owns the aspect ratio; the loaded image stays
                 // in its overlay so its intrinsic width cannot expand the card.
                 Rectangle().fill(Theme.surface2)
                     .aspectRatio(1.35, contentMode: .fit)
                     .overlay {
+                        Button(action: open) { Color.clear.contentShape(Rectangle()) }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Open image for \(media.label)")
+                            .accessibilityValue(Text(verbatim: selectionValue))
+                    }
+                    .overlay {
                         thumbnail
                     }
                     .background(Theme.surface2)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
             .frame(minWidth: 44, minHeight: 44)
-            .accessibilityLabel("Open image for \(media.label)")
-            .accessibilityValue(Text(verbatim: selectionValue))
             if let settlement {
                 Label { Text(verbatim: selectionValue) } icon: { Image(systemName: settlement.symbol) }
                     .font(.caption)
@@ -91,26 +92,12 @@ private struct OptionMediaTile: View {
     }
 
     private var thumbnail: some View {
-        AsyncImage(url: URL(string: media.url)) { phase in
-            switch phase {
-            case .success(let image):
+        RemoteImage(url: URL(string: media.url), compact: true,
+                    retryIdentifier: "option-media-retry-\(media.label)") { image in
                 image.resizable().scaledToFill()
+                    .allowsHitTesting(false)
                     .accessibilityIdentifier("option-media-image-\(media.label)")
-            case .failure:
-                placeholder(systemImage: "photo.badge.exclamationmark")
-            case .empty:
-                ProgressView()
-            @unknown default:
-                placeholder(systemImage: "photo")
-            }
         }
-    }
-
-    private func placeholder(systemImage: String) -> some View {
-        Image(systemName: systemImage)
-            .font(.title2)
-            .foregroundStyle(Theme.ink2)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -121,20 +108,9 @@ private struct OptionMediaZoom: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Theme.mediaBackground.ignoresSafeArea()
-            AsyncImage(url: URL(string: media.url)) { phase in
-                switch phase {
-                case .success(let image):
+            RemoteImage(url: URL(string: media.url)) { image in
                     image.resizable().scaledToFit()
                         .accessibilityIdentifier("option-media-zoom-image")
-                case .failure:
-                    ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
-                        .foregroundStyle(Theme.ink2)
-                case .empty:
-                    ProgressView().tint(Theme.ink2)
-                @unknown default:
-                    ContentUnavailableView("Image unavailable", systemImage: "photo")
-                        .foregroundStyle(Theme.ink2)
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Button("Done") { dismiss() }

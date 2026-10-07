@@ -1,6 +1,70 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "The reply couldn't be sent.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The reply couldn't be sent."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未能发送回复。"
+          }
+        }
+      }
+    },
+    "Your reply is still sending.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your reply is still sending."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复仍在发送中。"
+          }
+        }
+      }
+    },
+    "Open HiBoss to check the connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open HiBoss to check the connection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 HiBoss 检查连接"
+          }
+        }
+      }
+    },
+    "Sending reply…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending reply…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在发送回复…"
+          }
+        }
+      }
+    },
     "Answered": {
       "localizations": {
         "zh-Hans": {

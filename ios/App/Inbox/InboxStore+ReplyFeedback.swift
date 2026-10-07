@@ -20,6 +20,7 @@ extension InboxStore {
             break
         case .accepted:
             settleReply(choice.trimmingCharacters(in: .whitespacesAndNewlines), for: id)
+            replyConfirmation = String(localized: "Reply sent.")
             refreshHistory()
         case .alreadyResolved:
             settleReply(nil, for: id)

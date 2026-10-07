@@ -37,7 +37,8 @@ struct RootTabView: View {
         self.connection = connection
         self.preferences = preferences
         self.progress = progress
-        _panels = StateObject(wrappedValue: PanelsModel(api: isDemoMode ? DemoHomePanelsAPI() : nil, configurationProvider: {
+        let panelAPI: (any PanelsServing)? = isDemoMode ? DemoPanelServices.make() : nil
+        _panels = StateObject(wrappedValue: PanelsModel(api: panelAPI, configurationProvider: {
             guard let config = connection.config else { throw PanelClientError.notConfigured }
             return config
         }))
@@ -51,13 +52,35 @@ struct RootTabView: View {
         return connection.makeAPI()
     }
 
-    var body: some View {
+    private var tabs: some View {
         TabView(selection: $tab) {
             homeTabView
             activityTabView
             progressTabView
             settingsTabView
         }
+        .environment(\.openConnectionSettings, {
+            panels.closeDetail()
+            tab = 5
+        })
+        .safeAreaInset(edge: .bottom) {
+            if let confirmation = inbox.replyConfirmation {
+                Label { Text(verbatim: confirmation) } icon: { Image(systemName: "checkmark.circle") }
+                    .font(.hbCallout).foregroundStyle(Theme.positive)
+                    .padding(8).frame(maxWidth: .infinity).background(.bar)
+                    .accessibilityIdentifier("reply-confirmation")
+            }
+        }
+        .task(id: inbox.replyConfirmation) {
+            guard inbox.replyConfirmation != nil else { return }
+            do { try await Task.sleep(for: .seconds(3)) }
+            catch { return }
+            inbox.replyConfirmation = nil
+        }
+    }
+
+    private var routedTabs: some View {
+        tabs
         .task(id: router.pendingMessageID) { await openPendingMessage() }
         .onChange(of: router.pendingJoinRequest, initial: true) { openPendingJoinRequest() }
         .sheet(item: $joinRequestTarget) { target in
@@ -77,6 +100,10 @@ struct RootTabView: View {
         } message: {
             Text(verbatim: panelRouteNote ?? "")
         }
+    }
+
+    var body: some View {
+        routedTabs
         .onChange(of: scenePhase) { _, phase in
             // iOS drops the SSE while backgrounded; on return, reload history so
             // decisions that arrived (or resolved elsewhere) meanwhile show up.
@@ -101,6 +128,13 @@ struct RootTabView: View {
                 sessionAPI: sessionStreamAPI,
                 panels: panels
             )
+            .safeAreaInset(edge: .bottom) {
+                if router.pendingPanel != nil {
+                    PendingStateView(title: String(localized: "Opening panel…"),
+                                     onRetry: { await openPendingPanel() })
+                        .padding(12).background(.bar)
+                }
+            }
         }
         .tabItem { Label("Home", systemImage: "house") }
         .tag(Self.homeTab)
@@ -195,7 +229,10 @@ struct RootTabView: View {
         guard !Task.isCancelled, router.pendingPanel == route else { return }
         if !opened {
             panels.section = .needsInput
-            panelRouteNote = String(localized: "Couldn't open this panel. Showing Needs input so you can find unanswered questions or refresh.")
+            panelRouteNote = String(
+                localized:
+            "Couldn't open this panel. Showing Needs input so you can find unanswered questions or refresh."
+            )
         }
         router.finishOpening(route)
     }

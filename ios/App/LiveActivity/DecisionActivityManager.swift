@@ -24,7 +24,9 @@ enum DecisionActivityManager {
             laLog.error("Live Activities disabled; skipping (\(pending.count) pending)")
             return
         }
-        laLog.info("sync: \(pending.count) pending, \(Activity<DecisionActivityAttributes>.activities.count) running")
+        laLog.info(
+            "sync: \(pending.count) pending, \(Activity<DecisionActivityAttributes>.activities.count) running"
+        )
         let running = Activity<DecisionActivityAttributes>.activities
         let ranked = rankedMessages(from: pending)
         let top = alertsEnabled ? ranked.first : nil
@@ -62,7 +64,14 @@ enum DecisionActivityManager {
         guard let activity = Activity<DecisionActivityAttributes>.activities.first(where: {
             $0.attributes.messageID == id
         }) else { return false }
-        await activity.update(ActivityContent(state: state, staleDate: deadline))
+        var next = state
+        let previous = activity.content.state
+        if next.submitting == previous.submitting {
+            next.submissionProgressVisible = previous.submissionProgressVisible
+            next.submissionIsSlow = previous.submissionIsSlow
+            next.replyFailed = previous.replyFailed
+        }
+        await activity.update(ActivityContent(state: next, staleDate: deadline))
         return true
     }
 }

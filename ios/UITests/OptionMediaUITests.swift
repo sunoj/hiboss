@@ -114,10 +114,17 @@ final class OptionMediaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Done"].waitForNonExistence(timeout: 5))
     }
 
+    /// Waits until each tile has settled on a loaded image: its open button exists and
+    /// neither the loading indicator nor the retry button (shown on failure or a stall)
+    /// remains. The thumbnail itself is decorative under the button, so it is not always
+    /// exposed as a separate image element.
     private func shot(_ name: String) {
         for option in ["Coastal view", "Mountain view"] {
-            XCTAssertTrue(app.images["option-media-image-\(option)"].waitForExistence(timeout: 20))
+            XCTAssertTrue(app.buttons["Open image for \(option)"].waitForExistence(timeout: 10))
+            XCTAssertFalse(app.buttons["option-media-retry-\(option)"].exists, "image failed or stalled")
         }
+        let loading = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Loading image…"))
+        XCTAssertTrue(loading.firstMatch.waitForNonExistence(timeout: 20), "an image never finished loading")
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways

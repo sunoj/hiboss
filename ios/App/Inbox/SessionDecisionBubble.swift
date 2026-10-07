@@ -11,6 +11,7 @@ struct SessionDecisionBubble: View {
     let message: HistoryMessage
     @ObservedObject var store: InboxStore
     let onChoose: (String) -> Void
+    @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -42,6 +43,7 @@ struct SessionDecisionBubble: View {
             DecisionTimingView(timing: timing, messageID: message.id)
             DecisionOptions(options: message.options, timing: timing,
                             submitting: store.replying[message.id], onChoose: onChoose)
+            if store.replying[message.id] != nil { ReplyPendingNote(onSettings: openSettings) }
         }
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
