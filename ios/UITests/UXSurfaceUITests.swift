@@ -47,12 +47,12 @@ final class UXSurfaceUITests: XCTestCase {
         let image = app.buttons["Open image for Coarse grid"]
         XCTAssertTrue(image.waitForExistence(timeout: 10))
         for label in ["Coarse grid", "Fine grid"] {
-            XCTAssertEqual(app.buttons["Open image for \(label)"].value as? String, "Image available")
+            XCTAssertTrue(app.images["option-media-image-\(label)"].exists)
         }
         shot("en-24-home-option-images")
         image.tap()
         XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.images["option-image-loaded-Coarse grid"].exists)
+        XCTAssertTrue(app.images["option-media-zoom-image"].exists)
         shot("en-25-option-image-zoom")
         app.buttons["Done"].tap()
         app.buttons["home-message-c5"].tap()

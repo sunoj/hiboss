@@ -1,14 +1,14 @@
 // Shows option media in an ordered two-up comparison with full-screen zoom.
-// Exports: OptionMediaComparison used by pending decision surfaces.
-// Dependencies: SwiftUI, HibossKit OptionMedia, and iOS semantic theme colours.
+// Exports: OptionMediaComparison used by pending and resolved decision surfaces.
+// Dependencies: SwiftUI, HibossKit OptionMedia, DecisionSettlement and semantic theme colours.
 
 import HibossKit
 import SwiftUI
-import UIKit
 
 struct OptionMediaComparison: View {
     let options: [String]
     let media: [OptionMedia]
+    var settlement: DecisionSettlement? = nil
     @State private var selectedMedia: OptionMedia?
 
     private var orderedMedia: [OptionMedia] {
@@ -25,7 +25,7 @@ struct OptionMediaComparison: View {
         if !orderedMedia.isEmpty {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(orderedMedia) { media in
-                    OptionMediaTile(media: media) { selectedMedia = media }
+                    OptionMediaTile(media: media, settlement: selection(for: media)) { selectedMedia = media }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -34,10 +34,18 @@ struct OptionMediaComparison: View {
             }
         }
     }
+
+    private func selection(for media: OptionMedia) -> DecisionSettlement? {
+        guard let settlement,
+              media.label.trimmingCharacters(in: .whitespacesAndNewlines)
+                == settlement.answer.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        return settlement
+    }
 }
 
 private struct OptionMediaTile: View {
     let media: OptionMedia
+    let settlement: DecisionSettlement?
     let open: () -> Void
 
     var body: some View {
@@ -51,14 +59,22 @@ private struct OptionMediaTile: View {
                 // in its overlay so its intrinsic width cannot expand the card.
                 Rectangle().fill(Theme.surface2)
                     .aspectRatio(1.35, contentMode: .fit)
-                    .overlay { thumbnail }
+                    .overlay {
+                        thumbnail
+                    }
                     .background(Theme.surface2)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Open image for \(media.label)")
-            .accessibilityValue(bundledImage(media) != nil ? Text("Image available") : Text(verbatim: ""))
+            .accessibilityValue(Text(verbatim: selectionValue))
+            if let settlement {
+                Label { Text(verbatim: selectionValue) } icon: { Image(systemName: settlement.symbol) }
+                    .font(.caption)
+                    .foregroundStyle(Theme.accent)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let caption = media.caption, !caption.isEmpty {
                 Text(verbatim: caption)
                     .font(.caption)
@@ -69,23 +85,23 @@ private struct OptionMediaTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
+    private var selectionValue: String {
+        guard let settlement else { return "" }
+        return settlement.isAutoDefault ? String(localized: "Auto-selected") : String(localized: "Selected")
+    }
+
     private var thumbnail: some View {
-        if let image = bundledImage(media) {
-            Image(uiImage: image).resizable().scaledToFill()
-                .accessibilityIdentifier("option-image-loaded-\(media.label)")
-        } else {
-            AsyncImage(url: URL(string: media.url)) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .failure:
-                    placeholder(systemImage: "photo.badge.exclamationmark")
-                case .empty:
-                    ProgressView()
-                @unknown default:
-                    placeholder(systemImage: "photo")
-                }
+        AsyncImage(url: URL(string: media.url)) { phase in
+            switch phase {
+            case .success(let image):
+                image.resizable().scaledToFill()
+                    .accessibilityIdentifier("option-media-image-\(media.label)")
+            case .failure:
+                placeholder(systemImage: "photo.badge.exclamationmark")
+            case .empty:
+                ProgressView()
+            @unknown default:
+                placeholder(systemImage: "photo")
             }
         }
     }
@@ -105,28 +121,19 @@ private struct OptionMediaZoom: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Theme.mediaBackground.ignoresSafeArea()
-            Group {
-                if let image = bundledImage(media) {
-                    Image(uiImage: image).resizable().scaledToFit()
-                        .accessibilityLabel(Text(verbatim: media.label))
-                        .accessibilityIdentifier("option-image-loaded-\(media.label)")
-                } else {
-                    AsyncImage(url: URL(string: media.url)) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFit()
-                        case .failure:
-                            ContentUnavailableView(
-                                "Image unavailable", systemImage: "photo.badge.exclamationmark"
-                            )
-                                .foregroundStyle(Theme.ink2)
-                        case .empty:
-                            ProgressView().tint(Theme.ink2)
-                        @unknown default:
-                            ContentUnavailableView("Image unavailable", systemImage: "photo")
-                                .foregroundStyle(Theme.ink2)
-                        }
-                    }
+            AsyncImage(url: URL(string: media.url)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFit()
+                        .accessibilityIdentifier("option-media-zoom-image")
+                case .failure:
+                    ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
+                        .foregroundStyle(Theme.ink2)
+                case .empty:
+                    ProgressView().tint(Theme.ink2)
+                @unknown default:
+                    ContentUnavailableView("Image unavailable", systemImage: "photo")
+                        .foregroundStyle(Theme.ink2)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -135,10 +142,4 @@ private struct OptionMediaZoom: View {
                 .padding()
         }
     }
-}
-
-private func bundledImage(_ media: OptionMedia) -> UIImage? {
-    guard let url = URL(string: media.url), url.isFileURL,
-          url.standardizedFileURL.path.hasPrefix(Bundle.main.bundleURL.path + "/") else { return nil }
-    return UIImage(contentsOfFile: url.path)
 }

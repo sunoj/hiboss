@@ -3493,6 +3493,12 @@
     },
     "Selected": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -12335,22 +12341,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "다른 결정"
-          }
-        }
-      }
-    },
-    "Image available": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Image available"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "图片可用"
           }
         }
       }

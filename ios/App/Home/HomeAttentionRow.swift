@@ -31,6 +31,7 @@ struct HomeAttentionSection: View {
     let onChoose: (String, MessageID) -> Void
     let onOpenPanel: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -61,13 +62,19 @@ struct HomeAttentionSection: View {
         .padding(.horizontal, 16)
     }
 
+    /// Side by side at ordinary sizes; stacked at accessibility sizes, where sharing a
+    /// row breaks the title across lines.
     private var title: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        let stacked = dynamicTypeSize.isAccessibilitySize
+        let layout = stacked
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+        return layout {
             Text("Needs you now")
                 .fixedSize(horizontal: false, vertical: true)
                 .font(.hbH2)
                 .foregroundStyle(Theme.ink)
-            Spacer(minLength: 0)
+            if !stacked { Spacer(minLength: 0) }
             if snapshot.count > 0 || (status == nil && hasPanels) {
                 titleSubtitle
                     .font(.hbCaption)
