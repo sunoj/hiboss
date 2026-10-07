@@ -25,6 +25,26 @@ final class BoxAPITests: XCTestCase {
         XCTAssertEqual(search, page)
     }
 
+    func testCreateJSONUsesBossAuthorizationSourceAndIdempotencyKey() async throws {
+        let item = try await api().createBoxItem(
+            BoxUpload(text: "reference", note: "keep", project: "design"),
+            idempotencyKey: "stable-fixture-key", progress: { value in
+                XCTAssertTrue((0...1).contains(value))
+            })
+        XCTAssertEqual(item.id, "bx_reference")
+    }
+
+    func testCreateMultipartUploadsMetaAndFileWithoutChangingTheInput() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("private bytes".utf8).write(to: url)
+        let item = try await api().createBoxItem(BoxUpload(note: "keep", project: "design",
+            media: BoxUpload.Media(fileURL: url, contentType: "image/png")),
+            idempotencyKey: "stable-fixture-key", progress: { _ in })
+        XCTAssertEqual(item.id, "bx_reference")
+        XCTAssertEqual(try Data(contentsOf: url), Data("private bytes".utf8))
+    }
+
     func testLatestShowAndPatchDecodeDirectItems() async throws {
         let api = try api()
         let latest = try await api.latestBoxItem(filters: BoxFilters(kind: .image))
@@ -113,7 +133,9 @@ private final class BoxURLProtocol: URLProtocol, @unchecked Sendable {
 
     private func responseBody(url: URL, query: [String: String]) -> String {
         if url.lastPathComponent == "media" { return "private bytes" }
-        if request.httpMethod == "PATCH" {
+        if request.httpMethod == "POST" {
+            verifyUpload()
+        } else if request.httpMethod == "PATCH" {
             let json = try? JSONSerialization.jsonObject(with: requestBody()) as? [String: Any]
             XCTAssertTrue(json?["note"] is NSNull)
             XCTAssertEqual(json?["project"] as? String, "new")
@@ -132,6 +154,24 @@ private final class BoxURLProtocol: URLProtocol, @unchecked Sendable {
             return "{\"items\":[\(BoxModelTests.itemJSON)],\"next_cursor\":\"opaque_server-cursor\"}"
         }
         return BoxModelTests.itemJSON
+    }
+
+    private func verifyUpload() {
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Idempotency-Key"), "stable-fixture-key")
+        let body = String(decoding: requestBody(), as: UTF8.self)
+        if request.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data") == true {
+            XCTAssertTrue(body.contains("name=\"meta\""))
+            XCTAssertTrue(body.contains("name=\"file\""))
+            XCTAssertTrue(body.contains("Content-Type: image/png"))
+            XCTAssertTrue(body.contains("private bytes"))
+            XCTAssertTrue(body.contains("\"source\":\"ios-share\""))
+            XCTAssertTrue(body.contains("\"note\":\"keep\""))
+            XCTAssertTrue(body.contains("\"project\":\"design\""))
+        } else {
+            let json = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: String]
+            XCTAssertEqual(json, ["text": "reference", "note": "keep", "project": "design",
+                "source": "ios-share"])
+        }
     }
 
     private func requestBody() -> Data {

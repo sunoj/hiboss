@@ -13,13 +13,19 @@ final class ConnectionStore: ObservableObject {
     @Published var bossToken: String
     @Published var deviceLabel = UIDevice.current.name
     @Published private(set) var clientExchangeNotice: String?
-    @Published private(set) var config: ConnectionConfig?
+    @Published private(set) var config: ConnectionConfig? {
+        didSet {
+            sharedDefaults?.set(config?.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+        }
+    }
     /// True until the first `restore()` completes, so the shell can show a neutral
     /// splash instead of flashing onboarding for an already-configured user.
     @Published private(set) var isRestoring = true
 
     private let defaults: UserDefaults
     private let keychain: any TokenStoring
+    private let legacyKeychain: (any TokenRemoving)?
+    private let sharedDefaults: UserDefaults?
     private let signerStore: any MessageSignerStoring
     private let pairingRedeemer: PairingRedeemer
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
@@ -28,14 +34,23 @@ final class ConnectionStore: ObservableObject {
     init(
         defaults: UserDefaults = .standard,
         keychain: (any TokenStoring)? = nil,
+        legacyKeychain: (any TokenRemoving)? = nil,
+        sharedDefaults: UserDefaults? = UserDefaults(suiteName: ShareConnection.appGroup),
         signerStore: (any MessageSignerStoring)? = nil,
         pairingRedeemer: PairingRedeemer = PairingRedeemer(),
         clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
     ) {
         self.defaults = defaults
         self.keychain = keychain ?? KeychainStore(
-            service: HiBossStore.keychainService, account: HiBossStore.keychainAccount
+            service: HiBossStore.keychainService, account: HiBossStore.keychainAccount,
+            accessGroup: ShareConnection.sharedAccessGroup
         )
+        self.legacyKeychain = legacyKeychain ?? (keychain == nil ? KeychainStore(
+            service: HiBossStore.keychainService, account: HiBossStore.keychainAccount,
+            accessGroup: Bundle.main.object(forInfoDictionaryKey: "PrivateKeychainAccessGroup")
+                as? String ?? ""
+        ) : nil)
+        self.sharedDefaults = sharedDefaults
         self.signerStore = signerStore ?? KeychainMessageSignerStore(
             service: HiBossStore.keychainService,
             account: HiBossStore.signingKeychainAccount
@@ -52,9 +67,12 @@ final class ConnectionStore: ObservableObject {
     func restore() async {
         try? await DemoDelay.wait("RESTORE")
         let keychain = keychain
+        let legacy = legacyKeychain
         let signerStore = signerStore
         let stored = await Task.detached(priority: .userInitiated) {
-            (token: try? keychain.read(), signer: try? signerStore.read())
+            if let legacy { try? BossTokenMigration(legacy: legacy, shared: keychain).migrate() }
+            let token = (try? keychain.read()) ?? (try? legacy?.read())
+            return (token: token, signer: try? signerStore.read())
         }.value
         defer { isRestoring = false }
 

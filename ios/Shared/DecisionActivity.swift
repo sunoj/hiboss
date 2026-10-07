@@ -69,7 +69,10 @@ enum HiBossStore {
     /// Rebuilds the boss API from persisted server URL + Keychain token.
     static func bossAPI() -> HibossAPI? {
         let server = UserDefaults.standard.string(forKey: AppConstants.Storage.serverURL) ?? ""
-        let token = (try? KeychainStore(service: keychainService, account: keychainAccount).read()) ?? nil
+        let group = Bundle.main.object(forInfoDictionaryKey: "SharedKeychainAccessGroup") as? String
+        let token = (try? KeychainStore(
+            service: keychainService, account: keychainAccount, accessGroup: group
+        ).read()) ?? nil
         guard case let .success(config) = makeConnectionConfig(serverAddress: server, bossToken: token ?? "")
         else {
             return nil

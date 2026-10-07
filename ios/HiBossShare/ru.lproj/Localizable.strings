@@ -1,0 +1,38 @@
+// Native share-extension labels and attachment errors.
+"Save to Box" = "Сохранить в Box";
+"Open HiBoss to connect" = "Откройте HiBoss для подключения";
+"Optional note" = "Необязательная заметка";
+"No project" = "Без проекта";
+"Projects unavailable. You can save without a project." = "Проекты недоступны. Можно сохранить без проекта.";
+"Saved to Box" = "Сохранено в Box";
+"Retry keeps the original note and project for items already submitted."
+= "Повтор сохраняет исходную заметку и проект уже отправленных элементов.";
+"Compressing attachments…" = "Сжатие вложений…";
+"Uploading to Box…" = "Загрузка в Box…";
+"Loading attachments…" = "Загрузка вложений…";
+"This is taking longer than usual. You can retry or cancel."
+= "Это занимает больше времени. Можно повторить или отменить.";
+"Share a link, text, image, or video." = "Поделитесь ссылкой, текстом, изображением или видео.";
+"Share up to 4 attachments at a time." = "Отправляйте не более 4 вложений за раз.";
+"This image cannot fit within 10 MB. Choose a smaller image."
+= "Не удалось уменьшить изображение до 10 MB. Выберите изображение поменьше.";
+"This video is still over 50 MB. Trim the clip and share it again."
+= "Видео всё ещё больше 50 MB. Обрежьте ролик и отправьте снова.";
+"This text or note is too long. Keep it within 16 KB."
+= "Текст или заметка слишком длинные. Сократите до 16 KB.";
+"Could not prepare this attachment. Try sharing it again."
+= "Не удалось подготовить вложение. Попробуйте отправить снова.";
+"Could not save to Box. Check your connection and retry."
+= "Не удалось сохранить в Box. Проверьте соединение и повторите.";
+"Preview" = "Предпросмотр";
+"Note" = "Заметка";
+"Project" = "Проект";
+"Save" = "Сохранить";
+"Retry" = "Повторить";
+"Cancel" = "Отмена";
+"OK" = "ОК";
+"Link" = "Ссылка";
+"Text" = "Текст";
+"Image" = "Изображение";
+"Video" = "Видео";
+"File" = "Файл";

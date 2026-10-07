@@ -1,0 +1,39 @@
+// Native share-extension labels and attachment errors.
+"Save to Box" = "Guardar en Box";
+"Open HiBoss to connect" = "Abre HiBoss para conectarte";
+"Optional note" = "Nota opcional";
+"No project" = "Sin proyecto";
+"Projects unavailable. You can save without a project."
+= "Proyectos no disponibles. Puedes guardar sin proyecto.";
+"Saved to Box" = "Guardado en Box";
+"Retry keeps the original note and project for items already submitted."
+= "Al reintentar se conservan la nota y el proyecto de los elementos enviados.";
+"Compressing attachments…" = "Comprimiendo adjuntos…";
+"Uploading to Box…" = "Subiendo a Box…";
+"Loading attachments…" = "Cargando adjuntos…";
+"This is taking longer than usual. You can retry or cancel."
+= "Está tardando más de lo habitual. Puedes reintentar o cancelar.";
+"Share a link, text, image, or video." = "Comparte un enlace, texto, imagen o vídeo.";
+"Share up to 4 attachments at a time." = "Comparte hasta 4 adjuntos a la vez.";
+"This image cannot fit within 10 MB. Choose a smaller image."
+= "Esta imagen supera 10 MB. Elige una imagen más pequeña.";
+"This video is still over 50 MB. Trim the clip and share it again."
+= "El vídeo aún supera 50 MB. Recórtalo y vuelve a compartirlo.";
+"This text or note is too long. Keep it within 16 KB."
+= "El texto o la nota es demasiado largo. Limítalo a 16 KB.";
+"Could not prepare this attachment. Try sharing it again."
+= "No se pudo preparar el adjunto. Vuelve a compartirlo.";
+"Could not save to Box. Check your connection and retry."
+= "No se pudo guardar en Box. Comprueba la conexión y reintenta.";
+"Preview" = "Vista previa";
+"Note" = "Nota";
+"Project" = "Proyecto";
+"Save" = "Guardar";
+"Retry" = "Reintentar";
+"Cancel" = "Cancelar";
+"OK" = "Aceptar";
+"Link" = "Enlace";
+"Text" = "Texto";
+"Image" = "Imagen";
+"Video" = "Vídeo";
+"File" = "Archivo";

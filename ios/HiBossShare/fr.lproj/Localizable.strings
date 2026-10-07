@@ -1,0 +1,39 @@
+// Native share-extension labels and attachment errors.
+"Save to Box" = "Enregistrer dans Box";
+"Open HiBoss to connect" = "Ouvrez HiBoss pour vous connecter";
+"Optional note" = "Note facultative";
+"No project" = "Aucun projet";
+"Projects unavailable. You can save without a project."
+= "Projets indisponibles. Vous pouvez enregistrer sans projet.";
+"Saved to Box" = "Enregistré dans Box";
+"Retry keeps the original note and project for items already submitted."
+= "Réessayer conserve la note et le projet des éléments déjà envoyés.";
+"Compressing attachments…" = "Compression des pièces jointes…";
+"Uploading to Box…" = "Envoi vers Box…";
+"Loading attachments…" = "Chargement des pièces jointes…";
+"This is taking longer than usual. You can retry or cancel."
+= "Cela prend plus de temps que prévu. Réessayez ou annulez.";
+"Share a link, text, image, or video." = "Partagez un lien, un texte, une image ou une vidéo.";
+"Share up to 4 attachments at a time." = "Partagez jusqu’à 4 pièces jointes à la fois.";
+"This image cannot fit within 10 MB. Choose a smaller image."
+= "Cette image ne peut pas tenir dans 10 MB. Choisissez une image plus petite.";
+"This video is still over 50 MB. Trim the clip and share it again."
+= "Cette vidéo dépasse encore 50 MB. Raccourcissez-la et partagez-la à nouveau.";
+"This text or note is too long. Keep it within 16 KB."
+= "Le texte ou la note est trop long. Limitez-le à 16 KB.";
+"Could not prepare this attachment. Try sharing it again."
+= "Impossible de préparer cette pièce jointe. Partagez-la à nouveau.";
+"Could not save to Box. Check your connection and retry."
+= "Impossible d’enregistrer dans Box. Vérifiez la connexion et réessayez.";
+"Preview" = "Aperçu";
+"Note" = "Note";
+"Project" = "Projet";
+"Save" = "Enregistrer";
+"Retry" = "Réessayer";
+"Cancel" = "Annuler";
+"OK" = "OK";
+"Link" = "Lien";
+"Text" = "Texte";
+"Image" = "Image";
+"Video" = "Vidéo";
+"File" = "Fichier";

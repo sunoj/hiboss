@@ -1,0 +1,36 @@
+// Native share-extension labels and attachment errors.
+"Save to Box" = "บันทึกไปยัง Box";
+"Open HiBoss to connect" = "เปิด HiBoss เพื่อเชื่อมต่อ";
+"Optional note" = "บันทึกเพิ่มเติม (ไม่บังคับ)";
+"No project" = "ไม่มีโปรเจกต์";
+"Projects unavailable. You can save without a project."
+= "โหลดโปรเจกต์ไม่ได้ คุณบันทึกโดยไม่เลือกโปรเจกต์ได้";
+"Saved to Box" = "บันทึกไปยัง Box แล้ว";
+"Retry keeps the original note and project for items already submitted."
+= "การลองใหม่จะใช้บันทึกและโปรเจกต์เดิมของรายการที่ส่งแล้ว";
+"Compressing attachments…" = "กำลังบีบอัดไฟล์แนบ…";
+"Uploading to Box…" = "กำลังอัปโหลดไปยัง Box…";
+"Loading attachments…" = "กำลังโหลดไฟล์แนบ…";
+"This is taking longer than usual. You can retry or cancel." = "ใช้เวลานานกว่าปกติ คุณลองใหม่หรือยกเลิกได้";
+"Share a link, text, image, or video." = "แชร์ลิงก์ ข้อความ รูปภาพ หรือวิดีโอ";
+"Share up to 4 attachments at a time." = "แชร์ไฟล์แนบได้ครั้งละไม่เกิน 4 ไฟล์";
+"This image cannot fit within 10 MB. Choose a smaller image."
+= "ลดรูปภาพนี้ให้ไม่เกิน 10 MB ไม่ได้ โปรดเลือกรูปภาพที่เล็กกว่า";
+"This video is still over 50 MB. Trim the clip and share it again."
+= "วิดีโอยังเกิน 50 MB โปรดตัดคลิปแล้วแชร์อีกครั้ง";
+"This text or note is too long. Keep it within 16 KB." = "ข้อความหรือบันทึกยาวเกินไป โปรดให้ไม่เกิน 16 KB";
+"Could not prepare this attachment. Try sharing it again." = "เตรียมไฟล์แนบนี้ไม่ได้ โปรดลองแชร์อีกครั้ง";
+"Could not save to Box. Check your connection and retry."
+= "บันทึกไปยัง Box ไม่ได้ โปรดตรวจสอบการเชื่อมต่อแล้วลองใหม่";
+"Preview" = "ตัวอย่าง";
+"Note" = "บันทึก";
+"Project" = "โปรเจกต์";
+"Save" = "บันทึก";
+"Retry" = "ลองใหม่";
+"Cancel" = "ยกเลิก";
+"OK" = "ตกลง";
+"Link" = "ลิงก์";
+"Text" = "ข้อความ";
+"Image" = "รูปภาพ";
+"Video" = "วิดีโอ";
+"File" = "ไฟล์";
