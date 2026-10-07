@@ -3,7 +3,6 @@
 # A stale entry (nothing matches it any more) fails the audit, so remove it with the code.
 
 # Values typed LocalizedStringResource: Text(resource) resolves through the catalog.
-App/Home/HomeAttentionRow.swift | unlocalized-var | Text(group.group.title) | AttentionGroup.title is LocalizedStringResource
 App/Inbox/MessageAttributeStyle.swift | unlocalized-var | Text(label) | AttributeRow.label is LocalizedStringResource
 App/Settings/DeviceRequestsView.swift | unlocalized-var | Text(note) | approvalNote is LocalizedStringResource
 
@@ -13,7 +12,6 @@ App/Inbox/ListStateView.swift | unlocalized-var | ContentUnavailableView(emptyTi
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(actionNote, | actionNote is set only from String(localized:)
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(title, systemImage: icon) | callers pass String(localized:) titles
 App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLabel(accessibilityCaption) | built with String(localized:)
-App/Sessions/SessionCard.swift | unlocalized-var | Label(statusStyle.label, | SessionStatusStyle.label is String(localized:); unknown server words show as sent
 App/Settings/SettingsView.swift | unlocalized-var | Label(message, | preference/registration failure: error.localizedDescription or String(localized:)
 App/Settings/SettingsView.swift | unlocalized-var | Button(actionTitle) | actionTitle is String(localized:)
 

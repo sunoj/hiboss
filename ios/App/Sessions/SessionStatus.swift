@@ -1,6 +1,6 @@
 // The one mapping from a session's status word to its label, glyph and tint on every iOS surface.
 // Exports: SessionStatus (the five server words) and SessionStatusStyle (card style; unknown words kept).
-// Dependencies: SwiftUI Color and Theme tokens. Home's "Waiting on you" group and Sessions read it.
+// Dependencies: SwiftUI Color and Theme tokens; used by Home ranking and session cards.
 
 import SwiftUI
 

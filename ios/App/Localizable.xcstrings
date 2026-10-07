@@ -1,6 +1,70 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Activity": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "动态"
+          }
+        }
+      }
+    },
+    "View session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View session"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看会话"
+          }
+        }
+      }
+    },
+    "Not connected. Pull to refresh or reconnect in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected. Pull to refresh or reconnect in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚未连接。请下拉刷新或在设置中重新连接。"
+          }
+        }
+      }
+    },
+    "Connection failed. Pull to refresh or reconnect in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection failed. Pull to refresh or reconnect in Settings."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接失败。请下拉刷新或在设置中重新连接。"
+          }
+        }
+      }
+    },
     "Device label": {
       "localizations": {
         "en": {
@@ -12277,6 +12341,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "다른 결정"
+          }
+        }
+      }
+    },
+    "Auto-selects “%@”": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-selects “%@”"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到时自动选择「%@」"
           }
         }
       }

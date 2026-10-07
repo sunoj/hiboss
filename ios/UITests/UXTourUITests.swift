@@ -27,6 +27,14 @@ final class UXTourUITests: XCTestCase {
              arguments: ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"])
     }
 
+    func testTourChineseLargeText() {
+        tour(prefix: appearancePrefix + "zh-xxl", extra: [:], arguments: Self.chinese + Self.largeText)
+    }
+
+    func testTourEmptyEnglish() {
+        tour(prefix: appearancePrefix + "en-empty", extra: ["HIBOSS_DEMO_EMPTY": "1"])
+    }
+
     /// One extra language per run, chosen by `UX_TOUR_LANG` (e.g. `ar`, `pt-BR`); skipped when unset.
     func testTourLanguage() throws {
         guard let language = ProcessInfo.processInfo.environment["UX_TOUR_LANG"].flatMap({ $0.isEmpty ? nil : $0 }) else {
@@ -45,6 +53,7 @@ final class UXTourUITests: XCTestCase {
             settle()
             shot("\(appearancePrefix)conn-\(state)-01-home")
             messages.tap()
+            selectMessages()
             settle()
             shot("\(appearancePrefix)conn-\(state)-04-messages")
             app.terminate()
@@ -57,6 +66,7 @@ final class UXTourUITests: XCTestCase {
         let messages = app.tabBars.buttons.element(boundBy: 1)
         XCTAssertTrue(messages.waitForExistence(timeout: 8))
         messages.tap()
+        selectMessages()
         Thread.sleep(forTimeInterval: 5)
         pullToRefresh(app)
         settle()
@@ -146,7 +156,7 @@ final class UXTourUITests: XCTestCase {
     }
 
     private func openSettingsRow(_ title: String) {
-        let settings = app.tabBars.buttons.element(boundBy: 4)
+        let settings = app.tabBars.buttons.element(boundBy: 3)
         XCTAssertTrue(settings.waitForExistence(timeout: 8))
         settings.tap()
         let row = app.buttons[title].firstMatch
@@ -174,18 +184,41 @@ final class UXTourUITests: XCTestCase {
         shot("\(prefix)-02-home-scrolled")
         app.swipeDown()
         if extra["HIBOSS_DEMO_EMPTY"] != "1" { openFirstHomeItem(prefix: prefix) }
-        // Tabs by position: labels are localised, the order is fixed by RootTabView.
-        for (index, name) in ["messages", "progress", "sessions", "settings"].enumerated() {
-            let tab = app.tabBars.buttons.element(boundBy: index + 1)
+        tourActivity(prefix: prefix)
+        // Progress remains one tap away; Settings is the final tab.
+        for (index, name) in ["progress", "settings"].enumerated() {
+            let tab = app.tabBars.buttons.element(boundBy: index + 2)
             XCTAssertTrue(tab.waitForExistence(timeout: 5), "missing tour tab \(name)")
             tab.tap()
             settle()
-            shot("\(prefix)-\(String(format: "%02d", index * 2 + 4))-\(name)")
+            shot("\(prefix)-\(name == "progress" ? "06" : "10")-\(name)")
             switch name {
-            case "messages", "sessions": openFirstRow(prefix: prefix, name: name, index: index)
             case "progress": openFirstImage(prefix: prefix)
             default: scrollAndShoot(prefix: prefix, name: name)
             }
+        }
+    }
+
+    private func tourActivity(prefix: String) {
+        let activity = app.tabBars.buttons.element(boundBy: 1)
+        XCTAssertTrue(activity.waitForExistence(timeout: 5))
+        activity.tap()
+        settle()
+        shot("\(prefix)-08-sessions")
+        openFirstRow(prefix: prefix, name: "sessions", index: 2)
+        selectMessages()
+        settle()
+        shot("\(prefix)-04-messages")
+        openFirstRow(prefix: prefix, name: "messages", index: 0)
+    }
+
+    private func selectMessages() {
+        let segment = app.segmentedControls.buttons.element(boundBy: 1)
+        if segment.exists {
+            segment.tap()
+        } else {
+            app.buttons["activity-section"].firstMatch.tap()
+            app.buttons.matching(NSPredicate(format: "label == 'Messages' OR label == '消息'")).firstMatch.tap()
         }
     }
 

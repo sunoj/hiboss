@@ -183,7 +183,7 @@ final class RequiredInputCoverageTests: XCTestCase {
     )
 }
 
-private actor ControlledInputAPI: BossServing, RequiredInputServing {
+actor ControlledInputAPI: BossServing, RequiredInputServing {
     private var streams: [AsyncThrowingStream<RequiredInputEvent, Error>.Continuation] = []
     private var streamWaiters: [Int: CheckedContinuation<Void, Never>] = [:]
     private var hold = false

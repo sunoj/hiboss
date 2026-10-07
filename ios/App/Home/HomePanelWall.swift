@@ -1,5 +1,6 @@
 // iOS dashboard wall with shared summary cards and native panel detail navigation.
 // Exports: HomePanelWall, shown by Home only when at least one tile exists in any state.
+// Exports HomePanelDetail for Home's persistent sheet, including notification routes.
 // Dependencies: SwiftUI, HibossKit PanelsModel, PanelDashboardCard, and PanelRenderer.
 
 import HibossKit
@@ -33,12 +34,6 @@ struct HomePanelWall: View {
             }
         }
         .padding(.horizontal, 16)
-        .sheet(isPresented: Binding(
-            get: { model.selectedTile != nil },
-            set: { if !$0 { model.closeDetail() } }
-        )) {
-            if let tile = model.selectedTile { HomePanelDetail(tile: tile, model: model) }
-        }
     }
 
     private var emptyState: some View {
@@ -57,7 +52,7 @@ struct HomePanelWall: View {
     }
 }
 
-private struct HomePanelDetail: View {
+struct HomePanelDetail: View {
     let tile: PanelTile
     @ObservedObject var model: PanelsModel
     @ObservedObject private var store: PanelStore

@@ -1,9 +1,28 @@
-// Option-image decisions for demo UI coverage of pending, chosen and timeout states.
-// Exports: DemoOptionMediaFixtures, selected with HIBOSS_DEMO_OPTION_MEDIA.
-// Dependencies: Foundation, HibossKit; normal demo history is preserved unless selected.
+// Demo option images, bundled so screenshots and UI tests never need the network.
+// Exports: DemoOptionMedia (HIBOSS_DEMO_OPTION_MEDIA=1) and DemoOptionMediaFixtures
+// (pending, resolved or automatic). Dependencies: Foundation, bundled PNGs, HibossKit.
 
 import Foundation
 import HibossKit
+
+enum DemoOptionMedia {
+    static var images: [OptionMedia] {
+        images(enabled: ProcessInfo.processInfo.environment["HIBOSS_DEMO_OPTION_MEDIA"] == "1")
+    }
+
+    static func images(enabled: Bool) -> [OptionMedia] {
+        guard enabled else { return [] }
+        return [
+            image(label: "Coarse grid", resource: "demo-coarse-grid"),
+            image(label: "Fine grid", resource: "demo-fine-grid"),
+        ].compactMap { $0 }
+    }
+
+    static func image(label: String, resource: String) -> OptionMedia? {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: "png") else { return nil }
+        return OptionMedia(label: label, url: url.absoluteString)
+    }
+}
 
 enum DemoOptionMediaFixtures {
     static func queue(fallback: [HistoryMessage]) -> [HistoryMessage] {
@@ -18,9 +37,9 @@ enum DemoOptionMediaFixtures {
             mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
                 options: [" Coastal view ", "Mountain view"], optionMedia: [
-                    OptionMedia(label: "Mountain view", url: "https://picsum.photos/id/1016/800/600"),
-                    OptionMedia(label: "Coastal view", url: "https://picsum.photos/id/10/800/600"),
-                ], isExpired: automatic, defaultOption: "Mountain view"
+                    DemoOptionMedia.image(label: "Mountain view", resource: "demo-fine-grid"),
+                    DemoOptionMedia.image(label: "Coastal view", resource: "demo-coarse-grid"),
+                ].compactMap { $0 }, isExpired: automatic, defaultOption: "Mountain view"
             ),
             createdAt: Date().addingTimeInterval(-120).ISO8601Format(),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionStatus: "working"

@@ -15,9 +15,14 @@ extension XCUIApplication {
         "HIBOSS_DEMO_NOTIFICATION_PREVIEW",
         "HIBOSS_DEMO_SESSION",
         "HIBOSS_DEMO_RESOLVED",
-        "HIBOSS_DEMO_EMPTY",
-        "HIBOSS_DEMO_TEXT_ASK",
+        "HIBOSS_DEMO_PANEL_OPEN",
+        "HIBOSS_DEMO_JOIN_REQUEST",
         "HIBOSS_DEMO_OPTION_MEDIA",
+        "HIBOSS_DEMO_EMPTY",
+        "HIBOSS_DEMO_ONBOARDING",
+        "HIBOSS_DEMO_CONNECTION",
+        "HIBOSS_DEMO_SESSIONS_EMPTY",
+        "HIBOSS_DEMO_TEXT_ASK",
         "HIBOSS_DEMO_STABLE_DEADLINES",
         "HIBOSS_PANELS_DEMO",
         "HIBOSS_DEMO_HISTORY_DELAY_MS",
@@ -38,6 +43,17 @@ extension XCUIApplication {
         launchEnvironment["HIBOSS_DEMO_STABLE_DEADLINES"] = "1"
         for (key, value) in extra {
             launchEnvironment[key] = value
+        }
+    }
+
+    /// A simulator cold launch can omit its injected environment; retry only when
+    /// the captured onboarding field proves that the demo never started.
+    func launchConfiguredDemo() {
+        launch()
+        if textFields["server-url-field"].waitForExistence(timeout: 1) {
+            XCTContext.runActivity(named: "relaunch: first launch lost its demo environment") { _ in }
+            terminate()
+            launch()
         }
     }
 }

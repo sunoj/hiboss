@@ -1,5 +1,5 @@
-// Session status mapping: known words get a glyph + localized label, and Home agrees with Sessions.
-// Exports: SessionStatusStyleTests covering the five live statuses, parsing, fallbacks, and Home.
+// Session status mapping: known words get a glyph, localized label, and semantic tint.
+// Exports: SessionStatusStyleTests covering the five live statuses, parsing, fallbacks, and card styles.
 // Dependencies: XCTest, SwiftUI Color, HiBoss app target.
 
 import SwiftUI
@@ -51,13 +51,13 @@ final class SessionStatusStyleTests: XCTestCase {
         }
     }
 
-    /// Home's group header and the Sessions card read the same words, glyph and tint.
-    func testHomeWaitingGroupUsesTheSessionsWording() {
+    /// The waiting session card reads its words, glyph, and tint from the shared mapping.
+    func testWaitingSessionCardUsesTheSharedStatusMapping() {
         let card = SessionStatusStyle(word: "waiting")
-        XCTAssertEqual(String(localized: AttentionGroup.waitingOnYou.title), card?.label)
-        XCTAssertEqual(AttentionGroup.waitingOnYou.symbol, card?.icon)
-        XCTAssertEqual(AttentionGroup.waitingOnYou.tint, card?.tint)
-        XCTAssertEqual(AttentionGroup.autoDecision.tint, Theme.ink2)
-        XCTAssertEqual(AttentionGroup.priority.tint, Theme.ink2)
+        XCTAssertEqual(String(localized: SessionStatus.waiting.title), card?.label)
+        XCTAssertEqual(SessionStatus.waiting.icon, card?.icon)
+        XCTAssertEqual(SessionStatus.waiting.tint, card?.tint)
+        XCTAssertEqual(SessionStatusStyle(word: "idle")?.tint, Theme.ink2)
+        XCTAssertEqual(SessionStatusStyle(word: "completed")?.tint, Theme.ink2)
     }
 }

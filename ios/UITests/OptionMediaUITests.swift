@@ -19,7 +19,7 @@ final class OptionMediaUITests: XCTestCase {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName",
                                     "UICTContentSizeCategoryAccessibilityXXXL"]
         }
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     func testResolvedDetailPreservesImagesAndZoom() {

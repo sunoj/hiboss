@@ -1,5 +1,5 @@
 // Starts, refreshes, and ends decision Live Activities from the app.
-// Exports: DecisionActivityManager.sync driven by the inbox's pending list.
+// Exports: DecisionActivityManager.sync and rankedMessages using Home's attention order.
 // Dependencies: ActivityKit, HibossKit HistoryMessage, shared attributes.
 
 import ActivityKit
@@ -11,8 +11,14 @@ private let laLog = Logger(subsystem: "ai.hiboss.app", category: "LiveActivity")
 
 @MainActor
 enum DecisionActivityManager {
-    /// Reconciles running Live Activities with the current pending decisions:
-    /// ends stale ones and starts one for the most urgent unshown decision.
+    static func rankedMessages(from messages: [HistoryMessage], now: Date = .now) -> [HistoryMessage] {
+        AttentionModel.items(from: messages, now: now)
+            .filter { !$0.options.isEmpty }
+            .map(\.message)
+    }
+
+    /// Keeps the most urgent Home decision on the Island and retires lower-ranked activities.
+    /// An existing activity gets fresh timing and submission state without creating another.
     static func sync(pending: [HistoryMessage], alertsEnabled: Bool) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             laLog.error("Live Activities disabled; skipping (\(pending.count) pending)")
@@ -20,23 +26,21 @@ enum DecisionActivityManager {
         }
         laLog.info("sync: \(pending.count) pending, \(Activity<DecisionActivityAttributes>.activities.count) running")
         let running = Activity<DecisionActivityAttributes>.activities
-        let pendingIDs = alertsEnabled ? Set(pending.map(\.id.rawValue)) : []
+        let ranked = rankedMessages(from: pending)
+        let top = alertsEnabled ? ranked.first : nil
 
-        for activity in running where !pendingIDs.contains(activity.attributes.messageID) {
+        for activity in running where activity.attributes.messageID != top?.id.rawValue {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
 
-        guard alertsEnabled else { return }
-        let shown = Set(running.map(\.attributes.messageID))
-        guard let top = pending.first(where: { !shown.contains($0.id.rawValue) }) else { return }
-        // Only surface blocking-style decisions (they carry options) in the Island.
-        guard !top.options.isEmpty else { return }
+        guard let top else { return }
 
         let state = DecisionActivityAttributes.ContentState(
             body: top.body, options: top.options, priority: top.priority,
             deadline: top.expirationDate, content: top.content,
             submitting: DecisionReplyGate.shared.inFlight[top.id]
         )
+        if await updateExisting(id: top.id.rawValue, state: state, deadline: top.expirationDate) { return }
         let attributes = DecisionActivityAttributes(
             messageID: top.id.rawValue, project: top.project ?? top.displayName,
             agentName: top.displayName, meta: top.metaLine
@@ -50,5 +54,15 @@ enum DecisionActivityManager {
         } catch {
             laLog.error("Activity.request failed: \(error.localizedDescription)")
         }
+    }
+
+    nonisolated static func updateExisting(
+        id: String, state: DecisionActivityAttributes.ContentState, deadline: Date?
+    ) async -> Bool {
+        guard let activity = Activity<DecisionActivityAttributes>.activities.first(where: {
+            $0.attributes.messageID == id
+        }) else { return false }
+        await activity.update(ActivityContent(state: state, staleDate: deadline))
+        return true
     }
 }

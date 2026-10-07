@@ -11,6 +11,15 @@ final class DemoLaunchRouteTests: XCTestCase {
         XCTAssertEqual(DemoLaunchRoute.resolve(env: ["HIBOSS_DEMO": "1"]), .none)
     }
 
+    func testPanelAndDeviceRequestRoutesUseTheirOwnDestinations() {
+        XCTAssertEqual(DemoLaunchRoute.resolve(env: ["HIBOSS_DEMO_PANEL_OPEN": "research-intake.json"]),
+                       .panel("research-intake.json"))
+        XCTAssertEqual(DemoLaunchRoute.resolve(env: ["HIBOSS_DEMO_JOIN_REQUEST": "jr-build"]),
+                       .joinRequest("jr-build"))
+        let emptyRoutes = ["HIBOSS_DEMO_PANEL_OPEN": "", "HIBOSS_DEMO_JOIN_REQUEST": ""]
+        XCTAssertEqual(DemoLaunchRoute.resolve(env: emptyRoutes), .none)
+    }
+
     func testOpenWinsOverSessionAndResolved() {
         let env = [
             "HIBOSS_DEMO": "1",

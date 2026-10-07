@@ -16,13 +16,6 @@ enum HomeAttentionLayout {
     }
 }
 
-extension AttentionGroup {
-    /// Header tint: the waiting group takes the session status tint so Home and Sessions agree.
-    var tint: Color {
-        self == .waitingOnYou ? SessionStatus.waiting.tint : Theme.ink2
-    }
-}
-
 struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
@@ -30,28 +23,26 @@ struct HomeAttentionSection: View {
     var replying: [MessageID: String] = [:]
     let onChoose: (String, MessageID) -> Void
     let onOpenPanel: (String) -> Void
+    let onOpenSession: (SessionRoute) -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             title
             if let status {
                 Text(verbatim: status).font(.hbCallout).foregroundStyle(Theme.ink2)
+                    .accessibilityIdentifier("home-connection-status")
             }
             if snapshot.count == 0 && status == nil {
                 allClear
             } else {
                 ForEach(snapshot.groups, id: \.group) { group in
-                    LazyVStack(alignment: .leading, spacing: 8) {
-                        Label {
-                            Text(group.group.title)
-                        } icon: {
-                            Image(systemName: group.group.symbol)
-                        }
-                        .font(.hbSmall.weight(.semibold))
-                        .foregroundStyle(group.group.tint)
-                        .accessibilityAddTraits(.isHeader)
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(group.items) { item in
-                            HomeAttentionRow(item: item, submitting: replying[item.id], onChoose: { onChoose($0, item.id) })
+                            HomeAttentionRow(
+                                item: item, submitting: replying[item.id],
+                                onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession
+                            )
                         }
                     }
                 }
@@ -64,15 +55,22 @@ struct HomeAttentionSection: View {
         .padding(.horizontal, 16)
     }
 
+    /// Side by side at ordinary sizes; stacked at accessibility sizes, where sharing a
+    /// row breaks the title across lines.
     private var title: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let stacked = dynamicTypeSize.isAccessibilitySize
+        let layout = stacked
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+        return layout {
             Text("Needs you now")
                 .fixedSize(horizontal: false, vertical: true)
-                .font(.hbLargeTitle)
+                .font(.hbH2)
                 .foregroundStyle(Theme.ink)
-            if snapshot.count > 0 || status != nil || hasPanels {
+            if !stacked { Spacer(minLength: 0) }
+            if snapshot.count > 0 || (status == nil && hasPanels) {
                 titleSubtitle
-                    .font(.hbCallout)
+                    .font(.hbCaption)
                     .foregroundStyle(Theme.ink2)
             }
         }
@@ -81,7 +79,8 @@ struct HomeAttentionSection: View {
     private var titleSubtitle: Text {
         let count = snapshot.count
         guard count > 0 else {
-            return status == nil ? Text("Nothing is waiting on your call") : Text("Checking your attention queue")
+            return status == nil
+                ? Text("Nothing is waiting on your call") : Text("Checking your attention queue")
         }
         return Text("\(count) items waiting on your call")
     }
@@ -137,6 +136,7 @@ struct HomeAttentionRow: View {
     let item: AttentionItem
     var submitting: String?
     let onChoose: (String) -> Void
+    let onOpenSession: (SessionRoute) -> Void
 
     var body: some View {
         let timing = DecisionTiming(message: item.message)
@@ -144,7 +144,18 @@ struct HomeAttentionRow: View {
             NavigationLink(value: item.id) { info }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("home-message-\(item.id.rawValue)")
-            DecisionTimingView(timing: timing, messageID: item.id)
+                .contextMenu {
+                    if let sessionRoute {
+                        Button("View session", systemImage: "text.alignleft") { onOpenSession(sessionRoute) }
+                            .accessibilityIdentifier("home-session-\(item.id.rawValue)")
+                    }
+                }
+                .accessibilityActions {
+                    if let sessionRoute {
+                        Button("View session") { onOpenSession(sessionRoute) }
+                    }
+                }
+            DecisionTimingView(timing: timing, messageID: item.id, compact: true)
             OptionMediaComparison(
                 options: item.options,
                 media: item.message.metadata?.optionMedia ?? []
@@ -173,7 +184,8 @@ struct HomeAttentionRow: View {
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !content.isEmpty, content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
+               !content.isEmpty,
+               content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
                 Text(verbatim: content)
                     .font(.hbCaption)
                     .foregroundStyle(Theme.ink2)
@@ -186,6 +198,12 @@ struct HomeAttentionRow: View {
 
     private var project: String {
         item.project ?? String(localized: "Unassigned session")
+    }
+
+    private var sessionRoute: SessionRoute? {
+        guard let id = item.message.sessionId,
+              !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return SessionRoute(message: item.message)
     }
 
     @ViewBuilder

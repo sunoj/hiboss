@@ -13,6 +13,7 @@ struct HomeView: View {
     @ObservedObject var panels: PanelsModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var actionNote: String?
+    @State private var sessionRoute: SessionRoute?
 
     var body: some View {
         content
@@ -31,7 +32,18 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-            .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionAPI, store: inbox) }
+            .navigationDestination(for: SessionRoute.self) {
+                SessionMessagesView(route: $0, api: sessionAPI, store: inbox)
+            }
+            .navigationDestination(item: $sessionRoute) {
+                SessionMessagesView(route: $0, api: sessionAPI, store: inbox)
+            }
+            .sheet(isPresented: Binding(
+                get: { panels.selectedTile != nil },
+                set: { if !$0 { panels.closeDetail() } }
+            )) {
+                if let tile = panels.selectedTile { HomePanelDetail(tile: tile, model: panels) }
+            }
             .alert(
                 "Heads up",
                 isPresented: Binding(get: { actionNote != nil }, set: { if !$0 { actionNote = nil } }),
@@ -77,12 +89,17 @@ struct HomeView: View {
             status: attentionStatus,
             replying: inbox.replying,
             onChoose: handleReply,
-            onOpenPanel: openPanel
+            onOpenPanel: openPanel,
+            onOpenSession: { sessionRoute = $0 }
         )
     }
 
     var attentionStatus: String? {
-        if let error = inbox.requiredInputError ?? inbox.loadError ?? panels.questionnaireError ?? panels.failureMessage {
+        if let connectionNotice = HomeConnectionStatus.notice(for: inbox.connectionState) {
+            return connectionNotice
+        }
+        if let error = inbox.requiredInputError ?? inbox.loadError
+            ?? panels.questionnaireError ?? panels.failureMessage {
             return String(localized: "Couldn't check all requests. \(error) Pull to refresh.")
         }
         if !inbox.didLoad || !inbox.hasCompleteRequiredInputs

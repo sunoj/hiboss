@@ -1,5 +1,5 @@
 // App shell: native tabs, one message surface, and notification deep-links.
-// Exports: RootTabView switching Home / Messages / Progress / Sessions / Settings.
+// Exports: RootTabView switching Home / Activity / Progress / Settings.
 // Dependencies: SwiftUI, HibossKit, the feature views, AppRouter, DemoLaunchRoute.
 
 import HibossKit
@@ -20,14 +20,15 @@ struct RootTabView: View {
     /// named rather than written as literals — renumbering silently broke video
     /// autoplay once, by leaving it pointed at whichever tab had inherited the index.
     private static let homeTab = 0
-    private static let messagesTab = 1
+    private static let activityTab = 1
     private static let progressTab = 3
 
     @State private var tab = ProcessInfo.processInfo.environment["HIBOSS_TAB"] == "progress"
         ? Self.progressTab
         : Self.homeTab
     @State private var homePath = NavigationPath()
-    @State private var messagesPath = NavigationPath()
+    @State private var activityPath = NavigationPath()
+    @State private var activitySection = ActivitySection.sessions
     @State private var panelRouteNote: String?
 
     init(inbox: InboxStore, connection: ConnectionStore,
@@ -53,9 +54,8 @@ struct RootTabView: View {
     var body: some View {
         TabView(selection: $tab) {
             homeTabView
-            messagesTabView
+            activityTabView
             progressTabView
-            sessionsTabView
             settingsTabView
         }
         .task(id: router.pendingMessageID) { await openPendingMessage() }
@@ -106,33 +106,23 @@ struct RootTabView: View {
         .tag(Self.homeTab)
     }
 
-    private var messagesTabView: some View {
-        NavigationStack(path: $messagesPath) {
-            MessagesView(store: inbox)
-                .navigationTitle("Messages")
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: inbox.connectionState) } }
+    private var activityTabView: some View {
+        NavigationStack(path: $activityPath) {
+            ActivityView(store: inbox, section: $activitySection)
                 .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox) }
+                .navigationDestination(for: SessionRoute.self) {
+                    SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox)
+                }
                 .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
         }
-        .tabItem { Label("Messages", systemImage: "bubble.left.and.bubble.right") }
-        .tag(Self.messagesTab)
+        .tabItem { Label("Activity", systemImage: "bubble.left.and.bubble.right") }
+        .tag(Self.activityTab)
     }
 
     private var progressTabView: some View {
         NavigationStack { ProgressFeedView(store: progress) }
             .tabItem { Label("Progress", systemImage: "calendar.day.timeline.leading") }
             .tag(Self.progressTab)
-    }
-
-    private var sessionsTabView: some View {
-        NavigationStack {
-            SessionsView(store: inbox)
-                .navigationDestination(for: SessionRoute.self) { SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox) }
-                .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
-        }
-        .tabItem { Label("Sessions", systemImage: "square.stack.3d.up") }
-        .tag(4)
     }
 
     private var settingsTabView: some View {
@@ -180,8 +170,9 @@ struct RootTabView: View {
         }
         await Task.yield()
         guard !Task.isCancelled else { return }
-        tab = Self.messagesTab
-        messagesPath = NavigationPath([route.messageID])
+        tab = Self.activityTab
+        activitySection = .messages
+        activityPath = NavigationPath([route.messageID])
         router.finishOpening(route.messageID)
         if route.cachedMessage?.requiresRefresh == true {
             Task { await refreshNotificationPreview(route.messageID) }
@@ -223,8 +214,9 @@ struct RootTabView: View {
         case .none:
             break
         case .open(let id):
-            tab = Self.messagesTab
-            messagesPath = NavigationPath([id])
+            tab = Self.activityTab
+            activitySection = .messages
+            activityPath = NavigationPath([id])
         case .notification(let id):
             let detail = DemoBossAPI().messageDetail(for: id)
             let cached = detail.map { PushCachedMessage(detail: $0, requiresRefresh: false) }
@@ -233,11 +225,17 @@ struct RootTabView: View {
             let userInfo = DemoBossAPI().notificationPreviewUserInfo(for: id) ?? [:]
             router.open(messageID: id.rawValue, cachedMessage: PushMessageSnapshot.decode(from: userInfo))
         case .session(let id, let label):
-            tab = Self.messagesTab
-            messagesPath = NavigationPath([SessionRoute(id: id, label: label)])
+            tab = Self.activityTab
+            activitySection = .sessions
+            activityPath = NavigationPath([SessionRoute(id: id, label: label)])
         case .resolved:
-            tab = Self.messagesTab
-            messagesPath = NavigationPath([ResolvedRoute()])
+            tab = Self.activityTab
+            activitySection = .messages
+            activityPath = NavigationPath([ResolvedRoute()])
+        case .panel(let id):
+            router.open(panel: PushPanelRequest(panelID: id, requestID: "demo-request"))
+        case .joinRequest(let id):
+            router.openJoinRequest(id: id)
         }
     }
 }

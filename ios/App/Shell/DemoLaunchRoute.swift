@@ -13,11 +13,16 @@ enum DemoLaunchRoute: Equatable {
     case notificationPreview(MessageID)
     case session(id: String, label: String)
     case resolved
+    case panel(String)
+    case joinRequest(String)
 
-    /// Precedence: PREVIEW → NOTIFICATION → OPEN → RESOLVED → SESSION. SESSION must not shadow RESOLVED when
+    /// Precedence: JOIN → PANEL → PREVIEW → NOTIFICATION → OPEN → RESOLVED → SESSION.
+    /// SESSION must not shadow RESOLVED when
     /// a stale `launchctl setenv HIBOSS_DEMO_SESSION` is still on the simulator —
     /// that leak is what sent every UI test into the prod-release transcript.
     static func resolve(env: [String: String] = ProcessInfo.processInfo.environment) -> DemoLaunchRoute {
+        if let id = env["HIBOSS_DEMO_JOIN_REQUEST"], !id.isEmpty { return .joinRequest(id) }
+        if let id = env["HIBOSS_DEMO_PANEL_OPEN"], !id.isEmpty { return .panel(id) }
         if let id = env["HIBOSS_DEMO_NOTIFICATION_PREVIEW"], !id.isEmpty {
             return .notificationPreview(MessageID(rawValue: id))
         }
