@@ -11,7 +11,9 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TARGETS = {"App": "App/Localizable.xcstrings", "Widgets": "Widgets/Localizable.xcstrings"}
+TARGETS = {"App": "App/Localizable.xcstrings", "Widgets": "Widgets/Localizable.xcstrings",
+           "HiBossShare": "HiBossShare/en.lproj/Localizable.strings",
+           "ShareCore": "HiBossShare/en.lproj/Localizable.strings"}
 SKIP_DIRS = ("App/Preview/",)
 ALLOWLIST = os.path.join(ROOT, "scripts", "i18n-audit-allowlist.txt")
 
@@ -98,7 +100,10 @@ def localized_ternary(arg):
 
 def catalog_keys(path):
     with open(os.path.join(ROOT, path), encoding="utf-8") as f:
-        keys = json.load(f)["strings"].keys()
+        if path.endswith(".strings"):
+            keys = [json.loads(key) for key in re.findall(r'^("(?:[^"\\]|\\.)*")\s*=', f.read(), re.M)]
+        else:
+            keys = json.load(f)["strings"].keys()
     return {PLACEHOLDER.sub("\x00", k) for k in keys}
 
 
@@ -167,9 +172,8 @@ def source_findings(entries):
 def stringsdata_findings(derived, entries):
     """Exact check: keys the compiler extracted (SWIFT_EMIT_LOC_STRINGS=YES) but the catalog lacks."""
     findings = []
-    for target, product in (("App", "HiBoss"), ("Widgets", "HiBossWidgets")):
-        with open(os.path.join(ROOT, TARGETS[target]), encoding="utf-8") as f:
-            keys = json.load(f)["strings"]
+    for target, product in (("App", "HiBoss"), ("Widgets", "HiBossWidgets"), ("HiBossShare", "HiBossShare")):
+        keys = catalog_keys(TARGETS[target])
         pattern = os.path.join(derived, "Build/Intermediates.noindex/HiBoss.build/*",
                                f"{product}.build/Objects-normal/*/*.stringsdata")
         for data_path in sorted(glob.glob(pattern)):
@@ -177,7 +181,7 @@ def stringsdata_findings(derived, entries):
                 data = json.load(f)
             rel = os.path.relpath(data.get("source", data_path), ROOT)
             for entry in data.get("tables", {}).get("Localizable", []):
-                line = entry["key"]
+                line = PLACEHOLDER.sub("\x00", entry["key"])
                 if line not in keys and not allowed(entries, rel, "extracted-key", line):
                     where = f"{rel}:{entry['location']['startingLine']}"
                     findings.append(f"{where}: extracted-key: compiler key not in {TARGETS[target]}: {line!r}")

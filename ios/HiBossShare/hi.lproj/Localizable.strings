@@ -1,0 +1,39 @@
+// Native share-extension labels and attachment errors.
+"Save to Box" = "Box में सहेजें";
+"Open HiBoss to connect" = "कनेक्ट करने के लिए HiBoss खोलें";
+"Optional note" = "वैकल्पिक नोट";
+"No project" = "कोई प्रोजेक्ट नहीं";
+"Projects unavailable. You can save without a project."
+= "प्रोजेक्ट उपलब्ध नहीं हैं। आप बिना प्रोजेक्ट के सहेज सकते हैं।";
+"Saved to Box" = "Box में सहेजा गया";
+"Retry keeps the original note and project for items already submitted."
+= "फिर से कोशिश करने पर भेजे गए आइटम का मूल नोट और प्रोजेक्ट बना रहता है।";
+"Compressing attachments…" = "अटैचमेंट संपीड़ित किए जा रहे हैं…";
+"Uploading to Box…" = "Box पर अपलोड हो रहा है…";
+"Loading attachments…" = "अटैचमेंट लोड हो रहे हैं…";
+"This is taking longer than usual. You can retry or cancel."
+= "इसमें सामान्य से अधिक समय लग रहा है। फिर से कोशिश करें या रद्द करें।";
+"Share a link, text, image, or video." = "लिंक, टेक्स्ट, चित्र या वीडियो शेयर करें।";
+"Share up to 4 attachments at a time." = "एक बार में अधिकतम 4 अटैचमेंट शेयर करें।";
+"This image cannot fit within 10 MB. Choose a smaller image."
+= "इस चित्र को 10 MB के भीतर नहीं किया जा सकता। छोटा चित्र चुनें।";
+"This video is still over 50 MB. Trim the clip and share it again."
+= "यह वीडियो अभी भी 50 MB से बड़ा है। क्लिप काटकर फिर शेयर करें।";
+"This text or note is too long. Keep it within 16 KB."
+= "टेक्स्ट या नोट बहुत लंबा है। इसे 16 KB के भीतर रखें।";
+"Could not prepare this attachment. Try sharing it again."
+= "यह अटैचमेंट तैयार नहीं हो सका। फिर से शेयर करें।";
+"Could not save to Box. Check your connection and retry."
+= "Box में सहेजा नहीं जा सका। कनेक्शन जाँचें और फिर कोशिश करें।";
+"Preview" = "पूर्वावलोकन";
+"Note" = "नोट";
+"Project" = "प्रोजेक्ट";
+"Save" = "सहेजें";
+"Retry" = "फिर से कोशिश करें";
+"Cancel" = "रद्द करें";
+"OK" = "ठीक है";
+"Link" = "लिंक";
+"Text" = "टेक्स्ट";
+"Image" = "चित्र";
+"Video" = "वीडियो";
+"File" = "फ़ाइल";

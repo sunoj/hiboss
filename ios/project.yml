@@ -27,7 +27,7 @@ settings:
   configs:
     Debug:
       APS_ENVIRONMENT: development
-      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGNING_ALLOWED: YES
     Release:
       APS_ENVIRONMENT: production
       CODE_SIGNING_ALLOWED: YES
@@ -42,9 +42,11 @@ targets:
     sources:
       - path: App
       - path: Shared
+      - path: ShareCore
     dependencies:
       - package: HibossKit
       - target: HiBossWidgets
+      - target: HiBossShare
     scheme:
       testTargets:
         - HiBossTests
@@ -96,6 +98,34 @@ targets:
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
           PROVISIONING_PROFILE_SPECIFIER: "HiBoss Widgets AdHoc"
+
+  HiBossShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: HiBossShare
+      - path: ShareCore
+    dependencies:
+      - package: HibossKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.app.share
+        INFOPLIST_FILE: HiBossShare/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: HiBossShare/HiBossShare.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: ""
+      configs:
+        Release:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
+          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Share AppStore PLACEHOLDER"
+        AdHoc:
+          CODE_SIGN_STYLE: Manual
+          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
+          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Share AdHoc PLACEHOLDER"
 
   HiBossTests:
     type: bundle.unit-test

@@ -24,47 +24,69 @@ public protocol TokenStoring: Sendable {
     func write(_ token: String) throws
 }
 
-public struct KeychainStore: TokenStoring {
+public protocol TokenRemoving: TokenStoring {
+    func delete() throws
+}
+
+public struct KeychainStore: TokenRemoving {
     private let service: String
     private let account: String
+    private let accessGroup: String?
+    private let operations: any KeychainOperating
 
     public init(
         service: String = AppConstants.Storage.keychainService,
-        account: String = AppConstants.Storage.keychainAccount
+        account: String = AppConstants.Storage.keychainAccount,
+        accessGroup: String? = nil
     ) {
+        self.init(service: service, account: account, accessGroup: accessGroup,
+            operations: SecurityKeychain())
+    }
+
+    init(service: String, account: String, accessGroup: String?, operations: any KeychainOperating) {
         self.service = service
         self.account = account
+        self.accessGroup = accessGroup
+        self.operations = operations
     }
 
     public func read() throws -> String? {
         var query = baseQuery
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let (status, item) = operations.read(query)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess else { throw SettingsError.keychain(status) }
-        guard let data = item as? Data else { return nil }
+        guard let data = item else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
     public func write(_ token: String) throws {
         let data = Data(token.utf8)
-        let updated = SecItemUpdate(baseQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        let updated = operations.update(baseQuery, data: data)
         if updated == errSecSuccess { return }
         guard updated == errSecItemNotFound else { throw SettingsError.keychain(updated) }
         var item = baseQuery
         item[kSecValueData as String] = data
-        let status = SecItemAdd(item as CFDictionary, nil)
+        let status = operations.add(item)
         guard status == errSecSuccess else { throw SettingsError.keychain(status) }
     }
 
+    public func delete() throws {
+        let status = operations.delete(baseQuery)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw SettingsError.keychain(status)
+        }
+    }
+
     private var baseQuery: [String: Any] {
-        [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
+        if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
+        return query
     }
 }
 
