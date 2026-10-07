@@ -112,7 +112,9 @@ final class HomeAttentionModelTests: XCTestCase {
         let state = DecisionActivityAttributes.ContentState(
             body: "Choose a path", options: ["Yes", "No"], priority: "normal", deadline: nil, content: nil
         )
-        let updated = await DecisionActivityManager.updateExisting(id: UUID().uuidString, state: state, deadline: nil)
+        let updated = await DecisionActivityManager.updateExisting(
+            id: UUID().uuidString, state: state, deadline: nil
+        )
         XCTAssertFalse(updated)
     }
 

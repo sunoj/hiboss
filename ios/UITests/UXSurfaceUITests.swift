@@ -16,7 +16,7 @@ final class UXSurfaceUITests: XCTestCase {
     private func launch(_ extra: [String: String]) {
         app.configureDemoLaunch(extra)
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     func testPanelNotificationOpensSampleIntakeForm() {

@@ -111,7 +111,7 @@ Home's panel sheet; join requests open their review sheet over the current tab.
 | --- | --- |
 | Separate Messages and Sessions tabs | Merged into Activity; no data capability removed |
 | SessionsView | Deleted; session list belongs to Activity |
-| Decorative session tiles and message/branch counts | Removed from summaries; transcript/detail retain context |
+| Session tiles and message/branch counts | Removed from summaries; transcript/detail retain context |
 | Home request subtitle | Retained beside the question, as required by the attention contract |
 | Request's session context | Direct link on Home; existing detail link retained |
 | Options, custom replies, option images | Home options/images; full reply composer in detail |
@@ -140,7 +140,94 @@ Automatic outcomes retain their source labels and never become the boss's choice
 
 ## Screenshot comparison
 
-Pending completion of the unchanged tour and the implementation tour. The after tour
-must cover light and dark, en and zh-Hans, accessibility L, empty and unhealthy connection
-states, plus Home detail, Activity sessions/messages, transcripts, panels/questionnaires,
-progress media, pairing, Device Requests and sign-out confirmation.
+Full-resolution galleries are `/private/tmp/hiboss-ios-v3-before/shots` and
+`/private/tmp/hiboss-ios-v3-after/shots`. Links below open the 900-pixel review copies.
+The original tour captured 73 images; the additional unchanged-app dark tour fills the
+English, accessibility L, empty and connection comparisons. The empty/offline regression
+failed on the old app, confirming the missing connection gate.
+
+| Screen or state | Before | After | Visible change |
+| --- | --- | --- | --- |
+| Light, English Home | [image][b-en] | [image][a-en] | Smaller heading; four tabs; direct session link |
+| Dark, English Home | [image][b-den] | [image][a-den] | Same hierarchy with semantic dark colors |
+| Light, Chinese Home | [image][b-zh] | [image][a-zh] | Localized Activity and session action |
+| Dark, Chinese Home | [image][b-dzh] | [image][a-dzh] | Same localized structure |
+| Light, accessibility L Home | [image][b-l] | [image][a-l] | Smaller heading; question still wraps fully |
+| Dark, accessibility L Home | [image][b-dl] | [image][a-dl] | Same Dynamic Type behavior |
+| Light, accessibility L sessions | [image][b-ls] | [image][a-ls] | Native menu and stacked session rows |
+| Dark, accessibility L sessions | [image][b-dls] | [image][a-dls] | Same readable native layout |
+| Light, Chinese empty Home | [image][b-empty] | [image][a-empty] | Healthy all-clear illustration retained |
+| Dark, Chinese empty Home | [image][b-dempty] | [image][a-dempty] | Healthy dark all-clear retained |
+| Light, Chinese failed | [image][b-fail] | [image][a-fail] | Failure notice above cached requests |
+| Dark, Chinese failed connection | [image][b-dfail] | [image][a-dfail] | Same connection notice |
+| Light, Chinese connecting | [image][b-conn] | [image][a-conn] | Connecting notice above cached requests |
+| Dark, Chinese connecting | [image][b-dconn] | [image][a-dconn] | Same pending-connection state |
+| Session browser | [image][b-sessions] | [image][a-sessions] | Sessions is Activity's default selection |
+| Message browser | [image][b-messages] | [image][a-messages] | Chronological history within Activity |
+| Session transcript | [image][b-transcript] | [image][a-transcript] | Transcript and replies retained |
+| Automatic outcome detail | [image][b-auto] | [image][a-auto] | Timeout source remains explicit |
+| Progress media | [image][b-media] | [image][a-media] | Existing feed media viewer retained |
+| Device pairing | [image][b-pair] | [image][a-pair] | Existing native pairing flow retained |
+
+The after tour additionally covers Chinese accessibility L, English empty states, and
+empty failed/connecting/disconnected states in both appearances. The unchanged tour did
+not capture Chinese accessibility L or the new empty-connection regression attachments;
+those are additional coverage, rather than matched comparisons.
+
+Supplemental after captures: [Chinese accessibility L][a-zhl], [empty failed][a-efail],
+[empty connecting][a-econn], [empty disconnected][a-edisc], [panel form][a-form],
+[panel wall][a-wall], [Device Request notification][a-device], [Home option images][a-images],
+[image zoom][a-zoom], [detail option images][a-detailimages], [sign-out confirmation][a-signout].
+Their dark counterparts have the same filename with a `dark-` prefix.
+
+[b-en]: /private/tmp/hiboss-ios-v3-before/shots/small/en-01-home.png
+[a-en]: /private/tmp/hiboss-ios-v3-after/shots/small/en-01-home.png
+[b-den]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-en-01-home.png
+[a-den]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-en-01-home.png
+[b-zh]: /private/tmp/hiboss-ios-v3-before/shots/small/zh-01-home.png
+[a-zh]: /private/tmp/hiboss-ios-v3-after/shots/small/zh-01-home.png
+[b-dzh]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-zh-01-home.png
+[a-dzh]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-zh-01-home.png
+[b-l]: /private/tmp/hiboss-ios-v3-before/shots/small/xxl-01-home.png
+[a-l]: /private/tmp/hiboss-ios-v3-after/shots/small/xxl-01-home.png
+[b-dl]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-xxl-01-home.png
+[a-dl]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-xxl-01-home.png
+[b-ls]: /private/tmp/hiboss-ios-v3-before/shots/small/xxl-08-sessions.png
+[a-ls]: /private/tmp/hiboss-ios-v3-after/shots/small/xxl-08-sessions.png
+[b-dls]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-xxl-08-sessions.png
+[a-dls]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-xxl-08-sessions.png
+[b-empty]: /private/tmp/hiboss-ios-v3-before/shots/small/empty-01-home.png
+[a-empty]: /private/tmp/hiboss-ios-v3-after/shots/small/empty-01-home.png
+[b-dempty]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-empty-01-home.png
+[a-dempty]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-empty-01-home.png
+[b-fail]: /private/tmp/hiboss-ios-v3-before/shots/small/conn-failed-01-home.png
+[a-fail]: /private/tmp/hiboss-ios-v3-after/shots/small/conn-failed-01-home.png
+[b-dfail]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-conn-failed-01-home.png
+[a-dfail]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-conn-failed-01-home.png
+[b-conn]: /private/tmp/hiboss-ios-v3-before/shots/small/conn-connecting-01-home.png
+[a-conn]: /private/tmp/hiboss-ios-v3-after/shots/small/conn-connecting-01-home.png
+[b-dconn]: /private/tmp/hiboss-ios-v3-before/shots/small/dark-conn-connecting-01-home.png
+[a-dconn]: /private/tmp/hiboss-ios-v3-after/shots/small/dark-conn-connecting-01-home.png
+[b-sessions]: /private/tmp/hiboss-ios-v3-before/shots/small/en-08-sessions.png
+[a-sessions]: /private/tmp/hiboss-ios-v3-after/shots/small/en-08-sessions.png
+[b-messages]: /private/tmp/hiboss-ios-v3-before/shots/small/en-04-messages.png
+[a-messages]: /private/tmp/hiboss-ios-v3-after/shots/small/en-04-messages.png
+[b-transcript]: /private/tmp/hiboss-ios-v3-before/shots/small/en-09-sessions-detail.png
+[a-transcript]: /private/tmp/hiboss-ios-v3-after/shots/small/en-09-sessions-detail.png
+[b-auto]: /private/tmp/hiboss-ios-v3-before/shots/small/en-18-auto-decided-detail.png
+[a-auto]: /private/tmp/hiboss-ios-v3-after/shots/small/en-18-auto-decided-detail.png
+[b-media]: /private/tmp/hiboss-ios-v3-before/shots/small/en-07-progress-media.png
+[a-media]: /private/tmp/hiboss-ios-v3-after/shots/small/en-07-progress-media.png
+[b-pair]: /private/tmp/hiboss-ios-v3-before/shots/small/en-13-pair-device.png
+[a-pair]: /private/tmp/hiboss-ios-v3-after/shots/small/en-13-pair-device.png
+[a-zhl]: /private/tmp/hiboss-ios-v3-after/shots/small/zh-xxl-08-sessions.png
+[a-efail]: /private/tmp/hiboss-ios-v3-after/shots/small/empty-failed.png
+[a-econn]: /private/tmp/hiboss-ios-v3-after/shots/small/empty-connecting.png
+[a-edisc]: /private/tmp/hiboss-ios-v3-after/shots/small/empty-disconnected.png
+[a-form]: /private/tmp/hiboss-ios-v3-after/shots/small/en-20-panel-form.png
+[a-wall]: /private/tmp/hiboss-ios-v3-after/shots/small/en-22-panel-wall.png
+[a-device]: /private/tmp/hiboss-ios-v3-after/shots/small/en-23-device-notification.png
+[a-images]: /private/tmp/hiboss-ios-v3-after/shots/small/en-24-home-option-images.png
+[a-zoom]: /private/tmp/hiboss-ios-v3-after/shots/small/en-25-option-image-zoom.png
+[a-detailimages]: /private/tmp/hiboss-ios-v3-after/shots/small/en-26-detail-option-images.png
+[a-signout]: /private/tmp/hiboss-ios-v3-after/shots/small/en-16-sign-out.png
