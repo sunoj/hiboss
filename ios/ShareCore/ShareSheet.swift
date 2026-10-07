@@ -78,11 +78,12 @@ struct ShareSheet: View {
                 if slow {
                     Text("This is taking longer than usual. You can retry or cancel.")
                     Button("Retry") {
-                        let previous = saveTask
-                        previous?.cancel()
-                        saveTask = Task {
-                            await previous?.value
-                            startSave()
+                        if model.state == .loading {
+                            reload()
+                        } else {
+                            let previous = saveTask
+                            previous?.cancel()
+                            saveTask = Task { await model.retry(after: previous) }
                         }
                     }
                 }

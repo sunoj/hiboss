@@ -105,6 +105,12 @@ final class ShareViewModel: ObservableObject {
         return upload
     }
 
+    func retry(after previous: Task<Void, Never>?) async {
+        await previous?.value
+        guard !Task.isCancelled else { return }
+        await save()
+    }
+
     private func fail(_ error: Error) {
         failure = (error as? ShareError)?.localizedDescription
             ?? String(localized: "Could not save to Box. Check your connection and retry.")
