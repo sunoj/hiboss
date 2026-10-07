@@ -3429,6 +3429,12 @@
     },
     "Selected": {
       "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",

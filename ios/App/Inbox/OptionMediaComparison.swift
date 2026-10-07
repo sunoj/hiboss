@@ -1,6 +1,6 @@
 // Shows option media in an ordered two-up comparison with full-screen zoom.
-// Exports: OptionMediaComparison used by pending decision surfaces.
-// Dependencies: SwiftUI, HibossKit OptionMedia, and iOS semantic theme colours.
+// Exports: OptionMediaComparison used by pending and resolved decision surfaces.
+// Dependencies: SwiftUI, HibossKit OptionMedia, DecisionSettlement and semantic theme colours.
 
 import HibossKit
 import SwiftUI
@@ -8,6 +8,7 @@ import SwiftUI
 struct OptionMediaComparison: View {
     let options: [String]
     let media: [OptionMedia]
+    var settlement: DecisionSettlement? = nil
     @State private var selectedMedia: OptionMedia?
 
     private var orderedMedia: [OptionMedia] {
@@ -24,7 +25,7 @@ struct OptionMediaComparison: View {
         if !orderedMedia.isEmpty {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(orderedMedia) { media in
-                    OptionMediaTile(media: media) { selectedMedia = media }
+                    OptionMediaTile(media: media, settlement: selection(for: media)) { selectedMedia = media }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -33,10 +34,18 @@ struct OptionMediaComparison: View {
             }
         }
     }
+
+    private func selection(for media: OptionMedia) -> DecisionSettlement? {
+        guard let settlement,
+              media.label.trimmingCharacters(in: .whitespacesAndNewlines)
+                == settlement.answer.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+        return settlement
+    }
 }
 
 private struct OptionMediaTile: View {
     let media: OptionMedia
+    let settlement: DecisionSettlement?
     let open: () -> Void
 
     var body: some View {
@@ -51,18 +60,7 @@ private struct OptionMediaTile: View {
                 Rectangle().fill(Theme.surface2)
                     .aspectRatio(1.35, contentMode: .fit)
                     .overlay {
-                        AsyncImage(url: URL(string: media.url)) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            case .failure:
-                                placeholder(systemImage: "photo.badge.exclamationmark")
-                            case .empty:
-                                ProgressView()
-                            @unknown default:
-                                placeholder(systemImage: "photo")
-                            }
-                        }
+                        thumbnail
                     }
                     .background(Theme.surface2)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -70,6 +68,13 @@ private struct OptionMediaTile: View {
             .buttonStyle(.plain)
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Open image for \(media.label)")
+            .accessibilityValue(Text(verbatim: selectionValue))
+            if let settlement {
+                Label { Text(verbatim: selectionValue) } icon: { Image(systemName: settlement.symbol) }
+                    .font(.caption)
+                    .foregroundStyle(Theme.accent)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let caption = media.caption, !caption.isEmpty {
                 Text(verbatim: caption)
                     .font(.caption)
@@ -78,6 +83,27 @@ private struct OptionMediaTile: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var selectionValue: String {
+        guard let settlement else { return "" }
+        return settlement.isAutoDefault ? String(localized: "Auto-selected") : String(localized: "Selected")
+    }
+
+    private var thumbnail: some View {
+        AsyncImage(url: URL(string: media.url)) { phase in
+            switch phase {
+            case .success(let image):
+                image.resizable().scaledToFill()
+                    .accessibilityIdentifier("option-media-image-\(media.label)")
+            case .failure:
+                placeholder(systemImage: "photo.badge.exclamationmark")
+            case .empty:
+                ProgressView()
+            @unknown default:
+                placeholder(systemImage: "photo")
+            }
+        }
     }
 
     private func placeholder(systemImage: String) -> some View {
@@ -99,6 +125,7 @@ private struct OptionMediaZoom: View {
                 switch phase {
                 case .success(let image):
                     image.resizable().scaledToFit()
+                        .accessibilityIdentifier("option-media-zoom-image")
                 case .failure:
                     ContentUnavailableView("Image unavailable", systemImage: "photo.badge.exclamationmark")
                         .foregroundStyle(Theme.ink2)

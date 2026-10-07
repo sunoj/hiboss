@@ -76,6 +76,11 @@ struct ResolvedDecisionsView: View {
                                 when: settledWhen(message)
                             )
                         }
+                        OptionMediaComparison(
+                            options: message.options,
+                            media: message.metadata?.optionMedia ?? [],
+                            settlement: store.settlement(for: message.id)
+                        )
                     }
                 } header: {
                     Text(group.day, style: .date)

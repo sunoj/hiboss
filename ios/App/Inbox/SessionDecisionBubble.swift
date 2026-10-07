@@ -1,5 +1,5 @@
 // An agent decision inside the transcript: answerable in place while pending, answer once settled.
-// Exports: SessionDecisionBubble. Uses the same timing line and options as the Home card.
+// Exports: SessionDecisionBubble. Shares timing, options and media with the Home and detail surfaces.
 // Dependencies: SwiftUI, HibossKit, SessionBubbleView, DecisionTimingView, DecisionOptions, InboxStore.
 
 import HibossKit
@@ -15,6 +15,12 @@ struct SessionDecisionBubble: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SessionBubbleView(event: event, style: style)
+            OptionMediaComparison(
+                options: message.options,
+                media: message.metadata?.optionMedia ?? [],
+                settlement: isPending ? nil : store.settlement(for: message.id)
+            )
+            .padding(.horizontal, 12)
             if isPending {
                 pendingControls
             } else if let settlement = store.settlement(for: message.id) {
