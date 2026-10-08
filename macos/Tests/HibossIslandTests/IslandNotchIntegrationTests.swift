@@ -53,7 +53,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         try await waitForCondition { !controller.panel.isVisible }
     }
 
-    func testQuestionAddsNotchInsetAndFollowsPointerAcrossDisplays() async throws {
+    func testQuestionAddsNotchInsetAndStaysOnItsDisplayWhenPointerCrossesDisplays() async throws {
         let plain = IslandNotchFixtures.plain
         let notch = IslandNotchFixtures.secondary
         var point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.maxY - 10)
@@ -74,20 +74,94 @@ final class IslandNotchIntegrationTests: XCTestCase {
         XCTAssertEqual(host.rootView.topInset, 32)
         try assertReplyFits(controller.panel, below: 32)
 
-        point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.midY)
+        let originalFrame = controller.panel.frame
+        point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.maxY - 1)
         controller.dropReveal?.pointerMoved(to: point, dragging: false)
         try await settle(controller.panel)
-        assertFrame(controller.panel.frame, equals: plain.expandedFrame(contentHeight: contentHeight))
-        XCTAssertEqual(host.rootView.topInset, 0)
-
-        point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.midY)
-        controller.dropReveal?.pointerMoved(to: point, dragging: false)
-        try await settle(controller.panel)
-        assertFrame(controller.panel.frame, equals: notch.expandedFrame(contentHeight: contentHeight))
+        XCTAssertEqual(controller.panel.frame, originalFrame)
         XCTAssertEqual(host.rootView.topInset, 32)
+        controller.dropReveal?.pointerMoved(to: point, dragging: true)
+        XCTAssertEqual(controller.panel.frame, originalFrame)
+        XCTAssertEqual(host.rootView.topInset, 32)
+
         flow.skip()
         try await waitForCondition { flow.activeMessage == nil }
         XCTAssertFalse(controller.panel.isVisible)
+        controller.dropReveal?.pointerMoved(to: point, dragging: true)
+        XCTAssertEqual(controller.panel.frame, plain.collapsedFrame)
+        XCTAssertEqual(host.rootView.topInset, 0)
+    }
+
+    func testQuestionRelayoutUsesItsDisplayAfterResolutionChangeAndFallsBackAfterUnplug() async throws {
+        let plain = IslandNotchFixtures.plain
+        let notch = IslandNotchFixtures.secondary
+        var screens = [plain, notch]
+        var point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.maxY - 10)
+        let flow = OptionFlowStore(reconnectDelay: .seconds(60))
+        let controller = IslandPanelController(flow: flow, settings: try settings(),
+            screens: { screens }, pointerLocation: { point })
+        defer {
+            flow.disconnect()
+            controller.panel.close()
+            controller.optionWindow.close()
+        }
+        let message = OptionMessage.fixture(id: "resized-question", options: ["Ship", "Wait"])
+        flow.connect(api: ScriptedBossAPI(messages: [message]))
+        try await waitForCondition { flow.activeMessage?.id == message.id }
+        try await settle(controller.panel)
+        point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.midY)
+        controller.dropReveal?.pointerMoved(to: point, dragging: false)
+        let resized = IslandGeometry(screenFrame: CGRect(x: -1728, y: 300, width: 1512, height: 982),
+            safeAreaTop: 32,
+            auxiliaryTopLeftArea: CGRect(x: 0, y: 950, width: 651, height: 32),
+            auxiliaryTopRightArea: CGRect(x: 861, y: 950, width: 651, height: 32))
+        screens = [plain, resized]
+        NotificationCenter.default.post(
+            name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+        let height = OptionPanelLayout.expandedHeight(for: message)
+        XCTAssertEqual(controller.panel.frame, resized.expandedFrame(contentHeight: height))
+        let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
+        XCTAssertEqual(host.rootView.topInset, 32)
+        screens = [plain]
+        NotificationCenter.default.post(
+            name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+        XCTAssertEqual(controller.panel.frame, plain.expandedFrame(contentHeight: height))
+        XCTAssertEqual(host.rootView.topInset, 0)
+    }
+
+    func testQuestionDisplayIDSurvivesChangedOriginAndResolution() async throws {
+        let plain = IslandNotchFixtures.plain
+        let frame = IslandNotchFixtures.secondary.screenFrame
+        let original = IslandGeometry(screenFrame: frame, safeAreaTop: 32, displayID: 42)
+        var screens = [plain, original]
+        var point = CGPoint(x: frame.midX, y: frame.maxY - 10)
+        let flow = OptionFlowStore(reconnectDelay: .seconds(60))
+        let controller = IslandPanelController(flow: flow, settings: try settings(),
+            screens: { screens }, pointerLocation: { point })
+        defer {
+            flow.disconnect()
+            controller.panel.close()
+            controller.optionWindow.close()
+        }
+        let message = OptionMessage.fixture(id: "moved-display-question", options: ["Ship", "Wait"])
+        flow.connect(api: ScriptedBossAPI(messages: [message]))
+        try await waitForCondition { flow.activeMessage?.id == message.id }
+        try await settle(controller.panel)
+        point = CGPoint(x: plain.screenFrame.midX, y: plain.screenFrame.midY)
+        controller.dropReveal?.pointerMoved(to: point, dragging: false)
+        let resized = IslandGeometry(screenFrame: CGRect(x: -1512, y: 0, width: 1512, height: 982),
+            safeAreaTop: 32, displayID: 42)
+        let replacement = IslandGeometry(screenFrame: frame, displayID: 43)
+        screens = [plain, replacement, resized]
+        NotificationCenter.default.post(
+            name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+        XCTAssertEqual(controller.panel.frame,
+            resized.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)))
+        let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
+        XCTAssertEqual(host.rootView.topInset, 32)
     }
 
     func testLongNotchedQuestionRetainsCapAndVisibleReplyWhileWindowModeHasNoInset() async throws {

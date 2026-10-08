@@ -80,6 +80,7 @@ final class IslandPanelController {
     private let soundPlayer: any SoundPlaying
     private let screens: () -> [IslandGeometry]
     private let pointerLocation: () -> NSPoint
+    private var questionScreen: IslandGeometry?
     private var cancellables: Set<AnyCancellable> = []
     private(set) var dropReveal: IslandDropRevealController?
 
@@ -128,7 +129,9 @@ final class IslandPanelController {
         panel.contentView = host
         dropReveal = IslandDropRevealController(
             panel: panel, host: host, pointerLocation: pointerLocation, screens: screens,
-            screenDidChange: { [weak self] geometry in self?.updateGeometry(geometry) }
+            screenDidChange: { [weak self] geometry in
+                self?.updateGeometry(geometry, followingPointer: true)
+            }
         )
     }
 
@@ -197,8 +200,10 @@ final class IslandPanelController {
         message: OptionMessage?,
         mode: OptionPresentationMode
     ) {
+        if message == nil { questionScreen = nil }
         dropReveal?.setPresentation(island: mode == .island, question: message != nil)
         guard let message else {
+            if let geometry = targetScreen { setContentInset(geometry.expandedTopInset) }
             optionWindow.orderOut(nil)
             return
         }
@@ -214,6 +219,7 @@ final class IslandPanelController {
 
     private func showIsland(_ message: OptionMessage) {
         guard let geometry = targetScreen else { return }
+        questionScreen = geometry
         setContentInset(geometry.expandedTopInset)
         let expanded = geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message))
         panel.setFrame(geometry.collapsedFrame, display: false)
@@ -242,10 +248,12 @@ final class IslandPanelController {
         if let geometry = targetScreen { updateGeometry(geometry) }
     }
 
-    private func updateGeometry(_ geometry: IslandGeometry) {
-        guard settings.presentationMode == .island else { return }
+    private func updateGeometry(_ geometry: IslandGeometry, followingPointer: Bool = false) {
+        guard settings.presentationMode == .island,
+            !followingPointer || questionScreen == nil else { return }
         setContentInset(geometry.expandedTopInset)
         guard let message = flow.activeMessage else { return }
+        questionScreen = geometry
         panel.setFrame(
             geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)),
             display: true
@@ -260,6 +268,12 @@ final class IslandPanelController {
 
     private var targetScreen: IslandGeometry? {
         let available = screens()
+        if let questionScreen {
+            return available.first(where: {
+                if let id = questionScreen.displayID { return $0.displayID == id }
+                return $0.screenFrame.origin == questionScreen.screenFrame.origin
+            }) ?? available.first
+        }
         return available.first(where: { $0.screenFrame.contains(pointerLocation()) }) ?? available.first
     }
 
@@ -279,7 +293,8 @@ extension NSScreen {
     var islandGeometry: IslandGeometry {
         IslandGeometry(
             screenFrame: frame, visibleFrame: visibleFrame, safeAreaTop: safeAreaInsets.top,
-            auxiliaryTopLeftArea: auxiliaryTopLeftArea, auxiliaryTopRightArea: auxiliaryTopRightArea
+            auxiliaryTopLeftArea: auxiliaryTopLeftArea, auxiliaryTopRightArea: auxiliaryTopRightArea,
+            displayID: (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
         )
     }
 }
