@@ -23,10 +23,6 @@ struct HomePanelWall: View {
             }
             PanelWallFilter(model: model)
             if !model.visibleTiles.isEmpty {
-                if let failure = model.failureMessage {
-                    Label(failure, systemImage: "exclamationmark.triangle")
-                        .font(.callout).foregroundStyle(Theme.warn)
-                }
                 wall
             } else if model.isLoading {
                 PendingStateView(title: String(localized: "Loading panels…"),

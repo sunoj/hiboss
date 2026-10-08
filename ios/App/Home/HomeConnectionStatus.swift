@@ -6,6 +6,13 @@ import Foundation
 import HibossKit
 
 enum HomeConnectionStatus {
+    static func isFailure(_ state: ConnectionState) -> Bool {
+        switch state {
+        case .failed, .disconnected: true
+        case .connected, .connecting: false
+        }
+    }
+
     static func notice(for state: ConnectionState) -> String? {
         switch state {
         case .connected: nil

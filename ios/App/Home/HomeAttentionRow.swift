@@ -35,7 +35,7 @@ struct HomeAttentionSection: View {
             if let status {
                 PendingStateView(
                     title: status, showsPlaceholder: snapshot.count == 0 && !hasPanels,
-                    escalated: statusIsFailure, statusIdentifier: "home-connection-status",
+                    isFailure: statusIsFailure, statusIdentifier: "home-connection-status",
                     onRetry: onRetry, onSettings: onSettings
                 )
             }

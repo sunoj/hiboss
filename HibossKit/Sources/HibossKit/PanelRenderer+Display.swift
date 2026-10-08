@@ -9,13 +9,7 @@ extension PanelRenderer {
         let label = element.props["label"]?.string ?? kitL("Metric")
         let value = valueText(element.props["value"])
         let unit = element.props["unit"]?.string
-        return AnyView(VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: label).font(.callout).foregroundStyle(.secondary)
-            HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(verbatim: value).font(.title2.bold()).foregroundStyle(.primary)
-                if let unit { Text(verbatim: unit).font(.callout).foregroundStyle(.secondary) }
-            }
-        }.frame(maxWidth: .infinity, alignment: .leading))
+        return AnyView(PanelMetricView(label: label, value: value, unit: unit))
     }
 
     func renderProgress(_ element: PanelElement) -> AnyView {

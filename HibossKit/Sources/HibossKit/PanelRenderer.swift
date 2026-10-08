@@ -68,6 +68,10 @@ public struct PanelRenderer: View {
     private func renderGrid(_ element: PanelElement) -> AnyView {
         let columns = max(1, Int(element.props["columns"]?.number ?? 1))
         let gap = element.props["gap"]?.number.map { CGFloat($0) } ?? 12
+        if !element.children.isEmpty,
+           element.children.allSatisfy({ spec.elements[$0]?.type == "Metric" }) {
+            return AnyView(PanelMetricLayout(columns: columns, gap: gap) { children(of: element) })
+        }
         return AnyView(
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), alignment: .top), count: columns),

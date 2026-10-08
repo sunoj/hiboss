@@ -7,7 +7,6 @@ App/Inbox/MessageAttributeStyle.swift | unlocalized-var | Text(label) | Attribut
 App/Settings/Devices/DeviceRequestsView.swift | unlocalized-var | Text(note) | approvalNote is LocalizedStringResource
 
 # Strings already resolved by String(localized:) or error.localizedDescription before they reach the view.
-App/Home/HomePanelWall.swift | unlocalized-var | Label(failure, | PanelsModel failure message, resolved in HibossKit
 App/Inbox/ListStateView.swift | unlocalized-var | ContentUnavailableView(emptyTitle, | callers pass String(localized:) title and detail
 App/Inbox/MessageDetailView.swift | unlocalized-var | Label(actionNote, | actionNote is set only from String(localized:)
 App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLabel(accessibilityCaption) | built with String(localized:)
