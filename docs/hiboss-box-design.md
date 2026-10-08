@@ -5,8 +5,8 @@
 Status: implemented. The decisions below resolve the open questions.
 
 A boss shares something they want an agent to use: a link, a passage of text, a
-screenshot, a short video. The boss sends it from any app on the phone or the Mac, or from
-the CLI. It lands in the boss's **Box**. Agents read it back by recency, kind or search,
+screenshot, a short video. The boss sends it from any app on the phone, by dropping it onto the Mac Island, or
+from the CLI. It lands in the boss's **Box**. Agents read it back by recency, kind or search,
 so the boss can say "use the image I just put in the box".
 
 The Box is not the Inbox. `hiboss inbox` lists messages the boss sent to agents; the Box
@@ -119,9 +119,11 @@ hiboss box rm <id> [--purge]                                                    
 
 ## macOS (HiBoss Island)
 
-- A Share menu extension with the same flow as iOS.
 - Dropping files, text or a URL onto the Island adds an item, with an optional note in a
   small popover.
+- There is no Share menu extension. The app is bundled from a SwiftPM executable and
+  ad-hoc signed, so it has no keychain access group to share a token with an extension.
+  The `mac-share` source value stays valid in the schema and is unused.
 
 ## Agent instructions (to add to CLAUDE.md)
 
