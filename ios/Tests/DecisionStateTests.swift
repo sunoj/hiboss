@@ -69,6 +69,34 @@ final class DecisionStateTests: XCTestCase {
         XCTAssertNil(DecisionSettlement(resolution: OptionResolution(id: "q1", status: .expired)))
     }
 
+    func testSharedThreadSettlementUsesNewestReplyAndKeepsAttribution() throws {
+        let earlier = reply("Rotate", MessageMetadata(options: [], source: "ios"))
+        let newest = HistoryMessage(
+            id: "latest", body: " Keep ", direction: "boss_to_agent", status: "sent",
+            priority: "normal", replyTo: "q1", metadata: MessageMetadata(options: [], source: "telegram"),
+            createdAt: "2026-10-04T10:02:00Z"
+        )
+        let settlement = try XCTUnwrap(DecisionSettlement.fromReply(
+            in: [earlier, Self.question, newest], for: "q1"))
+        XCTAssertEqual(settlement.answer, "Keep")
+        XCTAssertEqual(settlement.sourceLabel, "Telegram")
+        XCTAssertTrue(settlement.answeredElsewhere)
+        XCTAssertFalse(settlement.isAutoDefault)
+    }
+
+    func testExpiredParentKeepsUnmarkedReplyAutomatic() throws {
+        let expired = HistoryMessage(
+            id: "q1", body: "Rotate?", direction: "agent_to_boss", status: "replied", priority: "normal",
+            metadata: MessageMetadata(options: ["Rotate", "Keep"], isExpired: true),
+            createdAt: "2026-10-04T10:00:00Z"
+        )
+        let settlement = try XCTUnwrap(DecisionSettlement.fromReply(
+            in: [expired, reply("Keep", MessageMetadata(options: [], source: "api"))], for: "q1"))
+        XCTAssertTrue(settlement.isAutoDefault)
+        XCTAssertFalse(settlement.answeredElsewhere)
+        XCTAssertEqual(settlement.symbol, "clock.arrow.circlepath")
+    }
+
     /// The Live Activity ends with the recorded reply's attribution: the marker, never the
     /// source or equality with the default, makes it "Auto-selected when time ran out".
     func testLiveActivityCompletionIsAttributedByTheRecordedMarker() async throws {

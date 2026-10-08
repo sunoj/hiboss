@@ -11,7 +11,7 @@ final class ProgressMediaTapUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_TAB": "progress"])
-        app.launch()
+        app.launchConfiguredDemo()
         XCTAssertTrue(
             app.navigationBars["Progress"].waitForExistence(timeout: 10),
             "demo Progress tab should appear"

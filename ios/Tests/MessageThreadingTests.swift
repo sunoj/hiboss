@@ -64,6 +64,10 @@ final class MessageThreadingTests: XCTestCase {
         XCTAssertNil(MessageRowBadge.badge(for: Self.message("n", direction: "agent_to_boss", priority: "normal")))
     }
 
+    func testAutomaticReplyWithoutExpiredParentIsNotAttributedToBoss() {
+        XCTAssertNil(MessageThreading.bossAnswer(for: Self.ask, answer: "Ship", isAutoDefault: true))
+    }
+
     private static let ask = HistoryMessage(
         id: "q1", body: "Ship the changelog?", agentName: "orchestrator-01",
         direction: "agent_to_boss", status: "delivered", priority: "high",

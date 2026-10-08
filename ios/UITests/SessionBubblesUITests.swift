@@ -11,7 +11,7 @@ final class SessionBubblesUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1"])
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     func testSessionDetailShowsBubblesAndSystemLines() {
