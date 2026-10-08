@@ -6,6 +6,7 @@ import Foundation
 import HibossKit
 
 struct IslandGeometry: Equatable {
+    let displayID: UInt32?
     let screenFrame: CGRect
     let visibleFrame: CGRect
     let expandedTopInset: CGFloat
@@ -18,16 +19,19 @@ struct IslandGeometry: Equatable {
         visibleFrame: CGRect? = nil,
         safeAreaTop: CGFloat = 0,
         auxiliaryTopLeftArea: CGRect? = nil,
-        auxiliaryTopRightArea: CGRect? = nil
+        auxiliaryTopRightArea: CGRect? = nil,
+        displayID: UInt32? = nil
     ) {
+        self.displayID = displayID
         self.screenFrame = screenFrame
         self.visibleFrame = visibleFrame ?? screenFrame
         expandedTopInset = max(0, safeAreaTop)
         if safeAreaTop > 0, let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea,
-            !left.isEmpty, !right.isEmpty, right.minX > left.maxX {
+            !left.isEmpty, !right.isEmpty, screenFrame.width - left.width - right.width > 0 {
+            let width = screenFrame.width - left.width - right.width
             notchFrame = CGRect(
-                x: left.maxX, y: screenFrame.maxY - safeAreaTop,
-                width: right.minX - left.maxX, height: safeAreaTop
+                x: screenFrame.midX - width / 2, y: screenFrame.maxY - safeAreaTop,
+                width: width, height: safeAreaTop
             )
         } else {
             notchFrame = nil

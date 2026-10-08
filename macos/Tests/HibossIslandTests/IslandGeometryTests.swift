@@ -45,6 +45,31 @@ final class IslandGeometryTests: XCTestCase {
         try assertNotchClearance(geometry)
     }
 
+    func testScreenLocalAuxiliaryAreasCentreNotchOnOffsetSecondaryScreen() throws {
+        let secondary = IslandNotchFixtures.secondary
+        let geometry = IslandGeometry(screenFrame: secondary.screenFrame,
+            visibleFrame: secondary.visibleFrame, safeAreaTop: 32,
+            auxiliaryTopLeftArea: CGRect(x: 0, y: 1085, width: 756, height: 32),
+            auxiliaryTopRightArea: CGRect(x: 972, y: 1085, width: 756, height: 32))
+        XCTAssertEqual(geometry, secondary)
+        XCTAssertEqual(try XCTUnwrap(geometry.notchFrame).midX, secondary.screenFrame.midX)
+        XCTAssertEqual(geometry.collapsedFrame, secondary.collapsedFrame)
+        XCTAssertEqual(geometry.expandedFrame(contentHeight: 300),
+            secondary.expandedFrame(contentHeight: 300))
+        try assertNotchClearance(geometry)
+    }
+
+    func testAuxiliaryWidthsMustLeavePositiveNotchWidth() {
+        for width in [756.0, 800.0] {
+            let geometry = IslandGeometry(screenFrame: IslandNotchFixtures.macBook14.screenFrame,
+                safeAreaTop: 32,
+                auxiliaryTopLeftArea: CGRect(x: 0, y: 950, width: width, height: 32),
+                auxiliaryTopRightArea: CGRect(x: 1000, y: 950, width: width, height: 32))
+            XCTAssertNil(geometry.notchFrame)
+            XCTAssertEqual(geometry.expandedTopInset, 32)
+        }
+    }
+
     func testExpandedHeightAddsInsetBeforeVisibleFrameCap() {
         for geometry in [IslandNotchFixtures.macBook14, IslandNotchFixtures.macBook16] {
             let short = geometry.expandedFrame(contentHeight: 300)
