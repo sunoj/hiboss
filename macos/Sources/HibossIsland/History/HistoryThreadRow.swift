@@ -1,18 +1,33 @@
 // Inline session message with readable text, in-place replies, and optional metadata.
-// Exports: HistoryRow; message text never opens a sheet or consumes double-clicks.
-// Dependencies: SwiftUI, HibossKit, HistoryMessageBody, HistoryReplyActions.
+// Exports: HistoryThreadRow for the stream and notification detail.
+// Dependencies: SwiftUI, HibossKit, HistoryMessageBody, and thread decision/reply views.
 
 import HibossKit
 import SwiftUI
 
-struct HistoryRow: View {
-    let message: HistoryMessage
+enum HistoryDetailSection: Hashable {
+    case message, choices, metadata
+}
+
+enum HistoryDetailLayout {
+    static let showsMetadataByDefault = false
+
+    static func sections(hasChoices: Bool) -> [HistoryDetailSection] {
+        hasChoices ? [.message, .choices, .metadata] : [.message, .metadata]
+    }
+}
+
+struct HistoryThreadRow: View {
+    let thread: MessageThread
     @ObservedObject var reply: AttentionReplyState
     @Binding var isExpanded: Bool
     let isSearching: Bool
     let onCollapse: () -> Void
     let onChoose: (String) async -> ReplyFeedback?
     @State private var now = Date()
+    @State private var showsMetadata = HistoryDetailLayout.showsMetadataByDefault
+
+    private var message: HistoryMessage { thread.message }
 
     private var content: HistoryReadingContent {
         HistoryReadingContent(body: message.body, content: message.content)
@@ -23,16 +38,9 @@ struct HistoryRow: View {
             avatar
             VStack(alignment: .leading, spacing: 12) {
                 header
-                HistoryMessageBody(content: content, isSearching: isSearching,
-                    isExpanded: $isExpanded, onCollapse: onCollapse)
-                if let outcome = message.historyAutoDecidedLabel {
-                    Label(outcome, systemImage: "checkmark.circle").font(.caption).foregroundStyle(.secondary)
+                ForEach(HistoryDetailLayout.sections(hasChoices: !message.options.isEmpty), id: \.self) {
+                    section($0)
                 }
-                if !message.options.isEmpty {
-                    HistoryReplyActions(message: message, reply: reply,
-                        canAnswer: message.canAnswerHistory(at: now), onChoose: onChoose)
-                }
-                metadata
             }
         }
         .padding(.vertical, 20)
@@ -42,11 +50,36 @@ struct HistoryRow: View {
         .task(id: message.expiresAt) { await observeDeadline() }
     }
 
+    @ViewBuilder
+    private func section(_ section: HistoryDetailSection) -> some View {
+        switch section {
+        case .message:
+            HistoryMessageBody(content: content, isSearching: isSearching,
+                isExpanded: $isExpanded, onCollapse: onCollapse)
+        case .choices:
+            HistoryDecisionBlock(thread: thread, outcome: thread.outcome(at: now),
+                reply: reply, onChoose: onChoose)
+        case .metadata:
+            if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies) }
+            metadata
+        }
+    }
+
+    private var visibleReplies: [HistoryMessage] {
+        switch thread.outcome(at: now) {
+        case .chosen, .autoSelected:
+            thread.replies.filter { $0.id != thread.newestReply?.id }
+        default:
+            thread.replies
+        }
+    }
+
     private var avatar: some View {
         Text(message.historyMonogram).font(.callout.weight(.semibold))
             .foregroundStyle(message.isBossHistoryMessage ? Color.accentColor : .secondary)
             .frame(width: 34, height: 34)
-            .background(message.isBossHistoryMessage ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.05),
+            .background(message.isBossHistoryMessage
+                ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.05),
                 in: RoundedRectangle(cornerRadius: 10))
             .accessibilityHidden(true)
     }
@@ -85,7 +118,7 @@ struct HistoryRow: View {
     }
 
     private var metadata: some View {
-        DisclosureGroup(L("Details")) {
+        DisclosureGroup(L("Details"), isExpanded: $showsMetadata) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("Status") + ": " + message.status)
                 Text(L("Priority") + ": " + message.priority)

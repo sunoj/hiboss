@@ -1,5 +1,5 @@
-// In-message choices and a focused reply composer with shared drafts and retry state.
-// Exports: HistoryReplyActions; media and errors stay inside the message stream.
+// A focused reply composer with shared drafts and retry state.
+// Exports: HistoryReplyActions; errors stay inside the message stream.
 // Dependencies: SwiftUI, HibossKit, AttentionReplyState.
 
 import HibossKit
@@ -22,9 +22,9 @@ struct HistoryReplyActions: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if canAnswer {
-                choices
                 if let feedback = reply.errors[message.id] {
-                    Label(hasDraft ? feedback.text : feedback.choiceText, systemImage: "exclamationmark.circle")
+                    Label(hasDraft ? feedback.text : feedback.choiceText,
+                        systemImage: "exclamationmark.circle")
                         .font(.callout).foregroundStyle(.red)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -38,42 +38,7 @@ struct HistoryReplyActions: View {
                     .buttonStyle(.borderless).disabled(isSubmitting)
                 }
                 if isSubmitting { ProgressView(L("Sending…")).controlSize(.small) }
-            } else {
-                Label(L("Replies closed"), systemImage: "checkmark.bubble")
-                    .font(.caption).foregroundStyle(.secondary)
-                DisclosureGroup(L("Choices")) { choices }
-                    .font(.callout)
             }
-        }
-        .accessibilityIdentifier("history.actions.\(message.id.rawValue)")
-    }
-
-    private var choices: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(message.options.enumerated()), id: \.offset) { _, option in
-                if let media = message.metadata?.optionMedia.first(where: { $0.label == option }) {
-                    inlineMedia(media)
-                }
-                choice(option)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func choice(_ option: String) -> some View {
-        if canAnswer {
-            Button { send(option) } label: {
-                HStack(alignment: .top, spacing: 6) {
-                    Text(option).fixedSize(horizontal: false, vertical: true)
-                    if option == message.defaultOption {
-                        Text(L("default")).foregroundStyle(.secondary)
-                    }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered).disabled(isSubmitting)
-        } else {
-            Text(option).foregroundStyle(.secondary).textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -93,23 +58,9 @@ struct HistoryReplyActions: View {
 
     private var sendButton: some View {
         Button(L("Send reply")) { send(draft.wrappedValue) }
-            .disabled(isSubmitting || draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(isSubmitting
+                || draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .accessibilityIdentifier("history.send.\(message.id.rawValue)")
-    }
-
-    private func inlineMedia(_ media: OptionMedia) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            AsyncImage(url: URL(string: media.url)) { phase in
-                switch phase {
-                case .success(let image): image.resizable().scaledToFit()
-                case .failure: Label(L("Image unavailable"), systemImage: "photo.badge.exclamationmark")
-                case .empty: ProgressView()
-                @unknown default: EmptyView()
-                }
-            }
-            .frame(maxHeight: 280).accessibilityLabel(media.label)
-            if let caption = media.caption { Text(caption).font(.caption).textSelection(.enabled) }
-        }
     }
 
     private func send(_ text: String) {

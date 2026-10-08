@@ -66,13 +66,14 @@ struct NotificationMessageDetail: View {
     /// Sends a reply for a message id; nil means accepted, as in `OptionFlowStore.answer`.
     let onReply: (String, MessageID) async -> ReplyFeedback?
     @State private var message: HistoryMessage?
+    @State private var replies: [HistoryMessage] = []
     @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Group {
             if let message {
-                loadedDetail(message)
+                loadedDetail(message, replies: replies)
             } else if let errorMessage {
                 ContentUnavailableView {
                     Label(L("History Unavailable"), systemImage: "exclamationmark.triangle")
@@ -91,12 +92,14 @@ struct NotificationMessageDetail: View {
     }
 
     /// Replies go to the loaded message's own id, never the notification's requested id.
-    func loadedDetail(_ message: HistoryMessage) -> HistoryMessageDetail {
-        HistoryMessageDetail(message: message, reply: reply) { await onReply($0, message.id) }
+    func loadedDetail(_ message: HistoryMessage, replies: [HistoryMessage] = []) -> HistoryMessageDetail {
+        HistoryMessageDetail(message: message, reply: reply,
+            onChoose: { await onReply($0, message.id) }, replies: replies)
     }
 
     private func load() async {
         message = nil
+        replies = []
         errorMessage = nil
         await settings.loadToken()
         do {
@@ -104,6 +107,7 @@ struct NotificationMessageDetail: View {
             let detail = try await HibossAPI(config: config).fetchMessage(messageID)
             try Task.checkCancellation()
             message = detail.message
+            replies = detail.replies
         } catch where Task.isCancelled {
             return
         } catch {

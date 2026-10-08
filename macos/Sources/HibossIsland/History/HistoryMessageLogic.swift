@@ -40,24 +40,37 @@ enum HistoryMessageLogic {
         _ messages: [HistoryMessage],
         segment: HistorySegment,
         searchText: String
-    ) -> [HistoryMessage] {
-        messages.filter { message in
-            segment.includes(message) && message.matchesHistorySearch(searchText)
+    ) -> [MessageThread] {
+        filteredThreads(MessageThread.fold(messages), segment: segment, searchText: searchText)
+    }
+
+    static func filteredThreads(
+        _ threads: [MessageThread], segment: HistorySegment, searchText: String
+    ) -> [MessageThread] {
+        threads.filter { thread in
+            segment.includes(thread.message)
+                && ([thread.message] + thread.replies).contains { $0.matchesHistorySearch(searchText) }
         }
     }
 
+    static func scopedThreads(snapshot: OverviewSnapshot, scope: OverviewDestination) -> [MessageThread] {
+        let threads = MessageThread.fold(snapshot.history)
+        let ids = Set(snapshot.messages(for: scope).map(\.id))
+        return threads.filter { ids.contains($0.id) }
+    }
+
     static func unreadCount(in messages: [HistoryMessage]) -> Int {
-        messages.filter(\.isUnreadHistoryMessage).count
+        MessageThread.fold(messages).filter { $0.message.isUnreadHistoryMessage }.count
     }
 
     /// Groups already-filtered messages by session. Delegates to HibossKit.SessionGrouping.
     static func groupBySession(_ messages: [HistoryMessage]) -> [SessionGroup] {
-        SessionGrouping.groupBySession(messages)
+        SessionGrouping.groupBySession(MessageThread.fold(messages).map(\.message))
     }
 }
 
 enum HistoryTimestamp {
-    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss") // i18n-exempt: server SQL timestamp pattern, parsing only
+    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss") // i18n-exempt: SQL parser
 
     static func date(from rawValue: String) -> Date? {
         (try? Date(rawValue, strategy: .iso8601))
