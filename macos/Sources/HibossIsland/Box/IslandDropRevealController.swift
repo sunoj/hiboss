@@ -9,27 +9,33 @@ import HibossKit
 final class IslandDropRevealController {
     private let panel: NSPanel
     private let pointerLocation: () -> NSPoint
+    private let screens: () -> [IslandGeometry]
+    private let screenDidChange: (IslandGeometry) -> Void
     private var policy = IslandDropRevealPolicy()
     private var monitors: [Any] = []
     private var pending: DispatchWorkItem?
     private var scheduledDeadline: TimeInterval?
-    private var hotZone: NSRect?
+    private var geometry: IslandGeometry?
     private var pointerIsInside = false
 
     init(
         panel: NSPanel,
         host: BoxDropHostingView,
-        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }
+        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
+        screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
+        screenDidChange: @escaping (IslandGeometry) -> Void = { _ in }
     ) {
         self.panel = panel
         self.pointerLocation = pointerLocation
+        self.screens = screens
+        self.screenDidChange = screenDidChange
         panel.acceptsMouseMovedEvents = true
         let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseUp]
         if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
-            self?.pointerMoved(to: NSEvent.mouseLocation, dragging: event.type == .leftMouseDragged)
+            self?.pointerMoved(to: pointerLocation(), dragging: event.type == .leftMouseDragged)
         }) { monitors.append(global) }
         if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
-            self?.pointerMoved(to: NSEvent.mouseLocation, dragging: event.type == .leftMouseDragged)
+            self?.pointerMoved(to: pointerLocation(), dragging: event.type == .leftMouseDragged)
             return event
         }) { monitors.append(local) }
         host.activityDidChange = { [weak self] popover, uploading in
@@ -51,19 +57,18 @@ final class IslandDropRevealController {
     }
 
     static func hotZone(on screen: NSRect) -> NSRect {
-        NSRect(x: screen.midX - AppConstants.Island.collapsedWidth / 2,
-            y: screen.maxY - AppConstants.Island.collapsedHeight,
-            width: AppConstants.Island.collapsedWidth, height: AppConstants.Island.collapsedHeight)
+        IslandGeometry(screenFrame: screen).hotZone
     }
 
     func pointerMoved(to point: NSPoint, dragging: Bool) {
-        let zone = NSScreen.screens.first { $0.frame.contains(point) }.map { Self.hotZone(on: $0.frame) }
+        let target = screens().first { $0.screenFrame.contains(point) }
         pointerIsInside = false
-        if hotZone != zone {
+        if geometry != target {
             send(.pointer(inHotZone: false, dragging: false))
-            hotZone = zone
+            geometry = target
+            if let target { screenDidChange(target) }
         }
-        pointerIsInside = zone?.contains(point) == true
+        pointerIsInside = target?.hotZone.contains(point) == true
         send(.pointer(inHotZone: pointerIsInside, dragging: dragging))
     }
 
@@ -74,8 +79,9 @@ final class IslandDropRevealController {
         case .hidden:
             if panel.isVisible { panel.orderOut(nil) }
         case .dropTarget:
-            if let hotZone, before != .dropTarget || (panel.frame != hotZone && pointerIsInside) {
-                showDropTarget(in: hotZone)
+            if let geometry,
+                before != .dropTarget || (panel.frame != geometry.collapsedFrame && pointerIsInside) {
+                showDropTarget(in: geometry.collapsedFrame)
             }
         case .question:
             break

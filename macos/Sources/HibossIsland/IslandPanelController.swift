@@ -78,17 +78,23 @@ final class IslandPanelController {
     let reply = AttentionReplyState()
     private let settings: AppSettings
     private let soundPlayer: any SoundPlaying
+    private let screens: () -> [IslandGeometry]
+    private let pointerLocation: () -> NSPoint
     private var cancellables: Set<AnyCancellable> = []
     private(set) var dropReveal: IslandDropRevealController?
 
     init(
         flow: OptionFlowStore,
         settings: AppSettings,
-        soundPlayer: any SoundPlaying = SystemSoundPlayer()
+        soundPlayer: any SoundPlaying = SystemSoundPlayer(),
+        screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
+        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }
     ) {
         self.flow = flow
         self.settings = settings
         self.soundPlayer = soundPlayer
+        self.screens = screens
+        self.pointerLocation = pointerLocation
         panel = IslandPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -120,7 +126,10 @@ final class IslandPanelController {
         let host = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
-        dropReveal = IslandDropRevealController(panel: panel, host: host)
+        dropReveal = IslandDropRevealController(
+            panel: panel, host: host, pointerLocation: pointerLocation, screens: screens,
+            screenDidChange: { [weak self] geometry in self?.updateGeometry(geometry) }
+        )
     }
 
     /// The rounded surface is drawn in SwiftUI, so the window itself must be transparent.
@@ -204,15 +213,10 @@ final class IslandPanelController {
     }
 
     private func showIsland(_ message: OptionMessage) {
-        let screen = targetScreen
-        let height = expandedHeight(for: message)
-        let expanded = frame(on: screen, width: AppConstants.Island.width, height: height)
-        let collapsed = frame(
-            on: screen,
-            width: AppConstants.Island.collapsedWidth,
-            height: AppConstants.Island.collapsedHeight
-        )
-        panel.setFrame(collapsed, display: false)
+        guard let geometry = targetScreen else { return }
+        setContentInset(geometry.expandedTopInset)
+        let expanded = geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message))
+        panel.setFrame(geometry.collapsedFrame, display: false)
         panel.alphaValue = 0
         panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { context in
@@ -234,39 +238,48 @@ final class IslandPanelController {
 
     private func reposition() {
         guard settings.presentationMode == .island else { return }
-        guard let message = flow.activeMessage else {
-            dropReveal?.refreshPointer()
-            return
-        }
-        let height = expandedHeight(for: message)
+        dropReveal?.refreshPointer()
+        if let geometry = targetScreen { updateGeometry(geometry) }
+    }
+
+    private func updateGeometry(_ geometry: IslandGeometry) {
+        guard settings.presentationMode == .island else { return }
+        setContentInset(geometry.expandedTopInset)
+        guard let message = flow.activeMessage else { return }
         panel.setFrame(
-            frame(on: targetScreen, width: AppConstants.Island.width, height: height),
+            geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)),
             display: true
         )
     }
 
-    private var targetScreen: NSScreen {
-        NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) })
-            ?? NSScreen.main
-            ?? NSScreen.screens[0]
+    private func setContentInset(_ inset: CGFloat) {
+        guard let host = panel.contentView as? BoxDropHostingView,
+            host.rootView.topInset != inset else { return }
+        host.rootView.topInset = inset
+    }
+
+    private var targetScreen: IslandGeometry? {
+        let available = screens()
+        return available.first(where: { $0.screenFrame.contains(pointerLocation()) }) ?? available.first
     }
 
     private func expandedHeight(for message: OptionMessage) -> CGFloat {
         let desiredHeight = OptionPanelLayout.expandedHeight(for: message)
-        return min(desiredHeight, targetScreen.visibleFrame.height * 0.8)
-    }
-
-    private func frame(on screen: NSScreen, width: CGFloat, height: CGFloat) -> NSRect {
-        NSRect(
-            x: screen.frame.midX - width / 2,
-            y: screen.frame.maxY - height,
-            width: width,
-            height: height
-        )
+        guard let screen = targetScreen else { return desiredHeight }
+        return min(desiredHeight, screen.visibleFrame.height * 0.8)
     }
 }
 
 private final class IslandPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+}
+
+extension NSScreen {
+    var islandGeometry: IslandGeometry {
+        IslandGeometry(
+            screenFrame: frame, visibleFrame: visibleFrame, safeAreaTop: safeAreaInsets.top,
+            auxiliaryTopLeftArea: auxiliaryTopLeftArea, auxiliaryTopRightArea: auxiliaryTopRightArea
+        )
+    }
 }
