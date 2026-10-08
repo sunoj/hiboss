@@ -51,18 +51,12 @@ private struct PanelTileContent: View {
     }
 
     private var tableMetrics: some View {
-        HStack(alignment: .top, spacing: 24) {
+        PanelMetricLayout(columns: 3, gap: 24) {
             ForEach(Array(content.metrics.enumerated()), id: \.offset) { index, metric in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: metric.label).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(verbatim: metric.displayValue(in: state))
-                        .font(index == 0 ? .largeTitle.bold() : .title2.weight(.semibold))
-                        .foregroundStyle(index == 0 ? accent : .primary).monospacedDigit()
-                        .contentTransition(.numericText())
-                        if let unit = metric.unit { Text(verbatim: unit).font(.caption).foregroundStyle(.secondary) }
-                    }
-                }
+                PanelMetricView(label: metric.label, value: metric.displayValue(in: state), unit: metric.unit,
+                                labelFont: .caption,
+                                valueFont: index == 0 ? .largeTitle.bold() : .title2.weight(.semibold),
+                                unitFont: .caption, valueColor: index == 0 ? accent : .primary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -84,13 +78,11 @@ private struct PanelTileContent: View {
                 }
             }
             if content.metrics.count > 1 {
-                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                PanelMetricLayout(columns: 2, gap: 16) {
                     ForEach(Array(content.metrics.dropFirst().enumerated()), id: \.offset) { _, metric in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: metric.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                            Text(verbatim: metric.displayValue(in: state) + (metric.unit.map { " \($0)" } ?? ""))
-                                .font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1)
-                        }
+                        PanelMetricView(label: metric.label, value: metric.displayValue(in: state),
+                                        unit: metric.unit, labelFont: .caption2,
+                                        valueFont: .subheadline.weight(.semibold), unitFont: .subheadline)
                     }
                 }
             }

@@ -142,7 +142,7 @@ struct HomeView: View {
     private var hasCoverageFailure: Bool {
         inbox.requiredInputError != nil || inbox.loadError != nil
             || panels.questionnaireError != nil || panels.failureMessage != nil
-            || inbox.connectionState == .disconnected
+            || HomeConnectionStatus.isFailure(inbox.connectionState)
     }
 
     private func retryCoverage() async {

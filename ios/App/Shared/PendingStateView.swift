@@ -13,7 +13,7 @@ struct PendingStateView: View {
     let title: String
     var detail: String? = nil
     var showsPlaceholder = false
-    var escalated = false
+    var isFailure = false
     var statusIdentifier = "pending-status"
     var onRetry: (() async -> Void)? = nil
     var onSettings: (() -> Void)? = nil
@@ -22,19 +22,22 @@ struct PendingStateView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if visible || escalated {
+            if visible || isFailure {
                 HStack(alignment: .top, spacing: 8) {
-                    if !slow && !escalated { ProgressView().tint(Theme.ink2) }
+                    if !slow && !isFailure { ProgressView().tint(Theme.ink2) }
                     Text(verbatim: title).font(.hbCallout).foregroundStyle(Theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityIdentifier(statusIdentifier)
-                if slow || escalated { escalation }
+                if slow || isFailure { escalation }
                 if showsPlaceholder { PendingRows() }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .task {
+        .task(id: isFailure) {
+            visible = false
+            slow = false
+            guard !isFailure else { return }
             do {
                 try await Task.sleep(for: PendingTiming.revealDelay)
                 visible = true
@@ -46,10 +49,12 @@ struct PendingStateView: View {
 
     private var escalation: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: detail ?? String(localized: "This is taking longer than expected."))
-                .font(.hbCallout).foregroundStyle(Theme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("pending-escalation")
+            if !isFailure {
+                Text(verbatim: detail ?? String(localized: "This is taking longer than expected."))
+                    .font(.hbCallout).foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("pending-escalation")
+            }
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 12) { actions }
                 VStack(alignment: .leading, spacing: 8) { actions }
@@ -60,7 +65,9 @@ struct PendingStateView: View {
     @ViewBuilder private var actions: some View {
         if let onRetry { RetryButton(action: onRetry) }
         if let onSettings {
-            Button("Settings", action: onSettings).buttonStyle(.bordered).frame(minHeight: 44)
+            Button(action: onSettings) { HStack { Text("Settings") }.frame(minHeight: 44) }
+                .buttonStyle(.bordered).controlSize(.regular)
+                .buttonBorderShape(.roundedRectangle)
         }
     }
 }
@@ -118,6 +125,8 @@ struct RetryButton: View {
             }.frame(minHeight: 44)
         }
         .buttonStyle(.bordered)
+        .controlSize(.regular)
+        .buttonBorderShape(.roundedRectangle)
         .disabled(retrying)
         .accessibilityIdentifier("pending-retry")
     }

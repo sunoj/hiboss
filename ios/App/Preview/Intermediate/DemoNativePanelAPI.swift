@@ -7,7 +7,10 @@ import HibossKit
 
 enum DemoPanelServices {
     static func make() -> any PanelsServing {
-        ProcessInfo.processInfo.environment["HIBOSS_DEMO_NATIVE_PANEL"] == "1"
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_METRIC_PANEL"] == "1" {
+            return DemoMetricPanelAPI()
+        }
+        return ProcessInfo.processInfo.environment["HIBOSS_DEMO_NATIVE_PANEL"] == "1"
             ? DemoNativePanelAPI() : DemoHomePanelsAPI()
     }
 }

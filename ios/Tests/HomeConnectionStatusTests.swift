@@ -7,6 +7,13 @@ import XCTest
 @testable import HiBoss
 
 final class HomeConnectionStatusTests: XCTestCase {
+    func testFailureIsTerminalRatherThanAConnectionWait() {
+        XCTAssertTrue(HomeConnectionStatus.isFailure(.failed("Timeout")))
+        XCTAssertTrue(HomeConnectionStatus.isFailure(.disconnected))
+        XCTAssertFalse(HomeConnectionStatus.isFailure(.connecting))
+        XCTAssertFalse(HomeConnectionStatus.isFailure(.connected))
+    }
+
     func testOnlyConnectedStreamAllowsAnAllClearCandidate() {
         XCTAssertNil(HomeConnectionStatus.notice(for: .connected))
         for state in [ConnectionState.connecting, .disconnected, .failed("Unavailable")] {
