@@ -66,9 +66,10 @@ private struct OptionMediaRow: View {
     }
 }
 
-private struct OptionMediaPreview: View {
+struct OptionMediaPreview: View {
     let media: OptionMedia
     let openMedia: () -> Void
+    var showsCaption = true
 
     var body: some View {
         VStack(spacing: 4) {
@@ -96,7 +97,7 @@ private struct OptionMediaPreview: View {
             .buttonStyle(.plain)
             .accessibilityLabel(L("Open image for \(media.label)"))
 
-            if let caption = media.caption, !caption.isEmpty {
+            if showsCaption, let caption = media.caption, !caption.isEmpty {
                 Text(caption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -107,7 +108,7 @@ private struct OptionMediaPreview: View {
     }
 }
 
-private struct OptionMediaPopover: View {
+struct OptionMediaPopover: View {
     let media: OptionMedia
     @Environment(\.dismiss) private var dismiss
 

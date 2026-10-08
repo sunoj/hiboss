@@ -49,6 +49,22 @@ final class NotificationReplyE2ETests: XCTestCase {
         XCTAssertEqual(recorded.map(\.messageID), ["a", "b"])
     }
 
+    func testLoadedNotificationDetailKeepsTheReturnedThreadReplies() throws {
+        let parent = HistoryMessage(id: "q", body: "Ship?", direction: "agent_to_boss",
+            status: "replied", priority: "normal", metadata: MessageMetadata(options: ["Ship", "Hold"]),
+            createdAt: "2026-10-08T10:00:00Z")
+        let answer = HistoryMessage(id: "answer", body: "Hold", direction: "boss_to_agent",
+            status: "sent", priority: "normal", replyTo: "q",
+            metadata: MessageMetadata(options: [], isAutoDefault: true), createdAt: "2026-10-08T10:01:00Z")
+        let view = NotificationMessageDetail(messageID: "stale", settings: try settings(),
+            reply: AttentionReplyState(), onReply: { _, _ in nil })
+        let detail = view.loadedDetail(parent, replies: [answer])
+        XCTAssertEqual(detail.message.id, "q")
+        XCTAssertEqual(detail.replies, [answer])
+        XCTAssertEqual(MessageThread(message: detail.message, replies: detail.replies).outcome,
+            .autoSelected(option: "Hold"))
+    }
+
     /// Builds the notification detail with a stale requested id, then sends through the
     /// loaded HistoryMessageDetail's own callback, as its composer and choice buttons do.
     private func send(

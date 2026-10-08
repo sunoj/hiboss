@@ -1,6 +1,6 @@
 // Readable session stream with inline messages, search, and shared reply drafts.
 // Exports: HistoryView with per-message expansion and no detail sheet.
-// Dependencies: SwiftUI, HibossKit, HistoryRow, and OverviewSnapshot.
+// Dependencies: SwiftUI, HibossKit, HistoryThreadRow, and OverviewSnapshot.
 
 import HibossKit
 import SwiftUI
@@ -11,26 +11,28 @@ struct HistoryView: View {
     let scope: OverviewDestination
     @ObservedObject var reply: AttentionReplyState
 
-    private var scopedMessages: [HistoryMessage] { snapshot.messages(for: scope) }
+    private var scopedThreads: [MessageThread] {
+        HistoryMessageLogic.scopedThreads(snapshot: snapshot, scope: scope)
+    }
     @State private var segment: HistorySegment = .all
     @State private var searchText = ""
     @State private var expandedMessages: Set<MessageID> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var unreadCount: Int {
-        HistoryMessageLogic.unreadCount(in: scopedMessages)
+        scopedThreads.filter { $0.message.isUnreadHistoryMessage }.count
     }
 
-    private var messages: [HistoryMessage] {
-        HistoryMessageLogic.filtered(
-            scopedMessages,
+    private var threads: [MessageThread] {
+        HistoryMessageLogic.filteredThreads(
+            scopedThreads,
             segment: segment,
             searchText: searchText
         )
     }
 
     private var sessionGroups: [SessionGroup] {
-        HistoryMessageLogic.groupBySession(messages)
+        SessionGrouping.groupBySession(threads.map(\.message))
     }
 
     var body: some View {
@@ -64,10 +66,10 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var historyContent: some View {
-        if scopedMessages.isEmpty, flow.historyState == .loading {
+        if scopedThreads.isEmpty, flow.historyState == .loading {
             ProgressView(L("Loading messages…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if messages.isEmpty {
+        } else if threads.isEmpty {
             ContentUnavailableView(
                 emptyTitle,
                 systemImage: emptySystemImage,
@@ -85,7 +87,9 @@ struct HistoryView: View {
                     ForEach(sessionGroups) { group in
                         Section {
                             ForEach(group.messages) { message in
-                                messageRow(message, reader: reader)
+                                if let thread = threads.first(where: { $0.id == message.id }) {
+                                    messageRow(thread, reader: reader)
+                                }
                                 Divider()
                             }
                         } header: {
@@ -113,25 +117,25 @@ struct HistoryView: View {
         }
     }
 
-    private func messageRow(_ message: HistoryMessage, reader: ScrollViewProxy) -> some View {
-        HistoryRow(message: message, reply: reply, isExpanded: Binding(
-            get: { expandedMessages.contains(message.id) },
+    private func messageRow(_ thread: MessageThread, reader: ScrollViewProxy) -> some View {
+        HistoryThreadRow(thread: thread, reply: reply, isExpanded: Binding(
+            get: { expandedMessages.contains(thread.id) },
             set: { expanded in
-                if expanded { expandedMessages.insert(message.id) }
-                else { expandedMessages.remove(message.id) }
+                if expanded { expandedMessages.insert(thread.id) }
+                else { expandedMessages.remove(thread.id) }
             }), isSearching: !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
             onCollapse: {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
-                    reader.scrollTo(message.id, anchor: .top)
+                    reader.scrollTo(thread.id, anchor: .top)
                 }
-            }, onChoose: { choice in await flow.answer(choice, for: message.id) })
-            .id(message.id)
+            }, onChoose: { choice in await flow.answer(choice, for: thread.id) })
+            .id(thread.id)
     }
 
     private var emptyTitle: String {
         if case .failed = flow.historyState { return L("History Unavailable") }
-        if scopedMessages.isEmpty, scope == .category(.completed) { return L("No completed questions") }
-        return scopedMessages.isEmpty ? L("No Messages") : L("No Matching Messages")
+        if scopedThreads.isEmpty, scope == .category(.completed) { return L("No completed questions") }
+        return scopedThreads.isEmpty ? L("No Messages") : L("No Matching Messages")
     }
 
     private var emptySystemImage: String {
@@ -141,10 +145,10 @@ struct HistoryView: View {
 
     private var emptyDescription: String {
         if case let .failed(message) = flow.historyState { return message }
-        if scopedMessages.isEmpty, scope == .category(.completed) {
+        if scopedThreads.isEmpty, scope == .category(.completed) {
             return L("Answered and expired questions appear here.")
         }
-        if messages.isEmpty && !scopedMessages.isEmpty {
+        if threads.isEmpty && !scopedThreads.isEmpty {
             return L("Try a different filter or search.")
         }
         return L("Agent messages will appear here.")
