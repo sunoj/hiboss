@@ -121,6 +121,18 @@ hiboss box rm <id> [--purge]                                                    
 
 - Dropping files, text or a URL onto the Island adds an item, with an optional note in a
   small popover.
+- In Island presentation mode, the idle “Drop into Box” bar is hidden and its panel is
+  ordered out, so menu-bar and application clicks pass through. The hot zone is 184 × 36
+  points at the top centre of the screen containing the pointer. Hovering there for
+  0.3 seconds reveals the bar; entering during a left-button drag reveals it immediately
+  and orders the native `BoxDropHostingView` onto the screen to receive the drop.
+- The bar hides one second after leaving the hot zone. An open Box popover or an active
+  upload holds it visible; once both end, an elapsed hide deadline takes effect immediately.
+  Questions still expand the Island, and clearing a question returns it to hidden.
+  Window presentation mode has no idle drop bar.
+- Global and local `NSEvent` mouse monitors observe movement, left-button drags and release.
+  They do not consume input or require Accessibility permission. Dwell and hide use
+  one-shot deadlines; no idle polling timer runs.
 - There is no Share menu extension. The app is bundled from a SwiftPM executable and
   ad-hoc signed, so it has no keychain access group to share a token with an extension.
   The `mac-share` source value stays valid in the schema and is unused.

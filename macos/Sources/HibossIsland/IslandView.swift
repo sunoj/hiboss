@@ -24,8 +24,12 @@ struct IslandView: View {
     }
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            islandContent(now: context.date)
+        if flow.activeMessage == nil {
+            islandContent(now: .now)
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                islandContent(now: context.date)
+            }
         }
     }
 
@@ -33,7 +37,8 @@ struct IslandView: View {
     private func islandContent(now: Date) -> some View {
         if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
             resolvedCard(message, answer: answer, source: source)
-        } else if let presentation = IslandAttention.presentation(
+        } else if (surfaceStyle == .window || flow.activeMessage != nil),
+            let presentation = IslandAttention.presentation(
             live: flow.activeMessage,
             history: flow.historyMessages,
             now: now

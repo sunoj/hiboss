@@ -3,13 +3,16 @@
 // Dependencies: AppKit, SwiftUI, AppSettings and the existing HibossAPI credential.
 
 import AppKit
+import Combine
 import HibossKit
 import SwiftUI
 
-final class BoxDropHostingView: NSHostingView<IslandView> {
+final class BoxDropHostingView: NSHostingView<IslandView>, NSPopoverDelegate {
     private let settings: AppSettings
     let popover = NSPopover()
     private(set) var dropStore: BoxDropStore?
+    var activityDidChange: ((Bool, Bool) -> Void)?
+    private var phaseObservation: AnyCancellable?
 
     init(rootView: IslandView, settings: AppSettings) {
         self.settings = settings
@@ -17,6 +20,7 @@ final class BoxDropHostingView: NSHostingView<IslandView> {
         registerForDraggedTypes(BoxDropInput.pasteboardTypes)
         popover.behavior = .applicationDefined
         popover.animates = true
+        popover.delegate = self
     }
 
     @available(*, unavailable)
@@ -53,11 +57,15 @@ final class BoxDropHostingView: NSHostingView<IslandView> {
         dropStore = store
         let hosting = NSHostingController(rootView: BoxDropPopover(store: store) { [weak self] in
             self?.popover.close()
-            self?.dropStore = nil
         })
         hosting.sizingOptions = [.preferredContentSize]
         popover.contentViewController = hosting
         popover.show(relativeTo: bounds, of: self, preferredEdge: .minY)
+        phaseObservation = store.$phase.sink { [weak self] phase in
+            guard let self else { return }
+            activityDidChange?(popover.isShown, phase == .uploading)
+            if !popover.isShown && phase != .uploading { dropStore = nil }
+        }
         hosting.view.window?.makeKey()
         do {
             let items = pasteboard.pasteboardItems ?? []
@@ -67,5 +75,14 @@ final class BoxDropHostingView: NSHostingView<IslandView> {
         } catch {
             store.reject(error)
         }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        let uploading = dropStore?.phase == .uploading
+        if !uploading {
+            dropStore = nil
+            phaseObservation = nil
+        }
+        activityDidChange?(false, uploading)
     }
 }
