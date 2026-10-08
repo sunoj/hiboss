@@ -15,7 +15,7 @@ final class ResolvedNavigationUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_DEMO_RESOLVED": "1"])
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     func testTappingAResolvedRowLeavesTheResolvedScreen() {
@@ -43,7 +43,7 @@ final class HomeAttentionUITests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.configureDemoLaunch()
-        app.launch()
+        app.launchConfiguredDemo()
     }
 
     func testPopulatedDemoShowsAttentionCount() {
@@ -62,7 +62,7 @@ final class HomeAttentionUITests: XCTestCase {
     func testTextAskOpensDetailAndReplyRemovesItFromHome() {
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_TEXT_ASK": "1"])
-        app.launch()
+        app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["1 item waiting on your call"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         app.buttons["home-message-demo-text-ask"].tap()
@@ -78,7 +78,7 @@ final class HomeAttentionUITests: XCTestCase {
     func testManyOptionsRemainReachableAtAccessibilityTextSize() {
         app.terminate()
         app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
-        app.launch()
+        app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
         let option = app.buttons["Fail over to Adyen"]
         for _ in 0..<12 where !option.isHittable { app.swipeUp() }
@@ -104,7 +104,7 @@ final class HomeAttentionUITests: XCTestCase {
         app.terminate()
         app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_DEMO_EMPTY": "1"])
-        app.launch()
+        app.launchConfiguredDemo()
 
         XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Everything is settled. This is where an agent's next question will appear."].exists)

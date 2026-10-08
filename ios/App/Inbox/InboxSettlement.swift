@@ -34,10 +34,20 @@ struct DecisionSettlement: Equatable {
 extension DecisionSettlement {
     /// The persisted reply's answer, source and automatic marker; nil for an empty reply.
     init?(reply: HistoryMessage) {
-        let text = reply.body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return nil }
-        self.init(answer: text, source: reply.metadata?.source,
-                  isAutoDefault: reply.metadata?.isAutoDefault == true)
+        self.init(outcome: ThreadOutcome(reply: reply), source: reply.metadata?.source)
+    }
+
+    private init?(outcome: ThreadOutcome, source: String?) {
+        switch outcome {
+        case let .chosen(answer, replySource), let .replied(answer, replySource):
+            guard !answer.isEmpty else { return nil }
+            self.init(answer: answer, source: replySource)
+        case let .autoSelected(answer):
+            guard let answer, !answer.isEmpty else { return nil }
+            self.init(answer: answer, source: source, isAutoDefault: true)
+        case .open, .expired, .none:
+            return nil
+        }
     }
 
     /// A live stream resolution, until the persisted reply arrives with history.
@@ -48,7 +58,10 @@ extension DecisionSettlement {
     }
 
     static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
-        history.first(where: { $0.replyTo == id.rawValue }).flatMap(DecisionSettlement.init(reply:))
+        guard let thread = MessageThread.fold(history).first(where: { $0.id == id }),
+              let reply = thread.newestReply else { return nil }
+        let outcome = thread.message.options.isEmpty ? ThreadOutcome(reply: reply) : thread.outcome
+        return DecisionSettlement(outcome: outcome, source: reply.metadata?.source)
     }
 }
 

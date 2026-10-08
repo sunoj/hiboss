@@ -33,8 +33,10 @@ struct MessagesView: View {
     private func row(_ item: MessageThreading.Item) -> some View {
         switch item {
         case let .agent(message, reply):
+            let settlement = store.settlement(for: message.id)
             HistoryRow(message: message, answer: MessageThreading.bossAnswer(
-                for: message, answer: reply?.body ?? store.settlement(for: message.id)?.answer
+                for: message, answer: reply?.body ?? settlement?.answer,
+                isAutoDefault: reply?.metadata?.isAutoDefault == true || settlement?.isAutoDefault == true
             ))
         case let .boss(message):
             BossHistoryRow(message: message)

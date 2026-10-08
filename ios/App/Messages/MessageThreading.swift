@@ -25,36 +25,19 @@ enum MessageThreading {
     /// parent's `reply` (the newest one wins when there are several) and emits no row.
     /// Authorship is read from `direction` only: boss replies carry the agent's name.
     static func items(from history: [HistoryMessage]) -> [Item] {
-        let ids = Set(history.map(\.id.rawValue))
-        var replies: [String: HistoryMessage] = [:]
-        for message in history where isBoss(message) {
-            guard let parent = message.replyTo, ids.contains(parent) else { continue }
-            if let current = replies[parent], !isNewer(message, than: current) { continue }
-            replies[parent] = message
-        }
-        return history.compactMap { message in
-            if isBoss(message) {
-                if let parent = message.replyTo, ids.contains(parent) { return nil }
-                return .boss(message)
-            }
-            return .agent(message, reply: replies[message.id.rawValue])
+        MessageThread.fold(history).map { thread in
+            if thread.isBoss { return .boss(thread.message) }
+            return .agent(thread.message, reply: thread.newestReply)
         }
     }
 
     /// The answer a row may attribute to the boss. An auto-decided message shows its
     /// "Auto-decided" badge instead: a server default is not the boss's choice.
-    static func bossAnswer(for message: HistoryMessage, answer: String?) -> String? {
-        guard message.metadata?.isExpired != true else { return nil }
+    static func bossAnswer(for message: HistoryMessage, answer: String?,
+                           isAutoDefault: Bool = false) -> String? {
+        guard message.metadata?.isExpired != true, !isAutoDefault else { return nil }
         let text = answer?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return text.isEmpty ? nil : text
-    }
-
-    static func isBoss(_ message: HistoryMessage) -> Bool {
-        message.direction == "boss_to_agent"
-    }
-
-    private static func isNewer(_ lhs: HistoryMessage, than rhs: HistoryMessage) -> Bool {
-        (lhs.createdDate ?? .distantPast) > (rhs.createdDate ?? .distantPast)
     }
 }
 
