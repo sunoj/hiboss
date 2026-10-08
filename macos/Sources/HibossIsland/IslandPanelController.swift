@@ -79,6 +79,7 @@ final class IslandPanelController {
     private let settings: AppSettings
     private let soundPlayer: any SoundPlaying
     private var cancellables: Set<AnyCancellable> = []
+    private(set) var dropReveal: IslandDropRevealController?
 
     init(
         flow: OptionFlowStore,
@@ -119,6 +120,7 @@ final class IslandPanelController {
         let host = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
+        dropReveal = IslandDropRevealController(panel: panel, host: host)
     }
 
     /// The rounded surface is drawn in SwiftUI, so the window itself must be transparent.
@@ -186,8 +188,8 @@ final class IslandPanelController {
         message: OptionMessage?,
         mode: OptionPresentationMode
     ) {
+        dropReveal?.setPresentation(island: mode == .island, question: message != nil)
         guard let message else {
-            if mode == .island { showDropTarget() } else { panel.orderOut(nil) }
             optionWindow.orderOut(nil)
             return
         }
@@ -230,26 +232,10 @@ final class IslandPanelController {
         optionWindow.makeKeyAndOrderFront(nil)
     }
 
-    private func showDropTarget() {
-        let collapsed = frame(
-            on: targetScreen,
-            width: AppConstants.Island.collapsedWidth,
-            height: AppConstants.Island.collapsedHeight
-        )
-        if !panel.isVisible { panel.setFrame(collapsed, display: false) }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = AppConstants.Island.animationDuration * 0.7
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().setFrame(collapsed, display: true)
-            panel.animator().alphaValue = 1
-        }
-        panel.orderFrontRegardless()
-    }
-
     private func reposition() {
         guard settings.presentationMode == .island else { return }
         guard let message = flow.activeMessage else {
-            showDropTarget()
+            dropReveal?.refreshPointer()
             return
         }
         let height = expandedHeight(for: message)
