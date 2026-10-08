@@ -122,9 +122,10 @@ hiboss box rm <id> [--purge]                                                    
 - Dropping files, text or a URL onto the Island adds an item, with an optional note in a
   small popover.
 - In Island presentation mode, the idle “Drop into Box” bar is hidden and its panel is
-  ordered out, so menu-bar and application clicks pass through. The hot zone is 184 × 36
-  points at the top centre of the screen containing the pointer. Hovering there for
-  0.3 seconds reveals the bar; entering during a left-button drag reveals it immediately
+  ordered out, so menu-bar and application clicks pass through. On screens without a camera
+  housing, the hot zone is 184 × 36 points at the top centre of the screen containing the
+  pointer. Hovering there for 0.3 seconds reveals the bar; entering during a left-button drag
+  reveals it immediately
   and orders the native `BoxDropHostingView` onto the screen to receive the drop.
 - The bar hides one second after leaving the hot zone. An open Box popover or an active
   upload holds it visible; once both end, an elapsed hide deadline takes effect immediately.
@@ -136,6 +137,14 @@ hiboss box rm <id> [--purge]                                                    
 - There is no Share menu extension. The app is bundled from a SwiftPM executable and
   ad-hoc signed, so it has no keychain access group to share a token with an extension.
   The `mac-share` source value stays valid in the schema and is unused.
+
+On displays with a camera housing, the Island reads the screen's top safe-area inset and
+uses the gap between its auxiliary top areas as the notch rectangle. The black surface
+extends to the screen edge; the collapsed bar is at least 18 points wider on each side
+of the notch and reserves 36 points below it for the label. Question content starts below
+the notch, with that inset included before the 80%-of-visible-frame height cap. The hot
+zone includes the notch and collapsed bar, and the expiry band follows the exposed side
+and bottom edges. Geometry follows the display containing the pointer.
 
 ## Agent instructions (to add to CLAUDE.md)
 

@@ -16,11 +16,16 @@ struct IslandView: View {
     /// new question or presentation never erases them.
     @ObservedObject var reply: AttentionReplyState
     let surfaceStyle: OptionSurfaceStyle
+    var topInset: CGFloat
 
-    init(flow: OptionFlowStore, reply: AttentionReplyState, surfaceStyle: OptionSurfaceStyle = .island) {
+    init(
+        flow: OptionFlowStore, reply: AttentionReplyState,
+        surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0
+    ) {
         self.flow = flow
         self.reply = reply
         self.surfaceStyle = surfaceStyle
+        self.topInset = topInset
     }
 
     var body: some View {
@@ -51,7 +56,7 @@ struct IslandView: View {
                 fixedActions(message)
             }
             .padding(.horizontal, 18)
-            .padding(.top, 13)
+            .padding(.top, 13 + contentTopInset)
             .padding(.bottom, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(surfaceShape)
@@ -60,6 +65,7 @@ struct IslandView: View {
             Label(L("Drop into Box"), systemImage: "tray.and.arrow.down")
                 .font(.caption)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.top, contentTopInset)
                 .background(surfaceShape)
         }
     }
@@ -98,7 +104,8 @@ struct IslandView: View {
             }
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 14)
+        .padding(.top, 14 + contentTopInset)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(surfaceShape)
     }
@@ -224,6 +231,10 @@ struct IslandView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(Color.black)
         }
+    }
+
+    private var contentTopInset: CGFloat {
+        surfaceStyle == .island ? topInset : 0
     }
 
     private func isSubmitting(_ messageID: MessageID) -> Bool {
