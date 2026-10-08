@@ -33,10 +33,14 @@ public struct MessageThread: Identifiable, Equatable, Sendable {
     public var newestReply: HistoryMessage? {
         replies.reduce(nil) { newest, reply in
             guard let newest else { return reply }
-            return (ISODate.parse(reply.createdAt) ?? .distantPast)
-                > (ISODate.parse(newest.createdAt) ?? .distantPast)
+            return (Self.replyDate(reply) ?? .distantPast) > (Self.replyDate(newest) ?? .distantPast)
                 ? reply : newest
         }
+    }
+
+    private static func replyDate(_ reply: HistoryMessage) -> Date? {
+        ISODate.parse(reply.createdAt)
+            ?? ISODate.parse(reply.createdAt.replacingOccurrences(of: " ", with: "T") + "Z")
     }
 
     public var outcome: ThreadOutcome { outcome(at: .now) }

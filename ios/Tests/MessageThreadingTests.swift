@@ -41,6 +41,12 @@ final class MessageThreadingTests: XCTestCase {
         XCTAssertEqual(items, [.agent(update, reply: nil), .agent(Self.ask, reply: nil)])
     }
 
+    func testNewestReplyKeepsSQLiteTimestampSupport() {
+        let early = Self.reply("r1", to: "q1", body: "Hold", at: "2026-08-14T10:01:00Z")
+        let late = Self.reply("r2", to: "q1", body: "Ship", at: "2026-08-14 10:05:00")
+        XCTAssertEqual(MessageThreading.items(from: [early, Self.ask, late]), [.agent(Self.ask, reply: late)])
+    }
+
     func testAutoDecidedAnswerIsNotAttributedToBoss() {
         let auto = HistoryMessage(
             id: "x", body: "Run it?", agentName: "worker", direction: "agent_to_boss",

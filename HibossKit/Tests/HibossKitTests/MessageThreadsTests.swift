@@ -80,6 +80,16 @@ final class MessageThreadsTests: XCTestCase {
         XCTAssertEqual(thread?.outcome, .autoSelected(option: "Hold"))
     }
 
+    func testNewestReplyAcceptsSQLiteAndMixedTimestampFormats() {
+        let sql = reply("sql", body: "Hold", at: "2026-10-08 10:03:00")
+        for date in ["2026-10-08 10:01:00", "2026-10-08T10:01:00Z"] {
+            let earlier = reply("early", body: "Ship", at: date)
+            let thread = MessageThread(message: question(), replies: [earlier, sql])
+            XCTAssertEqual(thread.newestReply, sql)
+            XCTAssertEqual(thread.outcome, .chosen(option: "Hold", source: "telegram"))
+        }
+    }
+
     func testUnlinkedBossMessagesStayStandaloneAndKeepRowOrder() {
         let orphan = reply("orphan", body: "Hold", parent: "missing")
         let standalone = reply("standalone", body: "Pause", parent: nil)
