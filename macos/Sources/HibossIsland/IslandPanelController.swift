@@ -116,7 +116,9 @@ final class IslandPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
-        panel.contentView = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
+        let host = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
+        host.sizingOptions = []
+        panel.contentView = host
     }
 
     /// The rounded surface is drawn in SwiftUI, so the window itself must be transparent.
@@ -141,9 +143,11 @@ final class IslandPanelController {
         for button in Self.titlebarButtons {
             optionWindow.standardWindowButton(button)?.isHidden = true
         }
-        optionWindow.contentView = NSHostingView(
+        let host = NSHostingView(
             rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
         )
+        host.sizingOptions = []
+        optionWindow.contentView = host
     }
 
     /// Dismissal lives on the panel's own close control, so the traffic lights would only
