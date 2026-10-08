@@ -45,6 +45,28 @@ final class ShareMediaPreparerTests: XCTestCase {
         } catch { XCTAssertTrue(error is ShareError) }
     }
 
+    func testFileRemainsUnchangedAndOversizedFileReportsFiftyMBLimit() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let data = Data("original document".utf8)
+        try data.write(to: url)
+        let original = BoxUpload.Media(fileURL: url, contentType: "application/pdf")
+        let prepared = try await ShareMediaPreparer.prepare(original, kind: .file)
+        XCTAssertEqual(prepared.fileURL, url)
+        XCTAssertEqual(prepared.contentType, "application/pdf")
+        XCTAssertEqual(try Data(contentsOf: prepared.fileURL), data)
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.truncate(atOffset: UInt64(SharePolicy.fileBytes + 1))
+        try handle.close()
+        do {
+            _ = try await ShareMediaPreparer.prepare(original, kind: .file)
+            XCTFail("Oversized files must be refused before upload")
+        } catch let error as ShareError {
+            guard case .fileTooLarge = error else { return XCTFail("Expected the file limit error") }
+            XCTAssertTrue(error.localizedDescription.contains("50 MB"))
+        }
+    }
+
     func testVideoExportsToMP4EvenWhenAlreadyBelowTheLimit() async throws {
         let source = try XCTUnwrap(Bundle.main.url(forResource: "demo-box-clip", withExtension: "mp4"))
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

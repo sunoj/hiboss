@@ -19,6 +19,10 @@ struct BoxRow: View {
                 }
                 HStack {
                     Text(verbatim: item.kindLabel)
+                    if item.kind == .file, let bytes = item.mediaBytes {
+                        Text(verbatim: ByteCountFormatter.string(
+                            fromByteCount: Int64(bytes), countStyle: .file))
+                    }
                     if let date = ISODate.parse(item.createdAt) { Text(date, style: .relative) }
                 }
                 .font(.caption).foregroundStyle(Theme.ink2)

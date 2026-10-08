@@ -51,6 +51,34 @@ final class ShareViewModelTests: XCTestCase {
         XCTAssertEqual(count, 0)
     }
 
+    func testFileUploadKeepsNameContentTypeAndBytesAndOversizedFilesNeverUpload() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".pdf")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("original document".utf8).write(to: url)
+        let item = ShareAttachment(kind: .file, title: "Proposal.pdf", text: "Proposal.pdf", url: nil,
+            media: BoxUpload.Media(fileURL: url, contentType: "application/pdf"))
+        let api = ShareUploadRecorder(failAt: 0)
+        let model = ShareViewModel(api: api, attachments: [item])
+        await model.save()
+        XCTAssertEqual(model.state, .done)
+        let calls = await api.calls
+        let call = try XCTUnwrap(calls.first)
+        XCTAssertEqual(call.upload.text, "Proposal.pdf")
+        XCTAssertNil(call.upload.url)
+        XCTAssertEqual(call.upload.media?.fileURL, url)
+        XCTAssertEqual(call.upload.media?.contentType, "application/pdf")
+        XCTAssertEqual(try Data(contentsOf: url), Data("original document".utf8))
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.truncate(atOffset: UInt64(SharePolicy.fileBytes + 1))
+        try handle.close()
+        let refused = ShareViewModel(api: api, attachments: [item])
+        await refused.save()
+        XCTAssertEqual(refused.state, .failure)
+        XCTAssertTrue(refused.failure.contains("50 MB"))
+        let count = await api.calls.count
+        XCTAssertEqual(count, 1)
+    }
+
     func testPreparedMediaIsReusedOnRetryAndCompressionFailureNeverUploads() async throws {
         let file = BoxUpload.Media(fileURL: URL(fileURLWithPath: "/tmp/fixture.mp4"),
             contentType: "video/mp4")

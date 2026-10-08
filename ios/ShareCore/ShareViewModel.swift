@@ -91,11 +91,11 @@ final class ShareViewModel: ObservableObject {
         if let pending = pending[item.id] { return pending }
         var media = prepared[item.id]
         if media == nil, let original = item.media {
-            state = .compressing
+            state = item.kind == .image || item.kind == .video ? .compressing : .uploading
             media = try await prepare(original, item.kind)
             prepared[item.id] = media
         }
-        if let value = item.url ?? item.text,
+        if item.media == nil, let value = item.url ?? item.text,
            SharePolicy.decision(kind: item.kind, bytes: value.utf8.count) == .refuse {
             throw ShareError.textTooLarge
         }

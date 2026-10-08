@@ -12,7 +12,7 @@
 "Loading attachments…" = "Загрузка вложений…";
 "This is taking longer than usual. You can retry or cancel."
 = "Это занимает больше времени. Можно повторить или отменить.";
-"Share a link, text, image, or video." = "Поделитесь ссылкой, текстом, изображением или видео.";
+"Share a file, link, text, image, or video." = "Поделитесь файлом, ссылкой, текстом, изображением или видео.";
 "Share up to 4 attachments at a time." = "Отправляйте не более 4 вложений за раз.";
 "This image cannot fit within 10 MB. Choose a smaller image."
 = "Не удалось уменьшить изображение до 10 MB. Выберите изображение поменьше.";
@@ -36,3 +36,4 @@
 "Image" = "Изображение";
 "Video" = "Видео";
 "File" = "Файл";
+"Files must be 50 MB or smaller. Choose a smaller file." = "Размер файла не должен превышать 50 MB. Выберите файл меньшего размера.";

@@ -10,7 +10,7 @@
 "Uploading to Box…" = "正在上传到 Box…";
 "Loading attachments…" = "正在加载附件…";
 "This is taking longer than usual. You can retry or cancel." = "耗时比平时更长。可以重试或取消。";
-"Share a link, text, image, or video." = "请分享链接、文本、图片或视频。";
+"Share a file, link, text, image, or video." = "请分享文件、链接、文本、图片或视频。";
 "Share up to 4 attachments at a time." = "每次最多分享 4 个附件。";
 "This image cannot fit within 10 MB. Choose a smaller image." = "此图片无法压缩到 10 MB 以内。请选择较小的图片。";
 "This video is still over 50 MB. Trim the clip and share it again." = "此视频仍超过 50 MB。请裁剪后重新分享。";
@@ -29,3 +29,4 @@
 "Image" = "图片";
 "Video" = "视频";
 "File" = "文件";
+"Files must be 50 MB or smaller. Choose a smaller file." = "文件不能超过 50 MB。请选择较小的文件。";

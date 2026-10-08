@@ -11,13 +11,15 @@ import UniformTypeIdentifiers
 final class BoxMediaResource {
     let url: URL
     let thumbnail: UIImage?
+    private let directory: URL?
 
-    init(url: URL, thumbnail: UIImage?) {
+    init(url: URL, thumbnail: UIImage?, directory: URL? = nil) {
         self.url = url
         self.thumbnail = thumbnail
+        self.directory = directory
     }
 
-    deinit { try? FileManager.default.removeItem(at: url) }
+    deinit { try? FileManager.default.removeItem(at: directory ?? url) }
 }
 
 @MainActor
@@ -55,16 +57,24 @@ final class BoxMediaStore: ObservableObject {
     private func download(_ item: BoxItem) async {
         guard let api else { return }
         let ext = item.mediaType.flatMap { UTType(mimeType: $0)?.preferredFilenameExtension } ?? "bin"
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("box-\(UUID().uuidString)").appendingPathExtension(ext)
+        let temporary = FileManager.default.temporaryDirectory
+            .appendingPathComponent("box-\(UUID().uuidString)")
+        let directory = item.kind == .file ? temporary : nil
+        var name = ((item.text ?? "attachment") as NSString).lastPathComponent
+        if name.isEmpty || name == "." || name == ".." { name = "attachment" }
+        if (name as NSString).pathExtension.isEmpty { name += ".\(ext)" }
+        let url = directory?.appendingPathComponent(name) ?? temporary.appendingPathExtension(ext)
         do {
+            if let directory {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            }
             try await api.downloadBoxMedia(id: item.id, to: url)
             let thumbnail = try await thumbnail(item, url: url)
             try Task.checkCancellation()
-            resources[item.id] = BoxMediaResource(url: url, thumbnail: thumbnail)
+            resources[item.id] = BoxMediaResource(url: url, thumbnail: thumbnail, directory: directory)
             errors[item.id] = nil
         } catch {
-            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: directory ?? url)
             guard !Task.isCancelled else { return }
             errors[item.id] = error.localizedDescription
         }

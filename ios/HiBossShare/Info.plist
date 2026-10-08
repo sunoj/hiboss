@@ -41,18 +41,15 @@
         <key>NSExtensionAttributes</key>
         <dict>
             <key>NSExtensionActivationRule</key>
-            <dict>
-                <key>NSExtensionActivationSupportsAttachmentsWithMaxCount</key>
-                <integer>4</integer>
-                <key>NSExtensionActivationSupportsImageWithMaxCount</key>
-                <integer>4</integer>
-                <key>NSExtensionActivationSupportsMovieWithMaxCount</key>
-                <integer>4</integer>
-                <key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-                <integer>4</integer>
-                <key>NSExtensionActivationSupportsText</key>
-                <true/>
-            </dict>
+            <string>
+                extensionItems.@sum.attachments.@count &gt;= 1 AND
+                extensionItems.@sum.attachments.@count &lt;= 4 AND
+                SUBQUERY(extensionItems, $item,
+                    SUBQUERY($item.attachments, $attachment,
+                        ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.item"
+                    ).@count == $item.attachments.@count
+                ).@count == extensionItems.@count
+            </string>
         </dict>
     </dict>
 </dict>

@@ -13,7 +13,7 @@
 "Loading attachments…" = "Chargement des pièces jointes…";
 "This is taking longer than usual. You can retry or cancel."
 = "Cela prend plus de temps que prévu. Réessayez ou annulez.";
-"Share a link, text, image, or video." = "Partagez un lien, un texte, une image ou une vidéo.";
+"Share a file, link, text, image, or video." = "Partagez un fichier, un lien, un texte, une image ou une vidéo.";
 "Share up to 4 attachments at a time." = "Partagez jusqu’à 4 pièces jointes à la fois.";
 "This image cannot fit within 10 MB. Choose a smaller image."
 = "Cette image ne peut pas tenir dans 10 MB. Choisissez une image plus petite.";
@@ -37,3 +37,4 @@
 "Image" = "Image";
 "Video" = "Vidéo";
 "File" = "Fichier";
+"Files must be 50 MB or smaller. Choose a smaller file." = "Les fichiers ne doivent pas dépasser 50 MB. Choisissez un fichier plus petit.";

@@ -60,6 +60,90 @@ final class ShareAttachmentLoaderTests: XCTestCase {
         XCTAssertEqual(model.attachments.first?.text, "newer reference")
     }
 
+    func testLoadsDocumentArchiveAndAudioWithSuggestedNamesAndRealContentTypes() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let types: [UTType] = [.pdf, .zip, .mp3]
+        let names = ["Proposal.pdf", "Sources.zip", "Interview.mp3"]
+        let providers = zip(types, names).map { type, name in
+            let provider = NSItemProvider()
+            provider.suggestedName = name
+            provider.registerDataRepresentation(forTypeIdentifier: type.identifier,
+                visibility: .all) { completion in
+                    completion(Data("original bytes".utf8), nil)
+                    return nil
+                }
+            return provider
+        }
+        let loaded = try await ShareAttachmentLoader.load(providers, directory: directory)
+        XCTAssertEqual(loaded.map(\.kind), [.file, .file, .file])
+        XCTAssertEqual(loaded.map(\.title), names)
+        XCTAssertEqual(loaded.map(\.text), names)
+        for (item, type) in zip(loaded, types) {
+            let media = try XCTUnwrap(item.media)
+            XCTAssertEqual(media.contentType, type.preferredMIMEType)
+            XCTAssertEqual(media.fileURL.lastPathComponent, item.title)
+            XCTAssertEqual(try Data(contentsOf: media.fileURL), Data("original bytes".utf8))
+        }
+    }
+
+    func testFileURLRepresentationCopiesFileInsteadOfCreatingLink() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("Reference.pdf")
+        try Data("original document".utf8).write(to: source)
+        for type in [UTType.fileURL, .url, .plainText] {
+            let provider = NSItemProvider(item: source as NSURL, typeIdentifier: type.identifier)
+            let loaded = try await ShareAttachmentLoader.load([provider], directory: directory)
+            let item = try XCTUnwrap(loaded.first)
+            XCTAssertEqual(item.kind, .file)
+            XCTAssertEqual(item.title, "Reference.pdf")
+            XCTAssertNil(item.url)
+            let media = try XCTUnwrap(item.media)
+            XCTAssertNotEqual(media.fileURL, source)
+            XCTAssertEqual(media.contentType, "application/pdf")
+            XCTAssertEqual(try Data(contentsOf: media.fileURL), Data("original document".utf8))
+        }
+    }
+
+    func testGenericFileUsesSuggestedExtensionAndDeclaredTypeSurvivesRenaming() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        for (type, name) in [(UTType.data, "Reference.pdf"), (UTType.pdf, "Renamed.txt")] {
+            let provider = NSItemProvider()
+            provider.suggestedName = name
+            provider.registerDataRepresentation(forTypeIdentifier: type.identifier,
+                visibility: .all) { completion in
+                    completion(Data("original document".utf8), nil)
+                    return nil
+                }
+            let loaded = try await ShareAttachmentLoader.load([provider], directory: directory)
+            let item = try XCTUnwrap(loaded.first)
+            XCTAssertEqual(item.kind, .file)
+            XCTAssertEqual(item.title, name)
+            XCTAssertEqual(item.media?.contentType, "application/pdf")
+        }
+    }
+
+    func testOversizedFileURLIsRefusedBeforeCopying() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("Oversized.pdf")
+        try Data([1]).write(to: source)
+        let handle = try FileHandle(forWritingTo: source)
+        try handle.truncate(atOffset: UInt64(SharePolicy.fileBytes + 1))
+        try handle.close()
+        let provider = NSItemProvider(item: source as NSURL, typeIdentifier: UTType.fileURL.identifier)
+        do {
+            _ = try await ShareAttachmentLoader.load([provider], directory: directory)
+            XCTFail("Oversized files must be refused before copying")
+        } catch let error as ShareError {
+            guard case .fileTooLarge = error else { return XCTFail("Expected the file limit error") }
+            XCTAssertTrue(error.localizedDescription.contains("50 MB"))
+        }
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["Oversized.pdf"])
+    }
+
     private func temporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

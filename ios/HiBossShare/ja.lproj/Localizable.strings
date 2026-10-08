@@ -10,7 +10,7 @@
 "Uploading to Box…" = "Box にアップロード中…";
 "Loading attachments…" = "添付ファイルを読み込み中…";
 "This is taking longer than usual. You can retry or cancel." = "通常より時間がかかっています。再試行またはキャンセルできます。";
-"Share a link, text, image, or video." = "リンク、テキスト、画像、動画を共有してください。";
+"Share a file, link, text, image, or video." = "ファイル、リンク、テキスト、画像、動画を共有してください。";
 "Share up to 4 attachments at a time." = "一度に共有できる添付ファイルは4件までです。";
 "This image cannot fit within 10 MB. Choose a smaller image." = "この画像を10 MB以下にできません。小さい画像を選んでください。";
 "This video is still over 50 MB. Trim the clip and share it again." = "動画がまだ50 MBを超えています。短くして再度共有してください。";
@@ -29,3 +29,4 @@
 "Image" = "画像";
 "Video" = "動画";
 "File" = "ファイル";
+"Files must be 50 MB or smaller. Choose a smaller file." = "ファイルは50 MB以下にしてください。小さいファイルを選んでください。";

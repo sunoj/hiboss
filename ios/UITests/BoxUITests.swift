@@ -61,6 +61,38 @@ final class BoxUITests: XCTestCase {
         XCTAssertTrue(app.segmentedControls.buttons["Box"].isSelected)
     }
 
+    func testFileRowShowsNameAndSizeAndOpensDownloadedQuickLookPreview() {
+        let file = app.buttons["box-item-demo-file"]
+        for _ in 0..<4 where !file.isHittable { app.swipeUp() }
+        XCTAssertTrue(file.waitForExistence(timeout: 5))
+        XCTAssertTrue(file.staticTexts["Reference.txt"].exists)
+        XCTAssertTrue(file.staticTexts["23 bytes"].exists)
+        screenshot("box-file-row")
+        file.tap()
+        let close = app.buttons["QLOverlayDoneButtonAccessibilityIdentifier"]
+        XCTAssertTrue(close.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textViews["A saved reference file."].waitForExistence(timeout: 5))
+        screenshot("box-file-preview")
+        close.tap()
+        XCTAssertTrue(app.scrollViews["box-text-detail"].waitForExistence(timeout: 5))
+    }
+
+    func testFileWithoutQuickLookPreviewOpensNativeShareSheet() {
+        app.terminate()
+        app.configureDemoLaunch(["HIBOSS_DEMO_BOX_FILE": "unsupported"])
+        app.launchConfiguredDemo()
+        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Activity"].tap()
+        app.segmentedControls.buttons["Box"].tap()
+        let file = app.buttons["box-item-demo-file"]
+        for _ in 0..<4 where !file.isHittable { app.swipeUp() }
+        XCTAssertTrue(file.waitForExistence(timeout: 5))
+        file.tap()
+        XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.cells["Save to Files"].exists)
+        screenshot("box-file-share-sheet")
+    }
+
     private func screenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

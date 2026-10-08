@@ -21,6 +21,11 @@ struct SharePreviewRow: View {
             VStack(alignment: .leading) {
                 kindLabel.font(.caption).foregroundStyle(.secondary)
                 Text(verbatim: item.title).lineLimit(4).textSelection(.enabled)
+                if item.kind == .file, let url = item.media?.fileURL,
+                   let bytes = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                    Text(verbatim: ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
         .task { await loadThumbnail() }

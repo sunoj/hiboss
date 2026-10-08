@@ -104,8 +104,9 @@ hiboss box rm <id> [--purge]                                                    
 
 ## iOS
 
-- **Share extension `HiBossShare`.** It accepts `public.url`, `public.plain-text`,
-  `public.image` and `public.movie`, up to 4 attachments per share.
+- **Share extension `HiBossShare`.** It accepts 1–4 attachments conforming to `public.item`,
+  including links, text, images, videos and any file up to 50 MB. Files upload unchanged;
+  images and videos use the compression path described above.
   - It reads the server URL and device token through a shared keychain access group and
     App Group. It never holds a separate credential.
   - It shows an optional note field and a project picker, then uploads.
@@ -114,7 +115,8 @@ hiboss box rm <id> [--purge]                                                    
 - **Activity gains a third segment: Sessions | Messages | Box.**
   - The Box segment lists items newest first, with a thumbnail for media.
   - Swipe deletes an item. A tap opens it: the zoom viewer for images and video, the
-    browser for links, and selectable text for text.
+    browser for links, selectable text for text, and Quick Look after download for files
+    (or the share sheet when Quick Look cannot preview them). File rows show the name and size.
   - No new tab.
 
 ## macOS (HiBoss Island)
