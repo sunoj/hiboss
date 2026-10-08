@@ -2,7 +2,7 @@
      Scope: server data model and API, CLI commands, iOS share extension and Activity segment. -->
 # HiBoss Box
 
-Status: accepted 2026-10-07. Open questions resolved below; implementation in progress.
+Status: implemented. The decisions below resolve the open questions.
 
 A boss shares something they want an agent to use: a link, a passage of text, a
 screenshot, a short video. The boss sends it from any app on the phone or the Mac, or from

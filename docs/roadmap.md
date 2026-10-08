@@ -6,7 +6,7 @@ individual design contracts define behavior in detail.
 
 Statuses describe source capability, not installation or production rollout.
 Runtime behavior is verified only where the linked evidence says so. The CLI
-package currently declares version **1.10.0**; the next UX slice has no release
+package currently declares version **1.11.0**, which adds `hiboss box`; the next UX slice has no release
 number assigned yet.
 
 ## Current capabilities
