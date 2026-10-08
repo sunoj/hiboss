@@ -13,7 +13,7 @@
 "Loading attachments…" = "अटैचमेंट लोड हो रहे हैं…";
 "This is taking longer than usual. You can retry or cancel."
 = "इसमें सामान्य से अधिक समय लग रहा है। फिर से कोशिश करें या रद्द करें।";
-"Share a link, text, image, or video." = "लिंक, टेक्स्ट, चित्र या वीडियो शेयर करें।";
+"Share a file, link, text, image, or video." = "फ़ाइल, लिंक, टेक्स्ट, चित्र या वीडियो शेयर करें।";
 "Share up to 4 attachments at a time." = "एक बार में अधिकतम 4 अटैचमेंट शेयर करें।";
 "This image cannot fit within 10 MB. Choose a smaller image."
 = "इस चित्र को 10 MB के भीतर नहीं किया जा सकता। छोटा चित्र चुनें।";
@@ -37,3 +37,4 @@
 "Image" = "चित्र";
 "Video" = "वीडियो";
 "File" = "फ़ाइल";
+"Files must be 50 MB or smaller. Choose a smaller file." = "फ़ाइलें 50 MB या उससे छोटी होनी चाहिए। कोई छोटी फ़ाइल चुनें।";

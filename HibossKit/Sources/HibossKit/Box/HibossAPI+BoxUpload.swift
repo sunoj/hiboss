@@ -35,10 +35,15 @@ extension HibossAPI: BoxUploading {
     private func multipartBody(_ upload: BoxUpload, media: BoxUpload.Media, boundary: String) throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let metadata = try JSONEncoder().encode(upload)
+        let filename = media.fileURL.lastPathComponent
+            .replacingOccurrences(of: "\r", with: "%0D")
+            .replacingOccurrences(of: "\n", with: "%0A")
+            .replacingOccurrences(of: "\"", with: "%22")
+            .replacingOccurrences(of: "\\", with: "%5C")
         var header = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"meta\"\r\n\r\n".utf8)
         header.append(metadata)
         header.append(Data(("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; "
-            + "filename=\"attachment\"\r\nContent-Type: \(media.contentType)\r\n\r\n").utf8))
+            + "filename=\"\(filename)\"\r\nContent-Type: \(media.contentType)\r\n\r\n").utf8))
         #if os(macOS)
         try header.write(to: url, options: .atomic)
         #else

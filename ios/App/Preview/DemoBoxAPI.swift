@@ -10,9 +10,11 @@ actor DemoBoxAPI: BoxServing {
     private var items = DemoBoxAPI.fixtures
 
     static var fixtures: [BoxItem] {
+        let unsupported = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "unsupported"
         let kinds: [BoxItem.Kind] = [.image, .text, .link, .video, .file]
         let titles = [
-            "Layout reference", "A passage to keep", "Apple Developer", "Motion reference", "Reference file",
+            "Layout reference", "A passage to keep", "Apple Developer", "Motion reference",
+            unsupported ? "Reference.hibossfixture" : "Reference.txt",
         ]
         let featured = kinds.enumerated().map { index, kind in
             BoxItem(
@@ -20,7 +22,9 @@ actor DemoBoxAPI: BoxServing {
                 text: titles[index], url: kind == .link ? "https://developer.apple.com" : nil,
                 note: kind == .image ? "Use this layout for the next screen." : nil, project: "hiboss",
                 tags: ["reference"], hasMedia: [.image, .video, .file].contains(kind),
-                mediaType: kind == .video ? "video/mp4" : kind == .file ? "text/plain" : "image/png",
+                mediaType: kind == .video ? "video/mp4" : kind == .file
+                    ? (unsupported ? "application/octet-stream" : "text/plain") : "image/png",
+                mediaBytes: kind == .file ? "A saved reference file.".utf8.count : nil,
                 width: 320, height: 200, createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
                     .ISO8601Format()
             )

@@ -13,7 +13,8 @@ final class SharePolicyTests: XCTestCase {
             .movie)
         XCTAssertEqual(ShareAttachment.type(in: [UTType.url.identifier, UTType.plainText.identifier]), .url)
         XCTAssertEqual(ShareAttachment.type(in: [UTType.utf8PlainText.identifier]), .plainText)
-        XCTAssertNil(ShareAttachment.type(in: [UTType.pdf.identifier]))
+        XCTAssertEqual(ShareAttachment.type(in: [UTType.pdf.identifier]), .pdf)
+        XCTAssertEqual(ShareAttachment.type(in: [UTType.fileURL.identifier, UTType.url.identifier]), .fileURL)
         XCTAssertNil(ShareAttachment.type(in: []))
     }
 
@@ -21,7 +22,8 @@ final class SharePolicyTests: XCTestCase {
         for value in ["https://example.com/page?q=1", "  http://example.com  "] {
             XCTAssertEqual(ShareAttachment.text(value).kind, .link)
         }
-        for value in ["Read https://example.com", "file:///private/example", "hello", "https://", ""] {
+        XCTAssertEqual(ShareAttachment.text("file:///private/example.pdf").kind, .file)
+        for value in ["Read https://example.com", "hello", "https://", ""] {
             XCTAssertEqual(ShareAttachment.text(value).kind, .text)
         }
     }
@@ -43,12 +45,19 @@ final class SharePolicyTests: XCTestCase {
             prepared: true), .refuse)
     }
 
-    func testTextLimitsUseBytesAndFilesAreRefused() {
+    func testTextLimitsUseBytes() {
         XCTAssertEqual(SharePolicy.decision(kind: .text, bytes: SharePolicy.textBytes), .upload)
         XCTAssertEqual(SharePolicy.decision(kind: .text, bytes: SharePolicy.textBytes + 1), .refuse)
         XCTAssertEqual(SharePolicy.decision(kind: .link, bytes: 8192), .upload)
         XCTAssertEqual(SharePolicy.decision(kind: .link, bytes: 8193), .refuse)
-        XCTAssertEqual(SharePolicy.decision(kind: .file, bytes: 1), .refuse)
+    }
+
+    func testFilesUploadUnchangedThroughFiftyMBAndRefuseLargerFiles() {
+        let limit = 50 * 1024 * 1024
+        XCTAssertEqual(SharePolicy.decision(kind: .file, bytes: 1), .upload)
+        XCTAssertEqual(SharePolicy.decision(kind: .file, bytes: limit), .upload)
+        XCTAssertEqual(SharePolicy.decision(kind: .file, bytes: limit + 1), .refuse)
+        XCTAssertEqual(SharePolicy.decision(kind: .file, bytes: limit, prepared: true), .upload)
     }
 
     @MainActor func testLoaderRejectsNoAttachmentsAndMoreThanFour() async throws {
@@ -58,5 +67,31 @@ final class SharePolicyTests: XCTestCase {
                 XCTFail("Invalid provider counts must be refused")
             } catch { XCTAssertTrue(error is ShareError) }
         }
+    }
+
+    func testActivationPredicateAllowsOneToFourPublicItemsAcrossExtensionItems() throws {
+        let plugins = try XCTUnwrap(Bundle.main.builtInPlugInsURL)
+        let data = try Data(contentsOf: plugins.appendingPathComponent("HiBossShare.appex/Info.plist"))
+        let plist = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil)
+            as? [String: Any])
+        let ext = try XCTUnwrap(plist["NSExtension"] as? [String: Any])
+        let attributes = try XCTUnwrap(ext["NSExtensionAttributes"] as? [String: Any])
+        let rule = try XCTUnwrap(attributes["NSExtensionActivationRule"] as? String)
+        XCTAssertFalse(rule.contains("TRUEPREDICATE"))
+        let predicate = NSPredicate(format: rule)
+        let types: [UTType] = [.pdf, .zip, .mp3, .url, .plainText, .image, .movie, .fileURL, .item]
+        for type in types {
+            let attachment = ["registeredTypeIdentifiers": [type.identifier]]
+            for count in 0...5 {
+                let items = [["attachments": Array(repeating: attachment, count: count)]]
+                XCTAssertEqual(predicate.evaluate(with: ["extensionItems": items]), (1...4).contains(count))
+            }
+        }
+        let attachment = ["registeredTypeIdentifiers": [UTType.pdf.identifier]]
+        let items = Array(repeating: ["attachments": [attachment]], count: 4)
+        XCTAssertTrue(predicate.evaluate(with: ["extensionItems": items]))
+        XCTAssertFalse(predicate.evaluate(with: ["extensionItems": items + items]))
+        let unsupported = [["attachments": [["registeredTypeIdentifiers": ["invalid.type"]]]]]
+        XCTAssertFalse(predicate.evaluate(with: ["extensionItems": unsupported]))
     }
 }

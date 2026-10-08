@@ -13,7 +13,7 @@
 "Loading attachments…" = "Loading attachments…";
 "This is taking longer than usual. You can retry or cancel."
 = "This is taking longer than usual. You can retry or cancel.";
-"Share a link, text, image, or video." = "Share a link, text, image, or video.";
+"Share a file, link, text, image, or video." = "Share a file, link, text, image, or video.";
 "Share up to 4 attachments at a time." = "Share up to 4 attachments at a time.";
 "This image cannot fit within 10 MB. Choose a smaller image."
 = "This image cannot fit within 10 MB. Choose a smaller image.";
@@ -37,3 +37,4 @@
 "Image" = "Image";
 "Video" = "Video";
 "File" = "File";
+"Files must be 50 MB or smaller. Choose a smaller file." = "Files must be 50 MB or smaller. Choose a smaller file.";

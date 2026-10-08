@@ -45,6 +45,19 @@ final class BoxAPITests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), Data("private bytes".utf8))
     }
 
+    func testFileMultipartPreservesContentTypeAndEscapesSuggestedFilename() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("Proposal\"\n.pdf")
+        try Data("private bytes".utf8).write(to: url)
+        _ = try await api("file").createBoxItem(BoxUpload(
+            text: url.lastPathComponent, note: "keep", project: "design",
+            media: BoxUpload.Media(fileURL: url, contentType: "application/pdf")),
+            idempotencyKey: "stable-fixture-key", progress: { _ in })
+        XCTAssertEqual(try Data(contentsOf: url), Data("private bytes".utf8))
+    }
+
     func testLatestShowAndPatchDecodeDirectItems() async throws {
         let api = try api()
         let latest = try await api.latestBoxItem(filters: BoxFilters(kind: .image))
@@ -162,7 +175,10 @@ private final class BoxURLProtocol: URLProtocol, @unchecked Sendable {
         if request.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data") == true {
             XCTAssertTrue(body.contains("name=\"meta\""))
             XCTAssertTrue(body.contains("name=\"file\""))
-            XCTAssertTrue(body.contains("Content-Type: image/png"))
+            if request.url?.path.hasPrefix("/file/") == true {
+                XCTAssertTrue(body.contains("Content-Type: application/pdf"))
+                XCTAssertTrue(body.contains("filename=\"Proposal%22%0A.pdf\""))
+            } else { XCTAssertTrue(body.contains("Content-Type: image/png")) }
             XCTAssertTrue(body.contains("private bytes"))
             XCTAssertTrue(body.contains("\"source\":\"ios-share\""))
             XCTAssertTrue(body.contains("\"note\":\"keep\""))

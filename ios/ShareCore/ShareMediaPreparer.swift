@@ -13,7 +13,9 @@ enum ShareMediaPreparer {
         let bytes = try FileManager.default.attributesOfItem(atPath: media.fileURL.path)[.size] as? Int ?? 0
         switch SharePolicy.decision(kind: kind, bytes: bytes) {
         case .upload: return media
-        case .refuse: throw ShareError.preparation
+        case .refuse:
+            throw kind == .file && bytes > SharePolicy.fileBytes
+                ? ShareError.fileTooLarge : ShareError.preparation
         case .compress:
             if kind == .video { return try await video(media.fileURL) }
             return try await Task.detached { try image(media.fileURL) }.value

@@ -87,6 +87,7 @@ final class BoxStoreTests: XCTestCase {
             await media.load(item)
             let url = try XCTUnwrap(media.resources[item.id]?.url)
             XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+            if kind == .file { XCTAssertEqual(url.lastPathComponent, "Reference.txt") }
             if kind != .file { XCTAssertNotNil(media.resources[item.id]?.thumbnail) }
             if kind == .video {
                 let duration = try await AVURLAsset(url: url).load(.duration)
@@ -94,6 +95,9 @@ final class BoxStoreTests: XCTestCase {
             }
             media.remove(id: item.id)
             XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+            if kind == .file {
+                XCTAssertFalse(FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path))
+            }
         }
         let item = try XCTUnwrap(first.items.first)
         try await api.deleteBoxItem(id: item.id, purge: false)

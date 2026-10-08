@@ -5,11 +5,13 @@
 import HibossKit
 import QuickLook
 import SwiftUI
+import UIKit
 
 struct BoxTextDetail: View {
     let item: BoxItem
     @ObservedObject var media: BoxMediaStore
     @State private var previewURL: URL?
+    @State private var shareURL: URL?
 
     var body: some View {
         ScrollView {
@@ -20,7 +22,7 @@ struct BoxTextDetail: View {
                 }
                 if item.hasMedia {
                     if let resource = media.resources[item.id] {
-                        Button("Open file") { previewURL = resource.url }
+                        Button("Open file") { openFile(resource.url) }
                             .buttonStyle(.bordered).frame(minHeight: 44)
                     } else { BoxMediaWait(item: item, media: media) }
                 }
@@ -30,8 +32,21 @@ struct BoxTextDetail: View {
         .navigationTitle(Text(verbatim: item.kindLabel))
         .navigationBarTitleDisplayMode(.inline)
         .accessibilityIdentifier("box-text-detail")
-        .task { await media.load(item) }
+        .task {
+            await media.load(item)
+            if item.kind == .file, let resource = media.resources[item.id] { openFile(resource.url) }
+        }
         .quickLookPreview($previewURL)
+        .sheet(isPresented: Binding(
+            get: { shareURL != nil }, set: { if !$0 { shareURL = nil } }
+        )) {
+            if let shareURL { BoxFileShareSheet(url: shareURL) }
+        }
+    }
+
+    private func openFile(_ url: URL) {
+        if QLPreviewController.canPreview(url as NSURL) { previewURL = url }
+        else { shareURL = url }
     }
 }
 
@@ -64,6 +79,16 @@ struct BoxMediaDetail: View {
         .accessibilityIdentifier("box-media-detail")
         .task { await media.load(item) }
     }
+}
+
+private struct BoxFileShareSheet: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 private struct BoxMediaWait: View {

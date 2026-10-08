@@ -12,7 +12,7 @@
 "Uploading to Box…" = "กำลังอัปโหลดไปยัง Box…";
 "Loading attachments…" = "กำลังโหลดไฟล์แนบ…";
 "This is taking longer than usual. You can retry or cancel." = "ใช้เวลานานกว่าปกติ คุณลองใหม่หรือยกเลิกได้";
-"Share a link, text, image, or video." = "แชร์ลิงก์ ข้อความ รูปภาพ หรือวิดีโอ";
+"Share a file, link, text, image, or video." = "แชร์ไฟล์ ลิงก์ ข้อความ รูปภาพ หรือวิดีโอ";
 "Share up to 4 attachments at a time." = "แชร์ไฟล์แนบได้ครั้งละไม่เกิน 4 ไฟล์";
 "This image cannot fit within 10 MB. Choose a smaller image."
 = "ลดรูปภาพนี้ให้ไม่เกิน 10 MB ไม่ได้ โปรดเลือกรูปภาพที่เล็กกว่า";
@@ -34,3 +34,4 @@
 "Image" = "รูปภาพ";
 "Video" = "วิดีโอ";
 "File" = "ไฟล์";
+"Files must be 50 MB or smaller. Choose a smaller file." = "ไฟล์ต้องมีขนาดไม่เกิน 50 MB โปรดเลือกไฟล์ที่เล็กกว่า";
