@@ -80,6 +80,9 @@ tracked mono labels used as decoration are a web affectation; drop them.
 
 Native window, native title bar, appearance follows the system.
 
+The stream's rows are message threads; [macos-history-threads.md](macos-history-threads.md)
+defines them and supersedes the row bullets below.
+
 - **Search** — `.searchable(text:placement:)`. Not a hand-built field. It puts the search
   field in the toolbar where Mac users expect it, and gives ⌘F for free.
 - **All / Unread / Blocking** — `Picker` with `.pickerStyle(.segmented)`, placed in
