@@ -19,11 +19,10 @@ final class TodaySnapshotTests: XCTestCase {
             TodayTestSupport.message("text", options: [], mode: "blocking"),
         ]
         let snapshot = TodayTestSupport.snapshot(history, requiredInputs: required)
-        XCTAssertEqual(snapshot.decisions.map(\.id), ["auto", "text", "waiting", "priority"])
+        // Only the server's open list can be decisions; history-only open-looking messages are not.
+        XCTAssertEqual(snapshot.decisions.map(\.id), ["auto", "text"])
         XCTAssertEqual(snapshot.decisions.first?.options, ["New"])
-        XCTAssertEqual(snapshot.decisions, AttentionModel.items(
-            from: [history[0], history[1]] + required, now: now
-        ))
+        XCTAssertEqual(snapshot.decisions, AttentionModel.items(from: required, now: now))
         XCTAssertFalse(snapshot.isAllClear)
     }
 
@@ -53,7 +52,7 @@ final class TodaySnapshotTests: XCTestCase {
     }
 
     func testDeliveredContainsOnlyNonblockingAgentResultsOutsideOpenDecisions() {
-        let snapshot = TodayTestSupport.snapshot([
+        let messages = [
             TodayTestSupport.message("note", age: 1),
             TodayTestSupport.message("reply", age: 2, options: ["Yes"], status: "replied"),
             TodayTestSupport.message("expired", age: 3, options: ["Yes"], status: "expired"),
@@ -65,7 +64,10 @@ final class TodaySnapshotTests: XCTestCase {
             TodayTestSupport.message("outgoing", direction: "boss_to_agent"),
             TodayTestSupport.message("peer", direction: "agent_to_agent"),
             TodayTestSupport.message("elapsed-options", options: ["Yes"], expiresIn: -1),
-        ])
+        ]
+        // The server's open list carries the open ones; history alone never opens a decision.
+        let open = messages.filter { ["open", "blocking-note", "elapsed-options"].contains($0.id.rawValue) }
+        let snapshot = TodayTestSupport.snapshot(messages, requiredInputs: open)
         XCTAssertEqual(snapshot.delivered.map(\.id), ["note", "reply", "expired"])
         XCTAssertEqual(Set(snapshot.decisions.map(\.id)), Set(["open", "blocking-note"]))
     }
@@ -103,7 +105,7 @@ final class TodaySnapshotTests: XCTestCase {
                 for hasDecision in [false, true] {
                     let messages = hasDecision ? [TodayTestSupport.message("ask", options: ["Yes"])] : []
                     let snapshot = TodayTestSupport.snapshot(
-                        messages, health: health, coverageComplete: covered
+                        messages, requiredInputs: messages, health: health, coverageComplete: covered
                     )
                     XCTAssertEqual(snapshot.health, health)
                     XCTAssertEqual(snapshot.coverageComplete, covered)
@@ -115,9 +117,9 @@ final class TodaySnapshotTests: XCTestCase {
 
     func testInjectedNowAloneChangesExpiryAndRecencyAndSnapshotsAreValues() {
         let history = [TodayTestSupport.message("ask", options: ["Yes"], expiresIn: 30)]
-        let first = TodayTestSupport.snapshot(history)
-        XCTAssertEqual(first, TodayTestSupport.snapshot(history))
-        let later = TodayTestSupport.snapshot(history, now: now.addingTimeInterval(30))
+        let first = TodayTestSupport.snapshot(history, requiredInputs: history)
+        XCTAssertEqual(first, TodayTestSupport.snapshot(history, requiredInputs: history))
+        let later = TodayTestSupport.snapshot(history, requiredInputs: history, now: now.addingTimeInterval(30))
         XCTAssertTrue(later.decisions.isEmpty)
         XCTAssertTrue(later.isAllClear)
         XCTAssertNotEqual(first, later)
@@ -129,4 +131,12 @@ final class TodaySnapshotTests: XCTestCase {
     }
 
     private func assertSendable<T: Sendable>(_ value: T) {}
+
+    func testAnsweredDecisionStillInStaleHistoryIsNotAnswerable() {
+        let staleHistory = [TodayTestSupport.message("answered", options: ["Ship", "Hold"], sessionStatus: "waiting")]
+        let snapshot = TodayTestSupport.snapshot(staleHistory, requiredInputs: [])
+        XCTAssertTrue(snapshot.decisions.isEmpty)
+        let directory = SessionDirectory(history: staleHistory, requiredInputs: [], now: TodayTestSupport.now)
+        XCTAssertFalse(directory.needsYou.contains { $0.id == "session" })
+    }
 }

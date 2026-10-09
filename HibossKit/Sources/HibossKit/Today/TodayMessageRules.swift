@@ -42,6 +42,14 @@ enum TodayMessageRules {
         return byID.values.sorted(by: newestFirst)
     }
 
+    /// Ranked decisions from the server's open list only; the last duplicate wins.
+    static func openDecisions(
+        _ requiredInputs: [HistoryMessage], withdrawn: Set<MessageID>, now: Date
+    ) -> [AttentionItem] {
+        let unique = merge(history: [], requiredInputs: requiredInputs)
+        return AttentionModel.items(from: unique.filter { !withdrawn.contains($0.id) }, now: now)
+    }
+
     static func newestFirst(_ lhs: HistoryMessage, _ rhs: HistoryMessage) -> Bool {
         let left = createdDate(lhs) ?? .distantPast
         let right = createdDate(rhs) ?? .distantPast

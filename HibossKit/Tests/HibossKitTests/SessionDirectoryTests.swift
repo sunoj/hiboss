@@ -84,7 +84,8 @@ final class SessionDirectoryTests: XCTestCase {
             TodayTestSupport.message("work", session: "work"),
             TodayTestSupport.message("idle", session: "idle", age: 10_000),
         ]
-        let snapshot = TodayTestSupport.snapshot(history)
+        // The two asks are on the server's open list; history alone never opens a decision.
+        let snapshot = TodayTestSupport.snapshot(history, requiredInputs: Array(history.prefix(2)))
         let directory = snapshot.sessionDirectory
         XCTAssertEqual(directory.needsYou.map(\.id), ["live-ask", "old-ask"])
         XCTAssertEqual(directory.working.map(\.id), ["work"])
@@ -94,7 +95,7 @@ final class SessionDirectoryTests: XCTestCase {
         let all = directory.needsYou + directory.working + directory.idle
         XCTAssertEqual(all.count, 4)
         XCTAssertEqual(Set(all.map(\.id)).count, 4)
-        XCTAssertEqual(directory, SessionDirectory(history: history, now: now))
+        XCTAssertEqual(directory, SessionDirectory(history: history, requiredInputs: Array(history.prefix(2)), now: now))
     }
 
     func testExpiryResolutionAndWithdrawalRemoveNeedsYouUsingSharedRules() {

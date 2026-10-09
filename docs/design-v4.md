@@ -131,8 +131,13 @@ the session thread.
 Header with project / branch, agent and machine, and a live step strip with
 freshness. The thread shows messages with full attachments, decisions (open ones
 answerable, resolved ones as ResolvedBanner), and live panel cards. A reply field at
-the bottom replies to the session's newest agent message (the server scopes that reply
-to its session); with no agent message it is disabled and says why. On iOS a + button
+the bottom replies to one target, always shown above the field: the session's newest
+agent message that is not a resolved decision ("Replying to: <first line>"). When that
+target is an open decision the label reads "Custom answer to: <question>", because a
+free-text reply answers it. The target is fixed when the boss starts typing; if a newer
+agent message arrives meanwhile, the field keeps its target and offers "Reply to the
+newer message" instead of switching silently. With no eligible message the field is
+disabled and says why. On iOS a + button
 attaches from Box.
 
 Session facts come from `ProjectSession` (`host`, `agentName`, `status`, `statusText`,
@@ -153,7 +158,11 @@ v4. v4 changes only which decision they carry, taken from `TodaySnapshot.decisio
 so every surface shows the same top decision. The `iOS-Lock` and `Mac-Island` mockups
 are superseded on this point. (Attention 2)
 
+Resolved cards never show the default line; "No deadline" appears once per card.
+
 ## Shared model (HibossKit)
 
 `TodaySnapshot` and `SessionDirectory` in HibossKit are the single source for both apps:
 the same ranking, the same buckets, the same all-clear rule. Neither app re-ranks.
+Only the server's required-input list can make a decision open; history adds context
+(working, delivered) and never reopens an answered or retired message.

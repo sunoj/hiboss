@@ -14,7 +14,7 @@ public struct SessionDirectory: Equatable, Sendable {
         withdrawn: Set<MessageID> = [], now: Date
     ) {
         let messages = TodayMessageRules.merge(history: history, requiredInputs: requiredInputs)
-        let decisions = AttentionModel.items(from: messages.filter { !withdrawn.contains($0.id) }, now: now)
+        let decisions = TodayMessageRules.openDecisions(requiredInputs, withdrawn: withdrawn, now: now)
         self.init(sessions: TodaySession.summaries(messages: messages, decisions: decisions), now: now)
     }
 

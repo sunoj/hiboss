@@ -24,13 +24,15 @@ public struct TodaySnapshot: Equatable, Sendable {
 
     /// No clock reads: callers supply both freshness evidence and the evaluation time.
     /// Required-input duplicates replace history; withdrawn IDs cannot appear in decisions or results.
+    /// Only the server's required inputs can be decisions: history adds context, never an open
+    /// decision, so an answered or retired message cannot reappear as answerable.
     public init(
         history: [HistoryMessage], requiredInputs: [HistoryMessage] = [],
         withdrawn: Set<MessageID> = [], health: TodayHealth, coverageComplete: Bool, now: Date
     ) {
         let messages = TodayMessageRules.merge(history: history, requiredInputs: requiredInputs)
         let visible = messages.filter { !withdrawn.contains($0.id) }
-        let decisions = AttentionModel.items(from: visible, now: now)
+        let decisions = TodayMessageRules.openDecisions(requiredInputs, withdrawn: withdrawn, now: now)
         let sessions = TodaySession.summaries(messages: messages, decisions: decisions)
         self.decisions = decisions
         working = sessions.filter { $0.hasLiveWork(now: now) }
