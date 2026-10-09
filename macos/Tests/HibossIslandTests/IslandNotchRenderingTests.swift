@@ -37,8 +37,8 @@ final class IslandNotchRenderingTests: XCTestCase {
             XCTAssertEqual(neutralPixels(bitmap, top: 0, bottom: 32, scale: scale), 0)
             XCTAssertGreaterThan(neutralPixels(bitmap, top: 45, bottom: 80, scale: scale), 20)
             let side = CGRect(x: 0, y: 0, width: 4, height: 32)
-            XCTAssertGreaterThan(greenPixels(bitmap, in: side, scale: scale), 0)
-            XCTAssertGreaterThan(greenPixels(bitmap,
+            XCTAssertGreaterThan(signalPixels(bitmap, in: side, scale: scale), 0)
+            XCTAssertGreaterThan(signalPixels(bitmap,
                 in: CGRect(x: 0, y: frame.height - 4, width: frame.width, height: 4), scale: scale), 0)
             try write(bitmap, name: "\(name)-expanded")
         }
@@ -117,10 +117,10 @@ final class IslandNotchRenderingTests: XCTestCase {
         }
     }
 
-    private func greenPixels(_ bitmap: NSBitmapImageRep, in rect: CGRect, scale: CGFloat) -> Int {
+    private func signalPixels(_ bitmap: NSBitmapImageRep, in rect: CGRect, scale: CGFloat) -> Int {
         pixels(bitmap, in: rect, scale: scale) { color in
-            color.greenComponent > 0.2 && color.greenComponent > color.redComponent * 1.5
-                && color.greenComponent > color.blueComponent * 1.2
+            color.redComponent > 0.2 && color.redComponent > color.greenComponent * 1.5
+                && color.redComponent > color.blueComponent * 1.2
         }
     }
 

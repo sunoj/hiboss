@@ -1,6 +1,6 @@
 // Attention surface: settled empty state, or list + full context side by side.
 // Exports: AttentionView and AttentionWorkspace.
-// Dependencies: SwiftUI, HibossKit OptionFlowStore, AttentionRanking.
+// Dependencies: SwiftUI, HibossKit OptionFlowStore, AttentionModel.
 
 import HibossKit
 import SwiftUI
@@ -63,8 +63,8 @@ struct AttentionWorkspace: View {
 
     private static let splitMinimumWidth: CGFloat = 720
 
-    private var sections: [AttentionSection] {
-        AttentionRanking.grouped(items, now: now)
+    private var sections: [AttentionGroupItems] {
+        AttentionModel.grouped(from: items.map(\.message), now: now)
     }
 
     private var selectedItem: AttentionItem? {
@@ -112,8 +112,8 @@ struct AttentionWorkspace: View {
 
     private var list: some View {
         List(selection: $selection) {
-            ForEach(sections) { section in
-                Section(section.band.title) {
+            ForEach(sections, id: \.group) { section in
+                Section(section.group.title) {
                     ForEach(section.items) { item in
                         AttentionRow(item: item, now: now)
                             .tag(item.id)

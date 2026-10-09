@@ -16,7 +16,7 @@ final class MessageAttachmentTests: XCTestCase {
         XCTAssertEqual(content.attachment?.kind, .image)
         XCTAssertEqual(content.attachment?.filename, "example.png")
         XCTAssertEqual(content.attachment?.url.absoluteString, message.metadata?.fileURL)
-        let item = AttentionItem(message: message)
+        let item = AttentionItem(message: message, group: .priority)
         XCTAssertEqual(item.attachment, content.attachment)
         XCTAssertEqual(item.asOptionMessage.metadata?.attachment, content.attachment)
     }
@@ -26,14 +26,14 @@ final class MessageAttachmentTests: XCTestCase {
         let content = HistoryReadingContent(message: message)
         XCTAssertEqual(content.attachment?.kind, .file)
         XCTAssertEqual(content.attachment?.filename, "report final.pdf")
-        XCTAssertEqual(AttentionItem(message: message).attachment, content.attachment)
+        XCTAssertEqual(AttentionItem(message: message, group: .priority).attachment, content.attachment)
     }
 
     func testMissingAndInvalidAttachmentsRemainAbsent() {
         for fileURL in [nil, "file:///tmp/private.png", "javascript:alert(1)"] as [String?] {
             let message = message(fileURL: fileURL)
             XCTAssertNil(HistoryReadingContent(message: message).attachment)
-            XCTAssertNil(AttentionItem(message: message).attachment)
+            XCTAssertNil(AttentionItem(message: message, group: .priority).attachment)
         }
     }
 

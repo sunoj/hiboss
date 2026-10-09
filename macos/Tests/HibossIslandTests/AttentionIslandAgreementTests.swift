@@ -60,7 +60,7 @@ final class AttentionIslandAgreementTests: XCTestCase {
         )
 
         let history = [blocked, liveHistory]
-        let front = AttentionRanking.frontID(history: history, live: live, now: now)
+        let front = TodayProjection.decisions(history: history, live: live, now: now).first?.id
         let island = IslandAttention.presentation(live: live, history: history, now: now)
 
         XCTAssertEqual(front, "blocked")
@@ -77,7 +77,7 @@ final class AttentionIslandAgreementTests: XCTestCase {
             sessionLabel: "proj/main"
         )
 
-        let ranked = AttentionRanking.items(history: [], live: live, now: now)
+        let ranked = TodayProjection.decisions(history: [], live: live, now: now)
         let island = IslandAttention.presentation(live: live, history: [], now: now)
 
         XCTAssertEqual(ranked.map(\.id.rawValue), ["live-auto"])
@@ -89,19 +89,19 @@ final class AttentionIslandAgreementTests: XCTestCase {
         let island = IslandAttention.presentation(live: live, history: [], now: now)
 
         XCTAssertEqual(island?.message.id.rawValue, "plain")
-        XCTAssertEqual(island?.item?.band(at: now), .question)
-        XCTAssertEqual(AttentionRanking.items(history: [], live: live, now: now).map(\.id), ["plain"])
+        XCTAssertEqual(island?.item?.group, .priority)
+        XCTAssertEqual(TodayProjection.decisions(history: [], live: live, now: now).map(\.id), ["plain"])
     }
 
-    func testLiveQuestionKeepsIslandOverOlderOrdinaryQuestion() {
+    func testOlderSharedDecisionKeepsIslandOverNewLiveQuestion() {
         let older = ask(id: "older", options: ["Ok"], createdAt: iso(now.addingTimeInterval(-300)))
         let live = OptionMessage.fixture(id: "live", options: ["Ship"])
 
         let island = IslandAttention.presentation(live: live, history: [older], now: now)
 
-        XCTAssertEqual(AttentionRanking.frontID(history: [older], live: live, now: now), "older")
-        XCTAssertEqual(island?.message.id.rawValue, "live")
-        XCTAssertEqual(island?.item?.band(at: now), .question)
+        XCTAssertEqual(TodayProjection.decisions(history: [older], live: live, now: now).first?.id, "older")
+        XCTAssertEqual(island?.message.id.rawValue, "older")
+        XCTAssertEqual(island?.item?.group, .priority)
     }
 
     func testUrgentQuestionStillLeadsIslandOverLiveQuestion() {

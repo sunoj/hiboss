@@ -56,7 +56,7 @@ enum AttentionPreview {
             sessionLabel: "nightly-export",
             sessionStatus: "working"
         )
-        return AttentionRanking.items(history: [high, blocked, auto], now: now)
+        return TodayProjection.decisions(history: [high, blocked, auto], now: now)
     }
 
     private static func iso(_ date: Date) -> String {

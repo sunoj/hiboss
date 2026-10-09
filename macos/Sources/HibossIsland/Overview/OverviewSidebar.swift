@@ -21,23 +21,24 @@ struct OverviewSidebar: View {
             brand
             List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
                 Section(L("Workspace")) {
-                    Label(L("Dashboard"), systemImage: "rectangle.3.group")
-                        .tag(OverviewDestination.dashboard)
-                        .accessibilityIdentifier("overview.dashboard")
+                    Label(L("Today"), systemImage: "house")
+                        .badge(snapshot.today.decisions.count)
+                        .tag(OverviewDestination.today)
+                        .accessibilityIdentifier("overview.today")
+                    Label(L("Box"), systemImage: "shippingbox")
+                        .tag(OverviewDestination.box)
+                    Label(L("Progress"), systemImage: "play.rectangle")
+                        .tag(OverviewDestination.progress)
+                }
+                Section(L("Sessions")) { sessions }
+                Section(L("More")) {
                     Label(L("Device Requests"), systemImage: "desktopcomputer.and.arrow.down")
                         .badge(deviceRequestCount)
                         .tag(OverviewDestination.deviceRequests)
                         .accessibilityIdentifier("overview.deviceRequests")
-                    categoryRow(.needsYou)
                     categoryRow(.all)
                     categoryRow(.completed)
                 }
-                Section(L("Decision filters")) {
-                    categoryRow(.automatic)
-                    categoryRow(.waiting)
-                    categoryRow(.urgent)
-                }
-                Section(L("Sessions")) { sessions }
                 if let notice { connectionNotice(notice).selectionDisabled() }
             }
             .listStyle(.sidebar)
@@ -48,8 +49,8 @@ struct OverviewSidebar: View {
 
     private var brand: some View {
         HStack(spacing: 10) {
-            Image(systemName: "capsule.tophalf.filled")
-                .font(.title2).foregroundStyle(Color.accentColor)
+            Image(nsImage: AppIdentity.icon)
+                .resizable().frame(width: 24, height: 24)
             Text(verbatim: "HiBoss").font(.title2.weight(.bold))
             Spacer()
         }
@@ -83,11 +84,15 @@ struct OverviewSidebar: View {
         }
     }
 
-    private var filteredSessions: [SessionGroup] {
+    private var filteredSessions: [TodaySession] {
         let query = sessionSearch.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return snapshot.sessions }
-        return snapshot.sessions.filter {
-            $0.label.localizedStandardContains(query) || ($0.agentName?.localizedStandardContains(query) ?? false)
+        let directory = snapshot.today.sessionDirectory
+        let sessions = directory.needsYou + directory.working + directory.idle
+        guard !query.isEmpty else { return sessions }
+        return sessions.filter {
+            $0.projectLabel.localizedStandardContains(query)
+                || ($0.agentName?.localizedStandardContains(query) ?? false)
+                || ($0.branch?.localizedStandardContains(query) ?? false)
         }
     }
 
@@ -115,30 +120,36 @@ struct OverviewSidebar: View {
         }.padding(.vertical, 8)
     }
 
-    private func sessionRow(_ session: SessionGroup) -> some View {
+    private func sessionRow(_ session: TodaySession) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "bubble.left.and.bubble.right").foregroundStyle(.secondary)
+            Circle().fill(session.needsYou ? TodayStyle.signal
+                : snapshot.today.sessionDirectory.working.contains(where: { $0.id == session.id })
+                    ? TodayStyle.live : TodayStyle.tertiary)
+                .frame(width: 7, height: 7)
+                .accessibilityLabel(session.needsYou ? L("Needs You")
+                    : session.hasLiveWork(now: snapshot.now) ? L("Working now") : L("Idle"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.id == SessionGrouping.directSessionID ? L("Direct") : session.label)
+                Text(session.id == SessionGrouping.directSessionID ? L("Direct") : session.projectLabel)
                     .lineLimit(1)
                 if let agent = session.agentName {
                     Text(agent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 4)
-            Text(verbatim: session.messages.count.formatted()).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
         }
         .padding(.vertical, 3)
-        .help(session.label)
+        .help(session.projectLabel)
         .accessibilityElement(children: .combine)
     }
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 12) {
             Divider()
-            Label(connectionState.label, systemImage: connectionState == .connected
+            Label(connectionState == .connected ? L("Live") : L("Connecting…"),
+                systemImage: connectionState == .connected
                 ? "checkmark.circle.fill" : "antenna.radiowaves.left.and.right.slash")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(connectionState == .connected
+                    ? TodayStyle.settled : TodayStyle.secondary)
             HStack {
                 Button(action: onSettings) { Label(L("Settings"), systemImage: "gearshape") }
                     .buttonStyle(.plain)

@@ -16,24 +16,27 @@ struct IslandView: View {
     /// new question or presentation never erases them.
     @ObservedObject var reply: AttentionReplyState
     let surfaceStyle: OptionSurfaceStyle
+    var onOpenMain: () -> Void
     var topInset: CGFloat
 
     init(
         flow: OptionFlowStore, reply: AttentionReplyState,
-        surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0
+        surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0,
+        onOpenMain: @escaping () -> Void = {}
     ) {
         self.flow = flow
         self.reply = reply
         self.surfaceStyle = surfaceStyle
         self.topInset = topInset
+        self.onOpenMain = onOpenMain
     }
 
     var body: some View {
         if flow.activeMessage == nil {
-            islandContent(now: .now)
+            islandContent(now: .now).environment(\.colorScheme, .dark)
         } else {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                islandContent(now: context.date)
+                islandContent(now: context.date).environment(\.colorScheme, .dark)
             }
         }
     }
@@ -42,18 +45,26 @@ struct IslandView: View {
     private func islandContent(now: Date) -> some View {
         if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
             resolvedCard(message, answer: answer, source: source)
-        } else if (surfaceStyle == .window || flow.activeMessage != nil),
-            let presentation = IslandAttention.presentation(
+        } else if let presentation = IslandAttention.presentation(
             live: flow.activeMessage,
             history: flow.historyMessages,
-            now: now
+            now: now, withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback)
         ) {
             let message = presentation.message
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)
                     .padding(.bottom, 12)
                 OptionMessageBody(text: message.body, attachment: message.metadata?.attachment)
+                if let content = nonEmpty(message.content) {
+                    Text(content).font(.callout).foregroundStyle(TodayStyle.secondary)
+                        .fixedSize(horizontal: false, vertical: true).padding(.top, 8)
+                }
+                if let option = message.defaultOption {
+                    DecisionDefaultLine(option: option, expiresAt: message.expirationDate, now: now)
+                        .padding(.top, 8)
+                }
                 fixedActions(message)
+                queueFooter(now: now)
             }
             .padding(.horizontal, 18)
             .padding(.top, 13 + contentTopInset)
@@ -74,7 +85,7 @@ struct IslandView: View {
     private func resolvedCard(_ message: OptionMessage, answer: String?, source: String?) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 7) {
-                Circle().fill(Color.green).frame(width: 6, height: 6)
+                Circle().fill(TodayStyle.settled).frame(width: 6, height: 6)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(projectTitle(for: message))
                         .font(.headline)
@@ -85,7 +96,7 @@ struct IslandView: View {
                 Spacer()
             }
             Text(message.body)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.headline)
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -111,35 +122,28 @@ struct IslandView: View {
     }
 
     private func agentHeader(_ message: OptionMessage, item: AttentionItem?, now: Date) -> some View {
-        HStack(spacing: 7) {
-            Circle()
-                .fill(Color.green)
-                .frame(width: 6, height: 6)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(projectTitle(for: message))
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                if let item, let caption = IslandAttention.autoDecisionCaption(for: item, now: now) {
-                    Text(caption)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .lineLimit(1)
-                } else {
-                    messageContext(message)
-                }
-            }
-            Spacer()
-            if isSubmitting(message.id) {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white)
-            }
+        HStack(alignment: .top, spacing: 8) {
+            Text([projectTitle(for: message), message.sessionBranch, message.agentName]
+                .compactMap { $0 }.joined(separator: " · "))
+                .font(.caption).foregroundStyle(.white).lineLimit(2)
+            Spacer(minLength: 4)
+            DecisionDeadline(expiresAt: message.expirationDate, now: now)
+            if isSubmitting(message.id) { ProgressView().controlSize(.small) }
             if flow.activeMessage?.id == message.id {
-                SkipButton { flow.skip() }
-                    .disabled(isSubmitting(message.id))
+                SkipButton { flow.skip() }.disabled(isSubmitting(message.id))
             }
         }
+    }
+
+    private func queueFooter(now: Date) -> some View {
+        let count = TodayProjection.decisions(history: flow.historyMessages,
+            live: flow.activeMessage, now: now,
+            withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback)).count
+        return HStack {
+            if count > 1 { Text(L("\(count - 1) more waiting")).font(.caption) }
+            Spacer()
+            Button(L("Open HiBoss"), action: onOpenMain).buttonStyle(.link)
+        }.foregroundStyle(TodayStyle.tertiary).padding(.top, 10)
     }
 
     @ViewBuilder
@@ -159,7 +163,8 @@ struct IslandView: View {
     }
 
     private func projectTitle(for message: OptionMessage) -> String {
-        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch) ?? nonEmpty(message.agentName) ?? productName
+        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch)
+            ?? nonEmpty(message.agentName) ?? productName
     }
 
     private func nonEmpty(_ value: String?) -> String? {
@@ -179,12 +184,23 @@ struct IslandView: View {
     }
 
     private func optionList(_ message: OptionMessage) -> some View {
-        OptionMediaPicker(
-            options: message.options,
-            media: message.metadata?.optionMedia ?? [],
-            defaultOption: message.defaultOption,
-            choose: { send($0, for: message.id) }
-        )
+        Group {
+            if !(message.metadata?.optionMedia.isEmpty ?? true) {
+                OptionMediaPicker(options: message.options, media: message.metadata?.optionMedia ?? [],
+                    defaultOption: message.defaultOption, choose: { send($0, for: message.id) })
+            } else {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(Array(message.options.enumerated()), id: \.offset) { index, option in
+                        if index == 0 {
+                            Button(option) { send(option, for: message.id) }
+                                .buttonStyle(.borderedProminent).tint(TodayStyle.ink)
+                        } else {
+                            Button(option) { send(option, for: message.id) }.buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
+        }
         .disabled(isSubmitting(message.id))
     }
 
@@ -207,7 +223,8 @@ struct IslandView: View {
     @ViewBuilder
     private func errorLabel(for messageID: MessageID) -> some View {
         if let feedback = reply.errors[messageID] {
-            let hasDraft = !(reply.drafts[messageID] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasDraft = !(reply.drafts[messageID] ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             Text(hasDraft ? feedback.text : feedback.choiceText)
                 .font(.caption)
                 .foregroundStyle(.red)
@@ -253,7 +270,7 @@ struct OptionMessageBody: View {
             content
             ScrollView(.vertical, showsIndicators: true) { content }
         }
-        .frame(minHeight: 56, maxHeight: .infinity, alignment: .top)
+        .frame(minHeight: 56, alignment: .top)
     }
 
     private var content: some View {

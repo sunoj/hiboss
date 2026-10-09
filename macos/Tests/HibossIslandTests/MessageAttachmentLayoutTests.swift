@@ -15,7 +15,8 @@ final class MessageAttachmentLayoutTests: XCTestCase {
         let message = message(fileURL: "https://example.com/report.pdf")
         let views: [AnyView] = [
             AnyView(HistoryMessageDetail(message: message, reply: AttentionReplyState()) { _ in nil }),
-            AnyView(AttentionDetail(item: AttentionItem(message: message), now: .now, onChoose: { _ in })),
+            AnyView(AttentionDetail(item: AttentionItem(message: message, group: .priority),
+                now: .now, onChoose: { _ in })),
             AnyView(OptionMessageBody(text: message.body, attachment: message.metadata?.attachment)
                 .background(Color.black))
         ]
