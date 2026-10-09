@@ -153,7 +153,7 @@ final class SessionsV4UITests: XCTestCase {
 
     func testReplyWithoutAnAgentMessageIsDisabledWithAnExplanation() {
         let app = launch(extra: ["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TEXT_ASK": "1"])
-        XCTAssertTrue(app.staticTexts["No agent message yet. Reply will be available when one arrives."]
+        XCTAssertTrue(app.staticTexts["No eligible agent message. Resolved decisions cannot receive replies."]
             .waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["Send reply"].isEnabled)
         XCTAssertFalse(app.buttons["Attach from Box"].isEnabled)

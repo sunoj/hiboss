@@ -182,7 +182,8 @@ struct DecisionCard<Header: View, Choices: View>: View {
             }
             OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [])
             choices
-            DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id, compact: true)
+            DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id,
+                               compact: true, showsNoDeadline: false)
             if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
         }
         .padding(12)

@@ -8,6 +8,29 @@ import XCTest
 
 @MainActor
 final class InboxStoreTests: XCTestCase {
+    func testInboxCardSettlesUntilHistoryDropsItWithoutReopeningToday() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.history = [Self.question, Self.older]
+        store.requiredInputs = [Self.question]
+        store.requiredInputLoaded = true
+        // Pending and Today agree: both come from the server's open list.
+        XCTAssertEqual(store.pending.map(\.id), ["q1"])
+        XCTAssertEqual(store.todaySnapshot(now: .now).decisions.map(\.id), ["q1"])
+
+        store.settleReply("Approve", for: "q1")
+        XCTAssertTrue(store.pending.isEmpty)
+        XCTAssertEqual(store.settledCards.map(\.id), ["q1"])
+        XCTAssertEqual(store.settlement(for: "q1")?.answer, "Approve")
+        XCTAssertTrue(store.todaySnapshot(now: .now).decisions.isEmpty)
+
+        // History that still holds the question never reopens it once the server drops it.
+        store.requiredInputs = []
+        XCTAssertTrue(store.pending.isEmpty)
+        XCTAssertTrue(store.todaySnapshot(now: .now).decisions.isEmpty)
+        store.history = [Self.older]
+        XCTAssertTrue(store.settledCards.isEmpty)
+    }
+
     func testReplySettlesCardInPlaceAndKeepsBossReplyInSession() async {
         let api = MutableBossAPI(messages: [Self.question, Self.older])
         let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
@@ -91,7 +114,7 @@ final class InboxStoreTests: XCTestCase {
     )
 }
 
-private final class MutableBossAPI: BossServing, @unchecked Sendable {
+private final class MutableBossAPI: BossServing, RequiredInputServing, @unchecked Sendable {
     var messages: [HistoryMessage]
 
     init(messages: [HistoryMessage]) { self.messages = messages }
@@ -105,6 +128,21 @@ private final class MutableBossAPI: BossServing, @unchecked Sendable {
     }
 
     func fetchHistory() async throws -> [HistoryMessage] { messages }
+
+    /// The server's open list: unanswered agent messages with options or a blocking ask.
+    func fetchRequiredInputs() async throws -> [HistoryMessage] {
+        messages.filter {
+            $0.direction == "agent_to_boss" && $0.status != "replied" && $0.status != "expired"
+                && (!$0.options.isEmpty || $0.mode == "blocking")
+        }
+    }
+
+    func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {
+        AsyncThrowingStream { continuation in
+            continuation.yield(.ready)
+            continuation.onTermination = { _ in }
+        }
+    }
 
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail {
         guard let message = messages.first(where: { $0.id == messageID }) else {

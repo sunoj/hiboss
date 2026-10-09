@@ -62,6 +62,8 @@ final class TodayV4UITests: XCTestCase {
         XCTAssertTrue(delivered.waitForExistence(timeout: 10))
         XCTAssertTrue(app.images["message-attachment-image"].firstMatch.exists)
         let filename = app.staticTexts["today-delivered-filename"]
+        // The row sits below the heading; scroll it clear of the floating tab bar.
+        for _ in 0..<4 where !filename.isHittable { app.swipeUp() }
         XCTAssertTrue(filename.isHittable)
         XCTAssertGreaterThan(filename.frame.width, 100, "filenames belong beside the thumbnail")
         XCTAssertLessThan(filename.frame.height, 44, "the filename must remain readable")

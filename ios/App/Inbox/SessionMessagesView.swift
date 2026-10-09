@@ -40,7 +40,10 @@ struct SessionMessagesView: View {
             }
         }
         .background(Theme.paper)
-        .safeAreaInset(edge: .bottom) { SessionReplyComposer(target: newestAgentMessageID, store: store) }
+        .safeAreaInset(edge: .bottom) {
+            SessionReplyComposer(targets: SessionReplyTarget.eligible(events: stream.events, store: store),
+                                 store: store)
+        }
         .navigationTitle(Text(verbatim: route.label))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { historyToolbar }
@@ -103,11 +106,6 @@ struct SessionMessagesView: View {
         } message: { note in
             Text(verbatim: note)
         }
-    }
-
-    private var newestAgentMessageID: MessageID? {
-        stream.events.last { $0.kind == "message" && $0.direction == "agent_to_boss" && $0.messageId != nil }
-            .flatMap { $0.messageId }.map { MessageID(rawValue: $0) }
     }
 
     private var content: some View {

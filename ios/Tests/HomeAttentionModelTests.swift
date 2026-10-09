@@ -102,7 +102,9 @@ final class HomeAttentionModelTests: XCTestCase {
             message("text", options: []),
             message("expired", isExpired: true),
         ]
-        let home = AttentionModel.items(from: messages, now: now).filter { !$0.options.isEmpty }.map(\.id)
+        let snapshot = TodaySnapshot(history: [], requiredInputs: messages, health: .live(checkedAt: now),
+                                     coverageComplete: true, now: now)
+        let home = snapshot.decisions.filter { !$0.options.isEmpty }.map(\.id)
         XCTAssertEqual(home, ["auto", "blocked", "priority"])
         XCTAssertEqual(DecisionActivityManager.rankedMessages(from: messages, now: now).map(\.id), home)
         let later = now.addingTimeInterval(60)

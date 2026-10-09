@@ -37,7 +37,22 @@ extension DemoBossAPI {
     ) async -> AsyncThrowingStream<SessionStreamFrame, Error> {
         try? await DemoDelay.wait("TRANSCRIPT_CONNECTION")
         return AsyncThrowingStream { continuation in
-            continuation.onTermination = { _ in }
+            let update = Task {
+                guard DemoDelay.isHeld("TRANSCRIPT_NEWER") else { return }
+                do { try await DemoDelay.wait("TRANSCRIPT_NEWER") }
+                catch { return }
+                guard !Task.isCancelled else { return }
+                let message = HistoryMessage(
+                    id: "newer-update", body: "A newer release update.\nMore context follows.",
+                    direction: "agent_to_boss", status: "delivered", priority: "normal",
+                    mode: "async", createdAt: Date().ISO8601Format(), sessionId: sessionID
+                )
+                messages.append(message)
+                if let event = DemoSessionStream.events(for: sessionID, from: messages).last {
+                    continuation.yield(.event(event))
+                }
+            }
+            continuation.onTermination = { _ in update.cancel() }
         }
     }
 }

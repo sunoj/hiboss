@@ -1,6 +1,92 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Discard draft": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Discard draft" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "丢弃草稿" } }
+      }
+    },
+    "Replying to: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replying to: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复对象：%@"
+          }
+        }
+      }
+    },
+    "Custom answer to: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom answer to: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义回答：%@"
+          }
+        }
+      }
+    },
+    "Reply to the newer message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply to the newer message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复更新的消息"
+          }
+        }
+      }
+    },
+    "No eligible agent message. Resolved decisions cannot receive replies.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No eligible agent message. Resolved decisions cannot receive replies."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可回复的智能体消息。已解决的决策无法接收回复。"
+          }
+        }
+      }
+    },
+    "This draft's target is unavailable. Discard it or choose a newer message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This draft's target is unavailable. Discard it or choose a newer message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "草稿的回复对象已不可用。请丢弃草稿或选择更新的消息。"
+          }
+        }
+      }
+    },
     "Session facts": {
       "localizations": {
         "en": {
