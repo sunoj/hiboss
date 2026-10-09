@@ -21,6 +21,8 @@ struct SessionInspector: View {
                 peers
             }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .workspaceChrome()
         .background(TodayStyle.surface)
         .task(id: context.project) {
             box.reset()

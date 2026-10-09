@@ -215,6 +215,7 @@ struct MainView: View {
                         box.project = project
                         destination = .box
                     }, onSession: { destination = .session($0) })
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if destination == .box {
                 BoxBrowserView(store: box, media: boxMedia)
             } else if destination == .progress {

@@ -24,6 +24,7 @@ struct SessionView: View {
                     thread.frame(minWidth: 360, maxWidth: .infinity)
                     inspector.frame(minWidth: 280, idealWidth: 320, maxWidth: 400)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 thread.toolbar {
                     Button(L("Session details"), systemImage: "sidebar.right") { showsInspector = true }
@@ -37,14 +38,15 @@ struct SessionView: View {
             }.frame(minWidth: 320, idealWidth: 400, minHeight: 400)
         }
         .task { if !isPreview { await panels.loadIfNeeded() } }
-        .workspaceChrome()
         .background(TodayStyle.ground)
         .accessibilityIdentifier("session.workspace")
     }
 
     private var thread: some View {
         VStack(spacing: 0) {
-            HistoryView(flow: flow, snapshot: context.snapshot, scope: .session(context.id), reply: reply)
+            HistoryView(flow: flow, snapshot: context.snapshot, scope: .session(context.id), reply: reply,
+                workspaceHeader: SessionHeader(context: context,
+                    connection: isPreview ? .connected : flow.connectionState))
             DisclosureGroup(L("Watching")) {
                 ScrollView {
                     if let tile = panels.selectedTile, tile.metadata?.sessionId == context.id {
@@ -55,10 +57,6 @@ struct SessionView: View {
                 }.frame(maxHeight: 260)
             }.padding(.horizontal, 20).padding(.vertical, 8)
             SessionComposer(message: context.newestAgentMessage, reply: reply, onChoose: flow.answer)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            SessionHeader(context: context, connection: isPreview ? .connected : flow.connectionState)
-            Divider()
         }
     }
 
