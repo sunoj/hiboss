@@ -20,7 +20,7 @@ final class DecisionStateUITests: XCTestCase {
     }
 
     private func openSettingsRow(_ title: String) {
-        let settings = app.tabBars.buttons["Settings"]
+        let settings = app.buttons["today-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
         app.buttons["settings-devices"].tap()
@@ -104,7 +104,7 @@ final class DecisionStateUITests: XCTestCase {
 
     func testSignOutAsksBeforeDeletingTheToken() {
         launch()
-        let settings = app.tabBars.buttons["Settings"]
+        let settings = app.buttons["today-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
         let signOut = app.buttons["settings-sign-out"]
@@ -115,13 +115,13 @@ final class DecisionStateUITests: XCTestCase {
         let cancel = app.buttons["Cancel"].firstMatch
         if cancel.exists { cancel.tap() } else { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap() }
         XCTAssertTrue(app.staticTexts["Sign out of HiBoss?"].waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 5), "cancel keeps the session")
+        XCTAssertTrue(app.buttons["settings-sign-out"].waitForExistence(timeout: 5), "cancel keeps the session")
         XCTAssertFalse(app.textFields["server-url-field"].exists)
     }
 
     func testFailedRefreshKeepsRowsAndSaysTheyAreStale() {
         launch(["HIBOSS_DEMO_REFRESH_FAILS": "1"])
-        let activity = app.tabBars.buttons["Activity"]
+        let activity = app.tabBars.buttons["Sessions"]
         XCTAssertTrue(activity.waitForExistence(timeout: 10))
         activity.tap()
         app.segmentedControls.buttons["Messages"].tap()

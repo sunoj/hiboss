@@ -21,6 +21,7 @@ final class DecisionTimingTests: XCTestCase {
         let timing = DecisionTiming(message: message(deadline: nil), now: now)
         XCTAssertNil(timing.expiresAt)
         XCTAssertNil(timing.autoDefault)
+        XCTAssertEqual(timing.declaredDefault, "  Keep original text  ")
         XCTAssertFalse(timing.isAutoDefault("Keep original text"))
     }
 

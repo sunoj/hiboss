@@ -34,8 +34,8 @@ struct DecisionOptions: View {
             .accessibilityValue(isDefault ? Text("Default") : Text(verbatim: ""))
         .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
         Group {
-            if isDefault {
-                control.prominentAction()
+            if option == options.first {
+                control.prominentAction().tint(Theme.primaryAction)
             } else {
                 control.buttonStyle(.bordered)
             }
@@ -51,7 +51,7 @@ struct DecisionOptions: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: alignment)
             if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) {
-                DelayedProgressView(tint: timing.isAutoDefault(option) ? Theme.onAccent : Theme.ink)
+                DelayedProgressView(tint: option == options.first ? Theme.onAccent : Theme.ink)
             }
         }
         .frame(minWidth: 44, minHeight: 44)

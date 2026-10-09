@@ -114,7 +114,7 @@ struct MessageDetailView: View {
     /// Pending: shared timing, choices, and a free-text reply. Resolved: a read-only
     /// picked/others list, with the chosen option checked and its source noted.
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
-        if message.isPendingDecision || AttentionModel.needsTextReply(message) {
+        if message.isPendingDecision || AttentionModel.needsTextReply(message, now: .now) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let timing = DecisionTiming(message: message, now: context.date)
                 pendingDecision(for: message, timing: timing)

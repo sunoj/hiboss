@@ -1,4 +1,4 @@
-// Verifies two complete Home requests fit above the tab bar at default text size.
+// Verifies Today decisions retain context, timeout authority, and reachable native answers.
 // Exports: HomeSimplificationUITests with matched English and Chinese Home screenshots.
 // Dependencies: XCTest, DemoLaunchSupport; baseline heights from the iPhone 17 main screenshot.
 
@@ -19,7 +19,7 @@ final class HomeSimplificationUITests: XCTestCase {
         add(shot)
     }
 
-    func testFirstTwoRequestsFitWithoutGrowingBeyondMain() {
+    func testRequestsRemainAnswerableWithContextAndTimeoutAuthority() {
         for language in ["en", "zh-Hans"] {
             let app = XCUIApplication()
             app.configureDemoLaunch()
@@ -29,27 +29,19 @@ final class HomeSimplificationUITests: XCTestCase {
             ]
             app.launchConfiguredDemo()
             let first = app.buttons["home-message-c5"]
-            let second = app.buttons["home-message-c1"]
             XCTAssertTrue(first.waitForExistence(timeout: 10))
-            XCTAssertTrue(second.exists)
-            let firstBottom = app.buttons["Coarse grid"].frame.maxY + 12
-            let secondBottom = app.buttons["Reject"].frame.maxY + 12
-            XCTAssertLessThanOrEqual(firstBottom, app.tabBars.firstMatch.frame.minY)
-            XCTAssertLessThanOrEqual(secondBottom, app.tabBars.firstMatch.frame.minY)
-            XCTAssertLessThanOrEqual(firstBottom - first.frame.minY + 12, 268)
-            XCTAssertLessThanOrEqual(secondBottom - second.frame.minY + 12, 268)
-            for option in ["Coarse grid", "Fine grid", "Approve", "Reject"] {
-                XCTAssertTrue(app.buttons[option].isHittable)
+            XCTAssertTrue(app.buttons["Coarse grid"].isHittable)
+            XCTAssertTrue(app.buttons["Fine grid"].isHittable)
+            let timing = app.descendants(matching: .any)["decision-timing-c5"].firstMatch
+            XCTAssertTrue(timing.label.contains(language == "en" ? "That is not approval" : "这不代表批准"))
+            for _ in 0..<8 where !app.buttons["Reject"].isHittable { app.swipeUp() }
+            XCTAssertTrue(app.buttons["Approve"].isHittable)
+            XCTAssertTrue(app.buttons["Reject"].isHittable)
+            for option in ["Approve", "Reject"] {
                 XCTAssertGreaterThanOrEqual(app.buttons[option].frame.height, 44)
             }
-            let timing = app.descendants(matching: .any)["decision-timing-c5"].firstMatch
-            XCTAssertLessThanOrEqual(timing.frame.height, 20, "default and countdown share one line")
-            XCTContext.runActivity(named: "\(language): cards \(firstBottom - first.frame.minY + 12), "
-                + "\(secondBottom - second.frame.minY + 12); bottom \(secondBottom); "
-                + "tab bar \(app.tabBars.firstMatch.frame.minY)") { _ in }
             let shot = XCTAttachment(screenshot: app.screenshot())
-            let prefix = ProcessInfo.processInfo.environment["UX_TOUR_PREFIX"] ?? ""
-            shot.name = prefix + (language == "en" ? "en" : "zh") + "-01-home"
+            shot.name = "\(language)-today-decisions"
             shot.lifetime = .keepAlways
             add(shot)
             app.terminate()

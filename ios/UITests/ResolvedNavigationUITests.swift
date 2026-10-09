@@ -71,7 +71,7 @@ final class HomeAttentionUITests: XCTestCase {
         reply.tap()
         reply.typeText("Use staging")
         app.buttons["Send"].tap()
-        app.tabBars.buttons["Home"].tap()
+        app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 5))
     }
 

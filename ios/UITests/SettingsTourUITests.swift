@@ -30,8 +30,8 @@ final class SettingsTourUITests: XCTestCase {
             ]
         }
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons.element(boundBy: 3).waitForExistence(timeout: 8))
-        app.tabBars.buttons.element(boundBy: 3).tap()
+        XCTAssertTrue(app.buttons["today-settings"].waitForExistence(timeout: 8))
+        app.buttons["today-settings"].tap()
         if ProcessInfo.processInfo.environment["UX_TOUR_DELIVERY_ONLY"] == "1" {
             deliveryScreens()
             app.terminate()
@@ -48,7 +48,7 @@ final class SettingsTourUITests: XCTestCase {
     private func introAndExpiry(language: String) {
         app.configureDemoLaunch(["HIBOSS_DEMO_PAIRING_TTL": "3"])
         app.launchConfiguredDemo()
-        app.tabBars.buttons.element(boundBy: 3).tap()
+        app.buttons["today-settings"].tap()
         open("settings-devices")
         open(language == "en" ? "Sign in a Mac" : "登录 Mac")
         XCTAssertTrue(app.buttons["mac-signin.scan"].waitForExistence(timeout: 5))

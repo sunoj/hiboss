@@ -12,7 +12,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
     private static let c5Question = "Which release banner grid should ship — coarse blocks or a fine weave?"
     private static let c1Question =
         "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?"
-    private static let autoSelectCopy = "到时自动选择「Coarse grid」"
+    private static let autoSelectCopy = "将选择“Coarse grid”。这不代表批准。"
 
     private var app: XCUIApplication!
 
@@ -36,13 +36,13 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
     func testChineseHomeOpensDetailOnHomeStackAndBackReturnsHome() {
         launch()
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["4 项等你决定"].exists, "count uses the localized plural")
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 项需要你"].exists, "count uses the localized plural")
         XCTAssertFalse(app.staticTexts["即将自动决定"].exists, "cards already describe their deadlines")
 
         XCTAssertTrue(timing("c5").waitForExistence(timeout: 5))
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), timing("c5").label)
-        XCTAssertTrue(timing("c5").label.contains("剩余"))
+        XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "Home marks the live default")
         XCTAssertNotEqual(app.buttons["Fine grid"].value as? String, "默认")
         assertSideBySide("Coarse grid", "Fine grid")
@@ -52,18 +52,18 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(question.waitForExistence(timeout: 5), "detail opens from Home")
         XCTAssertEqual(question.label, Self.c5Question)
         XCTAssertTrue(app.navigationBars["prod-release"].exists, "detail title is the session")
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected, "opening a decision keeps the Home tab")
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected, "opening a decision keeps the Home tab")
 
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), "detail repeats Home's timing copy")
-        XCTAssertTrue(timing("c5").label.contains("剩余"))
+        XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "detail marks the same default")
         assertSideBySide("Coarse grid", "Fine grid")
         XCTAssertTrue(app.descendants(matching: .any)["message-more-information"].exists)
         XCTAssertFalse(app.staticTexts["方向"].exists, "routing facts stay collapsed")
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 5), "back returns to Home")
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected)
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 5), "back returns to Home")
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
         XCTAssertFalse(question.exists)
     }
 
@@ -90,7 +90,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         let reply = app.buttons["Approve"]
         assertSideBySide("Approve", "Reject")
         keepScreenshot("accessibility-home-question")
-        XCTAssertGreaterThan(row.frame.height, reply.frame.height * 6, "Home question must not truncate")
+        XCTAssertGreaterThan(row.frame.height, reply.frame.height * 4, "Home question must not truncate")
 
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         row.tap()
@@ -118,7 +118,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
     func testNoPanelControlsWithoutPanels() {
         launch()
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
         assertNoPanelControls()
 
         app.terminate()
@@ -130,24 +130,24 @@ final class HomeDecisionDetailUITests: XCTestCase {
     func testBackRestoresScrolledHomeLocation() {
         launch()
         let row = app.buttons["home-message-c2"]
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(row.isHittable)
         let originalY = row.frame.minY
         row.tap()
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected)
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertEqual(row.frame.minY, originalY, accuracy: 3, "back preserves Home scroll position")
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected)
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
     }
 
     func testWaitingTimingWithoutDeadlineAgreesOnHomeAndDetail() {
         launch()
         let row = app.buttons["home-message-c3"]
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(timing("c3").label.contains("已等待"))

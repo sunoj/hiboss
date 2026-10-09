@@ -22,6 +22,7 @@ final class InboxStore: ObservableObject {
     /// False until the first history fetch completes, so views can show a spinner
     /// instead of flashing an empty state on cold launch.
     @Published var didLoad = false
+    var historyCheckedAt: Date?
     @Published var isRefreshing = false
     @Published var replyConfirmation: String?
     /// Ids removed optimistically (answered/expired locally) until history catches up.
@@ -73,29 +74,10 @@ final class InboxStore: ObservableObject {
 
     /// Pending decisions, soonest-to-expire first, then critical > high > normal.
     var pending: [HistoryMessage] {
-        history
-            .filter { $0.isPendingDecision && !withdrawn.contains($0.id) }
-            .sorted(by: Self.moreUrgent)
+        todaySnapshot(now: .now).decisions.filter { !$0.options.isEmpty }.map(\.message)
     }
 
     var pendingCount: Int { pending.count }
-
-    /// Soonest deadline first (none last), then higher priority, then newest.
-    private static func moreUrgent(_ lhs: HistoryMessage, _ rhs: HistoryMessage) -> Bool {
-        switch (lhs.expirationDate, rhs.expirationDate) {
-        case let (a?, b?) where a != b:
-            return a < b
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        default:
-            break
-        }
-        let left = lhs.priorityValue.rank, right = rhs.priorityValue.rank
-        if left != right { return left > right }
-        return (lhs.createdDate ?? .distantPast) > (rhs.createdDate ?? .distantPast)
-    }
 
     /// True once a backing API is attached (i.e. `start` has run). Deep-linked
     /// detail views poll this to avoid declaring a message missing during the
@@ -112,7 +94,7 @@ final class InboxStore: ObservableObject {
         // Wait for the authoritative inputs before ranking, but turning alerts off ends
         // every activity regardless of inputs, so it must not wait.
         guard requiredInputLoaded || !decisionAlertsEnabled else { return }
-        let candidates = requiredInputs.filter { !withdrawn.contains($0.id) }
+        let candidates = todaySnapshot(now: .now).decisions.map(\.message)
         await decisionActivitySync(candidates, decisionAlertsEnabled)
     }
 
@@ -151,6 +133,7 @@ final class InboxStore: ObservableObject {
         localResolutions = [:]
         openedMessages = [:]
         didLoad = false
+        historyCheckedAt = nil
         isRefreshing = false
         replyConfirmation = nil
         loadError = nil
