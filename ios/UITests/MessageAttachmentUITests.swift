@@ -1,4 +1,4 @@
-// Attachment coverage across message detail, Home and ordinary/decision transcript bubbles.
+// Attachment coverage across message detail, Today and ordinary/decision transcript bubbles.
 // Exports: MessageAttachmentUITests, including retained detail screenshot evidence.
 // Dependencies: XCTest, DemoLaunchSupport and bundled DemoMessageAttachments fixtures.
 
@@ -62,8 +62,18 @@ final class MessageAttachmentUITests: XCTestCase {
 
     func testHomeFullBodyIncludesAttachment() {
         launch([:])
+        let decision = app.buttons["home-message-attachment-decision"]
+        XCTAssertTrue(decision.waitForExistence(timeout: 10))
+        XCTAssertTrue(decision.isHittable)
+        decision.tap()
+        let question = app.staticTexts["message-question"]
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertEqual(question.label, "Approve the release banner?")
         assertViewer(app.buttons["message-attachment-open"])
-        XCTAssertTrue(app.buttons["home-message-attachment-decision"].exists)
+        XCTAssertTrue(question.isHittable)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(decision.waitForExistence(timeout: 5))
+        XCTAssertTrue(decision.isHittable)
     }
 
     func testSlowImageOffersRetryAndViewerRemainsDismissible() {

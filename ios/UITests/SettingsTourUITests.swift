@@ -130,8 +130,7 @@ final class SettingsTourUITests: XCTestCase {
 
     private func back() {
         app.navigationBars.buttons.firstMatch.tap()
-        app.swipeDown()
-        app.swipeDown()
+        // Settings is a sheet: downward swipes at the top dismiss it rather than reset the page.
     }
 
     private func shot(_ name: String) {
