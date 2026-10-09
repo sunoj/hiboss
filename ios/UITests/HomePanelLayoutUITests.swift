@@ -26,6 +26,7 @@ final class HomePanelLayoutUITests: IntermediateCaptureCase {
         let settings = app.scrollViews.buttons.matching(
             NSPredicate(format: "label == %@ AND identifier != %@", "Settings", "today-settings")
         ).firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
         XCTAssertEqual(retry.frame.height, settings.frame.height, accuracy: 1)
         XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
     }

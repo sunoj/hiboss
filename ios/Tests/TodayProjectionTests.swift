@@ -3,6 +3,7 @@
 // Dependencies: XCTest, HiBoss InboxStore, and HibossKit TodaySnapshot.
 
 import HibossKit
+import SwiftUI
 import XCTest
 import UIKit
 @testable import HiBoss
@@ -60,11 +61,39 @@ final class TodayProjectionTests: XCTestCase {
         }
     }
 
+    func testOptionsShareRowsUntilTheNextChoiceDoesNotFit() {
+        let frames = DecisionOptionFlow.frames(
+            sizes: [CGSize(width: 80, height: 44), CGSize(width: 100, height: 58),
+                    CGSize(width: 90, height: 44)], width: 200
+        )
+        XCTAssertEqual(frames, [CGRect(x: 0, y: 0, width: 80, height: 58),
+                                CGRect(x: 88, y: 0, width: 100, height: 58),
+                                CGRect(x: 0, y: 66, width: 90, height: 44)])
+    }
+
+    func testLargeOptionsUseTheAvailableWidthAndSeparateRows() {
+        let frames = DecisionOptionFlow.frames(
+            sizes: [CGSize(width: 400, height: 100), CGSize(width: 160, height: 70)], width: 200
+        )
+        XCTAssertEqual(frames, [CGRect(x: 0, y: 0, width: 200, height: 100),
+                                CGRect(x: 0, y: 108, width: 160, height: 70)])
+    }
+
+    func testOptionsThatExactlyFitStayOnTheSameRow() {
+        let frames = DecisionOptionFlow.frames(
+            sizes: [CGSize(width: 80, height: 44), CGSize(width: 112, height: 44)], width: 200
+        )
+        XCTAssertEqual(frames.map(\.minY), [0, 0])
+        XCTAssertEqual(frames.last?.maxX, 200)
+        XCTAssertTrue(DecisionOptionFlow.frames(sizes: [], width: 200).isEmpty)
+    }
+
     private func decision(_ id: String, now: Date, deadline: Date? = nil) -> HistoryMessage {
         HistoryMessage(
             id: MessageID(rawValue: id), body: "Continue?", direction: "agent_to_boss",
             status: "delivered", priority: "high", mode: "blocking",
-            metadata: MessageMetadata(options: ["Yes", "Hold"], defaultOption: deadline == nil ? nil : "Hold"),
+            metadata: MessageMetadata(options: ["Yes", "Hold"],
+                                      defaultOption: deadline == nil ? nil : "Hold"),
             expiresAt: deadline?.ISO8601Format(), createdAt: now.ISO8601Format(),
             sessionId: "session-\(id)", sessionLabel: id
         )

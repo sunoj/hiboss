@@ -204,7 +204,8 @@ struct HomeAttentionRow: View {
             }
             .buttonStyle(.bordered)
         } else {
-            DecisionOptions(options: item.options, timing: timing, submitting: submitting, onChoose: onChoose)
+            DecisionOptions(options: item.options, timing: timing, submitting: submitting,
+                            wrapsToFit: true, onChoose: onChoose)
         }
     }
 }

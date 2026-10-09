@@ -36,8 +36,12 @@ struct TodayHeader: View {
     }
 
     @ViewBuilder private var chips: some View {
-        chip(Text("\(String(requestCount)) need you"), color: Theme.warn)
-        chip(Text("\(String(snapshot.working.count)) working"), color: Theme.live)
+        if requestCount > 0 {
+            chip(Text("\(String(requestCount)) need you"), color: Theme.warn)
+        }
+        if !snapshot.working.isEmpty {
+            chip(Text("\(String(snapshot.working.count)) working"), color: Theme.live)
+        }
         if case .live(let checkedAt) = snapshot.health, snapshot.coverageComplete {
             chip(Text("Live") + Text(verbatim: " · ") + Text(checkedAt, style: .relative),
                  color: Theme.positive)

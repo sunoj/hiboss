@@ -54,6 +54,11 @@ final class HomeAttentionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
         let choice = app.buttons["Coarse grid"]
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        let alternative = app.buttons["Fine grid"]
+        XCTAssertEqual(choice.frame.minY, alternative.frame.minY, accuracy: 1)
+        XCTAssertLessThan(choice.frame.maxX, alternative.frame.minX)
+        XCTAssertGreaterThanOrEqual(choice.frame.height, 44)
+        XCTAssertEqual(choice.frame.height, alternative.frame.height, accuracy: 1)
         choice.tap()
         XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["home-message-c5"].exists)
@@ -64,6 +69,7 @@ final class HomeAttentionUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_TEXT_ASK": "1"])
         app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["1 item waiting on your call"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["1 working"].exists)
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
         app.buttons["home-message-demo-text-ask"].tap()
         let reply = app.descendants(matching: .any)["message-reply-draft"].firstMatch
@@ -77,7 +83,9 @@ final class HomeAttentionUITests: XCTestCase {
 
     func testManyOptionsRemainReachableAtAccessibilityTextSize() {
         app.terminate()
-        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launchArguments += [
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ]
         app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["4 items waiting on your call"].waitForExistence(timeout: 10))
         let option = app.buttons["Fail over to Adyen"]
@@ -88,12 +96,14 @@ final class HomeAttentionUITests: XCTestCase {
         let tabBar = app.tabBars.firstMatch
         for _ in 0..<6 where option.frame.maxY > tabBar.frame.minY {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).press(
-                forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)),
+                forDuration: 0.1,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4)),
                 withVelocity: .slow, thenHoldForDuration: 0.2
             )
         }
         XCTAssertTrue(option.isHittable)
-        XCTAssertLessThanOrEqual(option.frame.maxY, tabBar.frame.minY, "the tap must reach the option, not the tab bar")
+        XCTAssertLessThanOrEqual(option.frame.maxY, tabBar.frame.minY,
+                                 "the tap must reach the option, not the tab bar")
         option.tap()
         XCTAssertTrue(option.waitForNonExistence(timeout: 5), "the answered decision leaves Home")
         for _ in 0..<12 where !app.staticTexts["3 items waiting on your call"].isHittable { app.swipeDown() }
@@ -108,6 +118,18 @@ final class HomeAttentionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["3 working"].exists, "all-clear can coexist with working sessions")
+        XCTAssertFalse(app.staticTexts["0 need you"].exists)
         XCTAssertFalse(app.buttons["home-message-c5"].exists)
+    }
+
+    func testZeroCountChipsStayHiddenWhileCoverageLoads() {
+        app.terminate()
+        app.configureDemoLaunch(["HIBOSS_DEMO_HISTORY_DELAY_MS": "60000",
+                                 "HIBOSS_DEMO_REQUESTS_DELAY_MS": "60000"])
+        app.launchConfiguredDemo()
+        XCTAssertTrue(app.staticTexts["Checking coverage"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["0 need you"].exists)
+        XCTAssertFalse(app.staticTexts["0 working"].exists)
+        XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
     }
 }
