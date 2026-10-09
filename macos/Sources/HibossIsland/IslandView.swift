@@ -42,11 +42,10 @@ struct IslandView: View {
     private func islandContent(now: Date) -> some View {
         if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
             resolvedCard(message, answer: answer, source: source)
-        } else if (surfaceStyle == .window || flow.activeMessage != nil),
-            let presentation = IslandAttention.presentation(
+        } else if let presentation = IslandAttention.presentation(
             live: flow.activeMessage,
             history: flow.historyMessages,
-            now: now
+            now: now, withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback)
         ) {
             let message = presentation.message
             VStack(alignment: .leading, spacing: 0) {
@@ -159,7 +158,8 @@ struct IslandView: View {
     }
 
     private func projectTitle(for message: OptionMessage) -> String {
-        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch) ?? nonEmpty(message.agentName) ?? productName
+        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch)
+            ?? nonEmpty(message.agentName) ?? productName
     }
 
     private func nonEmpty(_ value: String?) -> String? {
@@ -207,7 +207,8 @@ struct IslandView: View {
     @ViewBuilder
     private func errorLabel(for messageID: MessageID) -> some View {
         if let feedback = reply.errors[messageID] {
-            let hasDraft = !(reply.drafts[messageID] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasDraft = !(reply.drafts[messageID] ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             Text(hasDraft ? feedback.text : feedback.choiceText)
                 .font(.caption)
                 .foregroundStyle(.red)

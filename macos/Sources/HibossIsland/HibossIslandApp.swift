@@ -73,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
+    private let statusOverview = OverviewStore()
     var cancellables: Set<AnyCancellable> = []
 
     override init() {
@@ -147,6 +148,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .removeDuplicates()
             .sink { [weak self] _ in self?.refreshStatusMenu() }
             .store(in: &cancellables)
+
+        Publishers.CombineLatest3(flow.$historyMessages, flow.$activeMessage, flow.$replyFeedback)
+            .sink { [weak self] history, live, feedback in
+                self?.statusOverview.update(history: history, live: live,
+                    withdrawn: TodayProjection.withdrawn(feedback: feedback))
+            }
+            .store(in: &cancellables)
+        statusOverview.$snapshot
+            .sink { [weak self] snapshot in self?.updateStatusCount(snapshot.attention.count) }
+            .store(in: &cancellables)
     }
 
     private func setStatusItemVisible(_ isVisible: Bool) {
@@ -157,13 +168,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
         guard statusItem == nil else { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = NSImage(
-            systemSymbolName: "capsule.tophalf.filled",
-            accessibilityDescription: L("HiBoss Island")
-        )
         item.button?.toolTip = L("HiBoss Island")
         statusItem = item
+        updateStatusCount(statusOverview.snapshot.attention.count)
         refreshStatusMenu()
+    }
+
+    private func updateStatusCount(_ count: Int) {
+        guard let button = statusItem?.button else { return }
+        AppIdentity.configure(button, count: count)
     }
 
     func refreshStatusMenu() {

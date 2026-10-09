@@ -1,12 +1,12 @@
 // Unit tests for attention ranking bands, ties, grouping, and on-screen expiry.
 // Covers: auto-decision, blocked, priority, and section grouping.
-// Dependencies: XCTest, HibossKit fixtures, AttentionRanking.
+// Dependencies: XCTest, HibossKit fixtures, TodayProjection.
 
 import HibossKit
 import XCTest
 @testable import HibossIsland
 
-final class AttentionRankingTests: XCTestCase {
+final class TodayProjectionTests: XCTestCase {
     private let now = AttentionTestSupport.now
     private func iso(_ date: Date) -> String { AttentionTestSupport.iso(date) }
     private func ask(
@@ -61,7 +61,7 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [high, blocked, auto], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [high, blocked, auto], now: now).map(\.id.rawValue),
             ["auto", "blocked", "high"]
         )
     }
@@ -82,13 +82,14 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [critical, blocked], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [critical, blocked], now: now).map(\.id.rawValue),
             ["blocked", "critical"]
         )
     }
 
     func testCriticalOutranksHighWithinDeclaredPriority() {
-        let high = ask(id: "high", priority: "high", options: ["A"], createdAt: iso(now.addingTimeInterval(-60)))
+        let high = ask(id: "high", priority: "high", options: ["A"],
+            createdAt: iso(now.addingTimeInterval(-60)))
         let critical = ask(
             id: "critical",
             priority: "critical",
@@ -97,7 +98,7 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [high, critical], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [high, critical], now: now).map(\.id.rawValue),
             ["critical", "high"]
         )
     }
@@ -107,7 +108,7 @@ final class AttentionRankingTests: XCTestCase {
         let high = ask(id: "high", priority: "high", options: ["Look"], sessionStatus: "working")
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [normal, high], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [normal, high], now: now).map(\.id.rawValue),
             ["high", "normal"]
         )
     }
@@ -122,7 +123,7 @@ final class AttentionRankingTests: XCTestCase {
             sessionStatus: "waiting"
         )
 
-        XCTAssertTrue(AttentionRanking.items(history: [expired], now: now).isEmpty)
+        XCTAssertTrue(TodayProjection.decisions(history: [expired], now: now).isEmpty)
     }
 
     func testItemExpiresWhileOnScreenLeavesAttention() {
@@ -135,11 +136,11 @@ final class AttentionRankingTests: XCTestCase {
             sessionStatus: "working"
         )
 
-        let before = AttentionRanking.items(history: [message], now: now.addingTimeInterval(29))
-        let after = AttentionRanking.items(history: [message], now: now.addingTimeInterval(31))
+        let before = TodayProjection.decisions(history: [message], now: now.addingTimeInterval(29))
+        let after = TodayProjection.decisions(history: [message], now: now.addingTimeInterval(31))
 
         XCTAssertEqual(before.map(\.id.rawValue), ["ticking"])
-        XCTAssertEqual(before.first?.band(at: now.addingTimeInterval(29)), .autoDecision)
+        XCTAssertEqual(before.first?.group, .autoDecision)
         XCTAssertTrue(after.isEmpty)
     }
 
@@ -155,12 +156,12 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [message], now: now).first?.band(at: now),
+            TodayProjection.decisions(history: [message], now: now).first?.group,
             .autoDecision
         )
         XCTAssertEqual(
-            AttentionRanking.items(history: [message], now: now.addingTimeInterval(11))
-                .first?.band(at: now.addingTimeInterval(11)),
+            TodayProjection.decisions(history: [message], now: now.addingTimeInterval(11))
+                .first?.group,
             nil
         )
     }
@@ -182,7 +183,7 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [later, sooner], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [later, sooner], now: now).map(\.id.rawValue),
             ["sooner", "later"]
         )
     }
@@ -204,7 +205,7 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [newer, older], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [newer, older], now: now).map(\.id.rawValue),
             ["older", "newer"]
         )
     }
@@ -224,7 +225,7 @@ final class AttentionRankingTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            AttentionRanking.items(history: [newer, older], now: now).map(\.id.rawValue),
+            TodayProjection.decisions(history: [newer, older], now: now).map(\.id.rawValue),
             ["b-older", "b-newer"]
         )
     }
@@ -237,10 +238,10 @@ final class AttentionRankingTests: XCTestCase {
             expiresAt: iso(now.addingTimeInterval(40))
         )
         let high = ask(id: "high", priority: "high", options: ["Look"])
-        let items = AttentionRanking.items(history: [high, auto], now: now)
-        let sections = AttentionRanking.grouped(items, now: now)
+        let items = TodayProjection.decisions(history: [high, auto], now: now)
+        let sections = AttentionModel.grouped(from: items.map(\.message), now: now)
 
-        XCTAssertEqual(sections.map(\.band), [.autoDecision, .declaredPriority])
+        XCTAssertEqual(sections.map(\.group), [.autoDecision, .priority])
         XCTAssertEqual(sections[0].items.map(\.id.rawValue), ["auto"])
         XCTAssertEqual(sections[1].items.map(\.id.rawValue), ["high"])
     }
@@ -252,16 +253,16 @@ final class AttentionRankingTests: XCTestCase {
             options: ["A"],
             sessionLabel: "payments/hotfix",
             sessionBranch: "feat/ignored"
-        ))
+        ), group: .priority)
         let branched = AttentionItem(message: ask(
             id: "branched",
             priority: "high",
             options: ["B"],
             sessionLabel: nil,
             sessionBranch: "feat/session"
-        ))
+        ), group: .priority)
 
-        XCTAssertEqual(labeled.project, "payments/hotfix")
-        XCTAssertEqual(branched.project, "feat/session")
+        XCTAssertEqual(labeled.projectTitle, "payments/hotfix")
+        XCTAssertEqual(branched.projectTitle, "feat/session")
     }
 }

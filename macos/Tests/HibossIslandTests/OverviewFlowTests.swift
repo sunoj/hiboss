@@ -9,11 +9,11 @@ import HibossKit
 final class OverviewFlowTests: XCTestCase {
     private let now = AttentionTestSupport.now
 
-    func testDashboardUsesTheDecisionQueueWithoutCompletedMessages() {
+    func testTodayUsesTheDecisionQueueWithoutCompletedMessages() {
         let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now)
-        XCTAssertEqual(snapshot.title(for: .dashboard), "Dashboard")
-        XCTAssertEqual(snapshot.messages(for: .dashboard).map(\.id), snapshot.attention.map(\.id))
-        XCTAssertFalse(snapshot.messages(for: .dashboard).contains { $0.id == "done" })
+        XCTAssertEqual(snapshot.title(for: .today), "Today")
+        XCTAssertEqual(snapshot.messages(for: .today).map(\.id), snapshot.attention.map(\.id))
+        XCTAssertFalse(snapshot.messages(for: .today).contains { $0.id == "done" })
     }
 
     func testEveryTileCountMatchesItsDestination() {

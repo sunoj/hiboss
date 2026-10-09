@@ -11,23 +11,39 @@ final class OverviewStore: ObservableObject {
     @Published private(set) var snapshot = OverviewSnapshot(history: [], live: nil, now: .now)
     private var history: [HistoryMessage] = []
     private var live: OptionMessage?
+    private var health: TodayHealth = .loading
+    private var coverageComplete = false
+    private var withdrawn: Set<MessageID> = []
     private var nextExpiration: Date?
     private var expirationTask: Task<Void, Never>?
 
     deinit { expirationTask?.cancel() }
 
-    func update(history: [HistoryMessage], live: OptionMessage?, now: Date = .now) {
+    func update(history: [HistoryMessage], live: OptionMessage?, now: Date = .now,
+                health: TodayHealth = .loading, coverageComplete: Bool = false,
+                withdrawn: Set<MessageID> = []) {
         let expired = nextExpiration.map { $0 <= now } ?? false
-        guard history != self.history || live != self.live || expired else { return }
+        guard history != self.history || live != self.live || health != self.health
+            || coverageComplete != self.coverageComplete || withdrawn != self.withdrawn || expired
+        else { return }
         self.history = history
         self.live = live
-        snapshot = OverviewSnapshot(history: history, live: live, now: now)
+        self.health = health
+        self.coverageComplete = coverageComplete
+        self.withdrawn = withdrawn
+        snapshot = OverviewSnapshot(history: history, live: live, now: now,
+            health: health, coverageComplete: coverageComplete, withdrawn: withdrawn)
         scheduleExpiration(after: now)
     }
 
     private func scheduleExpiration(after now: Date) {
         expirationTask?.cancel()
-        nextExpiration = snapshot.attention.compactMap(\.expirationDate).filter { $0 > now }.min()
+        let activity = snapshot.today.working.compactMap(\.lastActivityDate)
+            .map { $0.addingTimeInterval(TodaySession.activityWindow + 1) }
+        let delivered = snapshot.today.delivered.compactMap { HistoryTimestamp.date(from: $0.createdAt) }
+            .map { $0.addingTimeInterval(TodaySnapshot.deliveredWindow + 1) }
+        nextExpiration = (snapshot.attention.compactMap(\.expirationDate) + activity + delivered)
+            .filter { $0 > now }.min()
         guard let nextExpiration else { return }
         expirationTask = Task { [weak self] in
             do {
@@ -35,7 +51,8 @@ final class OverviewStore: ObservableObject {
                 try Task.checkCancellation()
             } catch { return }
             guard let self else { return }
-            self.update(history: self.history, live: self.live)
+            self.update(history: self.history, live: self.live,
+                health: self.health, coverageComplete: self.coverageComplete, withdrawn: self.withdrawn)
         }
     }
 }

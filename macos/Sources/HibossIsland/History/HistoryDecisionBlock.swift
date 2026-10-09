@@ -37,6 +37,9 @@ struct HistoryDecisionBlock: View {
             }
             settlement
             if isOpen {
+                if let option = message.defaultOption {
+                    DecisionDefaultLine(option: option, expiresAt: message.expirationDate, now: .now)
+                }
                 if let deadline = message.expirationDate {
                     Text(timerInterval: Date.now...max(Date.now, deadline), countsDown: true)
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()

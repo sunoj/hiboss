@@ -54,7 +54,7 @@ final class IslandReplyE2ETests: XCTestCase {
         XCTAssertEqual(reply.drafts["first"], "Hold until Monday")
     }
 
-    func testFailedLiveChoiceKeepsQuestionDraftAndOwnFeedback() async throws {
+    func testFailedLeadingChoiceKeepsQuestionDraftAndOwnFeedback() async throws {
         let live = OptionMessage.fixture(id: "live", options: ["Ship", "Wait"])
         let api = OutcomeScriptAPI(questions: ["other"], live: [live], steps: [.fail, .accept])
         let flow = try await connected(api)
@@ -62,19 +62,19 @@ final class IslandReplyE2ETests: XCTestCase {
         try await waitForCondition { flow.activeMessage?.id == "live" }
         let reply = AttentionReplyState()
         let host = Self.host(flow, reply)
-        reply.drafts["live"] = "Only after the smoke tests"
+        reply.drafts["other"] = "Only after the smoke tests"
 
-        await reply.send("Ship", for: "live", using: flow.answer)
+        await reply.send("Ship", for: "other", using: flow.answer)
 
         XCTAssertEqual(flow.activeMessage?.id, "live")
         XCTAssertEqual(flow.presentationState, .ready)
-        XCTAssertEqual(reply.errors["live"], .failed("The reply was rejected."))
+        XCTAssertEqual(reply.errors["other"], .failed("The reply was rejected."))
         let shown4 = try await Self.fieldText(host)
         XCTAssertEqual(shown4, "Only after the smoke tests")
 
-        await reply.send("Ship", for: "other", using: flow.answer)
-        XCTAssertNil(reply.errors["other"])
-        XCTAssertEqual(reply.errors["live"], .failed("The reply was rejected."),
+        await reply.send("Ship", for: "live", using: flow.answer)
+        XCTAssertNil(reply.errors["live"])
+        XCTAssertEqual(reply.errors["other"], .failed("The reply was rejected."),
                        "another message's reply never touches the presented question's feedback")
         XCTAssertTrue(reply.submitting.isEmpty)
     }
@@ -95,7 +95,8 @@ final class IslandReplyE2ETests: XCTestCase {
         XCTAssertNil(reply.errors["live"])
         XCTAssertEqual(reply.drafts["other"], "Unrelated")
         XCTAssertNil(flow.activeMessage)
-        XCTAssertEqual(flow.presentationState, .idle, "this device's answer is not shown as answered elsewhere")
+        XCTAssertEqual(flow.presentationState, .idle,
+            "this device's answer is not shown as answered elsewhere")
     }
 
     private func connected(_ api: OutcomeScriptAPI) async throws -> OptionFlowStore {
@@ -105,7 +106,9 @@ final class IslandReplyE2ETests: XCTestCase {
         return flow
     }
 
-    private static func host(_ flow: OptionFlowStore, _ reply: AttentionReplyState) -> NSHostingView<some View> {
+    private static func host(
+        _ flow: OptionFlowStore, _ reply: AttentionReplyState
+    ) -> NSHostingView<some View> {
         let height = flow.activeMessage.map { OptionPanelLayout.expandedHeight(for: $0) } ?? 320
         let host = NSHostingView(rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
             .frame(width: AppConstants.Island.width, height: height))
