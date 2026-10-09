@@ -166,3 +166,11 @@ Resolved cards never show the default line; "No deadline" appears once per card.
 the same ranking, the same buckets, the same all-clear rule. Neither app re-ranks.
 Only the server's required-input list can make a decision open; history adds context
 (working, delivered) and never reopens an answered or retired message.
+
+**Answerable rule (every surface, every entry point):** a decision's options and custom
+reply are enabled only while its id is in the loaded required-input list. Before the
+list has loaded, they show "Checking…" disabled; after it drops the id, the message
+shows its outcome (or "No longer open") instead of controls. This covers Today, the
+decision detail, session threads, All messages / history, notification detail, the
+Live Activity and the notch Island. Counts and labels read "Loading" until the list
+loads, never 0.
