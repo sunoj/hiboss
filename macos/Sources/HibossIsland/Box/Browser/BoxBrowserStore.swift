@@ -26,6 +26,9 @@ final class BoxBrowserStore: ObservableObject {
     @Published private(set) var nextCursor: String?
     @Published private(set) var deleting: Set<String> = []
     @Published var actionError: String?
+    @Published var author: BoxAuthorFilter = .all
+    @Published var project: String? { didSet { if project != oldValue { invalidateRead() } } }
+    var visibleItems: [BoxItem] { items.filter(author.includes) }
     @Published var kind: BoxItem.Kind? { didSet { if kind != oldValue { invalidateRead() } } }
     @Published var query = "" { didSet { if query != oldValue { invalidateRead() } } }
     let apiProvider: Provider
@@ -79,7 +82,7 @@ final class BoxBrowserStore: ObservableObject {
     private func fetch(cursor: String?, generation current: Int) async {
         do {
             guard let api = apiProvider() else { throw BoxBrowserError.notConfigured }
-            let filters = BoxFilters(kind: kind)
+            let filters = BoxFilters(kind: kind, project: project)
             let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
             let page = try await query.isEmpty
                 ? api.boxItems(filters: filters, limit: 20, cursor: cursor)

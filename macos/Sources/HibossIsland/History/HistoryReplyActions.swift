@@ -64,7 +64,8 @@ struct HistoryReplyActions: View {
     }
 
     private func send(_ text: String) {
-        guard canAnswer, message.canAnswerHistory(at: .now) else { return }
+        guard canAnswer, message.canAnswerHistory(at: .now)
+            || AttentionModel.needsTextReply(message, now: .now) else { return }
         Task { await reply.send(text, for: message.id) { choice, _ in await onChoose(choice) } }
     }
 }

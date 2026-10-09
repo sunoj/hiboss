@@ -15,19 +15,19 @@ struct BoxBrowserRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Label(item.kindTitle, systemImage: item.kindSymbol)
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(TodayStyle.secondary)
                     Spacer()
                     if let date = ISODate.parse(item.createdAt) {
                         Text(date, format: .dateTime.month().day().hour().minute())
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(TodayStyle.secondary)
                     } else {
-                        Text(verbatim: item.createdAt).font(.caption).foregroundStyle(.secondary)
+                        Text(verbatim: item.createdAt).font(.caption).foregroundStyle(TodayStyle.secondary)
                     }
                 }
                 Text(verbatim: item.text ?? item.url ?? item.kindTitle).font(.body).lineLimit(3)
                     .textSelection(.enabled)
                 if let url = item.url, item.text != nil {
-                    Text(verbatim: url).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    Text(verbatim: url).font(.callout).foregroundStyle(TodayStyle.secondary).lineLimit(1)
                 }
                 if let note = item.note, !note.isEmpty {
                     Text(verbatim: note).font(.callout).lineLimit(2).textSelection(.enabled)
@@ -35,10 +35,12 @@ struct BoxBrowserRow: View {
                 HStack {
                     if let project = item.project { Label(project, systemImage: "folder") }
                     if !item.tags.isEmpty { Text(verbatim: item.tags.joined(separator: ", ")) }
-                }.font(.caption).foregroundStyle(.secondary)
+                }.font(.caption).foregroundStyle(TodayStyle.secondary)
                 if let provenance = item.provenance {
                     Label(provenance, systemImage: "person.crop.circle.badge.checkmark")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(TodayStyle.live)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(TodayStyle.liveSoft, in: RoundedRectangle(cornerRadius: 6))
                         .accessibilityIdentifier("box.provenance")
                 }
             }

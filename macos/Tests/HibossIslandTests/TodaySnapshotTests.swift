@@ -82,16 +82,27 @@ final class TodaySnapshotTests: XCTestCase {
     }
 
     func testExistingDestinationsRemainHostedBehindTheSidebar() async throws {
+        let attachmentServer = HistorySnapshotMediaServer()
+        defer { attachmentServer.stop() }
+        try await attachmentServer.start()
+        let history = PhaseBSnapshotFixtures.history(baseURL: attachmentServer.baseURL)
+        let boxAPI = ScriptedBoxBrowser(media: BoxBrowserFixtures.imageData())
+        let panels = PanelsModel(demoMode: true, autoload: false)
         for scheme in [ColorScheme.light, .dark] {
             for (name, destination) in [("session", OverviewDestination.session("hiboss")),
                                         ("box", .box), ("progress", .progress)] {
                 let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: OptionFlowStore(),
-                    initialDestination: destination, previewHistory: fixtures())
+                    initialDestination: destination, previewHistory: history,
+                    previewSessions: PhaseBSnapshotFixtures.inventory,
+                    boxProvider: { boxAPI }, panelsModel: panels)
                     .environment(\.colorScheme, scheme))
                 host.sizingOptions = []
-                let window = makeWindow(host, size: NSSize(width: 1320, height: 820), scheme: scheme)
+                let window = makeWindow(host, size: NSSize(width: 1320, height: 1060), scheme: scheme)
                 defer { window.close() }
-                try await Task.sleep(for: .milliseconds(250))
+                try await waitForCondition {
+                    self.descendants(host).compactMap { $0 as? NSTextField }.contains { $0.isEditable }
+                }
+                try await Task.sleep(for: .milliseconds(750))
                 host.layoutSubtreeIfNeeded()
                 try await write(host, name: "\(name)-\(label(scheme))")
             }
