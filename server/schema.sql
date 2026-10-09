@@ -638,10 +638,9 @@ CREATE TABLE box_items (
 CREATE INDEX idx_box_items_boss_created ON box_items(boss_id, deleted_at, created_at DESC, id DESC);
 CREATE TABLE box_idempotency (
   boss_id TEXT NOT NULL REFERENCES bosses(id),
-  author TEXT NOT NULL DEFAULT '',
   idempotency_key TEXT NOT NULL,
   item_id TEXT NOT NULL,
-  PRIMARY KEY (boss_id, author, idempotency_key)
+  PRIMARY KEY (boss_id, idempotency_key)
 );
 CREATE VIRTUAL TABLE box_items_fts USING fts5(text, note, url, tags);
 CREATE TRIGGER box_items_fts_insert AFTER INSERT ON box_items BEGIN
@@ -656,3 +655,10 @@ END;
 CREATE TRIGGER box_items_fts_delete AFTER DELETE ON box_items BEGIN
   DELETE FROM box_items_fts WHERE rowid = old.rowid;
 END;
+CREATE TABLE box_agent_idempotency (
+  boss_id TEXT NOT NULL REFERENCES bosses(id),
+  agent_id TEXT NOT NULL REFERENCES api_keys(id),
+  idempotency_key TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  PRIMARY KEY (boss_id, agent_id, idempotency_key)
+);
