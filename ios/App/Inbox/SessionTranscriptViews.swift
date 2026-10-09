@@ -20,7 +20,7 @@ struct SessionTranscriptItemView: View {
                     onChoose($0, decision.id)
                 }
             } else {
-                SessionBubbleView(event: event, style: style)
+                SessionBubbleView(event: event, style: style, attachment: historyAttachment(for: event))
             }
         case let .steps(_, events):
             SessionStepsRow(events: events)
@@ -30,6 +30,12 @@ struct SessionTranscriptItemView: View {
         case let .automatic(event):
             SessionAutomaticReplyLine(event: event)
         }
+    }
+
+    /// Prefer the current history metadata; the bubble also supports uncached stream messages.
+    private func historyAttachment(for event: SessionEvent) -> MessageAttachment? {
+        guard let raw = event.messageId else { return nil }
+        return store.message(for: MessageID(rawValue: raw))?.metadata?.attachment
     }
 
     /// The agent decision behind a message event, when history still holds it.
@@ -127,6 +133,12 @@ struct SessionSystemLine: View {
 struct SessionBubbleView: View {
     let event: SessionEvent
     let style: SessionBubbleStyle
+    var attachment: MessageAttachment? = nil
+
+    private var agentAttachment: MessageAttachment? {
+        guard event.kind == "message", event.direction == "agent_to_boss" else { return nil }
+        return attachment ?? event.messageAttachment
+    }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
@@ -136,7 +148,7 @@ struct SessionBubbleView: View {
         }
         .padding(.top, style.isFirstInGroup ? 10 : 2)
         .padding(.bottom, style.isLastInGroup ? 8 : 2)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: agentAttachment == nil ? .combine : .contain)
         .accessibilityLabel(Text(verbatim: accessibilityText))
         .accessibilityIdentifier(style.isOutgoing ? "session-bubble-outgoing" : "session-bubble-incoming")
     }
@@ -154,14 +166,19 @@ struct SessionBubbleView: View {
     }
 
     private var bubbleBody: some View {
-        Text(verbatim: event.displayBody)
-            .font(.body)
-            .foregroundStyle(textColor)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(verbatim: event.displayBody)
+                .font(.body)
+                .foregroundStyle(textColor)
+                .textSelection(.enabled)
+            if let agentAttachment {
+                MessageAttachmentView(attachment: agentAttachment)
+            }
+        }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .padding(.leading, style.isOutgoing || !style.isLastInGroup ? 0 : 5)
             .padding(.trailing, style.isOutgoing && style.isLastInGroup ? 5 : 0)
-            .textSelection(.enabled)
             .background(fill, in: SessionChatBubble(style: style))
     }
 

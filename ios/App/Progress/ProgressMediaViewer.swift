@@ -83,8 +83,8 @@ struct ProgressMediaViewer: View {
             } else {
                 RemoteImage(url: URL(string: item.url)) { image in
                     image.resizable().scaledToFit()
+                        .accessibilityLabel(item.alt ?? String(localized: "Image"))
                 }
-                .accessibilityLabel(item.alt ?? String(localized: "Image"))
             }
         case .video:
             videoPage(item)
@@ -129,6 +129,7 @@ struct ProgressMediaViewer: View {
                 .font(.title)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Theme.ink)
+                .frame(minWidth: 44, minHeight: 44)
         }
         .padding()
         .accessibilityLabel("Close")

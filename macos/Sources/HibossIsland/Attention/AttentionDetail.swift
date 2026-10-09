@@ -39,6 +39,9 @@ struct AttentionDetail: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            if let attachment = item.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
         }
     }
 

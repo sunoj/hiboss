@@ -33,6 +33,10 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let content: String?
     /// Related file paths from `files` or nested `task_context.files`.
     public let files: [String]
+    /// Raw `file_url` an agent attached; `attachment` is the validated form.
+    public let fileURL: String?
+
+    public var attachment: MessageAttachment? { fileURL.flatMap(MessageAttachment.init(urlString:)) }
 
     enum CodingKeys: String, CodingKey {
         case options
@@ -44,6 +48,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         case content
         case files
         case taskContext = "task_context"
+        case fileURL = "file_url"
     }
 
     public init(
@@ -54,7 +59,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         source: String? = nil,
         isAutoDefault: Bool = false,
         content: String? = nil,
-        files: [String] = []
+        files: [String] = [],
+        fileURL: String? = nil
     ) {
         self.options = options
         self.optionMedia = optionMedia
@@ -64,6 +70,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         self.isAutoDefault = isAutoDefault
         self.content = content
         self.files = files
+        self.fileURL = fileURL
     }
 
     public init(from decoder: Decoder) throws {
@@ -78,6 +85,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         let direct = try values.decodeIfPresent([String].self, forKey: .files) ?? []
         let nested = try values.decodeIfPresent(TaskContext.self, forKey: .taskContext)
         files = direct.isEmpty ? (nested?.files ?? []) : direct
+        fileURL = try? values.decodeIfPresent(String.self, forKey: .fileURL)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -90,6 +98,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         if isAutoDefault { try values.encode(true, forKey: .isAutoDefault) }
         try values.encodeIfPresent(content, forKey: .content)
         if !files.isEmpty { try values.encode(files, forKey: .files) }
+        try values.encodeIfPresent(fileURL, forKey: .fileURL)
     }
 
     private struct TaskContext: Decodable {

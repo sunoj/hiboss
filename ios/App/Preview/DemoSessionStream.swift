@@ -24,9 +24,12 @@ enum DemoSessionStream {
 
     private static func project(_ message: HistoryMessage, sessionID: String, sequence: Int) -> SessionEvent {
         var payload: [String: AnyJSON] = ["body": .string(message.body), "priority": .string(message.priority)]
+        var metadata: [String: AnyJSON] = [:]
         if message.metadata?.isAutoDefault == true {
-            payload["metadata"] = .object(["auto_default": .bool(true), "source": .string("api")])
+            metadata = ["auto_default": .bool(true), "source": .string("api")]
         }
+        if let url = message.metadata?.fileURL { metadata["file_url"] = .string(url) }
+        if !metadata.isEmpty { payload["metadata"] = .object(metadata) }
         return SessionEvent(
             id: "evt-\(message.id.rawValue)", sessionId: sessionID, sequence: sequence,
             kind: "message", direction: message.direction, actorName: message.agentName,
