@@ -42,12 +42,7 @@ struct BoxFilterChips: View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
                 ForEach(BoxFilter.allCases, id: \.self) { filter in
-                    Button { selection = filter } label: {
-                        Text(verbatim: filter.title).font(.subheadline)
-                            .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.bordered).buttonBorderShape(.capsule)
-                    .tint(selection == filter ? Theme.primaryAction : Theme.ink2)
+                    chip(filter)
                     .accessibilityAddTraits(selection == filter ? .isSelected : [])
                     .accessibilityIdentifier("box-filter-\(filter.rawValue)")
                 }
@@ -55,5 +50,16 @@ struct BoxFilterChips: View {
             .padding(.horizontal, 16)
         }
         .scrollIndicators(.hidden)
+    }
+
+    @ViewBuilder private func chip(_ filter: BoxFilter) -> some View {
+        let button = Button { selection = filter } label: {
+            Text(verbatim: filter.title).font(.subheadline).frame(minHeight: 44)
+        }
+        if selection == filter {
+            button.prominentAction().tint(Theme.primaryAction)
+        } else {
+            button.buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Theme.ink2)
+        }
     }
 }

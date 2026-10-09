@@ -1,5 +1,5 @@
 // Actionable Home attention list with project, requester, wait, and choices.
-// Exports: HomeAttentionSection and HomeAttentionRow.
+// Exports: HomeAttentionSection, HomeAttentionRow, DecisionCard, and DecisionCardInfo.
 // Dependencies: SwiftUI, HibossKit MessageID, AttentionItem, DecisionOptions, DecisionTiming, Theme.
 
 import HibossKit
@@ -123,74 +123,27 @@ struct HomeAttentionRow: View {
     let onChoose: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
-    @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
-        let timing = DecisionTiming(message: item.message)
-        VStack(alignment: .leading, spacing: 10) {
-            Button { onOpenDecision(item.id) } label: { info }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("home-message-\(item.id.rawValue)")
-                .contextMenu {
-                    if let sessionRoute {
-                        Button("View session", systemImage: "text.alignleft") { onOpenSession(sessionRoute) }
-                            .accessibilityIdentifier("home-session-\(item.id.rawValue)")
-                    }
-                }
-                .accessibilityActions {
-                    if let sessionRoute {
-                        Button("View session") { onOpenSession(sessionRoute) }
-                    }
-                }
-            if let attachment = item.message.metadata?.attachment {
-                MessageAttachmentView(attachment: attachment)
-            }
-            OptionMediaComparison(
-                options: item.options,
-                media: item.message.metadata?.optionMedia ?? []
-            )
-            choices(timing: timing)
-            DecisionTimingView(timing: timing, messageID: item.id, compact: true)
-            if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
-        }
-        .padding(12)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        DecisionCard(message: item.message, submitting: submitting, header: infoButton,
+                     choices: choices(timing: DecisionTiming(message: item.message)))
     }
 
-    private var info: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: [project, item.message.sessionBranch, item.message.displayName]
-                        .compactMap { $0 }.joined(separator: " · "))
-                    .font(.hbCaption.weight(.semibold))
-                    .foregroundStyle(Theme.ink2)
-                Spacer(minLength: 8)
-                if let deadline = item.expiresAt {
-                    CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
-                } else {
-                    Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
+    private var infoButton: some View {
+        Button { onOpenDecision(item.id) } label: { DecisionCardInfo(message: item.message) }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home-message-\(item.id.rawValue)")
+            .contextMenu {
+                if let sessionRoute {
+                    Button("View session", systemImage: "text.alignleft") { onOpenSession(sessionRoute) }
+                        .accessibilityIdentifier("home-session-\(item.id.rawValue)")
                 }
             }
-            // The question is the reason the card exists: it wraps fully at every text size.
-            Text(verbatim: item.message.body)
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !content.isEmpty,
-               content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                Text(verbatim: content)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
+            .accessibilityActions {
+                if let sessionRoute {
+                    Button("View session") { onOpenSession(sessionRoute) }
+                }
             }
-        }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .contentShape(Rectangle())
-    }
-
-    private var project: String {
-        item.project ?? String(localized: "Unassigned session")
     }
 
     private var sessionRoute: SessionRoute? {
@@ -210,5 +163,74 @@ struct HomeAttentionRow: View {
             DecisionOptions(options: item.options, timing: timing, submitting: submitting,
                             wrapsToFit: true, onChoose: onChoose)
         }
+    }
+}
+
+// Shared decision content keeps Today and pending thread cards in the same reading order.
+struct DecisionCard<Header: View, Choices: View>: View {
+    let message: HistoryMessage
+    var submitting: String?
+    let header: Header
+    let choices: Choices
+    @Environment(\.openConnectionSettings) private var openSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            header
+            if let attachment = message.metadata?.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
+            OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [])
+            choices
+            DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id, compact: true)
+            if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
+        }
+        .padding(12)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+struct DecisionCardInfo: View {
+    let message: HistoryMessage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(verbatim: [project, message.sessionBranch, message.displayName]
+                        .compactMap { $0 }.joined(separator: " · "))
+                    .font(.hbCaption.weight(.semibold))
+                    .foregroundStyle(Theme.ink2)
+                Spacer(minLength: 8)
+                if let deadline = message.expirationDate {
+                    CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
+                } else {
+                    Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
+                }
+            }
+            // The question is the reason the card exists: it wraps fully at every text size.
+            Text(verbatim: message.body)
+                .font(.headline)
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            if let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !content.isEmpty,
+               content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
+                Text(verbatim: content)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private var project: String {
+        [message.sessionLabel, message.sessionBranch].compactMap { value -> String? in
+            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+                return nil
+            }
+            return value
+        }.first ?? String(localized: "Unassigned session")
     }
 }

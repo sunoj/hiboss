@@ -32,6 +32,7 @@ struct BoxListView: View {
             onRetry: { await store.refresh() }
         ) { list }
         .background(Theme.paper)
+        .toolbarTitleDisplayMode(onSelect == nil ? .inlineLarge : .automatic)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Search notes, links and files")
         .task {

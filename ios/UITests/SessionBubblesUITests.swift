@@ -60,4 +60,23 @@ final class SessionBubblesUITests: XCTestCase {
             "an earlier decision shows the recorded answer"
         )
     }
+
+    func testPendingDecisionUsesOneCardWithOptionsBeforeDefaultAndOnlyTheSessionComposer() {
+        let card = app.descendants(matching: .any)["transcript-decision-c1"]
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        XCTAssertEqual(card.textFields.count, 0, "the bottom session composer owns text replies")
+        XCTAssertEqual(card.textViews.count, 0)
+        let question = card.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Run migration?'"))
+        XCTAssertEqual(question.count, 1, "the card contains the question once")
+        let changes = card.staticTexts["The migration cannot be undone once it starts."]
+        let approve = card.buttons["Approve"]
+        let timing = card.descendants(matching: .any)["decision-timing-c1"]
+        XCTAssertTrue(changes.exists)
+        XCTAssertLessThan(question.firstMatch.frame.maxY, changes.frame.minY)
+        XCTAssertLessThan(changes.frame.maxY, approve.frame.minY)
+        XCTAssertLessThanOrEqual(approve.frame.maxY, timing.frame.minY)
+        XCTAssertEqual(card.descendants(matching: .any)
+            .matching(identifier: "session-bubble-incoming").count, 0)
+        XCTAssertTrue(app.textFields["session-reply-draft"].isHittable)
+    }
 }

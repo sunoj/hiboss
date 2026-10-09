@@ -28,18 +28,18 @@ struct SessionMessagesView: View {
     }
 
     private var connectedTranscript: some View {
-        ZStack(alignment: .bottom) {
-            content
-            if !stream.isFollowingLive {
-                jumpToLiveButton
-            }
-        }
-        .background(Theme.paper)
-        .safeAreaInset(edge: .top) {
+        VStack(spacing: 0) {
             if let session = facts.session {
                 SessionFactsHeader(session: session).padding(12).background(Theme.paper)
             }
+            ZStack(alignment: .bottom) {
+                content.clipped()
+                if !stream.isFollowingLive {
+                    jumpToLiveButton
+                }
+            }
         }
+        .background(Theme.paper)
         .safeAreaInset(edge: .bottom) { SessionReplyComposer(target: newestAgentMessageID, store: store) }
         .navigationTitle(Text(verbatim: route.label))
         .navigationBarTitleDisplayMode(.inline)

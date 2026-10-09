@@ -34,14 +34,19 @@ final class SessionsV4UITests: XCTestCase {
         for _ in 0..<8 where !open.buttons["Approve"].isHittable { app.swipeDown() }
         XCTAssertTrue(open.buttons["Approve"].isHittable)
         shot(app, "\(appearance)-thread-open")
-        let resolved = app.descendants(matching: .any)["transcript-answer-c0"]
-        for _ in 0..<8 where !resolved.isHittable { app.swipeDown() }
+        open.buttons["Approve"].tap()
+        let resolved = app.descendants(matching: .any)["transcript-answer-c1"]
+        XCTAssertTrue(resolved.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["reply-confirmation"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(resolved.isHittable)
         shot(app, "\(appearance)-thread-resolved")
         app.buttons["Message history"].tap()
         XCTAssertTrue(app.navigationBars["Messages"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-agent-text"].waitForExistence(timeout: 10))
+        let title = app.navigationBars["Box"].staticTexts["Box"]
+        XCTAssertGreaterThanOrEqual(title.frame.height, 35, "Box uses the native large title")
+        XCTAssertTrue(app.buttons["box-filter-all"].isSelected)
         shot(app, "\(appearance)-box")
         app.terminate()
         app = launch(appearance, extra: ["HIBOSS_DEMO_ATTACHMENTS": "1", "HIBOSS_DEMO_SESSION": "1"])
@@ -194,4 +199,5 @@ final class SessionsV4UITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
 }
