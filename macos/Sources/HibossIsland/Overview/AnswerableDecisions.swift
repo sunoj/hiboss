@@ -15,10 +15,6 @@ struct AnswerableDecisions {
 
     static let loading = Self(isLoaded: false, openIDs: [])
 
-    static func isDecision(_ message: HistoryMessage) -> Bool {
-        !message.options.isEmpty || message.defaultOption != nil || message.mode == "blocking"
-    }
-
     func state(for id: MessageID) -> DecisionAnswerState {
         guard isLoaded else { return .checking }
         return openIDs.contains(id) ? .open : .closed
@@ -26,12 +22,12 @@ struct AnswerableDecisions {
 
     func permitsReply(to message: HistoryMessage) -> Bool {
         isLoaded && message.direction == "agent_to_boss"
-            && (!Self.isDecision(message) || state(for: message.id) == .open)
+            && (!message.isDecision || state(for: message.id) == .open)
     }
 
     func outcome(for thread: MessageThread, at now: Date) -> ThreadOutcome {
         let recorded = thread.outcome(at: now)
-        guard Self.isDecision(thread.message), recorded == .open || recorded == .none else {
+        guard thread.message.isDecision, recorded == .open || recorded == .none else {
             return recorded
         }
         return state(for: thread.id) == .open ? .open : .none

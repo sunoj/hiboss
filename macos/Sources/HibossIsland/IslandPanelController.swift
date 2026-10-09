@@ -124,7 +124,7 @@ final class IslandPanelController {
         Publishers.CombineLatest(presentations, settings.$presentationMode)
             .removeDuplicates { previous, next in
                 previous.0?.message.id == next.0?.message.id
-                    && (previous.0?.item == nil) == (next.0?.item == nil) && previous.1 == next.1
+                    && previous.1 == next.1
             }
             .sink { [weak self] presentation, mode in
                 self?.updatePresentation(message: presentation?.message, mode: mode)

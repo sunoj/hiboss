@@ -85,6 +85,63 @@ final class IslandPresentationRegressionTests: XCTestCase {
             coverageComplete: true, requiredInputs: [question], requiredInputLoaded: true)
     }
 
+    func testResolutionUpdatesInPlaceAndDifferentLeaderStillPresents() async throws {
+        for mode in [OptionPresentationMode.window, .island] {
+            try await assertResolutionUpdatesInPlace(mode: mode)
+        }
+    }
+
+    private func assertResolutionUpdatesInPlace(mode: OptionPresentationMode) async throws {
+        let message = OptionMessage.fixture(id: "resolved", options: ["Ship", "Hold"])
+        let api = ControlledRequiredInputs(messages: [TodayProjection.historyMessage(from: message)])
+        let inputs = RequiredInputStore()
+        let flow = OptionFlowStore()
+        let overview = OverviewStore()
+        overview.bind(flow: flow, inputs: inputs)
+        inputs.connect(api)
+        try await waitForCondition { inputs.state.coverageComplete }
+        let settings = settings()
+        settings.presentationMode = mode
+        var activations = 0
+        let controller = IslandPanelController(flow: flow, settings: settings, overview: overview,
+            screens: { [IslandNotchFixtures.macBook14] }, activate: { activations += 1 })
+        defer {
+            inputs.disconnect()
+            flow.disconnect()
+            controller.panel.close()
+            controller.optionWindow.close()
+        }
+        flow.connect(api: ScriptedBossAPI(events: [.message(message),
+            .resolved(OptionResolution(id: message.id, status: .replied,
+                answer: "Ship", source: "Phone"))],
+            eventInterval: .milliseconds(500)))
+        try await waitForCondition {
+            flow.activeMessage != nil && (mode == .window || controller.panel.alphaValue == 1)
+        }
+        let frame = controller.panel.frame
+        controller.panel.alphaValue = 0.7
+        let initialActivations = activations
+        try await waitForCondition {
+            if case .resolved = flow.presentationState { return true }
+            return false
+        }
+        await api.resolve(message.id)
+        try await waitForCondition { inputs.state.messages.isEmpty }
+        let presentation = IslandAttention.presentation(snapshot: overview.snapshot.today,
+            active: flow.activeMessage, state: flow.presentationState)
+        XCTAssertEqual(presentation?.message.id, message.id)
+        XCTAssertNil(presentation?.item, "The resolved content replaces the open card")
+        XCTAssertEqual(activations, initialActivations, "Resolution must not activate the app")
+        XCTAssertEqual(controller.panel.frame, frame)
+        XCTAssertEqual(controller.panel.alphaValue, 0.7, accuracy: 0.001,
+            "Resolution must not replay the opening animation")
+        flow.disconnect()
+        await api.send(.message(AttentionTestSupport.ask(id: "next", options: ["Review"], now: .now)))
+        try await waitForCondition { overview.snapshot.today.decisions.first?.id == "next" }
+        if mode == .window { XCTAssertEqual(activations, initialActivations + 1) }
+        else { try await waitForCondition { controller.panel.alphaValue == 1 } }
+    }
+
     private func settings() -> AppSettings {
         _ = NSApplication.shared
         let suite = "IslandPresentationRegressionTests.\(UUID().uuidString)"

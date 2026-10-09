@@ -115,8 +115,7 @@ struct OverviewSnapshot {
     private static func isCompleted(_ message: HistoryMessage, at now: Date) -> Bool {
         let direction = message.direction.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let status = message.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let hasChoices = !message.options.isEmpty || message.defaultOption != nil
-        let deadlineElapsed = hasChoices && (message.expirationDate.map { $0 <= now } ?? false)
+        let deadlineElapsed = message.isDecision && (message.expirationDate.map { $0 <= now } ?? false)
         return direction == "agent_to_boss"
             && (["replied", "resolved", "expired"].contains(status)
                 || message.metadata?.isExpired == true || deadlineElapsed)
