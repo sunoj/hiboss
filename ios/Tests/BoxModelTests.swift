@@ -1,9 +1,10 @@
 // Verifies the server's Box metadata shape, opaque pages and patch field semantics.
 // Exports BoxModelTests; the fixture carries every public field and no storage key.
-// Dependencies: XCTest, Foundation and HibossKit.
+// Dependencies: XCTest, Foundation, HibossKit and HiBoss presentation helpers.
 
 import HibossKit
 import XCTest
+@testable import HiBoss
 
 final class BoxModelTests: XCTestCase {
     static let itemJSON = """
@@ -64,6 +65,21 @@ final class BoxModelTests: XCTestCase {
         XCTAssertNil(last.nextCursor)
         XCTAssertThrowsError(try JSONDecoder().decode(BoxPage.self, from: Data(
             #"{"items":[],"next_cursor":{"created_at":"date","id":"id"}}"#.utf8)))
+    }
+
+    func testProvenanceUsesNamedOrGenericAgentLabelsAndHidesBossLabels() {
+        func item(_ author: BoxAuthor?) -> BoxItem {
+            BoxItem(id: "reference", bossID: "boss", bossName: "Owner", kind: .text,
+                createdAt: "2026-10-09T00:00:00Z", addedBy: author)
+        }
+        XCTAssertNil(item(nil).provenanceLabel)
+        XCTAssertNil(item(.boss).provenanceLabel)
+        let named = item(.agent(id: "agent", name: " Researcher \n")).provenanceLabel
+        XCTAssertEqual(named, String(localized: "Added by \("Researcher")"))
+        for name in [nil, "", " \n\t"] as [String?] {
+            XCTAssertEqual(item(.agent(id: "agent", name: name)).provenanceLabel,
+                String(localized: "Added by an agent"))
+        }
     }
 
     func testPatchDistinguishesOmittedClearedAndReplacedFields() throws {

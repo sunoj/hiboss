@@ -15,6 +15,9 @@ struct MainView: View {
     @StateObject private var reply = AttentionReplyState()
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var panels: PanelsModel
+    @StateObject private var box: BoxBrowserStore
+    @StateObject private var boxMedia: BoxBrowserMedia
+    @State private var showsBox = false
     @State private var destination: OverviewDestination = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showsCompactOverview = false
@@ -31,6 +34,11 @@ struct MainView: View {
         self.flow = flow
         self.notificationNavigation = notificationNavigation
         self.joinRequests = joinRequests
+        let boxProvider: BoxBrowserStore.Provider = {
+            settings.activeClientConfig.map { HibossAPI(config: $0) }
+        }
+        _box = StateObject(wrappedValue: BoxBrowserStore(apiProvider: boxProvider))
+        _boxMedia = StateObject(wrappedValue: BoxBrowserMedia(apiProvider: boxProvider))
         _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
             guard let config = settings.activeClientConfig else {
                 throw PanelClientError.notConfigured
@@ -47,17 +55,20 @@ struct MainView: View {
         }
         .frame(minWidth: 480, minHeight: 400)
         .onAppear { updateOverview() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in
             refresh()
         }
         .onChange(of: notificationNavigation.target?.id, initial: true) { _, id in
             guard id != nil else { return }
             destination = .category(.all)
+            showsBox = false
             showsCompactOverview = false
         }
         .onChange(of: notificationNavigation.deviceRequestsFocus?.id, initial: true) { _, id in
             guard id != nil else { return }
             destination = .deviceRequests
+            showsBox = false
             showsCompactOverview = false
         }
         .sheet(item: $notificationNavigation.target) { target in
@@ -66,7 +77,14 @@ struct MainView: View {
         }
         .onChange(of: flow.historyMessages) { updateOverview() }
         .onChange(of: flow.activeMessage) { updateOverview() }
-        .onChange(of: settings.activeClientConfig) { Task { await panels.load() } }
+        .onChange(of: settings.activeClientConfig) {
+            box.reset()
+            boxMedia.reset()
+            Task {
+                await panels.load()
+                if showsBox { await box.refresh() }
+            }
+        }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
     }
 
@@ -75,6 +93,41 @@ struct MainView: View {
     }
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
+        windowContent(snapshot: snapshot, compact: compact)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Picker(L("History content"), selection: $showsBox) {
+                    Text(L("Messages")).tag(false)
+                    Text(L("Box")).tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("history.content")
+            }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Image(systemName: flow.connectionState == .connected
+                    ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
+                    .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : .secondary)
+                    .help(flow.connectionState.label)
+                Button(action: refresh) { Image(systemName: "arrow.clockwise") }
+                    .help(refreshHelp)
+                    .keyboardShortcut("r", modifiers: .command)
+                    .disabled(showsBox ? box.isLoading
+                        : flow.historyState == .loading || (destination == .dashboard && panels.isLoading))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func windowContent(snapshot: OverviewSnapshot, compact: Bool) -> some View {
+        if showsBox {
+            BoxBrowserView(store: box, media: boxMedia)
+        } else {
+            messageShell(snapshot: snapshot, compact: compact)
+        }
+    }
+
+    private func messageShell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             overview(snapshot)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
@@ -98,26 +151,15 @@ struct MainView: View {
                     .accessibilityIdentifier("overview.toggle")
                 }
             }
-            ToolbarItemGroup(placement: .primaryAction) {
-                Image(systemName: flow.connectionState == .connected
-                    ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
-                    .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : .secondary)
-                    .help(flow.connectionState.label)
-                Button(action: refresh) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .help(refreshHelp)
-                .keyboardShortcut("r", modifiers: .command)
-                .disabled(flow.historyState == .loading || (destination == .dashboard && panels.isLoading))
-            }
         }
     }
 
     private var refreshHelp: String {
+        if showsBox { return L("Refresh Box") }
         switch destination {
-        case .dashboard: L("Refresh dashboard")
-        case .deviceRequests: L("Refresh device requests")
-        default: L("Refresh messages")
+        case .dashboard: return L("Refresh dashboard")
+        case .deviceRequests: return L("Refresh device requests")
+        default: return L("Refresh messages")
         }
     }
 
@@ -147,7 +189,8 @@ struct MainView: View {
             } else {
                 VStack(spacing: 0) {
                     OverviewContentHeader(destination: destination, snapshot: snapshot,
-                        countsAvailable: previewHistory != nil || flow.historyState == .loaded || !snapshot.history.isEmpty)
+                        countsAvailable: previewHistory != nil || flow.historyState == .loaded
+                            || !snapshot.history.isEmpty)
                     Divider()
                     messageSurface(snapshot)
                 }
@@ -168,7 +211,8 @@ struct MainView: View {
             }
         } else if case let .category(category) = destination, category.isAttention {
             AttentionView(flow: flow, reply: reply, category: category,
-                items: snapshot.messages(for: destination).map(AttentionItem.init(message:)), now: snapshot.now)
+                items: snapshot.messages(for: destination).map(AttentionItem.init(message:)),
+                now: snapshot.now)
         } else {
             HistoryView(flow: flow, snapshot: snapshot, scope: destination, reply: reply)
         }
@@ -179,6 +223,10 @@ struct MainView: View {
     }
 
     private func refresh() {
+        if showsBox {
+            Task { await box.refresh() }
+            return
+        }
         if destination == .deviceRequests { Task { await joinRequests.refresh() } }
         Task { await flow.refreshHistory() }
         if destination == .dashboard { Task { await panels.load() } }

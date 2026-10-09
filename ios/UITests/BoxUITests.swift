@@ -18,6 +18,24 @@ final class BoxUITests: XCTestCase {
         app.segmentedControls.buttons["Box"].tap()
     }
 
+    func testAgentProvenanceAppearsInRowAndDetailWhileBossItemsHaveNoBadge() {
+        let agent = app.buttons["box-item-demo-agent-text"]
+        XCTAssertTrue(agent.waitForExistence(timeout: 10))
+        XCTAssertTrue(agent.staticTexts["Added by Researcher"].exists)
+        XCTAssertTrue(app.buttons["box-item-demo-image"].exists)
+        XCTAssertFalse(app.buttons["box-item-demo-image"].staticTexts
+            .matching(NSPredicate(format: "label BEGINSWITH 'Added by'")).firstMatch.exists)
+        screenshot("box-agent-provenance-list")
+        agent.tap()
+        XCTAssertTrue(app.staticTexts["Added by Researcher"].waitForExistence(timeout: 5))
+        screenshot("box-agent-provenance-detail")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["box-item-demo-text"].tap()
+        XCTAssertTrue(app.staticTexts["A passage to keep"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH 'Added by'")).firstMatch.exists)
+    }
+
     func testBoxListOpensImageVideoAndSelectableTextThenDeletes() {
         XCTAssertEqual(app.tabBars.buttons.count, 4)
         let image = app.buttons["box-item-demo-image"]
