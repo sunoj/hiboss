@@ -81,6 +81,10 @@ struct TodayView: View {
                     error: reply.errors[item.id]?.choiceText,
                     onSelect: { panels.closeDetail(); selection = item.id; compactDetail = true },
                     onChoose: { send($0, for: item.id) })
+                    .disabled(snapshot.answerability.state(for: item.id) != .open)
+                if snapshot.answerability.state(for: item.id) == .checking {
+                    Text(L("Checking…")).font(.caption).foregroundStyle(TodayStyle.secondary)
+                }
             }
         }
     }
@@ -92,7 +96,8 @@ struct TodayView: View {
                 earlier: earlier(for: selected), onOpenSession: {
                     onSession(SessionGrouping.sessionKey(for: selected.message))
                 }, onChoose: { send($0, for: selected.id) })
-                .disabled(reply.submitting.contains(selected.id))
+                .disabled(reply.submitting.contains(selected.id)
+                    || snapshot.answerability.state(for: selected.id) != .open)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     AttentionReplyComposer(text: Binding(
                         get: { reply.drafts[selected.id] ?? "" },
@@ -101,6 +106,7 @@ struct TodayView: View {
                         error: reply.errors[selected.id]?.text,
                         onSend: { send(reply.drafts[selected.id] ?? "", for: selected.id) })
                 }
+                .disabled(snapshot.answerability.state(for: selected.id) != .open)
                 .background(TodayStyle.surface)
                 .accessibilityIdentifier("today.inspector")
         } else if let tile = panels.selectedTile {
@@ -127,6 +133,7 @@ struct TodayView: View {
     }
 
     private func send(_ text: String, for id: MessageID) {
+        guard snapshot.answerability.state(for: id) == .open else { return }
         Task { await reply.send(text, for: id, using: onChoose) }
     }
 }

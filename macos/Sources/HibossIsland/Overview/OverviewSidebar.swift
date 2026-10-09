@@ -22,7 +22,7 @@ struct OverviewSidebar: View {
             List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
                 Section(L("Workspace")) {
                     Label(L("Today"), systemImage: "house")
-                        .badge(snapshot.today.decisions.count)
+                        .badge(decisionBadge)
                         .tag(OverviewDestination.today)
                         .accessibilityIdentifier("overview.today")
                     Label(L("Box"), systemImage: "shippingbox")
@@ -45,6 +45,11 @@ struct OverviewSidebar: View {
             footer
         }
         .accessibilityIdentifier("overview.sidebar")
+    }
+
+    private var decisionBadge: String {
+        guard snapshot.answerability.isLoaded else { return L("Loading") }
+        return snapshot.today.decisions.isEmpty ? "" : snapshot.today.decisions.count.formatted()
     }
 
     private var brand: some View {

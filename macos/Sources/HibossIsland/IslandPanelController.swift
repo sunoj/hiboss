@@ -19,6 +19,7 @@ final class IslandPanelController {
     private let screens: () -> [IslandGeometry]
     let overview: OverviewStore
     private let pointerLocation: () -> NSPoint
+    private let activate: () -> Void
     private var questionScreen: IslandGeometry?
     private var cancellables: Set<AnyCancellable> = []
     private(set) var dropReveal: IslandDropRevealController?
@@ -29,7 +30,8 @@ final class IslandPanelController {
         overview: OverviewStore = OverviewStore(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer(),
         screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
-        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }
+        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
+        activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) }
     ) {
         self.flow = flow
         self.settings = settings
@@ -37,6 +39,7 @@ final class IslandPanelController {
         self.soundPlayer = soundPlayer
         self.screens = screens
         self.pointerLocation = pointerLocation
+        self.activate = activate
         panel = IslandPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -113,9 +116,18 @@ final class IslandPanelController {
     ]
 
     private func observeFlow() {
-        Publishers.CombineLatest(overview.$snapshot, settings.$presentationMode)
-            .sink { [weak self] snapshot, mode in
-                self?.updatePresentation(message: snapshot.today.decisions.first?.asOptionMessage, mode: mode)
+        let content = Publishers.CombineLatest3(
+            overview.$snapshot, flow.$activeMessage, flow.$presentationState)
+        let presentations = content.map { snapshot, active, state -> IslandPresentation? in
+            IslandAttention.presentation(snapshot: snapshot.today, active: active, state: state)
+        }
+        Publishers.CombineLatest(presentations, settings.$presentationMode)
+            .removeDuplicates { previous, next in
+                previous.0?.message.id == next.0?.message.id
+                    && (previous.0?.item == nil) == (next.0?.item == nil) && previous.1 == next.1
+            }
+            .sink { [weak self] presentation, mode in
+                self?.updatePresentation(message: presentation?.message, mode: mode)
             }
             .store(in: &cancellables)
 
@@ -180,7 +192,7 @@ final class IslandPanelController {
         let height = max(expandedHeight(for: message), 180)
         optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: height))
         if !wasVisible { optionWindow.center() }
-        NSApp.activate(ignoringOtherApps: true)
+        activate()
         optionWindow.makeKeyAndOrderFront(nil)
     }
 
@@ -194,7 +206,8 @@ final class IslandPanelController {
         guard settings.presentationMode == .island,
             !followingPointer || questionScreen == nil else { return }
         setContentInset(geometry.expandedTopInset)
-        guard let message = overview.snapshot.today.decisions.first?.asOptionMessage else { return }
+        guard let message = IslandAttention.presentation(snapshot: overview.snapshot.today,
+            active: flow.activeMessage, state: flow.presentationState)?.message else { return }
         questionScreen = geometry
         panel.setFrame(
             geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)),

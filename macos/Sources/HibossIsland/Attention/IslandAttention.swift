@@ -18,6 +18,14 @@ enum IslandAttention {
         return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 
+    static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
+                             state: PresentationState) -> IslandPresentation? {
+        if case .resolved = state, let active {
+            return IslandPresentation(message: active, item: nil)
+        }
+        return presentation(snapshot: snapshot)
+    }
+
     static func autoDecisionCaption(for item: AttentionItem, now: Date) -> String? {
         guard item.isRunningAutoDecision(at: now),
               let option = item.defaultOption,

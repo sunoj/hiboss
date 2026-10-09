@@ -16,7 +16,7 @@ struct OverviewContentHeader: View {
                     .font(.largeTitle.bold())
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Text(countsAvailable ? snapshot.messages(for: destination).count.formatted() : "—")
+                Text(countText)
                     .font(.largeTitle.bold()).monospacedDigit()
             }
             .foregroundStyle(.primary)
@@ -25,6 +25,12 @@ struct OverviewContentHeader: View {
         }
         .padding(.horizontal, 24).padding(.vertical, 18)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var countText: String {
+        if case let .category(category) = destination, category.isAttention,
+           !snapshot.answerability.isLoaded { return L("Loading") }
+        return countsAvailable ? snapshot.messages(for: destination).count.formatted() : L("Loading")
     }
 
     private var subtitle: String {

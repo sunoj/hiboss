@@ -10,6 +10,7 @@ struct SessionThreadView: View {
     @ObservedObject var flow: OptionFlowStore
     @ObservedObject var reply: AttentionReplyState
     let connection: ConnectionState
+    let onChoose: (String, MessageID) async -> ReplyFeedback?
     @State private var expandedMessages: Set<MessageID> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -56,6 +57,7 @@ struct SessionThreadView: View {
     private func row(_ thread: MessageThread, reader: ScrollViewProxy) -> some View {
         HistoryThreadRow(thread: thread,
             decision: context.decisions.first { $0.id == thread.id }, usesV4: true,
+            answerability: context.snapshot.answerability,
             reply: reply, isExpanded: Binding(
                 get: { expandedMessages.contains(thread.id) },
                 set: { expanded in
@@ -66,7 +68,7 @@ struct SessionThreadView: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
                     reader.scrollTo(thread.id, anchor: .top)
                 }
-            }, onChoose: { choice in await flow.answer(choice, for: thread.id) })
+            }, onChoose: { choice in await onChoose(choice, thread.id) })
             .id(thread.id)
     }
 }

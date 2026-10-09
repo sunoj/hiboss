@@ -84,7 +84,9 @@ final class SessionLayoutTests: XCTestCase {
         reply.drafts[message.id] = "Keep a database backup"
         var received: String?
         let host = NSHostingView(rootView: HistoryThreadRow(thread: MessageThread(message: message),
-            decision: item, usesV4: true, reply: reply, isExpanded: .constant(true), isSearching: false,
+            decision: item, usesV4: true,
+            answerability: AnswerableDecisions(isLoaded: true, openIDs: [message.id]), reply: reply,
+            isExpanded: .constant(true), isSearching: false,
             onCollapse: {}, onChoose: { received = $0; return nil }).padding(20))
         let window = show(host, size: NSSize(width: 600, height: 450), scheme: .light)
         defer { window.close() }
@@ -107,7 +109,8 @@ final class SessionLayoutTests: XCTestCase {
     private func context(_ history: [HistoryMessage]) -> SessionContext {
         let id = history.first.map { SessionGrouping.sessionKey(for: $0) } ?? "session"
         return SessionContext(id: id,
-            snapshot: OverviewSnapshot(history: history, live: nil, now: .now), inventory: [])
+            snapshot: OverviewSnapshot(history: history, live: nil, now: .now, requiredInputLoaded: true),
+            inventory: [])
     }
 
     private func sendShortcut(_ window: NSWindow) async throws {

@@ -84,6 +84,7 @@ struct MainView: View {
         }
         .sheet(item: $notificationNavigation.target) { target in
             NotificationMessageDetail(messageID: target.id, settings: settings, reply: reply,
+                overview: overviewStore,
                 onReply: flow.answer)
         }
     }
@@ -121,7 +122,8 @@ struct MainView: View {
         }
         let now = Date.now
         overviewStore.update(history: history, live: nil, now: now,
-            health: .live(checkedAt: now), coverageComplete: true, requiredInputs: history)
+            health: .live(checkedAt: now), coverageComplete: true,
+            requiredInputs: history, requiredInputLoaded: true)
     }
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
@@ -203,13 +205,14 @@ struct MainView: View {
         GeometryReader { geometry in
             if destination == .today {
                 TodayView(snapshot: snapshot, reply: reply, panels: panels, isPreview: previewHistory != nil,
-                    onChoose: flow.answer,
+                    onChoose: answer,
                     onSession: { destination = .session($0) })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if case let .session(id) = destination {
                 SessionView(context: SessionContext(id: id, snapshot: snapshot,
                     inventory: previewSessions ?? flow.projectSessions), flow: flow, reply: reply,
                     panels: panels, box: sessionBox, media: boxMedia, isPreview: previewHistory != nil,
+                    onChoose: answer,
                     onBox: { project in
                         box.author = .all
                         box.kind = nil
@@ -254,14 +257,18 @@ struct MainView: View {
                 items: snapshot.attention.filter { item in
                     snapshot.messages(for: destination).contains { $0.id == item.id }
                 },
-                now: snapshot.now)
+                now: snapshot.now, answerability: snapshot.answerability, onChoose: answer)
         } else {
-            HistoryView(flow: flow, snapshot: snapshot, scope: destination, reply: reply)
+            HistoryView(flow: flow, snapshot: snapshot, scope: destination, onChoose: answer, reply: reply)
         }
     }
 
     private func adaptSidebar(to width: CGFloat) {
         columnVisibility = width < Self.sidebarMinimumWidth ? .detailOnly : .all
+    }
+
+    private func answer(_ text: String, for id: MessageID) async -> ReplyFeedback? {
+        await overviewStore.answer(text, for: id, using: flow.answer)
     }
 
     private func refresh() {

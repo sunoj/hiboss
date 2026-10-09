@@ -9,6 +9,7 @@ struct HistoryView: View {
     @ObservedObject var flow: OptionFlowStore
     let snapshot: OverviewSnapshot
     let scope: OverviewDestination
+    let onChoose: (String, MessageID) async -> ReplyFeedback?
     @ObservedObject var reply: AttentionReplyState
 
     private var scopedThreads: [MessageThread] {
@@ -118,7 +119,8 @@ struct HistoryView: View {
     }
 
     private func messageRow(_ thread: MessageThread, reader: ScrollViewProxy) -> some View {
-        HistoryThreadRow(thread: thread, reply: reply, isExpanded: Binding(
+        HistoryThreadRow(thread: thread, answerability: snapshot.answerability,
+            reply: reply, isExpanded: Binding(
             get: { expandedMessages.contains(thread.id) },
             set: { expanded in
                 if expanded { expandedMessages.insert(thread.id) }
@@ -128,7 +130,7 @@ struct HistoryView: View {
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
                     reader.scrollTo(thread.id, anchor: .top)
                 }
-            }, onChoose: { choice in await flow.answer(choice, for: thread.id) })
+            }, onChoose: { choice in await onChoose(choice, thread.id) })
             .id(thread.id)
     }
 

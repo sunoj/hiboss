@@ -42,8 +42,7 @@ struct IslandView: View {
 
     @ViewBuilder
     private func islandContent(now: Date) -> some View {
-        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage,
-           overview.snapshot.today.decisions.first?.id == message.id {
+        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
             resolvedCard(message, answer: answer, source: source)
         } else if let presentation = IslandAttention.presentation(snapshot: overview.snapshot.today) {
             let message = presentation.message
@@ -170,7 +169,9 @@ struct IslandView: View {
 
     /// Typed text and option clicks share one path: only an accepted reply clears the draft.
     private func send(_ text: String, for messageID: MessageID) {
-        Task { await reply.send(text, for: messageID, using: flow.answer) }
+        Task { await reply.send(text, for: messageID) { text, id in
+            await overview.answer(text, for: id, using: flow.answer)
+        } }
     }
 
     private func draft(for messageID: MessageID) -> Binding<String> {
@@ -191,10 +192,14 @@ struct IslandView: View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .overlay(Color.white.opacity(0.12))
-            optionList(message)
-            errorLabel(for: message.id)
-            ReplyField(text: draft(for: message.id), isSubmitting: isSubmitting(message.id)) {
-                send(reply.drafts[message.id] ?? "", for: message.id)
+            if overview.snapshot.answerability.state(for: message.id) == .open {
+                optionList(message)
+                errorLabel(for: message.id)
+                ReplyField(text: draft(for: message.id), isSubmitting: isSubmitting(message.id)) {
+                    send(reply.drafts[message.id] ?? "", for: message.id)
+                }
+            } else {
+                Text(L("Checking…")).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.top, 10)

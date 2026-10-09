@@ -8,6 +8,7 @@ import SwiftUI
 struct HistoryMessageDetail: View {
     let message: HistoryMessage
     @ObservedObject var reply: AttentionReplyState
+    var answerability: AnswerableDecisions = .loading
     let onChoose: (String) async -> ReplyFeedback?
     @Environment(\.dismiss) private var dismiss
     var replies: [HistoryMessage] = []
@@ -15,7 +16,8 @@ struct HistoryMessageDetail: View {
 
     var body: some View {
         ScrollView {
-            HistoryThreadRow(thread: MessageThread(message: message, replies: replies), reply: reply,
+            HistoryThreadRow(thread: MessageThread(message: message, replies: replies),
+                answerability: answerability, reply: reply,
                 isExpanded: $isExpanded, isSearching: false, onCollapse: {}, onChoose: { text in
                     let feedback = await onChoose(text)
                     if feedback == nil { dismiss() }

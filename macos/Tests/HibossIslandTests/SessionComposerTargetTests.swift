@@ -57,6 +57,42 @@ final class SessionComposerTargetTests: XCTestCase {
         XCTAssertEqual(context([question], requiredInputs: [question]).newestAgentMessage?.id, question.id)
     }
 
+    func testRetargetMovesDraftAndDiscardRemovesOnlyPinnedDraft() {
+        let old = message("old", body: "Review the build", at: -60)
+        let new = message("new", body: "Review the release")
+        var target = SessionReplyTarget()
+        var drafts: [MessageID: String] = [old.id: "Investigate first", "unrelated": "Keep this"]
+        target.edit(drafts[old.id] ?? "", for: old)
+        target.retarget(to: new, drafts: &drafts)
+        XCTAssertEqual(target.pinnedID, new.id)
+        XCTAssertEqual(drafts[new.id], "Investigate first")
+        XCTAssertNil(drafts[old.id], "The old inspector must not resurrect a transferred draft")
+        target.discard(drafts: &drafts)
+        XCTAssertNil(target.pinnedID)
+        XCTAssertNil(drafts[new.id])
+        XCTAssertEqual(drafts["unrelated"], "Keep this")
+    }
+
+    func testResolvedPinnedTargetKeepsVisibleDraftAndOffersRetargetAndDiscard() async throws {
+        let old = message("old", body: "Ship?", options: ["Ship"])
+        let new = message("new", body: "Review the release", at: 60)
+        let reply = AttentionReplyState()
+        reply.drafts[old.id] = "Investigate first"
+        let host = NSHostingView(rootView: SessionComposer(context: context([old], requiredInputs: [old]),
+            reply: reply, onChoose: { _, _ in nil }))
+        let window = show(host, scheme: .light)
+        window.setContentSize(NSSize(width: 600, height: 260))
+        defer { window.close() }
+        try await waitForCondition { self.fields(host).first?.stringValue == "Investigate first" }
+        host.rootView = SessionComposer(context: context([old, new]), reply: reply, onChoose: { _, _ in nil })
+        try await waitForCondition { self.fields(host).first?.isEnabled == false }
+        XCTAssertEqual(fields(host).first?.stringValue, "Investigate first")
+        let labels = try recognize(host).map(\.text)
+        XCTAssertTrue(labels.contains { $0.contains("Discard") }, "\(labels)")
+        XCTAssertTrue(labels.contains { $0.contains("Reply to the newer message") }, "\(labels)")
+        XCTAssertFalse(labels.contains { $0.contains("No eligible agent message") })
+    }
+
     func testTargetLabelsRenderAboveTheFieldInBothAppearances() async throws {
         let ordinary = message("ordinary", body: "Build finished\nAll checks passed")
         let question = message("question", body: "Which route should we use?", options: ["A", "B"])
@@ -124,7 +160,7 @@ final class SessionComposerTargetTests: XCTestCase {
     private func context(_ history: [HistoryMessage], requiredInputs: [HistoryMessage] = [])
         -> SessionContext {
         SessionContext(id: "session", snapshot: OverviewSnapshot(history: history, live: nil, now: now,
-            requiredInputs: requiredInputs), inventory: [])
+            requiredInputs: requiredInputs, requiredInputLoaded: true), inventory: [])
     }
 
     private func message(_ id: MessageID, body: String, at seconds: TimeInterval = 0,
