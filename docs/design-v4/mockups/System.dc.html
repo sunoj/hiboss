@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design system</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1280px; height: 960px; box-sizing: border-box; background: #FFFFFF; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #111317; padding: 56px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px">
+
+  <div style="display: flex; flex-direction: column; gap: 32px">
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 700; color: #5F6570; letter-spacing: 0.06em; text-transform: uppercase">Colour has a job</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <div style="border: 1px solid #E4E6EA; border-radius: 14px; overflow: hidden">
+          <div style="height: 56px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))"><span style="background: #111317"></span><span style="background: #F2F3F5"></span></div>
+          <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><b>Ink</b><span style="font-size: 13px; color: #4A505A">The action you take. Primary buttons only.</span><span style="font-size: 12px; color: #5F6570">#111317 · dark #F2F3F5</span></div>
+        </div>
+        <div style="border: 1px solid #E4E6EA; border-radius: 14px; overflow: hidden">
+          <div style="height: 56px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))"><span style="background: #C2410C"></span><span style="background: #F97316"></span></div>
+          <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><b>Signal</b><span style="font-size: 13px; color: #4A505A">Needs you. Deadlines, counts of open decisions.</span><span style="font-size: 12px; color: #5F6570">#C2410C · dark #F97316</span></div>
+        </div>
+        <div style="border: 1px solid #E4E6EA; border-radius: 14px; overflow: hidden">
+          <div style="height: 56px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))"><span style="background: #1D5FD8"></span><span style="background: #7FB0FF"></span></div>
+          <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><b>Live</b><span style="font-size: 13px; color: #4A505A">Working now, live panels, agent provenance.</span><span style="font-size: 12px; color: #5F6570">#1D5FD8 · dark #7FB0FF</span></div>
+        </div>
+        <div style="border: 1px solid #E4E6EA; border-radius: 14px; overflow: hidden">
+          <div style="height: 56px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))"><span style="background: #15803D"></span><span style="background: #4ADE80"></span></div>
+          <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><b>Settled</b><span style="font-size: 13px; color: #4A505A">Your answer recorded, connection healthy.</span><span style="font-size: 12px; color: #5F6570">#15803D · dark #4ADE80</span></div>
+        </div>
+      </div>
+      <span style="font-size: 13px; color: #4A505A">Everything else is neutral: ground #F2F3F5, surface #FFFFFF, secondary text #4A505A, tertiary #5F6570, hairline #E4E6EA. Signal and Live also differ in lightness, so they read apart without hue.</span>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 700; color: #5F6570; letter-spacing: 0.06em; text-transform: uppercase">Type: the system face, six steps</h2>
+      <div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 120px; font-size: 12px; color: #5F6570">Large title</span><span style="font-size: 34px; font-weight: 700; letter-spacing: -0.02em">Today</span></div>
+      <div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 120px; font-size: 12px; color: #5F6570">Title</span><span style="font-size: 24px; font-weight: 700; letter-spacing: -0.015em">Decision detail</span></div>
+      <div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 120px; font-size: 12px; color: #5F6570">Section</span><span style="font-size: 20px; font-weight: 700">Your call</span></div>
+      <div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 120px; font-size: 12px; color: #5F6570">Question</span><span style="font-size: 17px; font-weight: 600">Deploy the Worker to production?</span></div>
+      <div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 120px; font-size: 12px; color: #5F6570">Body</span><span style="font-size: 15px; color: #2A2E35">The migration only adds a table and a column.</span></div>
+      <div style="display: flex; align-items: baseline; gap: 16px"><span style="width: 120px; font-size: 12px; color: #5F6570">Meta</span><span style="font-size: 13px; color: #4A505A">hiboss · main · claude · 12s</span></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 32px">
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 700; color: #5F6570; letter-spacing: 0.06em; text-transform: uppercase">The decision card, every time</h2>
+      <div style="display: flex; gap: 20px; align-items: flex-start">
+        <article style="width: 300px; flex: none; background: #F2F3F5; border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #4A505A"><b style="color: #111317">hiboss</b> · main · claude</span><b style="color: #C2410C">18 min</b></div>
+          <b style="font-size: 16px; line-height: 21px">Deploy migration 0052 to production?</b>
+          <span style="font-size: 14px; color: #4A505A">Adds a table and a column; rollback keeps it.</span>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+            <span style="height: 40px; border-radius: 20px; background: #111317; color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center">Deploy</span>
+            <span style="height: 40px; border-radius: 20px; background: #FFFFFF; border: 1.5px solid #D5D8DD; font-weight: 600; display: flex; align-items: center; justify-content: center">Not yet</span>
+          </div>
+          <span style="font-size: 12px; color: #5F6570">No answer in 18 min picks “Not yet”. That is not approval.</span>
+        </article>
+        <ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 19px; color: #2A2E35">
+          <li><b>Who asked</b>: project, branch, agent. Never anonymous.</li>
+          <li><b>Deadline</b> in Signal; absent means no deadline, said in words.</li>
+          <li><b>The question</b> in one sentence.</li>
+          <li><b>What it changes</b>, in the card, not behind a tap.</li>
+          <li><b>Options</b> answerable right here.</li>
+          <li><b>The default</b>, and that it is not approval.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 12px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 700; color: #5F6570; letter-spacing: 0.06em; text-transform: uppercase">Small parts with fixed meanings</h2>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+        <span style="display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 14px; background: #F2F3F5; font-size: 13px; font-weight: 500"><span style="width: 8px; height: 8px; border-radius: 4px; background: #C2410C"></span>2 need you</span>
+        <span style="display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 14px; background: #F2F3F5; font-size: 13px; font-weight: 500"><span style="width: 8px; height: 8px; border-radius: 4px; background: #1D5FD8"></span>3 working</span>
+        <span style="padding: 3px 8px; border-radius: 8px; background: #EAF1FD; color: #1D4FB8; font-size: 12px; font-weight: 600">Added by house</span>
+        <span style="display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: #EEF6F0; color: #14532D; font-size: 13px; font-weight: 600">You chose B · 13:02</span>
+        <span style="padding: 6px 10px; border-radius: 10px; background: #F1F2F4; color: #4A505A; font-size: 13px; font-weight: 600">Default picked · not approval</span>
+        <span style="font-size: 12px; font-weight: 600; color: #1D5FD8">Live · 6s</span>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 13px; font-weight: 700; color: #5F6570; letter-spacing: 0.06em; text-transform: uppercase">Rules the screens keep</h2>
+      <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 19px; color: #2A2E35">
+        <li>Every item shows its author and its age.</li>
+        <li>A gap in data is drawn as a gap, never as zero.</li>
+        <li>No percentage without a real denominator.</li>
+        <li>“All clear” only while live and fully loaded.</li>
+        <li>One decision on the lock screen, Island and notch; the rest wait in Today.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

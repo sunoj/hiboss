@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mac notch Island</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 760px; height: 440px; box-sizing: border-box; background: #5E7684; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #FFFFFF; position: relative; overflow: hidden">
+  <span style="position: absolute; left: -60px; top: 160px; width: 420px; height: 420px; border-radius: 210px; background: #6C8593"></span>
+  <span style="position: absolute; right: -40px; top: 220px; width: 300px; height: 300px; border-radius: 150px; background: #536A77"></span>
+
+  <div style="position: absolute; left: 0; right: 0; top: 0; height: 30px; background: rgba(28,32,36,0.55); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 13px; font-weight: 500">
+    <span style="display: flex; gap: 18px"><b>Finder</b><span>File</span><span>Edit</span><span>View</span></span>
+    <span style="display: flex; gap: 14px; align-items: center">
+      <span style="display: flex; align-items: center; gap: 5px"><img src="/_blob/cb7ea6611239f8cf2bb51d0a77759152" alt="HiBoss" style="width: 16px; height: 16px; border-radius: 4px"><span style="width: 7px; height: 7px; border-radius: 4px; background: {{accent}}"></span>2</span>
+      <span>Thu 13:44</span>
+    </span>
+  </div>
+
+  <div style="position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 440px; border-radius: 0 0 26px 26px; background: #000000; padding: 40px 20px 18px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 18px 50px rgba(0,0,0,0.35)">
+    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #C7CDD4">
+      <span><b style="color: #FFFFFF">hiboss</b> · main · claude</span>
+      <span style="display: flex; align-items: center; gap: 5px; font-weight: 700; color: #FDBA8C">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2"></path></svg>
+        18 min</span>
+    </div>
+    <span style="font-size: 16px; line-height: 21px; font-weight: 600">Deploy migration 0052 and the Worker to production?</span>
+    <span style="font-size: 12px; line-height: 17px; color: #AEB6BF">Only adds a table and a column. If nobody answers, “Not yet” is recorded as a default, not your approval.</span>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <button style="height: 34px; border-radius: 17px; border: none; background: #FFFFFF; color: #111317; font: 600 14px -apple-system, system-ui, sans-serif">Deploy</button>
+      <button style="height: 34px; border-radius: 17px; border: none; background: rgba(255,255,255,0.16); color: #FFFFFF; font: 600 14px -apple-system, system-ui, sans-serif">Not yet</button>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #9EA5AF">
+      <span>1 more waiting</span>
+      <a href="Mac-Main.dc.html" style="color: #9EC3FF; text-decoration: none; font-weight: 600">Open HiBoss</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#F97316","options":["#F97316","#F59E0B","#F43F5E","#A78BFA"]},"$preview":{"width":760,"height":440}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#F97316' };
+  }
+}
+</script>
+</body>
+</html>

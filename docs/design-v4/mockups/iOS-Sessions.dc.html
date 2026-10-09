@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>iOS Sessions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1D5FD8}a:hover{color:#174BAA}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F2F3F5; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #111317; position: relative; overflow: hidden">
+  <div style="padding: 58px 16px 120px; display: flex; flex-direction: column; gap: 16px">
+    <h1 style="margin: 0; font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -0.02em">Sessions</h1>
+    <div style="position: relative">
+      <label for="sesssearch" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search sessions and messages</label>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6570" stroke-width="2.2" stroke-linecap="round" style="position: absolute; left: 12px; top: 11px"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <input id="sesssearch" placeholder="Search sessions and messages" style="width: 100%; box-sizing: border-box; height: 40px; border-radius: 12px; border: none; background: #E4E6EA; padding: 0 12px 0 38px; font: 16px -apple-system, system-ui, sans-serif">
+    </div>
+
+    <section style="display: flex; flex-direction: column; gap: 6px">
+      <h2 style="margin: 0 4px; font-size: 13px; font-weight: 700; color: {{accent}}; letter-spacing: 0.04em; text-transform: uppercase">Needs you · 2</h2>
+      <div style="background: #FFFFFF; border-radius: 18px; padding: 0 14px">
+        <a href="iOS-Session.dc.html" style="display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ECEEF1; text-decoration: none; color: inherit; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 11px; background: #FFF1E8; color: {{accent}}; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">HB</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="display: flex; justify-content: space-between"><b style="font-size: 15px">hiboss <span style="font-weight: 400; color: #5F6570">main</span></b><span style="font-size: 12px; font-weight: 600; color: {{accent}}">18 min</span></span>
+            <span style="font-size: 13px; color: #4A505A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Deploy migration 0052 and the Worker?</span>
+          </span>
+        </a>
+        <a href="iOS-Session.dc.html" style="display: flex; gap: 12px; padding: 12px 0; text-decoration: none; color: inherit; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 11px; background: #FFF1E8; color: {{accent}}; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">HO</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="display: flex; justify-content: space-between"><b style="font-size: 15px">house <span style="font-weight: 400; color: #5F6570">main</span></b><span style="font-size: 12px; color: #5F6570">A / B</span></span>
+            <span style="font-size: 13px; color: #4A505A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Which shower wall by the outdoor pool?</span>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 6px">
+      <h2 style="margin: 0 4px; font-size: 13px; font-weight: 700; color: #1D4FB8; letter-spacing: 0.04em; text-transform: uppercase">Working · 2</h2>
+      <div style="background: #FFFFFF; border-radius: 18px; padding: 0 14px">
+        <a href="iOS-Session.dc.html" style="display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ECEEF1; text-decoration: none; color: inherit; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 11px; background: #EAF1FD; color: #1D5FD8; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">AD</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="display: flex; justify-content: space-between"><b style="font-size: 15px">ai-dispatch <span style="font-weight: 400; color: #5F6570">main</span></b><span style="font-size: 12px; color: #5F6570">12s</span></span>
+            <span style="font-size: 13px; color: #4A505A">Running the server suite on a build box</span>
+          </span>
+        </a>
+        <a href="iOS-Session.dc.html" style="display: flex; gap: 12px; padding: 12px 0; text-decoration: none; color: inherit; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 11px; background: #EAF1FD; color: #1D5FD8; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">SR</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="display: flex; justify-content: space-between"><b style="font-size: 15px">smart-router <span style="font-weight: 400; color: #5F6570">bench</span></b><span style="font-size: 12px; color: #5F6570">40s</span></span>
+            <span style="font-size: 13px; color: #4A505A">Benchmark sweep · 14 of 40 configs</span>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 6px">
+      <h2 style="margin: 0 4px; font-size: 13px; font-weight: 700; color: #5F6570; letter-spacing: 0.04em; text-transform: uppercase">Idle</h2>
+      <div style="background: #FFFFFF; border-radius: 18px; padding: 0 14px">
+        <a href="iOS-Session.dc.html" style="display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ECEEF1; text-decoration: none; color: inherit; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 11px; background: #F1F2F4; color: #4A505A; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">SM</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="display: flex; justify-content: space-between"><b style="font-size: 15px">swap-mumaren</b><span style="font-size: 12px; color: #5F6570">2 h</span></span>
+            <span style="font-size: 13px; color: #4A505A">Done: fill rate report delivered</span>
+          </span>
+        </a>
+        <a href="iOS-Session.dc.html" style="display: flex; gap: 12px; padding: 12px 0; text-decoration: none; color: inherit; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 11px; background: #F1F2F4; color: #4A505A; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none">HO</span>
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+            <span style="display: flex; justify-content: space-between"><b style="font-size: 15px">house <span style="font-weight: 400; color: #5F6570">facade</span></b><span style="font-size: 12px; color: #5F6570">yesterday</span></span>
+            <span style="font-size: 13px; color: #4A505A">Style references posted to Progress</span>
+          </span>
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <nav aria-label="Tabs" style="position: absolute; left: 16px; right: 16px; bottom: 26px; height: 64px; border-radius: 32px; background: rgba(255,255,255,0.92); box-shadow: 0 6px 24px rgba(17,19,23,0.12); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; padding: 0 6px">
+    <a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5F6570; font-size: 11px; font-weight: 500">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"></path></svg>Today</a>
+    <a href="#" aria-current="page" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #111317; font-size: 11px; font-weight: 600">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="2"></rect><rect x="3" y="14" width="18" height="6" rx="2"></rect></svg>Sessions</a>
+    <a href="iOS-Box.dc.html" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5F6570; font-size: 11px; font-weight: 500">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"></path><path d="M3 8l9 5 9-5"></path><path d="M12 13v8"></path></svg>Box</a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; color: #5F6570; font-size: 11px; font-weight: 500">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"></path><path d="M7 15l4-4 3 3 5-6"></path></svg>Progress</a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#C2410C","options":["#C2410C","#B45309","#BE123C","#7C3AED"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#C2410C' };
+  }
+}
+</script>
+</body>
+</html>
