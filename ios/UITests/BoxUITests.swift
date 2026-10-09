@@ -58,7 +58,7 @@ final class BoxUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Unmute"].waitForExistence(timeout: 10))
         screenshot("box-video-viewer")
         app.buttons["Close"].tap()
-        text.swipeLeft()
+        text.press(forDuration: 1)
         app.buttons["Delete"].tap()
         XCTAssertTrue(text.waitForNonExistence(timeout: 5))
         screenshot("box-after-delete")

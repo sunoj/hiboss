@@ -9,8 +9,15 @@ struct BoxRow: View {
     let item: BoxItem
     @ObservedObject var media: BoxMediaStore
 
+    var grid = false
+
+    private var layout: AnyLayout {
+        grid ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        layout {
             thumbnail
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: item.boxTitle).font(.body).foregroundStyle(Theme.ink).lineLimit(3)
@@ -33,32 +40,39 @@ struct BoxRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 4)
+        .multilineTextAlignment(.leading)
+        .padding(grid ? 12 : 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(grid ? Theme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 16))
         .task(id: item.id) {
             if item.kind == .image || item.kind == .video { await media.load(item) }
         }
     }
 
     private var thumbnail: some View {
-        ZStack {
-            Theme.surface2
-            if let image = media.resources[item.id]?.thumbnail {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else if item.hasMedia && (item.kind == .image || item.kind == .video) {
-                if media.errors[item.id] != nil {
-                    Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warn)
-                        .accessibilityLabel("Media unavailable")
+        GeometryReader { geometry in
+            ZStack {
+                Theme.surface2
+                if let image = media.resources[item.id]?.thumbnail {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else if item.hasMedia && (item.kind == .image || item.kind == .video) {
+                    if media.errors[item.id] != nil {
+                        Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warn)
+                            .accessibilityLabel("Media unavailable")
+                    } else {
+                        CompactImageWait(onRetry: { Task { await media.retry(item) } })
+                    }
                 } else {
-                    CompactImageWait(onRetry: { Task { await media.retry(item) } })
+                    Image(systemName: item.symbol).font(.title2).foregroundStyle(Theme.ink2)
                 }
-            } else {
-                Image(systemName: item.symbol).font(.title2).foregroundStyle(Theme.ink2)
             }
+            .frame(width: geometry.size.width, height: geometry.size.height).clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .frame(width: 64, height: 64).clipped()
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(width: grid ? nil : 64, height: grid && item.hasMedia ? 120 : 64)
         .accessibilityHidden(media.errors[item.id] == nil)
     }
+
 }
 
 struct BoxProvenanceBadge: View {
@@ -68,10 +82,10 @@ struct BoxProvenanceBadge: View {
         if let label = item.provenanceLabel {
             Label { Text(verbatim: label) } icon: { Image(systemName: "person.crop.circle") }
                 .font(.caption)
-                .foregroundStyle(Theme.ink2)
+                .foregroundStyle(Theme.live)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 8))
+                .background(Theme.liveSoft, in: RoundedRectangle(cornerRadius: 8))
         }
     }
 }

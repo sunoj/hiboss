@@ -7,6 +7,7 @@ import SwiftUI
 
 /// One reading of a message's clock, so Home and detail never word it differently.
 struct DecisionTiming: Equatable {
+    let deadline: Date?
     let expiresAt: Date?
     let createdAt: Date?
     /// The option the server picks on timeout — only while a live expiration exists.
@@ -16,6 +17,7 @@ struct DecisionTiming: Equatable {
     init(message: HistoryMessage, now: Date = Date()) {
         let live = message.expirationDate.flatMap { $0 > now ? $0 : nil }
         let trimmed = message.defaultOption?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        deadline = message.expirationDate
         expiresAt = live
         createdAt = message.createdDate
         declaredDefault = trimmed.isEmpty ? nil : message.defaultOption
@@ -48,7 +50,7 @@ struct DecisionTimingView: View {
         VStack(alignment: .leading, spacing: 4) {
             if let option = timing.declaredDefault {
                 TimelineView(.everyMinute) { context in
-                    let time = timing.expiresAt.map { deadline in
+                    let time = timing.deadline.map { deadline in
                         Duration.seconds(max(0, deadline.timeIntervalSince(context.date))).formatted(
                             .units(allowed: [.hours, .minutes, .seconds], width: .abbreviated,
                                    maximumUnitCount: 1)

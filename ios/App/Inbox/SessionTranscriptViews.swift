@@ -42,7 +42,9 @@ struct SessionTranscriptItemView: View {
     private func decision(for event: SessionEvent) -> HistoryMessage? {
         guard let raw = event.messageId,
               let message = store.message(for: MessageID(rawValue: raw)),
-              message.isDecision else { return nil }
+              message.isDecision || (message.direction == "agent_to_boss" && message.mode == "blocking") else {
+            return nil
+        }
         return message
     }
 }
@@ -53,20 +55,7 @@ struct SessionAutomaticReplyLine: View {
 
     var body: some View {
         let settlement = DecisionSettlement(answer: event.displayBody, source: nil, isAutoDefault: true)
-        VStack(spacing: 2) {
-            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: settlement.symbol) }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.ink)
-                .symbolRenderingMode(.hierarchical)
-            settlement.attribution
-                .font(.caption)
-                .foregroundStyle(Theme.ink2)
-        }
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
+        ResolvedBanner(settlement: settlement, date: ISODate.parse(event.createdAt))
         .accessibilityIdentifier("session-automatic-reply")
     }
 }
@@ -183,15 +172,16 @@ struct SessionBubbleView: View {
     }
 
     private var fill: Color {
-        style.isOutgoing ? Color.accentColor : Color(.systemGray5)
+        style.isOutgoing ? Theme.liveSoft : Theme.surface
     }
 
     private var textColor: Color {
-        style.isOutgoing ? Color(.systemBackground) : Color.primary
+        Theme.ink
     }
 
     private var accessibilityText: String {
-        "\(SessionTranscriptLayout.directionLabel(for: event)), \(SessionTranscriptLayout.actorLabel(for: event)), \(event.displayBody)"
+        [SessionTranscriptLayout.directionLabel(for: event), SessionTranscriptLayout.actorLabel(for: event),
+         event.displayBody].formatted(.list(type: .and, width: .narrow))
     }
 }
 

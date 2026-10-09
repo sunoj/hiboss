@@ -53,6 +53,13 @@ final class BoxStore: ObservableObject {
         if current == generation { isLoadingMore = false }
     }
 
+    func loadSearchPages() async {
+        while let cursor = nextCursor, !Task.isCancelled {
+            await loadMore()
+            if nextCursor == cursor || pageError != nil { break }
+        }
+    }
+
     func retryPage() async {
         read?.cancel()
         generation += 1

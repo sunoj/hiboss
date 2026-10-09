@@ -33,6 +33,7 @@ final class TodayV4UITests: XCTestCase {
         app.buttons["home-message-c5"].tap()
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
         shot(app, "\(appearance)-decision")
+        app.navigationBars.buttons["Done"].tap()
         app.tabBars.buttons["Sessions"].tap()
         XCTAssertTrue(app.buttons["activity-session-sess-deploy"].waitForExistence(timeout: 5))
         shot(app, "\(appearance)-sessions")

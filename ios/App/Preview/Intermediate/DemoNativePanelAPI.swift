@@ -110,7 +110,7 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
     private static var panelJSON: String {
         """
         {"panelId":"demo-panel","agentId":"demo-agent","agentName":"release-agent",
-         "targetBossId":"demo-boss","taskKey":"release","sessionId":"demo-session",
+         "targetBossId":"demo-boss","taskKey":"release","sessionId":"sess-deploy",
          "sessionLabel":"Release","title":"Release checklist","catalogId":"native-demo",
          "catalogVersion":1,"definitionRevision":1,"metadataVersion":1,"summary":{},
          "createdAt":"2026-10-07T00:00:00Z","serverTime":\(Int64(Date().timeIntervalSince1970 * 1000)),

@@ -11,43 +11,78 @@ struct SessionMessagesView: View {
     let api: (any SessionStreamServing)?
     @ObservedObject var store: InboxStore
 
+    let panels: PanelsModel?
+    @StateObject private var facts = SessionFactsStore()
     @StateObject private var stream: SessionStreamStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var hasLoaded = false
     @State private var actionNote: String?
 
-    init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore) {
+    init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
+         panels: PanelsModel? = nil) {
+        self.panels = panels
         self.route = route
         self.api = api
         self.store = store
         _stream = StateObject(wrappedValue: SessionStreamStore(sessionID: route.id))
     }
 
-    var body: some View {
+    private var connectedTranscript: some View {
         ZStack(alignment: .bottom) {
             content
             if !stream.isFollowingLive {
                 jumpToLiveButton
             }
         }
-        .navigationTitle(Text(verbatim: route.label))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                ConnectionDot(state: stream.connectionState)
+        .background(Theme.paper)
+        .safeAreaInset(edge: .top) {
+            if let session = facts.session {
+                SessionFactsHeader(session: session).padding(12).background(Theme.paper)
             }
         }
+        .safeAreaInset(edge: .bottom) { SessionReplyComposer(target: newestAgentMessageID, store: store) }
+        .navigationTitle(Text(verbatim: route.label))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { historyToolbar }
         .task(id: route.id) {
             if let api { stream.start(api: api) }
+            await facts.load(id: route.id, api: store.api as? any SessionsServing)
         }
         .onDisappear { stream.stop() }
+        .onChange(of: store.replyConfirmation) { _, confirmation in
+            if confirmation != nil { Task { await stream.refresh() } }
+        }
+        .onChange(of: stream.connectionState, initial: true) { _, state in
+            if state == .connected || stream.loadError != nil { hasLoaded = true }
+        }
         .onChange(of: stream.isLoading) { _, loading in
             if !loading { hasLoaded = true }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream.resumeFromForeground() }
         }
-        .refreshable { await stream.refresh() }
+        .refreshable {
+            await stream.refresh()
+            await facts.load(id: route.id, api: store.api as? any SessionsServing)
+            if let panels { await panels.load() }
+        }
+    }
+
+    private var historyToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            HStack {
+                NavigationLink {
+                    MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }.accessibilityLabel("Message history")
+                ConnectionDot(state: stream.connectionState)
+            }
+        }
+    }
+
+    var body: some View {
+        connectedTranscript
         .alert(
             String(localized: "Transcript reloaded"),
             isPresented: Binding(
@@ -68,6 +103,11 @@ struct SessionMessagesView: View {
         } message: { note in
             Text(verbatim: note)
         }
+    }
+
+    private var newestAgentMessageID: MessageID? {
+        stream.events.last { $0.kind == "message" && $0.direction == "agent_to_boss" && $0.messageId != nil }
+            .flatMap { $0.messageId }.map { MessageID(rawValue: $0) }
     }
 
     private var content: some View {
@@ -94,6 +134,10 @@ struct SessionMessagesView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
+                    if let error = facts.error {
+                        Text(verbatim: error).font(.footnote).foregroundStyle(Theme.ink2)
+                        RetryButton { await facts.load(id: route.id, api: store.api as? any SessionsServing) }
+                    }
                     if stream.hasEarlier {
                         earlierEvents
                     }
@@ -101,6 +145,7 @@ struct SessionMessagesView: View {
                         SessionTranscriptItemView(item: item, store: store, onChoose: handleReply)
                             .id(item.id)
                     }
+                    if let panels { SessionPanelCards(sessionID: route.id, model: panels) }
                     Color.clear.frame(height: 1).id("live-end")
                 }
                 .padding(.horizontal, 16)
@@ -116,6 +161,9 @@ struct SessionMessagesView: View {
             )
             .onAppear { scrollToLive(proxy) }
             .onChange(of: stream.events.last?.sequence) { _, _ in
+                if stream.isFollowingLive { scrollToLive(proxy) }
+            }
+            .onChange(of: panels?.tiles.count) { _, _ in
                 if stream.isFollowingLive { scrollToLive(proxy) }
             }
             .onChange(of: stream.isFollowingLive) { _, following in

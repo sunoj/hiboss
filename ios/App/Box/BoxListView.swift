@@ -1,19 +1,23 @@
-// Activity's Box segment with native state gates, pagination and swipe deletion.
-// Exports BoxListView; link, text, media and file opening stays within Activity.
+// Box grid with search, author/kind filters, pagination, and native context-menu deletion.
+// Exports BoxListView; existing content viewers also support a reference-selection sheet.
 // Dependencies: SwiftUI, HibossKit, BoxStore, BoxMediaStore and ListStateView.
 
 import HibossKit
 import SwiftUI
 
 struct BoxListView: View {
+    let onSelect: ((BoxItem) -> Void)?
     @StateObject private var store: BoxStore
     @StateObject private var media: BoxMediaStore
+    @State private var search = ""
+    @State private var filter = BoxFilter.all
     @State private var openedMedia: BoxItem?
     @State private var openingError = false
     @Environment(\.openURL) private var openURL
     @Environment(\.openConnectionSettings) private var openSettings
 
-    init(api: (any BoxServing)?) {
+    init(api: (any BoxServing)?, onSelect: ((BoxItem) -> Void)? = nil) {
+        self.onSelect = onSelect
         _store = StateObject(wrappedValue: BoxStore(api: api))
         _media = StateObject(wrappedValue: BoxMediaStore(api: api))
     }
@@ -27,8 +31,20 @@ struct BoxListView: View {
             loadingTitle: String(localized: "Loading Box…"), hasLoaded: store.didLoad,
             onRetry: { await store.refresh() }
         ) { list }
-        .task { if !store.didLoad { await store.refresh() } }
-        .refreshable { await store.refresh() }
+        .background(Theme.paper)
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: "Search notes, links and files")
+        .task {
+            if !store.didLoad { await store.refresh() }
+            if !search.isEmpty || filter != .all { await store.loadSearchPages() }
+        }
+        .task(id: search + filter.rawValue) {
+            if !search.isEmpty || filter != .all { await store.loadSearchPages() }
+        }
+        .refreshable {
+            await store.refresh()
+            if !search.isEmpty || filter != .all { await store.loadSearchPages() }
+        }
         .fullScreenCover(item: $openedMedia) { item in BoxMediaDetail(item: item, media: media) }
         .alert("Couldn't delete item", isPresented: Binding(
             get: { store.deleteError != nil }, set: { if !$0 { store.deleteError = nil } }
@@ -40,38 +56,54 @@ struct BoxListView: View {
     }
 
     private var list: some View {
-        List {
-            ForEach(store.items) { item in
-                row(item)
-                    .swipeActions {
-                        Button("Delete", role: .destructive) {
-                            Task {
-                                await store.delete(item)
-                                if !store.items.contains(where: { $0.id == item.id }) {
-                                    media.remove(id: item.id)
+        ScrollView {
+            VStack(spacing: 12) {
+                BoxFilterChips(selection: $filter)
+                if matches.isEmpty && !store.isLoadingMore {
+                    ContentUnavailableView.search(text: search)
+                }
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .top),
+                                    GridItem(.flexible(), alignment: .top)], spacing: 12) {
+                    ForEach(matches) { item in
+                        row(item)
+                            .contextMenu {
+                                if onSelect == nil {
+                                    Button("Delete", role: .destructive) { delete(item) }
+                                        .disabled(store.deleting.contains(item.id))
                                 }
                             }
-                        }.disabled(store.deleting.contains(item.id))
+                            .overlay {
+                                if store.deleting.contains(item.id) {
+                                    PendingStateView(title: String(localized: "Deleting item…"),
+                                                     onSettings: openSettings)
+                                        .padding(8).background(.regularMaterial)
+                                }
+                            }
                     }
-                    .overlay(alignment: .trailing) {
-                        if store.deleting.contains(item.id) {
-                            PendingStateView(
-                                title: String(localized: "Deleting item…"), onSettings: openSettings
-                            )
-                                .padding(8).background(.regularMaterial)
-                        }
-                    }
-            }
-            pagination
+                }
+                .padding(.horizontal, 16)
+                pagination
+            }.padding(.bottom, 16)
         }
-        .listStyle(.plain)
         .accessibilityIdentifier("box-list")
     }
 
+    private var matches: [BoxItem] { store.items.filter { filter.matches($0, search: search) } }
+
+    private func delete(_ item: BoxItem) {
+        Task {
+            await store.delete(item)
+            if !store.items.contains(where: { $0.id == item.id }) { media.remove(id: item.id) }
+        }
+    }
+
     @ViewBuilder private func row(_ item: BoxItem) -> some View {
-        if item.kind == .text || item.kind == .file {
+        if let onSelect {
+            Button { onSelect(item) } label: { BoxRow(item: item, media: media, grid: true) }
+                .buttonStyle(.plain).accessibilityIdentifier("box-item-\(item.id)")
+        } else if item.kind == .text || item.kind == .file {
             NavigationLink { BoxTextDetail(item: item, media: media) } label: {
-                BoxRow(item: item, media: media)
+                BoxRow(item: item, media: media, grid: true)
             }
                 .accessibilityIdentifier("box-item-\(item.id)")
         } else {
@@ -84,7 +116,7 @@ struct BoxListView: View {
                     }
                     openURL(url) { accepted in openingError = !accepted }
                 } else { openedMedia = item }
-            } label: { BoxRow(item: item, media: media) }
+            } label: { BoxRow(item: item, media: media, grid: true) }
             .buttonStyle(.plain)
             .accessibilityIdentifier("box-item-\(item.id)")
         }

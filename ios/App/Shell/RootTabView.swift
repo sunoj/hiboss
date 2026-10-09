@@ -49,7 +49,7 @@ struct RootTabView: View {
     }
 
     private var sessionStreamAPI: (any SessionStreamServing)? {
-        if isDemoMode { return DemoBossAPI() }
+        if isDemoMode { return (inbox.api as? any SessionStreamServing) ?? DemoBossAPI() }
         return connection.makeAPI()
     }
 
@@ -147,7 +147,7 @@ struct RootTabView: View {
             ActivityView(store: inbox, section: $activitySection, connection: connection)
                 .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                 .navigationDestination(for: SessionRoute.self) {
-                    SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox)
+                    SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox, panels: panels)
                 }
                 .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
         }

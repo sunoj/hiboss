@@ -11,10 +11,12 @@ struct SessionDecisionBubble: View {
     let message: HistoryMessage
     @ObservedObject var store: InboxStore
     let onChoose: (String) -> Void
+    @State private var draft = ""
     @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            DecisionProvenance(message: message)
             SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment)
             OptionMediaComparison(
                 options: message.options,
@@ -24,8 +26,11 @@ struct SessionDecisionBubble: View {
             .padding(.horizontal, 12)
             if isPending {
                 pendingControls
-            } else if let settlement = store.settlement(for: message.id) {
-                answered(settlement)
+            } else {
+                if let settlement = store.settlement(for: message.id) { answered(settlement) }
+                if message.defaultOption != nil {
+                    DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id)
+                }
             }
         }
         .padding(.bottom, 8)
@@ -34,15 +39,27 @@ struct SessionDecisionBubble: View {
     }
 
     private var isPending: Bool {
-        message.isPendingDecision && !store.withdrawn.contains(message.id)
+        (message.isPendingDecision || AttentionModel.needsTextReply(message, now: .now))
+            && !store.withdrawn.contains(message.id)
     }
 
     private var pendingControls: some View {
         let timing = DecisionTiming(message: message)
         return VStack(alignment: .leading, spacing: 10) {
             DecisionTimingView(timing: timing, messageID: message.id)
+            if let content = message.content, !content.isEmpty {
+                Text(verbatim: content).font(.subheadline).textSelection(.enabled)
+            }
             DecisionOptions(options: message.options, timing: timing,
                             submitting: store.replying[message.id], onChoose: onChoose)
+            HStack {
+                TextField("Reply…", text: $draft, axis: .vertical).textFieldStyle(.roundedBorder)
+                    .frame(minHeight: 44)
+                Button("Send") { onChoose(draft) }
+                    .buttonStyle(.bordered).frame(minHeight: 44)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                              || store.replying[message.id] != nil)
+            }
             if store.replying[message.id] != nil { ReplyPendingNote(onSettings: openSettings) }
         }
         .padding(12)
@@ -50,18 +67,7 @@ struct SessionDecisionBubble: View {
     }
 
     private func answered(_ settlement: DecisionSettlement) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: settlement.symbol) }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.ink)
-                .symbolRenderingMode(.hierarchical)
-            settlement.attribution
-                .font(.caption)
-                .foregroundStyle(Theme.ink2)
-        }
-        .padding(.horizontal, 12)
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .combine)
+        ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate)
         .accessibilityIdentifier("transcript-answer-\(message.id.rawValue)")
     }
 }

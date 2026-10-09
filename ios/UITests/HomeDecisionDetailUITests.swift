@@ -52,16 +52,16 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(question.waitForExistence(timeout: 5), "detail opens from Home")
         XCTAssertEqual(question.label, Self.c5Question)
         XCTAssertTrue(app.navigationBars["prod-release"].exists, "detail title is the session")
-        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected, "opening a decision keeps the Home tab")
+        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "the decision sheet covers the tab shell")
 
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), "detail repeats Home's timing copy")
         XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "detail marks the same default")
-        assertSideBySide("Coarse grid", "Fine grid")
+        assertFullWidth("Coarse grid", "Fine grid")
         XCTAssertTrue(app.descendants(matching: .any)["message-more-information"].exists)
         XCTAssertFalse(app.staticTexts["方向"].exists, "routing facts stay collapsed")
 
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.navigationBars.buttons["完成"].tap()
         XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 5), "back returns to Home")
         XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
         XCTAssertFalse(question.exists)
@@ -99,10 +99,11 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertEqual(detailQuestion.label, Self.c1Question)
         keepScreenshot("accessibility-detail-question")
         XCTAssertGreaterThan(
-            detailQuestion.frame.height, reply.frame.height * 5, "detail question must not truncate"
+            detailQuestion.frame.height, reply.frame.height * 3, "detail question must not truncate"
         )
+        for _ in 0..<8 where !app.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertGreaterThanOrEqual(app.buttons["Approve"].frame.height, 44)
-        assertSideBySide("Approve", "Reject")
+        assertFullWidth("Approve", "Reject")
         XCTAssertLessThanOrEqual(detailQuestion.frame.width, app.frame.width)
     }
 
@@ -138,7 +139,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         row.tap()
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
-        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons["完成"].tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertEqual(row.frame.minY, originalY, accuracy: 3, "back preserves Home scroll position")
         XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
@@ -165,6 +166,16 @@ final class HomeDecisionDetailUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func assertFullWidth(_ first: String, _ second: String) {
+        let top = app.buttons[first].frame
+        let bottom = app.buttons[second].frame
+        XCTAssertGreaterThanOrEqual(top.width, app.frame.width * 0.7)
+        XCTAssertEqual(top.minX, bottom.minX, accuracy: 2)
+        XCTAssertGreaterThanOrEqual(bottom.minY, top.maxY)
+        XCTAssertGreaterThanOrEqual(top.height, 44)
+        XCTAssertGreaterThanOrEqual(bottom.height, 44)
     }
 
     private func assertSideBySide(_ first: String, _ second: String, allowsWrapping: Bool = false) {

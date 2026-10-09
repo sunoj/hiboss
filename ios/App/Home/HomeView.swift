@@ -14,10 +14,13 @@ struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openConnectionSettings) private var openSettings
     @State private var actionNote: String?
+    @State private var decisionID: MessageID?
+    @State private var showingDecision = false
     @State private var sessionRoute: SessionRoute?
 
     var body: some View {
         content
+            .accessibilityHidden(showingDecision)
             .background(Theme.paper)
             .refreshable {
                 await inbox.refresh()
@@ -34,11 +37,12 @@ struct HomeView: View {
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             .navigationDestination(for: SessionRoute.self) {
-                SessionMessagesView(route: $0, api: sessionAPI, store: inbox)
+                SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
             .navigationDestination(item: $sessionRoute) {
-                SessionMessagesView(route: $0, api: sessionAPI, store: inbox)
+                SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
+            .sheet(isPresented: $showingDecision) { decisionSheet }
             .sheet(isPresented: Binding(
                 get: { panels.selectedTile != nil },
                 set: { if !$0 { panels.closeDetail() } }
@@ -54,6 +58,20 @@ struct HomeView: View {
             } message: { note in
                 Text(verbatim: note)
             }
+    }
+
+    private var decisionSheet: some View {
+        NavigationStack {
+            if let decisionID {
+                MessageDetailView(store: inbox, messageID: decisionID, onOpenSession: {
+                    showingDecision = false
+                    sessionRoute = $0
+                })
+                .toolbar { ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingDecision = false }
+                } }
+            }
+        }.presentationDragIndicator(.visible)
     }
 
     @ViewBuilder
@@ -90,7 +108,11 @@ struct HomeView: View {
                 status: attentionStatus, statusIsFailure: hasCoverageFailure,
                 onRetry: retryCoverage, onSettings: openSettings,
                 replying: inbox.replying, onChoose: handleReply,
-                onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 }
+                onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 },
+                onOpenDecision: {
+                    decisionID = $0
+                    showingDecision = true
+                }
             )
             if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
             TodayResults(snapshot: today)

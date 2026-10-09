@@ -20,67 +20,33 @@ extension SessionGroup {
 }
 
 struct SessionRow: View {
-    let group: SessionGroup
+    let session: TodaySession
+    let tint: Color
+    let fill: Color
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// At accessibility sizes every row stacks and wraps instead of cutting words off.
-    private var stacked: Bool { typeSize.isAccessibilitySize }
-    private var lineLimit: Int? { stacked ? nil : 1 }
-
-    private var rowLayout: AnyLayout {
-        stacked
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            titleRow
-            statusRow
-            if let agent = group.agentName, !agent.isEmpty {
-                Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+        HStack(alignment: .top, spacing: 12) {
+            Text(verbatim: String(session.projectLabel.prefix(2)).uppercased())
+                .font(.footnote.bold()).foregroundStyle(tint)
+                .frame(width: 44, height: 44)
+                .background(fill, in: RoundedRectangle(cornerRadius: 12))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: [session.projectLabel, session.branch].compactMap { $0 }
+                    .joined(separator: " / ")).font(.headline)
+                Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                if let agent = session.agentName {
+                    Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+                }
+                if let date = session.lastActivityDate {
+                    Text(date, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
+                }
             }
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .combine)
-    }
-
-    private var statusRow: some View {
-        rowLayout {
-            if let statusStyle {
-                Label {
-                    Text(verbatim: statusStyle.label)
-                } icon: {
-                    Image(systemName: statusStyle.icon)
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(statusStyle.tint)
-                .symbolRenderingMode(.hierarchical)
-                .lineLimit(lineLimit)
-            }
-            if !stacked { Spacer(minLength: 8) }
-            if let last = group.lastActivity {
-                Text(verbatim: RelativeTime.short(from: last))
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.ink2)
-                    .lineLimit(lineLimit)
-            }
-        }
-    }
-
-    private var titleRow: some View {
-        rowLayout {
-            Text(verbatim: group.localizedLabel)
-                .font(.headline)
-                .foregroundStyle(Theme.ink)
-                .lineLimit(lineLimit)
-            if !stacked { Spacer(minLength: 0) }
-        }
-    }
-
-    private var statusStyle: SessionStatusStyle? {
-        SessionStatusStyle(word: group.statusWord)
     }
 }

@@ -17,6 +17,7 @@ struct HomeAttentionSection: View {
     let onChoose: (String, MessageID) -> Void
     let onOpenPanel: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
+    let onOpenDecision: (MessageID) -> Void
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -37,7 +38,8 @@ struct HomeAttentionSection: View {
                         ForEach(group.items) { item in
                             HomeAttentionRow(
                                 item: item, submitting: replying[item.id],
-                                onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession
+                                onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession,
+                                onOpenDecision: onOpenDecision
                             )
                         }
                     }
@@ -120,12 +122,13 @@ struct HomeAttentionRow: View {
     var submitting: String?
     let onChoose: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
+    let onOpenDecision: (MessageID) -> Void
     @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
         let timing = DecisionTiming(message: item.message)
         VStack(alignment: .leading, spacing: 10) {
-            NavigationLink(value: item.id) { info }
+            Button { onOpenDecision(item.id) } label: { info }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("home-message-\(item.id.rawValue)")
                 .contextMenu {
