@@ -1,5 +1,5 @@
 // Native Box reference row with authenticated thumbnails and semantic kind labels.
-// Exports BoxRow and BoxItem presentation helpers.
+// Exports BoxRow, BoxProvenanceBadge and BoxItem presentation helpers.
 // Dependencies: SwiftUI, HibossKit, BoxMediaStore and Theme.
 
 import HibossKit
@@ -14,6 +14,7 @@ struct BoxRow: View {
             thumbnail
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: item.boxTitle).font(.body).foregroundStyle(Theme.ink).lineLimit(3)
+                BoxProvenanceBadge(item: item)
                 if let note = item.note, !note.isEmpty {
                     Text(verbatim: note).font(.callout).foregroundStyle(Theme.ink2).lineLimit(2)
                 }
@@ -60,7 +61,30 @@ struct BoxRow: View {
     }
 }
 
+struct BoxProvenanceBadge: View {
+    let item: BoxItem
+
+    var body: some View {
+        if let label = item.provenanceLabel {
+            Label { Text(verbatim: label) } icon: { Image(systemName: "person.crop.circle") }
+                .font(.caption)
+                .foregroundStyle(Theme.ink2)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
 extension BoxItem {
+    var provenanceLabel: String? {
+        guard case let .agent(_, name) = author else { return nil }
+        guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else {
+            return String(localized: "Added by an agent")
+        }
+        return String(localized: "Added by \(name)")
+    }
+
     var boxTitle: String {
         if let text, !text.isEmpty { return text }
         return url ?? note ?? kindLabel
