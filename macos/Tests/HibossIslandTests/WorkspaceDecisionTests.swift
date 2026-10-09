@@ -25,10 +25,11 @@ final class WorkspaceDecisionTests: XCTestCase {
         XCTAssertEqual(snapshot.count(.completed), 1)
     }
 
-    func testLiveOrdinaryQuestionAppearsBeforeHistoryArrives() {
+    func testServerListedOrdinaryQuestionAppearsBeforeHistoryArrives() {
         let live = OptionMessage(id: "live", body: "Review?",
             metadata: MessageMetadata(options: ["Yes", "No"]))
-        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now).count(.needsYou), 1)
+        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now,
+            requiredInputs: [TodayProjection.historyMessage(from: live)]).count(.needsYou), 1)
     }
 
     func testHistoryOnlyQuestionNeverReopensAsARequiredDecision() {

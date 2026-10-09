@@ -17,7 +17,7 @@ final class IslandPanelController {
     private let settings: AppSettings
     private let soundPlayer: any SoundPlaying
     private let screens: () -> [IslandGeometry]
-    private let overview = OverviewStore()
+    let overview: OverviewStore
     private let pointerLocation: () -> NSPoint
     private var questionScreen: IslandGeometry?
     private var cancellables: Set<AnyCancellable> = []
@@ -26,12 +26,14 @@ final class IslandPanelController {
     init(
         flow: OptionFlowStore,
         settings: AppSettings,
+        overview: OverviewStore = OverviewStore(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer(),
         screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }
     ) {
         self.flow = flow
         self.settings = settings
+        self.overview = overview
         self.soundPlayer = soundPlayer
         self.screens = screens
         self.pointerLocation = pointerLocation
@@ -63,7 +65,8 @@ final class IslandPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
-        let host = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
+        let host = BoxDropHostingView(
+            rootView: IslandView(flow: flow, reply: reply, overview: overview), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
         dropReveal = IslandDropRevealController(
@@ -97,7 +100,7 @@ final class IslandPanelController {
             optionWindow.standardWindowButton(button)?.isHidden = true
         }
         let host = NSHostingView(
-            rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
+            rootView: IslandView(flow: flow, reply: reply, overview: overview, surfaceStyle: .window)
         )
         host.sizingOptions = []
         optionWindow.contentView = host
@@ -110,15 +113,9 @@ final class IslandPanelController {
     ]
 
     private func observeFlow() {
-        Publishers.CombineLatest3(flow.$historyMessages, flow.$activeMessage, flow.$replyFeedback)
-            .sink { [weak self] history, live, feedback in
-                self?.overview.update(history: history, live: live,
-                    withdrawn: TodayProjection.withdrawn(feedback: feedback))
-            }
-            .store(in: &cancellables)
         Publishers.CombineLatest(overview.$snapshot, settings.$presentationMode)
             .sink { [weak self] snapshot, mode in
-                self?.updatePresentation(message: snapshot.attention.first?.asOptionMessage, mode: mode)
+                self?.updatePresentation(message: snapshot.today.decisions.first?.asOptionMessage, mode: mode)
             }
             .store(in: &cancellables)
 
@@ -197,7 +194,7 @@ final class IslandPanelController {
         guard settings.presentationMode == .island,
             !followingPointer || questionScreen == nil else { return }
         setContentInset(geometry.expandedTopInset)
-        guard let message = overview.snapshot.attention.first?.asOptionMessage else { return }
+        guard let message = overview.snapshot.today.decisions.first?.asOptionMessage else { return }
         questionScreen = geometry
         panel.setFrame(
             geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)),

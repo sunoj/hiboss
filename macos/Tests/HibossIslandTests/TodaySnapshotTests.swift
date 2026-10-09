@@ -58,8 +58,9 @@ final class TodaySnapshotTests: XCTestCase {
         flow.connect(api: ScriptedBossAPI(messages: [requiredInput.asOptionMessage], history: history))
         defer { flow.disconnect() }
         try await waitForCondition { flow.historyState == .loaded && flow.activeMessage != nil }
-        let presentation = try XCTUnwrap(IslandAttention.presentation(live: nil,
-            history: flow.historyMessages, now: .now))
+        let presentation = try XCTUnwrap(IslandAttention.presentation(snapshot: TodaySnapshot(history: [],
+            requiredInputs: history,
+            health: .live(checkedAt: .now), coverageComplete: true, now: .now)))
         XCTAssertEqual(presentation.message.id, "deploy")
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             try await IslandAppearanceSnapshotTests.capture(
@@ -128,6 +129,13 @@ final class TodaySnapshotTests: XCTestCase {
                 createdAt: AttentionTestSupport.iso(now.addingTimeInterval(-90)),
                 sessionId: "design", sessionLabel: "mac-client", sessionBranch: "ui-v4",
                 sessionStatus: "waiting"),
+            HistoryMessage(id: "queued", body: "Review the release notes before publishing?",
+                agentName: "docs",
+                direction: "agent_to_boss", status: "delivered", priority: "high",
+                metadata: MessageMetadata(options: ["Review", "Ready"]),
+                createdAt: AttentionTestSupport.iso(now.addingTimeInterval(-60)),
+                sessionId: "docs", sessionLabel: "release-notes", sessionBranch: "release",
+                sessionStatus: "working"),
             HistoryMessage(id: "working", body: "Running the release verification suite.", agentName: "build",
                 direction: "agent_to_boss", status: "delivered", priority: "normal",
                 createdAt: AttentionTestSupport.iso(now.addingTimeInterval(-20)),

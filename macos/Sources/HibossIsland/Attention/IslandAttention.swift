@@ -1,6 +1,6 @@
 // Picks the island's visible option using the same ranking as the window.
 // Exports: IslandAttention.presentation.
-// Dependencies: HibossKit OptionMessage and HistoryMessage, TodayProjection.
+// Dependencies: HibossKit OptionMessage and HistoryMessage, TodaySnapshot.
 
 import Foundation
 import HibossKit
@@ -12,12 +12,8 @@ struct IslandPresentation: Equatable {
 
 enum IslandAttention {
     /// The most intrusive surface always carries the shared queue's first decision.
-    static func presentation(
-        live: OptionMessage?,
-        history: [HistoryMessage],
-        now: Date, withdrawn: Set<MessageID> = []
-    ) -> IslandPresentation? {
-        let items = TodayProjection.decisions(history: history, live: live, now: now, withdrawn: withdrawn)
+    static func presentation(snapshot: TodaySnapshot) -> IslandPresentation? {
+        let items = snapshot.decisions
         guard let first = items.first else { return nil }
         return IslandPresentation(message: first.asOptionMessage, item: first)
     }

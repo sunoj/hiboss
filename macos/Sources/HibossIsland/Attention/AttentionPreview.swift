@@ -56,7 +56,8 @@ enum AttentionPreview {
             sessionLabel: "nightly-export",
             sessionStatus: "working"
         )
-        return TodayProjection.decisions(history: [high, blocked, auto], now: now)
+        return TodaySnapshot(history: [], requiredInputs: [high, blocked, auto],
+            health: .live(checkedAt: now), coverageComplete: true, now: now).decisions
     }
 
     private static func iso(_ date: Date) -> String {

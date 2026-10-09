@@ -23,7 +23,8 @@ final class IslandPanelSizingTests: XCTestCase {
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         try await waitForCondition { flow.activeMessage?.id == message.id }
         try await settle(controller.panel)
-        let content = NSHostingView(rootView: IslandView(flow: flow, reply: controller.reply)
+        let content = NSHostingView(rootView: IslandView(flow: flow, reply: controller.reply,
+            overview: controller.overview)
             .frame(width: AppConstants.Island.width)
             .fixedSize(horizontal: false, vertical: true))
         content.layoutSubtreeIfNeeded()
@@ -141,7 +142,8 @@ final class IslandPanelSizingTests: XCTestCase {
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults, keychain: SizingTokenStore())
         settings.playsSound = false
-        return (IslandPanelController(flow: flow, settings: settings), settings)
+        return (IslandPanelController(flow: flow, settings: settings,
+            overview: islandTestOverview(flow: flow)), settings)
     }
 
     private func assertBodyScrolls(in window: NSWindow) throws {

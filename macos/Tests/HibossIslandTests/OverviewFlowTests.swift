@@ -40,12 +40,13 @@ final class OverviewFlowTests: XCTestCase {
         XCTAssertEqual(after.messages(for: .category(.completed)).map(\.id), ["question"])
     }
 
-    func testLiveQuestionIsCountedOnceAndResolvedHistoryWins() {
+    func testLiveQuestionRequiresServerMembershipAndDroppedListWins() {
         let live = OptionMessage(id: "live", body: "Ship?", agentName: "Agent",
             metadata: MessageMetadata(options: ["Ship"], defaultOption: "Ship"),
             expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(60)))
         let resolved = AttentionTestSupport.ask(id: "live", options: ["Ship"], status: "replied")
-        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now).count(.automatic), 1)
+        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now,
+            requiredInputs: [TodayProjection.historyMessage(from: live)]).count(.automatic), 1)
         let snapshot = OverviewSnapshot(history: [resolved], live: live, now: now)
         XCTAssertEqual(snapshot.count(.all), 1)
         XCTAssertEqual(snapshot.count(.needsYou), 0)

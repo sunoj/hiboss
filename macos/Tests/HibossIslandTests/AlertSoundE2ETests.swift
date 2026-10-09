@@ -67,7 +67,8 @@ final class AlertSoundE2ETests: XCTestCase {
         configure(settings)
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         let player = RecordingSoundPlayer()
-        let controller = IslandPanelController(flow: flow, settings: settings, soundPlayer: player)
+        let controller = IslandPanelController(flow: flow, settings: settings,
+            overview: islandTestOverview(flow: flow), soundPlayer: player)
         addTeardownBlock { _ = controller }
         flow.connect(api: ScriptedBossAPI(messages: messages))
         return (flow, settings, player)

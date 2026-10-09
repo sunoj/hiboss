@@ -13,6 +13,7 @@ struct MainView: View {
     @ObservedObject var notificationNavigation: MessageNotificationNavigation
     @ObservedObject var joinRequests: JoinRequestsModel
     @StateObject private var reply = AttentionReplyState()
+    private let requiredInputs: RequiredInputStore
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var panels: PanelsModel
     @StateObject private var box: BoxBrowserStore
@@ -29,11 +30,15 @@ struct MainView: View {
     init(settings: AppSettings, flow: OptionFlowStore,
          notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation(),
          joinRequests: JoinRequestsModel = JoinRequestsModel { nil },
+         overviewStore: OverviewStore = OverviewStore(),
+         requiredInputs: RequiredInputStore = RequiredInputStore(),
          initialDestination: OverviewDestination = .today,
          previewHistory: [HistoryMessage]? = AttentionPreview.historyIfRequested(),
          previewSessions: [ProjectSession]? = nil,
          boxProvider: BoxBrowserStore.Provider? = nil,
          panelsModel: PanelsModel? = nil) {
+        self.requiredInputs = requiredInputs
+        _overviewStore = StateObject(wrappedValue: overviewStore)
         self.settings = settings
         self.previewSessions = previewSessions
         _previewHistory = State(initialValue: previewHistory)
@@ -109,18 +114,14 @@ struct MainView: View {
     }
 
     private func updateOverview() {
-        let history = previewHistory ?? flow.historyMessages
+        guard let history = previewHistory else {
+            overviewStore.setQuestionnaireCoverage(panels.hasCompleteQuestionnaires
+                && !panels.pendingQuestionnaires.contains(where: \.blocking))
+            return
+        }
         let now = Date.now
-        let health = previewHistory != nil ? TodayHealth.live(checkedAt: now)
-            : TodayProjection.health(connection: flow.connectionState,
-                history: flow.historyState, checkedAt: now)
-        let coverage = previewHistory != nil || (TodayProjection.coverage(history: history,
-            state: flow.historyState) && panels.hasCompleteQuestionnaires
-            && !panels.pendingQuestionnaires.contains(where: \.blocking))
-        overviewStore.update(history: history, live: flow.activeMessage, now: now,
-            health: health, coverageComplete: coverage,
-            withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback),
-            requiredInputs: previewHistory ?? [])
+        overviewStore.update(history: history, live: nil, now: now,
+            health: .live(checkedAt: now), coverageComplete: true, requiredInputs: history)
     }
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
@@ -270,6 +271,7 @@ struct MainView: View {
         }
         if destination == .deviceRequests { Task { await joinRequests.refresh() } }
         if case .session = destination, sessionBox.project != nil { Task { await sessionBox.refresh() } }
+        requiredInputs.refresh()
         Task { await flow.refreshHistory() }
         if destination == .today || destination == .progress { Task { await panels.load() } }
     }

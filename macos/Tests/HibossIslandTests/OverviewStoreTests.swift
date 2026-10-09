@@ -26,7 +26,7 @@ final class OverviewStoreTests: XCTestCase {
         let live = OptionMessage(id: "live", body: "Ship?", agentName: "Agent",
             metadata: MessageMetadata(options: ["Ship"], defaultOption: "Ship"),
             expiresAt: AttentionTestSupport.iso(Date().addingTimeInterval(60)))
-        store.update(history: [], live: live)
+        store.update(history: [], live: live, requiredInputs: [TodayProjection.historyMessage(from: live)])
         XCTAssertEqual(store.snapshot.count(.automatic), 1)
         store.update(history: [], live: nil)
         XCTAssertEqual(store.snapshot.count(.all), 0)

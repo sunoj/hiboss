@@ -9,6 +9,11 @@ import XCTest
 final class TodayProjectionTests: XCTestCase {
     private let now = AttentionTestSupport.now
     private func iso(_ date: Date) -> String { AttentionTestSupport.iso(date) }
+    private func decisions(requiredInputs: [HistoryMessage], now: Date) -> [AttentionItem] {
+        TodaySnapshot(history: [], requiredInputs: requiredInputs, health: .live(checkedAt: now),
+            coverageComplete: true, now: now).decisions
+    }
+
     private func ask(
         id: MessageID,
         priority: String = "normal",
@@ -61,7 +66,7 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [high, blocked, auto], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [high, blocked, auto], now: now).map(\.id.rawValue),
             ["auto", "blocked", "high"]
         )
     }
@@ -82,7 +87,7 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [critical, blocked], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [critical, blocked], now: now).map(\.id.rawValue),
             ["blocked", "critical"]
         )
     }
@@ -98,7 +103,7 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [high, critical], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [high, critical], now: now).map(\.id.rawValue),
             ["critical", "high"]
         )
     }
@@ -108,7 +113,7 @@ final class TodayProjectionTests: XCTestCase {
         let high = ask(id: "high", priority: "high", options: ["Look"], sessionStatus: "working")
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [normal, high], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [normal, high], now: now).map(\.id.rawValue),
             ["high", "normal"]
         )
     }
@@ -123,7 +128,7 @@ final class TodayProjectionTests: XCTestCase {
             sessionStatus: "waiting"
         )
 
-        XCTAssertTrue(TodayProjection.decisions(history: [expired], now: now).isEmpty)
+        XCTAssertTrue(decisions(requiredInputs: [expired], now: now).isEmpty)
     }
 
     func testItemExpiresWhileOnScreenLeavesAttention() {
@@ -136,8 +141,8 @@ final class TodayProjectionTests: XCTestCase {
             sessionStatus: "working"
         )
 
-        let before = TodayProjection.decisions(history: [message], now: now.addingTimeInterval(29))
-        let after = TodayProjection.decisions(history: [message], now: now.addingTimeInterval(31))
+        let before = decisions(requiredInputs: [message], now: now.addingTimeInterval(29))
+        let after = decisions(requiredInputs: [message], now: now.addingTimeInterval(31))
 
         XCTAssertEqual(before.map(\.id.rawValue), ["ticking"])
         XCTAssertEqual(before.first?.group, .autoDecision)
@@ -156,11 +161,11 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [message], now: now).first?.group,
+            decisions(requiredInputs: [message], now: now).first?.group,
             .autoDecision
         )
         XCTAssertEqual(
-            TodayProjection.decisions(history: [message], now: now.addingTimeInterval(11))
+            decisions(requiredInputs: [message], now: now.addingTimeInterval(11))
                 .first?.group,
             nil
         )
@@ -183,7 +188,7 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [later, sooner], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [later, sooner], now: now).map(\.id.rawValue),
             ["sooner", "later"]
         )
     }
@@ -205,7 +210,7 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [newer, older], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [newer, older], now: now).map(\.id.rawValue),
             ["older", "newer"]
         )
     }
@@ -225,7 +230,7 @@ final class TodayProjectionTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            TodayProjection.decisions(history: [newer, older], now: now).map(\.id.rawValue),
+            decisions(requiredInputs: [newer, older], now: now).map(\.id.rawValue),
             ["b-older", "b-newer"]
         )
     }
@@ -238,7 +243,7 @@ final class TodayProjectionTests: XCTestCase {
             expiresAt: iso(now.addingTimeInterval(40))
         )
         let high = ask(id: "high", priority: "high", options: ["Look"])
-        let items = TodayProjection.decisions(history: [high, auto], now: now)
+        let items = decisions(requiredInputs: [high, auto], now: now)
         let sections = AttentionModel.grouped(from: items.map(\.message), now: now)
 
         XCTAssertEqual(sections.map(\.group), [.autoDecision, .priority])

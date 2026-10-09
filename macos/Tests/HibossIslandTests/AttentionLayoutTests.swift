@@ -48,7 +48,7 @@ final class AttentionLayoutTests: XCTestCase {
         defer { flow.disconnect() }
         // The window opens on the dashboard; the reply editor lives in the Needs You workspace.
         let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: flow,
-            initialDestination: .category(.needsYou)))
+            overviewStore: islandTestOverview(flow: flow), initialDestination: .category(.needsYou)))
         host.sizingOptions = []
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),

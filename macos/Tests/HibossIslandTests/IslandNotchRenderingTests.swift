@@ -77,6 +77,7 @@ final class IslandNotchRenderingTests: XCTestCase {
             contentHeight: OptionPanelLayout.expandedHeight(for: try XCTUnwrap(flow.activeMessage))
         ) : geometry.collapsedFrame
         let host = NSHostingView(rootView: IslandView(flow: flow, reply: AttentionReplyState(),
+            overview: islandTestOverview(flow: flow),
             topInset: geometry.expandedTopInset).environment(\.colorScheme, .dark))
         host.sizingOptions = []
         let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -20000, y: -20000), size: frame.size),

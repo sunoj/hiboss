@@ -19,7 +19,7 @@ final class TodayBehaviorTests: XCTestCase {
         let snapshot = OverviewSnapshot(history: history, live: nil, now: now, requiredInputs: history)
         XCTAssertEqual(snapshot.attention, AttentionModel.items(from: history, now: now))
         XCTAssertEqual(snapshot.attention.first?.id, "text")
-        XCTAssertEqual(IslandAttention.presentation(live: nil, history: history, now: now)?.message.id,
+        XCTAssertEqual(IslandAttention.presentation(snapshot: snapshot.today)?.message.id,
             "text")
         XCTAssertEqual(snapshot.today.sessionDirectory.needsYou.map(\.id), ["session", "choice"])
     }
@@ -35,26 +35,23 @@ final class TodayBehaviorTests: XCTestCase {
             health: .live(checkedAt: now), coverageComplete: true).today.isAllClear)
     }
 
-    func testFullHistoryPageCannotProveCoverage() {
-        let page = (0..<AppConstants.API.historyLimit).map {
-            AttentionTestSupport.ask(id: MessageID(rawValue: "message-\($0)"), options: [], now: now)
-        }
-        XCTAssertFalse(TodayProjection.coverage(history: page, state: .loaded))
-        XCTAssertTrue(TodayProjection.coverage(history: Array(page.dropLast()), state: .loaded))
-        XCTAssertFalse(TodayProjection.coverage(history: [], state: .loading))
-        XCTAssertFalse(TodayProjection.coverage(history: [], state: .failed("unavailable")))
+    func testCoverageRequiresBothTheLoadedListAndReadyStream() {
+        XCTAssertFalse(RequiredInputState(ready: false, loaded: true).coverageComplete)
+        XCTAssertFalse(RequiredInputState(ready: true, loaded: false).coverageComplete)
+        XCTAssertFalse(RequiredInputState(ready: true, loaded: true, failed: true).coverageComplete)
+        XCTAssertTrue(RequiredInputState(ready: true, loaded: true).coverageComplete)
     }
 
-    func testKnownReplyConflictWithdrawsStaleHistoryWithoutChangingOtherDecisions() {
-        let history = [AttentionTestSupport.ask(id: "closed", options: ["Ship"], now: now),
-                       AttentionTestSupport.ask(id: "open", options: ["Wait"], now: now)]
-        let withdrawn = TodayProjection.withdrawn(feedback: ["closed": .alreadyResolved, "open": .failed("")])
-        let snapshot = OverviewSnapshot(history: history, live: nil, now: now, withdrawn: withdrawn,
-            requiredInputs: history)
-        XCTAssertEqual(snapshot.attention.map(\.id), ["open"])
-        XCTAssertEqual(IslandAttention.presentation(live: nil, history: history,
-            now: now, withdrawn: withdrawn)?.message.id, "open")
-        XCTAssertEqual(snapshot.messages(for: .category(.all)).count, 2)
+    func testAnsweredHistoryCannotWithdrawAServerListedDecision() {
+        let pending = AttentionTestSupport.ask(id: "closed", options: ["Ship"], now: now)
+        let answered = AttentionTestSupport.ask(id: "closed", options: ["Ship"], status: "replied", now: now)
+        let snapshot = OverviewSnapshot(history: [answered], live: nil, now: now,
+            requiredInputs: [pending])
+        XCTAssertEqual(snapshot.today.decisions.map(\.id), ["closed"])
+        XCTAssertEqual(IslandAttention.presentation(snapshot: snapshot.today)?.message.id, "closed")
+        let removed = OverviewSnapshot(history: [pending], live: nil, now: now, requiredInputs: [])
+        XCTAssertTrue(removed.today.decisions.isEmpty)
+        XCTAssertEqual(removed.messages(for: .category(.all)).count, 1)
     }
 
     @MainActor
