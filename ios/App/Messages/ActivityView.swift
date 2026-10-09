@@ -73,12 +73,12 @@ struct ActivityView: View {
         _ title: Text, sessions: [TodaySession], tint: Color, fill: Color
     ) -> some View {
         let matches = sessions.filter {
-            search.isEmpty || [$0.projectLabel, $0.branch, $0.agentName, $0.statusText]
+            search.isEmpty || [$0.localizedLabel, $0.branch, $0.agentName, $0.statusText]
                 .compactMap { $0 }.joined(separator: " ").localizedCaseInsensitiveContains(search)
         }
         return Section {
             ForEach(matches) { session in
-                NavigationLink(value: SessionRoute(id: session.id, label: session.projectLabel)) {
+                NavigationLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
                     SessionRow(session: session, tint: tint, fill: fill)
                 }
                 .accessibilityIdentifier("activity-session-\(session.id)")

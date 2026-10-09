@@ -137,7 +137,8 @@ final class SessionsV4UITests: XCTestCase {
     func testSessionPanelKeepsQuestionnaireReachable() {
         let app = launch(extra: ["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_NATIVE_PANEL": "1"])
         XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 10))
-        let panel = app.descendants(matching: .any).matching(identifier: "session-panel-demo-panel").firstMatch
+        let panel = app.descendants(matching: .any)
+            .matching(identifier: "session-panel-demo-panel").firstMatch
         for _ in 0..<8 where !panel.exists || !panel.isHittable { app.swipeUp() }
         XCTAssertTrue(panel.waitForExistence(timeout: 10))
         panel.tap()

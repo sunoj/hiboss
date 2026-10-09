@@ -27,6 +27,18 @@ final class SessionsV4Tests: XCTestCase {
         XCTAssertNotNil(model.error)
     }
 
+    func testSessionInventoryDatesAcceptServerUTCAndISOFormats() {
+        let session = ProjectSession(id: "session", projectId: nil, projectSlug: nil, branch: nil,
+                                     startedAt: "2026-10-09 14:15:16",
+                                     lastSeenAt: "2026-10-09T14:15:16Z")
+        XCTAssertNotNil(session.inventoryStartedDate)
+        XCTAssertEqual(session.inventoryStartedDate, session.inventoryLastSeenDate)
+        let invalid = ProjectSession(id: "session", projectId: nil, projectSlug: nil, branch: nil,
+                                     startedAt: "unknown")
+        XCTAssertNil(invalid.inventoryStartedDate)
+        XCTAssertNil(invalid.inventoryLastSeenDate)
+    }
+
     func testBoxAuthorFiltersNeverTreatAgentItemsAsMine() {
         let agent = BoxItem(id: "agent", bossID: "boss", bossName: "Boss", kind: .text, text: "Research",
                             createdAt: "", addedBy: .agent(id: "worker", name: "Researcher"))
@@ -65,7 +77,8 @@ final class SessionsV4Tests: XCTestCase {
         await model.load()
         XCTAssertEqual(model.tiles.count, 1)
         model.section = .archived
-        XCTAssertEqual(SessionPanelCards(sessionID: "sess-deploy", model: model).tiles.map(\.id), ["demo-panel"])
+        XCTAssertEqual(SessionPanelCards(sessionID: "sess-deploy", model: model).tiles.map(\.id),
+                       ["demo-panel"])
         XCTAssertTrue(SessionPanelCards(sessionID: "another-session", model: model).tiles.isEmpty)
     }
 

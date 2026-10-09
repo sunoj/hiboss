@@ -5,6 +5,11 @@
 import HibossKit
 import SwiftUI
 
+extension ProjectSession {
+    var inventoryStartedDate: Date? { startedAt.flatMap(ISOTimestamp.date(from:)) }
+    var inventoryLastSeenDate: Date? { lastSeenAt.flatMap(ISOTimestamp.date(from:)) }
+}
+
 @MainActor
 final class SessionFactsStore: ObservableObject {
     @Published private(set) var session: ProjectSession?
@@ -51,7 +56,7 @@ struct SessionFactsHeader: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Label { Text(verbatim: step) } icon: { Image(systemName: "circle.fill") }
                         .font(.subheadline).foregroundStyle(Theme.live)
-                    if let date = session.lastSeenAt.flatMap(ISODate.parse) {
+                    if let date = session.inventoryLastSeenDate {
                         TimelineView(.periodic(from: .now, by: 10)) { context in
                             let age = Duration.seconds(max(0, context.date.timeIntervalSince(date)))
                                 .formatted(.units(allowed: [.days, .hours, .minutes, .seconds],
@@ -62,7 +67,7 @@ struct SessionFactsHeader: View {
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
             }
-            if let date = session.startedAt.flatMap(ISODate.parse) {
+            if let date = session.inventoryStartedDate {
                 Text("Started \(date.formatted(date: .abbreviated, time: .shortened))")
                     .font(.caption).foregroundStyle(Theme.ink3)
             }

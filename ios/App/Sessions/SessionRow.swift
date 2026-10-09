@@ -1,21 +1,13 @@
 // Native session list summary: session, status, agent and latest activity.
-// Exports: SessionRow and SessionGroup summary helpers for Activity.
-// Dependencies: SwiftUI, HibossKit SessionGroup, SessionStatusStyle and Theme.
+// Exports: SessionRow and TodaySession localization for Activity.
+// Dependencies: SwiftUI, HibossKit TodaySession and Theme.
 
 import HibossKit
 import SwiftUI
 
-extension SessionGroup {
+extension TodaySession {
     var localizedLabel: String {
-        id == SessionGrouping.directSessionID ? String(localized: "Direct") : label
-    }
-
-    /// Newest activity timestamp across the session's messages.
-    var lastActivity: Date? { messages.compactMap(\.createdDate).max() }
-
-    /// Normalised status word, lowercased, empty when unknown.
-    var statusWord: String {
-        status?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        id == SessionGrouping.directSessionID ? String(localized: "Direct") : projectLabel
     }
 }
 
@@ -27,12 +19,12 @@ struct SessionRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(verbatim: String(session.projectLabel.prefix(2)).uppercased())
+            Text(verbatim: String(session.localizedLabel.prefix(2)).uppercased())
                 .font(.footnote.bold()).foregroundStyle(tint)
                 .frame(width: 44, height: 44)
                 .background(fill, in: RoundedRectangle(cornerRadius: 12))
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: [session.projectLabel, session.branch].compactMap { $0 }
+                Text(verbatim: [session.localizedLabel, session.branch].compactMap { $0 }
                     .joined(separator: " / ")).font(.headline)
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
