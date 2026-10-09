@@ -16,8 +16,8 @@ final class SettingsNavigationUITests: XCTestCase {
         app.configureDemoLaunch(extra)
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons["Settings"].waitForExistence(timeout: 8))
-        app.tabBars.buttons["Settings"].tap()
+        XCTAssertTrue(app.buttons["today-settings"].waitForExistence(timeout: 8))
+        app.buttons["today-settings"].tap()
     }
 
     private func openDevices(_ name: String) {

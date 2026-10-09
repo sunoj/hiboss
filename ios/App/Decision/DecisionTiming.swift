@@ -11,12 +11,14 @@ struct DecisionTiming: Equatable {
     let createdAt: Date?
     /// The option the server picks on timeout — only while a live expiration exists.
     let autoDefault: String?
+    let declaredDefault: String?
 
     init(message: HistoryMessage, now: Date = Date()) {
         let live = message.expirationDate.flatMap { $0 > now ? $0 : nil }
         let trimmed = message.defaultOption?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         expiresAt = live
         createdAt = message.createdDate
+        declaredDefault = trimmed.isEmpty ? nil : message.defaultOption
         autoDefault = live != nil && !trimmed.isEmpty ? message.defaultOption : nil
     }
 
@@ -44,16 +46,15 @@ struct DecisionTimingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if let deadline = timing.expiresAt, let option = timing.autoDefault {
-                if compact {
-                    compactCountdown(deadline: deadline, option: option)
-                } else {
-                    Label {
-                        Text("Auto-selects “\(option)” when time runs out")
-                    } icon: {
-                        Image(systemName: "clock.arrow.circlepath")
-                    }
-                    Label { CountdownText(deadline: deadline) } icon: { Image(systemName: "timer") }
+            if let option = timing.declaredDefault {
+                TimelineView(.everyMinute) { context in
+                    let time = timing.expiresAt.map { deadline in
+                        Duration.seconds(max(0, deadline.timeIntervalSince(context.date))).formatted(
+                            .units(allowed: [.hours, .minutes, .seconds], width: .abbreviated,
+                                   maximumUnitCount: 1)
+                        )
+                    } ?? String(localized: "an unspecified time")
+                    Text("No answer in \(time) picks “\(option)”. That is not approval.")
                 }
             } else {
                 TimelineView(.everyMinute) { context in
@@ -61,6 +62,7 @@ struct DecisionTimingView: View {
                         Image(systemName: "hourglass")
                     }
                 }
+                if timing.expiresAt == nil { Text("No deadline") }
                 if let deadline = timing.expiresAt {
                     Label {
                         Text("Reply by \(deadline.formatted(date: .abbreviated, time: .shortened))")
@@ -77,18 +79,4 @@ struct DecisionTimingView: View {
         .accessibilityIdentifier("decision-timing-\(messageID.rawValue)")
     }
 
-    private func compactCountdown(deadline: Date, option: String) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 4) {
-                Text("Auto-selects “\(option)”")
-                Text(verbatim: "·")
-                CountdownText(deadline: deadline)
-            }
-            .fixedSize(horizontal: true, vertical: false)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Auto-selects “\(option)”")
-                CountdownText(deadline: deadline)
-            }
-        }
-    }
 }

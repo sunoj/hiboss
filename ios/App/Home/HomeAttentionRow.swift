@@ -5,20 +5,10 @@
 import HibossKit
 import SwiftUI
 
-enum HomeAttentionAllClearStyle: Equatable {
-    case compact
-    case full
-}
-
-enum HomeAttentionLayout {
-    static func allClearStyle(hasPanels: Bool) -> HomeAttentionAllClearStyle {
-        hasPanels ? .compact : .full
-    }
-}
-
 struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
+    var isAllClear = false
     let status: String?
     var statusIsFailure = false
     var onRetry: (() async -> Void)? = nil
@@ -31,7 +21,7 @@ struct HomeAttentionSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            title
+            if snapshot.count > 0 { title }
             if let status {
                 PendingStateView(
                     title: status, showsPlaceholder: snapshot.count == 0 && !hasPanels,
@@ -39,7 +29,7 @@ struct HomeAttentionSection: View {
                     onRetry: onRetry, onSettings: onSettings
                 )
             }
-            if snapshot.count == 0 && status == nil {
+            if isAllClear {
                 allClear
             } else {
                 ForEach(snapshot.groups, id: \.group) { group in
@@ -69,9 +59,9 @@ struct HomeAttentionSection: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
         return layout {
-            Text("Needs you now")
+            Text("Your call")
                 .fixedSize(horizontal: false, vertical: true)
-                .font(.hbH2)
+                .font(.title3.bold())
                 .foregroundStyle(Theme.ink)
             if !stacked { Spacer(minLength: 0) }
             if snapshot.count > 0 || (status == nil && hasPanels) {
@@ -113,29 +103,16 @@ struct HomeAttentionSection: View {
     }
 
     private var allClear: some View {
-        Group {
-            switch HomeAttentionLayout.allClearStyle(hasPanels: hasPanels) {
-            case .compact:
-                // The section subtitle already says nothing is waiting; repeating it
-                // here only pushes the panels the boss came to see further down.
-                EmptyView()
-            case .full:
-                VStack(spacing: 14) {
-                    AllClearIslandView()
-                    Text("Nothing needs you")
-                        .font(.hbH2)
-                        .foregroundStyle(Theme.ink)
-                    Text("Everything is settled. This is where an agent's next question will appear.")
-                        .font(.hbCallout)
-                        .foregroundStyle(Theme.ink2)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 300)
-                }
-                .frame(maxWidth: .infinity, minHeight: 360)
-            }
+        VStack(spacing: 14) {
+            TodayAllClearScene()
+            Text("Nothing needs you").font(.title2.bold()).foregroundStyle(Theme.ink)
+            Label("Live", systemImage: "checkmark.circle.fill")
+                .font(.footnote).foregroundStyle(Theme.positive)
         }
+        .frame(maxWidth: .infinity, minHeight: 360)
         .accessibilityElement(children: .combine)
     }
+
 }
 
 struct HomeAttentionRow: View {
@@ -162,7 +139,6 @@ struct HomeAttentionRow: View {
                         Button("View session") { onOpenSession(sessionRoute) }
                     }
                 }
-            DecisionTimingView(timing: timing, messageID: item.id, compact: true)
             if let attachment = item.message.metadata?.attachment {
                 MessageAttachmentView(attachment: attachment)
             }
@@ -171,6 +147,7 @@ struct HomeAttentionRow: View {
                 media: item.message.metadata?.optionMedia ?? []
             )
             choices(timing: timing)
+            DecisionTimingView(timing: timing, messageID: item.id, compact: true)
             if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
         }
         .padding(12)
@@ -180,25 +157,27 @@ struct HomeAttentionRow: View {
     private var info: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: "\(project) · \(item.message.displayName)")
+                Text(verbatim: [project, item.message.sessionBranch, item.message.displayName]
+                        .compactMap { $0 }.joined(separator: " · "))
                     .font(.hbCaption.weight(.semibold))
                     .foregroundStyle(Theme.ink2)
                 Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.hbCaption)
-                    .foregroundStyle(Theme.ink4)
-                    .accessibilityHidden(true)
+                if let deadline = item.expiresAt {
+                    CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
+                } else {
+                    Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
+                }
             }
             // The question is the reason the card exists: it wraps fully at every text size.
             Text(verbatim: item.message.body)
-                .font(.hbH2)
+                .font(.headline)
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             if let content = item.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
                !content.isEmpty,
                content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
                 Text(verbatim: content)
-                    .font(.hbCaption)
+                    .font(.subheadline)
                     .foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -225,7 +204,8 @@ struct HomeAttentionRow: View {
             }
             .buttonStyle(.bordered)
         } else {
-            DecisionOptions(options: item.options, timing: timing, submitting: submitting, onChoose: onChoose)
+            DecisionOptions(options: item.options, timing: timing, submitting: submitting,
+                            wrapsToFit: true, onChoose: onChoose)
         }
     }
 }

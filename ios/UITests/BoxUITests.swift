@@ -13,9 +13,8 @@ final class BoxUITests: XCTestCase {
         app.configureDemoLaunch()
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Activity"].tap()
-        app.segmentedControls.buttons["Box"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Box"].tap()
     }
 
     func testAgentProvenanceAppearsInRowAndDetailWhileBossItemsHaveNoBadge() {
@@ -74,9 +73,9 @@ final class BoxUITests: XCTestCase {
         for _ in 0..<4 where !last.isHittable { app.swipeUp() }
         XCTAssertTrue(last.waitForExistence(timeout: 5))
         XCTAssertFalse(more.exists)
-        app.tabBars.buttons["Home"].tap()
-        app.tabBars.buttons["Activity"].tap()
-        XCTAssertTrue(app.segmentedControls.buttons["Box"].isSelected)
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Box"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Box"].isSelected)
     }
 
     func testFileRowShowsNameAndSizeAndOpensDownloadedQuickLookPreview() {
@@ -99,9 +98,8 @@ final class BoxUITests: XCTestCase {
         app.terminate()
         app.configureDemoLaunch(["HIBOSS_DEMO_BOX_FILE": "unsupported"])
         app.launchConfiguredDemo()
-        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["Activity"].tap()
-        app.segmentedControls.buttons["Box"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Box"].tap()
         let file = app.buttons["box-item-demo-file"]
         for _ in 0..<4 where !file.isHittable { app.swipeUp() }
         XCTAssertTrue(file.waitForExistence(timeout: 5))

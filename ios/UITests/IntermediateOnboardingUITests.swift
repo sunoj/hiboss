@@ -55,13 +55,13 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
 
     func testOwnedPreferencesAndCamera() {
         launch(["HIBOSS_DEMO_PREFERENCES_DELAY_MS": "120000"])
-        app.tabBars.buttons.element(boundBy: 3).tap()
+        app.buttons["today-settings"].tap()
         let loading = app.staticTexts[variant.contains("zh") ? "正在加载偏好设置…" : "Loading preferences…"]
         reveal(loading)
         holdAndCapture("owned-preferences-load")
         XCTAssertTrue(loading.exists, "The capture hook must still hold the read after the slow screenshot")
         launch(["HIBOSS_DEMO_PREFERENCES_SAVE_DELAY_MS": "60000"])
-        app.tabBars.buttons.element(boundBy: 3).tap()
+        app.buttons["today-settings"].tap()
         let toggle = app.switches[variant.contains("zh") ? "私密通知" : "Private Notifications"].firstMatch
         reveal(toggle)
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
@@ -91,7 +91,7 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
             allow.tap()
         }
         launch(["HIBOSS_DEMO_PUSH_DELAY_MS": "60000"])
-        app.tabBars.buttons.element(boundBy: 3).tap()
+        app.buttons["today-settings"].tap()
         let label = variant.contains("zh") ? "正在注册…" : "Registering…"
         let registering = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", label)).firstMatch
         reveal(registering)
@@ -99,7 +99,7 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
     }
 
     private func openSettings(_ label: String) {
-        app.tabBars.buttons.element(boundBy: 3).tap()
+        app.buttons["today-settings"].tap()
         let row = app.buttons[label].firstMatch
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 8))

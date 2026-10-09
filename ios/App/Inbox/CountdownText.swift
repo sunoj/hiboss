@@ -25,7 +25,7 @@ struct CountdownText: View {
 
     private func color(for remaining: TimeInterval) -> Color {
         if remaining <= 0 { return Theme.ink2 }
-        if remaining <= urgentWindow { return Theme.negative }
+        if remaining <= urgentWindow { return Theme.warn }
         if remaining <= warnWindow { return Theme.warn }
         return tint
     }

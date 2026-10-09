@@ -10,9 +10,12 @@ import XCTest
 final class HomeAttentionModelTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_000_000)
 
-    func testAllClearCompactsWhenPanelsExistAndStaysFullWithoutThem() {
-        XCTAssertEqual(HomeAttentionLayout.allClearStyle(hasPanels: true), .compact)
-        XCTAssertEqual(HomeAttentionLayout.allClearStyle(hasPanels: false), .full)
+    func testAllClearIncludesWorkingSessionsWithoutDecisions() {
+        let note = message("working", options: [], mode: "async")
+        let snapshot = TodaySnapshot(history: [note], health: .live(checkedAt: now),
+                                     coverageComplete: true, now: now)
+        XCTAssertTrue(snapshot.isAllClear)
+        XCTAssertEqual(snapshot.working.map(\.id), ["session-working"])
     }
 
     func testRanksAutoDecisionThenBlockedThenDeclaredPriority() {

@@ -52,7 +52,7 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
     func fetchRequiredInputs() async throws -> [HistoryMessage] {
         if Date().timeIntervalSince(started) > 5 { try await DemoDelay.wait("REFRESH") }
         try await DemoDelay.wait("REQUESTS")
-        return messages.filter { $0.isPendingDecision || AttentionModel.needsTextReply($0) }
+        return messages.filter { $0.isPendingDecision || AttentionModel.needsTextReply($0, now: .now) }
     }
 
     func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {

@@ -60,6 +60,7 @@ extension InboxStore {
         history = messages
         loadError = nil
         didLoad = true
+        historyCheckedAt = .now
         adoptHistoryReplies()
         rescheduleExpiries()
     }

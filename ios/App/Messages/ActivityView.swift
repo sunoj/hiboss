@@ -1,6 +1,6 @@
-// One Activity browser with native session, message and Box selections.
+// Sessions browser retaining native session rows and message history.
 // Exports: ActivityView and ActivitySection; the shell owns selection for deep links.
-// Dependencies: SwiftUI, HibossKit SessionGrouping, InboxStore, MessagesView and SessionRow.
+// Dependencies: SwiftUI, HibossKit SessionDirectory/SessionGrouping, InboxStore, and SessionRow.
 
 import HibossKit
 import SwiftUI
@@ -8,7 +8,6 @@ import SwiftUI
 enum ActivitySection: Hashable {
     case sessions
     case messages
-    case box
 }
 
 struct ActivityView: View {
@@ -19,7 +18,14 @@ struct ActivityView: View {
 
     private var groups: [SessionGroup] {
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSIONS_EMPTY"] == "1" { return [] }
-        return SessionGrouping.groupBySession(store.history)
+        let messages = Dictionary(
+            (store.history + store.requiredInputs).map { ($0.id, $0) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+        let groups = Dictionary(uniqueKeysWithValues:
+            SessionGrouping.groupBySession(Array(messages.values)).map { ($0.id, $0) })
+        let directory = store.todaySnapshot(now: .now).sessionDirectory
+        return (directory.needsYou + directory.working + directory.idle).compactMap { groups[$0.id] }
     }
 
     var body: some View {
@@ -30,12 +36,9 @@ struct ActivityView: View {
             switch section {
             case .sessions: sessions
             case .messages: MessagesView(store: store)
-            case .box:
-                BoxListView(api: isDemoMode ? DemoBoxAPI.shared : connection.makeAPI())
-                    .id(BoxStore.connectionIdentity(connection.config))
             }
         }
-        .navigationTitle("Activity")
+        .navigationTitle("Sessions")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { ConnectionDot(state: store.connectionState) }
         }
@@ -54,10 +57,9 @@ struct ActivityView: View {
     }
 
     private var picker: some View {
-        Picker("Activity", selection: $section) {
+        Picker("Sessions", selection: $section) {
             Text("Sessions").tag(ActivitySection.sessions)
             Text("Messages").tag(ActivitySection.messages)
-            Text("Box").tag(ActivitySection.box)
         }
     }
 

@@ -1,6 +1,156 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "an unspecified time": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "an unspecified time" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未指定的时间" } }
+      }
+    },
+      "Today": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Today"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "今天"
+            }
+          }
+        }
+      },
+      "Your call": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Your call"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "由你决定"
+            }
+          }
+        }
+      },
+      "Watching": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Watching"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "关注中"
+            }
+          }
+        }
+      },
+      "Working now": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Working now"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "正在工作"
+            }
+          }
+        }
+      },
+      "No deadline": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No deadline"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无截止时间"
+            }
+          }
+        }
+      },
+      "Checking coverage": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Checking coverage"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "正在检查覆盖范围"
+            }
+          }
+        }
+      },
+      "%@ need you": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ need you"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ 项需要你"
+            }
+          }
+        }
+      },
+      "%@ working": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ working"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ 项正在工作"
+            }
+          }
+        }
+      },
+      "No answer in %@ picks “%@”. That is not approval.": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No answer in %@ picks “%@”. That is not approval."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "若 %@ 内未回答，将选择“%@”。这不代表批准。"
+            }
+          }
+        }
+      },
     "Added by %@": {
       "localizations": {
         "en": {

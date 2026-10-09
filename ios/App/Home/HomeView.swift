@@ -60,12 +60,8 @@ struct HomeView: View {
     private var content: some View {
         ScrollView {
             LazyVStack(spacing: 22) {
-                // Only attention ranking depends on time; the wall keeps its own clocks.
                 TimelineView(HomeRefreshSchedule(deadlines: refreshDeadlines)) { context in
-                    attentionContent(now: context.date)
-                }
-                if !panels.tiles.isEmpty {
-                    HomePanelWall(model: panels)
+                    todayContent(now: context.date)
                 }
             }
             .padding(.vertical, 12)
@@ -74,28 +70,31 @@ struct HomeView: View {
 
     /// Expiry moments that change the ranking; countdown text ticks on its own.
     private var refreshDeadlines: [Date] {
-        inbox.requiredInputs.compactMap(\.expirationDate)
+        (inbox.history + inbox.requiredInputs).compactMap(\.expirationDate)
             + panels.pendingQuestionnaires.compactMap { $0.expiresAt.flatMap(ISODate.parse) }
     }
 
-    private func attentionContent(now: Date) -> some View {
-        HomeAttentionSection(
-            snapshot: HomeAttentionSnapshot(
-                messages: inbox.requiredInputs, withdrawn: inbox.withdrawn,
-                questionnaires: panels.pendingQuestionnaires,
-                terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
-                now: now, panelNow: { panels.serverNow(for: $0) }
-            ),
-            hasPanels: !panels.visibleTiles.isEmpty,
-            status: attentionStatus,
-            statusIsFailure: hasCoverageFailure,
-            onRetry: retryCoverage,
-            onSettings: openSettings,
-            replying: inbox.replying,
-            onChoose: handleReply,
-            onOpenPanel: openPanel,
-            onOpenSession: { sessionRoute = $0 }
+    private func todayContent(now: Date) -> some View {
+        let today = inbox.todaySnapshot(now: now, coverageComplete: attentionStatus == nil)
+        let attention = HomeAttentionSnapshot(
+            messages: [], withdrawn: inbox.withdrawn, questionnaires: panels.pendingQuestionnaires,
+            decisions: today.decisions,
+            terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
+            now: now, panelNow: { panels.serverNow(for: $0) }
         )
+        return VStack(spacing: 22) {
+            TodayHeader(snapshot: today, requestCount: attention.count, now: now, onSettings: openSettings)
+            HomeAttentionSection(
+                snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
+                isAllClear: today.isAllClear && attention.questionnaires.isEmpty,
+                status: attentionStatus, statusIsFailure: hasCoverageFailure,
+                onRetry: retryCoverage, onSettings: openSettings,
+                replying: inbox.replying, onChoose: handleReply,
+                onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 }
+            )
+            if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
+            TodayResults(snapshot: today)
+        }
     }
 
     var attentionStatus: String? {
