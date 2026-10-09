@@ -1,8 +1,10 @@
 // Exercises agent Box contributions through real HTTP, D1 and private R2 routes.
 // Covers target selection, provenance, author ownership, retries and read filters.
 import { env, SELF } from 'cloudflare:test';
-import { beforeAll, expect, it } from 'vitest';
-import { ADMIN, OWNER, OTHER, create, page, request, seedBox, upload, type Item } from './box-test-helpers';
+import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
+import {
+  ADMIN, OWNER, OTHER, create, page, request, resetBox, seedBox, upload, type Item,
+} from './box-test-helpers';
 import { getTestAgentId } from './test-helpers';
 import { hashApiKey } from './middleware/auth';
 
@@ -14,9 +16,10 @@ beforeAll(async () => {
   await seedBox();
   await env.DB.prepare('INSERT INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind(PEER_ID, 'Box Peer', await hashApiKey(PEER)).run();
-  await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
-    .bind(OWNER, PEER_ID).run();
 });
+
+beforeEach(() => resetBox([getTestAgentId(), PEER_ID]));
+afterEach(() => resetBox([getTestAgentId(), PEER_ID]));
 
 it('adds agent text, links and private files to the sole resolved boss without a target', async () => {
   await env.DB.prepare("UPDATE bosses SET archived_at = datetime('now') WHERE id = ?").bind(ADMIN).run();
@@ -43,11 +46,23 @@ it('returns 409 naming every resolved boss when an agent omits a multi-boss targ
   expect(await env.DB.prepare("SELECT id FROM box_items WHERE text = 'ambiguous'").first()).toBeNull();
 });
 
-it.each([OWNER, 'Box Owner', ADMIN, 'Box Admin'])('selects a resolved upload boss by id or name: %s',
-  async boss => {
-    const item = await create({ text: 'targeted', boss }, 'agent');
+it.each([OWNER, 'Box Owner', ADMIN, 'Box Admin'].flatMap(boss =>
+  ['agent', PEER].map(token => ({ boss, token }))))(
+  'selects a resolved JSON upload boss by id or name: $boss with $token', async ({ boss, token }) => {
+    const item = await create({ text: 'targeted', boss }, token);
     expect(item.boss_id).toBe(boss === OWNER || boss === 'Box Owner' ? OWNER : ADMIN);
-    expect(item.added_by).toEqual(AUTHOR);
+    expect(item.added_by).toEqual(token === 'agent' ? AUTHOR
+      : { kind: 'agent', id: PEER_ID, name: 'Box Peer' });
+  });
+
+it.each([OWNER, 'Box Owner', ADMIN, 'Box Admin'])('selects the peer multipart target from meta: %s',
+  async boss => {
+    const response = await upload('image/png', 4, { boss }, PEER);
+    expect(response.status).toBe(201);
+    const item = await response.json() as Item;
+    expect(item).toMatchObject({ boss_id: boss === OWNER || boss === 'Box Owner' ? OWNER : ADMIN,
+      added_by: { kind: 'agent', id: PEER_ID, name: 'Box Peer' } });
+    expect((await request(`/${item.id}/media`, 'GET', undefined, PEER)).status).toBe(200);
   });
 
 it('returns identical 404s for foreign and nonexistent upload bosses', async () => {

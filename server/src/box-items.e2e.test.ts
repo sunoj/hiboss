@@ -1,12 +1,16 @@
 // Exercises Box ingestion, retries, ownership, edits and deletion through HTTP.
 // Uses the actual Workers pool, D1 migration and private R2 storage.
 import { env } from 'cloudflare:test';
-import { beforeAll, expect, it } from 'vitest';
-import { ADMIN, OWNER, OTHER, create, page, request, seedBox, upload, type Item } from './box-test-helpers';
+import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
+import {
+  ADMIN, OWNER, OTHER, create, page, request, resetBox, seedBox, upload, type Item,
+} from './box-test-helpers';
 import { getTestAgentId } from './test-helpers';
 import type { BoxRow } from './box/types';
 
 beforeAll(seedBox);
+beforeEach(() => resetBox());
+afterEach(() => resetBox());
 
 it('creates JSON link and text items with owner identity and supplied metadata', async () => {
   const url = 'https://example.invalid/reference?verbatim=%2F';

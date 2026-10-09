@@ -27,6 +27,26 @@ export async function seedBox(): Promise<void> {
     .bind(OWNER, getTestAgentId()).run();
 }
 
+export async function resetBox(agentIds: readonly string[] = [getTestAgentId()]): Promise<void> {
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM box_idempotency'),
+    env.DB.prepare('DELETE FROM box_items'),
+    env.DB.prepare('UPDATE bosses SET archived_at = NULL WHERE id IN (?, ?, ?)')
+      .bind(OWNER, OTHER, ADMIN),
+    env.DB.prepare('DELETE FROM boss_agent_access WHERE boss_id IN (?, ?, ?)')
+      .bind(OWNER, OTHER, ADMIN),
+    ...agentIds.map(agentId => env.DB.prepare(
+      'INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)',
+    ).bind(OWNER, agentId)),
+  ]);
+  let cursor: string | undefined;
+  do {
+    const objects = await env.ATTACHMENTS.list({ prefix: 'box/', cursor });
+    if (objects.objects.length) await env.ATTACHMENTS.delete(objects.objects.map(object => object.key));
+    cursor = objects.truncated ? objects.cursor : undefined;
+  } while (cursor);
+}
+
 export function request(path = '', method = 'GET', body?: unknown, token = OWNER,
   extra: Record<string, string> = {}): Promise<Response> {
   const headers = token === 'agent' ? authHeaders() : { Authorization: `Bearer ${token}` };
