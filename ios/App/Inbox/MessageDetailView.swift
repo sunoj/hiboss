@@ -34,7 +34,7 @@ struct MessageDetailView: View {
     /// The chosen option text, trimmed and non-empty, or nil if unresolved.
     private var chosenAnswer: String? {
         guard let body = reply?.body.trimmingCharacters(in: .whitespacesAndNewlines),
-              !body.isEmpty else { return nil }
+              !body.isEmpty else { return store.settlement(for: messageID)?.answer }
         return body
     }
 
@@ -48,7 +48,7 @@ struct MessageDetailView: View {
 
     /// The recorded answer and its source, so a timeout default is never shown as a choice.
     private var settlement: DecisionSettlement? {
-        reply.flatMap(DecisionSettlement.init(reply:))
+        store.settlement(for: messageID) ?? reply.flatMap(DecisionSettlement.init(reply:))
     }
 
     var body: some View {
@@ -125,12 +125,15 @@ struct MessageDetailView: View {
     /// Pending: shared timing, choices, and a free-text reply. Resolved: a read-only
     /// picked/others list, with the chosen option checked and its source noted.
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
-        if message.isPendingDecision || AttentionModel.needsTextReply(message, now: .now) {
+        if DecisionAnswerability.isDecision(message),
+           store.answerability(for: message.id) == .checking {
+            Button("Checking…") {}.buttonStyle(.bordered).disabled(true)
+        } else if store.answerability(for: message.id) == .open {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let timing = DecisionTiming(message: message, now: context.date)
                 pendingDecision(for: message, timing: timing)
             }
-        } else if message.isDecision || (message.direction == "agent_to_boss" && message.mode == "blocking") {
+        } else if DecisionAnswerability.isDecision(message) {
             resolvedDecision(for: message)
         }
     }
@@ -222,7 +225,7 @@ struct MessageDetailView: View {
             if let def = message.defaultOption { return Text("Timed out — default: \(def)") }
             return Text("Expired — no response")
         }
-        return nil
+        return Text("No longer open")
     }
 
     private func submit(_ choice: String, for id: MessageID) {

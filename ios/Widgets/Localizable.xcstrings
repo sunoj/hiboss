@@ -1,6 +1,18 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Checking…": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Checking…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在检查…" } }
+      }
+    },
+    "No longer open": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No longer open" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已不可回复" } }
+      }
+    },
     "The reply couldn't be sent.": {
       "localizations": {
         "en": {

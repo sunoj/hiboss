@@ -8,8 +8,30 @@ import XCTest
 
 @MainActor
 final class SessionsV4Tests: XCTestCase {
+    func testUnloadedRequiredInputsDoNotFallBackToAnOlderMessage() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        let ordinary = replyMessage("ordinary", body: "Earlier update")
+        let decision = replyMessage("decision", body: "Choose?", options: ["Yes", "No"])
+        store.history = [ordinary, decision]
+        let targets = SessionReplyTarget.eligible(events: replyEvents([ordinary, decision]), store: store)
+        XCTAssertTrue(targets.isEmpty)
+    }
+
+    func testAnsweredIDRemainsWithdrawnAfterRequiredInputsDropIt() async {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.api = ControlledInputAPI()
+        let decision = replyMessage("decision", body: "Choose?", options: ["Yes", "No"])
+        store.history = [decision]
+        store.settleReply("Yes", for: decision.id)
+        await store.refreshRequiredInputs()
+        XCTAssertTrue(store.withdrawn.contains(decision.id))
+        XCTAssertEqual(store.answerability(for: decision.id), .closed)
+        XCTAssertEqual(store.settlement(for: decision.id)?.answer, "Yes")
+    }
+
     func testReplyTargetLabelsDistinguishOrdinaryMessagesAndOpenDecisions() {
         let store = InboxStore(decisionAlertsEnabled: false)
+        store.requiredInputLoaded = true
         let ordinary = replyMessage("ordinary", body: "First line\nSecond line")
         let decision = replyMessage("decision", body: "Which path?", options: ["A", "B"])
         store.history = [ordinary, decision]
@@ -20,6 +42,7 @@ final class SessionsV4Tests: XCTestCase {
 
     func testNewerMessageDoesNotRetargetDraftUntilExplicitlySelected() throws {
         let store = InboxStore(decisionAlertsEnabled: false)
+        store.requiredInputLoaded = true
         let messages = [replyMessage("first", body: "First"), replyMessage("newer", body: "Newer")]
         let targets = SessionReplyTarget.eligible(events: replyEvents(messages), store: store)
         var draft = SessionReplyDraft()
@@ -36,6 +59,7 @@ final class SessionsV4Tests: XCTestCase {
 
     func testResolvedDecisionCannotBeTheNewestOrPinnedTarget() {
         let store = InboxStore(decisionAlertsEnabled: false)
+        store.requiredInputLoaded = true
         let ordinary = replyMessage("ordinary", body: "Update")
         let decision = replyMessage("decision", body: "Choose?", options: ["Yes", "No"])
         let events = replyEvents([ordinary, decision])
@@ -54,6 +78,7 @@ final class SessionsV4Tests: XCTestCase {
 
     func testUncachedResolvedDecisionMetadataCannotBecomeAReplyTarget() {
         let store = InboxStore(decisionAlertsEnabled: false)
+        store.requiredInputLoaded = true
         let ordinary = replyEvents([replyMessage("ordinary", body: "Update")])
         let resolved = SessionEvent(
             id: "old-decision", sessionId: "session", sequence: 2, kind: "message",
@@ -69,6 +94,38 @@ final class SessionsV4Tests: XCTestCase {
         )
         let targets = SessionReplyTarget.eligible(events: ordinary + [resolved, textDecision], store: store)
         XCTAssertEqual(targets.map(\.id), ["ordinary"])
+    }
+
+    func testAnswerabilityUsesOnlyLoadedTodayDecisions() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        let decision = replyMessage("decision", body: "Choose?", options: ["Yes", "No"])
+        store.history = [decision]
+        store.requiredInputs = [decision]
+        XCTAssertEqual(store.answerability(for: decision.id), .checking)
+        store.requiredInputLoaded = true
+        XCTAssertEqual(store.answerability(for: decision.id), .open)
+        XCTAssertEqual(store.todaySnapshot(now: .now).decisions.map(\.id), [decision.id])
+        store.requiredInputs = []
+        XCTAssertTrue(decision.isPendingDecision, "history remains open after retirement")
+        XCTAssertEqual(store.answerability(for: decision.id), .closed)
+        store.requiredInputs = [decision]
+        store.settleReply("Yes", for: decision.id)
+        store.requiredInputLoaded = false
+        XCTAssertEqual(store.answerability(for: decision.id), .closed, "an outcome survives refresh")
+    }
+
+    func testRetiredAndUnloadedDecisionSubmissionsNeverReachTheServer() async {
+        let decision = replyMessage("decision", body: "Choose?", options: ["Yes", "No"])
+        let api = HeldReplyAPI()
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.api = api
+        store.history = [decision]
+        let checking = await store.reply("Yes", to: decision.id)
+        XCTAssertEqual(checking, .failed)
+        store.requiredInputLoaded = true
+        let retired = await store.reply("Yes", to: decision.id)
+        XCTAssertEqual(retired, .alreadyResolved)
+        XCTAssertTrue(api.replies.isEmpty)
     }
 
     func testBoxReferenceAlsoPinsTheReplyTarget() {

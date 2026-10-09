@@ -36,6 +36,8 @@ final class InboxStoreTests: XCTestCase {
         let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)
         store.start(api: api)
         await store.refresh()
+        await waitUntil { store.hasCompleteRequiredInputs }
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
 
         XCTAssertEqual(store.pending.map(\.id), ["q1"])
         XCTAssertTrue(store.settledCards.isEmpty)

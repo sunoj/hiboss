@@ -52,7 +52,11 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
     func fetchRequiredInputs() async throws -> [HistoryMessage] {
         if Date().timeIntervalSince(started) > 5 { try await DemoDelay.wait("REFRESH") }
         try await DemoDelay.wait("REQUESTS")
-        return messages.filter { $0.isPendingDecision || AttentionModel.needsTextReply($0, now: .now) }
+        let retired = ProcessInfo.processInfo.environment["HIBOSS_DEMO_RETIRED_ID"]
+        return messages.filter {
+            $0.id.rawValue != retired
+                && ($0.isPendingDecision || AttentionModel.needsTextReply($0, now: .now))
+        }
     }
 
     func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {

@@ -108,7 +108,10 @@ struct ActivityView: View {
                 if !search.isEmpty {
                     Section("Messages") {
                         ForEach(matchingMessages) { message in
-                            NavigationLink(value: message.id) { HistoryRow(message: message) }
+                            NavigationLink(value: message.id) {
+                                HistoryRow(message: message,
+                                           answerability: store.answerability(for: message.id))
+                            }
                                 .accessibilityIdentifier("session-search-message-\(message.id.rawValue)")
                         }
                     }

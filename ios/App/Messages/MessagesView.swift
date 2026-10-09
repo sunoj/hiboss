@@ -48,7 +48,7 @@ struct MessagesView: View {
             HistoryRow(message: message, answer: MessageThreading.bossAnswer(
                 for: message, answer: reply?.body ?? settlement?.answer,
                 isAutoDefault: reply?.metadata?.isAutoDefault == true || settlement?.isAutoDefault == true
-            ))
+            ), answerability: store.answerability(for: message.id))
         case let .boss(message):
             BossHistoryRow(message: message)
         }

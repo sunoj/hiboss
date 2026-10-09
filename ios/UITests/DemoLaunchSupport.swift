@@ -11,6 +11,7 @@ extension XCUIApplication {
     /// transcript over Inbox / Resolved / Progress unless we blank the unused keys.
     private static let demoRouteKeys = [
         "HIBOSS_DEMO_OPEN",
+        "HIBOSS_DEMO_RETIRED_ID",
         "HIBOSS_DEMO_NOTIFICATION_OPEN",
         "HIBOSS_DEMO_NOTIFICATION_PREVIEW",
         "HIBOSS_DEMO_SESSION",

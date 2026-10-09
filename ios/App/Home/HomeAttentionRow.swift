@@ -14,6 +14,8 @@ struct HomeAttentionSection: View {
     var onRetry: (() async -> Void)? = nil
     var onSettings: (() -> Void)? = nil
     var replying: [MessageID: String] = [:]
+    var answerability: [MessageID: DecisionAnswerability] = [:]
+    var inputsLoaded = true
     let onChoose: (String, MessageID) -> Void
     let onOpenPanel: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
@@ -38,6 +40,7 @@ struct HomeAttentionSection: View {
                         ForEach(group.items) { item in
                             HomeAttentionRow(
                                 item: item, submitting: replying[item.id],
+                                answerability: answerability[item.id] ?? .checking,
                                 onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession,
                                 onOpenDecision: onOpenDecision
                             )
@@ -75,6 +78,7 @@ struct HomeAttentionSection: View {
     }
 
     private var titleSubtitle: Text {
+        guard inputsLoaded else { return Text("Loading") }
         let count = snapshot.count
         guard count > 0 else {
             return status == nil
@@ -120,6 +124,7 @@ struct HomeAttentionSection: View {
 struct HomeAttentionRow: View {
     let item: AttentionItem
     var submitting: String?
+    var answerability: DecisionAnswerability = .checking
     let onChoose: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
@@ -154,7 +159,10 @@ struct HomeAttentionRow: View {
 
     @ViewBuilder
     private func choices(timing: DecisionTiming) -> some View {
-        if item.options.isEmpty {
+        if let label = answerability.label {
+            Button {} label: { Text(verbatim: label).frame(maxWidth: .infinity, minHeight: 44) }
+                .buttonStyle(.bordered).disabled(true)
+        } else if item.options.isEmpty {
             NavigationLink(value: item.id) {
                 Text("Reply…").frame(maxWidth: .infinity, minHeight: 44)
             }

@@ -9,6 +9,7 @@ struct HistoryRow: View {
     let message: HistoryMessage
     /// The boss's answer to this message, shown on the row instead of as its own row.
     var answer: String?
+    var answerability: DecisionAnswerability = .closed
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -28,7 +29,7 @@ struct HistoryRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : 2)
                 if let answer { answerLine(answer) }
-                if let badge = MessageRowBadge.badge(for: message) {
+                if let badge = MessageRowBadge.badge(for: message, answerability: answerability) {
                     Text(verbatim: badge.title)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(badge.tint)
