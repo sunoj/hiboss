@@ -3,7 +3,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { expect } from 'vitest';
 import migration from '../migrations/0050_box_items.sql?raw';
-import agentMigration from '../migrations/0051_box_item_agent.sql?raw';
+import agentMigration from '../migrations/0052_box_item_agent.sql?raw';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
 import type { BoxItem } from './box/types';
 
