@@ -16,11 +16,6 @@ enum DecisionAnswerability: Equatable {
         else { self = openIDs.contains(id) ? .open : .closed }
     }
 
-    static func isDecision(_ message: HistoryMessage) -> Bool {
-        message.direction == "agent_to_boss" && (!message.options.isEmpty || message.mode == "blocking"
-            || message.type == "approval_request")
-    }
-
     var label: String? {
         switch self {
         case .checking: String(localized: "Checking…")
@@ -96,7 +91,7 @@ final class DecisionReplyGate: ObservableObject {
         let state = DecisionAnswerability(id: id, openIDs: Set(today.decisions.map(\.id)), loaded: true)
         if state == .closed {
             let message = try await api.fetchMessage(id).message
-            if !DecisionAnswerability.isDecision(message) { return .open }
+            if !message.isDecision { return .open }
         }
         return state
     }

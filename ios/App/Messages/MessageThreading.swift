@@ -53,7 +53,7 @@ enum MessageRowBadge: Equatable {
     /// Precedence: an open decision, then an expiry outcome, then urgent priority.
     static func badge(for message: HistoryMessage,
                       answerability: DecisionAnswerability = .closed) -> MessageRowBadge? {
-        if DecisionAnswerability.isDecision(message) {
+        if message.isDecision {
             if answerability == .checking { return .loading }
             if answerability == .open { return .decisionNeeded }
         }

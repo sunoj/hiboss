@@ -98,7 +98,9 @@ struct SessionReplyComposer: View {
                 note = String(localized: "Reply sent.")
             case .busy: break
             case .alreadyResolved: note = String(localized: "That decision was already answered elsewhere.")
-            case .failed: note = String(localized: "Couldn't send your reply — check your connection.")
+            case .failed:
+                note = store.replyFeedback[target.id]
+                    ?? String(localized: "Couldn't send your reply — check your connection.")
             }
         }
     }
@@ -124,20 +126,28 @@ struct SessionReplyTarget: Equatable {
                   let raw = event.messageId else { return nil }
             let id = MessageID(rawValue: raw)
             let message = store.requiredInputs.first { $0.id == id } ?? store.message(for: id)
-            let payload = event.payload?.objectValue
-            let hasOptions: Bool
-            if case let .array(options)? = payload?["options"] { hasOptions = !options.isEmpty }
-            else { hasOptions = false }
+                ?? historyMessage(for: event, id: id)
             let answerability = store.answerability(for: id)
-            let decision = answerability == .open || message.map(DecisionAnswerability.isDecision) == true
-                || hasOptions || payload?["type"] == .string("approval_request")
-                || payload?["mode"] == .string("blocking")
+            let decision = message.isDecision
             if decision && answerability != .open { return nil }
-            let body = message?.body ?? event.displayBody
+            let body = message.body
             let text = decision ? body : String(body.split(separator: "\n", omittingEmptySubsequences: false)
                 .first ?? "")
             return Self(id: id, sequence: event.sequence, text: text, isDecision: decision)
         }.sorted { $0.sequence < $1.sequence }
+    }
+
+    private static func historyMessage(for event: SessionEvent, id: MessageID) -> HistoryMessage {
+        let payload = event.payload?.objectValue
+        let options: [String]
+        if case let .array(values)? = payload?["options"] { options = values.compactMap(\.stringValue) }
+        else { options = [] }
+        return HistoryMessage(
+            id: id, body: event.displayBody, direction: event.direction ?? "agent_to_boss",
+            status: "delivered", priority: "normal", mode: payload?["mode"]?.stringValue,
+            type: payload?["type"]?.stringValue, metadata: MessageMetadata(options: options),
+            createdAt: event.createdAt
+        )
     }
 }
 
