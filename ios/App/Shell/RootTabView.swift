@@ -191,6 +191,8 @@ struct RootTabView: View {
     /// A tapped join-request push opens its sheet over whichever tab is showing.
     private func openPendingJoinRequest() {
         guard let target = router.takeJoinRequest() else { return }
+        showsSettings = false
+        panels.closeDetail()
         joinRequestTarget = target
     }
 
@@ -208,6 +210,9 @@ struct RootTabView: View {
     /// in the background; payloads without either briefly wait for the restored API.
     private func openPendingMessage() async {
         guard let route = router.pendingMessage else { return }
+        showsSettings = false
+        joinRequestTarget = nil
+        panels.closeDetail()
         if let cached = route.cachedMessage {
             inbox.cacheMessage(cached.detail)
         } else {
@@ -229,6 +234,8 @@ struct RootTabView: View {
 
     private func openPendingPanel() async {
         guard let route = router.pendingPanel else { return }
+        showsSettings = false
+        joinRequestTarget = nil
         tab = Self.homeTab
         homePath = NavigationPath()
         panels.closeDetail()

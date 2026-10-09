@@ -59,6 +59,11 @@ final class TodayV4UITests: XCTestCase {
         for _ in 0..<8 where !delivered.isHittable { app.swipeUp() }
         XCTAssertTrue(delivered.waitForExistence(timeout: 10))
         XCTAssertTrue(app.images["message-attachment-image"].firstMatch.exists)
+        let filename = app.staticTexts["today-delivered-filename"]
+        XCTAssertTrue(filename.isHittable)
+        XCTAssertGreaterThan(filename.frame.width, 100, "filenames belong beside the thumbnail")
+        XCTAssertLessThan(filename.frame.height, 44, "the filename must remain readable")
+        XCTAssertTrue(app.staticTexts["prod-release · worker-design"].exists)
         shot(app, "\(appearance)-delivered")
         app.terminate()
         app = launch(appearance, extra: ["HIBOSS_DEMO_EMPTY": "1", "HIBOSS_PANELS_DEMO": "1"])

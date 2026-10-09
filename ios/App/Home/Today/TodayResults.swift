@@ -62,13 +62,18 @@ struct TodayResults: View {
     private func deliveredRow(_ message: HistoryMessage) -> some View {
         HStack(alignment: .top, spacing: 12) {
             if let attachment = message.metadata?.attachment {
-                MessageAttachmentView(attachment: attachment)
-                    .frame(width: 72, height: 72).clipped()
+                attachmentThumbnail(attachment)
             }
             NavigationLink(value: message.id) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: message.body).font(.subheadline.weight(.semibold))
-                    Text(verbatim: message.metaLine).font(.footnote).foregroundStyle(Theme.ink2)
+                    Text(verbatim: [message.project, message.sessionBranch, message.displayName]
+                        .compactMap { $0 }.joined(separator: " · "))
+                        .font(.footnote).foregroundStyle(Theme.ink2)
+                    if let attachment = message.metadata?.attachment, attachment.kind == .file {
+                        Text(verbatim: attachment.filename).font(.footnote).foregroundStyle(Theme.ink2)
+                            .accessibilityIdentifier("today-delivered-filename")
+                    }
                     if let date = message.createdDate {
                         Text(date, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
                     }
@@ -78,4 +83,21 @@ struct TodayResults: View {
         }
         .padding(12).background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
     }
+
+    @ViewBuilder private func attachmentThumbnail(_ attachment: MessageAttachment) -> some View {
+        switch attachment.kind {
+        case .image:
+            MessageAttachmentView(attachment: attachment).frame(width: 72, height: 72).clipped()
+        case .file:
+            Link(
+                destination: attachment.url
+            ) {
+                Image(systemName: "doc").font(.title2)
+                    .frame(width: 72, height: 72)
+                    .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .accessibilityLabel(Text(verbatim: attachment.filename))
+        }
+    }
+
 }
