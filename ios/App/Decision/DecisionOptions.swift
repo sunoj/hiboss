@@ -43,7 +43,11 @@ struct DecisionOptions: View {
             if option == options.first {
                 control.prominentAction().tint(Theme.primaryAction)
             } else {
-                control.buttonStyle(.bordered).tint(Theme.primaryAction)
+                control.buttonStyle(.bordered).buttonBorderShape(.capsule)
+                    .tint(Theme.surface).foregroundStyle(Theme.ink)
+                    .overlay {
+                        Capsule().strokeBorder(Theme.line, lineWidth: 1).allowsHitTesting(false)
+                    }
             }
         }
         .disabled(submitting != nil)
