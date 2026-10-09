@@ -1,4 +1,4 @@
-// Main window: Today, Box, Progress, and session history with native sidebar navigation.
+// Main window: Today, Box, Progress, and session threads with native sidebar navigation.
 // Exports: MainView with persistent Panels state and shared attention drafts.
 // Dependencies: SwiftUI, HibossKit, TodayView, AttentionView, and HistoryView.
 
@@ -17,6 +17,8 @@ struct MainView: View {
     @StateObject private var panels: PanelsModel
     @StateObject private var box: BoxBrowserStore
     @StateObject private var boxMedia: BoxBrowserMedia
+    @StateObject private var sessionBox: BoxBrowserStore
+    private let previewSessions: [ProjectSession]?
     @State private var destination: OverviewDestination = .today
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showsCompactOverview = false
@@ -28,19 +30,24 @@ struct MainView: View {
          notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation(),
          joinRequests: JoinRequestsModel = JoinRequestsModel { nil },
          initialDestination: OverviewDestination = .today,
-         previewHistory: [HistoryMessage]? = AttentionPreview.historyIfRequested()) {
+         previewHistory: [HistoryMessage]? = AttentionPreview.historyIfRequested(),
+         previewSessions: [ProjectSession]? = nil,
+         boxProvider: BoxBrowserStore.Provider? = nil,
+         panelsModel: PanelsModel? = nil) {
         self.settings = settings
+        self.previewSessions = previewSessions
         _previewHistory = State(initialValue: previewHistory)
         _destination = State(initialValue: initialDestination)
         self.flow = flow
         self.notificationNavigation = notificationNavigation
         self.joinRequests = joinRequests
-        let boxProvider: BoxBrowserStore.Provider = {
+        let provider: BoxBrowserStore.Provider = boxProvider ?? {
             settings.activeClientConfig.map { HibossAPI(config: $0) }
         }
-        _box = StateObject(wrappedValue: BoxBrowserStore(apiProvider: boxProvider))
-        _boxMedia = StateObject(wrappedValue: BoxBrowserMedia(apiProvider: boxProvider))
-        _panels = StateObject(wrappedValue: PanelsModel(configurationProvider: {
+        _box = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
+        _boxMedia = StateObject(wrappedValue: BoxBrowserMedia(apiProvider: provider))
+        _sessionBox = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
+        _panels = StateObject(wrappedValue: panelsModel ?? PanelsModel(configurationProvider: {
             guard let config = settings.activeClientConfig else {
                 throw PanelClientError.notConfigured
             }
@@ -80,6 +87,7 @@ struct MainView: View {
         observedContent
         .onChange(of: settings.activeClientConfig) {
             box.reset()
+            sessionBox.reset()
             boxMedia.reset()
             Task {
                 await panels.load()
@@ -177,8 +185,13 @@ struct MainView: View {
             historyState: previewHistory == nil ? flow.historyState : .loaded,
             connectionState: previewHistory == nil ? flow.connectionState : .connected,
             deviceRequestCount: joinRequests.pendingCount,
-            onSelect: { destination = $0; showsCompactOverview = false
-                if $0 == .box { Task { await box.refresh() } }
+            onSelect: {
+                destination = $0
+                showsCompactOverview = false
+                if $0 == .box {
+                    box.project = nil
+                    Task { await box.refresh() }
+                }
             },
             onSettings: { openWindow(id: "settings") },
             onRefresh: refresh)
@@ -191,16 +204,21 @@ struct MainView: View {
                     onChoose: flow.answer,
                     onSession: { destination = .session($0) })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
+            } else if case let .session(id) = destination {
+                SessionView(context: SessionContext(id: id, snapshot: snapshot,
+                    inventory: previewSessions ?? flow.projectSessions), flow: flow, reply: reply,
+                    panels: panels, box: sessionBox, media: boxMedia, isPreview: previewHistory != nil,
+                    onBox: { project in
+                        box.author = .all
+                        box.kind = nil
+                        box.query = ""
+                        box.project = project
+                        destination = .box
+                    }, onSession: { destination = .session($0) })
             } else if destination == .box {
                 BoxBrowserView(store: box, media: boxMedia)
             } else if destination == .progress {
-                ScrollView {
-                    if let tile = panels.selectedTile {
-                        DashboardPanelDetail(tile: tile, model: panels).padding(24)
-                    } else {
-                        DashboardPanelsSection(model: panels).padding(24)
-                    }
-                }.task { await panels.loadIfNeeded() }
+                ProgressWorkspace(model: panels)
             } else if destination == .deviceRequests {
                 DeviceRequestsView(model: joinRequests, focus: $notificationNavigation.deviceRequestsFocus,
                     onSettings: { openWindow(id: "settings") })
@@ -249,6 +267,7 @@ struct MainView: View {
             return
         }
         if destination == .deviceRequests { Task { await joinRequests.refresh() } }
+        if case .session = destination, sessionBox.project != nil { Task { await sessionBox.refresh() } }
         Task { await flow.refreshHistory() }
         if destination == .today || destination == .progress { Task { await panels.load() } }
     }

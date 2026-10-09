@@ -37,7 +37,7 @@ struct HistoryView: View {
 
     var body: some View {
         historyContent
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(TodayStyle.ground)
             .navigationTitle(snapshot.title(for: scope))
             .onChange(of: scope) { segment = .all; searchText = "" }
             .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
@@ -113,12 +113,15 @@ struct HistoryView: View {
         } else {
             SessionGroupHeader(group: group, session: flow.projectSessions.first { $0.id == group.id })
                 .padding(.vertical, 12)
-                .background(Color(nsColor: .windowBackgroundColor))
+                .background(TodayStyle.ground)
         }
     }
 
     private func messageRow(_ thread: MessageThread, reader: ScrollViewProxy) -> some View {
-        HistoryThreadRow(thread: thread, reply: reply, isExpanded: Binding(
+        HistoryThreadRow(thread: thread,
+            decision: snapshot.today.decisions.first { $0.id == thread.id },
+            usesV4: { if case .session = scope { return true }; return false }(),
+            reply: reply, isExpanded: Binding(
             get: { expandedMessages.contains(thread.id) },
             set: { expanded in
                 if expanded { expandedMessages.insert(thread.id) }

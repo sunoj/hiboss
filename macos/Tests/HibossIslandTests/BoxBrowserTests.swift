@@ -9,6 +9,39 @@ import XCTest
 
 @MainActor
 final class BoxBrowserTests: XCTestCase {
+    func testAuthorFiltersKeepPaginationReachableAndIncludeLegacyBossItems() async {
+        let boss = BoxBrowserFixtures.item("boss")
+        let agent = BoxBrowserFixtures.item("agent", author: .agent(id: "a", name: "Agent"))
+        let api = ScriptedBoxBrowser(pages: [BoxPage(items: [boss], nextCursor: "next"),
+            BoxPage(items: [agent])])
+        let store = BoxBrowserStore { api }
+        store.author = .agents
+        await store.refresh()
+        XCTAssertTrue(store.visibleItems.isEmpty)
+        XCTAssertEqual(store.nextCursor, "next")
+        await store.loadMore()
+        XCTAssertEqual(store.visibleItems.map(\.id), ["agent"])
+        store.author = .boss
+        XCTAssertEqual(store.visibleItems.map(\.id), ["boss"])
+        store.author = .all
+        XCTAssertEqual(store.visibleItems.count, 2)
+    }
+
+    func testProjectChangeSupersedesAnInFlightRead() async {
+        let api = ScriptedBoxBrowser()
+        let store = BoxBrowserStore { api }
+        await api.holdNextRead()
+        let old = Task { await store.refresh() }
+        await api.waitForHeldRead()
+        store.project = "HiBoss"
+        await store.refresh()
+        let expected = store.items
+        await api.releaseRead(BoxPage(items: [BoxBrowserFixtures.item("stale")]))
+        await old.value
+        XCTAssertEqual(store.items, expected)
+        XCTAssertEqual(store.project, "HiBoss")
+    }
+
     func testPagesAreNewestFirstAndDeduplicated() async {
         let old = BoxBrowserFixtures.item("old", createdAt: "2026-10-08T08:00:00Z")
         let new = BoxBrowserFixtures.item("new")

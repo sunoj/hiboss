@@ -13,6 +13,7 @@ final class BoxBrowserAPITests: XCTestCase {
         let api = try client()
         let store = BoxBrowserStore { api }
         store.kind = .file
+        store.project = "HiBoss"
         store.query = "  review notes  "
         await store.refresh()
         XCTAssertNil(store.error)
@@ -23,6 +24,7 @@ final class BoxBrowserAPITests: XCTestCase {
         XCTAssertEqual(store.items.map(\.id), ["new", "old"])
         XCTAssertNil(store.nextCursor)
         store.kind = nil
+        store.project = nil
         store.query = ""
         await store.refresh()
         XCTAssertEqual(store.items.map(\.id), ["all"])
@@ -126,6 +128,7 @@ private final class BrowserURLProtocol: URLProtocol, @unchecked Sendable {
         if url.path.hasSuffix("/search") {
             XCTAssertEqual(values["q"], "review notes")
             XCTAssertEqual(values["kind"], "file")
+            XCTAssertEqual(values["project"], "HiBoss")
             if let cursor = values["cursor"] {
                 XCTAssertEqual(cursor, "opaque cursor")
                 result = BoxPage(items: [BoxBrowserFixtures.item("old", kind: .file,
@@ -138,6 +141,7 @@ private final class BrowserURLProtocol: URLProtocol, @unchecked Sendable {
             XCTAssertEqual(url.path, "/api/box/items")
             XCTAssertNil(values["q"])
             XCTAssertNil(values["kind"])
+            XCTAssertNil(values["project"])
             result = BoxPage(items: [BoxBrowserFixtures.item("all")])
         }
         return try JSONEncoder().encode(result)
