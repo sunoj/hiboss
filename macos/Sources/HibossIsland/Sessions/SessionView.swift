@@ -1,6 +1,6 @@
-// Session workspace with the complete History stream and a project-scoped inspector.
+// Session workspace: thread and project-scoped inspector, arranged like Today.
 // Exports: SessionView; compact windows retain the inspector in a native sheet.
-// Dependencies: SwiftUI, HibossKit, HistoryView, SessionContext, and BoxBrowserStore.
+// Dependencies: SwiftUI, HibossKit, SessionThreadView, SessionContext, and BoxBrowserStore.
 
 import HibossKit
 import SwiftUI
@@ -37,16 +37,19 @@ struct SessionView: View {
                 inspector
             }.frame(minWidth: 320, idealWidth: 400, minHeight: 400)
         }
-        .task { if !isPreview { await panels.loadIfNeeded() } }
+        .task {
+            guard !isPreview else { return }
+            if flow.historyState == .idle { await flow.refreshHistory() }
+            await panels.loadIfNeeded()
+        }
         .background(TodayStyle.ground)
         .accessibilityIdentifier("session.workspace")
     }
 
     private var thread: some View {
         VStack(spacing: 0) {
-            HistoryView(flow: flow, snapshot: context.snapshot, scope: .session(context.id), reply: reply,
-                workspaceHeader: SessionHeader(context: context,
-                    connection: isPreview ? .connected : flow.connectionState))
+            SessionThreadView(context: context, flow: flow, reply: reply,
+                connection: isPreview ? .connected : flow.connectionState)
             DisclosureGroup(L("Watching")) {
                 ScrollView {
                     if let tile = panels.selectedTile, tile.metadata?.sessionId == context.id {

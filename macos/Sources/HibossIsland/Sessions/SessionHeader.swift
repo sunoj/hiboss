@@ -13,6 +13,7 @@ struct SessionHeader: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(context.title).font(.title2.bold())
+                    .accessibilityAddTraits(.isHeader).layoutProbe("session.title")
                 if let branch = context.branch {
                     Text(branch).font(.callout).foregroundStyle(TodayStyle.secondary)
                 }

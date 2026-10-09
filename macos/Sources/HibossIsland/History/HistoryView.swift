@@ -10,7 +10,6 @@ struct HistoryView: View {
     let snapshot: OverviewSnapshot
     let scope: OverviewDestination
     @ObservedObject var reply: AttentionReplyState
-    var workspaceHeader: SessionHeader? = nil
 
     private var scopedThreads: [MessageThread] {
         HistoryMessageLogic.scopedThreads(snapshot: snapshot, scope: scope)
@@ -38,7 +37,7 @@ struct HistoryView: View {
 
     var body: some View {
         historyContent
-            .background(TodayStyle.ground)
+            .background(Color(nsColor: .windowBackgroundColor))
             .navigationTitle(snapshot.title(for: scope))
             .onChange(of: scope) { segment = .all; searchText = "" }
             .searchable(text: $searchText, placement: .toolbar, prompt: L("Search messages"))
@@ -67,9 +66,7 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var historyContent: some View {
-        if workspaceHeader != nil {
-            groupedMessageList
-        } else if scopedThreads.isEmpty, flow.historyState == .loading {
+        if scopedThreads.isEmpty, flow.historyState == .loading {
             ProgressView(L("Loading messages…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if threads.isEmpty {
@@ -86,46 +83,27 @@ struct HistoryView: View {
     private var groupedMessageList: some View {
         ScrollViewReader { reader in
             ScrollView {
-                VStack(spacing: 0) {
-                    if let workspaceHeader {
-                        workspaceHeader
-                        Divider()
-                    }
-                    if scopedThreads.isEmpty, flow.historyState == .loading {
-                        ProgressView(L("Loading messages…")).padding()
-                    } else if threads.isEmpty {
-                        ContentUnavailableView(emptyTitle, systemImage: emptySystemImage,
-                            description: Text(emptyDescription))
-                    } else {
-                        messageRows(reader: reader)
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    ForEach(sessionGroups) { group in
+                        Section {
+                            ForEach(group.messages) { message in
+                                if let thread = threads.first(where: { $0.id == message.id }) {
+                                    messageRow(thread, reader: reader)
+                                }
+                                Divider()
+                            }
+                        } header: {
+                            sessionHeader(group)
+                        }
                     }
                 }
+                .frame(maxWidth: 900, alignment: .leading)
+                .padding(.horizontal, 24).padding(.bottom, 24)
                 .frame(maxWidth: .infinity)
             }
             .id(scope)
-            .modifier(SessionScrollChrome(isSession: workspaceHeader != nil))
             .accessibilityIdentifier("history.stream")
         }
-    }
-
-    private func messageRows(reader: ScrollViewProxy) -> some View {
-        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-            ForEach(sessionGroups) { group in
-                Section {
-                    ForEach(group.messages) { message in
-                        if let thread = threads.first(where: { $0.id == message.id }) {
-                            messageRow(thread, reader: reader)
-                        }
-                        Divider()
-                    }
-                } header: {
-                    sessionHeader(group)
-                }
-            }
-        }
-        .frame(maxWidth: 900, alignment: .leading)
-        .padding(.horizontal, 24).padding(.bottom, 24)
-        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -135,15 +113,12 @@ struct HistoryView: View {
         } else {
             SessionGroupHeader(group: group, session: flow.projectSessions.first { $0.id == group.id })
                 .padding(.vertical, 12)
-                .background(TodayStyle.ground)
+                .background(Color(nsColor: .windowBackgroundColor))
         }
     }
 
     private func messageRow(_ thread: MessageThread, reader: ScrollViewProxy) -> some View {
-        HistoryThreadRow(thread: thread,
-            decision: snapshot.today.decisions.first { $0.id == thread.id },
-            usesV4: { if case .session = scope { return true }; return false }(),
-            reply: reply, isExpanded: Binding(
+        HistoryThreadRow(thread: thread, reply: reply, isExpanded: Binding(
             get: { expandedMessages.contains(thread.id) },
             set: { expanded in
                 if expanded { expandedMessages.insert(thread.id) }
@@ -177,19 +152,6 @@ struct HistoryView: View {
             return L("Try a different filter or search.")
         }
         return L("Agent messages will appear here.")
-    }
-}
-
-private struct SessionScrollChrome: ViewModifier {
-    let isSession: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if isSession {
-            content.workspaceChrome()
-        } else {
-            content
-        }
     }
 }
 

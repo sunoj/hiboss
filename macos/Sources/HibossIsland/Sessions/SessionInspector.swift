@@ -22,7 +22,6 @@ struct SessionInspector: View {
             }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .workspaceChrome()
         .background(TodayStyle.surface)
         .task(id: context.project) {
             box.reset()
@@ -35,6 +34,7 @@ struct SessionInspector: View {
     private var facts: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L("Session details")).font(.headline)
+                .accessibilityAddTraits(.isHeader).layoutProbe("session.inspector.title")
             if let agent = context.facts?.agentName { LabeledContent(L("Agent"), value: agent) }
             if let host = context.facts?.host { LabeledContent(L("Machine"), value: host) }
             if let branch = context.branch { LabeledContent(L("Branch"), value: branch) }

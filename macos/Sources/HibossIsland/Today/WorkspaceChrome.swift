@@ -1,5 +1,5 @@
 // Keeps stationary workspace headings readable beside native scrolling surfaces.
-// Exports: workspaceChrome for v4 Session, Box, and Progress destinations.
+// Exports: workspaceChrome for v4 Box and Progress destinations.
 // Dependencies: SwiftUI; newer macOS scroll effects otherwise obscure these headings.
 
 import SwiftUI
