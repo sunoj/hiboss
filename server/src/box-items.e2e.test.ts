@@ -1,12 +1,16 @@
 // Exercises Box ingestion, retries, ownership, edits and deletion through HTTP.
 // Uses the actual Workers pool, D1 migration and private R2 storage.
 import { env } from 'cloudflare:test';
-import { beforeAll, expect, it } from 'vitest';
-import { ADMIN, OWNER, OTHER, create, page, request, seedBox, upload, type Item } from './box-test-helpers';
+import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
+import {
+  ADMIN, OWNER, OTHER, create, page, request, resetBox, seedBox, upload, type Item,
+} from './box-test-helpers';
 import { getTestAgentId } from './test-helpers';
 import type { BoxRow } from './box/types';
 
 beforeAll(seedBox);
+beforeEach(() => resetBox());
+afterEach(() => resetBox());
 
 it('creates JSON link and text items with owner identity and supplied metadata', async () => {
   const url = 'https://example.invalid/reference?verbatim=%2F';
@@ -50,8 +54,8 @@ it('keeps every public field across item responses and replaces storage fields w
       JOIN bosses b ON b.id = i.boss_id WHERE i.id = ?`).bind(item.id).first<BoxRow>();
     expect(row).not.toBeNull();
     if (!row) throw new Error('created item missing');
-    const { media_key, deleted_at, ...stored } = row;
-    const expected = { ...stored, tags: ['reference'], has_media: media };
+    const { media_key, deleted_at, agent_id, ...stored } = row;
+    const expected = { ...stored, tags: ['reference'], has_media: media, added_by: { kind: 'boss' } };
     expect(item).toEqual(expected);
     const replay = await request('', 'POST', { text: 'ignored' }, OWNER, { 'Idempotency-Key': key });
     expect(replay.status).toBe(201);
@@ -153,9 +157,10 @@ it('returns 404 on every read without access and after an explicit grant is revo
   }
 });
 
-it('blocks agent creation, patching and deletion, and boss writes to another box', async () => {
+it('requires multi-boss upload targets and blocks edits to boss items and foreign boxes', async () => {
   const item = await create({ text: 'immutable' });
-  for (const [path, method] of [['', 'POST'], [`/${item.id}`, 'PATCH'], [`/${item.id}`, 'DELETE']]) {
+  expect((await request('', 'POST', { text: 'blocked' }, 'agent')).status).toBe(409);
+  for (const [path, method] of [[`/${item.id}`, 'PATCH'], [`/${item.id}`, 'DELETE']]) {
     expect((await request(path, method, { text: 'blocked', note: 'blocked' }, 'agent')).status).toBe(404);
   }
   for (const method of ['PATCH', 'DELETE']) {

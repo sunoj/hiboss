@@ -69,10 +69,12 @@ it('stores a File in R2 without calling its arrayBuffer method', async () => {
   const buffer = vi.spyOn(file, 'arrayBuffer').mockRejectedValue(new Error('extra copy'));
   app.post('/', async c => {
     Object.assign(c, { bossId: OWNER });
-    const row = await createItem(c, { file, kind: 'image', meta: {
-      text: null, url: null, note: null, project: null, tags: [], source: 'ios-share',
-      width: null, height: null, duration_ms: null,
-    } }, undefined);
+    const row = await createItem(c, { bossId: OWNER, agentId: null }, {
+      file, kind: 'image', boss: null, meta: {
+        text: null, url: null, note: null, project: null, tags: [], source: 'ios-share',
+        width: null, height: null, duration_ms: null,
+      },
+    }, undefined);
     return c.json(row);
   });
   const response = await app.fetch(new Request('https://test.local/', { method: 'POST' }), env);
