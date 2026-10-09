@@ -107,6 +107,7 @@ final class HomeAttentionUITests: XCTestCase {
         app.launchConfiguredDemo()
 
         XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Everything is settled. This is where an agent's next question will appear."].exists)
+        XCTAssertTrue(app.staticTexts["3 working"].exists, "all-clear can coexist with working sessions")
+        XCTAssertFalse(app.buttons["home-message-c5"].exists)
     }
 }

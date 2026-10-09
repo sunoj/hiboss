@@ -23,7 +23,9 @@ final class HomePanelLayoutUITests: IntermediateCaptureCase {
         launchFailedHome()
         let retry = app.buttons["pending-retry"].firstMatch
         XCTAssertTrue(retry.waitForExistence(timeout: 12))
-        let settings = app.scrollViews.buttons["Settings"].firstMatch
+        let settings = app.scrollViews.buttons.matching(
+            NSPredicate(format: "label == %@ AND identifier != %@", "Settings", "today-settings")
+        ).firstMatch
         XCTAssertEqual(retry.frame.height, settings.frame.height, accuracy: 1)
         XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
     }
