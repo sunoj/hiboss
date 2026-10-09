@@ -16,10 +16,14 @@ struct TodaySummary: View {
                 .font(.caption).foregroundStyle(TodayStyle.tertiary)
             Text(L("Today")).font(.title.bold())
             HStack(spacing: 16) {
-                Label(L("\(snapshot.decisions.count) need you"), systemImage: "circle.fill")
-                    .foregroundStyle(TodayStyle.signal)
-                Label(L("\(snapshot.working.count) working"), systemImage: "circle.fill")
-                    .foregroundStyle(TodayStyle.live)
+                if !snapshot.decisions.isEmpty {
+                    Label(L("\(snapshot.decisions.count) need you"), systemImage: "circle.fill")
+                        .foregroundStyle(TodayStyle.signal)
+                }
+                if !snapshot.working.isEmpty {
+                    Label(L("\(snapshot.working.count) working"), systemImage: "circle.fill")
+                        .foregroundStyle(TodayStyle.live)
+                }
             }.font(.callout)
             if case let .live(checkedAt) = snapshot.health {
                 TimelineView(.periodic(from: now, by: 1)) { context in

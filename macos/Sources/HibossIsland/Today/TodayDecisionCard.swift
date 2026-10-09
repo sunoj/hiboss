@@ -46,29 +46,6 @@ struct TodayDecisionCard: View {
     }
 }
 
-struct DecisionChoices: View {
-    let item: AttentionItem
-    let onChoose: (String) -> Void
-
-    var body: some View {
-        if let media = item.message.metadata?.optionMedia, !media.isEmpty {
-            OptionMediaPicker(options: item.options, media: media,
-                defaultOption: item.defaultOption, choose: onChoose)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(item.options.enumerated()), id: \.offset) { index, option in
-                    if index == 0 {
-                        Button(option) { onChoose(option) }
-                            .buttonStyle(.borderedProminent).tint(TodayStyle.ink)
-                    } else {
-                        Button(option) { onChoose(option) }.buttonStyle(.bordered)
-                    }
-                }
-            }
-        }
-    }
-}
-
 struct DecisionDeadline: View {
     let expiresAt: Date?
     let now: Date

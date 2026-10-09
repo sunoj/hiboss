@@ -96,8 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         notificationCenter.start()
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
-        panelController = IslandPanelController(flow: flow, settings: settings,
-            onOpenMain: notificationNavigation.openMainWindow)
+        panelController = IslandPanelController(flow: flow, settings: settings)
         observeJoinRequests()
         Task { [weak self] in
             guard let self else { return }

@@ -59,18 +59,9 @@ final class TodaySnapshotTests: XCTestCase {
         let presentation = try XCTUnwrap(IslandAttention.presentation(live: nil,
             history: flow.historyMessages, now: .now))
         XCTAssertEqual(presentation.message.id, "deploy")
-        for scheme in [ColorScheme.light, .dark] {
-            let host = NSHostingView(rootView: IslandView(flow: flow,
-                reply: AttentionReplyState(), topInset: 32)
-                .environment(\.colorScheme, scheme))
-            host.sizingOptions = []
-            let height = OptionPanelLayout.expandedHeight(for: presentation.message, width: 440) + 32
-            let window = makeWindow(host, size: NSSize(width: 440, height: height), scheme: .dark)
-            defer { window.close() }
-            try await Task.sleep(for: .milliseconds(250))
-            host.layoutSubtreeIfNeeded()
-            XCTAssertEqual(descendants(host).compactMap { $0 as? NSTextField }.filter(\.isEditable).count, 1)
-            try await write(host, name: "island-\(label(scheme))")
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            try await IslandAppearanceSnapshotTests.capture(
+                flow: flow, appearance: appearance, name: "island")
         }
     }
 

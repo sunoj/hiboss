@@ -17,21 +17,21 @@ struct ResolvedOptionRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 7) {
                 Text(title)
-                    .font(.body.weight(.medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 if chosen {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.body)
-                        .foregroundStyle(TodayStyle.settled)
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.green)
                         .scaleEffect(showCheck ? 1 : 0.2)
                         .opacity(showCheck ? 1 : 0)
                 }
             }
             if chosen, showSource, let source, !source.isEmpty {
                 Text(L("Answered on \(source)"))
-                    .font(.caption)
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
                     .transition(.opacity)
             }
@@ -39,12 +39,12 @@ struct ResolvedOptionRow: View {
         .padding(.horizontal, 13)
         .padding(.vertical, 9)
         .background(
-            chosen ? TodayStyle.settledSoft : Color.white.opacity(0.05),
+            chosen ? Color.green.opacity(0.18) : Color.white.opacity(0.05),
             in: RoundedRectangle(cornerRadius: 9, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .stroke(chosen ? TodayStyle.settled.opacity(0.5) : Color.clear, lineWidth: 1)
+                .stroke(chosen ? Color.green.opacity(0.5) : Color.clear, lineWidth: 1)
         )
         .opacity(chosen ? 1 : 0.38)
         .onAppear {
@@ -59,25 +59,71 @@ struct OptionButton: View {
     let title: String
     var isDefault: Bool = false
     let action: () -> Void
+    @State private var isHovering = false
+
     var body: some View {
         Button(action: action) {
-            HStack {
-                Text(title).font(.body).fixedSize(horizontal: false, vertical: true)
-                if isDefault { Text(L("default")).font(.caption).foregroundStyle(.secondary) }
-            }.frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 7) {
+                if isDefault {
+                    Image(systemName: "return")
+                        .font(.system(size: 10, weight: .bold))
+                        .opacity(0.9)
+                }
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                if isDefault {
+                    Text(L("default"))
+                        .font(.system(size: 9, weight: .semibold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Color.white.opacity(0.18), in: Capsule())
+                        .opacity(0.85)
+                }
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .opacity(isHovering ? 0.9 : 0.35)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 9)
+            .frame(minHeight: 35)
+            .background(Color.white.opacity(isHovering ? 0.16 : (isDefault ? 0.14 : 0.09)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .strokeBorder(Color.white.opacity(isDefault ? 0.35 : 0), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .scaleEffect(isHovering ? 1.01 : 1)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
+        }
         .accessibilityLabel(isDefault ? L("Choose \(title), default") : L("Choose \(title)"))
     }
 }
 
 struct SkipButton: View {
     let action: () -> Void
+    @State private var isHovering = false
+
     var body: some View {
-        Button(action: action) { Image(systemName: "xmark") }
-            .buttonStyle(.borderless)
-            .help(L("Skip this question"))
-            .accessibilityLabel(L("Skip this question"))
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(isHovering ? 0.9 : 0.5))
+                .frame(width: 18, height: 18)
+                .background(Color.white.opacity(isHovering ? 0.16 : 0.06))
+                .clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
+        }
+        .help(L("Skip this question"))
+        .accessibilityLabel(L("Skip this question"))
     }
 }
 
@@ -138,9 +184,9 @@ struct ExpiryBand: View {
 
     private func color(for urgency: ExpiryProgress.Urgency) -> Color {
         switch urgency {
-        case .urgent: TodayStyle.signal
-        case .caution: TodayStyle.signal.opacity(0.85)
-        case .calm: TodayStyle.signal.opacity(0.7)
+        case .urgent: .red
+        case .caution: .orange
+        case .calm: .green
         }
     }
 
@@ -179,15 +225,47 @@ struct ReplyField: View {
     let isSubmitting: Bool
     let submit: () -> Void
 
+    /// Recessed, not raised: the option buttons above are the raised surface, so the field
+    /// sinks below the panel instead of matching their fill and reading as another button.
     var body: some View {
         HStack(spacing: 7) {
-            TextField(L("Reply with your own instruction…"), text: $text)
-                .textFieldStyle(.roundedBorder).font(.callout).onSubmit(submit)
-            Button(action: submit) { Image(systemName: "arrow.up.circle.fill") }
-                .buttonStyle(.borderless).disabled(!canSubmit)
-                .accessibilityLabel(L("Send reply"))
+            TextField(String(), text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(.white)
+                .tint(.white.opacity(0.8))
+                .onSubmit(submit)
+                .overlay(alignment: .leading) { placeholder }
+            Button(action: submit) {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(canSubmit ? .white : .white.opacity(0.22))
+            }
+            .buttonStyle(.plain)
+            .disabled(!canSubmit)
+            .accessibilityLabel(L("Send reply"))
         }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(Color.black.opacity(0.45))
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
         .disabled(isSubmitting)
+    }
+
+    /// Drawn by hand because the system placeholder is too dim on the always-black panel.
+    @ViewBuilder
+    private var placeholder: some View {
+        if text.isEmpty {
+            Text(L("Reply with your own instruction…"))
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.4))
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 11, style: .continuous)
     }
 
     private var canSubmit: Bool {

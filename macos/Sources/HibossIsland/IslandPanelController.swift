@@ -18,7 +18,6 @@ final class IslandPanelController {
     private let soundPlayer: any SoundPlaying
     private let screens: () -> [IslandGeometry]
     private let overview = OverviewStore()
-    private let onOpenMain: () -> Void
     private let pointerLocation: () -> NSPoint
     private var questionScreen: IslandGeometry?
     private var cancellables: Set<AnyCancellable> = []
@@ -29,15 +28,13 @@ final class IslandPanelController {
         settings: AppSettings,
         soundPlayer: any SoundPlaying = SystemSoundPlayer(),
         screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
-        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
-        onOpenMain: @escaping () -> Void = {}
+        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }
     ) {
         self.flow = flow
         self.settings = settings
         self.soundPlayer = soundPlayer
         self.screens = screens
         self.pointerLocation = pointerLocation
-        self.onOpenMain = onOpenMain
         panel = IslandPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -66,8 +63,7 @@ final class IslandPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
-        let host = BoxDropHostingView(
-            rootView: IslandView(flow: flow, reply: reply, onOpenMain: onOpenMain), settings: settings)
+        let host = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
         dropReveal = IslandDropRevealController(
@@ -101,7 +97,7 @@ final class IslandPanelController {
             optionWindow.standardWindowButton(button)?.isHidden = true
         }
         let host = NSHostingView(
-            rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window, onOpenMain: onOpenMain)
+            rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
         )
         host.sizingOptions = []
         optionWindow.contentView = host
