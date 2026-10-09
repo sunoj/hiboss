@@ -30,7 +30,7 @@ struct HistoryThreadRow: View {
     private var message: HistoryMessage { thread.message }
 
     private var content: HistoryReadingContent {
-        HistoryReadingContent(body: message.body, content: message.content)
+        HistoryReadingContent(message: message)
     }
 
     var body: some View {

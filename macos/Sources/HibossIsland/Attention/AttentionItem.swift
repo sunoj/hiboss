@@ -32,6 +32,7 @@ struct AttentionItem: Identifiable, Equatable, Sendable {
 
     var body: String { message.body }
     var content: String? { nonEmpty(message.content) }
+    var attachment: MessageAttachment? { message.metadata?.attachment }
 
     /// critical = 0, high = 1, anything else last. Only used inside the priority band.
     var priorityRank: Int {
