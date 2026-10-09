@@ -40,7 +40,7 @@ struct DecisionDefaultLine: View {
             let time = AttentionClock.remaining(until: expiresAt, now: now)
             return L("No answer in \(time) picks “\(option)”. That is not approval.")
         }
-        return L("Default: “\(option)”. No deadline. That is not approval.")
+        return L("Default: “\(option)”. That is not approval.")
     }
 
     var body: some View {

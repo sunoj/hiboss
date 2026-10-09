@@ -11,7 +11,7 @@ final class WorkspaceDecisionTests: XCTestCase {
 
     func testOrdinaryQuestionDoesNotDependOnSessionHeartbeat() {
         let question = AttentionTestSupport.ask(id: "normal", options: ["Review"], sessionStatus: "working")
-        let snapshot = OverviewSnapshot(history: [question], live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: [question], live: nil, now: now, requiredInputs: [question])
         XCTAssertEqual(snapshot.count(.needsYou), 1)
         XCTAssertEqual(snapshot.count(.waiting), 1)
     }
@@ -26,14 +26,20 @@ final class WorkspaceDecisionTests: XCTestCase {
     }
 
     func testLiveOrdinaryQuestionAppearsBeforeHistoryArrives() {
-        let live = OptionMessage(id: "live", body: "Review?", metadata: MessageMetadata(options: ["Yes", "No"]))
+        let live = OptionMessage(id: "live", body: "Review?",
+            metadata: MessageMetadata(options: ["Yes", "No"]))
         XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now).count(.needsYou), 1)
+    }
+
+    func testHistoryOnlyQuestionNeverReopensAsARequiredDecision() {
+        let question = AttentionTestSupport.ask(id: "retired", options: ["Ship"])
+        XCTAssertEqual(OverviewSnapshot(history: [question], live: nil, now: now).count(.needsYou), 0)
     }
 
     func testDeadlineWithoutDefaultIsStillActionableUntilExpiry() {
         let question = AttentionTestSupport.ask(id: "timed", options: ["Review"],
             expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(30)))
-        let before = OverviewSnapshot(history: [question], live: nil, now: now)
+        let before = OverviewSnapshot(history: [question], live: nil, now: now, requiredInputs: [question])
         let after = OverviewSnapshot(history: [question], live: nil, now: now.addingTimeInterval(30))
         XCTAssertEqual(before.count(.needsYou), 1)
         XCTAssertEqual(before.count(.automatic), 0)

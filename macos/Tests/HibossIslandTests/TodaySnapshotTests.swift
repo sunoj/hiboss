@@ -53,9 +53,11 @@ final class TodaySnapshotTests: XCTestCase {
 
     func testIslandShowsOneSharedDecisionInBothAppearances() async throws {
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
-        flow.connect(api: ScriptedBossAPI(messages: [], history: fixtures()))
+        let history = fixtures()
+        let requiredInput = try XCTUnwrap(AttentionModel.items(from: history, now: .now).first)
+        flow.connect(api: ScriptedBossAPI(messages: [requiredInput.asOptionMessage], history: history))
         defer { flow.disconnect() }
-        try await waitForCondition { flow.historyState == .loaded }
+        try await waitForCondition { flow.historyState == .loaded && flow.activeMessage != nil }
         let presentation = try XCTUnwrap(IslandAttention.presentation(live: nil,
             history: flow.historyMessages, now: .now))
         XCTAssertEqual(presentation.message.id, "deploy")

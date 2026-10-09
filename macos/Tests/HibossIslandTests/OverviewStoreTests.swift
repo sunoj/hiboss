@@ -37,7 +37,7 @@ final class OverviewStoreTests: XCTestCase {
         let deadline = Date().addingTimeInterval(0.15)
         let question = AttentionTestSupport.ask(id: "timer", options: ["Ship"], defaultOption: "Ship",
             expiresAt: deadline.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
-        store.update(history: [question], live: nil)
+        store.update(history: [question], live: nil, requiredInputs: [question])
         XCTAssertEqual(store.snapshot.count(.automatic), 1)
         for _ in 0..<100 {
             if store.snapshot.count(.automatic) == 0 { break }

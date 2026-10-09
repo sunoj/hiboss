@@ -22,10 +22,26 @@ struct SessionContext {
         snapshot.today.decisions.filter { SessionGrouping.sessionKey(for: $0.message) == id }
     }
     var newestAgentMessage: HistoryMessage? {
-        snapshot.messages(for: .session(id)).filter { $0.direction == "agent_to_boss" }.max {
+        replyTargets.max {
             (HistoryTimestamp.date(from: $0.createdAt) ?? .distantPast)
                 < (HistoryTimestamp.date(from: $1.createdAt) ?? .distantPast)
         }
+    }
+    var replyTargets: [HistoryMessage] {
+        let openIDs = Set(decisions.map(\.id))
+        return snapshot.messages(for: .session(id)).filter { message in
+            guard message.direction == "agent_to_boss" else { return false }
+            let isDecision = !message.options.isEmpty || message.defaultOption != nil
+                || message.mode == "blocking"
+            return !isDecision || openIDs.contains(message.id)
+        }
+    }
+    func replyTargetLabel(for message: HistoryMessage) -> String {
+        if decisions.contains(where: { $0.id == message.id }) {
+            return L("Custom answer to: \(message.body)")
+        }
+        let firstLine = message.body.components(separatedBy: .newlines).first ?? message.body
+        return L("Replying to: \(firstLine)")
     }
     var peers: [ProjectSession] {
         inventory.filter { peer in

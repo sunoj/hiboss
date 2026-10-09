@@ -76,9 +76,6 @@ struct HistoryThreadRow: View {
             if usesV4 {
                 if decision == nil {
                     ResolvedBanner(thread: thread, outcome: thread.outcome(at: now))
-                    if let option = message.defaultOption {
-                        DecisionDefaultLine(option: option, expiresAt: message.expirationDate, now: now)
-                    }
                     DisclosureGroup(L("Decision options")) {
                         HistoryDecisionBlock(thread: thread, outcome: thread.outcome(at: now),
                             reply: reply, onChoose: onChoose)

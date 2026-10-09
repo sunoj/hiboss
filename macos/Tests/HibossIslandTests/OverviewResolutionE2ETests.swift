@@ -13,7 +13,7 @@ final class OverviewResolutionE2ETests: XCTestCase {
         let flow = OptionFlowStore()
         flow.connect(api: api)
         defer { flow.disconnect() }
-        try await waitUntil { flow.historyState == .loaded && flow.connectionState == .connected }
+        try await waitUntil { flow.historyState == .loaded && flow.activeMessage?.id == "question" }
         XCTAssertEqual(snapshot(flow).count(.needsYou), 1)
 
         await api.answerElsewhere()
@@ -34,13 +34,15 @@ final class OverviewResolutionE2ETests: XCTestCase {
 
         await reply.send(reply.drafts["question"] ?? "", for: "question", using: flow.answer)
 
+        try await waitUntil { self.snapshot(flow).count(.completed) == 1 }
         XCTAssertEqual(snapshot(flow).count(.completed), 1)
         XCTAssertEqual(snapshot(flow).count(.needsYou), 0)
         XCTAssertNil(reply.drafts["question"])
     }
 
     private func snapshot(_ flow: OptionFlowStore) -> OverviewSnapshot {
-        OverviewSnapshot(history: flow.historyMessages, live: flow.activeMessage, now: AttentionTestSupport.now)
+        OverviewSnapshot(history: flow.historyMessages, live: flow.activeMessage,
+            now: AttentionTestSupport.now)
     }
 
     private func waitUntil(_ predicate: @escaping @MainActor () -> Bool) async throws {
@@ -61,7 +63,11 @@ private actor OverviewResolutionAPI: BossServing {
     }
 
     func messageStream() -> AsyncThrowingStream<BossEvent, Error> {
-        AsyncThrowingStream { continuation = $0 }
+        AsyncThrowingStream {
+            continuation = $0
+            $0.yield(.message(OptionMessage(id: "question", body: "Needs a decision",
+                metadata: MessageMetadata(options: ["Ship", "Wait"]))))
+        }
     }
 
     func fetchHistory() async throws -> [HistoryMessage] {

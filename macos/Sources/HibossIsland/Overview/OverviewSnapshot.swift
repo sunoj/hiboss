@@ -61,9 +61,13 @@ struct OverviewSnapshot {
 
     init(history: [HistoryMessage], live: OptionMessage?, now: Date,
          health: TodayHealth = .loading, coverageComplete: Bool = false,
-         withdrawn: Set<MessageID> = []) {
+         withdrawn: Set<MessageID> = [], requiredInputs: [HistoryMessage] = []) {
         self.history = TodayProjection.merge(history: history, live: live)
-        self.today = TodaySnapshot(history: self.history, withdrawn: withdrawn, health: health,
+        let liveInputs = live.map { live in
+            history.first { $0.id == live.id } ?? TodayProjection.historyMessage(from: live)
+        }.map { [$0] } ?? []
+        self.today = TodaySnapshot(history: self.history, requiredInputs: requiredInputs + liveInputs,
+            withdrawn: withdrawn, health: health,
             coverageComplete: coverageComplete, now: now)
         self.attention = today.decisions
         self.sessions = SessionGrouping.groupBySession(self.history)

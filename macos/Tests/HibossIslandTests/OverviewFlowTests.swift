@@ -10,14 +10,14 @@ final class OverviewFlowTests: XCTestCase {
     private let now = AttentionTestSupport.now
 
     func testTodayUsesTheDecisionQueueWithoutCompletedMessages() {
-        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now, requiredInputs: fixtures())
         XCTAssertEqual(snapshot.title(for: .today), "Today")
         XCTAssertEqual(snapshot.messages(for: .today).map(\.id), snapshot.attention.map(\.id))
         XCTAssertFalse(snapshot.messages(for: .today).contains { $0.id == "done" })
     }
 
     func testEveryTileCountMatchesItsDestination() {
-        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now, requiredInputs: fixtures())
         for category in OverviewCategory.allCases {
             XCTAssertEqual(snapshot.count(category), snapshot.messages(for: .category(category)).count)
         }
@@ -32,7 +32,7 @@ final class OverviewFlowTests: XCTestCase {
     func testResolvedQuestionLeavesAttentionAndEntersCompleted() {
         let pending = AttentionTestSupport.ask(id: "question", options: ["Ship"], sessionStatus: "waiting")
         let resolved = AttentionTestSupport.ask(id: "question", options: ["Ship"], status: "replied")
-        let before = OverviewSnapshot(history: [pending], live: nil, now: now)
+        let before = OverviewSnapshot(history: [pending], live: nil, now: now, requiredInputs: [pending])
         let after = OverviewSnapshot(history: [resolved], live: nil, now: now)
         XCTAssertEqual(before.count(.needsYou), 1)
         XCTAssertEqual(before.count(.completed), 0)
@@ -76,7 +76,8 @@ final class OverviewFlowTests: XCTestCase {
             defaultOption: "Ship", expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(60)))
         let blocked = AttentionTestSupport.ask(id: "blocked", priority: "critical", options: ["Review"],
             sessionStatus: "waiting")
-        let snapshot = OverviewSnapshot(history: [timed, blocked], live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: [timed, blocked], live: nil, now: now,
+            requiredInputs: [timed, blocked])
         XCTAssertEqual(snapshot.count(.urgent), 2)
         XCTAssertEqual(snapshot.count(.automatic), 1)
         XCTAssertEqual(snapshot.count(.waiting), 1)

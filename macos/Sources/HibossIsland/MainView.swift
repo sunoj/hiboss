@@ -119,7 +119,8 @@ struct MainView: View {
             && !panels.pendingQuestionnaires.contains(where: \.blocking))
         overviewStore.update(history: history, live: flow.activeMessage, now: now,
             health: health, coverageComplete: coverage,
-            withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback))
+            withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback),
+            requiredInputs: previewHistory ?? [])
     }
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {

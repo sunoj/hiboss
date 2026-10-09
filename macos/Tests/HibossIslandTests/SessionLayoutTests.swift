@@ -12,7 +12,8 @@ import XCTest
 final class SessionLayoutTests: XCTestCase {
     func testNoAgentMessageDisablesTheNativeReplyFieldInBothAppearances() async throws {
         for scheme in [ColorScheme.light, .dark] {
-            let host = NSHostingView(rootView: SessionComposer(message: nil, reply: AttentionReplyState(),
+            let host = NSHostingView(rootView: SessionComposer(context: context([]),
+                reply: AttentionReplyState(),
                 onChoose: { _, _ in
                     XCTFail("An empty session cannot send")
                     return nil
@@ -31,7 +32,7 @@ final class SessionLayoutTests: XCTestCase {
         reply.drafts[message.id] = "Please review the result before shipping."
         var receipts: [RecordedReply] = []
         for scheme in [ColorScheme.light, .dark] {
-            let host = NSHostingView(rootView: SessionComposer(message: message, reply: reply,
+            let host = NSHostingView(rootView: SessionComposer(context: context([message]), reply: reply,
                 onChoose: { text, id in
                     receipts.append(RecordedReply(messageID: id, choice: text))
                     return nil
@@ -101,6 +102,12 @@ final class SessionLayoutTests: XCTestCase {
         host.subviews.flatMap { view in
             (view as? NSTextField).map { [$0] } ?? fields(view)
         }.filter(\.isEditable)
+    }
+
+    private func context(_ history: [HistoryMessage]) -> SessionContext {
+        let id = history.first.map { SessionGrouping.sessionKey(for: $0) } ?? "session"
+        return SessionContext(id: id,
+            snapshot: OverviewSnapshot(history: history, live: nil, now: .now), inventory: [])
     }
 
     private func sendShortcut(_ window: NSWindow) async throws {

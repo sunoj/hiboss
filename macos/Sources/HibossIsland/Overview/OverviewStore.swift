@@ -16,23 +16,27 @@ final class OverviewStore: ObservableObject {
     private var withdrawn: Set<MessageID> = []
     private var nextExpiration: Date?
     private var expirationTask: Task<Void, Never>?
+    private var requiredInputs: [HistoryMessage] = []
 
     deinit { expirationTask?.cancel() }
 
     func update(history: [HistoryMessage], live: OptionMessage?, now: Date = .now,
                 health: TodayHealth = .loading, coverageComplete: Bool = false,
-                withdrawn: Set<MessageID> = []) {
+                withdrawn: Set<MessageID> = [], requiredInputs: [HistoryMessage] = []) {
         let expired = nextExpiration.map { $0 <= now } ?? false
         guard history != self.history || live != self.live || health != self.health
             || coverageComplete != self.coverageComplete || withdrawn != self.withdrawn || expired
+            || requiredInputs != self.requiredInputs
         else { return }
         self.history = history
         self.live = live
         self.health = health
         self.coverageComplete = coverageComplete
         self.withdrawn = withdrawn
+        self.requiredInputs = requiredInputs
         snapshot = OverviewSnapshot(history: history, live: live, now: now,
-            health: health, coverageComplete: coverageComplete, withdrawn: withdrawn)
+            health: health, coverageComplete: coverageComplete, withdrawn: withdrawn,
+            requiredInputs: requiredInputs)
         scheduleExpiration(after: now)
     }
 
@@ -52,7 +56,8 @@ final class OverviewStore: ObservableObject {
             } catch { return }
             guard let self else { return }
             self.update(history: self.history, live: self.live,
-                health: self.health, coverageComplete: self.coverageComplete, withdrawn: self.withdrawn)
+                health: self.health, coverageComplete: self.coverageComplete, withdrawn: self.withdrawn,
+                requiredInputs: self.requiredInputs)
         }
     }
 }

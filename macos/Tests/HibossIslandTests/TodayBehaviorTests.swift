@@ -16,7 +16,7 @@ final class TodayBehaviorTests: XCTestCase {
             createdAt: AttentionTestSupport.iso(now), sessionId: "session", sessionStatus: "waiting")
         let choice = AttentionTestSupport.ask(id: "choice", options: ["Ship"], now: now)
         let history = [choice, text]
-        let snapshot = OverviewSnapshot(history: history, live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: history, live: nil, now: now, requiredInputs: history)
         XCTAssertEqual(snapshot.attention, AttentionModel.items(from: history, now: now))
         XCTAssertEqual(snapshot.attention.first?.id, "text")
         XCTAssertEqual(IslandAttention.presentation(live: nil, history: history, now: now)?.message.id,
@@ -49,7 +49,8 @@ final class TodayBehaviorTests: XCTestCase {
         let history = [AttentionTestSupport.ask(id: "closed", options: ["Ship"], now: now),
                        AttentionTestSupport.ask(id: "open", options: ["Wait"], now: now)]
         let withdrawn = TodayProjection.withdrawn(feedback: ["closed": .alreadyResolved, "open": .failed("")])
-        let snapshot = OverviewSnapshot(history: history, live: nil, now: now, withdrawn: withdrawn)
+        let snapshot = OverviewSnapshot(history: history, live: nil, now: now, withdrawn: withdrawn,
+            requiredInputs: history)
         XCTAssertEqual(snapshot.attention.map(\.id), ["open"])
         XCTAssertEqual(IslandAttention.presentation(live: nil, history: history,
             now: now, withdrawn: withdrawn)?.message.id, "open")
@@ -83,7 +84,7 @@ final class TodayBehaviorTests: XCTestCase {
             expiresAt: now.addingTimeInterval(60), now: now),
             L("No answer in \("1m") picks “\("Hold")”. That is not approval."))
         XCTAssertEqual(DecisionDefaultLine.text(option: "Hold", expiresAt: nil, now: now),
-            L("Default: “\("Hold")”. No deadline. That is not approval."))
+            L("Default: “\("Hold")”. That is not approval."))
     }
 
     @MainActor
