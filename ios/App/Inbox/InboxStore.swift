@@ -72,12 +72,10 @@ final class InboxStore: ObservableObject {
     /// The choice in flight per decision, from any entry point; every button surface reads it.
     var replying: [MessageID: String] { replyGate.inFlight }
 
-    /// Inbox cards follow the history list through their pending and settled states.
-    /// Today and Live Activity use the authoritative required-input list separately.
+    /// Open option decisions from the shared Today ranking; only the server's required-input
+    /// list can make a decision open, so history never reopens an answered card.
     var pending: [HistoryMessage] {
-        AttentionModel.items(from: history.filter {
-            !withdrawn.contains($0.id) && !settledIDs.contains($0.id)
-        }, now: .now).filter { !$0.options.isEmpty }.map(\.message)
+        todaySnapshot(now: .now).decisions.filter { !$0.options.isEmpty }.map(\.message)
     }
 
     var pendingCount: Int { pending.count }
