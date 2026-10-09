@@ -43,7 +43,7 @@ no separate Messages tab.
 - Inspector (right): the selected decision, answerable in place with options and a
   free-text reply, plus "Earlier in this session" and Open session. For a session: its
   facts, what waits on the boss, its Box items, and its peers.
-- The notch Island shows one decision at a time; the menu bar item shows the icon and
+- The notch Island keeps its existing design; the menu bar item shows the icon and
   the open-decision count.
 
 ## Colour has a job
@@ -140,8 +140,11 @@ the existing list on macOS; ProvenanceBadge on agent items.
 
 ### Lock screen / Dynamic Island / notch Island
 
-One decision only: provenance, countdown, question, two buttons, and "N more
-decisions waiting in HiBoss" when there are more. (Attention 2)
+These keep their existing design (the boss's call after reviewing a v4 redraw): the
+iOS Live Activity / Dynamic Island and the macOS notch Island look and behave as before
+v4. v4 changes only which decision they carry, taken from `TodaySnapshot.decisions`,
+so every surface shows the same top decision. The `iOS-Lock` and `Mac-Island` mockups
+are superseded on this point. (Attention 2)
 
 ## Shared model (HibossKit)
 
