@@ -98,6 +98,9 @@ struct MessageDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
+            if message.direction == "agent_to_boss", let attachment = message.metadata?.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
         }
     }
 
