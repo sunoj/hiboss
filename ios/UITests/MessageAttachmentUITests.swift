@@ -71,7 +71,7 @@ final class MessageAttachmentUITests: XCTestCase {
         XCTAssertEqual(question.label, "Approve the release banner?")
         assertViewer(app.buttons["message-attachment-open"])
         XCTAssertTrue(question.isHittable)
-        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons["Done"].tap()
         XCTAssertTrue(decision.waitForExistence(timeout: 5))
         XCTAssertTrue(decision.isHittable)
     }
@@ -107,7 +107,16 @@ final class MessageAttachmentUITests: XCTestCase {
 
     private func assertViewer(_ button: XCUIElement) {
         XCTAssertTrue(button.waitForExistence(timeout: 15))
-        for _ in 0..<5 where !button.isHittable { app.swipeUp() }
+        let header = app.descendants(matching: .any).matching(identifier: "session-facts").firstMatch
+        let composer = app.textFields["session-reply-draft"].firstMatch
+        for _ in 0..<8 {
+            if header.exists && button.frame.midY < header.frame.maxY + 24 {
+                app.swipeDown()
+            } else if composer.exists && button.frame.midY > composer.frame.minY - 24 {
+                app.swipeUp()
+            } else if !button.isHittable { app.swipeUp() }
+            else { break }
+        }
         XCTAssertTrue(button.isHittable)
         button.tap()
         XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))

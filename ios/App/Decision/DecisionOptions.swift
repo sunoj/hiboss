@@ -10,6 +10,7 @@ struct DecisionOptions: View {
     let timing: DecisionTiming
     var submitting: String?
     var wrapsToFit = false
+    var fullWidth = false
     let onChoose: (String) -> Void
     @Environment(\.layoutDirection) private var layoutDirection
 
@@ -18,7 +19,7 @@ struct DecisionOptions: View {
             DecisionOptionFlow(layoutDirection: layoutDirection) {
                 ForEach(options, id: \.self) { button($0, alignment: .center) }
             }
-        } else if options.count == 2 {
+        } else if options.count == 2 && !fullWidth {
             // The row takes its tallest label's height and both buttons fill it, so a label that
             // wraps at large text never leaves its neighbour shorter.
             HStack(spacing: 8) {

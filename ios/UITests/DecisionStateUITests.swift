@@ -41,12 +41,14 @@ final class DecisionStateUITests: XCTestCase {
 
     func testAutomaticReplyInTheTranscriptIsNotTheBossSpeaking() {
         launch(["HIBOSS_DEMO_OPEN": "a1"])
-        let session = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'View session'")).firstMatch
+        let session = app.buttons["Open session"]
         XCTAssertTrue(session.waitForExistence(timeout: 10))
+        for _ in 0..<8 where !session.isHittable { app.swipeUp() }
         session.tap()
         let automatic = app.descendants(matching: .any)["session-automatic-reply"]
         XCTAssertTrue(automatic.waitForExistence(timeout: 8), "the timeout default has its own row")
         XCTAssertTrue(automatic.label.contains("Auto-selected when time ran out"), automatic.label)
+        XCTAssertTrue(automatic.label.contains("Default picked · not approval"), automatic.label)
         let answer = app.descendants(matching: .any)["transcript-answer-a1"]
         XCTAssertTrue(answer.label.contains("Auto-selected when time ran out"), answer.label)
         XCTAssertFalse(app.descendants(matching: .any)["session-bubble-outgoing"].exists,
@@ -128,7 +130,10 @@ final class DecisionStateUITests: XCTestCase {
         XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["list-stale-banner"].exists)
         Thread.sleep(forTimeInterval: 5)
-        pullToRefresh(app)
+        // The persistent search field moves the list below the old screen-relative drag origin.
+        app.cells.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+            .press(forDuration: 0.1,
+                   thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)))
         XCTAssertTrue(app.descendants(matching: .any)["list-stale-banner"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.cells.firstMatch.exists, "earlier rows stay visible")
     }

@@ -9,6 +9,8 @@ import UIKit
 struct MessageDetailView: View {
     @ObservedObject var store: InboxStore
     let messageID: MessageID
+    var onOpenSession: ((SessionRoute) -> Void)? = nil
+    @StateObject private var facts = SessionFactsStore()
     @State private var replyDraft = ""
     @State private var actionNote: String?
     @State var fallback: Fallback = .loading
@@ -53,26 +55,28 @@ struct MessageDetailView: View {
         if let message {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    DecisionProvenance(message: message, session: facts.session)
                     question(for: message)
+                    DecisionContextCard(message: message)
                     if let actionNote {
                         Label(actionNote, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(Theme.warn)
                             .font(.hbCallout)
                     }
                     decisionSection(for: message)
+                    sessionLink(for: message)
                     MessageDetailsCard(message: message)
-                    if let session = sessionRoute(for: message) {
-                        NavigationLink(value: session) {
-                            Label("View session · \(session.label)", systemImage: "square.stack.3d.up")
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        }
-                        .buttonStyle(.bordered)
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .accessibilityIdentifier("decision-detail")
             .background(Theme.paper)
+            .task(id: message.sessionId) {
+                if let id = message.sessionId {
+                    await facts.load(id: id, api: store.api as? any SessionsServing)
+                }
+            }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(Text(verbatim: title(for: message)))
             .navigationBarTitleDisplayMode(.inline)
@@ -81,23 +85,30 @@ struct MessageDetailView: View {
         }
     }
 
+    @ViewBuilder private func sessionLink(for message: HistoryMessage) -> some View {
+        if let session = sessionRoute(for: message) {
+            if let onOpenSession {
+                Button { onOpenSession(session) } label: {
+                    Label("Open session", systemImage: "text.alignleft")
+                }.buttonStyle(.bordered).frame(maxWidth: .infinity, minHeight: 44)
+            } else {
+                NavigationLink(value: session) {
+                    Label("Open session", systemImage: "text.alignleft")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.buttonStyle(.bordered)
+            }
+        }
+    }
+
     /// The question leads, plain and large; it wraps fully at every text size.
     private func question(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: message.body)
-                .font(.hbLargeTitle)
+                .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .accessibilityIdentifier("message-question")
-            if let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !content.isEmpty, content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                Text(verbatim: content)
-                    .font(.hbCallout)
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-            }
             if message.direction == "agent_to_boss", let attachment = message.metadata?.attachment {
                 MessageAttachmentView(attachment: attachment)
             }
@@ -119,7 +130,7 @@ struct MessageDetailView: View {
                 let timing = DecisionTiming(message: message, now: context.date)
                 pendingDecision(for: message, timing: timing)
             }
-        } else if message.isDecision {
+        } else if message.isDecision || (message.direction == "agent_to_boss" && message.mode == "blocking") {
             resolvedDecision(for: message)
         }
     }
@@ -127,12 +138,15 @@ struct MessageDetailView: View {
     private func pendingDecision(for message: HistoryMessage, timing: DecisionTiming) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             DecisionTimingView(timing: timing, messageID: message.id)
+                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.signalSoft, in: RoundedRectangle(cornerRadius: 12))
             OptionMediaComparison(
                 options: message.options,
                 media: message.metadata?.optionMedia ?? []
             )
             if !message.options.isEmpty {
-                DecisionOptions(options: message.options, timing: timing, submitting: submitting) {
+                DecisionOptions(options: message.options, timing: timing,
+                                submitting: submitting, fullWidth: true) {
                     submit($0, for: message.id)
                 }
             }
@@ -143,6 +157,10 @@ struct MessageDetailView: View {
 
     private func resolvedDecision(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let settlement { ResolvedBanner(settlement: settlement, date: reply?.createdDate) }
+            if message.defaultOption != nil {
+                DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id)
+            }
             Text("Options").hbLabel().foregroundStyle(Theme.ink2)
             OptionMediaComparison(
                 options: message.options,

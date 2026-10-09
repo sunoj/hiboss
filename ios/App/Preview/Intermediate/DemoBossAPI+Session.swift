@@ -41,3 +41,14 @@ extension DemoBossAPI {
         }
     }
 }
+
+// Inventory facts use the same service boundary as production.
+extension DemoBossAPI: SessionsServing {
+    func projectSessions() async throws -> [ProjectSession] {
+        [ProjectSession(id: "sess-deploy", projectId: nil, projectSlug: "hiboss", branch: "release/v2.4",
+                        label: "prod-release", host: "Mac mini", agentName: "worker-deploy",
+                        status: "working", statusText: "Preparing the release",
+                        startedAt: Date().addingTimeInterval(-3600).ISO8601Format(),
+                        lastSeenAt: Date().addingTimeInterval(-9).ISO8601Format())]
+    }
+}

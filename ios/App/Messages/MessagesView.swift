@@ -8,11 +8,22 @@ import SwiftUI
 struct MessagesView: View {
     @ObservedObject var store: InboxStore
 
+    var search = ""
+    var sessionID: String? = nil
+
+    private var messages: [HistoryMessage] {
+        store.history.filter {
+            (sessionID == nil || SessionGrouping.sessionKey(for: $0) == sessionID)
+                && (search.isEmpty || [$0.body, $0.content, $0.agentName, $0.sessionLabel]
+                    .compactMap { $0 }.joined(separator: " ").localizedCaseInsensitiveContains(search))
+        }
+    }
+
     var body: some View {
         ListStateView(
             isLoading: !store.didLoad || store.isRefreshing,
             error: store.loadError,
-            isEmpty: store.history.isEmpty,
+            isEmpty: messages.isEmpty,
             emptyIcon: "tray",
             emptyTitle: String(localized: "No messages yet"),
             emptyDetail: String(localized: "Agent messages will appear here."),
@@ -20,7 +31,7 @@ struct MessagesView: View {
             onRetry: { await store.refresh() }
         ) {
             List {
-                ForEach(MessageThreading.items(from: store.history)) { item in
+                ForEach(MessageThreading.items(from: messages)) { item in
                     NavigationLink(value: item.id) { row(item) }
                 }
             }
