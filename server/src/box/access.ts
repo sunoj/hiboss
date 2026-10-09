@@ -14,17 +14,17 @@ export async function boxWriteScope(c: BoxContext, target: string | null): Promi
   if (isBossAuth(c)) return { bossId: getBossId(c), agentId: null };
   const agentId = getAgentId(c);
   const bosses = await resolvedBosses(c.env.DB, agentId);
-  if (!bosses.length) throw new HTTPException(404, { message: 'not found' });
   if (target !== null) {
-    const boss = bosses.find(boss => boss.id === target) ?? bosses.find(boss => boss.name === target);
-    if (!boss) throw new HTTPException(404, { message: 'not found' });
-    return { bossId: boss.id, agentId };
+    const boss = bosses.find(boss => boss.id === target);
+    if (boss) return { bossId: boss.id, agentId };
   }
-  if (bosses.length !== 1) {
-    const choices = bosses.map(boss => `${boss.name} (${boss.id})`).join(', ');
+  const matches = target === null ? bosses : bosses.filter(boss => boss.name === target);
+  if (!matches.length) throw new HTTPException(404, { message: 'not found' });
+  if (matches.length !== 1) {
+    const choices = matches.map(boss => `${boss.name} (${boss.id})`).join(', ');
     throw new HTTPException(409, { message: `choose a boss: ${choices}` });
   }
-  return { bossId: bosses[0].id, agentId };
+  return { bossId: matches[0].id, agentId };
 }
 
 export function canEditItem(c: BoxContext, row: BoxRow): boolean {

@@ -162,6 +162,11 @@ it('isolates concurrent idempotency retries across the boss and each agent in th
     ids.push(items[0].id);
   }
   expect(new Set(ids).size).toBe(3);
+  const bossRetry = await env.DB.prepare('SELECT item_id FROM box_idempotency').all();
+  expect(bossRetry.results).toEqual([{ item_id: ids[0] }]);
+  const agentRetries = await env.DB.prepare('SELECT item_id FROM box_agent_idempotency')
+    .all<{ item_id: string }>();
+  expect(agentRetries.results.map(row => row.item_id).sort()).toEqual(ids.slice(1).sort());
   const otherBox = await request('', 'POST', { text: 'other box', boss: ADMIN }, 'agent',
     { 'Idempotency-Key': key });
   expect(otherBox.status).toBe(201);

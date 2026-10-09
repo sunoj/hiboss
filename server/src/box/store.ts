@@ -7,6 +7,22 @@ import type { BoxContext, BoxRow, BoxUpload, BoxMetadata, BoxWriteScope } from '
 export const BOX_SELECT = 'SELECT i.*, b.name AS boss_name, a.name AS agent_name FROM box_items i '
   + 'JOIN bosses b ON b.id = i.boss_id LEFT JOIN api_keys a ON a.id = i.agent_id';
 
+function idempotencyScope(scope: BoxWriteScope): {
+  table: 'box_agent_idempotency' | 'box_idempotency';
+  columns: string;
+  predicate: string;
+  binds: string[];
+} {
+  const agent = scope.agentId !== null;
+  return {
+    table: agent ? 'box_agent_idempotency' : 'box_idempotency',
+    columns: agent ? 'boss_id, agent_id, idempotency_key' : 'boss_id, idempotency_key',
+    predicate: agent ? 'boss_id = ? AND agent_id = ? AND idempotency_key = ?'
+      : 'boss_id = ? AND idempotency_key = ?',
+    binds: scope.agentId === null ? [scope.bossId] : [scope.bossId, scope.agentId],
+  };
+}
+
 export async function findItem(c: BoxContext, id: string, includeDeleted = false): Promise<BoxRow | null> {
   const ids = await boxBossIds(c);
   if (!ids.length) return null;
@@ -17,22 +33,23 @@ export async function findItem(c: BoxContext, id: string, includeDeleted = false
 
 export async function replayItem(c: BoxContext, scope: BoxWriteScope,
   key: string): Promise<BoxRow | null | undefined> {
-  const record = await c.env.DB.prepare(`SELECT item_id FROM box_idempotency
-    WHERE boss_id = ? AND author = ? AND idempotency_key = ?`)
-    .bind(scope.bossId, scope.agentId ?? '', key).first<{ item_id: string }>();
+  const retry = idempotencyScope(scope);
+  const record = await c.env.DB.prepare(`SELECT item_id FROM ${retry.table}
+    WHERE ${retry.predicate}`).bind(...retry.binds, key).first<{ item_id: string }>();
   return record ? findItem(c, record.item_id) : undefined;
 }
 
 function insertItem(c: BoxContext, scope: BoxWriteScope, upload: BoxUpload, id: string,
   mediaKey: string | null, key: string | undefined): ReturnType<BoxContext['env']['DB']['prepare']> {
   const { meta, file, kind } = upload;
+  const retry = idempotencyScope(scope);
+  const source = scope.agentId === null ? meta.source : 'cli';
   const binds: (string | number | null)[] = [id, scope.bossId, kind, meta.text, meta.url, meta.note,
     mediaKey, file ? file.type || 'application/octet-stream' : null, file?.size ?? null,
     file ? meta.width : null, file ? meta.height : null, file ? meta.duration_ms : null,
-    meta.project, JSON.stringify(meta.tags), meta.source, new Date().toISOString(), scope.agentId];
-  const guard = key ? ' WHERE NOT EXISTS (SELECT 1 FROM box_idempotency '
-    + 'WHERE boss_id = ? AND author = ? AND idempotency_key = ?)' : '';
-  if (key) binds.push(scope.bossId, scope.agentId ?? '', key);
+    meta.project, JSON.stringify(meta.tags), source, new Date().toISOString(), scope.agentId];
+  const guard = key ? ` WHERE NOT EXISTS (SELECT 1 FROM ${retry.table} WHERE ${retry.predicate})` : '';
+  if (key) binds.push(...retry.binds, key);
   return c.env.DB.prepare(`INSERT INTO box_items
     (id, boss_id, kind, text, url, note, media_key, media_type, media_bytes, width, height,
       duration_ms, project, tags, source, created_at, agent_id)
@@ -51,10 +68,10 @@ export async function createItem(c: BoxContext, scope: BoxWriteScope, upload: Bo
   }
   try {
     const statements = [insertItem(c, scope, upload, id, mediaKey, key)];
-    if (key) statements.push(c.env.DB.prepare(`INSERT INTO box_idempotency
-      (boss_id, author, idempotency_key, item_id) VALUES (?, ?, ?, ?)
-      ON CONFLICT (boss_id, author, idempotency_key) DO NOTHING`)
-      .bind(scope.bossId, scope.agentId ?? '', key, id));
+    const retry = idempotencyScope(scope);
+    if (key) statements.push(c.env.DB.prepare(`INSERT INTO ${retry.table}
+      (${retry.columns}, item_id) VALUES (${retry.binds.map(() => '?').join(', ')}, ?, ?)
+      ON CONFLICT (${retry.columns}) DO NOTHING`).bind(...retry.binds, key, id));
     await c.env.DB.batch(statements);
     const row = key ? await replayItem(c, scope, key) : await findItem(c, id);
     if (mediaKey && row?.id !== id) await c.env.ATTACHMENTS.delete(mediaKey);

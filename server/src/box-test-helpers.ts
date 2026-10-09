@@ -30,6 +30,7 @@ export async function seedBox(): Promise<void> {
 export async function resetBox(agentIds: readonly string[] = [getTestAgentId()]): Promise<void> {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM box_idempotency'),
+    env.DB.prepare('DELETE FROM box_agent_idempotency'),
     env.DB.prepare('DELETE FROM box_items'),
     env.DB.prepare('UPDATE bosses SET archived_at = NULL WHERE id IN (?, ?, ?)')
       .bind(OWNER, OTHER, ADMIN),
