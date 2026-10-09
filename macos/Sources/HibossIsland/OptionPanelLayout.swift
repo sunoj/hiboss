@@ -90,4 +90,3 @@ enum OptionPanelLayout {
         } == true
     }
 }
-

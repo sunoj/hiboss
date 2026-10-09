@@ -46,7 +46,7 @@ final class TodaySnapshotTests: XCTestCase {
                     XCTAssertTrue(host.bounds.insetBy(dx: -1, dy: -1)
                         .contains(editor.convert(editor.bounds, to: host)))
                 }
-                try write(host, name: name)
+                try await write(host, name: name)
             }
         }
     }
@@ -56,23 +56,25 @@ final class TodaySnapshotTests: XCTestCase {
         flow.connect(api: ScriptedBossAPI(messages: [], history: fixtures()))
         defer { flow.disconnect() }
         try await waitForCondition { flow.historyState == .loaded }
-        XCTAssertEqual(IslandAttention.presentation(live: nil,
-            history: flow.historyMessages, now: .now)?.message.id, "deploy")
+        let presentation = try XCTUnwrap(IslandAttention.presentation(live: nil,
+            history: flow.historyMessages, now: .now))
+        XCTAssertEqual(presentation.message.id, "deploy")
         for scheme in [ColorScheme.light, .dark] {
             let host = NSHostingView(rootView: IslandView(flow: flow,
                 reply: AttentionReplyState(), topInset: 32)
                 .environment(\.colorScheme, scheme))
             host.sizingOptions = []
-            let window = makeWindow(host, size: NSSize(width: 440, height: 440), scheme: .dark)
+            let height = OptionPanelLayout.expandedHeight(for: presentation.message, width: 440) + 32
+            let window = makeWindow(host, size: NSSize(width: 440, height: height), scheme: .dark)
             defer { window.close() }
             try await Task.sleep(for: .milliseconds(250))
             host.layoutSubtreeIfNeeded()
             XCTAssertEqual(descendants(host).compactMap { $0 as? NSTextField }.filter(\.isEditable).count, 1)
-            try write(host, name: "island-\(label(scheme))")
+            try await write(host, name: "island-\(label(scheme))")
         }
     }
 
-    func testMenuBarLabelInBothAppearances() throws {
+    func testMenuBarLabelInBothAppearances() async throws {
         for scheme in [ColorScheme.light, .dark] {
             let button = NSButton(frame: NSRect(x: 0, y: 0, width: 70, height: 24))
             button.isBordered = false
@@ -84,7 +86,7 @@ final class TodaySnapshotTests: XCTestCase {
             window.contentView = button
             window.orderFront(nil)
             defer { window.close() }
-            try write(button, name: "menu-bar-\(label(scheme))", minimumWidth: 60)
+            try await write(button, name: "menu-bar-\(label(scheme))", minimumWidth: 60)
         }
     }
 
@@ -100,7 +102,7 @@ final class TodaySnapshotTests: XCTestCase {
                 defer { window.close() }
                 try await Task.sleep(for: .milliseconds(250))
                 host.layoutSubtreeIfNeeded()
-                try write(host, name: "\(name)-\(label(scheme))")
+                try await write(host, name: "\(name)-\(label(scheme))")
             }
         }
     }
@@ -152,8 +154,24 @@ final class TodaySnapshotTests: XCTestCase {
 
     private func label(_ scheme: ColorScheme) -> String { scheme == .light ? "light" : "dark" }
 
-    private func write(_ host: NSView, name: String, minimumWidth: Int = 400) throws {
+    private func write(_ host: NSView, name: String, minimumWidth: Int = 400) async throws {
         host.window?.displayIfNeeded()
+        if !name.hasPrefix("island-"),
+           let directory = ProcessInfo.processInfo.environment["HIBOSS_V4_SNAPSHOTS"] {
+            // Let the native compositor finish while the main run loop remains responsive.
+            try await Task.sleep(for: .milliseconds(750))
+            let url = URL(fileURLWithPath: directory, isDirectory: true)
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            let window = try XCTUnwrap(host.window)
+            let capture = Process()
+            capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+            capture.arguments = ["-x", "-o", "-l", String(window.windowNumber),
+                url.appendingPathComponent("\(name).png").path]
+            try capture.run()
+            try await waitForCondition { !capture.isRunning }
+            XCTAssertEqual(capture.terminationStatus, 0)
+        }
+        // Caching display can disturb composited layers; capture the window before it.
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         let appearance = try XCTUnwrap(host.effectiveAppearance)
         appearance.performAsCurrentDrawingAppearance { host.cacheDisplay(in: host.bounds, to: bitmap) }
@@ -163,13 +181,9 @@ final class TodaySnapshotTests: XCTestCase {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
         try png.write(to: url.appendingPathComponent("\(name)-bitmap.png"))
-        let window = try XCTUnwrap(host.window)
-        let capture = Process()
-        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        capture.arguments = ["-x", "-o", "-l", String(window.windowNumber),
-            url.appendingPathComponent("\(name).png").path]
-        try capture.run()
-        capture.waitUntilExit()
-        XCTAssertEqual(capture.terminationStatus, 0)
+        // Native bitmap capture reliably includes the notch overlay's composited controls.
+        if name.hasPrefix("island-") {
+            try png.write(to: url.appendingPathComponent("\(name).png"))
+        }
     }
 }
