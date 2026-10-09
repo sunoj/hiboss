@@ -33,9 +33,11 @@ pub enum BoxBy {
     Agent,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+/// Servers before agent writes omit `added_by`; every such item came from the boss.
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum BoxAuthor {
+    #[default]
     Boss,
     Agent { id: String, name: String },
 }
@@ -45,6 +47,7 @@ pub struct BoxItem {
     pub id: String,
     pub boss_id: String,
     pub boss_name: String,
+    #[serde(default)]
     pub added_by: BoxAuthor,
     pub kind: BoxKind,
     pub text: Option<String>,

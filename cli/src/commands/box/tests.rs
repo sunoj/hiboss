@@ -273,3 +273,11 @@ fn uses_per_profile_cache_and_mime_extensions() {
     };
     assert!(media::cache_directory(Path::new("/cache"), &config).is_err());
 }
+
+#[test]
+fn item_without_added_by_from_an_older_server_is_the_boss() {
+    let mut value = serde_json::to_value(item(false)).expect("item JSON");
+    value.as_object_mut().expect("object").remove("added_by");
+    let decoded: BoxItem = serde_json::from_value(value).expect("older server item");
+    assert!(matches!(decoded.added_by, BoxAuthor::Boss));
+}
