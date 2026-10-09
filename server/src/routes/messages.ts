@@ -55,7 +55,7 @@ routes.get('/', async (c) => {
   const { where, binds } = buildFilters(agentId, direction, status, priorityFilter, typeFilter, sessionFilter, unread, fromFilter, targetSessionFilter, searchFilter);
   const rows = await c.env.DB
     .prepare(
-      `SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch, sessions.status AS session_status FROM (SELECT * FROM messages WHERE ${where}) messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id LEFT JOIN sessions ON sessions.id = messages.session_id ORDER BY messages.created_at DESC LIMIT ? OFFSET ?`
+      `SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch, sessions.status AS session_status FROM (SELECT * FROM messages WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?) messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id LEFT JOIN sessions ON sessions.id = messages.session_id ORDER BY messages.created_at DESC, messages.id DESC`
     )
     .bind(...binds, limit, offset)
     .all<MessageRow>();
