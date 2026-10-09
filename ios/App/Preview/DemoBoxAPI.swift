@@ -29,7 +29,13 @@ actor DemoBoxAPI: BoxServing {
                     .ISO8601Format()
             )
         }
-        return featured + (1...20).map { index in
+        let agentReference = BoxItem(
+            id: "demo-agent-text", bossID: "demo-boss", bossName: "Demo", kind: .text,
+            text: "Agent research notes", project: "hiboss",
+            createdAt: Date().addingTimeInterval(-30).ISO8601Format(),
+            addedBy: .agent(id: "demo-researcher", name: "Researcher")
+        )
+        return [agentReference] + featured + (1...20).map { index in
             BoxItem(id: "demo-text-\(index)", bossID: "demo-boss", bossName: "Demo", kind: .text,
                 text: "Saved reference \(index)",
                 createdAt: Date().addingTimeInterval(Double(-600 - index * 60))

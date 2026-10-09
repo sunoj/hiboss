@@ -16,6 +16,7 @@ struct BoxTextDetail: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                BoxProvenanceBadge(item: item)
                 if let text = item.text { Text(verbatim: text).textSelection(.enabled) }
                 if let note = item.note {
                     Text(verbatim: note).textSelection(.enabled).foregroundStyle(Theme.ink2)
@@ -73,6 +74,14 @@ struct BoxMediaDetail: View {
                     Button("Close", systemImage: "xmark.circle.fill") { dismiss() }
                         .font(.title).padding().frame(minHeight: 44)
                 }
+            }
+        }
+        .safeAreaInset(edge: .top, alignment: .leading) {
+            if !item.author.isBoss {
+                BoxProvenanceBadge(item: item)
+                    .padding(.horizontal).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.regularMaterial)
             }
         }
         .preferredColorScheme(.dark)
