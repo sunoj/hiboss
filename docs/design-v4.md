@@ -131,7 +131,14 @@ the session thread.
 Header with project / branch, agent and machine, and a live step strip with
 freshness. The thread shows messages with full attachments, decisions (open ones
 answerable, resolved ones as ResolvedBanner), and live panel cards. A reply field at
-the bottom; on iOS a + button attaches from Box.
+the bottom replies to the session's newest agent message (the server scopes that reply
+to its session); with no agent message it is disabled and says why. On iOS a + button
+attaches from Box.
+
+Session facts come from `ProjectSession` (`host`, `agentName`, `status`, `statusText`,
+`startedAt`, `lastSeenAt`); a missing fact is omitted, never invented. Box items carry
+no origin session, so the inspector shows "In your Box for <project>" (project scope),
+not "from this session".
 
 ### Box
 
