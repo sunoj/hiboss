@@ -120,7 +120,13 @@ struct SessionReplyTarget: Equatable {
                   let raw = event.messageId else { return nil }
             let id = MessageID(rawValue: raw)
             let message = store.requiredInputs.first { $0.id == id } ?? store.message(for: id)
+            let payload = event.payload?.objectValue
+            let hasOptions: Bool
+            if case let .array(options)? = payload?["options"] { hasOptions = !options.isEmpty }
+            else { hasOptions = false }
             let decision = openIDs.contains(id) || message?.isDecision == true || message?.mode == "blocking"
+                || hasOptions || payload?["type"] == .string("approval_request")
+                || payload?["mode"] == .string("blocking")
             if decision && (!openIDs.contains(id) || store.settlement(for: id) != nil) { return nil }
             let body = message?.body ?? event.displayBody
             let text = decision ? body : String(body.split(separator: "\n", omittingEmptySubsequences: false)

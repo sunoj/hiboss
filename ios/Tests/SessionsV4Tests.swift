@@ -52,6 +52,25 @@ final class SessionsV4Tests: XCTestCase {
         XCTAssertTrue(SessionReplyTarget.eligible(events: replyEvents([decision]), store: store).isEmpty)
     }
 
+    func testUncachedResolvedDecisionMetadataCannotBecomeAReplyTarget() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        let ordinary = replyEvents([replyMessage("ordinary", body: "Update")])
+        let resolved = SessionEvent(
+            id: "old-decision", sessionId: "session", sequence: 2, kind: "message",
+            direction: "agent_to_boss", messageId: "missing-from-history",
+            payload: .object(["body": .string("Choose?"), "options": .array([.string("Yes")])]),
+            createdAt: ""
+        )
+        let textDecision = SessionEvent(
+            id: "old-text-decision", sessionId: "session", sequence: 3, kind: "message",
+            direction: "agent_to_boss", messageId: "missing-text-decision",
+            payload: .object(["body": .string("Which dataset?"), "type": .string("approval_request")]),
+            createdAt: ""
+        )
+        let targets = SessionReplyTarget.eligible(events: ordinary + [resolved, textDecision], store: store)
+        XCTAssertEqual(targets.map(\.id), ["ordinary"])
+    }
+
     func testBoxReferenceAlsoPinsTheReplyTarget() {
         let target = SessionReplyTarget(id: "agent", sequence: 1, text: "Update", isDecision: false)
         var draft = SessionReplyDraft()
