@@ -44,14 +44,19 @@ enum MessageThreading {
 /// The one short text badge a Messages row may show; everything else lives in the detail.
 enum MessageRowBadge: Equatable {
     case decisionNeeded
+    case loading
     case autoDecided
     case expired
     case critical
     case high
 
     /// Precedence: an open decision, then an expiry outcome, then urgent priority.
-    static func badge(for message: HistoryMessage) -> MessageRowBadge? {
-        if message.isPendingDecision { return .decisionNeeded }
+    static func badge(for message: HistoryMessage,
+                      answerability: DecisionAnswerability = .closed) -> MessageRowBadge? {
+        if DecisionAnswerability.isDecision(message) {
+            if answerability == .checking { return .loading }
+            if answerability == .open { return .decisionNeeded }
+        }
         if message.metadata?.isExpired == true { return .autoDecided }
         if message.status == "expired" { return .expired }
         switch message.priorityValue {
@@ -64,6 +69,7 @@ enum MessageRowBadge: Equatable {
     var title: String {
         switch self {
         case .decisionNeeded: String(localized: "Decision needed")
+        case .loading: String(localized: "Loading")
         case .autoDecided: String(localized: "Auto-decided")
         case .expired: String(localized: "Expired")
         case .critical: String(localized: "Critical")
@@ -74,7 +80,7 @@ enum MessageRowBadge: Equatable {
     var tint: Color {
         switch self {
         case .decisionNeeded: Theme.accent
-        case .autoDecided, .expired: Theme.ink2
+        case .autoDecided, .expired, .loading: Theme.ink2
         case .critical: Theme.negative
         case .high: Theme.warn
         }

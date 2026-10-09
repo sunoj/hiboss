@@ -8,6 +8,7 @@ import SwiftUI
 struct TodayHeader: View {
     let snapshot: TodaySnapshot
     let requestCount: Int
+    var inputsLoaded = true
     let now: Date
     let onSettings: () -> Void
 
@@ -36,7 +37,9 @@ struct TodayHeader: View {
     }
 
     @ViewBuilder private var chips: some View {
-        if requestCount > 0 {
+        if !inputsLoaded {
+            chip(Text("Loading"), color: Theme.ink3)
+        } else if requestCount > 0 {
             chip(Text("\(String(requestCount)) need you"), color: Theme.warn)
         }
         if !snapshot.working.isEmpty {

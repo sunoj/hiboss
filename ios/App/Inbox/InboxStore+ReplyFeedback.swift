@@ -11,8 +11,17 @@ extension InboxStore {
     @discardableResult
     func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
         guard let api else { return .failed }
+        guard replying[id] == nil else { return .busy }
+        let message = message(for: id)
+        let isDecision = message.map(DecisionAnswerability.isDecision)
+            ?? requiredInputs.contains { $0.id == id }
+        let state = isDecision ? answerability(for: id) : .open
+        guard state == .open else {
+            if state == .checking { loadError = state.label }
+            return state == .closed ? .alreadyResolved : .failed
+        }
         let epoch = requiredEpoch
-        let submission = await replyGate.submit(choice, to: id, via: api)
+        let submission = await replyGate.submit(choice, to: id, via: api, answerability: state)
         // Signed out or switched account while in flight: report, but touch no new state.
         guard epoch == requiredEpoch else { return ReplyResult(submission) }
         switch submission {

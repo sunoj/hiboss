@@ -16,6 +16,53 @@ final class SessionsV4UITests: XCTestCase {
         return app
     }
 
+    func testRetiredDecisionIsReadOnlyInDeepLinkedDetailAndThread() {
+        let app = launch(extra: ["HIBOSS_DEMO_OPEN": "c3", "HIBOSS_DEMO_RETIRED_ID": "c3"])
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["No longer open"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Provide"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["message-reply-draft"].exists)
+        let open = app.buttons["Open session"]
+        for _ in 0..<8 where !open.isHittable { app.swipeUp() }
+        open.tap()
+        let bubble = app.descendants(matching: .any)["transcript-decision-c3"]
+        XCTAssertTrue(bubble.waitForExistence(timeout: 10))
+        XCTAssertTrue(bubble.staticTexts["No longer open"].exists)
+        XCTAssertFalse(bubble.buttons["Provide"].exists)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "retired-thread"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    func testCheckingDetailAndComposerWaitForRequiredInputs() {
+        let app = launch(extra: ["HIBOSS_DEMO_OPEN": "c1", "HIBOSS_DEMO_REQUESTS_DELAY_MS": "20000"])
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Checking…"].exists)
+        XCTAssertFalse(app.buttons["Checking…"].isEnabled)
+        XCTAssertFalse(app.buttons["Approve"].exists)
+        let open = app.buttons["Open session"]
+        for _ in 0..<8 where !open.isHittable { app.swipeUp() }
+        open.tap()
+        let target = app.staticTexts["session-reply-target"]
+        XCTAssertTrue(target.waitForExistence(timeout: 10))
+        XCTAssertEqual(target.label, "Checking…")
+        XCTAssertFalse(app.textFields["session-reply-draft"].isEnabled)
+        XCTAssertFalse(app.buttons["Attach from Box"].isEnabled)
+        XCTAssertTrue(app.textFields["session-reply-draft"].waitForExistence(timeout: 25))
+        let enabled = NSPredicate(format: "isEnabled == true")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: enabled,
+            evaluatedWith: app.textFields["session-reply-draft"])], timeout: 25), .completed)
+        XCTAssertTrue(target.label.hasPrefix("Custom answer to:"))
+    }
+
+    func testTodayShowsLoadingBeforeRequiredInputsLoad() {
+        let app = launch(extra: ["HIBOSS_DEMO_REQUESTS_DELAY_MS": "20000"])
+        XCTAssertTrue(app.staticTexts["Loading"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["0 need you"].exists)
+        XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
+    }
+
     func testLightScreens() { capture("Light") }
     func testDarkScreens() { capture("Dark") }
 

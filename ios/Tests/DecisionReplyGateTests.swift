@@ -9,9 +9,12 @@ import XCTest
 
 @MainActor
 final class DecisionReplyGateTests: XCTestCase {
-    private func makeStore(_ api: HeldReplyAPI, gate: DecisionReplyGate = DecisionReplyGate()) -> InboxStore {
+    private func makeStore(_ api: HeldReplyAPI, gate: DecisionReplyGate = DecisionReplyGate())
+        async -> InboxStore {
         let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false, replyGate: gate)
         store.start(api: api)
+        await waitUntil { store.hasCompleteRequiredInputs }
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
         return store
     }
 
@@ -20,7 +23,7 @@ final class DecisionReplyGateTests: XCTestCase {
 
     func testSecondTapWhileReplyIsInFlightSendsNothing() async throws {
         let api = HeldReplyAPI()
-        let store = makeStore(api)
+        let store = await makeStore(api)
         let first = Pending { await store.replyWithFeedback("Approve", to: "q1") }
         await waitUntil { api.replies.count == 1 }
         XCTAssertEqual(store.replying["q1"], "Approve", "the in-flight choice is published for the buttons")
@@ -40,7 +43,7 @@ final class DecisionReplyGateTests: XCTestCase {
 
     func testDetailCannotSubmitWhileHomeReplyIsInFlight() async throws {
         let api = HeldReplyAPI()
-        let store = makeStore(api)
+        let store = await makeStore(api)
         let home = Pending { await store.replyWithFeedback("Approve", to: "q1") }
         await waitUntil { api.replies.count == 1 }
 
@@ -56,7 +59,7 @@ final class DecisionReplyGateTests: XCTestCase {
 
     func testIndependentDecisionsAreAdmittedTogether() async throws {
         let api = HeldReplyAPI()
-        let store = makeStore(api)
+        let store = await makeStore(api)
         let first = Pending { await store.reply("Approve", to: "q1") }
         let second = Pending { await store.reply("Hold", to: "q2") }
         await waitUntil { api.replies.count == 2 }
@@ -69,7 +72,7 @@ final class DecisionReplyGateTests: XCTestCase {
 
     func testFailureReleasesTheDecisionForARetry() async throws {
         let api = HeldReplyAPI()
-        let store = makeStore(api)
+        let store = await makeStore(api)
         let failing = Pending { await store.reply("Approve", to: "q1") }
         await waitUntil { api.replies.count == 1 }
         api.release(.failure(URLError(.timedOut)))
@@ -86,7 +89,7 @@ final class DecisionReplyGateTests: XCTestCase {
 
     func testCancellationReleasesTheDecision() async {
         let api = HeldReplyAPI()
-        let store = makeStore(api)
+        let store = await makeStore(api)
         let task = Task { await store.reply("Approve", to: "q1") }
         await waitUntil { api.replies.count == 1 }
         task.cancel()
@@ -98,7 +101,7 @@ final class DecisionReplyGateTests: XCTestCase {
     func testGateChangesRepublishTheStoreForEveryButtonSurface() async throws {
         let gate = DecisionReplyGate()
         let api = HeldReplyAPI()
-        let store = makeStore(api, gate: gate)
+        let store = await makeStore(api, gate: gate)
         var changes = 0
         let observation = store.objectWillChange.sink { _ in changes += 1 }
         let task = Pending { await gate.submit("Approve", to: "q1", via: api) }

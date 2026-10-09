@@ -14,7 +14,7 @@ struct SessionDecisionBubble: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if isPending {
+            if store.answerability(for: message.id) == .open {
                 DecisionCard(message: message, submitting: store.replying[message.id],
                              header: DecisionCardInfo(message: message), choices: pendingOptions)
             } else {
@@ -24,16 +24,15 @@ struct SessionDecisionBubble: View {
                                       settlement: store.settlement(for: message.id))
                     .padding(.horizontal, 12)
                 if let settlement = store.settlement(for: message.id) { answered(settlement) }
+                else if let label = store.answerability(for: message.id).label {
+                    Text(verbatim: label).font(.footnote).foregroundStyle(Theme.ink2)
+                        .padding(.horizontal, 12)
+                }
             }
         }
         .padding(.bottom, 8)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("transcript-decision-\(message.id.rawValue)")
-    }
-
-    private var isPending: Bool {
-        (message.isPendingDecision || AttentionModel.needsTextReply(message, now: .now))
-            && !store.withdrawn.contains(message.id)
     }
 
     private var pendingOptions: some View {

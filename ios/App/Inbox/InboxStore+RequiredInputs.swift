@@ -63,8 +63,6 @@ extension InboxStore {
                 requiredCoverageTask = nil
             }
             requiredInputLoaded = true
-            let pending = Set(messages.map(\.id))
-            withdrawn.formIntersection(pending)
             await syncDecisionActivity()
         } catch {
             guard !Task.isCancelled, epoch == requiredEpoch,

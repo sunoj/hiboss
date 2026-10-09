@@ -109,12 +109,14 @@ final class HomeAttentionFlowTests: XCTestCase {
         XCTAssertNil(panels.selectedTile)
     }
 
-    func testTextReplyRemainsWithdrawnAcrossStaleHistoryThenClearsOnResolution() async {
+    func testTextReplyRemainsWithdrawnAcrossStaleHistoryAndResolutionUntilStopped() async {
         let api = TextReplyAPI(messages: [ask])
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: api)
         defer { store.stop() }
         await store.refresh()
+        await waitUntil { store.hasCompleteRequiredInputs }
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
         XCTAssertEqual(snapshot(store).count, 1)
         let result = await store.reply("Use the staging dataset", to: ask.id)
         XCTAssertEqual(result, .sent)
@@ -124,8 +126,10 @@ final class HomeAttentionFlowTests: XCTestCase {
         XCTAssertTrue(store.withdrawn.contains(ask.id))
         api.messages = []
         await store.refresh()
-        XCTAssertTrue(store.withdrawn.isEmpty)
+        XCTAssertTrue(store.withdrawn.contains(ask.id))
         XCTAssertEqual(snapshot(store).count, 0)
+        store.stop()
+        XCTAssertTrue(store.withdrawn.isEmpty)
     }
 
     func testFailedTextReplyRestoresAttentionAndDoesNotHideQuestionnaires() async {
@@ -135,6 +139,8 @@ final class HomeAttentionFlowTests: XCTestCase {
         store.start(api: api)
         defer { store.stop() }
         await store.refresh()
+        await waitUntil { store.hasCompleteRequiredInputs }
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
         let result = await store.reply("Try staging", to: ask.id)
         XCTAssertEqual(result, .failed)
         XCTAssertEqual(snapshot(store).count, 1)
@@ -155,6 +161,8 @@ final class HomeAttentionFlowTests: XCTestCase {
         store.start(api: api)
         defer { store.stop() }
         await store.refresh()
+        await waitUntil { store.hasCompleteRequiredInputs }
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
         XCTAssertEqual(store.requiredInputs.map(\.id), [option.id])
         let result = await store.reply("Proceed", to: option.id)
         XCTAssertEqual(result, .alreadyResolved)

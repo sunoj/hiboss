@@ -101,13 +101,17 @@ struct HomeView: View {
             now: now, panelNow: { panels.serverNow(for: $0) }
         )
         return VStack(spacing: 22) {
-            TodayHeader(snapshot: today, requestCount: attention.count, now: now, onSettings: openSettings)
+            TodayHeader(snapshot: today, requestCount: attention.count,
+                        inputsLoaded: inbox.requiredInputLoaded, now: now, onSettings: openSettings)
             HomeAttentionSection(
                 snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
                 isAllClear: today.isAllClear && attention.questionnaires.isEmpty,
                 status: attentionStatus, statusIsFailure: hasCoverageFailure,
                 onRetry: retryCoverage, onSettings: openSettings,
-                replying: inbox.replying, onChoose: handleReply,
+                replying: inbox.replying,
+                answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
+                    ($0.id, inbox.answerability(for: $0.id, now: now))
+                }), inputsLoaded: inbox.requiredInputLoaded, onChoose: handleReply,
                 onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 },
                 onOpenDecision: {
                     decisionID = $0

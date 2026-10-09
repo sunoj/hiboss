@@ -12,7 +12,9 @@ struct SessionReplyComposer: View {
     @State private var picking = false
     @State private var note: String?
 
-    private var target: SessionReplyTarget? { replyDraft.target(in: targets) }
+    private var target: SessionReplyTarget? {
+        store.requiredInputLoaded ? replyDraft.target(in: targets) : nil
+    }
     private var submitting: Bool { target.map { store.replying[$0.id] != nil } ?? false }
     private var draft: Binding<String> {
         Binding(get: { replyDraft.text }, set: { replyDraft.update($0, targets: targets) })
@@ -64,7 +66,9 @@ struct SessionReplyComposer: View {
 
     private var targetLabel: some View {
         Group {
-            if let target {
+            if !store.requiredInputLoaded {
+                Text("Checking…")
+            } else if let target {
                 Text(verbatim: target.label)
             } else if replyDraft.pinned != nil {
                 Text("This draft's target is unavailable. Discard it or choose a newer message.")
@@ -114,7 +118,7 @@ struct SessionReplyTarget: Equatable {
 
     @MainActor
     static func eligible(events: [SessionEvent], store: InboxStore) -> [Self] {
-        let openIDs = Set(store.todaySnapshot(now: .now).decisions.map(\.id))
+        guard store.requiredInputLoaded else { return [] }
         return events.compactMap { event in
             guard event.kind == "message", event.direction == "agent_to_boss",
                   let raw = event.messageId else { return nil }
@@ -124,10 +128,11 @@ struct SessionReplyTarget: Equatable {
             let hasOptions: Bool
             if case let .array(options)? = payload?["options"] { hasOptions = !options.isEmpty }
             else { hasOptions = false }
-            let decision = openIDs.contains(id) || message?.isDecision == true || message?.mode == "blocking"
+            let answerability = store.answerability(for: id)
+            let decision = answerability == .open || message.map(DecisionAnswerability.isDecision) == true
                 || hasOptions || payload?["type"] == .string("approval_request")
                 || payload?["mode"] == .string("blocking")
-            if decision && (!openIDs.contains(id) || store.settlement(for: id) != nil) { return nil }
+            if decision && answerability != .open { return nil }
             let body = message?.body ?? event.displayBody
             let text = decision ? body : String(body.split(separator: "\n", omittingEmptySubsequences: false)
                 .first ?? "")
