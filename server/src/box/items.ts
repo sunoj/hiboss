@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { Env } from '../types';
 import { dualAuth, isBossAuth } from '../middleware/auth';
+import { boxWriteScope, canEditItem } from './access';
 import { createItem, deleteItem, findItem, replayItem, updateItem } from './store';
 import { parsePatch, parseUpload } from './validation';
 import { boxMedia } from './media';
@@ -18,16 +19,22 @@ routes.onError((error) => {
 });
 
 routes.post('/items', async (c) => {
-  if (!isBossAuth(c)) return c.text('not found', 404);
   const key = c.req.header('Idempotency-Key');
   if (key !== undefined && (!key.trim() || key.length > 256)) {
     return c.text('invalid idempotency key', 400);
   }
-  if (key) {
-    const replay = await replayItem(c, key);
+  const bossScope = isBossAuth(c) ? await boxWriteScope(c, null) : null;
+  if (key && bossScope) {
+    const replay = await replayItem(c, bossScope, key);
     if (replay !== undefined) return replay ? c.json(itemResponse(replay), 201) : c.text('not found', 404);
   }
-  const row = await createItem(c, await parseUpload(c), key);
+  const upload = await parseUpload(c);
+  const scope = bossScope ?? await boxWriteScope(c, upload.boss);
+  if (key && !bossScope) {
+    const replay = await replayItem(c, scope, key);
+    if (replay !== undefined) return replay ? c.json(itemResponse(replay), 201) : c.text('not found', 404);
+  }
+  const row = await createItem(c, scope, upload, key);
   return row ? c.json(itemResponse(row), 201) : c.text('not found', 404);
 });
 
@@ -41,18 +48,16 @@ routes.get('/items/:id', async (c) => {
 });
 
 routes.patch('/items/:id', async (c) => {
-  if (!isBossAuth(c)) return c.text('not found', 404);
   const row = await findItem(c, c.req.param('id'));
-  if (!row) return c.text('not found', 404);
+  if (!row || !canEditItem(c, row)) return c.text('not found', 404);
   const updated = await updateItem(c, row, await parsePatch(c));
   return updated ? c.json(itemResponse(updated)) : c.text('not found', 404);
 });
 
 routes.delete('/items/:id', async (c) => {
-  if (!isBossAuth(c)) return c.text('not found', 404);
   const purge = c.req.query('purge') === '1';
   const row = await findItem(c, c.req.param('id'), purge);
-  if (!row) return c.text('not found', 404);
+  if (!row || !canEditItem(c, row)) return c.text('not found', 404);
   await deleteItem(c, row, purge);
   return c.body(null, 204);
 });

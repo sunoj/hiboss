@@ -1,5 +1,5 @@
 // Purpose: Typed Box metadata and request/response contracts matching the server.
-// Exports: BoxKind, BoxItem, BoxMetadata, BoxPage, BoxFilter.
+// Exports: Box kinds, author provenance, metadata, pages and filters.
 // Dependencies: serde and clap.
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
@@ -26,11 +26,26 @@ impl BoxKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum BoxBy {
+    Boss,
+    Agent,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum BoxAuthor {
+    Boss,
+    Agent { id: String, name: String },
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BoxItem {
     pub id: String,
     pub boss_id: String,
     pub boss_name: String,
+    pub added_by: BoxAuthor,
     pub kind: BoxKind,
     pub text: Option<String>,
     pub url: Option<String>,
@@ -49,6 +64,8 @@ pub struct BoxItem {
 
 #[derive(Debug, Serialize)]
 pub struct BoxMetadata<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boss: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -75,6 +92,8 @@ pub struct BoxFilter<'a> {
     pub project: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub boss: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub by: Option<BoxBy>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]

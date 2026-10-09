@@ -25,6 +25,8 @@ export interface BoxRow extends Omit<BoxMetadata, 'tags'> {
   id: string;
   boss_id: string;
   boss_name: string;
+  agent_id: string | null;
+  agent_name: string | null;
   kind: BoxKind;
   tags: string;
   media_key: string | null;
@@ -34,13 +36,20 @@ export interface BoxRow extends Omit<BoxMetadata, 'tags'> {
   deleted_at: string | null;
 }
 
-export type BoxItem = Omit<BoxRow, 'tags' | 'media_key' | 'deleted_at'>
-  & { tags: string[]; has_media: boolean };
+export type BoxAuthor = { kind: 'boss' } | { kind: 'agent'; id: string; name: string };
+export type BoxItem = Omit<BoxRow, 'tags' | 'media_key' | 'deleted_at' | 'agent_id' | 'agent_name'>
+  & { tags: string[]; has_media: boolean; added_by: BoxAuthor };
+
+export interface BoxWriteScope {
+  bossId: string;
+  agentId: string | null;
+}
 
 export interface BoxUpload {
   meta: BoxMetadata;
   kind: BoxKind;
   file: File | null;
+  boss: string | null;
 }
 
 export type BoxCursor = { created_at: string; id: string };
@@ -53,6 +62,8 @@ export interface BoxFilter {
 }
 
 export function itemResponse(row: BoxRow): BoxItem {
-  const { media_key, deleted_at, ...item } = row;
-  return { ...item, tags: JSON.parse(row.tags) as string[], has_media: media_key !== null };
+  const { media_key, deleted_at, agent_id, agent_name, ...item } = row;
+  const added_by: BoxAuthor = agent_id === null ? { kind: 'boss' }
+    : { kind: 'agent', id: agent_id, name: agent_name ?? agent_id };
+  return { ...item, tags: JSON.parse(row.tags) as string[], has_media: media_key !== null, added_by };
 }

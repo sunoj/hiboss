@@ -41,7 +41,7 @@ impl HiBossClient {
             .map(str::to_owned);
         let body = response.text().await.map_err(|err| self.box_error(err))?;
         let hint = if status == reqwest::StatusCode::NOT_FOUND {
-            " (item unavailable or access denied; add/rm require a boss token)"
+            " (item unavailable or access denied; agents can edit/remove only their own items)"
         } else {
             ""
         };

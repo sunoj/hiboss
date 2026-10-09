@@ -15,7 +15,7 @@ struct SessionDecisionBubble: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SessionBubbleView(event: event, style: style)
+            SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment)
             OptionMediaComparison(
                 options: message.options,
                 media: message.metadata?.optionMedia ?? [],

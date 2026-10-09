@@ -81,16 +81,17 @@ async function parseBody(c: BoxContext): Promise<{ value: unknown; file: File | 
 export async function parseUpload(c: BoxContext): Promise<BoxUpload> {
   const { value, file } = await parseBody(c);
   const meta = metadata(value);
+  const boss = optionalText(record(value).boss, 'boss');
   if (!file) {
     if (!meta.url && !meta.text) throw new HTTPException(400, { message: 'url or text is required' });
-    return { meta, file, kind: meta.url ? 'link' : 'text' };
+    return { meta, file, boss, kind: meta.url ? 'link' : 'text' };
   }
   const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
   if (file.size > (kind === 'image' ? IMAGE_BYTES : FILE_BYTES)) {
     throw new HTTPException(413, { message: 'file too large' });
   }
   if (!file.size) throw new HTTPException(400, { message: 'empty file' });
-  return { meta, file, kind };
+  return { meta, file, boss, kind };
 }
 
 export async function parsePatch(c: BoxContext):

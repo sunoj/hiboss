@@ -78,9 +78,9 @@ final class BoxStoreTests: XCTestCase {
         let first = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
         let second = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: first.nextCursor)
         XCTAssertEqual(first.items.count, 20)
-        XCTAssertEqual(second.items.count, 5)
+        XCTAssertEqual(second.items.count, 6)
         XCTAssertNil(second.nextCursor)
-        XCTAssertEqual(Set((first.items + second.items).map(\.id)).count, 25)
+        XCTAssertEqual(Set((first.items + second.items).map(\.id)).count, 26)
         let media = BoxMediaStore(api: api)
         for kind in [BoxItem.Kind.image, .video, .file] {
             let item = try XCTUnwrap(first.items.first(where: { $0.kind == kind }))

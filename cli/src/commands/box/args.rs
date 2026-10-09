@@ -1,6 +1,6 @@
-// Purpose: clap layout for boss Box ingestion, scoped reads and deletion.
+// Purpose: clap layout for Box ingestion, scoped reads and author-owned deletion.
 // Exports: BoxArgs, BoxCommand and typed options; depends on clap and BoxKind.
-use crate::box_types::{BoxFilter, BoxKind};
+use crate::box_types::{BoxBy, BoxFilter, BoxKind};
 use clap::{Args, Subcommand};
 use std::path::PathBuf;
 
@@ -12,7 +12,7 @@ pub struct BoxArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum BoxCommand {
-    #[command(about = "Add text, a URL or a file (boss token only)")]
+    #[command(about = "Add text, a URL or a file to a boss's Box")]
     Add(AddArgs),
     #[command(about = "Read the newest Box item and save its media")]
     Latest(LatestArgs),
@@ -22,7 +22,7 @@ pub enum BoxCommand {
     Search(SearchArgs),
     #[command(about = "Read one Box item and save its media")]
     Show(ShowArgs),
-    #[command(about = "Delete a Box item (boss token only)")]
+    #[command(about = "Delete a Box item (agents can delete only their own items)")]
     Rm(RmArgs),
 }
 
@@ -30,6 +30,11 @@ pub enum BoxCommand {
 pub struct AddArgs {
     #[arg(value_name = "TEXT|URL|PATH")]
     pub content: String,
+    #[arg(
+        long,
+        help = "Target boss ID or name (required for agents serving several bosses)"
+    )]
+    pub boss: Option<String>,
     #[arg(long)]
     pub note: Option<String>,
     #[arg(long)]
@@ -46,6 +51,8 @@ pub struct Filters {
     pub kind: Option<BoxKind>,
     #[arg(long, help = "Filter by boss ID or name")]
     pub boss: Option<String>,
+    #[arg(long, value_enum, help = "Filter by who added the item (default: all)")]
+    pub by: Option<BoxBy>,
     #[arg(long, help = "Items since 1h, 2d or an ISO timestamp")]
     pub since: Option<String>,
     #[arg(long)]
@@ -97,6 +104,7 @@ impl Filters {
             since: self.since.as_deref(),
             project: self.project.as_deref(),
             boss: self.boss.as_deref(),
+            by: self.by,
             ..BoxFilter::default()
         }
     }

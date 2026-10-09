@@ -52,6 +52,8 @@ async fn adds_text_and_links_as_json_with_fresh_keys() {
             "demo",
             "--tag",
             "one",
+            "--boss",
+            "Boss Name",
         ],
     )
     .await;
@@ -61,12 +63,14 @@ async fn adds_text_and_links_as_json_with_fresh_keys() {
     assert_eq!(text["text"], "hello");
     assert!(text.get("url").is_none());
     assert_eq!(text["source"], "cli");
+    assert_eq!(text["boss"], "Boss Name");
     assert_eq!(text["note"], "layout");
     assert_eq!(text["project"], "demo");
     assert_eq!(text["tags"], serde_json::json!(["one"]));
     let link: serde_json::Value = serde_json::from_str(&requests[1].body).unwrap();
     assert_eq!(link["url"], "https://example.invalid");
     assert!(link.get("text").is_none());
+    assert!(link.get("boss").is_none());
     assert_ne!(idempotency_key(&requests[0]), idempotency_key(&requests[1]));
 }
 
@@ -82,6 +86,7 @@ async fn list_and_search_pass_next_cursor_verbatim_with_filters() {
                 since: Some("1h"),
                 project: Some("demo"),
                 boss: Some("Boss Name"),
+                by: None,
                 limit: Some(1),
                 cursor: None,
             },
@@ -128,7 +133,27 @@ fn page_replies(page: String) -> Vec<Reply> {
 }
 
 #[tokio::test]
-async fn access_error_redacts_credential_and_explains_boss_mutations() {
+async fn list_latest_and_search_transmit_by_flags() {
+    let page = serde_json::json!({"items": [item(false)], "next_cursor": null}).to_string();
+    let mock = Mock::start(vec![
+        Reply::new("GET", "/api/box/items?by=boss", 200, page.clone()),
+        Reply::new(
+            "GET",
+            "/api/box/items/latest?by=agent",
+            200,
+            wire_item(false),
+        ),
+        Reply::new("GET", "/api/box/items/search?by=boss&q=needle", 200, page),
+    ])
+    .await;
+    execute(&mock, &["box", "list", "--by", "boss"]).await;
+    execute(&mock, &["box", "latest", "--by", "agent"]).await;
+    execute(&mock, &["box", "search", "needle", "--by", "boss"]).await;
+    mock.finish().await;
+}
+
+#[tokio::test]
+async fn access_error_redacts_credential_and_explains_agent_ownership() {
     let mock = Mock::start(vec![Reply::new(
         "POST",
         "/api/box/items",
@@ -144,7 +169,8 @@ async fn access_error_redacts_credential_and_explains_boss_mutations() {
     .await
     .unwrap_err()
     .to_string();
-    assert!(error.contains("boss token"));
+    assert!(error.contains("only their own items"));
+    assert!(!error.contains("boss token only"));
     assert!(error.contains("[redacted]"));
     assert!(!error.contains("synthetic-box-key"));
     mock.finish().await;

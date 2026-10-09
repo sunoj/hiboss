@@ -33,6 +33,10 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
     public let height: Int?
     public let durationMs: Int?
     public let createdAt: String
+    /// Absent on servers that predate agent writes; every such item came from the boss.
+    public let addedBy: BoxAuthor?
+
+    public var author: BoxAuthor { addedBy ?? .boss }
 
     enum CodingKeys: String, CodingKey {
         case id, kind, text, url, note, project, tags, source, width, height
@@ -43,6 +47,7 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         case mediaBytes = "media_bytes"
         case durationMs = "duration_ms"
         case createdAt = "created_at"
+        case addedBy = "added_by"
     }
 
     public init(
@@ -50,7 +55,7 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         text: String? = nil, url: String? = nil, note: String? = nil, project: String? = nil,
         tags: [String] = [], source: Source = .iosShare, hasMedia: Bool = false,
         mediaType: String? = nil, mediaBytes: Int? = nil, width: Int? = nil,
-        height: Int? = nil, durationMs: Int? = nil, createdAt: String
+        height: Int? = nil, durationMs: Int? = nil, createdAt: String, addedBy: BoxAuthor? = nil
     ) {
         self.id = id
         self.bossID = bossID
@@ -69,6 +74,7 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         self.height = height
         self.durationMs = durationMs
         self.createdAt = createdAt
+        self.addedBy = addedBy
     }
 }
 
