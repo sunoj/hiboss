@@ -163,6 +163,9 @@ struct HomeAttentionRow: View {
                     }
                 }
             DecisionTimingView(timing: timing, messageID: item.id, compact: true)
+            if let attachment = item.message.metadata?.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
             OptionMediaComparison(
                 options: item.options,
                 media: item.message.metadata?.optionMedia ?? []
