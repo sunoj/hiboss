@@ -7,12 +7,17 @@ import agentMigration from '../migrations/0051_box_item_agent.sql?raw';
 import { OWNER, request } from './box-test-helpers';
 import { seedBossToken, seedDatabase } from './test-helpers';
 
-beforeAll(seedDatabase);
+beforeAll(async () => {
+  await seedDatabase();
+  await seedBossToken('Box Owner', 'viewer', OWNER, OWNER);
+});
 
+// Each case starts from the pre-0051 schema; storage persists across cases in this file.
 beforeEach(async () => {
+  const drops = ['box_agent_idempotency', 'box_idempotency', 'box_items_fts', 'box_items'];
+  await env.DB.batch(drops.map(table => env.DB.prepare(`DROP TABLE IF EXISTS ${table}`)));
   const statements = boxMigration.match(/CREATE TRIGGER[\s\S]*?END;|CREATE[\s\S]*?;/g) ?? [];
   await env.DB.batch(statements.map(sql => env.DB.prepare(sql)));
-  await seedBossToken('Box Owner', 'viewer', OWNER, OWNER);
 });
 
 async function applyAgentMigration(): Promise<void> {
