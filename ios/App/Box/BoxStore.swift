@@ -44,13 +44,19 @@ final class BoxStore: ObservableObject {
     }
 
     func loadMore() async {
+        if isLoadingMore {
+            await read?.value
+            return
+        }
         guard let cursor = nextCursor, !isRefreshing, !isLoadingMore else { return }
         isLoadingMore = true
         let current = generation
-        let task = Task { await fetch(cursor: cursor, generation: current) }
+        let task = Task {
+            await fetch(cursor: cursor, generation: current)
+            if current == generation { isLoadingMore = false }
+        }
         read = task
         await task.value
-        if current == generation { isLoadingMore = false }
     }
 
     func loadSearchPages() async {

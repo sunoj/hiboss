@@ -72,6 +72,28 @@ final class SessionsV4Tests: XCTestCase {
         XCTAssertTrue(model.items.contains { $0.id == "demo-text-20" })
     }
 
+    func testNewSearchFinishesPaginationWhenPreviousSearchIsCancelled() async {
+        let pageStarted = expectation(description: "Second page is in flight")
+        let api = SearchPagesAPI(onPageStarted: { pageStarted.fulfill() })
+        let model = BoxStore(api: api)
+        await model.refresh()
+        let earlier = Task { await model.loadSearchPages() }
+        await fulfillment(of: [pageStarted], timeout: 2)
+        earlier.cancel()
+        let nextStarted = expectation(description: "New search takes over")
+        let latest = Task {
+            nextStarted.fulfill()
+            await model.loadSearchPages()
+        }
+        await fulfillment(of: [nextStarted], timeout: 2)
+        await api.releasePage()
+        await earlier.value
+        await latest.value
+        XCTAssertEqual(model.items.map(\.id), ["first", "second", "third"])
+        XCTAssertNil(model.nextCursor)
+        XCTAssertFalse(model.isLoadingMore)
+    }
+
     func testSessionPanelsUseExactIdentityAndIgnoreAnotherScreensFilter() async {
         let model = PanelsModel(api: DemoNativePanelAPI(), demoMode: false, autoload: false)
         await model.load()
@@ -103,4 +125,35 @@ private struct InventoryAPI: SessionsServing {
         if fails { throw HibossAPIError.invalidResponse }
         return [ProjectSession(id: "session", projectId: nil, projectSlug: "hiboss", branch: "main")]
     }
+}
+
+private actor SearchPagesAPI: BoxServing {
+    let onPageStarted: @Sendable () -> Void
+    private var pending: CheckedContinuation<Void, Never>?
+
+    init(onPageStarted: @escaping @Sendable () -> Void) {
+        self.onPageStarted = onPageStarted
+    }
+
+    func releasePage() {
+        pending?.resume()
+        pending = nil
+    }
+
+    func boxItems(filters: BoxFilters, limit: Int, cursor: String?) async throws -> BoxPage {
+        if cursor == "second" {
+            await withCheckedContinuation { continuation in
+                pending = continuation
+                onPageStarted()
+            }
+        }
+        let id = cursor ?? "first"
+        let item = BoxItem(id: id, bossID: "boss", bossName: "Owner", kind: .text,
+                           text: id, createdAt: "")
+        let next = cursor == nil ? "second" : (cursor == "second" ? "third" : nil)
+        return BoxPage(items: [item], nextCursor: next)
+    }
+
+    func downloadBoxMedia(id: String, to destination: URL) async throws {}
+    func deleteBoxItem(id: String, purge: Bool) async throws {}
 }
