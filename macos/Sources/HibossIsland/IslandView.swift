@@ -52,7 +52,7 @@ struct IslandView: View {
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)
                     .padding(.bottom, 12)
-                OptionMessageBody(text: message.body)
+                OptionMessageBody(text: message.body, attachment: message.metadata?.attachment)
                 fixedActions(message)
             }
             .padding(.horizontal, 18)
@@ -246,6 +246,7 @@ struct IslandView: View {
 /// available panel height cannot contain the question.
 struct OptionMessageBody: View {
     let text: String
+    let attachment: MessageAttachment?
 
     var body: some View {
         ViewThatFits(in: .vertical) {
@@ -256,11 +257,16 @@ struct OptionMessageBody: View {
     }
 
     private var content: some View {
-        Text(text)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.trailing, 8)
+        VStack(alignment: .leading, spacing: 10) {
+            Text(text)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
+        }
+        .padding(.trailing, 8)
     }
 }

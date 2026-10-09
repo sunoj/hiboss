@@ -1,8 +1,9 @@
 // Pure content policy for inline history, preserving full text and Unicode boundaries.
 // Exports: HistoryReadingContent with long-message detection and a bounded preview.
-// Dependencies: Foundation string handling.
+// Dependencies: Foundation string handling and HibossKit message attachments.
 
 import Foundation
+import HibossKit
 
 struct HistoryReadingContent {
     static let longCharacterCount = 1_200
@@ -13,8 +14,14 @@ struct HistoryReadingContent {
     let fullText: String
     let isLong: Bool
     let preview: String
+    let attachment: MessageAttachment?
 
-    init(body: String, content: String?) {
+    init(message: HistoryMessage) {
+        self.init(body: message.body, content: message.content, attachment: message.metadata?.attachment)
+    }
+
+    init(body: String, content: String?, attachment: MessageAttachment? = nil) {
+        self.attachment = attachment
         let details = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         fullText = details.isEmpty ? body : body + "\n\n" + details
         let lines = fullText.components(separatedBy: .newlines)

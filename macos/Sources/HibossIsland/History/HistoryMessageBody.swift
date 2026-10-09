@@ -1,4 +1,4 @@
-// Selectable inline message text with explicit expand/collapse controls.
+// Selectable inline message text and attachments with explicit expand/collapse controls.
 // Exports: HistoryMessageBody; searches reveal the full matching message.
 // Dependencies: SwiftUI and HistoryReadingContent.
 
@@ -20,6 +20,9 @@ struct HistoryMessageBody: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if let attachment = content.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
             if content.isLong && !isSearching {
                 Button {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
