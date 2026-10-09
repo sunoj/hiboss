@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0050; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0051; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -632,14 +632,16 @@ CREATE TABLE box_items (
   tags TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags) AND json_type(tags) = 'array'),
   source TEXT NOT NULL CHECK (source IN ('ios-share', 'mac-share', 'mac-drop', 'cli')),
   created_at TEXT NOT NULL,
-  deleted_at TEXT
+  deleted_at TEXT,
+  agent_id TEXT REFERENCES api_keys(id)
 );
 CREATE INDEX idx_box_items_boss_created ON box_items(boss_id, deleted_at, created_at DESC, id DESC);
 CREATE TABLE box_idempotency (
   boss_id TEXT NOT NULL REFERENCES bosses(id),
+  author TEXT NOT NULL DEFAULT '',
   idempotency_key TEXT NOT NULL,
   item_id TEXT NOT NULL,
-  PRIMARY KEY (boss_id, idempotency_key)
+  PRIMARY KEY (boss_id, author, idempotency_key)
 );
 CREATE VIRTUAL TABLE box_items_fts USING fts5(text, note, url, tags);
 CREATE TRIGGER box_items_fts_insert AFTER INSERT ON box_items BEGIN

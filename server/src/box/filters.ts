@@ -41,6 +41,10 @@ export async function boxFilter(c: BoxContext): Promise<BoxFilter> {
   const params = c.req.query();
   const clauses = [`i.boss_id IN (${bosses.map(() => '?').join(',')})`, 'i.deleted_at IS NULL'];
   const binds: (string | number)[] = [...bosses];
+  if (params.by !== undefined) {
+    if (!['boss', 'agent'].includes(params.by)) throw new HTTPException(400, { message: 'invalid by' });
+    clauses.push(`i.agent_id IS ${params.by === 'agent' ? 'NOT ' : ''}NULL`);
+  }
   if (params.boss) {
     const owner = await c.env.DB.prepare(`SELECT id FROM bosses WHERE id IN
       (${bosses.map(() => '?').join(',')}) AND (id = ? OR name = ?) LIMIT 1`)

@@ -76,7 +76,7 @@ enum Commands {
     Daemon(daemon::DaemonArgs),
     #[command(about = "Post and browse project progress updates")]
     Progress(progress::ProgressArgs),
-    #[command(about = "Add and read boss-shared Box reference material")]
+    #[command(about = "Add and read Box reference material")]
     Box(box_cmd::BoxArgs),
     #[command(about = "Manage project profiles and aliases")]
     Project(progress::progress_team::TeamArgs),

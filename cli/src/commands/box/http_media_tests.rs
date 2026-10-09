@@ -31,6 +31,8 @@ async fn adds_multipart_media_and_latest_downloads_then_reuses_complete_file() {
             "layout",
             "--tag",
             "one",
+            "--boss",
+            "Boss Name",
         ],
     )
     .await;
@@ -51,6 +53,7 @@ fn assert_multipart(upload: &super::mock::Captured) {
     assert!(upload.body.contains("name=\"meta\""));
     assert!(upload.body.contains("\"source\":\"cli\""));
     assert!(upload.body.contains("\"note\":\"layout\""));
+    assert!(upload.body.contains("\"boss\":\"Boss Name\""));
     assert!(upload.body.contains("name=\"file\"; filename=\"reference.PNG\""));
     assert!(upload.body.contains("Content-Type: image/png"));
     assert!(upload.body.contains("DATA"));

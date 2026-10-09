@@ -52,6 +52,7 @@ async fn add(args: &AddArgs, client: &HiBossClient) -> Result<BoxItem, Box<dyn E
     }
     let input = input::detect(&args.content)?;
     let metadata = BoxMetadata {
+        boss: args.boss.as_deref(),
         text: (input == input::Input::Text).then_some(args.content.as_str()),
         url: (input == input::Input::Link).then_some(args.content.as_str()),
         note: args.note.as_deref(),
