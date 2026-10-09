@@ -15,7 +15,9 @@ final class InboxStore: ObservableObject {
     @Published var history: [HistoryMessage] = []
     @Published var requiredInputs: [HistoryMessage] = []
     @Published var requiredInputError: String?
+    /// The last list remains authoritative during later refreshes and routine reconnects.
     @Published var requiredInputLoaded = false
+    @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published var loadError: String?
@@ -25,6 +27,7 @@ final class InboxStore: ObservableObject {
     var historyCheckedAt: Date?
     @Published var isRefreshing = false
     @Published var replyConfirmation: String?
+    @Published var replyFeedback: [MessageID: String] = [:]
     /// Ids removed optimistically (answered/expired locally) until history catches up.
     @Published var withdrawn: Set<MessageID> = []
     /// Decisions that should keep a settled card after leaving `pending`.
@@ -137,6 +140,7 @@ final class InboxStore: ObservableObject {
         historyCheckedAt = nil
         isRefreshing = false
         replyConfirmation = nil
+        replyFeedback = [:]
         loadError = nil
         connectionState = .disconnected
     }

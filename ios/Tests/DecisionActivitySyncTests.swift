@@ -66,18 +66,21 @@ final class DecisionActivitySyncTests: XCTestCase {
         await api.disconnect(0)
         await api.waitForStream(1)
         let syncCount = sink.syncCount
-        XCTAssertFalse(store.requiredInputLoaded)
+        XCTAssertTrue(store.requiredInputLoaded)
         await store.syncDecisionActivity()
-        XCTAssertEqual(sink.syncCount, syncCount, "disconnected inputs must not sync")
+        XCTAssertEqual(sink.syncCount, syncCount + 1, "reconnect retains the last loaded activity")
+        XCTAssertEqual(sink.endCount, 0)
+        XCTAssertEqual(sink.requestCount, 0)
 
         await api.holdNextFetch(returning: [])
         await api.sendReady(to: 1)
         await api.waitForHeldFetch()
         await store.syncDecisionActivity()
-        XCTAssertEqual(sink.syncCount, syncCount, "ready must wait for its reconciliation fetch")
+        XCTAssertEqual(sink.syncCount, syncCount + 2, "ready retains the activity during reconciliation")
         XCTAssertEqual(sink.running, Self.ask.id)
+        let reconciliation = store.requiredFetchTask
         await api.releaseFetch()
-        await waitFor(store.$requiredInputLoaded)
+        await reconciliation?.value
         XCTAssertTrue(store.requiredInputs.isEmpty)
         XCTAssertNil(sink.running, "an authoritative empty server answer must end the activity")
         XCTAssertEqual(sink.endCount, 1)

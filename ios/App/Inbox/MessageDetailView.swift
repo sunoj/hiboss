@@ -125,7 +125,7 @@ struct MessageDetailView: View {
     /// Pending: shared timing, choices, and a free-text reply. Resolved: a read-only
     /// picked/others list, with the chosen option checked and its source noted.
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
-        if DecisionAnswerability.isDecision(message),
+        if message.isDecision,
            store.answerability(for: message.id) == .checking {
             Button("Checking…") {}.buttonStyle(.bordered).disabled(true)
         } else if store.answerability(for: message.id) == .open {
@@ -133,7 +133,7 @@ struct MessageDetailView: View {
                 let timing = DecisionTiming(message: message, now: context.date)
                 pendingDecision(for: message, timing: timing)
             }
-        } else if DecisionAnswerability.isDecision(message) {
+        } else if message.isDecision {
             resolvedDecision(for: message)
         }
     }
@@ -246,7 +246,8 @@ struct MessageDetailView: View {
                 actionNote = String(localized: "Already answered elsewhere — showing the recorded outcome.")
             case .failed:
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
-                actionNote = store.loadError ?? String(localized: "Couldn't send your reply. Try again.")
+                actionNote = store.replyFeedback[id] ?? store.loadError
+                    ?? String(localized: "Couldn't send your reply. Try again.")
             }
         }
     }

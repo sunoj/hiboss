@@ -89,7 +89,7 @@ final class SessionsV4Tests: XCTestCase {
         let textDecision = SessionEvent(
             id: "old-text-decision", sessionId: "session", sequence: 3, kind: "message",
             direction: "agent_to_boss", messageId: "missing-text-decision",
-            payload: .object(["body": .string("Which dataset?"), "type": .string("approval_request")]),
+            payload: .object(["body": .string("Which dataset?"), "mode": .string("blocking")]),
             createdAt: ""
         )
         let targets = SessionReplyTarget.eligible(events: ordinary + [resolved, textDecision], store: store)

@@ -40,10 +40,7 @@ extension HistoryMessage {
 
     var isResolved: Bool { status == "replied" || status == "expired" }
 
-    /// Any decision from an agent that carries options — pending or already resolved.
-    var isDecision: Bool { direction == "agent_to_boss" && !options.isEmpty }
-
-    /// A live decision awaiting the boss: from an agent, has options, not resolved/expired.
+    /// A live decision awaiting the boss, using HibossKit's decision shape.
     var isPendingDecision: Bool {
         guard isDecision, !isResolved else { return false }
         if let expiration = expirationDate, expiration <= Date() { return false }

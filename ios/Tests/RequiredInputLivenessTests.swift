@@ -33,6 +33,7 @@ final class RequiredInputLivenessTests: XCTestCase {
         XCTAssertEqual(store.connectionState, .connected)
         XCTAssertFalse(store.hasCompleteRequiredInputs)
         XCTAssertNil(store.requiredInputError, "a routine stream rotation is not a failure")
+        XCTAssertTrue(store.requiredInputLoaded, "routine rotation retains the authoritative list")
     }
 
     func testRoutineMessageStreamRotationStaysConnected() async {

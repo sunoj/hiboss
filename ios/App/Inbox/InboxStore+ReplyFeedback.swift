@@ -12,12 +12,13 @@ extension InboxStore {
     func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
         guard let api else { return .failed }
         guard replying[id] == nil else { return .busy }
+        replyFeedback[id] = nil
         let message = message(for: id)
-        let isDecision = message.map(DecisionAnswerability.isDecision)
+        let isDecision = message?.isDecision
             ?? requiredInputs.contains { $0.id == id }
         let state = isDecision ? answerability(for: id) : .open
         guard state == .open else {
-            if state == .checking { loadError = state.label }
+            if state == .checking { replyFeedback[id] = state.label }
             return state == .closed ? .alreadyResolved : .failed
         }
         let epoch = requiredEpoch
@@ -54,6 +55,7 @@ extension InboxStore {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
             return String(localized: "That decision was already answered elsewhere.")
         case .failed:
+            if let feedback = replyFeedback[id] { return feedback }
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             return String(localized: "Couldn't send your reply — check your connection.")
         }

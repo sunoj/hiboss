@@ -42,7 +42,7 @@ struct SessionTranscriptItemView: View {
     private func decision(for event: SessionEvent) -> HistoryMessage? {
         guard let raw = event.messageId,
               let message = store.message(for: MessageID(rawValue: raw)),
-              message.isDecision || (message.direction == "agent_to_boss" && message.mode == "blocking")
+              message.isDecision
         else {
             return nil
         }
