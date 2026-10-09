@@ -6,9 +6,20 @@ import Foundation
 import HibossKit
 
 enum TodayProjection {
-    static func merge(history: [HistoryMessage], live: OptionMessage?) -> [HistoryMessage] {
-        guard let live, !history.contains(where: { $0.id == live.id }) else { return history }
-        return history + [historyMessage(from: live)]
+    static func merge(history: [HistoryMessage], live: OptionMessage?,
+                      requiredInputs: [HistoryMessage] = []) -> [HistoryMessage] {
+        var messages = history
+        if let live, !messages.contains(where: { $0.id == live.id }) {
+            messages.append(historyMessage(from: live))
+        }
+        for message in requiredInputs {
+            if let index = messages.firstIndex(where: { $0.id == message.id }) {
+                messages[index] = message
+            } else {
+                messages.append(message)
+            }
+        }
+        return messages
     }
 
     static func historyMessage(from live: OptionMessage) -> HistoryMessage {
@@ -18,16 +29,6 @@ enum TodayProjection {
             sessionLabel: live.sessionLabel, sessionBranch: live.sessionBranch)
     }
 
-    static func decisions(history: [HistoryMessage], live: OptionMessage? = nil, now: Date,
-                          withdrawn: Set<MessageID> = []) -> [AttentionItem] {
-        AttentionModel.items(from: merge(history: history, live: live).filter { !withdrawn.contains($0.id) },
-            now: now)
-    }
-
-    static func withdrawn(feedback: [MessageID: ReplyFeedback]) -> Set<MessageID> {
-        Set(feedback.compactMap { id, outcome in outcome == .alreadyResolved ? id : nil })
-    }
-
     static func health(connection: ConnectionState, history: HistoryState, checkedAt: Date) -> TodayHealth {
         if history == .loading || history == .idle { return .loading }
         switch connection {
@@ -35,10 +36,5 @@ enum TodayProjection {
         case .connecting: return .connecting
         case .disconnected, .failed: return .offline(since: checkedAt)
         }
-    }
-
-    /// A full history page may hide older open decisions; it cannot establish coverage.
-    static func coverage(history: [HistoryMessage], state: HistoryState) -> Bool {
-        state == .loaded && history.count < AppConstants.API.historyLimit
     }
 }

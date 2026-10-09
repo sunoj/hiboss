@@ -59,7 +59,7 @@ struct SessionView: View {
                     }
                 }.frame(maxHeight: 260)
             }.padding(.horizontal, 20).padding(.vertical, 8)
-            SessionComposer(message: context.newestAgentMessage, reply: reply, onChoose: flow.answer)
+            SessionComposer(context: context, reply: reply, onChoose: flow.answer).id(context.id)
         }
     }
 

@@ -110,7 +110,8 @@ final class IslandReplyE2ETests: XCTestCase {
         _ flow: OptionFlowStore, _ reply: AttentionReplyState
     ) -> NSHostingView<some View> {
         let height = flow.activeMessage.map { OptionPanelLayout.expandedHeight(for: $0) } ?? 320
-        let host = NSHostingView(rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
+        let host = NSHostingView(rootView: IslandView(flow: flow, reply: reply,
+            overview: islandTestOverview(flow: flow), surfaceStyle: .window)
             .frame(width: AppConstants.Island.width, height: height))
         host.frame = NSRect(x: 0, y: 0, width: AppConstants.Island.width, height: height)
         return host

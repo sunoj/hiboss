@@ -42,12 +42,13 @@ final class AttentionLayoutTests: XCTestCase {
     private func verifyWorkspace(size: NSSize) async throws {
         let flow = OptionFlowStore()
         flow.connect(api: ScriptedBossAPI(
-            messages: [], history: AttentionPreview.populated(now: Date()).map(\.message)
+            messages: AttentionPreview.populated(now: Date()).map(\.asOptionMessage),
+            history: AttentionPreview.populated(now: Date()).map(\.message)
         ))
         defer { flow.disconnect() }
         // The window opens on the dashboard; the reply editor lives in the Needs You workspace.
         let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: flow,
-            initialDestination: .category(.needsYou)))
+            overviewStore: islandTestOverview(flow: flow), initialDestination: .category(.needsYou)))
         host.sizingOptions = []
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),

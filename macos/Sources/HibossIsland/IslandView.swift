@@ -11,6 +11,7 @@ enum OptionSurfaceStyle: Sendable {
 }
 
 struct IslandView: View {
+    @ObservedObject var overview: OverviewStore
     @ObservedObject var flow: OptionFlowStore
     /// Drafts, sending and feedback keyed by message id; owned outside the hosting root so a
     /// new question or presentation never erases them.
@@ -19,9 +20,10 @@ struct IslandView: View {
     var topInset: CGFloat
 
     init(
-        flow: OptionFlowStore, reply: AttentionReplyState,
+        flow: OptionFlowStore, reply: AttentionReplyState, overview: OverviewStore,
         surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0
     ) {
+        self.overview = overview
         self.flow = flow
         self.reply = reply
         self.surfaceStyle = surfaceStyle
@@ -29,7 +31,7 @@ struct IslandView: View {
     }
 
     var body: some View {
-        if flow.activeMessage == nil {
+        if overview.snapshot.today.decisions.isEmpty {
             islandContent(now: .now)
         } else {
             TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -40,13 +42,10 @@ struct IslandView: View {
 
     @ViewBuilder
     private func islandContent(now: Date) -> some View {
-        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
+        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage,
+           overview.snapshot.today.decisions.first?.id == message.id {
             resolvedCard(message, answer: answer, source: source)
-        } else if let presentation = IslandAttention.presentation(
-            live: flow.activeMessage,
-            history: flow.historyMessages,
-            now: now, withdrawn: TodayProjection.withdrawn(feedback: flow.replyFeedback)
-        ) {
+        } else if let presentation = IslandAttention.presentation(snapshot: overview.snapshot.today) {
             let message = presentation.message
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)

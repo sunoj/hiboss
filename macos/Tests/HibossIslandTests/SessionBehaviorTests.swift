@@ -65,7 +65,7 @@ final class SessionBehaviorTests: XCTestCase {
         let history = [message("first", options: ["Ship"]),
             message("other", session: "peer", options: ["Wait"]),
             message("deadline", options: ["Hold"], deadline: Date.now.addingTimeInterval(100))]
-        let value = context(history: history)
+        let value = context(history: history, requiredInputs: history)
         XCTAssertEqual(value.decisions, value.snapshot.today.decisions.filter {
             SessionGrouping.sessionKey(for: $0.message) == "session"
         })
@@ -119,8 +119,10 @@ final class SessionBehaviorTests: XCTestCase {
             [12, nil, 18])
     }
 
-    private func context(history: [HistoryMessage], inventory: [ProjectSession] = []) -> SessionContext {
-        SessionContext(id: "session", snapshot: OverviewSnapshot(history: history, live: nil, now: .now),
+    private func context(history: [HistoryMessage], inventory: [ProjectSession] = [],
+                         requiredInputs: [HistoryMessage] = []) -> SessionContext {
+        SessionContext(id: "session", snapshot: OverviewSnapshot(history: history, live: nil, now: .now,
+            requiredInputs: requiredInputs),
             inventory: inventory)
     }
 

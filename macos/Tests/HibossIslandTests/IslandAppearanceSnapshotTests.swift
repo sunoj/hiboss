@@ -35,7 +35,8 @@ final class IslandAppearanceSnapshotTests: XCTestCase {
         let screen = try XCTUnwrap(NSScreen.main)
         let geometry = IslandGeometry(screenFrame: screen.frame, visibleFrame: screen.visibleFrame,
             safeAreaTop: 32)
-        let controller = IslandPanelController(flow: flow, settings: settings, screens: { [geometry] })
+        let controller = IslandPanelController(flow: flow, settings: settings,
+            overview: islandTestOverview(flow: flow), screens: { [geometry] })
         defer {
             controller.panel.orderOut(nil)
             controller.optionWindow.orderOut(nil)

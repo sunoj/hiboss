@@ -9,6 +9,12 @@ import XCTest
 final class AttentionIslandAgreementTests: XCTestCase {
     private let now = AttentionTestSupport.now
     private func iso(_ date: Date) -> String { AttentionTestSupport.iso(date) }
+    private func snapshot(requiredInputs: [HistoryMessage], live: OptionMessage? = nil,
+                          now: Date) -> TodaySnapshot {
+        TodaySnapshot(history: [], requiredInputs: TodayProjection.merge(history: requiredInputs, live: live),
+            health: .live(checkedAt: now), coverageComplete: true, now: now)
+    }
+
     private func ask(
         id: MessageID,
         priority: String = "normal",
@@ -60,14 +66,15 @@ final class AttentionIslandAgreementTests: XCTestCase {
         )
 
         let history = [blocked, liveHistory]
-        let front = TodayProjection.decisions(history: history, live: live, now: now).first?.id
-        let island = IslandAttention.presentation(live: live, history: history, now: now)
+        let front = snapshot(requiredInputs: history, live: live, now: now).decisions.first?.id
+        let island = IslandAttention.presentation(
+            snapshot: snapshot(requiredInputs: history, now: now))
 
         XCTAssertEqual(front, "blocked")
         XCTAssertEqual(island?.message.id, front)
     }
 
-    func testLiveOnlyAutoDecisionMergesWhenMissingFromHistory() {
+    func testServerListedAutoDecisionAppearsWithoutHistory() {
         let live = OptionMessage(
             id: "live-auto",
             body: "Pick soon",
@@ -77,29 +84,32 @@ final class AttentionIslandAgreementTests: XCTestCase {
             sessionLabel: "proj/main"
         )
 
-        let ranked = TodayProjection.decisions(history: [], live: live, now: now)
-        let island = IslandAttention.presentation(live: live, history: [], now: now)
+        let ranked = snapshot(requiredInputs: [], live: live, now: now).decisions
+        let island = IslandAttention.presentation(
+            snapshot: snapshot(requiredInputs: [], live: live, now: now))
 
         XCTAssertEqual(ranked.map(\.id.rawValue), ["live-auto"])
         XCTAssertEqual(island?.message.id.rawValue, "live-auto")
     }
 
-    func testIslandAndWindowIncludeOrdinaryLiveQuestions() {
+    func testIslandAndWindowIncludeServerListedOrdinaryQuestions() {
         let live = OptionMessage.fixture(id: "plain", options: ["Continue"])
-        let island = IslandAttention.presentation(live: live, history: [], now: now)
+        let island = IslandAttention.presentation(
+            snapshot: snapshot(requiredInputs: [], live: live, now: now))
 
         XCTAssertEqual(island?.message.id.rawValue, "plain")
         XCTAssertEqual(island?.item?.group, .priority)
-        XCTAssertEqual(TodayProjection.decisions(history: [], live: live, now: now).map(\.id), ["plain"])
+        XCTAssertEqual(snapshot(requiredInputs: [], live: live, now: now).decisions.map(\.id), ["plain"])
     }
 
     func testOlderSharedDecisionKeepsIslandOverNewLiveQuestion() {
         let older = ask(id: "older", options: ["Ok"], createdAt: iso(now.addingTimeInterval(-300)))
         let live = OptionMessage.fixture(id: "live", options: ["Ship"])
 
-        let island = IslandAttention.presentation(live: live, history: [older], now: now)
+        let island = IslandAttention.presentation(
+            snapshot: snapshot(requiredInputs: [older], live: live, now: now))
 
-        XCTAssertEqual(TodayProjection.decisions(history: [older], live: live, now: now).first?.id, "older")
+        XCTAssertEqual(snapshot(requiredInputs: [older], live: live, now: now).decisions.first?.id, "older")
         XCTAssertEqual(island?.message.id.rawValue, "older")
         XCTAssertEqual(island?.item?.group, .priority)
     }
@@ -108,7 +118,8 @@ final class AttentionIslandAgreementTests: XCTestCase {
         let blocked = ask(id: "blocked", options: ["Approve"], sessionStatus: "waiting")
         let live = OptionMessage.fixture(id: "live", options: ["Ship"])
 
-        let island = IslandAttention.presentation(live: live, history: [blocked], now: now)
+        let island = IslandAttention.presentation(
+            snapshot: snapshot(requiredInputs: [blocked], live: live, now: now))
 
         XCTAssertEqual(island?.message.id.rawValue, "blocked")
     }

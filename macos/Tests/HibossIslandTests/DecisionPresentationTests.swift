@@ -40,7 +40,7 @@ final class DecisionPresentationTests: XCTestCase {
         let working = AttentionTestSupport.ask(id: "working", options: [], sessionStatus: "working", now: now)
         for history in [[], [decision], [working], [decision, working]] {
             let snapshot = OverviewSnapshot(history: history, live: nil, now: now,
-                health: .live(checkedAt: now), coverageComplete: true).today
+                health: .live(checkedAt: now), coverageComplete: true, requiredInputs: history).today
             let host = NSHostingView(rootView: TodaySummary(snapshot: snapshot, now: now))
             let window = makeWindow(host, width: 400, scheme: .light)
             defer { window.close() }
@@ -50,6 +50,52 @@ final class DecisionPresentationTests: XCTestCase {
                 !snapshot.decisions.isEmpty, "\(labels)")
             XCTAssertEqual(labels.contains { $0.contains("working") }, !snapshot.working.isEmpty, "\(labels)")
             XCTAssertTrue(labels.contains { $0.contains("Live") })
+        }
+    }
+
+    func testResolvedDecisionNeverRendersTheDefaultLineInBothAppearances() async throws {
+        let now = Date.now
+        for status in ["replied", "expired"] {
+            let message = AttentionTestSupport.ask(id: "resolved", options: ["Ship", "Hold"],
+                defaultOption: "Hold", status: status, now: now)
+            for scheme in [ColorScheme.light, .dark] {
+                let host = NSHostingView(rootView: HistoryThreadRow(thread: MessageThread(message: message),
+                    usesV4: true, reply: AttentionReplyState(), isExpanded: .constant(true),
+                    isSearching: false, onCollapse: {}, onChoose: { _ in nil })
+                    .padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .background(TodayStyle.ground)
+                    .environment(\.colorScheme, scheme))
+                host.sizingOptions = []
+                let window = makeWindow(host, width: 600, scheme: scheme)
+                window.setContentSize(NSSize(width: 600, height: 500))
+                defer { window.close() }
+                try await Task.sleep(for: .milliseconds(350))
+                let labels = try recognize(capture(host)).map(\.text)
+                XCTAssertFalse(labels.contains { $0.contains("Default:") || $0.contains("No answer in") },
+                    "\(labels)")
+                XCTAssertTrue(labels.contains { $0.contains("Resolved") || $0.contains("Expired") },
+                    "\(labels)")
+            }
+        }
+    }
+
+    func testUntimedDecisionShowsNoDeadlineExactlyOnceInBothAppearances() async throws {
+        let now = Date.now
+        let message = AttentionTestSupport.ask(id: "untimed", options: ["Ship", "Hold"],
+            defaultOption: "Hold", now: now)
+        let item = AttentionItem(message: message, group: .priority)
+        for scheme in [ColorScheme.light, .dark] {
+            let host = NSHostingView(rootView: TodayDecisionCard(item: item, now: now, isSelected: false,
+                isSubmitting: false, error: nil, onSelect: {}, onChoose: { _ in })
+                .environment(\.colorScheme, scheme))
+            let window = makeWindow(host, width: 600, scheme: scheme)
+            defer { window.close() }
+            try await Task.sleep(for: .milliseconds(350))
+            let labels = try recognize(capture(host)).map(\.text)
+            XCTAssertEqual(labels.filter { $0.localizedCaseInsensitiveContains("No deadline") }.count, 1,
+                "\(labels)")
+            XCTAssertTrue(labels.contains { $0.contains("Default:") && $0.contains("not approval") },
+                "\(labels)")
         }
     }
 

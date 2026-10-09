@@ -209,18 +209,18 @@
         }
       }
     },
-    "A reply needs an agent message in this session.": {
+    "No eligible agent message to reply to in this session.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A reply needs an agent message in this session."
+            "value": "No eligible agent message to reply to in this session."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "此会话中有代理消息后才能回复。"
+            "value": "此会话中没有可回复的代理消息。"
           }
         }
       }
@@ -737,18 +737,66 @@
         }
       }
     },
-    "Default: “%@”. No deadline. That is not approval.": {
+    "Default: “%@”. That is not approval.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Default: “%@”. No deadline. That is not approval."
+            "value": "Default: “%@”. That is not approval."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "默认选项：“%@”。无截止时间。这不代表批准。"
+            "value": "默认选项：“%@”。这不代表批准。"
+          }
+        }
+      }
+    },
+    "Replying to: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replying to: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在回复：%@"
+          }
+        }
+      }
+    },
+    "Custom answer to: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom answer to: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义回答：%@"
+          }
+        }
+      }
+    },
+    "Reply to the newer message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply to the newer message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复较新的消息"
           }
         }
       }

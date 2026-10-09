@@ -138,7 +138,8 @@ final class PresentationSettingsE2ETests: XCTestCase {
         try await waitUntilActive(message.id, in: store)
         let calculatedHeight = OptionPanelLayout.expandedHeight(for: message)
         let host = NSHostingView(
-            rootView: IslandView(flow: store, reply: AttentionReplyState())
+            rootView: IslandView(flow: store, reply: AttentionReplyState(),
+                overview: islandTestOverview(flow: store))
                 .frame(width: AppConstants.Island.width)
                 .fixedSize(horizontal: false, vertical: true)
         )
@@ -164,7 +165,8 @@ final class PresentationSettingsE2ETests: XCTestCase {
         try await waitUntilActive(message.id, in: store)
         let height = OptionPanelLayout.expandedHeight(for: message)
         let host = NSHostingView(
-            rootView: IslandView(flow: store, reply: AttentionReplyState())
+            rootView: IslandView(flow: store, reply: AttentionReplyState(),
+                overview: islandTestOverview(flow: store))
                 .frame(width: AppConstants.Island.width, height: height)
         )
         host.frame = NSRect(x: 0, y: 0, width: AppConstants.Island.width, height: height)
