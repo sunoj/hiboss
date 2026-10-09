@@ -183,6 +183,7 @@ struct RootTabView: View {
         NavigationStack {
             BoxListView(api: isDemoMode ? DemoBoxAPI.shared : connection.makeAPI())
                 .id(BoxStore.connectionIdentity(connection.config))
+                .navigationTitle("Box")
         }
         .tabItem { Label("Box", systemImage: "shippingbox") }
         .tag(2)

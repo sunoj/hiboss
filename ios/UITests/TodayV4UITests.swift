@@ -41,6 +41,7 @@ final class TodayV4UITests: XCTestCase {
         shot(app, "\(appearance)-session-thread")
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-text"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Box"].exists)
         shot(app, "\(appearance)-box")
         app.tabBars.buttons["Progress"].tap()
         XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
