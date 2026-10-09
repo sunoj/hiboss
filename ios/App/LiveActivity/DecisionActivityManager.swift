@@ -11,8 +11,10 @@ private let laLog = Logger(subsystem: "ai.hiboss.app", category: "LiveActivity")
 
 @MainActor
 enum DecisionActivityManager {
-    static func rankedMessages(from messages: [HistoryMessage], now: Date = .now) -> [HistoryMessage] {
-        TodaySnapshot(history: messages, health: .loading, coverageComplete: false, now: now).decisions
+    /// Candidates must come from the loaded required-input list, never bounded history.
+    static func rankedMessages(from requiredInputs: [HistoryMessage], now: Date = .now) -> [HistoryMessage] {
+        TodaySnapshot(history: [], requiredInputs: requiredInputs, health: .loading,
+                      coverageComplete: false, now: now).decisions
             .filter { !$0.options.isEmpty }
             .map(\.message)
     }

@@ -8,6 +8,23 @@ import XCTest
 
 @MainActor
 final class InboxStoreTests: XCTestCase {
+    func testInboxCardSettlesUntilHistoryDropsItWithoutReopeningToday() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.history = [Self.question, Self.older]
+        store.requiredInputLoaded = true
+        XCTAssertEqual(store.pending.map(\.id), ["q1"])
+        XCTAssertTrue(store.todaySnapshot(now: .now).decisions.isEmpty)
+
+        store.settleReply("Approve", for: "q1")
+        XCTAssertTrue(store.pending.isEmpty)
+        XCTAssertEqual(store.settledCards.map(\.id), ["q1"])
+        XCTAssertEqual(store.settlement(for: "q1")?.answer, "Approve")
+        XCTAssertTrue(store.todaySnapshot(now: .now).decisions.isEmpty)
+
+        store.history = [Self.older]
+        XCTAssertTrue(store.settledCards.isEmpty)
+    }
+
     func testReplySettlesCardInPlaceAndKeepsBossReplyInSession() async {
         let api = MutableBossAPI(messages: [Self.question, Self.older])
         let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false)

@@ -72,9 +72,12 @@ final class InboxStore: ObservableObject {
     /// The choice in flight per decision, from any entry point; every button surface reads it.
     var replying: [MessageID: String] { replyGate.inFlight }
 
-    /// Pending decisions, soonest-to-expire first, then critical > high > normal.
+    /// Inbox cards follow the history list through their pending and settled states.
+    /// Today and Live Activity use the authoritative required-input list separately.
     var pending: [HistoryMessage] {
-        todaySnapshot(now: .now).decisions.filter { !$0.options.isEmpty }.map(\.message)
+        AttentionModel.items(from: history.filter {
+            !withdrawn.contains($0.id) && !settledIDs.contains($0.id)
+        }, now: .now).filter { !$0.options.isEmpty }.map(\.message)
     }
 
     var pendingCount: Int { pending.count }
@@ -91,8 +94,8 @@ final class InboxStore: ObservableObject {
     }
 
     func syncDecisionActivity() async {
-        // Wait for the authoritative inputs before ranking, but turning alerts off ends
-        // every activity regardless of inputs, so it must not wait.
+        // An empty projection while inputs load is unknown, not an authoritative empty list.
+        // Turning alerts off ends every activity regardless of inputs, so it must not wait.
         guard requiredInputLoaded || !decisionAlertsEnabled else { return }
         let candidates = todaySnapshot(now: .now).decisions.map(\.message)
         await decisionActivitySync(candidates, decisionAlertsEnabled)
