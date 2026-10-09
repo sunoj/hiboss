@@ -13,6 +13,7 @@ struct SessionView: View {
     @ObservedObject var box: BoxBrowserStore
     @ObservedObject var media: BoxBrowserMedia
     var isPreview = false
+    let onChoose: (String, MessageID) async -> ReplyFeedback?
     let onBox: (String) -> Void
     let onSession: (String) -> Void
     @State private var showsInspector = false
@@ -49,7 +50,7 @@ struct SessionView: View {
     private var thread: some View {
         VStack(spacing: 0) {
             SessionThreadView(context: context, flow: flow, reply: reply,
-                connection: isPreview ? .connected : flow.connectionState)
+                connection: isPreview ? .connected : flow.connectionState, onChoose: onChoose)
             DisclosureGroup(L("Watching")) {
                 ScrollView {
                     if let tile = panels.selectedTile, tile.metadata?.sessionId == context.id {
@@ -59,7 +60,7 @@ struct SessionView: View {
                     }
                 }.frame(maxHeight: 260)
             }.padding(.horizontal, 20).padding(.vertical, 8)
-            SessionComposer(context: context, reply: reply, onChoose: flow.answer).id(context.id)
+            SessionComposer(context: context, reply: reply, onChoose: onChoose).id(context.id)
         }
     }
 

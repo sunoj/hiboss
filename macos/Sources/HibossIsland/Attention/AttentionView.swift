@@ -11,6 +11,8 @@ struct AttentionView: View {
     let category: OverviewCategory
     let items: [AttentionItem]
     let now: Date
+    let answerability: AnswerableDecisions
+    let onChoose: (String, MessageID) async -> ReplyFeedback?
     @State private var selection: MessageID?
 
     var body: some View {
@@ -19,8 +21,8 @@ struct AttentionView: View {
 
     @ViewBuilder
     private func content(items: [AttentionItem], now: Date) -> some View {
-        if items.isEmpty, flow.historyState == .loading {
-            ProgressView(L("Loading…"))
+        if !answerability.isLoaded {
+            ProgressView(L("Loading"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if items.isEmpty, case let .failed(message) = flow.historyState,
                   flow.historyMessages.isEmpty {
@@ -37,7 +39,7 @@ struct AttentionView: View {
                 now: now,
                 selection: $selection,
                 reply: reply,
-                onChoose: flow.answer
+                onChoose: onChoose
             )
         }
     }

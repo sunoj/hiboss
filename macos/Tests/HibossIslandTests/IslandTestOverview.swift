@@ -9,9 +9,13 @@ import HibossKit
 @MainActor
 func islandTestOverview(flow: OptionFlowStore) -> OverviewStore {
     let overview = OverviewStore()
-    let inputs = Publishers.CombineLatest(flow.$historyMessages, flow.$activeMessage)
-        .map { history, live in
-            RequiredInputState(messages: TodayProjection.merge(history: history, live: live),
+    let inputs = Publishers.CombineLatest3(
+        flow.$historyMessages, flow.$activeMessage, flow.$presentationState)
+        .map { history, live, state in
+            let resolvedID: MessageID?
+            if case .resolved = state { resolvedID = live?.id } else { resolvedID = nil }
+            let messages = TodayProjection.merge(history: history, live: live).filter { $0.id != resolvedID }
+            return RequiredInputState(messages: messages,
                 ready: true, loaded: true)
         }
         .eraseToAnyPublisher()

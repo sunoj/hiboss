@@ -28,16 +28,13 @@ struct SessionContext {
         }
     }
     var replyTargets: [HistoryMessage] {
-        let openIDs = Set(decisions.map(\.id))
+        guard snapshot.answerability.isLoaded else { return [] }
         return snapshot.messages(for: .session(id)).filter { message in
-            guard message.direction == "agent_to_boss" else { return false }
-            let isDecision = !message.options.isEmpty || message.defaultOption != nil
-                || message.mode == "blocking"
-            return !isDecision || openIDs.contains(message.id)
+            snapshot.answerability.permitsReply(to: message)
         }
     }
     func replyTargetLabel(for message: HistoryMessage) -> String {
-        if decisions.contains(where: { $0.id == message.id }) {
+        if AnswerableDecisions.isDecision(message), snapshot.answerability.state(for: message.id) == .open {
             return L("Custom answer to: \(message.body)")
         }
         let firstLine = message.body.components(separatedBy: .newlines).first ?? message.body

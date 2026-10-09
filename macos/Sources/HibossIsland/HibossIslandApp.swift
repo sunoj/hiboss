@@ -155,7 +155,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .store(in: &cancellables)
 
         overview.$snapshot
-            .sink { [weak self] snapshot in self?.updateStatusCount(snapshot.today.decisions.count) }
+            .sink { [weak self] snapshot in
+                let count = snapshot.answerability.isLoaded ? snapshot.today.decisions.count : nil
+                self?.updateStatusCount(count)
+            }
             .store(in: &cancellables)
     }
 
@@ -169,11 +172,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.toolTip = L("HiBoss Island")
         statusItem = item
-        updateStatusCount(overview.snapshot.today.decisions.count)
+        let snapshot = overview.snapshot
+        updateStatusCount(snapshot.answerability.isLoaded ? snapshot.today.decisions.count : nil)
         refreshStatusMenu()
     }
 
-    private func updateStatusCount(_ count: Int) {
+    private func updateStatusCount(_ count: Int?) {
         guard let button = statusItem?.button else { return }
         AppIdentity.configure(button, count: count)
     }

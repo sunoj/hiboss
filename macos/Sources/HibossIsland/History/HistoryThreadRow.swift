@@ -21,6 +21,7 @@ struct HistoryThreadRow: View {
     let thread: MessageThread
     var decision: AttentionItem? = nil
     var usesV4 = false
+    var answerability: AnswerableDecisions = .loading
     @ObservedObject var reply: AttentionReplyState
     @Binding var isExpanded: Bool
     let isSearching: Bool
@@ -41,7 +42,7 @@ struct HistoryThreadRow: View {
             VStack(alignment: .leading, spacing: 12) {
                 header
                 ForEach(HistoryDetailLayout.sections(
-                    hasChoices: !message.options.isEmpty || message.defaultOption != nil), id: \.self) {
+                    hasChoices: AnswerableDecisions.isDecision(message)), id: \.self) {
                     section($0)
                 }
             }
@@ -57,7 +58,7 @@ struct HistoryThreadRow: View {
     private func section(_ section: HistoryDetailSection) -> some View {
         switch section {
         case .message:
-            if usesV4, let decision {
+            if usesV4, let decision, answerability.state(for: message.id) == .open {
                 TodayDecisionCard(item: decision, now: now, isSelected: false,
                     isSubmitting: reply.submitting.contains(message.id),
                     error: reply.errors[message.id]?.choiceText,
@@ -67,24 +68,24 @@ struct HistoryThreadRow: View {
                         } }
                     })
                 if let attachment = content.attachment { MessageAttachmentView(attachment: attachment) }
-                HistoryReplyActions(message: message, reply: reply, canAnswer: true, onChoose: onChoose)
+                HistoryReplyActions(message: message, reply: reply,
+                    answerability: answerability, onChoose: onChoose)
             } else {
                 HistoryMessageBody(content: content, isSearching: isSearching,
                     isExpanded: $isExpanded, onCollapse: onCollapse)
             }
         case .choices:
             if usesV4 {
-                if decision == nil {
-                    ResolvedBanner(thread: thread, outcome: thread.outcome(at: now))
+                if decision == nil || answerability.state(for: message.id) != .open {
+                    ResolvedBanner(thread: thread, outcome: answerability.outcome(for: thread, at: now))
                     DisclosureGroup(L("Decision options")) {
-                        HistoryDecisionBlock(thread: thread, outcome: thread.outcome(at: now),
-                            reply: reply, onChoose: onChoose)
-                            .disabled(thread.outcome(at: now) == .open)
+                        HistoryDecisionBlock(thread: thread,
+                            reply: reply, answerability: answerability, onChoose: onChoose)
                     }.font(.callout)
                 }
             } else {
-                HistoryDecisionBlock(thread: thread, outcome: thread.outcome(at: now),
-                    reply: reply, onChoose: onChoose)
+                HistoryDecisionBlock(thread: thread,
+                    reply: reply, answerability: answerability, onChoose: onChoose)
             }
         case .metadata:
             if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies) }

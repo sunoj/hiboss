@@ -58,15 +58,18 @@ struct OverviewSnapshot {
     let sessions: [SessionGroup]
     let now: Date
     let today: TodaySnapshot
+    let answerability: AnswerableDecisions
 
     init(history: [HistoryMessage], live: OptionMessage?, now: Date,
          health: TodayHealth = .loading, coverageComplete: Bool = false,
-         requiredInputs: [HistoryMessage] = []) {
+         requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false) {
         self.history = TodayProjection.merge(history: history, live: live, requiredInputs: requiredInputs)
         self.today = TodaySnapshot(history: self.history, requiredInputs: requiredInputs,
             health: health,
             coverageComplete: coverageComplete, now: now)
         self.attention = today.decisions
+        self.answerability = AnswerableDecisions(isLoaded: requiredInputLoaded,
+            openIDs: Set(today.decisions.map(\.id)))
         self.sessions = SessionGrouping.groupBySession(self.history)
         self.now = now
     }

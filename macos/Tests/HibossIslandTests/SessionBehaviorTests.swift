@@ -122,7 +122,7 @@ final class SessionBehaviorTests: XCTestCase {
     private func context(history: [HistoryMessage], inventory: [ProjectSession] = [],
                          requiredInputs: [HistoryMessage] = []) -> SessionContext {
         SessionContext(id: "session", snapshot: OverviewSnapshot(history: history, live: nil, now: .now,
-            requiredInputs: requiredInputs),
+            requiredInputs: requiredInputs, requiredInputLoaded: true),
             inventory: inventory)
     }
 

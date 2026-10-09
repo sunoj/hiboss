@@ -63,6 +63,7 @@ struct NotificationMessageDetail: View {
     let messageID: MessageID
     let settings: AppSettings
     @ObservedObject var reply: AttentionReplyState
+    @ObservedObject var overview = OverviewStore()
     /// Sends a reply for a message id; nil means accepted, as in `OptionFlowStore.answer`.
     let onReply: (String, MessageID) async -> ReplyFeedback?
     @State private var message: HistoryMessage?
@@ -93,8 +94,9 @@ struct NotificationMessageDetail: View {
 
     /// Replies go to the loaded message's own id, never the notification's requested id.
     func loadedDetail(_ message: HistoryMessage, replies: [HistoryMessage] = []) -> HistoryMessageDetail {
-        HistoryMessageDetail(message: message, reply: reply,
-            onChoose: { await onReply($0, message.id) }, replies: replies)
+        HistoryMessageDetail(message: message, reply: reply, answerability: overview.snapshot.answerability,
+            onChoose: { await overview.answer($0, for: message.id, message: message, using: onReply) },
+            replies: replies)
     }
 
     private func load() async {

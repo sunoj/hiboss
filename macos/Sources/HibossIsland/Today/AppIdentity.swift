@@ -12,12 +12,12 @@ enum AppIdentity {
         return image
     }
 
-    static func configure(_ button: NSButton, count: Int) {
+    static func configure(_ button: NSButton, count: Int?) {
         let image = icon
         image.size = NSSize(width: 18, height: 18)
         button.image = image
         button.imagePosition = .imageLeading
-        button.title = count == 0 ? "" : " \(count.formatted())"
-        button.setAccessibilityLabel(L("HiBoss · \(count) open decisions"))
+        button.title = count.map { $0 == 0 ? "" : " \($0.formatted())" } ?? ""
+        button.setAccessibilityLabel(count.map { L("HiBoss · \($0) open decisions") } ?? L("Loading"))
     }
 }
