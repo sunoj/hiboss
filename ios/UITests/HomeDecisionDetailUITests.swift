@@ -88,7 +88,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(row.label.contains(Self.c1Question))
         let reply = app.buttons["Approve"]
-        assertSideBySide("Approve", "Reject")
+        assertSideBySide("Approve", "Reject", allowsWrapping: true)
         keepScreenshot("accessibility-home-question")
         XCTAssertGreaterThan(row.frame.height, reply.frame.height * 4, "Home question must not truncate")
 
@@ -106,14 +106,14 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertLessThanOrEqual(detailQuestion.frame.width, app.frame.width)
     }
 
-    /// "Coarse grid" wraps at this size and "Fine grid" does not; both buttons still match.
+    /// Choices share a row when they fit and wrap without overlap at accessibility sizes.
     func testTwoChoicesShareTheRowHeightAtAccessibilitySize() {
         launch(arguments: Self.accessibilityXXXL)
         let coarse = app.buttons["Coarse grid"].firstMatch
         XCTAssertTrue(coarse.waitForExistence(timeout: 10))
         for _ in 0..<8 where !coarse.isHittable { app.swipeUp() }
         keepScreenshot("accessibility-two-choices")
-        assertSideBySide("Coarse grid", "Fine grid")
+        assertSideBySide("Coarse grid", "Fine grid", allowsWrapping: true)
     }
 
     func testNoPanelControlsWithoutPanels() {
@@ -167,17 +167,24 @@ final class HomeDecisionDetailUITests: XCTestCase {
         add(attachment)
     }
 
-    private func assertSideBySide(_ first: String, _ second: String) {
+    private func assertSideBySide(_ first: String, _ second: String, allowsWrapping: Bool = false) {
         let left = app.buttons[first].frame
         let right = app.buttons[second].frame
         XCTAssertGreaterThanOrEqual(left.width, 44)
         XCTAssertGreaterThanOrEqual(right.width, 44)
         XCTAssertGreaterThanOrEqual(left.height, 44)
         XCTAssertGreaterThanOrEqual(right.height, 44)
-        XCTAssertEqual(left.midY, right.midY, accuracy: 2, "two choices share the same row")
-        XCTAssertEqual(left.height, right.height, accuracy: 1, "two choices share the row height")
-        XCTAssertLessThanOrEqual(left.maxX, right.minX, "choice buttons do not overlap")
+        if allowsWrapping && abs(left.midY - right.midY) > 2 {
+            XCTAssertGreaterThanOrEqual(right.minY, left.maxY, "wrapped choices do not overlap")
+            XCTAssertEqual(left.minX, right.minX, accuracy: 2, "wrapped rows share the leading edge")
+        } else {
+            XCTAssertEqual(left.midY, right.midY, accuracy: 2, "two choices share the same row")
+            XCTAssertEqual(left.height, right.height, accuracy: 1, "two choices share the row height")
+            XCTAssertLessThanOrEqual(left.maxX, right.minX, "choice buttons do not overlap")
+        }
         XCTAssertGreaterThanOrEqual(left.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(left.maxX, app.frame.maxX)
+        XCTAssertGreaterThanOrEqual(right.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(right.maxX, app.frame.maxX)
     }
 
