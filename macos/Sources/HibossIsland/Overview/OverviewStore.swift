@@ -49,7 +49,7 @@ final class OverviewStore: ObservableObject {
             self?.update(history: messages.0, live: messages.1, now: now,
                 health: health, coverageComplete: inputs.coverageComplete
                     && (self?.questionnaireCoverageComplete ?? false),
-                requiredInputs: inputs.messages, requiredInputLoaded: inputs.loaded)
+                requiredInputs: inputs.messages, requiredInputLoaded: inputs.loaded && !inputs.failed)
         }
         .store(in: &cancellables)
     }

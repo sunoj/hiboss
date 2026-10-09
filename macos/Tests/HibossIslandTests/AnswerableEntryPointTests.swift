@@ -104,6 +104,13 @@ final class AnswerableEntryPointTests: XCTestCase {
             createdAt: AttentionTestSupport.iso(.now), sessionId: "session")
     }
 
+    func testDefaultAloneDoesNotGateOrdinaryReplyAsADecision() {
+        let message = AttentionTestSupport.ask(id: "default-only", options: [], defaultOption: "Hold")
+        XCTAssertFalse(message.isDecision)
+        let answerability = snapshot(message, loaded: true, open: false).answerability
+        XCTAssertTrue(answerability.permitsReply(to: message))
+    }
+
     private func snapshot(_ question: HistoryMessage, loaded: Bool, open: Bool) -> OverviewSnapshot {
         OverviewSnapshot(history: [question], live: nil, now: .now,
             requiredInputs: open ? [question] : [], requiredInputLoaded: loaded)

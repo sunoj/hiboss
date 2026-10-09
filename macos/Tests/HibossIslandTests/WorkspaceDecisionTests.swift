@@ -69,4 +69,22 @@ final class WorkspaceDecisionTests: XCTestCase {
         XCTAssertEqual(OverviewSnapshot(history: [message], live: nil, now: now).count(.needsYou), 0)
         XCTAssertFalse(message.canAnswerHistory(at: now))
     }
+
+    func testBlockingAskWithoutOptionsUsesSharedDecisionShapeInHistoryAndCompleted() {
+        let message = HistoryMessage(id: "blocking", body: "Review?", direction: "agent_to_boss",
+            status: "delivered", priority: "normal", mode: "blocking",
+            expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(30)),
+            createdAt: AttentionTestSupport.iso(now))
+        XCTAssertTrue(message.isDecision)
+        XCTAssertTrue(HistorySegment.blocking.includes(message))
+        let expired = OverviewSnapshot(history: [message], live: nil, now: now.addingTimeInterval(30))
+        XCTAssertEqual(expired.count(.completed), 1)
+    }
+
+    func testDefaultOnlyNotificationDoesNotBecomeCompletedDecisionAtDeadline() {
+        let message = AttentionTestSupport.ask(id: "default-only", options: [], defaultOption: "Hold",
+            expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(-1)))
+        XCTAssertFalse(message.isDecision)
+        XCTAssertEqual(OverviewSnapshot(history: [message], live: nil, now: now).count(.completed), 0)
+    }
 }

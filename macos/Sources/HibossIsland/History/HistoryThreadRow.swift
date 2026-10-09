@@ -42,7 +42,7 @@ struct HistoryThreadRow: View {
             VStack(alignment: .leading, spacing: 12) {
                 header
                 ForEach(HistoryDetailLayout.sections(
-                    hasChoices: AnswerableDecisions.isDecision(message)), id: \.self) {
+                    hasChoices: message.isDecision), id: \.self) {
                     section($0)
                 }
             }

@@ -34,7 +34,7 @@ struct SessionContext {
         }
     }
     func replyTargetLabel(for message: HistoryMessage) -> String {
-        if AnswerableDecisions.isDecision(message), snapshot.answerability.state(for: message.id) == .open {
+        if message.isDecision, snapshot.answerability.state(for: message.id) == .open {
             return L("Custom answer to: \(message.body)")
         }
         let firstLine = message.body.components(separatedBy: .newlines).first ?? message.body

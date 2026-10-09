@@ -9,8 +9,9 @@ import HibossKit
 struct RequiredInputState: Equatable {
     var messages: [HistoryMessage] = []
     var ready = false
-    var loaded = false
+    var loaded = false // Retained until disconnect; refresh and stream readiness are independent.
     var failed = false
+    var refreshing = false
 
     var coverageComplete: Bool { ready && loaded && !failed }
 }
@@ -45,7 +46,6 @@ final class RequiredInputStore: ObservableObject {
         streamTask?.cancel()
         invalidateFetch()
         state.ready = false
-        state.failed = false
         let epoch = epoch
         streamTask = Task { [weak self] in
             await self?.consume(service, epoch: epoch)
@@ -68,6 +68,7 @@ final class RequiredInputStore: ObservableObject {
             return
         }
         invalidateFetch()
+        state.refreshing = true
         let epoch = epoch
         let version = fetchVersion
         fetchTask = Task { [weak self] in
@@ -80,6 +81,7 @@ final class RequiredInputStore: ObservableObject {
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
                 self.state.failed = true
+                self.state.refreshing = false
             }
         }
     }
@@ -88,7 +90,7 @@ final class RequiredInputStore: ObservableObject {
         fetchVersion += 1
         fetchTask?.cancel()
         fetchTask = nil
-        state.loaded = false
+        state.refreshing = false
     }
 
     private func apply(_ event: RequiredInputEvent) {
@@ -118,7 +120,7 @@ final class RequiredInputStore: ObservableObject {
                 }
             } catch {
                 guard !Task.isCancelled, self.epoch == epoch else { return }
-                state.failed = true
+                // A transport interruption preserves the last loaded list's authority.
             }
             guard !Task.isCancelled, self.epoch == epoch else { return }
             invalidateFetch()

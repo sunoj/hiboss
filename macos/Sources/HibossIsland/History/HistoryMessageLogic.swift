@@ -125,7 +125,7 @@ extension HistoryMessage {
     }
 
     func canAnswerHistory(at now: Date) -> Bool {
-        normalizedDirection == "agent_to_boss" && hasActiveHistoryOptions
+        isDecision && metadata?.isExpired != true
             && !isResolvedHistoryMessage && (expirationDate.map { $0 > now } ?? true)
     }
 
@@ -243,11 +243,6 @@ extension HistoryMessage {
         guard !terms.isEmpty else { return true }
         let haystack = searchableHistoryText.lowercased()
         return terms.allSatisfy { haystack.contains($0) }
-    }
-
-    private var hasActiveHistoryOptions: Bool {
-        guard metadata?.isExpired != true else { return false }
-        return options.contains { clean($0) != nil }
     }
 
     private var isResolvedHistoryMessage: Bool {

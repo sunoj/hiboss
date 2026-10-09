@@ -189,6 +189,7 @@ actor ControlledRequiredInputs: RequiredInputServing {
     private var continuation: AsyncThrowingStream<RequiredInputEvent, Error>.Continuation?
     private var waits: [(CheckedContinuation<[HistoryMessage], Error>, [HistoryMessage])] = []
     private var fetchCount = 0
+    private var streamCount = 0
     private var blocked = false
     private var failing = false
 
@@ -198,7 +199,8 @@ actor ControlledRequiredInputs: RequiredInputServing {
     }
 
     func requiredInputStream() -> AsyncThrowingStream<RequiredInputEvent, Error> {
-        AsyncThrowingStream {
+        streamCount += 1
+        return AsyncThrowingStream {
             continuation = $0
             if sendsReady { $0.yield(.ready) }
         }
@@ -233,7 +235,9 @@ actor ControlledRequiredInputs: RequiredInputServing {
 
     func blockFetch() { blocked = true }
     func failFetch() { failing = true }
-    func finish() { continuation?.finish() }
+    func finish(failing: Bool = false) {
+        continuation?.finish(throwing: failing ? TestError.rejected : nil)
+    }
 
     func waitForFetch(count: Int) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(2))
@@ -243,9 +247,9 @@ actor ControlledRequiredInputs: RequiredInputServing {
         }
     }
 
-    func waitForStream() async throws {
+    func waitForStream(count: Int = 1) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while continuation == nil {
+        while streamCount < count {
             guard ContinuousClock.now < deadline else { throw TestError.timeout }
             try await Task.sleep(for: .milliseconds(10))
         }
