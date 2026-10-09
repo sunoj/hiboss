@@ -169,8 +169,11 @@ Only the server's required-input list can make a decision open; history adds con
 
 **Answerable rule (every surface, every entry point):** a decision's options and custom
 reply are enabled only while its id is in the loaded required-input list. Before the
-list has loaded, they show "Checking…" disabled; after it drops the id, the message
+list has loaded for the first time since sign-in (or after an account switch or a
+coverage failure), they show "Checking…" disabled; while a later refresh or reconnect
+runs, the last loaded list stays in charge and nothing flips to "Checking…"; after it drops the id, the message
 shows its outcome (or "No longer open") instead of controls. This covers Today, the
 decision detail, session threads, All messages / history, notification detail, the
 Live Activity and the notch Island. Counts and labels read "Loading" until the list
-loads, never 0.
+first loads, never 0. What counts as a decision is HibossKit's `HistoryMessage.isDecision`
+(the server's open-list shape); neither app defines its own.
