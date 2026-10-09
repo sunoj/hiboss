@@ -8,6 +8,68 @@ import XCTest
 
 @MainActor
 final class SessionsV4Tests: XCTestCase {
+    func testReplyTargetLabelsDistinguishOrdinaryMessagesAndOpenDecisions() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        let ordinary = replyMessage("ordinary", body: "First line\nSecond line")
+        let decision = replyMessage("decision", body: "Which path?", options: ["A", "B"])
+        store.history = [ordinary, decision]
+        store.requiredInputs = [decision]
+        let targets = SessionReplyTarget.eligible(events: replyEvents([ordinary, decision]), store: store)
+        XCTAssertEqual(targets.map(\.label), ["Replying to: First line", "Custom answer to: Which path?"])
+    }
+
+    func testNewerMessageDoesNotRetargetDraftUntilExplicitlySelected() throws {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        let messages = [replyMessage("first", body: "First"), replyMessage("newer", body: "Newer")]
+        let targets = SessionReplyTarget.eligible(events: replyEvents(messages), store: store)
+        var draft = SessionReplyDraft()
+        draft.update("My answer", targets: Array(targets.prefix(1)))
+        XCTAssertEqual(draft.target(in: targets)?.id, "first")
+        XCTAssertEqual(draft.newer(in: targets)?.id, "newer")
+        draft.select(try XCTUnwrap(draft.newer(in: targets)))
+        XCTAssertEqual(draft.target(in: targets)?.id, "newer")
+        XCTAssertEqual(draft.text, "My answer")
+        draft.update("", targets: targets)
+        XCTAssertNil(draft.pinned)
+        XCTAssertEqual(draft.target(in: targets)?.id, "newer")
+    }
+
+    func testResolvedDecisionCannotBeTheNewestOrPinnedTarget() {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        let ordinary = replyMessage("ordinary", body: "Update")
+        let decision = replyMessage("decision", body: "Choose?", options: ["Yes", "No"])
+        let events = replyEvents([ordinary, decision])
+        store.history = [ordinary, decision]
+        store.requiredInputs = [decision]
+        var draft = SessionReplyDraft()
+        draft.update("Custom answer", targets: SessionReplyTarget.eligible(events: events, store: store))
+        store.requiredInputs = []
+        let targets = SessionReplyTarget.eligible(events: events, store: store)
+        XCTAssertEqual(targets.map(\.id), ["ordinary"])
+        XCTAssertNil(draft.target(in: targets))
+        XCTAssertEqual(draft.text, "Custom answer")
+        XCTAssertNil(draft.newer(in: targets), "an older message must not be offered as newer")
+        XCTAssertTrue(SessionReplyTarget.eligible(events: replyEvents([decision]), store: store).isEmpty)
+    }
+
+    func testBoxReferenceAlsoPinsTheReplyTarget() {
+        let target = SessionReplyTarget(id: "agent", sequence: 1, text: "Update", isDecision: false)
+        var draft = SessionReplyDraft()
+        draft.update("box:reference", targets: [target])
+        XCTAssertEqual(draft.pinned, target)
+    }
+
+    private func replyMessage(_ id: MessageID, body: String, options: [String] = []) -> HistoryMessage {
+        HistoryMessage(id: id, body: body, direction: "agent_to_boss", status: "delivered",
+                       priority: "normal", mode: options.isEmpty ? "async" : "blocking",
+                       metadata: MessageMetadata(options: options), createdAt: Date().ISO8601Format(),
+                       sessionId: "session")
+    }
+
+    private func replyEvents(_ messages: [HistoryMessage]) -> [SessionEvent] {
+        DemoSessionStream.events(for: "session", from: messages)
+    }
+
     func testMissingInventoryFactsStayMissing() async {
         let model = SessionFactsStore()
         await model.load(id: "session", api: InventoryAPI(fails: false))

@@ -24,9 +24,6 @@ struct SessionDecisionBubble: View {
                                       settlement: store.settlement(for: message.id))
                     .padding(.horizontal, 12)
                 if let settlement = store.settlement(for: message.id) { answered(settlement) }
-                if message.defaultOption != nil {
-                    DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id)
-                }
             }
         }
         .padding(.bottom, 8)

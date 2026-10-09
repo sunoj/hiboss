@@ -45,9 +45,11 @@ struct DecisionTimingView: View {
     let timing: DecisionTiming
     let messageID: MessageID
     var compact: Bool = false
+    var showsNoDeadline: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            if timing.deadline == nil && showsNoDeadline { Text("No deadline") }
             if let option = timing.declaredDefault {
                 TimelineView(.everyMinute) { context in
                     let time = timing.deadline.map { deadline in
@@ -64,7 +66,6 @@ struct DecisionTimingView: View {
                         Image(systemName: "hourglass")
                     }
                 }
-                if timing.expiresAt == nil { Text("No deadline") }
                 if let deadline = timing.expiresAt {
                     Label {
                         Text("Reply by \(deadline.formatted(date: .abbreviated, time: .shortened))")

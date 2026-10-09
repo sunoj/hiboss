@@ -14,7 +14,8 @@ final class TodayProjectionTests: XCTestCase {
         let store = InboxStore(decisionAlertsEnabled: false)
         let now = Date()
         store.history = [decision("priority", now: now), decision("withdrawn", now: now)]
-        store.requiredInputs = [decision("auto", now: now, deadline: now.addingTimeInterval(60))]
+        store.requiredInputs = [decision("auto", now: now, deadline: now.addingTimeInterval(60)),
+                                decision("priority", now: now)]
         store.withdrawn = ["withdrawn"]
         let today = store.todaySnapshot(now: now)
         XCTAssertEqual(today.decisions.map(\.id), ["auto", "priority"])
@@ -30,10 +31,22 @@ final class TodayProjectionTests: XCTestCase {
         let now = Date()
         store.requiredInputLoaded = true
         store.history = [decision("priority", now: now)]
-        store.requiredInputs = [decision("auto", now: now, deadline: now.addingTimeInterval(60))]
+        store.requiredInputs = [decision("auto", now: now, deadline: now.addingTimeInterval(60)),
+                                decision("priority", now: now)]
         await store.syncDecisionActivity()
         XCTAssertEqual(received.map(\.id), store.todaySnapshot(now: now).decisions.map(\.id))
         XCTAssertEqual(received.map(\.id), ["auto", "priority"])
+    }
+
+    func testHistoryOnlyDecisionCannotReopenOnTodayOrLiveActivity() async {
+        var received: [HistoryMessage] = []
+        let store = InboxStore(decisionActivitySync: { candidates, _ in received = candidates })
+        store.requiredInputLoaded = true
+        store.history = [decision("history-only", now: .now)]
+        XCTAssertTrue(store.todaySnapshot(now: .now).decisions.isEmpty)
+        XCTAssertTrue(store.todaySnapshot(now: .now).sessionDirectory.needsYou.isEmpty)
+        await store.syncDecisionActivity()
+        XCTAssertTrue(received.isEmpty)
     }
 
     func testCoverageOverrideDoesNotTurnAnOfflineSnapshotIntoAllClear() {

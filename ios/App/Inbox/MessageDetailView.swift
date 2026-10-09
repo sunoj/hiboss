@@ -158,9 +158,6 @@ struct MessageDetailView: View {
     private func resolvedDecision(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let settlement { ResolvedBanner(settlement: settlement, date: reply?.createdDate) }
-            if message.defaultOption != nil {
-                DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id)
-            }
             Text("Options").hbLabel().foregroundStyle(Theme.ink2)
             OptionMediaComparison(
                 options: message.options,
