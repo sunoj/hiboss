@@ -61,7 +61,8 @@ it('keeps scalar session fields beside project_ref on registration and both inve
     const data: unknown = await response.json();
     if (!isRecord(data) || !Array.isArray(data.sessions)) throw new Error('invalid sessions');
     expect(data.sessions).toContainEqual(expect.objectContaining({ id: 'wire-session', project_slug: 'session-repo',
-      project_id: expect.any(String), project_ref: { id: expect.any(String), slug: 'session-repo', display_name: 'session-repo' } }));
+      project_id: expect.any(String),
+      project_ref: { id: expect.any(String), slug: 'session-repo', display_name: 'session-repo', avatar_url: null } }));
   }
 });
 
