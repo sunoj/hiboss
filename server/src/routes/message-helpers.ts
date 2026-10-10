@@ -1,6 +1,7 @@
 // Helper functions for message route handlers: mapping, validation, and utilities.
 // This module re-exports functions from focused modules (queries, options).
 
+import { SESSION_NICKNAME_SQL } from './session-nickname';
 import type {
   Channel,
   Direction,
@@ -216,8 +217,10 @@ export async function inferSessionStatus(
     statusText = body.slice(0, 100);
   }
   await env.DB
-    .prepare("UPDATE sessions SET status = ?, status_text = ?, last_seen_at = datetime('now') WHERE id = ? AND agent_id = ?")
-    .bind(status, statusText, sessionId, agentId)
+    // Reviving a completed or stale session must not take a nickname a live peer now holds.
+    .prepare(`UPDATE sessions SET status = ?, status_text = ?, nickname = ${SESSION_NICKNAME_SQL},
+      last_seen_at = datetime('now') WHERE id = ? AND agent_id = ?`)
+    .bind(status, statusText, sessionId, null, null, sessionId, agentId)
     .run();
 }
 

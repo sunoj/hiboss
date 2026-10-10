@@ -35,10 +35,13 @@ export async function resolveSendTarget(
     targetAgentId: null, targetSessionId: null, direction: 'agent_to_boss',
     targetWarning: null, targetSession: null,
   };
-  const exact = await findExactSessionTarget(c.env.DB, toAgent, sessionId);
+  // An agent name always wins, so no label or nickname can redirect it; exact session
+  // names then beat id prefixes, which a short nickname could otherwise collide with.
+  const named = await c.env.DB.prepare('SELECT id FROM api_keys WHERE name = ?')
+    .bind(toAgent).first<{ id: string }>();
+  const exact = named ? null : await findExactSessionTarget(c.env.DB, toAgent, sessionId);
   if (exact) return sessionSendTarget(exact, toAgent);
-  const agentTarget = await c.env.DB.prepare('SELECT id FROM api_keys WHERE name = ?')
-    .bind(toAgent).first<{ id: string }>()
+  const agentTarget = named
     ?? await c.env.DB.prepare("SELECT id FROM api_keys WHERE id LIKE ? ESCAPE '\\' LIMIT 1")
       .bind(`${escapeLike(toAgent)}%`).first<{ id: string }>();
   if (agentTarget) return {

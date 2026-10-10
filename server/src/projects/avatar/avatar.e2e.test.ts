@@ -100,7 +100,7 @@ it('rejects any session agent outside the callers bosses without identifying tha
     const response = await put(project, { avatar_url });
     expect(response.status).toBe(409);
     expect(await response.text()).toBe(
-      'cannot set project avatar: project has a session from an agent outside your bosses',
+      'cannot set project avatar: project has data from an agent outside your bosses',
     );
   }
   expect(await stored(project)).toEqual(before);
@@ -176,13 +176,41 @@ it('keeps strict single-owner combined profile writes working and audits their a
   expect(await audits(project)).toHaveLength(1);
 });
 
-it('uses active admins as shared bosses without requiring explicit grants', async () => {
+it('does not count an active admin as a shared boss', async () => {
   const project = 'avatar-admin';
   await seedProject(project, [caller, outsider]);
   await env.DB.prepare("INSERT INTO bosses (id, name, role) VALUES ('avatar-admin', 'Avatar admin', 'admin')")
     .run();
-  expect((await put(project, { avatar_url: avatar })).status).toBe(200);
-  expect(await audits(project)).toHaveLength(1);
+  expect((await put(project, { avatar_url: avatar })).status).toBe(409);
+  expect(await stored(project)).toMatchObject({ avatar_url: priorAvatar });
+  expect(await audits(project)).toEqual([]);
+});
+
+it('counts the project creator and progress authors as participants', async () => {
+  const creatorProject = 'avatar-foreign-creator';
+  await seedProject(creatorProject, [caller]);
+  await env.DB.prepare('UPDATE projects SET created_by_agent_id = ? WHERE id = ?')
+    .bind(outsider, creatorProject).run();
+  const postProject = 'avatar-foreign-post';
+  await seedProject(postProject, [caller]);
+  await env.DB.prepare("INSERT INTO progress_posts (id, agent_id, project_id, body) VALUES ('avatar-post', ?, ?, 'x')")
+    .bind(outsider, postProject).run();
+  for (const project of [creatorProject, postProject]) {
+    expect((await put(project, { avatar_url: avatar })).status).toBe(409);
+    expect(await stored(project)).toMatchObject({ avatar_url: priorAvatar });
+  }
+});
+
+it('rejects a caller who registers a session on another boss project', async () => {
+  const project = 'avatar-joined';
+  await seedProject(project, [outsider]);
+  await env.DB.prepare('UPDATE projects SET created_by_agent_id = ? WHERE id = ?').bind(outsider, project).run();
+  const joined = await SELF.fetch('https://test.local/api/sessions', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: 'avatar-joined-caller', project }),
+  });
+  expect(joined.status).toBe(201);
+  expect((await put(project, { avatar_url: avatar })).status).toBe(409);
+  expect(await stored(project)).toMatchObject({ avatar_url: priorAvatar });
 });
 
 it('does not count archived admins or archived explicit grants as shared bosses', async () => {

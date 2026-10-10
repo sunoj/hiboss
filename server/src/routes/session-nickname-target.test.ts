@@ -4,6 +4,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
 import { authHeaders, seedDatabase } from '../test-helpers';
 import { hashApiKey } from '../middleware/auth';
+import { inferSessionStatus } from './message-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
@@ -28,30 +29,43 @@ async function send(to: string, sender: string | null): Promise<Response> {
   });
 }
 
-it('resolves an exact nickname in the sender project before agent names and label prefixes', async () => {
+it('resolves an exact nickname in the sender project before label and agent id prefixes', async () => {
   await session('nick-target-sender', 'palm');
-  await session('nick-target-peer', 'coral');
-  await session('nick-target-prefix', 'gull', 'nick-target-project', 'coral/main');
-  const response = await send('coral', 'nick-target-sender');
+  await session('nick-target-peer', 'nick');
+  await session('nick-target-prefix', 'gull', 'nick-target-project', 'nick/main');
+  const response = await send('nick', 'nick-target-sender');
   expect(response.status).toBe(201);
   const data = await response.json() as {
     id: string; target: { id: string; nickname: string; label: string };
   };
   expect(data.target).toEqual({
-    id: 'nick-target-peer', nickname: 'coral', label: 'nick-target-project/main',
+    id: 'nick-target-peer', nickname: 'nick', label: 'nick-target-project/main',
   });
   const stored = await env.DB.prepare('SELECT target_session_id, direction FROM messages WHERE id = ?')
     .bind(data.id).first();
   expect(stored).toEqual({ target_session_id: 'nick-target-peer', direction: 'agent_to_agent' });
 });
 
-it('lets an exact label win over both a nickname and an agent name', async () => {
-  await session('nick-label-sender', 'tide');
-  await session('nick-label-peer', 'reef', 'nick-target-project', 'coral');
-  const response = await send('coral', 'nick-label-sender');
+it('lets an agent name win over an exact label and a nickname from another agent', async () => {
+  await session('nick-name-sender', 'tide');
+  await session('nick-name-label', 'reef', 'nick-target-project', 'coral');
+  await session('nick-name-nickname', 'coral');
+  const response = await send('coral', 'nick-name-sender');
+  expect(response.status).toBe(201);
+  const data = await response.json() as { id: string };
+  const stored = await env.DB.prepare('SELECT target_agent_id, target_session_id FROM messages WHERE id = ?')
+    .bind(data.id).first();
+  expect(stored).toEqual({ target_agent_id: 'nick-target-agent', target_session_id: null });
+});
+
+it('lets an exact label win over a nickname', async () => {
+  await session('nick-label-sender', 'brine');
+  await session('nick-label-peer', 'kelp', 'nick-target-project', 'lantern');
+  await session('nick-label-nickname', 'lantern');
+  const response = await send('lantern', 'nick-label-sender');
   expect(response.status).toBe(201);
   const data = await response.json() as { target: { id: string; nickname: string } };
-  expect(data.target).toMatchObject({ id: 'nick-label-peer', nickname: 'reef' });
+  expect(data.target).toMatchObject({ id: 'nick-label-peer', nickname: 'kelp' });
 });
 
 it('resolves suffixes across agents and keeps idle peers deliverable with a warning', async () => {
@@ -89,4 +103,16 @@ it('does not resolve completed or more than 24-hour-old sessions by nickname', a
   for (const target of ['heron', 'tern']) {
     expect((await send(target, 'nick-inactive-sender')).status).toBe(404);
   }
+});
+
+it('gives a revived session a free nickname instead of a live peer name', async () => {
+  await session('nick-revive-holder', 'harbor');
+  await session('nick-revive-old', 'harbor');
+  await env.DB.prepare("UPDATE sessions SET status = 'completed' WHERE id = 'nick-revive-old'").run();
+  await inferSessionStatus(env, 'test-agent-id', 'nick-revive-old', 'async', 'normal', 'Back');
+  const rows = await env.DB.prepare(`SELECT id, nickname FROM sessions
+    WHERE id IN ('nick-revive-holder', 'nick-revive-old') ORDER BY id`).all();
+  expect(rows.results).toEqual([
+    { id: 'nick-revive-holder', nickname: 'harbor' }, { id: 'nick-revive-old', nickname: 'harbor-2' },
+  ]);
 });

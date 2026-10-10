@@ -74,7 +74,10 @@ impl HiBossClient {
             .patch(format!("{}/api/sessions/{}", self.base_url, id))
             .bearer_auth(&self.api_key);
         let mut body = serde_json::Map::new();
-        body.insert("nickname".into(), Value::String(crate::session::nickname_for_session(id)?));
+        // The nickname is best-effort: a local state failure must not fail the heartbeat.
+        if let Ok(nickname) = crate::session::nickname_for_session(id) {
+            body.insert("nickname".into(), Value::String(nickname));
+        }
         if let Some(s) = status {
             body.insert("status".into(), serde_json::Value::String(s.to_owned()));
         }
@@ -86,8 +89,9 @@ impl HiBossClient {
         }
         let resp = req.json(&body).send().await?;
         if resp.status().is_success() {
-            let accepted: Value = resp.json().await?;
-            crate::session::accept_session_nickname(id, &accepted)?;
+            if let Ok(accepted) = resp.json::<Value>().await {
+                let _ = crate::session::accept_session_nickname(id, &accepted);
+            }
         }
         Ok(())
     }

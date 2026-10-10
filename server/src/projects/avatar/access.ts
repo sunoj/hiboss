@@ -1,24 +1,29 @@
-// Authorizes avatar writes for project session participants with overlapping bosses.
-// Exports avatarAccessError; depends on D1 and the shared resolvedBosses policy.
-import { resolvedBosses } from '../../panels/access';
+// Authorizes avatar writes when every project participant, the caller included, shares an
+// explicit active boss grant with the caller. Admin visibility covers every agent, so it
+// never counts as shared. Exports avatarAccessError; depends on D1.
+
+const PARTICIPANTS_SQL = `SELECT ?2 AS agent_id
+  UNION SELECT agent_id FROM sessions WHERE project_id = ?1
+  UNION SELECT agent_id FROM progress_posts WHERE project_id = ?1
+  UNION SELECT created_by_agent_id FROM projects WHERE id = ?1 AND created_by_agent_id IS NOT NULL
+  UNION SELECT s.agent_id FROM destination_routes r JOIN sessions s ON s.id = r.session_id WHERE r.project_id = ?1`;
+
+const OUTSIDER_SQL = `SELECT 1 FROM (${PARTICIPANTS_SQL}) owners WHERE NOT EXISTS (
+    SELECT 1 FROM boss_agent_access mine
+    JOIN boss_agent_access theirs ON theirs.boss_id = mine.boss_id
+    JOIN bosses b ON b.id = mine.boss_id AND b.archived_at IS NULL
+    WHERE mine.agent_id = ?2 AND theirs.agent_id = owners.agent_id)
+  LIMIT 1`;
 
 export async function avatarAccessError(
   db: D1Database,
   projectId: string | null,
   agentId: string,
 ): Promise<string | null> {
-  const owners = await db.prepare('SELECT DISTINCT agent_id FROM sessions WHERE project_id = ?')
-    .bind(projectId).all<{ agent_id: string }>();
-  if (!owners.results.some(owner => owner.agent_id === agentId)) {
-    return 'cannot set project avatar: you have no session on this project';
-  }
-  const bosses = new Set((await resolvedBosses(db, agentId)).map(boss => boss.id));
-  for (const owner of owners.results) {
-    const ownerBosses = owner.agent_id === agentId
-      ? [...bosses] : (await resolvedBosses(db, owner.agent_id)).map(boss => boss.id);
-    if (!ownerBosses.some(id => bosses.has(id))) {
-      return 'cannot set project avatar: project has a session from an agent outside your bosses';
-    }
-  }
+  const session = await db.prepare('SELECT 1 FROM sessions WHERE project_id = ? AND agent_id = ? LIMIT 1')
+    .bind(projectId, agentId).first();
+  if (!session) return 'cannot set project avatar: you have no session on this project';
+  const outsider = await db.prepare(OUTSIDER_SQL).bind(projectId, agentId).first();
+  if (outsider) return 'cannot set project avatar: project has data from an agent outside your bosses';
   return null;
 }
