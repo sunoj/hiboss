@@ -62,12 +62,12 @@ final class BoxBrowserMedia: ObservableObject {
             try Task.checkCancellation()
             guard current == generation else { throw CancellationError() }
             if item.hasImageMedia {
-                guard let source = CGImageSourceCreateWithURL(file as CFURL, nil),
-                      let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 160,
-                    kCGImageSourceCreateThumbnailWithTransform: true
-                ] as CFDictionary) else { throw HibossAPIError.invalidResponse }
+                // Decoding a full-size image takes tens of milliseconds; keep it off the main actor.
+                guard let image = await Task.detached(priority: .userInitiated, operation: {
+                    Self.thumbnail(of: file)
+                }).value else { throw HibossAPIError.invalidResponse }
+                try Task.checkCancellation()
+                guard current == generation else { throw CancellationError() }
                 thumbnails[item.id] = NSImage(cgImage: image, size: .zero)
             }
             files[item.id] = file
@@ -78,5 +78,14 @@ final class BoxBrowserMedia: ObservableObject {
             if current == generation, !Task.isCancelled { errors[item.id] = error.localizedDescription }
             return nil
         }
+    }
+
+    nonisolated private static func thumbnail(of file: URL) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(file as CFURL, nil) else { return nil }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 160,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ] as CFDictionary)
     }
 }

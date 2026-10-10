@@ -22,15 +22,7 @@ enum TodayMessageRules {
     }
 
     static func createdDate(_ message: HistoryMessage) -> Date? {
-        ISODate.parse(message.createdAt) ?? plainDate(message.createdAt)
-    }
-
-    private static func plainDate(_ value: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return formatter.date(from: value)
+        ISODate.parse(message.createdAt)
     }
 
     /// Required inputs override history by ID; the last duplicate in each source wins.

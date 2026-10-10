@@ -1,6 +1,6 @@
-// Memoized ISO 8601 parsing for server timestamps read on every render.
+// Memoized parsing of server timestamps (ISO 8601 or SQLite UTC) read on every render.
 // Exports: ISODate.parse — each distinct string is parsed once per process.
-// Dependencies: Foundation (ISO8601DateFormatter is thread-safe; NSCache is too).
+// Dependencies: Foundation (date formatters parse thread-safely; NSCache is too).
 
 import Foundation
 
@@ -24,12 +24,21 @@ public enum ISODate {
         return formatter
     }()
 
-    /// Parses `2026-09-30T08:00:00Z` with or without fractional seconds.
+    nonisolated(unsafe) private static let sqlite: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
+
+    /// Parses `2026-09-30T08:00:00Z`, with or without fractional seconds, and SQLite's
+    /// `2026-09-30 08:00:00`, which the server stores in UTC.
     public static func parse(_ value: String?) -> Date? {
         guard let value, !value.isEmpty else { return nil }
         let key = value as NSString
         if let hit = cache.object(forKey: key) { return hit === invalid ? nil : hit as Date }
-        let parsed = whole.date(from: value) ?? fractional.date(from: value)
+        let parsed = whole.date(from: value) ?? fractional.date(from: value) ?? sqlite.date(from: value)
         cache.setObject(parsed.map { $0 as NSDate } ?? invalid, forKey: key)
         return parsed
     }

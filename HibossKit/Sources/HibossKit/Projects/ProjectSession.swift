@@ -30,12 +30,7 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
     }
 
     static func parseServerDate(_ text: String) -> Date? {
-        if let iso = ISODate.parse(text) { return iso }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return formatter.date(from: text)
+        ISODate.parse(text)
     }
 
     public var displayLabel: String {
