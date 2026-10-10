@@ -17,7 +17,8 @@ extension HibossAPI {
         guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
             throw HibossAPIError.invalidResponse
         }
-        components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        components.percentEncodedQuery = components.percentEncodedQuery?
+            .replacingOccurrences(of: "+", with: "%2B")
         guard let url = components.url else { throw HibossAPIError.invalidResponse }
         let (data, response) = try await session.data(for: authorizedRequest(url: url, method: "GET"))
         try validate(response)

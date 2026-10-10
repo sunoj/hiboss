@@ -149,7 +149,9 @@ final class HistoryCacheIntegrationTests: XCTestCase {
         let sync = HistorySync(api: CachedInboxAPI(config: config), cache: cache) { _, _ in }
         await sync.synchronize()
         await sync.stop()
-        let roots = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        let roots = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        )
         let root = try XCTUnwrap(roots.first)
         let files = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
         XCTAssertFalse(files.isEmpty)
@@ -160,7 +162,8 @@ final class HistoryCacheIntegrationTests: XCTestCase {
             XCTAssertEqual(attributes[.protectionKey] as? String,
                            FileProtectionType.completeUntilFirstUserAuthentication.rawValue)
             #endif
-            XCTAssertTrue(try file.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
+            let values = try file.resourceValues(forKeys: [.isExcludedFromBackupKey])
+            XCTAssertTrue(values.isExcludedFromBackup == true)
             XCTAssertFalse(try String(contentsOf: file, encoding: .utf8).contains(config.bossToken))
         }
         defaults.set(config.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
