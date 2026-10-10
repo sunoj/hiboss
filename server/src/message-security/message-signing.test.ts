@@ -97,6 +97,32 @@ describe('paired-device message signing', () => {
     expect(replay.status).toBe(200);
     expect((await replay.json() as { id: string }).id).toBe(firstMessage.id);
   });
+
+  it('returns the accepted signed answer after its blocking decision closes', async () => {
+    const parentId = `signed-decision-${crypto.randomUUID()}`;
+    await env.DB.prepare(
+      `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status)
+       VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Approve?', 'sent')`,
+    ).bind(parentId, getTestAgentId()).run();
+    const signedMessage = await signReply('Yes', crypto.randomUUID(), parentId);
+    const payload = { body: 'Yes', signed_message: signedMessage };
+    const first = await reply(payload, parentId);
+    expect(first.status).toBe(201);
+    const accepted = await first.json() as { id: string; body: string };
+    await env.DB.prepare("UPDATE messages SET expires_at = '2020-01-01T00:00:00Z', metadata = ? WHERE id = ?")
+      .bind(JSON.stringify({ options_expired: true }), parentId).run();
+
+    const retry = await reply(payload, parentId);
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toEqual(accepted);
+    const replies = await env.DB.prepare('SELECT id FROM messages WHERE reply_to = ?')
+      .bind(parentId).all<{ id: string }>();
+    expect(replies.results).toEqual([{ id: accepted.id }]);
+    const newAnswer = await signReply('Another answer', crypto.randomUUID(), parentId);
+    const rejected = await reply({ body: 'Another answer', signed_message: newAnswer }, parentId);
+    expect(rejected.status).toBe(409);
+    expect(await rejected.text()).toBe('decision no longer open');
+  });
 });
 
 async function pairSigningClient(): Promise<{
@@ -132,7 +158,7 @@ async function pairSigningClient(): Promise<{
   return { token: grant.token, signingKeyId: grant.signing_key_id, privateKey: keys.privateKey };
 }
 
-async function signReply(body: string, messageId: string): Promise<string> {
+async function signReply(body: string, messageId: string, parentId = PARENT_ID): Promise<string> {
   const header = base64Url(encoder.encode(JSON.stringify({
     alg: 'ES256', kid: signingKeyId, typ: 'hiboss-message+jws',
   })));
@@ -142,7 +168,7 @@ async function signReply(body: string, messageId: string): Promise<string> {
     message_id: messageId,
     issued_at: Math.floor(Date.now() / 1000),
     boss_id: bossId,
-    action: { kind: 'reply', message_id: PARENT_ID },
+    action: { kind: 'reply', message_id: parentId },
     body,
   })));
   const input = `${header}.${payload}`;
@@ -152,8 +178,8 @@ async function signReply(body: string, messageId: string): Promise<string> {
   return `${input}.${base64Url(new Uint8Array(signature))}`;
 }
 
-function reply(payload: Record<string, unknown>): Promise<Response> {
-  return SELF.fetch(`http://localhost/api/boss/messages/${PARENT_ID}/reply`, {
+function reply(payload: Record<string, unknown>, parentId = PARENT_ID): Promise<Response> {
+  return SELF.fetch(`http://localhost/api/boss/messages/${parentId}/reply`, {
     method: 'POST',
     headers: bossHeaders(signedToken),
     body: JSON.stringify(payload),

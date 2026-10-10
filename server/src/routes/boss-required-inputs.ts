@@ -3,6 +3,7 @@
 // Keeps a stable created_at/id keyset across pages.
 
 import type { Env, MessageResponse, MessageRow } from '../types';
+import { DECISION_MESSAGE_SQL, OPEN_DECISION_SQL } from '../decision-answerability';
 import { mapMessageRow } from './message-helpers';
 
 const PAGE_SIZE = 100;
@@ -41,17 +42,9 @@ export async function fetchRequiredInputPage(
      LEFT JOIN api_keys ON api_keys.id = messages.agent_id
      LEFT JOIN sessions ON sessions.id = messages.session_id
      WHERE messages.agent_id IN (${placeholders})
-       AND messages.direction = 'agent_to_boss'
-       AND messages.status IN ('sent', 'delivered', 'read')
-       AND (messages.expires_at IS NULL OR messages.expires_at > ?)
+       AND (${DECISION_MESSAGE_SQL})
+       AND (${OPEN_DECISION_SQL})
        AND NOT (messages.expires_at IS NULL AND julianday(messages.created_at) < julianday('now') - 1)
-       AND (CASE WHEN json_valid(messages.metadata)
-            THEN json_extract(messages.metadata, '$.options_expired') IS NOT 1
-            ELSE 1 END)
-       AND (CASE WHEN json_valid(messages.metadata)
-            THEN json_array_length(messages.metadata, '$.options') > 0
-            ELSE 0 END
-            OR messages.mode = 'blocking')
        ${keyset}
      ORDER BY messages.created_at DESC, messages.id DESC LIMIT ?`,
   ).bind(...binds, PAGE_SIZE + 1).all<MessageRow>();
