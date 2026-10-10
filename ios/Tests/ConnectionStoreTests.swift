@@ -149,7 +149,10 @@ final class HistoryCacheIntegrationTests: XCTestCase {
         let sync = HistorySync(api: CachedInboxAPI(config: config), cache: cache) { _, _ in }
         await sync.synchronize()
         await sync.stop()
-        let root = directory.appendingPathComponent(HistoryCacheKey(config: config).server)
+        let roots = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        )
+        let root = try XCTUnwrap(roots.first { $0.lastPathComponent != "active-account" })
         let files = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
         XCTAssertFalse(files.isEmpty)
         for file in files {
