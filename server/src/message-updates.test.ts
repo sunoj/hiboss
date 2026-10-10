@@ -47,6 +47,12 @@ async function timestamp(id: string): Promise<string> {
   return row.updated_at;
 }
 
+// Both sides use SQLite's fixed "YYYY-MM-DD HH:MM:SS" form, so string order is time order.
+async function expectMoved(id: string): Promise<void> {
+  const value = await timestamp(id);
+  expect(value > OLD, `${id} updated_at is ${value}`).toBe(true);
+}
+
 async function expectSendExpiryUpdate(): Promise<void> {
   for (const options of [undefined, ['Approve', 'Reject']]) {
     const response = await SELF.fetch('https://test.local/api/messages', {
@@ -59,7 +65,7 @@ async function expectSendExpiryUpdate(): Promise<void> {
     expect(response.status).toBe(201);
     const message = await response.json() as { id: string };
     if (options) {
-      expect(await timestamp(message.id)).toBeGreaterThan(OLD);
+      await expectMoved(message.id);
       const row = await env.DB.prepare('SELECT expires_at FROM messages WHERE id = ?')
         .bind(message.id).first<{ expires_at: string | null }>();
       expect(row?.expires_at).toBeTruthy();
@@ -76,7 +82,7 @@ describe('message update timestamps', () => {
       user_id: 'updates-discord-boss', channel_id: 'updates-discord-chat',
       message_id: 'updates-external', emoji: { id: null, name: '👍' },
     }, 'add')).toBe(true);
-    expect(await timestamp('updates-discord')).toBeGreaterThan(OLD);
+    await expectMoved('updates-discord');
 
     await insertMessage('updates-telegram', 'telegram', { telegram_message_id: 101 });
     const response = await SELF.fetch('https://test.local/api/webhooks/telegram', {
@@ -89,7 +95,7 @@ describe('message update timestamps', () => {
       } }),
     });
     expect(response.status).toBe(200);
-    expect(await timestamp('updates-telegram')).toBeGreaterThan(OLD);
+    await expectMoved('updates-telegram');
     await expectSendExpiryUpdate();
 
     await insertMessage('updates-scheduled');
@@ -98,7 +104,7 @@ describe('message update timestamps', () => {
         VALUES (?, ?, 'api', '{}', ?)`
     ).bind('updates-scheduled', getTestAgentId(), OLD).run();
     await handleScheduled(env);
-    expect(await timestamp('updates-scheduled')).toBeGreaterThan(OLD);
+    await expectMoved('updates-scheduled');
     expect(await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
       .bind('updates-scheduled').first()).toEqual({ status: 'delivered' });
   });
@@ -119,10 +125,10 @@ describe('message update timestamps', () => {
         .bind(OLD, 'updates-repeat').run();
       await env.DB.prepare(`UPDATE messages SET ${assignment} WHERE id = ?`).bind('updates-repeat').run();
       expect(await timestamp('updates-repeat')).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
-      expect(await timestamp('updates-repeat')).toBeGreaterThan(OLD);
+      await expectMoved('updates-repeat');
     }
     await env.DB.prepare('UPDATE messages SET body = body WHERE id = ?').bind('updates-repeat').run();
-    expect(await timestamp('updates-repeat')).toBeGreaterThan(OLD);
+    await expectMoved('updates-repeat');
   });
 
   it('indexes agent-scoped timestamp ranges', async () => {
