@@ -24,6 +24,21 @@ enum HistoryOptionSelection {
         if case .autoSelected = outcome { return "clock.arrow.circlepath" }
         return "checkmark.circle.fill"
     }
+
+    static func selectedMedia(in metadata: MessageMetadata?, outcome: ThreadOutcome) -> OptionMedia? {
+        metadata?.optionMedia.first { isSelected($0.label, outcome: outcome) }
+    }
+}
+
+struct HistoryChosenOptionImage: View {
+    let media: OptionMedia
+    @State private var showsImage = false
+
+    var body: some View {
+        OptionMediaPreview(media: media, openMedia: { showsImage = true })
+            .accessibilityIdentifier("history.chosen-option.image")
+            .popover(isPresented: $showsImage) { OptionMediaPopover(media: media) }
+    }
 }
 
 struct HistoryOptionGrid: View {

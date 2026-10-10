@@ -77,7 +77,12 @@ struct HistoryThreadRow: View {
         case .choices:
             if usesV4 {
                 if decision == nil || answerability.state(for: message.id) != .open {
-                    ResolvedBanner(thread: thread, outcome: answerability.outcome(for: thread, at: now))
+                    let outcome = answerability.outcome(for: thread, at: now)
+                    ResolvedBanner(thread: thread, outcome: outcome)
+                    if let media = HistoryOptionSelection.selectedMedia(
+                        in: message.metadata, outcome: outcome) {
+                        HistoryChosenOptionImage(media: media)
+                    }
                     DisclosureGroup(L("Decision options")) {
                         HistoryDecisionBlock(thread: thread,
                             reply: reply, answerability: answerability, onChoose: onChoose)

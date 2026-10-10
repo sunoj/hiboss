@@ -13,6 +13,12 @@ final class HistorySnapshotMediaServer {
         .appendingPathComponent("history-media-\(UUID().uuidString)", isDirectory: true)
     private(set) var baseURL = ""
 
+    var requestedPaths: [String] {
+        let file = directory.appendingPathComponent("requests")
+        return ((try? String(contentsOf: file, encoding: .utf8)) ?? "")
+            .split(separator: "\n").map(String.init)
+    }
+
     func start() async throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         for (name, symbol) in [("ship", "paperplane"), ("hold", "pause.circle")] {
@@ -30,6 +36,10 @@ final class HistorySnapshotMediaServer {
         os.chdir(sys.argv[1])
         class Handler(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *args): pass
+            def do_GET(self):
+                with open('requests', 'a') as requests:
+                    requests.write(self.path + '\\n')
+                super().do_GET()
         server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         pathlib.Path('port').write_text(str(server.server_port))
         server.serve_forever()

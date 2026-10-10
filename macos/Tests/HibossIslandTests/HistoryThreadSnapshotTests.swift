@@ -32,9 +32,32 @@ final class HistoryThreadSnapshotTests: XCTestCase {
         }
     }
 
-    private func renderNative(_ thread: MessageThread, scheme: ColorScheme) async throws -> NSBitmapImageRep {
+    func testChosenImageRemainsVisibleWithDecisionOptionsCollapsed() async throws {
+        _ = NSApplication.shared
+        let media = HistorySnapshotMediaServer()
+        defer { media.stop() }
+        try await media.start()
+        imageBaseURL = media.baseURL
+        for automatic in [false, true] {
+            let thread = MessageThread(message: question(images: true),
+                replies: [answer("Ship", automatic: automatic)])
+            for scheme in [ColorScheme.light, .dark] {
+                let bitmap = try await renderNative(thread, scheme: scheme, usesV4: true)
+                XCTAssertGreaterThan(bitmap.pixelsHigh, 180)
+                let name = automatic ? "v4-auto-selected-image" : "v4-chosen-image"
+                try write(bitmap, name: "\(name)-\(scheme == .light ? "light" : "dark")")
+            }
+        }
+        XCTAssertFalse(media.requestedPaths.isEmpty)
+        XCTAssertTrue(media.requestedPaths.allSatisfy { $0 == "/ship.png" },
+            "Collapsed decision options must not load the unchosen image")
+    }
+
+    private func renderNative(
+        _ thread: MessageThread, scheme: ColorScheme, usesV4: Bool = false
+    ) async throws -> NSBitmapImageRep {
         let host = NSHostingView(rootView:
-            HistoryThreadRow(thread: thread,
+            HistoryThreadRow(thread: thread, usesV4: usesV4,
                 answerability: AnswerableDecisions(isLoaded: true,
                     openIDs: thread.outcome == .open ? [thread.id] : []), reply: AttentionReplyState(),
                 isExpanded: .constant(true), isSearching: false, onCollapse: {}, onChoose: { _ in nil })
@@ -53,18 +76,19 @@ final class HistoryThreadSnapshotTests: XCTestCase {
             "Native host height for \(thread.id): \(host.bounds) / \(host.fittingSize)")
         host.layoutSubtreeIfNeeded()
         if !(thread.message.metadata?.optionMedia.isEmpty ?? true) {
-            try await waitForCondition { self.thumbnailLoaded(host) }
+            let point = CGPoint(x: 120, y: usesV4 ? 170 : 130)
+            try await waitForCondition { self.thumbnailLoaded(host, at: point) }
         }
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         return bitmap
     }
 
-    private func thumbnailLoaded(_ host: NSView) -> Bool {
+    private func thumbnailLoaded(_ host: NSView, at point: CGPoint) -> Bool {
         guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return false }
         host.cacheDisplay(in: host.bounds, to: bitmap)
         let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
-        guard let color = bitmap.colorAt(x: Int(120 * scale), y: Int(130 * scale))?
+        guard let color = bitmap.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))?
             .usingColorSpace(.deviceRGB) else { return false }
         let components = [color.redComponent, color.greenComponent, color.blueComponent]
         return (components.max() ?? 0) - (components.min() ?? 0) > 0.1

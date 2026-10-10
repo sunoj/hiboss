@@ -74,22 +74,7 @@ struct OptionMediaPreview: View {
     var body: some View {
         VStack(spacing: 4) {
             Button(action: openMedia) {
-                AsyncImage(url: URL(string: media.url)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFit()
-                    case .failure:
-                        Image(systemName: "photo.badge.exclamationmark")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                    case .empty:
-                        ProgressView()
-                    @unknown default:
-                        Image(systemName: "photo")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                OptionMediaImage(url: media.url, maxPixelSize: 264)
                 .frame(width: 132, height: 96)
                 .background(Color(nsColor: .controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -120,18 +105,7 @@ struct OptionMediaPopover: View {
                 Button(L("Close"), systemImage: "xmark") { dismiss() }
                     .labelStyle(.iconOnly).keyboardShortcut(.cancelAction)
             }
-            AsyncImage(url: URL(string: media.url)) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFit().onTapGesture { }
-                case .failure:
-                    ContentUnavailableView(L("Image unavailable"), systemImage: "photo.badge.exclamationmark")
-                case .empty:
-                    ProgressView()
-                @unknown default:
-                    ContentUnavailableView(L("Image unavailable"), systemImage: "photo")
-                }
-            }
+            OptionMediaImage(url: media.url).onTapGesture { }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if let caption = media.caption, !caption.isEmpty {
