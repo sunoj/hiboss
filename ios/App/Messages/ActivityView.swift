@@ -28,7 +28,7 @@ struct ActivityView: View {
     }
 
     private var directory: SessionDirectory { store.todaySnapshot(now: .now).sessionDirectory }
-    private var isEmpty: Bool {
+    private func isEmpty(_ directory: SessionDirectory) -> Bool {
         ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSIONS_EMPTY"] == "1"
             || (directory.needsYou + directory.working + directory.idle).isEmpty
     }
@@ -95,10 +95,12 @@ struct ActivityView: View {
     }
 
     private var sessions: some View {
-        ListStateView(
+        // Built once per redraw: every access rebuilds the whole Today projection.
+        let directory = self.directory
+        return ListStateView(
             isLoading: !store.didLoad || store.isRefreshing,
             error: store.loadError,
-            isEmpty: isEmpty,
+            isEmpty: isEmpty(directory),
             emptyIcon: "square.stack.3d.up",
             emptyTitle: String(localized: "No sessions yet"),
             emptyDetail: String(localized: "Agent sessions appear here as they report in."),

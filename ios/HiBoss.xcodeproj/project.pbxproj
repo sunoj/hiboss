@@ -69,6 +69,7 @@
 		37861D435B5CF57FBC557ED4 /* IntermediateCaptureSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A527FBF330791F2D84A4F23 /* IntermediateCaptureSupport.swift */; };
 		378F3465844A2E1089A6C2EA /* NotificationDeepLinkUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4DF74B50F6D1F70BD328B16 /* NotificationDeepLinkUITests.swift */; };
 		38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE62ABDE04F54AE003C1D74 /* AppRouter.swift */; };
+		3C296CE199636D84EC588519 /* AnswerabilityFastPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F65358EB01C7805F4FEEB8 /* AnswerabilityFastPathTests.swift */; };
 		3C3FC4C23667F4F8D7FC5909 /* TodayResults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 257429A0FDD77E458DEA8B9E /* TodayResults.swift */; };
 		3DE96A602F86EB16504B8F54 /* HomeAttentionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A11D83C902A7BC3B219759 /* HomeAttentionModel.swift */; };
 		3FCF89BDA0AC54DA6CAA0F5D /* ShareAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2845A78923299CF45F436B28 /* ShareAttachment.swift */; };
@@ -401,6 +402,7 @@
 		488A2A9A408BE0ABBBFA91CD /* MessageThreadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageThreadingTests.swift; sourceTree = "<group>"; };
 		4959E2782A9B88AA27CA918D /* SettingsNotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNotificationsView.swift; sourceTree = "<group>"; };
 		49AF9F5AB37A0856FDD25899 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
+		49F65358EB01C7805F4FEEB8 /* AnswerabilityFastPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnswerabilityFastPathTests.swift; sourceTree = "<group>"; };
 		4AF11BA88743C4696BE600E0 /* ResolvedDecisionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedDecisionsView.swift; sourceTree = "<group>"; };
 		4B517EF4CD2BE1123C37FC62 /* ResolvedBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedBanner.swift; sourceTree = "<group>"; };
 		4BE1C8259B39600A8E58A4CD /* HomePanelWall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePanelWall.swift; sourceTree = "<group>"; };
@@ -1047,6 +1049,7 @@
 			isa = PBXGroup;
 			children = (
 				8D3E62FC93D8B4ADDA9829BA /* AllClearIslandTests.swift */,
+				49F65358EB01C7805F4FEEB8 /* AnswerabilityFastPathTests.swift */,
 				471CAA9949B66AE278EA06AF /* BossTokenMigrationTests.swift */,
 				A224928860A6D96C2C77222C /* BoxAPITests.swift */,
 				B0DD34EE7E837D0DCA85E1B4 /* BoxModelTests.swift */,
@@ -1364,6 +1367,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9E5A10D3CCD98170A42802E /* AllClearIslandTests.swift in Sources */,
+				3C296CE199636D84EC588519 /* AnswerabilityFastPathTests.swift in Sources */,
 				CE39167756EF8390DB11F01C /* BossTokenMigrationTests.swift in Sources */,
 				FC63664F1944B11D34A7AEC9 /* BoxAPITests.swift in Sources */,
 				C8E26439880113B1E3F5E8ED /* BoxModelTests.swift in Sources */,

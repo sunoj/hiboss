@@ -6,10 +6,14 @@ import Foundation
 import HibossKit
 
 extension InboxStore {
+    /// Called per row and per redraw, so it never builds the whole Today snapshot: only this
+    /// message's entry in the server's open list goes through the shared ranking rule, which
+    /// classifies each message on its own, so the answer equals membership in `decisions`.
     func answerability(for id: MessageID, now: Date = .now) -> DecisionAnswerability {
         let resolved = settlement(for: id) != nil ? withdrawn.union([id]) : withdrawn
-        return DecisionAnswerability(id: id, openIDs: Set(todaySnapshot(now: now).decisions.map(\.id)),
-                                    loaded: requiredInputLoaded, withdrawn: resolved)
+        let candidate = requiredInputs.last { $0.id == id }.map { [$0] } ?? []
+        let open = resolved.contains(id) ? [] : AttentionModel.items(from: candidate, now: now).map(\.id)
+        return DecisionAnswerability(id: id, openIDs: Set(open), loaded: requiredInputLoaded, withdrawn: resolved)
     }
 
     func todaySnapshot(now: Date, coverageComplete: Bool? = nil) -> TodaySnapshot {
