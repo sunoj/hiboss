@@ -17,8 +17,7 @@ export async function mapSessionList(db: D1Database, rows: ListedSession[]) {
   const [agents, projects] = await Promise.all([
     db.prepare('SELECT id, name FROM api_keys WHERE id IN (SELECT value FROM json_each(?))')
       .bind(JSON.stringify(agentIds)).all<{ id: string; name: string }>(),
-    db.prepare(`SELECT id, slug, display_name, avatar_url FROM projects
-      WHERE id IN (SELECT value FROM json_each(?))`)
+    db.prepare('SELECT id, slug, display_name, avatar_url FROM projects WHERE id IN (SELECT value FROM json_each(?))')
       .bind(JSON.stringify(projectIds))
       .all<{ id: string; slug: string; display_name: string; avatar_url: string | null }>(),
   ]);
