@@ -81,6 +81,9 @@ struct RootView: View {
                     preferences: preferences,
                     progress: progress
                 )
+                .modifier(ProjectInventoryModifier(api: inbox.api as? any SessionsServing,
+                                                   refreshRequested: inbox.isRefreshing))
+                .id(BoxStore.connectionIdentity(connection.config))
             } else if connection.isRestoring {
                 restoringView
             } else {

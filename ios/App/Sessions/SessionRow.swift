@@ -13,19 +13,17 @@ extension TodaySession {
 
 struct SessionRow: View {
     let session: TodaySession
-    let tint: Color
-    let fill: Color
+    @Environment(\.projectSessions) private var inventory
     @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var identity: ProjectSession? { inventory.first { $0.id == session.id } }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(verbatim: String(session.localizedLabel.prefix(2)).uppercased())
-                .font(.footnote.bold()).foregroundStyle(tint)
-                .frame(width: 44, height: 44)
-                .background(fill, in: RoundedRectangle(cornerRadius: 12))
+            ProjectAvatarView(project: identity?.avatarProject ?? .fallback(session.localizedLabel), size: 44)
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: [session.localizedLabel, session.branch].compactMap { $0 }
-                    .joined(separator: " / ")).font(.headline)
+                Text(verbatim: identity?.namedLabel ?? [session.localizedLabel, session.branch]
+                    .compactMap { $0 }.joined(separator: " / ")).font(.headline)
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                 if let agent = session.agentName {

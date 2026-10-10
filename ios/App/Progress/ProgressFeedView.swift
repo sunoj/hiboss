@@ -75,14 +75,22 @@ struct ProgressFeedView: View {
                 Picker("Project", selection: projectFilter) {
                     Text("All projects").tag(nil as String?)
                     ForEach(store.projects) { item in
-                        Text("\(item.slug) (\(item.count))").tag(item.slug as String?)
+                        HStack {
+                            ProjectAvatarView(project: item.projectIdentity, size: 24)
+                            Text("\(item.slug) (\(item.count))")
+                        }.tag(item.slug as String?)
                     }
                 }
             } label: {
                 Label {
                     Text(verbatim: store.selectedProject ?? String(localized: "All projects"))
                 } icon: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
+                    if let slug = store.selectedProject {
+                        ProjectAvatarView(project: store.projects.first { $0.slug == slug }?.projectIdentity
+                                          ?? .fallback(slug), size: 24)
+                    } else {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
                 }
             }
             .accessibilityLabel("Filter by project")

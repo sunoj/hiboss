@@ -16,6 +16,8 @@ struct ActivityView: View {
     @ObservedObject var connection: ConnectionStore
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    @Environment(\.projectSessions) private var inventory
+
     @State private var search = ""
 
     private var matchingMessages: [HistoryMessage] {
@@ -70,16 +72,17 @@ struct ActivityView: View {
     }
 
     private func sessionSection(
-        _ title: Text, sessions: [TodaySession], tint: Color, fill: Color
+        _ title: Text, sessions: [TodaySession]
     ) -> some View {
-        let matches = sessions.filter {
-            search.isEmpty || [$0.localizedLabel, $0.branch, $0.agentName, $0.statusText]
+        let matches = sessions.filter { session in
+            search.isEmpty || [session.localizedLabel, session.branch, session.agentName, session.statusText,
+                inventory.first { $0.id == session.id }?.nickname]
                 .compactMap { $0 }.joined(separator: " ").localizedCaseInsensitiveContains(search)
         }
         return Section {
             ForEach(matches) { session in
                 NavigationLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
-                    SessionRow(session: session, tint: tint, fill: fill)
+                    SessionRow(session: session)
                 }
                 .accessibilityIdentifier("activity-session-\(session.id)")
                 .accessibilityHint("Opens the session")
@@ -100,11 +103,9 @@ struct ActivityView: View {
             onRetry: { await store.refresh() }
         ) {
             List {
-                sessionSection(Text("Needs you"), sessions: directory.needsYou, tint: Theme.warn,
-                               fill: Theme.signalSoft)
-                sessionSection(Text("Working"), sessions: directory.working, tint: Theme.live,
-                               fill: Theme.liveSoft)
-                sessionSection(Text("Idle"), sessions: directory.idle, tint: Theme.ink2, fill: Theme.surface2)
+                sessionSection(Text("Needs you"), sessions: directory.needsYou)
+                sessionSection(Text("Working"), sessions: directory.working)
+                sessionSection(Text("Idle"), sessions: directory.idle)
                 if !search.isEmpty {
                     Section("Messages") {
                         ForEach(matchingMessages) { message in

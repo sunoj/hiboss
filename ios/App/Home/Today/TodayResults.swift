@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct TodayResults: View {
+    @Environment(\.projectSessions) private var inventory
     let snapshot: TodaySnapshot
 
     var body: some View {
@@ -41,12 +42,11 @@ struct TodayResults: View {
 
     private func sessionRow(_ session: TodaySession) -> some View {
         HStack(spacing: 12) {
-            Text(verbatim: String(session.projectLabel.prefix(2)).uppercased())
-                .font(.footnote.bold()).foregroundStyle(Theme.live)
-                .frame(width: 40, height: 40)
-                .background(Theme.liveSoft, in: RoundedRectangle(cornerRadius: 10))
+            ProjectAvatarView(project: inventory.first { $0.id == session.id }?.avatarProject
+                              ?? .fallback(session.projectLabel), size: 40)
             VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: [session.projectLabel, session.branch, session.agentName]
+                Text(verbatim: [inventory.first { $0.id == session.id }?.namedLabel ?? session.projectLabel,
+                                session.branch, session.agentName]
                     .compactMap { $0 }.joined(separator: " · ")).font(.subheadline.bold())
                 Text(verbatim: session.statusText).font(.footnote).foregroundStyle(Theme.ink2)
                 if let date = session.lastActivityDate {
@@ -67,9 +67,16 @@ struct TodayResults: View {
             NavigationLink(value: message.id) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: message.body).font(.subheadline.weight(.semibold))
-                    Text(verbatim: [message.project, message.sessionBranch, message.displayName]
-                        .compactMap { $0 }.joined(separator: " · "))
-                        .font(.footnote).foregroundStyle(Theme.ink2)
+                    HStack(alignment: .top, spacing: 6) {
+                        ProjectAvatarView(project: inventory.first {
+                            $0.id == message.sessionId
+                        }?.avatarProject
+                                          ?? inventory.project(slug: message.project ?? ""), size: 24)
+                        Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel
+                                       ?? message.project, message.sessionBranch, message.displayName]
+                            .compactMap { $0 }.joined(separator: " · "))
+                            .font(.footnote).foregroundStyle(Theme.ink2)
+                    }
                     if let attachment = message.metadata?.attachment, attachment.kind == .file {
                         Text(verbatim: attachment.filename).font(.footnote).foregroundStyle(Theme.ink2)
                             .accessibilityIdentifier("today-delivered-filename")

@@ -44,7 +44,7 @@ struct SessionMessagesView: View {
             SessionReplyComposer(targets: SessionReplyTarget.eligible(events: stream.events, store: store),
                                  store: store)
         }
-        .navigationTitle(Text(verbatim: route.label))
+        .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { historyToolbar }
         .task(id: route.id) {
@@ -135,6 +135,13 @@ struct SessionMessagesView: View {
                     if let error = facts.error {
                         Text(verbatim: error).font(.footnote).foregroundStyle(Theme.ink2)
                         RetryButton { await facts.load(id: route.id, api: store.api as? any SessionsServing) }
+                    }
+                    if let current = facts.session {
+                        TimelineView(.periodic(from: .now, by: 60)) { context in
+                            ProjectPeersView(peers: RecentProjectPeers.all(
+                                current: current, sessions: facts.sessions, messages: store.history,
+                                now: context.date))
+                        }
                     }
                     if stream.hasEarlier {
                         earlierEvents

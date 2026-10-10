@@ -48,7 +48,8 @@ final class ProgressFeedStore: ObservableObject {
     static func groupProjects(_ rows: [ProgressProject]) -> [ProgressProject] {
         Dictionary(grouping: rows, by: \.slug).map { slug, projects in
             ProgressProject(project: slug, count: projects.reduce(0) { $0 + $1.count },
-                lastPostAt: projects.compactMap(\.lastPostAt).max(), agentId: "")
+                lastPostAt: projects.compactMap(\.lastPostAt).max(), agentId: "",
+                projectRef: projects.compactMap(\.projectRef).first)
         }.sorted { $0.slug < $1.slug }
     }
 
