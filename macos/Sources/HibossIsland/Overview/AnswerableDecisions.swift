@@ -12,10 +12,12 @@ enum DecisionAnswerState {
 struct AnswerableDecisions {
     let isLoaded: Bool
     let openIDs: Set<MessageID>
+    var closedIDs: Set<MessageID> = []
 
     static let loading = Self(isLoaded: false, openIDs: [])
 
     func state(for id: MessageID) -> DecisionAnswerState {
+        if closedIDs.contains(id) { return .closed }
         guard isLoaded else { return .checking }
         return openIDs.contains(id) ? .open : .closed
     }

@@ -9,7 +9,7 @@ import HibossKit
 struct RequiredInputState: Equatable {
     var messages: [HistoryMessage] = []
     var ready = false
-    var loaded = false // Retained until disconnect; refresh and stream readiness are independent.
+    var loaded = false // Retained for at most 30 seconds while the stream is down.
     var failed = false
     var refreshing = false
 
@@ -22,17 +22,22 @@ final class RequiredInputStore: ObservableObject {
     private var service: (any RequiredInputServing)?
     private var streamTask: Task<Void, Never>?
     private var fetchTask: Task<Void, Never>?
+    private var staleTask: Task<Void, Never>?
     private var epoch = 0
     private var fetchVersion = 0
     private let reconnectDelay: Duration
+    private let staleListDelay: Duration
 
-    init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
+    init(reconnectDelay: Duration = AppConstants.API.reconnectDelay,
+         staleListDelay: Duration = .seconds(30)) {
         self.reconnectDelay = reconnectDelay
+        self.staleListDelay = staleListDelay
     }
 
     deinit {
         streamTask?.cancel()
         fetchTask?.cancel()
+        staleTask?.cancel()
     }
 
     func connect(_ service: any RequiredInputServing) {
@@ -58,15 +63,12 @@ final class RequiredInputStore: ObservableObject {
         streamTask?.cancel()
         streamTask = nil
         service = nil
+        cancelStaleDeadline()
         state = RequiredInputState()
     }
 
     func refresh() {
         guard let service else { return }
-        guard state.ready else {
-            startStream(service)
-            return
-        }
         invalidateFetch()
         state.refreshing = true
         let epoch = epoch
@@ -77,6 +79,8 @@ final class RequiredInputStore: ObservableObject {
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
                 self.state = RequiredInputState(messages: messages, ready: self.state.ready, loaded: true)
+                self.cancelStaleDeadline()
+                if !self.state.ready { self.scheduleStaleDeadline() }
             } catch {
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
@@ -93,10 +97,28 @@ final class RequiredInputStore: ObservableObject {
         state.refreshing = false
     }
 
+    private func cancelStaleDeadline() {
+        staleTask?.cancel()
+        staleTask = nil
+    }
+
+    private func scheduleStaleDeadline() {
+        guard state.loaded, staleTask == nil else { return }
+        let delay = staleListDelay
+        staleTask = Task { [weak self] in
+            do { try await Task.sleep(for: delay) }
+            catch { return }
+            guard let self, !Task.isCancelled, !self.state.ready else { return }
+            self.state.loaded = false
+            self.staleTask = nil
+        }
+    }
+
     private func apply(_ event: RequiredInputEvent) {
         invalidateFetch()
         switch event {
         case .ready:
+            cancelStaleDeadline()
             state.ready = true
         case let .message(message):
             state.messages.removeAll { $0.id == message.id }
@@ -109,7 +131,6 @@ final class RequiredInputStore: ObservableObject {
 
     private func consume(_ service: any RequiredInputServing, epoch: Int) async {
         while !Task.isCancelled, self.epoch == epoch {
-            invalidateFetch()
             state.ready = false
             let stream = await service.requiredInputStream()
             guard !Task.isCancelled, self.epoch == epoch else { return }
@@ -120,11 +141,12 @@ final class RequiredInputStore: ObservableObject {
                 }
             } catch {
                 guard !Task.isCancelled, self.epoch == epoch else { return }
-                // A transport interruption preserves the last loaded list's authority.
+                // Transport errors and EOF share the same bounded stale-list authority.
             }
             guard !Task.isCancelled, self.epoch == epoch else { return }
             invalidateFetch()
             state.ready = false
+            scheduleStaleDeadline()
             do { try await Task.sleep(for: reconnectDelay) }
             catch { return }
         }

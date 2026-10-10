@@ -49,7 +49,7 @@ extension ReplyFeedback {
     /// a failure keeps the draft.
     var text: String {
         switch self {
-        case .alreadyResolved: L("That decision is no longer available.")
+        case .alreadyResolved: L("No longer open")
         case .failed: L("Reply failed. Your draft is saved. Try again.")
         }
     }
@@ -57,7 +57,7 @@ extension ReplyFeedback {
     /// Copy for a one-click choice, which has no draft to keep.
     var choiceText: String {
         switch self {
-        case .alreadyResolved: L("That decision is no longer available.")
+        case .alreadyResolved: L("No longer open")
         case .failed: L("Couldn't send your reply. Try again.")
         }
     }
