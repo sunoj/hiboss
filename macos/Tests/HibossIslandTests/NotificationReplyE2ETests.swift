@@ -25,7 +25,8 @@ final class NotificationReplyE2ETests: XCTestCase {
         XCTAssertNil(reply.drafts["q"])
         XCTAssertNil(reply.errors["q"])
         XCTAssertEqual(reply.drafts["other"], "Keep this draft")
-        XCTAssertEqual(flow.historyMessages.first { $0.id == "q" }?.status, "replied")
+        // The send returns before history refreshes; the server's status arrives in the background.
+        try await waitForCondition { flow.historyMessages.first { $0.id == "q" }?.status == "replied" }
     }
 
     func testClosedDecisionAndFailureKeepDraftsWithTypedFeedback() async throws {
