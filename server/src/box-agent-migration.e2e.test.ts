@@ -3,7 +3,7 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, beforeEach, expect, it } from 'vitest';
 import boxMigration from '../migrations/0050_box_items.sql?raw';
-import agentMigration from '../migrations/0051_box_item_agent.sql?raw';
+import agentMigration from '../migrations/0052_box_item_agent.sql?raw';
 import { OWNER, request } from './box-test-helpers';
 import { seedBossToken, seedDatabase } from './test-helpers';
 
@@ -12,7 +12,7 @@ beforeAll(async () => {
   await seedBossToken('Box Owner', 'viewer', OWNER, OWNER);
 });
 
-// Each case starts from the pre-0051 schema; storage persists across cases in this file.
+// Each case starts from the pre-0052 schema; storage persists across cases in this file.
 beforeEach(async () => {
   const drops = ['box_agent_idempotency', 'box_idempotency', 'box_items_fts', 'box_items'];
   await env.DB.batch(drops.map(table => env.DB.prepare(`DROP TABLE IF EXISTS ${table}`)));

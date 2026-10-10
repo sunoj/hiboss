@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0051; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0052; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -655,6 +655,12 @@ END;
 CREATE TRIGGER box_items_fts_delete AFTER DELETE ON box_items BEGIN
   DELETE FROM box_items_fts WHERE rowid = old.rowid;
 END;
+
+-- Bound each accessible agent's ordered page, including same-second messages.
+-- Keep the status index for selective filters and avoid indexing session heartbeats.
+CREATE INDEX idx_messages_agent_page ON messages(agent_id, created_at DESC, id DESC);
+CREATE INDEX idx_messages_boss_page ON messages(agent_id, created_at DESC, id DESC)
+  WHERE direction = 'agent_to_boss';
 CREATE TABLE box_agent_idempotency (
   boss_id TEXT NOT NULL REFERENCES bosses(id),
   agent_id TEXT NOT NULL REFERENCES api_keys(id),

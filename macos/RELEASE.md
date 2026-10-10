@@ -24,8 +24,10 @@ verifies each build's signature before installing, so the artifacts are public.
 
 3. **Deploy the server** so `/updates/macos/*` is live:
    ```sh
-   cd server && npx wrangler deploy
+   cd server && npm run deploy
    ```
+   This applies pending remote D1 migrations before publishing the Worker and
+   stops on migration failure. Dashboard queries require migration 0048's indexes.
 
 4. **Store notary credentials** (only needed to notarize; the profile name is
    what `NOTARY_PROFILE` refers to). The App Store Connect API key belongs to

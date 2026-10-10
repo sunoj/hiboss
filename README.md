@@ -54,9 +54,11 @@ cd server
 npx wrangler d1 create hiboss-db          # create the D1 database
 # Update wrangler.toml with the returned database_id
 npx wrangler r2 bucket create hiboss-attachments
-npx wrangler d1 migrations apply hiboss-db # apply all migrations
-npx wrangler deploy
+npm run deploy                          # apply remote D1 migrations, then deploy the Worker
 ```
+
+`npm run deploy` stops if a migration fails. Apply migrations before publishing
+the Worker: dashboard queries require the indexes created by migration 0048.
 
 ### 2. Build the CLI
 

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler d1 migrations apply hiboss-db --remote && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "db:init": "wrangler d1 execute hiboss-db --local --file=schema.sql",
     "test": "vitest run && vitest run --config scripts/schema.vitest.config.mts",

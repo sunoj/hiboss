@@ -11,6 +11,7 @@ import destinationMigration from '../migrations/0040_destinations.sql?raw';
 import clientMigration from '../migrations/0039_boss_clients.sql?raw';
 import projectSurfacesMigration from '../migrations/0044_project_surfaces.sql?raw';
 import bossArchiveMigration from '../migrations/0047_boss_archive.sql?raw';
+import dashboardListMigration from '../migrations/0051_dashboard_list_order.sql?raw';
 import agentKeysMigration from '../migrations/0045_agent_keys.sql?raw';
 import devicesMigration from '../migrations/0046_devices.sql?raw';
 import sessionIdentityMigration from '../migrations/0048_session_identity.sql?raw';
@@ -114,6 +115,9 @@ export async function seedDatabase(): Promise<void> {
   await env.DB.batch(identityStatements.map(sql => env.DB.prepare(sql)));
   const signinStatements = signinMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
   await env.DB.batch(signinStatements.map(sql => env.DB.prepare(sql)));
+  for (const sql of dashboardListMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean)) {
+    await env.DB.prepare(sql).run();
+  }
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)
