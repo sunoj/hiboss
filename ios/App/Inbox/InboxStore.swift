@@ -45,6 +45,7 @@ final class InboxStore: ObservableObject {
     let reconnectDelay: Duration
     private var streamTask: Task<Void, Never>?
     var historyTask: Task<Void, Never>?
+    var historySync: HistorySync?
     var historyVersion = 0
     var requiredStreamTask: Task<Void, Never>?
     var requiredFetchTask: Task<Void, Never>?
@@ -111,7 +112,9 @@ final class InboxStore: ObservableObject {
         connectionState = .connecting
         streamTask = Task { [weak self] in await self?.consume(api) }
         startRequiredInputs(api)
-        refreshHistory()
+        configureHistorySync(api)
+        requestHistorySync()
+        Task { await refreshRequiredInputs() }
     }
 
     func retryConnection() {
@@ -126,6 +129,8 @@ final class InboxStore: ObservableObject {
     func stop() {
         streamTask?.cancel()
         historyTask?.cancel()
+        if let historySync { Task { await historySync.stop() } }
+        historySync = nil
         historyVersion += 1
         stopRequiredInputs()
         streamTask = nil
@@ -208,14 +213,14 @@ final class InboxStore: ObservableObject {
     private func handle(_ event: BossEvent) {
         switch event {
         case .message:
-            refreshHistory()
+            requestHistorySync(debounced: true)
         case let .resolved(resolution):
             withdrawn.insert(resolution.id)
             settledIDs.insert(resolution.id)
             if let settled = DecisionSettlement(resolution: resolution) {
                 localResolutions[resolution.id] = settled
             }
-            refreshHistory()
+            requestHistorySync(debounced: true)
         }
     }
 

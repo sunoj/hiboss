@@ -30,9 +30,12 @@ final class ConnectionStore: ObservableObject {
     private let pairingRedeemer: PairingRedeemer
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private var messageSigner: SecureEnclaveMessageSigner?
+    private let historyCache: HistoryCache
+    var historyCacheDeletion: Task<Void, Never>?
 
     init(
         defaults: UserDefaults = .standard,
+        historyCache: HistoryCache = .shared,
         keychain: (any TokenStoring)? = nil,
         legacyKeychain: (any TokenRemoving)? = nil,
         sharedDefaults: UserDefaults? = UserDefaults(suiteName: ShareConnection.appGroup),
@@ -41,6 +44,7 @@ final class ConnectionStore: ObservableObject {
         clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
     ) {
         self.defaults = defaults
+        self.historyCache = historyCache
         self.keychain = keychain ?? KeychainStore(
             service: HiBossStore.keychainService, account: HiBossStore.keychainAccount,
             accessGroup: ShareConnection.sharedAccessGroup
@@ -178,6 +182,9 @@ final class ConnectionStore: ObservableObject {
     }
 
     func signOut() {
+        if let serverURL = config?.serverURL {
+            historyCacheDeletion = Task { try? await historyCache.delete(serverURL: serverURL) }
+        }
         try? legacyKeychain?.delete()
         try? keychain.write("")
         try? signerStore.delete()
