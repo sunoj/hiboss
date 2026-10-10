@@ -4,6 +4,7 @@
 
 import Foundation
 import Combine
+import OSLog
 import HibossKit
 
 @MainActor
@@ -57,6 +58,10 @@ final class OverviewStore: ObservableObject {
     }
 
     func setQuestionnaireCoverage(_ complete: Bool) {
+        if complete != questionnaireCoverageComplete {
+            Logger(subsystem: "ai.hiboss.island", category: "required-inputs")
+                .info("questionnaire coverage=\(complete, privacy: .public)")
+        }
         questionnaireCoverageComplete = complete
         update(history: history, live: live, health: health,
             coverageComplete: requiredCoverageComplete && complete, requiredInputs: requiredInputs,

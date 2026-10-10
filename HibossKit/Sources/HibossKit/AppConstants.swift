@@ -8,6 +8,10 @@ public enum AppConstants {
     public enum API {
         public static let reconnectDelay: Duration = .seconds(2)
         public static let requestTimeout: TimeInterval = 15
+        /// Idle timeout for server-sent event streams: three times the server's 15 s keepalive.
+        /// The keepalive is only checked after each 3 s poll, so gaps reach about 18 s and a
+        /// 15 s timeout dropped every quiet stream.
+        public static let streamIdleTimeout: TimeInterval = 45
         public static let notificationMessageTimeout: TimeInterval = 2
         public static let historyLimit = 100
         public static let notificationReadinessChecks = 20

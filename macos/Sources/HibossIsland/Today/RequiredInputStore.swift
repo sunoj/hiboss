@@ -5,6 +5,7 @@
 import Combine
 import Foundation
 import HibossKit
+import OSLog
 
 struct RequiredInputState: Equatable {
     var messages: [HistoryMessage] = []
@@ -18,7 +19,14 @@ struct RequiredInputState: Equatable {
 
 @MainActor
 final class RequiredInputStore: ObservableObject {
-    @Published private(set) var state = RequiredInputState()
+    private static let log = Logger(subsystem: "ai.hiboss.island", category: "required-inputs")
+    @Published private(set) var state = RequiredInputState() {
+        didSet {
+            guard oldValue.ready != state.ready || oldValue.loaded != state.loaded
+                || oldValue.failed != state.failed else { return }
+            Self.log.info("required-input state ready=\(self.state.ready, privacy: .public) loaded=\(self.state.loaded, privacy: .public) failed=\(self.state.failed, privacy: .public) count=\(self.state.messages.count, privacy: .public)")
+        }
+    }
     private var service: (any RequiredInputServing)?
     private var streamTask: Task<Void, Never>?
     private var fetchTask: Task<Void, Never>?
@@ -89,6 +97,7 @@ final class RequiredInputStore: ObservableObject {
                 self.cancelStaleDeadline()
                 if !self.state.ready { self.scheduleStaleDeadline() }
             } catch {
+                Self.log.error("required-input fetch failed: \(String(describing: error), privacy: .public)")
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
                 self.state.failed = true
@@ -170,6 +179,7 @@ final class RequiredInputStore: ObservableObject {
                     apply(event)
                 }
             } catch {
+                Self.log.error("required-input stream ended: \(String(describing: error), privacy: .public)")
                 guard !Task.isCancelled, self.epoch == epoch else { return }
                 // Transport errors and EOF share the same bounded stale-list authority.
             }

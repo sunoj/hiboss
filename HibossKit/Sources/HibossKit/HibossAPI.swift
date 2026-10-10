@@ -181,7 +181,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     ) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = AppConstants.API.requestTimeout
+        request.timeoutInterval = acceptsSSE ? AppConstants.API.streamIdleTimeout : AppConstants.API.requestTimeout
         request.setValue("Bearer \(config.bossToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if acceptsSSE {
