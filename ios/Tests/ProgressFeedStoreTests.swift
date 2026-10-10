@@ -29,6 +29,15 @@ final class ProgressFeedStoreTests: XCTestCase {
         XCTAssertNil(projects.last?.lastPostAt)
     }
 
+    func testProjectGroupingRetainsTheCanonicalAvatarIdentity() {
+        let identity = ProjectIdentity(id: "project-id", slug: "repo", displayName: "Repository",
+                                       avatarURL: URL(string: "https://example.com/avatar.png"))
+        let rows = [ProgressProject(project: "repo", count: 2, lastPostAt: nil, agentId: "a"),
+                    ProgressProject(project: "repo", count: 3, lastPostAt: nil, agentId: "b",
+                                    projectRef: identity)]
+        XCTAssertEqual(ProgressFeedStore.groupProjects(rows).first?.projectIdentity, identity)
+    }
+
     func testLoadMoreWaitsForRefreshAndKeepsTheReturnedCursor() async {
         let api = DelayedProgressAPI()
         let store = ProgressFeedStore()

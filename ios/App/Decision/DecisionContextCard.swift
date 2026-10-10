@@ -8,11 +8,17 @@ import SwiftUI
 struct DecisionProvenance: View {
     let message: HistoryMessage
     var session: ProjectSession?
+    @Environment(\.projectSessions) private var inventory
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(verbatim: session?.displayLabel ?? [message.sessionLabel, message.sessionBranch]
-                .compactMap { $0 }.joined(separator: " / ")).font(.subheadline.bold())
+            HStack(alignment: .top, spacing: 10) {
+                ProjectAvatarView(project: session?.avatarProject
+                                  ?? inventory.project(slug: message.project ?? message.sessionLabel ?? ""),
+                                  size: 32)
+                Text(verbatim: session?.namedLabel ?? [message.sessionLabel, message.sessionBranch]
+                    .compactMap { $0 }.joined(separator: " / ")).font(.subheadline.bold())
+            }
             HStack {
                 if let agent = message.agentName ?? session?.agentName { Text(verbatim: agent) }
                 if let host = session?.host?.trimmingCharacters(in: .whitespacesAndNewlines), !host.isEmpty {

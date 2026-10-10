@@ -55,10 +55,10 @@ final class SessionBubblesUITests: XCTestCase {
             "the answered decision shows its answer in place"
         )
         XCTAssertFalse(card.buttons["Approve"].exists, "options leave once answered")
-        XCTAssertTrue(
-            app.descendants(matching: .any)["transcript-answer-c0"].exists,
-            "an earlier decision shows the recorded answer"
-        )
+        let earlierAnswer = app.descendants(matching: .any)["transcript-answer-c0"]
+        for _ in 0..<8 where !earlierAnswer.exists || !earlierAnswer.isHittable { app.swipeDown() }
+        XCTAssertTrue(earlierAnswer.exists, "an earlier decision shows the recorded answer")
+        XCTAssertTrue(earlierAnswer.isHittable, "the earlier answer remains reachable in the transcript")
     }
 
     func testPendingDecisionUsesOneCardWithOptionsBeforeDefaultAndOnlyTheSessionComposer() {

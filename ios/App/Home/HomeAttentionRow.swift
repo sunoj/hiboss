@@ -200,12 +200,16 @@ struct DecisionCard<Header: View, Choices: View>: View {
 }
 
 struct DecisionCardInfo: View {
+    @Environment(\.projectSessions) private var inventory
     let message: HistoryMessage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: [project, message.sessionBranch, message.displayName]
+            HStack(alignment: .top) {
+                ProjectAvatarView(project: inventory.first { $0.id == message.sessionId }?.avatarProject
+                                  ?? inventory.project(slug: message.project ?? project), size: 24)
+                Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel ?? project,
+                                message.sessionBranch, message.displayName]
                         .compactMap { $0 }.joined(separator: " · "))
                     .font(.hbCaption.weight(.semibold))
                     .foregroundStyle(Theme.ink2)

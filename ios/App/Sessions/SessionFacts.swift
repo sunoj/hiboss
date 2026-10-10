@@ -12,6 +12,7 @@ extension ProjectSession {
 
 @MainActor
 final class SessionFactsStore: ObservableObject {
+    @Published private(set) var sessions: [ProjectSession] = []
     @Published private(set) var session: ProjectSession?
     @Published private(set) var error: String?
 
@@ -20,6 +21,7 @@ final class SessionFactsStore: ObservableObject {
         do {
             let sessions = try await api.projectSessions()
             guard !Task.isCancelled else { return }
+            self.sessions = sessions
             session = sessions.first { $0.id == id }
             error = nil
         } catch {
@@ -45,7 +47,10 @@ struct SessionFactsHeader: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: session.displayLabel).font(.title2.bold())
+            HStack(alignment: .top, spacing: 12) {
+                ProjectAvatarView(project: session.avatarProject, size: 40)
+                Text(verbatim: session.namedLabel).font(.title2.bold())
+            }
             HStack {
                 if let agent = clean(session.agentName) { Text(verbatim: agent) }
                 if let host = clean(session.host) { Label { Text(verbatim: host) } icon: {

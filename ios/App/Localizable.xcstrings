@@ -1,6 +1,18 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Recent peers": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Recent peers" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "最近活跃的会话" } }
+      }
+    },
+    "Show all": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Show all" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示全部" } }
+      }
+    },
     "Checking…": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Checking…" } },

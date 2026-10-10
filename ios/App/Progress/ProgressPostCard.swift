@@ -16,7 +16,7 @@ struct ProgressPostCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            ProgressTeamAvatar(urlString: post.team.avatarUrl)
+            ProjectAvatarView(project: post.projectIdentity, size: 40)
             VStack(alignment: .leading, spacing: 6) {
                 header
                 Text(verbatim: post.body)
@@ -58,6 +58,7 @@ struct ProgressPostCard: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 2) {
+            Text(verbatim: post.projectIdentity.displayName).font(.subheadline.bold())
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(verbatim: post.team.displayName)
                     .font(.headline)

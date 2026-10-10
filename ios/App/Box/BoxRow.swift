@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct BoxRow: View {
+    @Environment(\.projectSessions) private var inventory
     let item: BoxItem
     @ObservedObject var media: BoxMediaStore
 
@@ -35,7 +36,10 @@ struct BoxRow: View {
                 }
                 .font(.caption).foregroundStyle(Theme.ink2)
                 if let project = item.project {
-                    Text(verbatim: project).font(.caption).foregroundStyle(Theme.ink2)
+                    HStack(spacing: 6) {
+                        ProjectAvatarView(project: inventory.project(slug: project), size: 24)
+                        Text(verbatim: project).font(.caption).foregroundStyle(Theme.ink2)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
