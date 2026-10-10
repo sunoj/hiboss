@@ -243,7 +243,7 @@ struct MessageDetailView: View {
                 // Don't claim success: refresh re-renders into the resolved branch
                 // showing the answer that actually won.
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                actionNote = String(localized: "Already answered elsewhere — showing the recorded outcome.")
+                actionNote = String(localized: "No longer open")
             case .failed:
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
                 actionNote = store.replyFeedback[id] ?? store.loadError

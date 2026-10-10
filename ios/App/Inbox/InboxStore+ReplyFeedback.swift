@@ -53,7 +53,7 @@ extension InboxStore {
             return nil
         case .alreadyResolved:
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            return String(localized: "That decision was already answered elsewhere.")
+            return String(localized: "No longer open")
         case .failed:
             if let feedback = replyFeedback[id] { return feedback }
             UINotificationFeedbackGenerator().notificationOccurred(.error)

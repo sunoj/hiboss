@@ -97,7 +97,7 @@ struct SessionReplyComposer: View {
                 replyDraft = SessionReplyDraft()
                 note = String(localized: "Reply sent.")
             case .busy: break
-            case .alreadyResolved: note = String(localized: "That decision was already answered elsewhere.")
+            case .alreadyResolved: note = String(localized: "No longer open")
             case .failed:
                 note = store.replyFeedback[target.id]
                     ?? String(localized: "Couldn't send your reply — check your connection.")
