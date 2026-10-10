@@ -1,6 +1,6 @@
 // Checks Home's conservative coverage gate for missing panel data.
 // Exports HomePendingCoverageTests; empty cached requests cannot authorize all-clear.
-// Dependencies: XCTest, InboxStore, HomeView and the shared PanelsModel fixtures.
+// Dependencies: XCTest, InboxStore, HomeContent and the shared PanelsModel fixtures.
 
 import XCTest
 @testable import HiBoss
@@ -22,7 +22,8 @@ final class HomePendingCoverageTests: XCTestCase {
         panels.lastUpdated.removeAll()
         panels.hasCompleteQuestionnaires = true
         XCTAssertFalse(panels.tiles.isEmpty)
-        let home = HomeView(inbox: inbox, sessionAPI: nil, panels: panels)
+        let home = HomeContent(inbox: inbox, panels: panels, actionNote: .constant(nil), decisionID: .constant(nil),
+                               showingDecision: .constant(false), sessionRoute: .constant(nil))
         XCTAssertEqual(home.attentionStatus, "Waiting for: Panels.")
     }
 }

@@ -17,7 +17,9 @@ final class HomeAttentionFlowTests: XCTestCase {
         await inbox.refresh()
         let panels = PanelsModel(api: DemoHomePanelsAPI(), demoMode: false, autoload: false)
         panels.clockTask?.cancel()
-        let home = HomeView(inbox: inbox, sessionAPI: nil, panels: panels)
+        let home = HomeContent(inbox: inbox, panels: panels, actionNote: .constant(nil),
+                               decisionID: .constant(nil), showingDecision: .constant(false),
+                               sessionRoute: .constant(nil))
         await panels.load()
         XCTAssertTrue(inbox.hasCompleteRequiredInputs)
         XCTAssertNil(home.attentionStatus)

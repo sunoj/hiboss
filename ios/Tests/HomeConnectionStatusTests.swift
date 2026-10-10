@@ -1,5 +1,5 @@
 // Covers the connection gate that suppresses Home's all-clear illustration.
-// Exports: HomeConnectionStatusTests; complete fetch coverage is checked by HomeView.
+// Exports: HomeConnectionStatusTests; complete fetch coverage is checked by HomeContent.
 // Dependencies: XCTest, HiBoss and HibossKit ConnectionState.
 
 import HibossKit
