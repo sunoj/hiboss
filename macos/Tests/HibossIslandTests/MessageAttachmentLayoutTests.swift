@@ -7,6 +7,7 @@ import HibossKit
 import SwiftUI
 import Vision
 import XCTest
+import os
 @testable import HibossIsland
 
 @MainActor
@@ -31,7 +32,8 @@ final class MessageAttachmentLayoutTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(350))
             host.layoutSubtreeIfNeeded()
             let bitmap = try bitmap(host)
-            XCTAssertTrue(try recognizedText(bitmap).contains("report.pdf"), "Surface \(index)")
+            let text = try await recognizedText(bitmap)
+            XCTAssertTrue(text.contains("report.pdf"), "Surface \(index)")
             try write(bitmap, name: "attachment-file-\(index)")
         }
     }
@@ -58,7 +60,8 @@ final class MessageAttachmentLayoutTests: XCTestCase {
             }
             host.layoutSubtreeIfNeeded()
             let bitmap = try bitmap(host)
-            XCTAssertTrue(try recognizedText(bitmap).contains("ship.png"))
+            let text = try await recognizedText(bitmap)
+            XCTAssertTrue(text.contains("ship.png"))
             XCTAssertLessThanOrEqual(host.fittingSize.width, 300)
             XCTAssertLessThanOrEqual(host.fittingSize.height, 240)
             try write(bitmap, name: "attachment-image-\(appearance.rawValue)")
@@ -81,11 +84,28 @@ final class MessageAttachmentLayoutTests: XCTestCase {
         return bitmap
     }
 
-    private func recognizedText(_ bitmap: NSBitmapImageRep) throws -> String {
-        let request = VNRecognizeTextRequest()
+    /// Language correction reads the user's Contacts through contactsd, which never answers
+    /// inside a sandbox and blocked the suite; filenames need no correction. A blocked Vision
+    /// call cannot be cancelled, so the timeout resumes the test without it.
+    private func recognizedText(_ bitmap: NSBitmapImageRep) async throws -> String {
         let image = try XCTUnwrap(bitmap.cgImage)
-        try VNImageRequestHandler(cgImage: image).perform([request])
-        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+        return try await withCheckedThrowingContinuation { continuation in
+            let resumed = OSAllocatedUnfairLock(initialState: false)
+            let finish: @Sendable (Result<String, Error>) -> Void = { result in
+                let first = resumed.withLock { done in defer { done = true }; return !done }
+                if first { continuation.resume(with: result) }
+            }
+            DispatchQueue.global(qos: .userInitiated).async {
+                finish(Result {
+                    let request = VNRecognizeTextRequest()
+                    request.usesLanguageCorrection = false
+                    try VNImageRequestHandler(cgImage: image).perform([request])
+                    return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                        .joined(separator: " ")
+                })
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 30) { finish(.failure(OCRTimeout())) }
+        }
     }
 
     private func write(_ bitmap: NSBitmapImageRep, name: String) throws {
@@ -102,3 +122,5 @@ final class MessageAttachmentLayoutTests: XCTestCase {
             metadata: MessageMetadata(options: [], fileURL: fileURL), createdAt: "2026-10-09 10:00:00")
     }
 }
+
+private struct OCRTimeout: Error {}
