@@ -52,7 +52,13 @@ fn registration_saves_the_server_suffix_and_heartbeats_reuse_and_update_it() {
     assert_eq!(start.code, 0, "{}", start.stderr);
     assert!(!start.stderr.contains("registration failed"), "{}", start.stderr);
     let id = read(&dir.join("session"));
-    let stored: Value = serde_json::from_str(&read(&dir.join("nickname"))).expect("saved nickname");
+    let after_registration: Value =
+        serde_json::from_str(&read(&dir.join("nickname"))).expect("saved nickname");
+    for _ in 0..2 {
+        let update = fixture.run(&fixture.repo, &["ss", "set", "working"], SESSION_ENV);
+        assert_eq!(update.code, 0, "{}", update.stderr);
+    }
+    // `requests()` stops the mock server, so it is read once, after every call.
     let requests = http.requests();
     let registration = requests
         .iter()
@@ -60,12 +66,7 @@ fn registration_saves_the_server_suffix_and_heartbeats_reuse_and_update_it() {
         .expect("registration");
     let chosen = registration.body["nickname"].as_str().expect("chosen word");
     assert!((3..=12).contains(&chosen.len()) && chosen.bytes().all(|b| b.is_ascii_lowercase()));
-    assert_eq!(stored, json!({"id": id, "nickname": format!("{chosen}-2")}));
-    for _ in 0..2 {
-        let update = fixture.run(&fixture.repo, &["ss", "set", "working"], SESSION_ENV);
-        assert_eq!(update.code, 0, "{}", update.stderr);
-    }
-    let requests = http.requests();
+    assert_eq!(after_registration, json!({"id": id, "nickname": format!("{chosen}-2")}));
     let heartbeats: Vec<_> = requests.iter().filter(|r| r.method == "PATCH").collect();
     assert_eq!(heartbeats.len(), 2);
     assert_eq!(heartbeats[0].body["nickname"], format!("{chosen}-2"));
