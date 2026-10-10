@@ -15,21 +15,33 @@ public struct TodaySession: Identifiable, Equatable, Sendable {
     /// Nil when the session contains no parseable activity timestamp.
     public let lastActivityDate: Date?
     public let needsYou: Bool
+    /// The server's session heartbeat (`last_seen_at`), when the app has the inventory.
+    public var lastSeenDate: Date? = nil
 
-    /// Inclusive fifteen-minute window; explicit `working` status remains live at any age.
+    /// Inclusive fifteen-minute window for messages and heartbeats.
     public static let activityWindow: TimeInterval = 15 * 60
+    /// Without a heartbeat, a `working` status counts only this long after the last message,
+    /// so a status left behind by a session that went quiet days ago is not "working now".
+    public static let staleStatusWindow: TimeInterval = 2 * 60 * 60
 
     /// Future or malformed timestamps cannot establish recent activity.
     public func hasLiveWork(now: Date) -> Bool {
-        TodayMessageRules.statusWord(status) == "working"
-            || TodayMessageRules.isRecent(lastActivityDate, window: Self.activityWindow, now: now)
+        let recentMessage = TodayMessageRules.isRecent(lastActivityDate, window: Self.activityWindow, now: now)
+        guard TodayMessageRules.statusWord(status) == "working" else { return recentMessage }
+        if let lastSeenDate {
+            return recentMessage || TodayMessageRules.isRecent(lastSeenDate, window: Self.activityWindow, now: now)
+        }
+        return TodayMessageRules.isRecent(lastActivityDate, window: Self.staleStatusWindow, now: now)
     }
 
-    static func summaries(messages: [HistoryMessage], decisions: [AttentionItem]) -> [TodaySession] {
+    static func summaries(messages: [HistoryMessage], decisions: [AttentionItem],
+                          lastSeen: [String: Date] = [:]) -> [TodaySession] {
         let needsYou = Set(decisions.map { SessionGrouping.sessionKey(for: $0.message) })
         let buckets = Dictionary(grouping: messages, by: SessionGrouping.sessionKey(for:))
         return buckets.map { id, messages in
-            make(id: id, messages: messages, needsYou: needsYou.contains(id))
+            var session = make(id: id, messages: messages, needsYou: needsYou.contains(id))
+            session.lastSeenDate = lastSeen[id]
+            return session
         }.sorted {
             let left = $0.lastActivityDate ?? .distantPast
             let right = $1.lastActivityDate ?? .distantPast

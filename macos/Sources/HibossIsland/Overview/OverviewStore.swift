@@ -21,6 +21,7 @@ final class OverviewStore: ObservableObject {
     private var requiredInputs: [HistoryMessage] = []
     private var requiredInputLoaded = false
     private var closedDecisionIDs: Set<MessageID> = []
+    private var lastSeen: [String: Date] = [:]
 
     deinit { expirationTask?.cancel() }
 
@@ -37,6 +38,9 @@ final class OverviewStore: ObservableObject {
 
     func bind(flow: OptionFlowStore, requiredInputs: AnyPublisher<RequiredInputState, Never>) {
         cancellables.removeAll()
+        flow.$projectSessions
+            .sink { [weak self] sessions in self?.setHeartbeats(sessions) }
+            .store(in: &cancellables)
         Publishers.CombineLatest3(
             Publishers.CombineLatest3(flow.$historyMessages, flow.$activeMessage, flow.$replyFeedback),
             Publishers.CombineLatest(flow.$connectionState, flow.$historyState),
@@ -54,6 +58,17 @@ final class OverviewStore: ObservableObject {
                 closedDecisionIDs: Set(messages.2.compactMap { $0.value == .alreadyResolved ? $0.key : nil }))
         }
         .store(in: &cancellables)
+    }
+
+    /// Session heartbeats decide whether a "working" status is still working now.
+    func setHeartbeats(_ sessions: [ProjectSession]) {
+        let map = ProjectSession.heartbeats(sessions)
+        guard map != lastSeen else { return }
+        lastSeen = map
+        snapshot = OverviewSnapshot(history: history, live: live, now: .now,
+            health: health, coverageComplete: coverageComplete,
+            requiredInputs: requiredInputs, requiredInputLoaded: requiredInputLoaded,
+            closedDecisionIDs: closedDecisionIDs, lastSeen: lastSeen)
     }
 
     func setQuestionnaireCoverage(_ complete: Bool) {
@@ -84,7 +99,7 @@ final class OverviewStore: ObservableObject {
         snapshot = OverviewSnapshot(history: history, live: live, now: now,
             health: health, coverageComplete: coverageComplete,
             requiredInputs: requiredInputs, requiredInputLoaded: requiredInputLoaded,
-            closedDecisionIDs: closedDecisionIDs)
+            closedDecisionIDs: closedDecisionIDs, lastSeen: lastSeen)
         scheduleExpiration(after: now)
     }
 

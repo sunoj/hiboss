@@ -11,11 +11,12 @@ public struct SessionDirectory: Equatable, Sendable {
 
     public init(
         history: [HistoryMessage], requiredInputs: [HistoryMessage] = [],
-        withdrawn: Set<MessageID> = [], now: Date
+        withdrawn: Set<MessageID> = [], now: Date, lastSeen: [String: Date] = [:]
     ) {
         let messages = TodayMessageRules.merge(history: history, requiredInputs: requiredInputs)
         let decisions = TodayMessageRules.openDecisions(requiredInputs, withdrawn: withdrawn, now: now)
-        self.init(sessions: TodaySession.summaries(messages: messages, decisions: decisions), now: now)
+        self.init(sessions: TodaySession.summaries(messages: messages, decisions: decisions, lastSeen: lastSeen),
+                  now: now)
     }
 
     init(sessions: [TodaySession], now: Date) {

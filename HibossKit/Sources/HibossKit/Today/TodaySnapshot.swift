@@ -28,12 +28,13 @@ public struct TodaySnapshot: Equatable, Sendable {
     /// decision, so an answered or retired message cannot reappear as answerable.
     public init(
         history: [HistoryMessage], requiredInputs: [HistoryMessage] = [],
-        withdrawn: Set<MessageID> = [], health: TodayHealth, coverageComplete: Bool, now: Date
+        withdrawn: Set<MessageID> = [], health: TodayHealth, coverageComplete: Bool, now: Date,
+        lastSeen: [String: Date] = [:]
     ) {
         let messages = TodayMessageRules.merge(history: history, requiredInputs: requiredInputs)
         let visible = messages.filter { !withdrawn.contains($0.id) }
         let decisions = TodayMessageRules.openDecisions(requiredInputs, withdrawn: withdrawn, now: now)
-        let sessions = TodaySession.summaries(messages: messages, decisions: decisions)
+        let sessions = TodaySession.summaries(messages: messages, decisions: decisions, lastSeen: lastSeen)
         self.decisions = decisions
         working = sessions.filter { $0.hasLiveWork(now: now) }
         delivered = Self.results(from: visible, decisions: decisions, now: now)

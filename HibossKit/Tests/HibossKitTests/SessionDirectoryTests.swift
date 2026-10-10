@@ -8,7 +8,8 @@ import HibossKit
 final class SessionDirectoryTests: XCTestCase {
     private let now = TodayTestSupport.now
 
-    func testWorkingIncludesOldWorkingStatusAndRecentActivityOncePerSessionNewestFirst() {
+    /// A "working" status is not "working now" once its last message is older than two hours.
+    func testWorkingExcludesStaleWorkingStatusAndListsRecentActivityOncePerSessionNewestFirst() {
         let history = [
             TodayTestSupport.message("old-working", session: "old", age: 10_000, sessionStatus: " Working "),
             TodayTestSupport.message("first", session: "recent", age: 200),
@@ -17,8 +18,8 @@ final class SessionDirectoryTests: XCTestCase {
             TodayTestSupport.message("idle", session: "idle", age: 10_000),
         ]
         let snapshot = TodayTestSupport.snapshot(history)
-        XCTAssertEqual(snapshot.working.map(\.id), ["recent", "waiting", "old"])
-        XCTAssertEqual(snapshot.working.map(\.needsYou), [false, false, false])
+        XCTAssertEqual(snapshot.working.map(\.id), ["recent", "waiting"])
+        XCTAssertEqual(snapshot.working.map(\.needsYou), [false, false])
         XCTAssertEqual(snapshot.working.first?.lastActivityDate, now.addingTimeInterval(-10))
     }
 
@@ -35,9 +36,9 @@ final class SessionDirectoryTests: XCTestCase {
         ]
         let snapshot = TodayTestSupport.snapshot(history)
         XCTAssertEqual(window, 900)
-        XCTAssertEqual(snapshot.working.map(\.id), ["boundary", "bad-working"])
-        XCTAssertNil(snapshot.working.last?.lastActivityDate)
-        XCTAssertEqual(snapshot.sessionDirectory.idle.map(\.id), ["future", "old", "bad"])
+        // An unknown date cannot establish activity, even with a "working" status.
+        XCTAssertEqual(snapshot.working.map(\.id), ["boundary"])
+        XCTAssertEqual(snapshot.sessionDirectory.idle.map(\.id), ["future", "old", "bad", "bad-working"])
         XCTAssertFalse(snapshot.working[0].hasLiveWork(now: now.addingTimeInterval(1)))
     }
 
@@ -143,5 +144,35 @@ final class SessionDirectoryTests: XCTestCase {
         ]
         XCTAssertEqual(TodayTestSupport.snapshot(tied).working.map(\.id), ["a", "b"])
         XCTAssertEqual(TodayTestSupport.snapshot(tied), TodayTestSupport.snapshot(Array(tied.reversed())))
+    }
+}
+
+final class WorkingFreshnessTests: XCTestCase {
+    private let now = TodayTestSupport.now
+
+    func testStaleWorkingStatusIsNotWorkingNow() {
+        // Status left at "working" by a session whose last message was two days ago.
+        let stale = TodayTestSupport.message("old", session: "stale", age: 2 * 24 * 3600, sessionStatus: "working")
+        XCTAssertTrue(TodayTestSupport.snapshot([stale]).working.isEmpty)
+    }
+
+    func testWorkingStatusWithinTwoHoursCountsWithoutAHeartbeat() {
+        let quiet = TodayTestSupport.message("q", session: "busy", age: 42 * 60, sessionStatus: "working")
+        XCTAssertEqual(TodayTestSupport.snapshot([quiet]).working.map(\.id), ["busy"])
+    }
+
+    func testHeartbeatDecidesWhenKnown() {
+        let quiet = TodayTestSupport.message("q", session: "busy", age: 42 * 60, sessionStatus: "working")
+        let fresh = TodaySnapshot(history: [quiet], health: .live(checkedAt: now), coverageComplete: true,
+                                  now: now, lastSeen: ["busy": now.addingTimeInterval(-60)])
+        XCTAssertEqual(fresh.working.map(\.id), ["busy"])
+        let gone = TodaySnapshot(history: [quiet], health: .live(checkedAt: now), coverageComplete: true,
+                                 now: now, lastSeen: ["busy": now.addingTimeInterval(-3600)])
+        XCTAssertTrue(gone.working.isEmpty)
+    }
+
+    func testRecentMessageIsWorkingWhateverTheStatus() {
+        let recent = TodayTestSupport.message("r", session: "idle-but-talking", age: 60, sessionStatus: "idle")
+        XCTAssertEqual(TodayTestSupport.snapshot([recent]).working.map(\.id), ["idle-but-talking"])
     }
 }

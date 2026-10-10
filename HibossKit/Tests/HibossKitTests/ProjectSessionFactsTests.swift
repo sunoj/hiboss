@@ -70,3 +70,16 @@ final class ProjectIdentityAvatarTests: XCTestCase {
         XCTAssertNil(try session(#"{"id":"s1"}"#).nickname)
     }
 }
+
+final class ProjectSessionHeartbeatTests: XCTestCase {
+    func testServerHeartbeatFormatsParseAsUTC() throws {
+        let plain = try JSONDecoder().decode(ProjectSession.self,
+            from: Data(#"{"id":"a","last_seen_at":"2026-10-10 07:00:00"}"#.utf8))
+        let iso = try JSONDecoder().decode(ProjectSession.self,
+            from: Data(#"{"id":"b","last_seen_at":"2026-10-10T07:00:00Z"}"#.utf8))
+        XCTAssertEqual(plain.lastSeenDate, iso.lastSeenDate)
+        XCTAssertNotNil(plain.lastSeenDate)
+        XCTAssertEqual(ProjectSession.heartbeats([plain, iso]).count, 2)
+        XCTAssertNil(ProjectSession(id: "c", projectId: nil, projectSlug: nil, branch: nil).lastSeenDate)
+    }
+}

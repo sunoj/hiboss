@@ -20,6 +20,24 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
     /// The short unique name the CLI chose for this session, e.g. "otter".
     public let nickname: String?
 
+    /// `last_seen_at` as a date; the server writes SQLite's "yyyy-MM-dd HH:mm:ss" in UTC.
+    public var lastSeenDate: Date? { lastSeenAt.flatMap(ProjectSession.parseServerDate) }
+
+    /// Session id → heartbeat, for `TodaySnapshot(lastSeen:)`.
+    public static func heartbeats(_ sessions: [ProjectSession]) -> [String: Date] {
+        Dictionary(sessions.compactMap { session in session.lastSeenDate.map { (session.id, $0) } },
+                   uniquingKeysWith: { first, second in max(first, second) })
+    }
+
+    static func parseServerDate(_ text: String) -> Date? {
+        if let iso = ISODate.parse(text) { return iso }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter.date(from: text)
+    }
+
     public var displayLabel: String {
         guard let slug = projectRef?.slug ?? projectSlug else { return label ?? String(id.prefix(8)) }
         guard let branch, !branch.isEmpty else { return slug }
