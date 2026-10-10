@@ -207,20 +207,18 @@ struct RootTabView: View {
         }
     }
 
-    /// Opens cached snapshot or alert text immediately. Alert-only previews refresh
-    /// in the background; payloads without either briefly wait for the restored API.
+    /// Waits for the current API and verifies accountless notification snapshots before opening.
     private func openPendingMessage() async {
         guard let route = router.pendingMessage else { return }
         showsSettings = false
         joinRequestTarget = nil
         panels.closeDetail()
+        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
+            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
+            if Task.isCancelled { return }
+        }
         if let cached = route.cachedMessage {
-            inbox.cacheMessage(cached.detail)
-        } else {
-            for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
-                try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
-                if Task.isCancelled { return }
-            }
+            guard await inbox.cacheMessage(cached.detail) != .ignored else { return }
         }
         await Task.yield()
         guard !Task.isCancelled else { return }
@@ -228,9 +226,6 @@ struct RootTabView: View {
         activitySection = .messages
         activityPath = NavigationPath([route.messageID])
         router.finishOpening(route.messageID)
-        if route.cachedMessage?.requiresRefresh == true {
-            Task { await refreshNotificationPreview(route.messageID) }
-        }
     }
 
     private func openPendingPanel() async {
@@ -257,14 +252,6 @@ struct RootTabView: View {
             )
         }
         router.finishOpening(route)
-    }
-
-    private func refreshNotificationPreview(_ messageID: MessageID) async {
-        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
-            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
-        }
-        guard inbox.isReady else { return }
-        _ = await inbox.loadMessage(messageID)
     }
 
     /// Screenshot / demo deep-links: open a message or a session thread.

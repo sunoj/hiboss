@@ -24,6 +24,66 @@ final class DecisionReplyGateTests: XCTestCase {
     // Every test releases only after the fake has recorded the reply, and awaits through
     // `Pending.settled()`, so a missing guard or a lost release fails rather than hangs.
 
+    func testAccountReplacementResetsSharedReplyAndIgnoresOldCompletion() async throws {
+        let gate = DecisionReplyGate()
+        let previous = HeldReplyAPI()
+        let current = HeldReplyAPI()
+        let store = await makeStore(previous, gate: gate)
+        defer { store.stop() }
+        let oldReply = Pending { await gate.submit("Approve", to: "q1", via: previous) }
+        await waitUntil { previous.replies.count == 1 }
+        XCTAssertEqual(store.replying["q1"], "Approve")
+
+        store.start(api: current)
+        await waitUntil { store.hasCompleteRequiredInputs }
+        XCTAssertTrue(store.replying.isEmpty, "a new account has no inherited submissions")
+        let newReply = Pending { await store.reply("Approve", to: "q1") }
+        await waitUntil { newReply.isDone || current.replies.count == 1 }
+        XCTAssertEqual(current.replies, ["Approve"], "the same ID is admitted for the new account")
+
+        previous.release()
+        _ = try await oldReply.settled()
+        XCTAssertEqual(store.replying["q1"], "Approve", "an old completion cannot release the new slot")
+        XCTAssertTrue(store.withdrawn.isEmpty)
+        XCTAssertNil(store.replyConfirmation)
+        current.release()
+        let result = try await newReply.settled()
+        XCTAssertEqual(result, .sent)
+        XCTAssertTrue(store.replying.isEmpty)
+    }
+
+    func testSignOutIgnoresOldInAppReplyFailure() async throws {
+        let api = HeldReplyAPI()
+        let store = await makeStore(api)
+        let reply = Pending { await store.reply("Approve", to: "q1") }
+        await waitUntil { api.replies.count == 1 }
+        store.stop()
+        XCTAssertTrue(store.replying.isEmpty)
+        api.release(.failure(URLError(.timedOut)))
+        _ = try await reply.settled()
+        XCTAssertTrue(store.replying.isEmpty)
+        XCTAssertNil(store.loadError)
+        XCTAssertTrue(store.localResolutions.isEmpty)
+    }
+
+    func testAccountReplacementIgnoresOldInAppReplySuccess() async throws {
+        let previous = HeldReplyAPI()
+        let current = HeldReplyAPI()
+        let store = await makeStore(previous)
+        defer { store.stop() }
+        let reply = Pending { await store.reply("Approve", to: "q1") }
+        await waitUntil { previous.replies.count == 1 }
+        store.start(api: current)
+        previous.release()
+        _ = try await reply.settled()
+
+        XCTAssertTrue(store.replying.isEmpty)
+        XCTAssertTrue(store.withdrawn.isEmpty)
+        XCTAssertTrue(store.localResolutions.isEmpty)
+        XCTAssertNil(store.replyConfirmation)
+        XCTAssertNil(store.loadError)
+    }
+
     func testSecondTapWhileReplyIsInFlightSendsNothing() async throws {
         let api = HeldReplyAPI()
         let store = await makeStore(api)

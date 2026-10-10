@@ -41,6 +41,13 @@ final class DecisionReplyGate: ObservableObject {
 
     /// The choice in flight per decision. Every reply button reads it to disable itself.
     @Published private(set) var inFlight: [MessageID: String] = [:]
+    private var generation = 0
+
+    /// Called only at the inbox's account boundary; obsolete submissions retain no current slot.
+    func reset() {
+        generation += 1
+        inFlight = [:]
+    }
 
     /// Sends the choice unless a reply for this decision is already in flight. The slot is
     /// released on every exit (success, already-resolved, failure, cancellation) and any
@@ -48,24 +55,21 @@ final class DecisionReplyGate: ObservableObject {
     func submit(_ choice: String, to id: MessageID, via api: any BossServing,
                 answerability: DecisionAnswerability? = nil) async -> DecisionSubmission {
         guard inFlight[id] == nil else { return .busy }
+        let version = generation
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
         inFlight[id] = text
-        defer { inFlight[id] = nil }
-        await DecisionActivityLink.showSubmitting(text, for: id)
-        let progress = Task {
-            do {
-                try await Task.sleep(for: .milliseconds(300))
-                await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true)
-                try await Task.sleep(for: .milliseconds(7_700))
-                await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true, slow: true)
-            } catch { return }
+        defer {
+            if version == generation { inFlight[id] = nil }
         }
+        await DecisionActivityLink.showSubmitting(text, for: id)
+        let progress = submissionProgress(text, for: id, version: version)
         defer { progress.cancel() }
         let submission: DecisionSubmission
         do {
             let state: DecisionAnswerability
             if let answerability { state = answerability }
             else { state = try await loadAnswerability(for: id, via: api) }
+            guard version == generation else { return .failed(String(localized: "Connection isn't ready.")) }
             if state != .open {
                 submission = state == .closed ? .alreadyResolved : .failed(state.label ?? "")
             } else {
@@ -78,8 +82,22 @@ final class DecisionReplyGate: ObservableObject {
             submission = .failed(error.localizedDescription)
         }
         progress.cancel()
+        guard version == generation else { return submission }
         await DecisionActivityLink.settle(id, after: submission, choice: text, api: api)
         return submission
+    }
+
+    private func submissionProgress(_ text: String, for id: MessageID, version: Int) -> Task<Void, Never> {
+        Task {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                guard version == generation else { return }
+                await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true)
+                try await Task.sleep(for: .milliseconds(7_700))
+                guard version == generation else { return }
+                await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true, slow: true)
+            } catch { return }
+        }
     }
 
     private func loadAnswerability(for id: MessageID, via api: any BossServing) async throws

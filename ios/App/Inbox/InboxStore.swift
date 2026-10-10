@@ -130,6 +130,7 @@ final class InboxStore: ObservableObject {
         if let historySync { Task { await historySync.stop() } }
         historySync = nil
         historyVersion += 1
+        replyGate.reset()
         stopRequiredInputs()
         streamTask = nil
         historyTask = nil

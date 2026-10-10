@@ -13,8 +13,10 @@ enum MessageLoadResult: Equatable {
 }
 
 extension InboxStore {
-    func cacheMessage(_ detail: MessageDetail) {
-        openedMessages[detail.message.id] = detail
+    /// Notification payloads have no account identity; only the current API can admit their ID.
+    @discardableResult
+    func cacheMessage(_ detail: MessageDetail) async -> MessageLoadResult {
+        await loadMessage(detail.message.id)
     }
 
     func message(for id: MessageID) -> HistoryMessage? {
@@ -38,11 +40,14 @@ extension InboxStore {
             guard detail.message.id == id else {
                 return .failed(String(localized: "The server returned the wrong message."))
             }
-            cacheMessage(detail)
+            openedMessages[id] = detail
             return .loaded
         } catch let error as HibossAPIError {
             guard version == historyVersion, !Task.isCancelled else { return .ignored }
-            if case .requestFailed(status: 404, message: _) = error { return .missing }
+            if case .requestFailed(status: 404, message: _) = error {
+                openedMessages[id] = nil
+                return .missing
+            }
             return .failed(error.localizedDescription)
         } catch {
             guard version == historyVersion, !Task.isCancelled else { return .ignored }
