@@ -35,29 +35,21 @@ final class HistoryBootstrapTests: XCTestCase {
         observation.cancel()
         await events.sendEvent()
         await fulfillment(of: [delta], timeout: 2)
+        await flow.refreshHistory()
     }
 
-    func testFullResponseCursorIsPersistedForTheNextFetch() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let config = ConnectionConfig(
-            serverURL: URL(string: "https://bootstrap.test")!, bossToken: "synthetic"
-        )
-        let cache = HistoryCache(directory: directory)
+    func testFullResponseCursorIsRetainedInMemoryForTheNextFetch() async throws {
         let full = try JSONDecoder().decode(HistoryResponse.self, from: BootstrapURLProtocol.full)
         XCTAssertNil(full.hasMore)
-        let api = HistoryTestAPI([full], config: config, identity: "boss")
-        let sync = HistorySync(api: api, cache: cache) { _, _ in }
+        let api = HistoryTestAPI([full])
+        let sync = HistorySync(api: api) { _, _ in }
+        await sync.synchronize()
         await sync.synchronize()
         await sync.stop()
-        let saved = try await cache.load(for: HistoryCacheKey(config: config)).cached
-        XCTAssertEqual(saved?.1.cursor, BootstrapURLProtocol.cursor)
-        let restored = HistorySync(api: api, cache: cache) { _, _ in }
-        await restored.synchronize()
-        await restored.stop()
         let cursors = await api.cursors
         XCTAssertEqual(cursors, [nil, BootstrapURLProtocol.cursor])
     }
+
 }
 
 private struct BootstrapHistoryAPI: BossServing {

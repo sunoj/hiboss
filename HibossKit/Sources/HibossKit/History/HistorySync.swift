@@ -1,21 +1,20 @@
 // Serializes history sync, debounces stream bursts, and merges snapshots off the main actor.
 // Exports HistorySync; only changed arrays reach the native stores through its observer.
-// Depends on BossServing and HistoryCache, with a periodic full reconciliation.
+// Depends on BossServing; retains account history only in memory with periodic reconciliation.
 
 import Foundation
 
 public actor HistorySync {
     public typealias Observer = @MainActor @Sendable ([HistoryMessage]?, String?) async -> Void
     private let api: any BossServing
-    private let cache: HistoryCache
     private let limit: Int
     private let debounce: Duration
     private let fullInterval: TimeInterval
     private let observer: Observer
-    private var snapshot = HistorySnapshot()
-    private var bossID: String?
-    private var cacheEpoch = 0
-    private var loaded = false
+    private let now: @Sendable () -> Date
+    private var messages: [HistoryMessage] = []
+    private var cursor: String?
+    private var fullFetchedAt: Date?
     private var stopped = false
     private var pending = false
     private var pendingFull = false
@@ -23,12 +22,13 @@ public actor HistorySync {
     private var timer: Task<Void, Never>?
 
     public init(
-        api: any BossServing, cache: HistoryCache = .shared,
+        api: any BossServing,
         limit: Int = AppConstants.API.historyLimit, debounce: Duration = .milliseconds(250),
-        fullInterval: TimeInterval = 15 * 60, observer: @escaping Observer
+        fullInterval: TimeInterval = 15 * 60, now: @escaping @Sendable () -> Date = { Date() },
+        observer: @escaping Observer
     ) {
         self.api = api
-        self.cache = cache
+        self.now = now
         self.limit = limit
         self.debounce = debounce
         self.fullInterval = fullInterval
@@ -59,7 +59,8 @@ public actor HistorySync {
 
     private func drain(debounced: Bool) async {
         if debounced { try? await Task.sleep(for: debounce) }
-        await loadCache()
+        guard !stopped, !Task.isCancelled else { return }
+        startTimer()
         while pending && !stopped && !Task.isCancelled {
             let forceFull = pendingFull
             pending = false
@@ -73,19 +74,8 @@ public actor HistorySync {
         worker = nil
     }
 
-    private func loadCache() async {
-        guard !loaded else { return }
-        loaded = true
-        if let key = api.historyCacheKey {
-            let loadedCache = try? await cache.load(for: key)
-            cacheEpoch = loadedCache?.epoch ?? 0
-            if let (identity, cached) = loadedCache?.cached, !stopped {
-                bossID = identity
-                snapshot = cached
-                snapshot.messages = Self.merge([], with: cached.messages, limit: limit)
-                await observer(snapshot.messages.isEmpty ? nil : snapshot.messages, nil)
-            }
-        }
+    private func startTimer() {
+        guard timer == nil else { return }
         timer = Task { [weak self, fullInterval] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(fullInterval)) } catch { return }
@@ -95,8 +85,8 @@ public actor HistorySync {
     }
 
     private func fetch(forceFull: Bool) async throws {
-        let due = snapshot.fullFetchedAt.map { Date().timeIntervalSince($0) >= fullInterval } ?? true
-        let cursor = forceFull || due ? nil : snapshot.cursor
+        let due = fullFetchedAt.map { now().timeIntervalSince($0) >= fullInterval } ?? true
+        let cursor = forceFull || due ? nil : self.cursor
         var page = try await api.fetchHistoryPage(updatedAfter: cursor)
         var replacement = cursor == nil || page.cursor == nil
         if cursor != nil && page.hasMore == true {
@@ -104,19 +94,11 @@ public actor HistorySync {
             replacement = true
         }
         guard !stopped, !Task.isCancelled else { return }
-        let merged = Self.merge(replacement ? [] : snapshot.messages, with: page.messages, limit: limit)
-        let changed = merged != snapshot.messages
-        snapshot.messages = merged
-        snapshot.cursor = page.cursor
-        if replacement { snapshot.fullFetchedAt = .now }
-        if let key = api.historyCacheKey {
-            if bossID == nil { bossID = try? await api.fetchHistoryBossID() }
-            guard !stopped, !Task.isCancelled else { return }
-            if let bossID {
-                try? await cache.save(snapshot, bossID: bossID, key: key, epoch: cacheEpoch)
-            }
-        }
-        guard !stopped, !Task.isCancelled else { return }
+        let merged = Self.merge(replacement ? [] : messages, with: page.messages, limit: limit)
+        let changed = merged != messages
+        messages = merged
+        self.cursor = page.cursor
+        if replacement { fullFetchedAt = now() }
         await observer(changed ? merged : nil, nil)
     }
 

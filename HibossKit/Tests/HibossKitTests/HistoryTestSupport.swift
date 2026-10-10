@@ -11,20 +11,14 @@ actor HistoryTestAPI: BossServing, SessionsServing {
     var blocked = false
     var gate: CheckedContinuation<Void, Never>?
     var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
-    let key: HistoryCacheKey?
-    let identity: String?
     var eventContinuation: AsyncThrowingStream<BossEvent, Error>.Continuation?
     var queuedEvents: [BossEvent] = []
     var inventoryObserver: (@Sendable () -> Void)?
 
-    init(_ pages: [HistoryResponse], config: ConnectionConfig? = nil, identity: String? = nil) {
+    init(_ pages: [HistoryResponse]) {
         self.pages = pages
-        key = config.map { HistoryCacheKey(config: $0) }
-        self.identity = identity
     }
 
-    nonisolated var historyCacheKey: HistoryCacheKey? { key }
-    func fetchHistoryBossID() async throws -> String? { identity }
     func fetchHistory() async throws -> [HistoryMessage] { [] }
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail { throw URLError(.badURL) }
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
@@ -86,4 +80,11 @@ func historyRow(_ id: String, day: Int = 1, body: String = "note") -> HistoryMes
         status: "delivered", priority: "normal", createdAt: "2026-10-0\(day)T00:00:00Z",
         updatedAt: "2026-10-10 10:00:00"
     )
+}
+
+final class HistoryTestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var date = Date()
+    var now: Date { lock.withLock { date } }
+    func advance(seconds: TimeInterval) { lock.withLock { date.addTimeInterval(seconds) } }
 }

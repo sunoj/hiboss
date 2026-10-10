@@ -14,6 +14,7 @@ extension InboxStore {
                 self.applyHistory(messages)
                 await self.syncDecisionActivity()
             }
+            guard version == self.historyVersion else { return }
             if self.loadError != error { self.loadError = error }
             if !self.didLoad { self.didLoad = true }
             self.historyCheckedAt = .now

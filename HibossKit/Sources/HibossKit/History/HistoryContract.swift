@@ -1,8 +1,7 @@
-// Incremental history response and cache lookup contracts shared by native clients.
-// Exports HistoryResponse, HistoryCacheKey, and BossServing history defaults.
-// Depends on Foundation and CryptoKit; cache keys never contain credentials.
+// Incremental history response contracts shared by native clients.
+// Exports HistoryResponse and BossServing history defaults.
+// Depends on Foundation and the shared domain messages.
 
-import CryptoKit
 import Foundation
 
 public struct HistoryResponse: Codable, Equatable, Sendable {
@@ -24,24 +23,7 @@ public struct HistoryResponse: Codable, Equatable, Sendable {
     }
 }
 
-public struct HistoryCacheKey: Sendable {
-    let server: String
-    let credential: String
-    var account: String { server + ":" + credential }
-
-    public init(config: ConnectionConfig) {
-        server = Self.digest(config.serverURL.absoluteString)
-        credential = Self.digest(config.bossToken)
-    }
-
-    static func digest(_ text: String) -> String {
-        SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
-    }
-}
-
 public extension BossServing {
-    var historyCacheKey: HistoryCacheKey? { nil }
-    func fetchHistoryBossID() async throws -> String? { nil }
     func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {
         let messages = try await fetchHistory()
         return HistoryResponse(messages: messages, total: messages.count)

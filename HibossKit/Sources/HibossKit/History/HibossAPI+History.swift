@@ -1,12 +1,10 @@
 // Fetches full or incremental history using an opaque server cursor.
-// Exports HibossAPI history paging and server boss identity lookup.
+// Exports HibossAPI history paging.
 // Depends on Foundation URLSession and the shared history contracts.
 
 import Foundation
 
 extension HibossAPI {
-    public var historyCacheKey: HistoryCacheKey? { HistoryCacheKey(config: config) }
-
     public func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {
         var items = [
             URLQueryItem(name: "direction", value: "all"),
@@ -25,14 +23,4 @@ extension HibossAPI {
         return try JSONDecoder().decode(HistoryResponse.self, from: data)
     }
 
-    public func fetchHistoryBossID() async throws -> String? {
-        let endpoint = apiURL.appendingPathComponent("me")
-        let (data, response) = try await session.data(for: authorizedRequest(url: endpoint, method: "GET"))
-        try validate(response)
-        return try JSONDecoder().decode(HistoryBossIdentity.self, from: data).id
-    }
-}
-
-private struct HistoryBossIdentity: Decodable {
-    let id: String
 }

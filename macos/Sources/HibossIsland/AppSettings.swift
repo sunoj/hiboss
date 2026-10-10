@@ -57,13 +57,7 @@ extension OptionDisplayMode {
 @MainActor
 final class AppSettings: ObservableObject {
     @Published var serverAddress: String
-    @Published var bossToken: String {
-        didSet {
-            if bossToken.isEmpty, let serverURL = activeClientConfig?.serverURL {
-                historyCacheDeletion = Task { try? await historyCache.delete(serverURL: serverURL) }
-            }
-        }
-    }
+    @Published var bossToken: String
     @Published var deviceLabel = Host.current().localizedName ?? "Mac" // i18n-exempt: fallback device name stored and sent to the server
     @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var activeClientConfig: ConnectionConfig?
@@ -93,8 +87,6 @@ final class AppSettings: ObservableObject {
     }
 
     private let defaults: UserDefaults
-    private let historyCache: HistoryCache
-    var historyCacheDeletion: Task<Void, Never>?
     private let keychain: any TokenStoring
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private let redeemer: any PairingRedeeming
@@ -104,13 +96,11 @@ final class AppSettings: ObservableObject {
 
     init(
         defaults: UserDefaults = .standard,
-        historyCache: HistoryCache = .shared,
         keychain: any TokenStoring = KeychainStore(),
         clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) },
         redeemer: any PairingRedeeming = PairingRedeemClient()
     ) {
         self.defaults = defaults
-        self.historyCache = historyCache
         self.keychain = keychain
         self.clientsAPI = clientsAPI
         self.redeemer = redeemer

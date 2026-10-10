@@ -251,8 +251,6 @@ public protocol BossServing: Sendable {
     func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error>
     func fetchHistory() async throws -> [HistoryMessage]
     func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse
-    var historyCacheKey: HistoryCacheKey? { get }
-    func fetchHistoryBossID() async throws -> String?
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome
 }

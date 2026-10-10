@@ -108,23 +108,21 @@ final class HistorySyncTests: XCTestCase {
         XCTAssertEqual(cursors, [nil, nil])
         await sync.stop()
     }
-    func testExpiredPersistedFullFetchForcesFullReconciliation() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let config = ConnectionConfig(serverURL: URL(string: "https://expired.test")!, bossToken: "synthetic")
-        let cache = HistoryCache(directory: directory)
-        _ = try await cache.load(for: HistoryCacheKey(config: config))
-        let snapshot = HistorySnapshot(messages: [historyRow("expired")], cursor: "2026-10-10 10:20:30",
-                                       fullFetchedAt: Date(timeIntervalSinceNow: -901))
-        try await cache.save(snapshot, bossID: "boss", key: HistoryCacheKey(config: config), epoch: 0)
+    func testFifteenMinuteOldFullFetchForcesFullReconciliation() async {
+        let clock = HistoryTestClock()
         let api = HistoryTestAPI([
-            HistoryResponse(messages: [], total: 0, cursor: "2026-10-10 10:20:31"),
-        ], config: config)
+            HistoryResponse(messages: [historyRow("old")], total: 1, cursor: "first"),
+            HistoryResponse(messages: [], total: 0, cursor: "second"),
+        ])
         let recorder = HistoryRecorder()
-        let sync = HistorySync(api: api, cache: cache) { recorder.receive($0, $1) }
+        let sync = HistorySync(api: api, now: { clock.now }) { recorder.receive($0, $1) }
+        await sync.synchronize()
+        clock.advance(seconds: 899)
+        await sync.synchronize()
+        clock.advance(seconds: 1)
         await sync.synchronize()
         let cursors = await api.cursors
-        XCTAssertEqual(cursors, [nil])
+        XCTAssertEqual(cursors, [nil, "first", nil])
         XCTAssertEqual(recorder.publications.last, [])
         await sync.stop()
     }

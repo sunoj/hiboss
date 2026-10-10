@@ -116,9 +116,9 @@ private final class CountingSignerStore: MessageSignerStoring, @unchecked Sendab
 }
 
 @MainActor
-final class HistoryCacheIntegrationTests: XCTestCase {
+final class HistorySyncIntegrationTests: XCTestCase {
     func testInboxDoesNotPublishIdenticalDeltaOrEmptyDelta() async {
-        let api = CachedInboxAPI()
+        let api = IncrementalInboxAPI()
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: api)
         await store.historyTask?.value
@@ -136,53 +136,44 @@ final class HistoryCacheIntegrationTests: XCTestCase {
         store.stop()
     }
 
-    func testSignOutDeletesPersistedHistory() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let suite = "HistorySignOut.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer {
-            try? FileManager.default.removeItem(at: directory)
-            defaults.removePersistentDomain(forName: suite)
-        }
-        let config = ConnectionConfig(serverURL: URL(string: "https://cached.test")!, bossToken: "synthetic")
-        let cache = HistoryCache(directory: directory)
-        let sync = HistorySync(api: CachedInboxAPI(config: config), cache: cache) { _, _ in }
-        await sync.synchronize()
-        await sync.stop()
-        let roots = try FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: nil
-        )
-        let root = try XCTUnwrap(roots.first { $0.lastPathComponent != "active-account" })
-        let files = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
-        XCTAssertFalse(files.isEmpty)
-        for file in files {
-            // Simulator files do not expose the device Data Protection attribute.
-            #if !targetEnvironment(simulator)
-            let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-            XCTAssertEqual(attributes[.protectionKey] as? String,
-                           FileProtectionType.completeUntilFirstUserAuthentication.rawValue)
-            #endif
-            let values = try file.resourceValues(forKeys: [.isExcludedFromBackupKey])
-            XCTAssertTrue(values.isExcludedFromBackup == true)
-            XCTAssertFalse(try String(contentsOf: file, encoding: .utf8).contains(config.bossToken))
-        }
-        defaults.set(config.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
-        let connection = ConnectionStore(defaults: defaults, historyCache: cache,
-            keychain: HistoryTokenFixture(), sharedDefaults: nil)
-        await connection.restore()
-        connection.signOut()
-        await connection.historyCacheDeletion?.value
-        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty)
-        XCTAssertFalse(connection.isConfigured)
+    func testAPIReplacementDropsHistoryAndIgnoresLateOldSync() async {
+        let old = ReplacementInboxAPI(id: "old")
+        let current = ReplacementInboxAPI(id: "new")
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: old)
+        await store.historyTask?.value
+        XCTAssertEqual(store.history.map(\.id), ["old"])
+        let started = expectation(description: "old history request started")
+        await old.holdNextRequest(started)
+        store.requestHistorySync()
+        let lateFetch = store.historyTask
+        await fulfillment(of: [started], timeout: 2)
+        store.start(api: current)
+        XCTAssertTrue(store.history.isEmpty)
+        await store.historyTask?.value
+        XCTAssertEqual(store.history.map(\.id), ["new"])
+        await old.release()
+        await lateFetch?.value
+        XCTAssertEqual(store.history.map(\.id), ["new"])
+        let cursors = await current.cursors
+        XCTAssertEqual(cursors, [nil])
+        store.stop()
+    }
+
+    func testPullToRefreshFetchesFullHistory() async {
+        let api = IncrementalInboxAPI()
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: api)
+        await store.historyTask?.value
+        await store.refresh()
+        let cursors = await api.cursors
+        XCTAssertEqual(cursors, [nil, nil])
+        store.stop()
     }
 }
 
-private actor CachedInboxAPI: BossServing {
-    let config: ConnectionConfig?
+private actor IncrementalInboxAPI: BossServing {
     var cursors: [String?] = []
-    init(config: ConnectionConfig? = nil) { self.config = config }
-    nonisolated var historyCacheKey: HistoryCacheKey? { config.map { HistoryCacheKey(config: $0) } }
-    func fetchHistoryBossID() async throws -> String? { "boss" }
     func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {
         cursors.append(updatedAfter)
         let row = HistoryMessage(id: "cached", body: "Cached", direction: "agent_to_boss",
@@ -197,7 +188,38 @@ private actor CachedInboxAPI: BossServing {
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
 }
 
-private struct HistoryTokenFixture: TokenStoring {
-    func read() throws -> String? { "synthetic" }
-    func write(_ token: String) throws {}
+
+// Holds a response after request admission, even when its caller is canceled.
+private actor ReplacementInboxAPI: BossServing {
+    let id: MessageID
+    var cursors: [String?] = []
+    private var started: XCTestExpectation?
+    private var response: CheckedContinuation<Void, Never>?
+
+    init(id: MessageID) { self.id = id }
+    func holdNextRequest(_ started: XCTestExpectation) { self.started = started }
+    func release() {
+        response?.resume()
+        response = nil
+    }
+    func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {
+        cursors.append(updatedAfter)
+        let held = started != nil
+        if let started {
+            self.started = nil
+            await withCheckedContinuation {
+                response = $0
+                started.fulfill()
+            }
+        }
+        let rowID = held ? MessageID(rawValue: id.rawValue + "-late") : id
+        let row = HistoryMessage(id: rowID, body: "Fixture", direction: "agent_to_boss",
+            status: "delivered", priority: "normal", createdAt: "2026-10-01T00:00:00Z")
+        return HistoryResponse(messages: [row], total: 1, cursor: id.rawValue)
+    }
+    func fetchHistory() async throws -> [HistoryMessage] { [] }
+    func messageStream() async -> AsyncThrowingStream<BossEvent, Error> { AsyncThrowingStream { _ in } }
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> { AsyncThrowingStream { _ in } }
+    func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail { throw URLError(.badURL) }
+    func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
 }
