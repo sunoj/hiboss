@@ -57,6 +57,20 @@ fn agent_name_target_falls_back_to_requested_address() {
 }
 
 #[test]
+fn resolved_target_uses_nickname_before_label_and_keeps_legacy_output() {
+    let mut target = crate::types::SendTarget {
+        id: "aefb4ffd12345678".to_owned(),
+        label: Some("smart-router/main".to_owned()),
+        nickname: Some("otter-2".to_owned()),
+    };
+    assert_eq!(format_peer_target(Some(&target), "main"), "otter-2 (aefb4ffd)");
+    target.nickname = None;
+    assert_eq!(format_peer_target(Some(&target), "main"), "smart-router/main (aefb4ffd)");
+    target.label = None;
+    assert_eq!(format_peer_target(Some(&target), "main"), "aefb4ffd12345678 (aefb4ffd)");
+}
+
+#[test]
 fn broadcast_request_targets_peer_session_id() {
     let args = args_with_content(None);
     let request = broadcast_request(&args, "broadcast body", None, "peer-session-id");

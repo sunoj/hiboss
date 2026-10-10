@@ -135,7 +135,8 @@ it.each([false, true])('keeps session rows and labels, include_inactive=%s', asy
   expect(query.sql).not.toContain('INDEXED BY');
   expect(query.sql).not.toContain('JOIN');
   const legacy = await env.DB.prepare(`SELECT s.*, api_keys.name AS agent_name, p.slug AS project_slug,
-    p.display_name AS project_display_name, ${SESSION_LABEL_SQL} AS label FROM sessions s
+    p.display_name AS project_display_name, p.avatar_url AS project_avatar_url,
+    ${SESSION_LABEL_SQL} AS label FROM sessions s
     LEFT JOIN projects p ON p.id = s.project_id LEFT JOIN api_keys ON api_keys.id = s.agent_id
     WHERE s.agent_id IN (${placeholders}) ${inactive ? '' : "AND s.last_seen_at > datetime('now', '-15 minutes')"}
     ORDER BY s.last_seen_at DESC`).bind(...agents).all<SessionProjectRow>();

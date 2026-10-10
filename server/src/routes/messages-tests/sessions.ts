@@ -195,6 +195,6 @@ describe('Session-scoped messages', () => {
     });
     expect(res.status).toBe(201);
     const data = await res.json() as { target: { label: string; id: string } };
-    expect(data.target).toEqual({ label: 'exact-project/main', id: 'exact-label-new' });
+    expect(data.target).toEqual({ label: 'exact-project/main', id: 'exact-label-new', nickname: null });
   });
 });

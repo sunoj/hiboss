@@ -116,17 +116,20 @@ When peer communication is authorized and sessions are active on the same projec
 - **Direct message**: `hiboss send --to <target> "message"` — for targeted coordination
 - **Check peer status**: `hiboss ss` — see what other sessions are doing
 
-**Addressing (`--to`)** resolves in this order: agent name or id prefix, then session label or
-id prefix. The project name alone works — `--to smart-router` resolves to the one live session
-whose label starts with it. An exact label (`smart-router/main`) always wins outright, even when
-several sessions share it; the most recently active non-self one is picked. A 409 means a genuine
+**Addressing (`--to`)** resolves in this order: exact session label, exact nickname within the
+sender's project, then agent name or id prefix and session label or id prefix. `hiboss ss` shows
+`label · nickname`; the CLI picks a stable nature word, and the server adds `-2`, `-3`, … when
+live sessions in the project collide. Use `--to otter-2` to address that peer directly.
+The project name alone works — `--to smart-router` resolves to the one live session whose label
+starts with it. An exact label (`smart-router/main`) always wins outright, even when several
+sessions share it; the most recently active non-self one is picked. A 409 means a genuine
 choice between two or more *live* sessions, and a 404 lists reachable targets with their idle
 times — both errors name valid targets, so correct the command from the error rather than
 guessing. Idle sessions are still deliverable (you get a staleness warning); they read the
 message when they resume.
 
 **Reading the result is part of sending.** `--to` prints `sent -> <resolved-target> (<id>)
-id=<msg-id>` on stdout, naming the target the server actually resolved, not the string you typed.
+id=<msg-id>` on stdout, naming the resolved session's nickname (or label when unset).
 `--broadcast` prints one line per peer and **exits non-zero if any peer failed**. Never report
 that you coordinated with a peer on the strength of the command returning — a send whose output
 you did not read is not a sent message. Add `--wait-ack` when you need delivery confirmed before

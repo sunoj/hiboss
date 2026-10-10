@@ -108,7 +108,7 @@ describe('POST /api/messages', () => {
     expect(res.status).toBe(201);
     const data = await res.json() as { status: string; target: { label: string; id: string } };
     expect(data.status).toBe('sent');
-    expect(data.target).toEqual({ label: 'address-project/main', id: 'address-peer-main' });
+    expect(data.target).toEqual({ label: 'address-project/main', id: 'address-peer-main', nickname: null });
   });
 
   it('rejects ambiguous session label prefixes with candidates', async () => {
@@ -161,7 +161,7 @@ describe('POST /api/messages', () => {
     });
     expect(res.status).toBe(201);
     const data = await res.json() as { target: { label: string; id: string } };
-    expect(data.target).toEqual({ label: 'stale-target/main', id: 'stale-target-live' });
+    expect(data.target).toEqual({ label: 'stale-target/main', id: 'stale-target-live', nickname: null });
   });
 
   it('delivers to a stale matching session with a staleness warning', async () => {
@@ -177,7 +177,7 @@ describe('POST /api/messages', () => {
     });
     expect(res.status).toBe(201);
     const data = await res.json() as { target: { label: string; id: string }; warning: string };
-    expect(data.target).toEqual({ label: 'idle-target/main', id: 'idle-target-session' });
+    expect(data.target).toEqual({ label: 'idle-target/main', id: 'idle-target-session', nickname: null });
     expect(data.warning).toContain("target session 'idle-target' last seen");
   });
 

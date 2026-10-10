@@ -154,6 +154,7 @@ mod tests {
             target: Some(crate::types::SendTarget {
                 id: "aefb4ffd12345678".to_string(),
                 label: Some("smart-router/main".to_string()),
+                nickname: Some("otter".to_string()),
             }),
         };
         assert_roundtrip(&response);

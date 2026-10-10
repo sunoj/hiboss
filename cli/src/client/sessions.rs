@@ -16,6 +16,7 @@ impl HiBossClient {
     ) -> Result<(), Box<dyn Error>> {
         let project = crate::session::resolve_project(None);
         let mut body = session_body(id, project);
+        body["nickname"] = Value::String(crate::session::nickname_for_session(id)?);
         let runtime = crate::runtime::RuntimeIdentity::detect();
         let parent = runtime.is_dispatched().then(crate::session::parent_session_id).flatten();
         runtime_fields(&mut body, &runtime, crate::session::short_host(), parent);
@@ -47,6 +48,7 @@ impl HiBossClient {
             return Err(http_error("session register failed", status, req_id, text).into());
         }
         let accepted: Value = resp.json().await.unwrap_or(Value::Null);
+        crate::session::accept_session_nickname(id, &accepted)?;
         if parent_rejected(&accepted) {
             eprintln!("hiboss: the server rejected the parent session; registered without a parent");
         }
@@ -67,25 +69,26 @@ impl HiBossClient {
         status: Option<&str>,
         status_text: Option<&str>,
     ) -> Result<(), Box<dyn Error>> {
-        let mut req = self
+        let req = self
             .http
             .patch(format!("{}/api/sessions/{}", self.base_url, id))
             .bearer_auth(&self.api_key);
-        if status.is_some() || status_text.is_some() {
-            let mut body = serde_json::Map::new();
-            if let Some(s) = status {
-                body.insert("status".into(), serde_json::Value::String(s.to_owned()));
-            }
-            if let Some(t) = status_text {
-                body.insert(
-                    "status_text".into(),
-                    serde_json::Value::String(t.to_owned()),
-                );
-            }
-            req = req.json(&body);
+        let mut body = serde_json::Map::new();
+        body.insert("nickname".into(), Value::String(crate::session::nickname_for_session(id)?));
+        if let Some(s) = status {
+            body.insert("status".into(), serde_json::Value::String(s.to_owned()));
         }
-        let resp = req.send().await?;
-        if !resp.status().is_success() { /* ignore heartbeat failures */ }
+        if let Some(t) = status_text {
+            body.insert(
+                "status_text".into(),
+                serde_json::Value::String(t.to_owned()),
+            );
+        }
+        let resp = req.json(&body).send().await?;
+        if resp.status().is_success() {
+            let accepted: Value = resp.json().await?;
+            crate::session::accept_session_nickname(id, &accepted)?;
+        }
         Ok(())
     }
     pub async fn mark_all_read(&self) -> Result<u32, Box<dyn Error>> {
