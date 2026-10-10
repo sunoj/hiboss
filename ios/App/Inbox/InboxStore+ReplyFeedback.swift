@@ -33,7 +33,7 @@ extension InboxStore {
             replyConfirmation = String(localized: "Reply sent.")
             refreshHistory()
         case .alreadyResolved:
-            settleReply(nil, for: id)
+            settleReply(nil, for: id, closed: true)
             refreshHistory()
         case let .failed(reason):
             settleReply(nil, for: id, error: reason)

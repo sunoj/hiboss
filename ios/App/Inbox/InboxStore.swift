@@ -15,7 +15,7 @@ final class InboxStore: ObservableObject {
     @Published var history: [HistoryMessage] = []
     @Published var requiredInputs: [HistoryMessage] = []
     @Published var requiredInputError: String?
-    /// The last list remains authoritative during later refreshes and routine reconnects.
+    /// The last list remains authoritative during refreshes and up to 30 seconds of stream downtime.
     @Published var requiredInputLoaded = false
     @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
@@ -51,6 +51,7 @@ final class InboxStore: ObservableObject {
     var requiredEpoch = 0
     var requiredFetchVersion = 0
     var requiredCoverageTask: Task<Void, Never>?
+    var requiredStaleTask: Task<Void, Never>?
     /// One timer per pending decision deadline, so an expiring card drops out of
     /// `pending` on time instead of waiting for the next unrelated stream event.
     private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
@@ -146,12 +147,16 @@ final class InboxStore: ObservableObject {
     }
 
     /// Commit how a reply landed: a sent choice settles the card; nil rolls back the
-    /// optimistic state so the recorded outcome, or the still-open decision, shows instead.
-    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil) {
+    /// optimistic state. A closed reply keeps the card read-only until its recorded outcome arrives.
+    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil, closed: Bool = false) {
         if let choice {
             withdrawn.insert(id)
             settledIDs.insert(id)
             localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
+        } else if closed {
+            withdrawn.insert(id)
+            settledIDs.insert(id)
+            localResolutions[id] = nil
         } else {
             withdrawn.remove(id)
             settledIDs.remove(id)
