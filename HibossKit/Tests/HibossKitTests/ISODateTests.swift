@@ -39,4 +39,12 @@ final class ISODateTests: XCTestCase {
         _ = TodayTestSupport.snapshot(history)
         XCTAssertLessThan(Date().timeIntervalSince(started), 1.0)
     }
+
+    func testOffsetsAndMalformedShapesStillParseOrFail() {
+        XCTAssertEqual(ISODate.parse("2026-09-30T15:00:00+07:00"), ISODate.parse("2026-09-30T08:00:00Z"))
+        XCTAssertEqual(ISODate.parse("2026-09-30T15:00:00.250+07:00")?.timeIntervalSince1970,
+                       1_790_755_200.25)
+        XCTAssertNil(ISODate.parse("2026-09-30 08:00"))
+        XCTAssertNil(ISODate.parse("2026-09-30"))
+    }
 }

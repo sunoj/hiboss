@@ -38,8 +38,16 @@ public enum ISODate {
         guard let value, !value.isEmpty else { return nil }
         let key = value as NSString
         if let hit = cache.object(forKey: key) { return hit === invalid ? nil : hit as Date }
-        let parsed = whole.date(from: value) ?? fractional.date(from: value) ?? sqlite.date(from: value)
+        let parsed = parseOnce(value)
         cache.setObject(parsed.map { $0 as NSDate } ?? invalid, forKey: key)
         return parsed
+    }
+
+    /// One attempt per string: a failed ICU parse costs as much as a successful one, and
+    /// heartbeats bring many new strings at once.
+    private static func parseOnce(_ value: String) -> Date? {
+        if value.utf8.dropFirst(10).first == UInt8(ascii: " ") { return sqlite.date(from: value) }
+        if value.utf8.contains(UInt8(ascii: ".")) { return fractional.date(from: value) }
+        return whole.date(from: value)
     }
 }
