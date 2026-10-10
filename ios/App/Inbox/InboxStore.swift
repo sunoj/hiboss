@@ -105,9 +105,7 @@ final class InboxStore: ObservableObject {
     }
 
     func start(api: any BossServing) {
-        let cachedMessages = openedMessages
         stop()
-        openedMessages = cachedMessages
         self.api = api
         connectionState = .connecting
         streamTask = Task { [weak self] in await self?.consume(api) }

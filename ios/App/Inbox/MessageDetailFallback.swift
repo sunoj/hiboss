@@ -68,7 +68,7 @@ extension MessageDetailView {
         let result = await store.loadMessage(messageID)
         guard !Task.isCancelled else { return }
         switch result {
-        case .loaded:
+        case .loaded, .ignored:
             break
         case .missing:
             fallback = .missing

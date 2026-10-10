@@ -7,6 +7,7 @@ import HibossKit
 
 enum MessageLoadResult: Equatable {
     case loaded
+    case ignored
     case missing
     case failed(String)
 }
@@ -30,17 +31,21 @@ extension InboxStore {
         guard let api else {
             return .failed(String(localized: "Connection isn't ready."))
         }
+        let version = historyVersion
         do {
             let detail = try await api.fetchMessage(id)
+            guard version == historyVersion, !Task.isCancelled else { return .ignored }
             guard detail.message.id == id else {
                 return .failed(String(localized: "The server returned the wrong message."))
             }
             cacheMessage(detail)
             return .loaded
         } catch let error as HibossAPIError {
+            guard version == historyVersion, !Task.isCancelled else { return .ignored }
             if case .requestFailed(status: 404, message: _) = error { return .missing }
             return .failed(error.localizedDescription)
         } catch {
+            guard version == historyVersion, !Task.isCancelled else { return .ignored }
             return .failed(error.localizedDescription)
         }
     }
