@@ -34,6 +34,20 @@ final class DecisionTimingTests: XCTestCase {
         XCTAssertFalse(expired.isAutoDefault("Keep original text"))
     }
 
+    /// The detail redraws the whole decision on each refresh date, so the projection must hold
+    /// still between them; a per-second clock rebuilt options, images and the reply field.
+    func testProjectionOnlyChangesAtTheRefreshDates() {
+        let deadline = now.addingTimeInterval(600)
+        let source = message(deadline: deadline)
+        XCTAssertEqual(DecisionTiming.refreshDates(for: source, now: now), [now, deadline])
+        XCTAssertEqual(DecisionTiming(message: source, now: now),
+                       DecisionTiming(message: source, now: deadline.addingTimeInterval(-1)))
+        XCTAssertNotEqual(DecisionTiming(message: source, now: now),
+                          DecisionTiming(message: source, now: deadline))
+        XCTAssertEqual(DecisionTiming.refreshDates(for: message(deadline: nil), now: now), [now])
+        XCTAssertEqual(DecisionTiming.refreshDates(for: source, now: deadline), [deadline])
+    }
+
     func testWhitespaceDefaultDoesNotHideLiveReplyDeadline() {
         let source = message(deadline: now.addingTimeInterval(60), defaultOption: "  ")
         let timing = DecisionTiming(message: source, now: now)

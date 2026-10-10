@@ -24,6 +24,11 @@ struct DecisionTiming: Equatable {
         autoDefault = live != nil && !trimmed.isEmpty ? message.defaultOption : nil
     }
 
+    /// The only moments the projection can change: now, and the live deadline passing.
+    static func refreshDates(for message: HistoryMessage, now: Date = Date()) -> [Date] {
+        [now] + [message.expirationDate].compactMap { $0 }.filter { $0 > now }
+    }
+
     /// Whether an agent option is the live timeout default (trim-normalized).
     func isAutoDefault(_ option: String) -> Bool {
         autoDefault != nil && option.trimmingCharacters(in: .whitespacesAndNewlines)

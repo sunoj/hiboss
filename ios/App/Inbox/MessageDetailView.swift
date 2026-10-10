@@ -129,7 +129,9 @@ struct MessageDetailView: View {
            store.answerability(for: message.id) == .checking {
             Button("Checking…") {}.buttonStyle(.bordered).disabled(true)
         } else if store.answerability(for: message.id) == .open {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
+            // Timing changes only when the deadline passes. A per-second clock here rebuilt the
+            // options, option images and reply field every second.
+            TimelineView(.explicit(DecisionTiming.refreshDates(for: message))) { context in
                 let timing = DecisionTiming(message: message, now: context.date)
                 pendingDecision(for: message, timing: timing)
             }
