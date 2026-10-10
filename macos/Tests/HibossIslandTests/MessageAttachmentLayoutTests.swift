@@ -23,6 +23,9 @@ final class MessageAttachmentLayoutTests: XCTestCase {
         for (index, view) in views.enumerated() {
             let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
             host.sizingOptions = []
+            // OCR misses blue link text on dark backgrounds, so the system appearance (which can
+            // switch to dark in the evening) must not decide the result.
+            host.appearance = NSAppearance(named: .aqua)
             let window = show(host, size: NSSize(width: 360, height: 400))
             defer { window.close() }
             try await Task.sleep(for: .milliseconds(350))
