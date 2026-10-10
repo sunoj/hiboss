@@ -17,6 +17,7 @@ struct MainView: View {
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var panels: PanelsModel
     @StateObject private var box: BoxBrowserStore
+    @StateObject private var progress: ProgressFeedStore
     @StateObject private var boxMedia: BoxBrowserMedia
     @StateObject private var sessionBox: BoxBrowserStore
     private let previewSessions: [ProjectSession]?
@@ -36,6 +37,7 @@ struct MainView: View {
          previewHistory: [HistoryMessage]? = AttentionPreview.historyIfRequested(),
          previewSessions: [ProjectSession]? = nil,
          boxProvider: BoxBrowserStore.Provider? = nil,
+         progressProvider: ProgressFeedStore.Provider? = nil,
          panelsModel: PanelsModel? = nil) {
         self.requiredInputs = requiredInputs
         _overviewStore = StateObject(wrappedValue: overviewStore)
@@ -52,6 +54,9 @@ struct MainView: View {
         _box = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
         _boxMedia = StateObject(wrappedValue: BoxBrowserMedia(apiProvider: provider))
         _sessionBox = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
+        _progress = StateObject(wrappedValue: ProgressFeedStore(apiProvider: progressProvider ?? {
+            settings.activeClientConfig.map { HibossAPI(config: $0) }
+        }))
         _panels = StateObject(wrappedValue: panelsModel ?? PanelsModel(configurationProvider: {
             guard let config = settings.activeClientConfig else {
                 throw PanelClientError.notConfigured
@@ -82,6 +87,11 @@ struct MainView: View {
             destination = .deviceRequests
             showsCompactOverview = false
         }
+        .onChange(of: panels.selectedTileID, initial: true) { _, id in
+            guard id != nil, destination == .progress else { return }
+            destination = .today
+            showsCompactOverview = false
+        }
         .sheet(item: $notificationNavigation.target) { target in
             NotificationMessageDetail(messageID: target.id, settings: settings, reply: reply,
                 overview: overviewStore,
@@ -93,11 +103,13 @@ struct MainView: View {
         observedContent
         .onChange(of: settings.activeClientConfig) {
             box.reset()
+            progress.reset()
             sessionBox.reset()
             boxMedia.reset()
             Task {
                 await panels.load()
                 if destination == .box { await box.refresh() }
+                if destination == .progress { await progress.refresh() }
             }
         }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
@@ -127,7 +139,7 @@ struct MainView: View {
     }
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
-        windowContent(snapshot: snapshot, compact: compact)
+        messageShell(snapshot: snapshot, compact: compact)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Image(systemName: flow.connectionState == .connected
@@ -138,14 +150,10 @@ struct MainView: View {
                     .help(refreshHelp)
                     .keyboardShortcut("r", modifiers: .command)
                     .disabled(destination == .box ? box.isLoading
+                        : destination == .progress ? progress.isRefreshing || progress.isLoadingMore
                         : flow.historyState == .loading || (destination == .today && panels.isLoading))
             }
         }
-    }
-
-    @ViewBuilder
-    private func windowContent(snapshot: OverviewSnapshot, compact: Bool) -> some View {
-        messageShell(snapshot: snapshot, compact: compact)
     }
 
     private func messageShell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
@@ -177,6 +185,7 @@ struct MainView: View {
 
     private var refreshHelp: String {
         if destination == .box { return L("Refresh Box") }
+        if destination == .progress { return L("Refresh progress") }
         switch destination {
         case .today: return L("Refresh Today")
         case .deviceRequests: return L("Refresh device requests")
@@ -224,7 +233,7 @@ struct MainView: View {
             } else if destination == .box {
                 BoxBrowserView(store: box, media: boxMedia)
             } else if destination == .progress {
-                ProgressWorkspace(model: panels)
+                ProgressWorkspace(store: progress)
             } else if destination == .deviceRequests {
                 DeviceRequestsView(model: joinRequests, focus: $notificationNavigation.deviceRequestsFocus,
                     onSettings: { openWindow(id: "settings") })
@@ -272,6 +281,10 @@ struct MainView: View {
     }
 
     private func refresh() {
+        if destination == .progress {
+            Task { await progress.refresh() }
+            return
+        }
         if destination == .box {
             Task { await box.refresh() }
             return
@@ -280,6 +293,6 @@ struct MainView: View {
         if case .session = destination, sessionBox.project != nil { Task { await sessionBox.refresh() } }
         requiredInputs.refresh()
         Task { await flow.refreshHistory() }
-        if destination == .today || destination == .progress { Task { await panels.load() } }
+        if destination == .today { Task { await panels.load() } }
     }
 }
