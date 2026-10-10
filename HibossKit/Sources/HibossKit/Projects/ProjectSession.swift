@@ -17,6 +17,8 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
     public let statusText: String?
     public let startedAt: String?
     public let lastSeenAt: String?
+    /// The short unique name the CLI chose for this session, e.g. "otter".
+    public let nickname: String?
 
     public var displayLabel: String {
         guard let slug = projectRef?.slug ?? projectSlug else { return label ?? String(id.prefix(8)) }
@@ -34,12 +36,14 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
         case statusText = "status_text"
         case startedAt = "started_at"
         case lastSeenAt = "last_seen_at"
+        case nickname
     }
 
     public init(
         id: String, projectId: String?, projectSlug: String?, branch: String?, label: String? = nil,
         projectRef: ProjectIdentity? = nil, host: String? = nil, agentName: String? = nil,
-        status: String? = nil, statusText: String? = nil, startedAt: String? = nil, lastSeenAt: String? = nil
+        status: String? = nil, statusText: String? = nil, startedAt: String? = nil, lastSeenAt: String? = nil,
+        nickname: String? = nil
     ) {
         self.id = id
         self.projectId = projectId
@@ -53,6 +57,7 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
         self.statusText = statusText
         self.startedAt = startedAt
         self.lastSeenAt = lastSeenAt
+        self.nickname = nickname
     }
 
     public init(from decoder: Decoder) throws {
@@ -70,6 +75,7 @@ public struct ProjectSession: Codable, Equatable, Sendable, Identifiable {
         statusText = optional(.statusText)
         startedAt = optional(.startedAt)
         lastSeenAt = optional(.lastSeenAt)
+        nickname = optional(.nickname)
     }
 }
 

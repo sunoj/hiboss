@@ -45,3 +45,28 @@ final class ProjectSessionFactsTests: XCTestCase {
         XCTAssertEqual(again, original)
     }
 }
+
+final class ProjectIdentityAvatarTests: XCTestCase {
+    private func session(_ json: String) throws -> ProjectSession {
+        try JSONDecoder().decode(ProjectSession.self, from: Data(json.utf8))
+    }
+
+    func testNicknameAndAvatarDecode() throws {
+        let decoded = try session("""
+        {"id":"s1","nickname":"otter","project_ref":{"id":"p","slug":"smart-router",
+         "display_name":"Smart Router","avatar_url":"https://hiboss.example/a.png"}}
+        """)
+        XCTAssertEqual(decoded.nickname, "otter")
+        XCTAssertEqual(decoded.projectRef?.avatarURL?.absoluteString, "https://hiboss.example/a.png")
+        XCTAssertEqual(decoded.projectRef?.placeholder.initial, "S")
+    }
+
+    func testMissingOrUnsafeAvatarFallsBackToPlaceholder() throws {
+        for raw in ["null", "\"file:///etc/passwd\"", "42", "\"not a url\""] {
+            let decoded = try session(#"{"id":"s1","project_ref":{"id":"p","slug":"x","display_name":"X","avatar_url":\#(raw)}}"#)
+            XCTAssertNil(decoded.projectRef?.avatarURL, raw)
+            XCTAssertNotNil(decoded.projectRef)
+        }
+        XCTAssertNil(try session(#"{"id":"s1"}"#).nickname)
+    }
+}
