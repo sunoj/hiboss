@@ -71,6 +71,8 @@ struct ActivityView: View {
         }
     }
 
+    /// An empty bucket shows nothing: a lone "Needs you" header with no rows reads as a fault.
+    @ViewBuilder
     private func sessionSection(
         _ title: Text, sessions: [TodaySession]
     ) -> some View {
@@ -79,15 +81,17 @@ struct ActivityView: View {
                 inventory.first { $0.id == session.id }?.nickname]
                 .compactMap { $0 }.joined(separator: " ").localizedCaseInsensitiveContains(search)
         }
-        return Section {
-            ForEach(matches) { session in
-                NavigationLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
-                    SessionRow(session: session)
+        if !matches.isEmpty {
+            Section {
+                ForEach(matches) { session in
+                    NavigationLink(value: SessionRoute(id: session.id, label: session.localizedLabel)) {
+                        SessionRow(session: session)
+                    }
+                    .accessibilityIdentifier("activity-session-\(session.id)")
+                    .accessibilityHint("Opens the session")
                 }
-                .accessibilityIdentifier("activity-session-\(session.id)")
-                .accessibilityHint("Opens the session")
-            }
-        } header: { title }
+            } header: { title }
+        }
     }
 
     private var sessions: some View {
