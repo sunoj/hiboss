@@ -27,6 +27,7 @@ public struct HistoryResponse: Codable, Equatable, Sendable {
 public struct HistoryCacheKey: Sendable {
     let server: String
     let credential: String
+    var account: String { server + ":" + credential }
 
     public init(config: ConnectionConfig) {
         server = Self.digest(config.serverURL.absoluteString)

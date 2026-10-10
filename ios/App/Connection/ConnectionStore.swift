@@ -91,14 +91,12 @@ final class ConnectionStore: ObservableObject {
             serverAddress: serverAddress,
             bossToken: storedToken
         ) else {
-            do { try await purgeReplacedHistory(with: nil) } catch { return }
             bossToken = ""
             messageSigner = nil
             config = nil
             return
         }
 
-        do { try await purgeReplacedHistory(with: restoredConfig) } catch { return }
         bossToken = storedToken
         messageSigner = stored.signer
         config = restoredConfig
@@ -122,7 +120,6 @@ final class ConnectionStore: ObservableObject {
                 return .failure(error)
             }
             do {
-                try await purgeReplacedHistory(with: candidate)
                 try persistToken(candidate.bossToken)
             } catch {
                 return .failure(error)
@@ -135,11 +132,9 @@ final class ConnectionStore: ObservableObject {
         }
     }
 
-    func activateDeviceToken(_ token: String, replacing current: ConnectionConfig) async throws -> HibossAPI {
+    func activateDeviceToken(_ token: String, replacing current: ConnectionConfig) throws -> HibossAPI {
         guard config == current else { throw CancellationError() }
         let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
-        try await purgeReplacedHistory(with: accepted)
-        guard config == current else { throw CancellationError() }
         try persistToken(token)
         bossToken = token
         serverAddress = current.serverURL.absoluteString
@@ -174,7 +169,6 @@ final class ConnectionStore: ObservableObject {
             ) else {
                 return .failure(SettingsError.invalidServerURL)
             }
-            try await purgeReplacedHistory(with: candidate)
             try signerStore.write(redemption.signer)
             do {
                 try keychain.write(candidate.bossToken)
@@ -204,13 +198,6 @@ final class ConnectionStore: ObservableObject {
         clientExchangeNotice = nil
         messageSigner = nil
         config = nil
-    }
-
-    private func purgeReplacedHistory(with candidate: ConnectionConfig?) async throws {
-        await historyCacheDeletion?.value
-        if let previous = config, previous != candidate {
-            try await historyCache.delete(serverURL: previous.serverURL)
-        }
     }
 
     func makeAPI() -> HibossAPI? {

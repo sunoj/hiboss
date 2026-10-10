@@ -35,7 +35,7 @@ public final class BossClientsStore: ObservableObject {
     /// Activation must persist credentials before returning the newly authenticated API.
     public func register(
         kind: BossClientKind, label: String,
-        activate: @MainActor (String) async throws -> any BossClientsServing
+        activate: @MainActor (String) throws -> any BossClientsServing
     ) async {
         let label = label.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isBusy, needsRegistration(kind: kind), !label.isEmpty else { return }
@@ -46,7 +46,7 @@ public final class BossClientsStore: ObservableObject {
         do {
             let grant = try await api.createClient(kind: kind, label: label)
             try Task.checkCancellation()
-            api = try await activate(grant.token)
+            api = try activate(grant.token)
         } catch {
             registrationNotice = ManualClientLogin.compatibilityNotice
             return

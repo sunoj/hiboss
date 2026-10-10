@@ -113,6 +113,7 @@ final class HistorySyncTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let config = ConnectionConfig(serverURL: URL(string: "https://expired.test")!, bossToken: "synthetic")
         let cache = HistoryCache(directory: directory)
+        _ = try await cache.load(for: HistoryCacheKey(config: config))
         let snapshot = HistorySnapshot(messages: [historyRow("expired")], cursor: "2026-10-10 10:20:30",
                                        fullFetchedAt: Date(timeIntervalSinceNow: -901))
         try await cache.save(snapshot, bossID: "boss", key: HistoryCacheKey(config: config), epoch: 0)

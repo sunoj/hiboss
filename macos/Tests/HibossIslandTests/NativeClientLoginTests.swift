@@ -68,7 +68,7 @@ final class NativeClientLoginTests: XCTestCase {
         let inventory = BossClientsStore(api: api)
         await inventory.load()
         await inventory.register(kind: .macos, label: "Office Mac") { token in
-            let accepted = try await store.activateDeviceToken(token, replacing: current)
+            let accepted = try store.activateDeviceToken(token, replacing: current)
             XCTAssertEqual(accepted.serverURL, current.serverURL)
             return api
         }
@@ -101,7 +101,7 @@ final class NativeClientLoginTests: XCTestCase {
         let inventory = BossClientsStore(api: api)
         await inventory.load()
         await inventory.register(kind: .macos, label: "Mac") { token in
-            _ = try await store.activateDeviceToken(token, replacing: current)
+            _ = try store.activateDeviceToken(token, replacing: current)
             return api
         }
         XCTAssertEqual(try tokens.read(), "existing-token")
@@ -117,7 +117,7 @@ final class NativeClientLoginTests: XCTestCase {
         let inventory = BossClientsStore(api: api)
         await inventory.load()
         await inventory.register(kind: .macos, label: "Mac") { token in
-            _ = try await store.activateDeviceToken(token, replacing: current)
+            _ = try store.activateDeviceToken(token, replacing: current)
             return api
         }
         XCTAssertEqual(try tokens.read(), "existing-token")
@@ -130,9 +130,9 @@ final class NativeClientLoginTests: XCTestCase {
         let (store, tokens, _) = try fixture(stored: "existing-token")
         await store.loadToken()
         let current = try XCTUnwrap(store.activeClientConfig)
-        _ = try await store.activateDeviceToken("newer-token", replacing: current)
+        _ = try store.activateDeviceToken("newer-token", replacing: current)
         do {
-            _ = try await store.activateDeviceToken("stale-token", replacing: current)
+            _ = try store.activateDeviceToken("stale-token", replacing: current)
             XCTFail("Stale registration must be rejected")
         } catch {
             XCTAssertTrue(error is CancellationError)

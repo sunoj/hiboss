@@ -1,4 +1,4 @@
-// Stores bounded history per server and boss, with hashed credential lookup for offline launch.
+// Stores bounded history for one active account, with hashed credential lookup for offline launch.
 // Exports HistoryCache and HistorySnapshot; serializes disk access and deletion epochs.
 // Depends on Foundation Application Support storage; contains no tokens.
 
@@ -20,6 +20,8 @@ public actor HistoryCache {
     public static let shared = HistoryCache()
     private let directory: URL
     private var epochs: [String: Int] = [:]
+    private var activeAccount: String?
+    private var marker: URL { directory.appendingPathComponent("active-account") }
 
     public init(directory: URL? = nil) {
         self.directory = directory ?? FileManager.default.urls(
@@ -27,20 +29,20 @@ public actor HistoryCache {
         )[0].appendingPathComponent("HiBoss/History", isDirectory: true)
     }
 
-    func epoch(for key: HistoryCacheKey) -> Int { epochs[key.server, default: 0] }
-
-    func load(for key: HistoryCacheKey) throws -> (String, HistorySnapshot)? {
+    func load(for key: HistoryCacheKey) throws -> (epoch: Int, cached: (String, HistorySnapshot)?) {
+        try activate(key)
+        let epoch = epochs[key.server, default: 0]
         let root = directory.appendingPathComponent(key.server, isDirectory: true)
         let lookup = root.appendingPathComponent("lookup-" + key.credential)
-        guard FileManager.default.fileExists(atPath: lookup.path) else { return nil }
+        guard FileManager.default.fileExists(atPath: lookup.path) else { return (epoch, nil) }
         let bossID = try JSONDecoder().decode(String.self, from: Data(contentsOf: lookup))
         let file = root.appendingPathComponent(HistoryCacheKey.digest(bossID) + ".json")
         let snapshot = try JSONDecoder().decode(HistorySnapshot.self, from: Data(contentsOf: file))
-        return (bossID, snapshot)
+        return (epoch, (bossID, snapshot))
     }
 
     func save(_ snapshot: HistorySnapshot, bossID: String, key: HistoryCacheKey, epoch: Int) throws {
-        guard epoch == epochs[key.server, default: 0] else { return }
+        guard activeAccount == key.account, epoch == epochs[key.server, default: 0] else { return }
         let root = directory.appendingPathComponent(key.server, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try protect(root)
@@ -53,10 +55,41 @@ public actor HistoryCache {
     public func delete(serverURL: URL) throws {
         let server = HistoryCacheKey.digest(serverURL.absoluteString)
         epochs[server, default: 0] += 1
+        let account = try activeAccount ?? readMarker()
+        if account?.hasPrefix(server + ":") == true {
+            activeAccount = nil
+            if FileManager.default.fileExists(atPath: marker.path) {
+                try FileManager.default.removeItem(at: marker)
+            }
+        }
         let root = directory.appendingPathComponent(server, isDirectory: true)
         if FileManager.default.fileExists(atPath: root.path) {
             try FileManager.default.removeItem(at: root)
         }
+    }
+
+    private func activate(_ key: HistoryCacheKey) throws {
+        let previous = try readMarker()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try protect(directory)
+        let files = try FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        )
+        if previous != key.account, previous != nil || !files.isEmpty {
+            activeAccount = nil
+            let servers = Set(epochs.keys).union(files.map(\.lastPathComponent)).union([key.server])
+            for server in servers { epochs[server, default: 0] += 1 }
+            for file in files { try FileManager.default.removeItem(at: file) }
+        }
+        epochs[key.server] = epochs[key.server, default: 0]
+        if previous != key.account { try write(JSONEncoder().encode(key.account), to: marker) }
+        activeAccount = key.account
+    }
+
+    private func readMarker() throws -> String? {
+        guard FileManager.default.fileExists(atPath: marker.path) else { return nil }
+        let data = try Data(contentsOf: marker)
+        return try? JSONDecoder().decode(String.self, from: data)
     }
 
     private func write(_ data: Data, to file: URL) throws {

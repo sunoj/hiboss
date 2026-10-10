@@ -77,8 +77,9 @@ public actor HistorySync {
         guard !loaded else { return }
         loaded = true
         if let key = api.historyCacheKey {
-            cacheEpoch = await cache.epoch(for: key)
-            if let (identity, cached) = try? await cache.load(for: key), !stopped {
+            let loadedCache = try? await cache.load(for: key)
+            cacheEpoch = loadedCache?.epoch ?? 0
+            if let (identity, cached) = loadedCache?.cached, !stopped {
                 bossID = identity
                 snapshot = cached
                 snapshot.messages = Self.merge([], with: cached.messages, limit: limit)

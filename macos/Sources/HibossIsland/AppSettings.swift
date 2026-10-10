@@ -152,7 +152,6 @@ final class AppSettings: ObservableObject {
         let candidate = try? makeConnectionConfig(
             serverAddress: serverAddress, bossToken: storedToken ?? ""
         ).get()
-        do { try await purgeReplacedHistory(with: candidate) } catch { return }
         bossToken = storedToken ?? ""
         activeClientConfig = candidate
     }
@@ -187,7 +186,6 @@ final class AppSettings: ObservableObject {
                 accepted = login.config
                 notice = login.notice
             }
-            try await purgeReplacedHistory(with: accepted)
             try keychain.write(accepted.bossToken)
             defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
             bossToken = accepted.bossToken
@@ -203,7 +201,7 @@ final class AppSettings: ObservableObject {
     func pair(with payload: PairingPayload) async -> Result<ConnectionConfig, Error> {
         do {
             let grant = try await redeemer.redeem(payload: payload, deviceLabel: outgoingDeviceLabel, signing: nil)
-            return .success(try await adopt(grant, server: payload.serverURL))
+            return .success(try adopt(grant, server: payload.serverURL))
         } catch {
             return .failure(error)
         }
@@ -215,9 +213,8 @@ final class AppSettings: ObservableObject {
     }
 
     /// Stores a token granted by a pairing code or by Sign in with iPhone, as a manual login does.
-    func adopt(_ grant: PairingRedemptionGrant, server: URL) async throws -> ConnectionConfig {
+    func adopt(_ grant: PairingRedemptionGrant, server: URL) throws -> ConnectionConfig {
         let accepted = ConnectionConfig(serverURL: server, bossToken: grant.token)
-        try await purgeReplacedHistory(with: accepted)
         try keychain.write(accepted.bossToken)
         defaults.set(accepted.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
         serverAddress = accepted.serverURL.absoluteString
@@ -233,11 +230,9 @@ final class AppSettings: ObservableObject {
 
     func activateDeviceToken(
         _ token: String, replacing current: ConnectionConfig
-    ) async throws -> ConnectionConfig {
+    ) throws -> ConnectionConfig {
         guard activeClientConfig == current else { throw CancellationError() }
         let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
-        try await purgeReplacedHistory(with: accepted)
-        guard activeClientConfig == current else { throw CancellationError() }
         try keychain.write(token)
         bossToken = token
         serverAddress = current.serverURL.absoluteString
@@ -250,13 +245,6 @@ final class AppSettings: ObservableObject {
         var next = prioritySounds
         next[priority] = sound
         prioritySounds = next
-    }
-
-    private func purgeReplacedHistory(with candidate: ConnectionConfig?) async throws {
-        await historyCacheDeletion?.value
-        if let previous = activeClientConfig, previous != candidate {
-            try await historyCache.delete(serverURL: previous.serverURL)
-        }
     }
 
     private func persistPrioritySounds() {

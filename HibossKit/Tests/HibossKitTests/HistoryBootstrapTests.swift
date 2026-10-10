@@ -50,7 +50,7 @@ final class HistoryBootstrapTests: XCTestCase {
         let sync = HistorySync(api: api, cache: cache) { _, _ in }
         await sync.synchronize()
         await sync.stop()
-        let saved = try await cache.load(for: HistoryCacheKey(config: config))
+        let saved = try await cache.load(for: HistoryCacheKey(config: config)).cached
         XCTAssertEqual(saved?.1.cursor, BootstrapURLProtocol.cursor)
         let restored = HistorySync(api: api, cache: cache) { _, _ in }
         await restored.synchronize()

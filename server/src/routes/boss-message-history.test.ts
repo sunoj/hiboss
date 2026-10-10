@@ -151,14 +151,21 @@ describe('boss message delta', () => {
   });
 
   it('returns a write after a full fetch in a delta starting from its cursor', async () => {
+    await env.DB.prepare(
+      `INSERT INTO messages (id, agent_id, direction, mode, channel, body)
+        VALUES ('delta-bootstrap', ?, 'agent_to_boss', 'async', 'api', 'Before full fetch')`
+    ).bind(AGENTS[0]).run();
     const full = await (await request({ direction: 'all' })).json() as Page;
     expect(validMessageCursor(full.cursor!)).toBe(true);
-    await env.DB.prepare("UPDATE messages SET body = 'Edited after full fetch' WHERE id = 'delta-old'").run();
+    await env.DB.prepare(
+      "UPDATE messages SET body = 'Edited after full fetch' WHERE id = 'delta-bootstrap'"
+    ).run();
     const page = await delta({ updated_after: full.cursor! });
-    expect(page.messages.find(message => message.id === 'delta-old')).toMatchObject({
+    expect(page.messages.find(message => message.id === 'delta-bootstrap')).toMatchObject({
       body: 'Edited after full fetch', updated_at: expect.any(String),
     });
     expect(page.messages.every(message => message.updated_at >= full.cursor!)).toBe(true);
+    await env.DB.prepare("DELETE FROM messages WHERE id = 'delta-bootstrap'").run();
   });
 
   it('includes updated_at in message details and every reply', async () => {

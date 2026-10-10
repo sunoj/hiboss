@@ -33,7 +33,7 @@ struct SettingsDevicesView: View {
             }
             if let api = connection.makeAPI(), let config = connection.config {
                 BossClientsSection(api: api, kind: .ios, deviceLabel: connection.deviceLabel) { token in
-                    try await connection.activateDeviceToken(token, replacing: config)
+                    try connection.activateDeviceToken(token, replacing: config)
                 }
                 .id(connection.config?.bossToken)
             }

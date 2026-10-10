@@ -23,7 +23,7 @@ final class SigninWithPhoneTests: XCTestCase {
         settings.deviceLabel = "Studio <Mac>"
         let client = makeClient(statuses: [.success(.pending), .success(.approved)],
                                 completions: [.success(Self.grant)])
-        let model = makeModel(client, persist: { try await settings.adopt($0, server: $1) },
+        let model = makeModel(client, persist: { try settings.adopt($0, server: $1) },
                               label: settings.outgoingDeviceLabel)
 
         await model.start()

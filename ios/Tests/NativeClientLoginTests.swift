@@ -110,7 +110,7 @@ private struct ClientLoginSignerStore: MessageSignerStoring {
     func delete() throws {}
 }
 
-// Account changes purge disk history before publishing the replacement connection.
+// Account changes clear old disk history when the replacement history sync starts.
 @MainActor
 final class AccountHistoryReplacementTests: XCTestCase {
     func testDirectConnectPurgesPreviousAccountOnSameAndDifferentServers() async throws {
@@ -128,7 +128,7 @@ final class AccountHistoryReplacementTests: XCTestCase {
     func testReconnectRetainsUnchangedCredentialCache() async throws {
         let (connection, cache, key, _) = try await fixture()
         _ = try await connection.connect().get()
-        let saved = try await cache.load(for: key)
+        let saved = try await cache.load(for: key).cached
         XCTAssertNotNil(saved)
     }
 
@@ -136,15 +136,18 @@ final class AccountHistoryReplacementTests: XCTestCase {
         let (connection, cache, key, _) = try await fixture()
         connection.serverAddress = "https://replacement.test"
         await connection.restore()
-        let saved = try await cache.load(for: key)
+        try await synchronize(try XCTUnwrap(connection.config), cache: cache)
+        let saved = try await cache.load(for: key).cached
         XCTAssertNil(saved)
     }
 
-    func testInvalidRestorationPurgesPreviousCache() async throws {
+    func testSignOutThenInvalidRestorationKeepsPreviousCacheDeleted() async throws {
         let (connection, cache, key, _) = try await fixture()
+        connection.signOut()
+        await connection.historyCacheDeletion?.value
         connection.serverAddress = ""
         await connection.restore()
-        let saved = try await cache.load(for: key)
+        let saved = try await cache.load(for: key).cached
         XCTAssertNil(saved)
         XCTAssertNil(connection.config)
     }
@@ -155,12 +158,6 @@ final class AccountHistoryReplacementTests: XCTestCase {
         for server in ["https://cached.test", "https://replacement.test"] {
             let (connection, cache, key, root) = try await fixture()
             let previous = try XCTUnwrap(connection.config)
-            var retainedAtPublication = false
-            let observation = connection.$config.dropFirst().sink { candidate in
-                if candidate != previous {
-                    retainedAtPublication = FileManager.default.fileExists(atPath: root.path)
-                }
-            }
             switch replacement {
             case .connect:
                 connection.serverAddress = server
@@ -171,15 +168,24 @@ final class AccountHistoryReplacementTests: XCTestCase {
                     code: "hb_pair_" + String(repeating: "d", count: 64)).get()
                 _ = try await connection.pair(payload: payload, deviceLabel: "Test device").get()
             case .activate:
-                _ = try await connection.activateDeviceToken("synthetic-new", replacing: previous)
+                _ = try connection.activateDeviceToken("synthetic-new", replacing: previous)
             }
-            observation.cancel()
-            XCTAssertFalse(retainedAtPublication)
+            try await synchronize(try XCTUnwrap(connection.config), cache: cache)
             XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
             try await cache.save(HistorySnapshot(), bossID: "old-boss", key: key, epoch: 0)
-            let stale = try await cache.load(for: key)
-            XCTAssertNil(stale, "An outstanding old-account save must not recreate the cache")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.path),
+                           "An outstanding old-account save must not recreate the cache")
         }
+    }
+
+    private func synchronize(_ config: ConnectionConfig, cache: HistoryCache) async throws {
+        let sync = HistorySync(api: ReplacementHistoryAPI(config: config), cache: cache) { _, error in
+            XCTAssertNil(error)
+        }
+        await sync.synchronize()
+        await sync.stop()
+        let current = try await cache.load(for: HistoryCacheKey(config: config)).cached
+        XCTAssertEqual(current?.0, "new-boss")
     }
 
     private func fixture() async throws -> (ConnectionStore, HistoryCache, HistoryCacheKey, URL) {
@@ -195,13 +201,16 @@ final class AccountHistoryReplacementTests: XCTestCase {
         )
         let key = HistoryCacheKey(config: config)
         let cache = HistoryCache(directory: directory)
+        _ = try await cache.load(for: key)
         try await cache.save(HistorySnapshot(), bossID: "old-boss", key: key, epoch: 0)
         defaults.set(config.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
         let connection = ConnectionStore(defaults: defaults, historyCache: cache,
             keychain: ReplacementTokens(), sharedDefaults: nil, signerStore: ReplacementSignerStore(),
             pairingRedeemer: ReplacementPairingAPI(), clientsAPI: { _ in ReplacementClientsAPI() })
         await connection.restore()
-        return (connection, cache, key, directory.appendingPathComponent(key.server))
+        let lookup = directory.appendingPathComponent(key.server)
+            .appendingPathComponent("lookup-" + key.credential)
+        return (connection, cache, key, lookup)
     }
 }
 
@@ -233,4 +242,18 @@ private struct ReplacementPairingAPI: ConnectionPairingRedeeming {
             keyRepresentation: Data(), keyID: "synthetic-key", bossID: "new-boss", clientKind: .ios
         ))
     }
+}
+
+private struct ReplacementHistoryAPI: BossServing {
+    let config: ConnectionConfig
+    var historyCacheKey: HistoryCacheKey? { HistoryCacheKey(config: config) }
+    func fetchHistoryBossID() async throws -> String? { "new-boss" }
+    func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {
+        HistoryResponse(messages: [], total: 0, cursor: "2026-10-10 10:20:30")
+    }
+    func fetchHistory() async throws -> [HistoryMessage] { [] }
+    func messageStream() async -> AsyncThrowingStream<BossEvent, Error> { AsyncThrowingStream { _ in } }
+    func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> { AsyncThrowingStream { _ in } }
+    func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail { throw URLError(.badURL) }
+    func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
 }

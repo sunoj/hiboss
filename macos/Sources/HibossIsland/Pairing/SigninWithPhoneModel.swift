@@ -29,7 +29,7 @@ final class SigninWithPhoneModel: ObservableObject {
         case requestFailed
     }
 
-    typealias Persist = @MainActor (PairingRedemptionGrant, URL) async throws -> ConnectionConfig
+    typealias Persist = @MainActor (PairingRedemptionGrant, URL) throws -> ConnectionConfig
     typealias Sleep = @Sendable (Duration) async throws -> Void
 
     static let codeLength = 6
@@ -132,8 +132,7 @@ final class SigninWithPhoneModel: ObservableObject {
         }
         guard ticket == self.ticket else { return }
         do {
-            let config = try await persist(grant, ticket.link.serverURL)
-            guard ticket == self.ticket else { return }
+            let config = try persist(grant, ticket.link.serverURL)
             stopTracking()
             phase = .signedIn(config)
         } catch {

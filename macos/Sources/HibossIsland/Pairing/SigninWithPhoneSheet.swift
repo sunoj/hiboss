@@ -15,7 +15,7 @@ struct SigninWithPhoneSheet: View {
         self.init(model: SigninWithPhoneModel(
             serverAddress: settings.serverAddress,
             deviceLabel: settings.outgoingDeviceLabel,
-            persist: { grant, server in try await settings.adopt(grant, server: server) }
+            persist: { grant, server in try settings.adopt(grant, server: server) }
         ), onSignedIn: onSignedIn)
     }
 
