@@ -17,10 +17,12 @@ public final class OptionFlowStore: ObservableObject {
 
     private let reconnectDelay: Duration
     private var api: (any BossServing)?
-    private var queuedMessages: [OptionMessage] = []
+    var queuedMessages: [OptionMessage] = []
     private var seenMessageIDs: Set<MessageID> = []
     private var streamTask: Task<Void, Never>?
     private var historyTask: Task<Void, Never>?
+    private var historySync: HistorySync?
+    private var historyVersion = 0
     private var expirationTasks: [MessageID: Task<Void, Never>] = [:]
     private var resolvedDismissTask: Task<Void, Never>?
     /// How long the "answered on <device>" card lingers before advancing.
@@ -37,12 +39,17 @@ public final class OptionFlowStore: ObservableObject {
         streamTask = Task { [weak self] in
             await self?.consumeStreams(from: api)
         }
-        refreshHistoryInBackground()
+        configureHistorySync(api)
+        refreshHistoryInBackground(debounced: false)
+        Task { await self.refreshProjectSessions() }
     }
 
     public func disconnect() {
         streamTask?.cancel()
         historyTask?.cancel()
+        if let historySync { Task { await historySync.stop() } }
+        historySync = nil
+        historyVersion += 1
         expirationTasks.values.forEach { $0.cancel() }
         resolvedDismissTask?.cancel()
         streamTask = nil
@@ -64,42 +71,30 @@ public final class OptionFlowStore: ObservableObject {
     @Published public private(set) var projectSessions: [ProjectSession] = []
 
     public func refreshHistory() async {
-        guard let api else { return }
+        guard let historySync else { return }
         historyState = .loading
-        do {
-            historyMessages = try await api.fetchHistory()
-            historyState = .loaded
-            reconcileActiveAgainstHistory()
-            if let sessionsAPI = api as? any SessionsServing {
-                projectSessions = (try? await sessionsAPI.projectSessions()) ?? []
-            }
-        } catch where Task.isCancelled {
-            return
-        } catch {
-            historyState = .failed(error.localizedDescription)
-        }
+        await historySync.synchronize(forceFull: true)
+        await refreshProjectSessions()
     }
 
-    /// Dismiss any shown/queued option the freshly-loaded history now marks
-    /// resolved. Unlike the derived iOS inbox, this store holds `activeMessage`
-    /// imperatively, so without this a card answered elsewhere while our stream
-    /// was reconnecting would linger until its local expiry.
-    private func reconcileActiveAgainstHistory() {
-        func resolvedInHistory(_ id: MessageID) -> HistoryMessage? {
-            historyMessages.first { $0.id == id && ($0.status == "replied" || $0.status == "expired") }
+    private func refreshProjectSessions() async {
+        let version = historyVersion
+        guard let sessionsAPI = api as? any SessionsServing else { return }
+        let sessions = (try? await sessionsAPI.projectSessions()) ?? []
+        if version == historyVersion, projectSessions != sessions { projectSessions = sessions }
+    }
+
+    private func configureHistorySync(_ api: any BossServing) {
+        let version = historyVersion
+        historySync = HistorySync(api: api) { [weak self] messages, error in
+            guard let self, version == self.historyVersion else { return }
+            if let messages {
+                self.historyMessages = messages
+                self.reconcileActiveAgainstHistory()
+            }
+            let state: HistoryState = error.map { .failed($0) } ?? .loaded
+            if self.historyState != state { self.historyState = state }
         }
-        queuedMessages.removeAll { resolvedInHistory($0.id) != nil }
-        guard let active = activeMessage, let resolved = resolvedInHistory(active.id) else { return }
-        // Already showing the resolved card for this id — don't restart its linger
-        // on a subsequent history refresh.
-        if case .resolved = presentationState { return }
-        let reply = historyMessages.first { $0.replyTo == active.id.rawValue }
-        resolve(OptionResolution(
-            id: active.id,
-            status: resolved.status == "expired" ? .expired : .replied,
-            answer: reply?.body,
-            source: reply?.metadata?.source
-        ))
     }
 
     /// `messageID` is the message the caller was looking at: a skip or a stream resolution can
@@ -222,11 +217,9 @@ public final class OptionFlowStore: ObservableObject {
         }
     }
 
-    private func refreshHistoryInBackground() {
-        historyTask?.cancel()
-        historyTask = Task { [weak self] in
-            await self?.refreshHistory()
-        }
+    private func refreshHistoryInBackground(debounced: Bool = true) {
+        guard let historySync else { return }
+        historyTask = Task { await historySync.synchronize(debounced: debounced) }
     }
 
     private func receive(_ message: OptionMessage) {
@@ -245,7 +238,7 @@ public final class OptionFlowStore: ObservableObject {
         }
     }
 
-    private func resolve(_ resolution: OptionResolution) {
+    func resolve(_ resolution: OptionResolution) {
         let messageID = resolution.id
         expirationTasks.removeValue(forKey: messageID)?.cancel()
         queuedMessages.removeAll { $0.id == messageID }

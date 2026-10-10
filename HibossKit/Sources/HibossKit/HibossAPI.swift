@@ -84,16 +84,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     }
 
     public func fetchHistory() async throws -> [HistoryMessage] {
-        let endpoint = apiURL.appendingPathComponent("messages").appending(
-            queryItems: [
-                URLQueryItem(name: "direction", value: "all"),
-                URLQueryItem(name: "limit", value: String(AppConstants.API.historyLimit)),
-            ]
-        )
-        let request = authorizedRequest(url: endpoint, method: "GET")
-        let (data, response) = try await session.data(for: request)
-        try validate(response)
-        return try decoder.decode(HistoryResponse.self, from: data).messages
+        try await fetchHistoryPage(updatedAfter: nil).messages
     }
 
     public func fetchPreferences() async throws -> BossPreferences {

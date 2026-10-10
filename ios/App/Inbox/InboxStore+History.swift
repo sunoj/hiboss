@@ -1,65 +1,51 @@
 // History refresh operations retain cached rows and expose refresh progress.
-// Exports InboxStore history loading helpers with generation-based stale-result rejection.
+// Exports InboxStore history loading helpers backed by the shared incremental sync actor.
 // Dependencies: Foundation, HibossKit and required-input reconciliation.
 
 import Foundation
 import HibossKit
 
 extension InboxStore {
-    func refreshHistory() {
-        guard let api else { return }
-        historyTask?.cancel()
-        historyVersion += 1
+    func configureHistorySync(_ api: any BossServing) {
         let version = historyVersion
-        isRefreshing = true
-        historyTask = Task { [weak self] in
-            defer {
-                if let self, version == self.historyVersion { self.isRefreshing = false }
-            }
-            do {
-                let messages = try await api.fetchHistory()
-                guard !Task.isCancelled, let self, version == self.historyVersion else { return }
+        historySync = HistorySync(api: api) { [weak self] messages, error in
+            guard let self, version == self.historyVersion else { return }
+            if let messages {
                 self.applyHistory(messages)
                 await self.syncDecisionActivity()
-            } catch where Task.isCancelled {
-                return
-            } catch {
-                guard let self, version == self.historyVersion else { return }
-                self.loadError = error.localizedDescription
-                self.didLoad = true
             }
+            if self.loadError != error { self.loadError = error }
+            if !self.didLoad { self.didLoad = true }
+            self.historyCheckedAt = .now
         }
+    }
+
+    func requestHistorySync(forceFull: Bool = false, debounced: Bool = false) {
+        guard let historySync else { return }
+        historyTask = Task { await historySync.synchronize(forceFull: forceFull, debounced: debounced) }
+    }
+
+    func refreshHistory() {
+        requestHistorySync(forceFull: true)
         Task { await refreshRequiredInputs() }
     }
 
-    /// Awaitable history reload for pull-to-refresh; keeps the spinner up until done.
+    /// Awaitable full reconciliation for pull-to-refresh.
     func refresh() async {
-        guard let api else { return }
-        historyVersion += 1
+        guard let historySync else { return }
         let version = historyVersion
         isRefreshing = true
         defer { if version == historyVersion { isRefreshing = false } }
         async let inputRefresh: Void = refreshRequiredInputs()
-        do {
-            let messages = try await api.fetchHistory()
-            if !Task.isCancelled, version == historyVersion {
-                applyHistory(messages)
-                await syncDecisionActivity()
-            }
-        } catch {
-            if !Task.isCancelled, version == historyVersion {
-                loadError = error.localizedDescription
-                didLoad = true
-            }
-        }
+        await historySync.synchronize(forceFull: true)
         await inputRefresh
     }
 
     /// Commit a fresh history snapshot and re-arm all derived state.
     private func applyHistory(_ messages: [HistoryMessage]) {
         history = messages
-        loadError = nil
-        didLoad = true
+        if loadError != nil { loadError = nil }
+        if !didLoad { didLoad = true }
         historyCheckedAt = .now
         adoptHistoryReplies()
         rescheduleExpiries()

@@ -87,6 +87,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public let metadata: MessageMetadata?
     public let expiresAt: String?
     public let createdAt: String
+    public let updatedAt: String?
     public let sessionId: String?
     /// Session a boss→agent reply is scoped to when `sessionId` is unset.
     public let targetSessionId: String?
@@ -108,6 +109,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         case metadata
         case expiresAt = "expires_at"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
         case sessionId = "session_id"
         case targetSessionId = "target_session_id"
         case sessionLabel = "session_label"
@@ -129,6 +131,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         metadata: MessageMetadata? = nil,
         expiresAt: String? = nil,
         createdAt: String,
+        updatedAt: String? = nil,
         sessionId: String? = nil,
         targetSessionId: String? = nil,
         sessionLabel: String? = nil,
@@ -148,6 +151,7 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
         self.metadata = metadata
         self.expiresAt = expiresAt
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
         self.sessionId = sessionId
         self.targetSessionId = targetSessionId
         self.sessionLabel = sessionLabel
@@ -165,16 +169,6 @@ public struct HistoryMessage: Codable, Identifiable, Equatable, Sendable {
     public var content: String? { metadata?.content }
 
     public var expirationDate: Date? { ISODate.parse(expiresAt) }
-}
-
-public struct HistoryResponse: Codable, Equatable, Sendable {
-    public let messages: [HistoryMessage]
-    public let total: Int
-
-    public init(messages: [HistoryMessage], total: Int) {
-        self.messages = messages
-        self.total = total
-    }
 }
 
 public enum ResolutionStatus: String, Codable, Equatable, Sendable {
@@ -256,6 +250,9 @@ public protocol BossServing: Sendable {
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error>
     func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error>
     func fetchHistory() async throws -> [HistoryMessage]
+    func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse
+    var historyCacheKey: HistoryCacheKey? { get }
+    func fetchHistoryBossID() async throws -> String?
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome
 }
