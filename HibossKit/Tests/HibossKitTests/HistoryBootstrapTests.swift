@@ -20,10 +20,12 @@ final class HistoryBootstrapTests: XCTestCase {
         let events = HistoryTestAPI([])
         let flow = OptionFlowStore()
         let loaded = expectation(description: "full page loaded")
+        loaded.assertForOverFulfill = false  // later refreshes report .loaded again
         let observation = flow.$historyState.sink { state in
             if state == .loaded { loaded.fulfill() }
         }
         let delta = expectation(description: "stream event sends updated_after")
+        delta.assertForOverFulfill = false  // coalesced and periodic fetches may each send it
         BootstrapURLProtocol.delta = delta
         defer {
             observation.cancel()
