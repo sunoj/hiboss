@@ -72,7 +72,7 @@ struct SettingsScene: View {
     private var detailPane: some View {
         switch SettingsPreferencesLogic.selectedPane(selection) {
         case .general:
-            GeneralSettingsPane(launchAtLogin: launchAtLogin)
+            GeneralSettingsPane(settings: settings, launchAtLogin: launchAtLogin)
         case .connection:
             ConnectionSettingsPane(
                 settings: settings,

@@ -1,7 +1,8 @@
 // Persists connection and presentation preferences, with tokens in Keychain.
 // Exports: AppSettings and OptionPresentationMode.
-// Dependencies: HibossKit keychain/config, Foundation UserDefaults, and Combine.
+// Dependencies: HibossKit keychain/config, AppKit activation policy, UserDefaults, and Combine.
 
+import AppKit
 import Combine
 import Foundation
 import HibossKit
@@ -72,6 +73,9 @@ final class AppSettings: ObservableObject {
     @Published var showsStatusItem: Bool {
         didSet { defaults.set(showsStatusItem, forKey: AppConstants.Storage.showsStatusItem) }
     }
+    @Published var showsInDock: Bool {
+        didSet { defaults.set(showsInDock, forKey: Self.showsInDockKey) }
+    }
     @Published var playsSound: Bool {
         didSet { defaults.set(playsSound, forKey: AppConstants.Storage.playsSound) }
     }
@@ -87,6 +91,7 @@ final class AppSettings: ObservableObject {
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private let redeemer: any PairingRedeeming
     private static let optionDisplayModeKey = "hiboss.optionDisplayMode"
+    private static let showsInDockKey = "hiboss.showsInDock"
     private static let prioritySoundsKey = "hiboss.prioritySounds"
 
     init(
@@ -108,9 +113,14 @@ final class AppSettings: ObservableObject {
         optionDisplayMode = OptionDisplayMode(
             rawValue: defaults.string(forKey: Self.optionDisplayModeKey) ?? ""
         ) ?? OptionDisplayMode(presentationMode: storedPresentationMode)
-        showsStatusItem = defaults.object(forKey: AppConstants.Storage.showsStatusItem) == nil
+        let storedShowsStatusItem = defaults.object(forKey: AppConstants.Storage.showsStatusItem) == nil
             ? true
             : defaults.bool(forKey: AppConstants.Storage.showsStatusItem)
+        showsStatusItem = storedShowsStatusItem
+        // Preserve the existing launch policy until a Dock preference is explicitly saved.
+        showsInDock = defaults.object(forKey: Self.showsInDockKey) == nil
+            ? storedPresentationMode == .window || !storedShowsStatusItem
+            : defaults.bool(forKey: Self.showsInDockKey)
         playsSound = defaults.object(forKey: AppConstants.Storage.playsSound) == nil
             ? true
             : defaults.bool(forKey: AppConstants.Storage.playsSound)
@@ -118,6 +128,10 @@ final class AppSettings: ObservableObject {
             rawValue: defaults.string(forKey: AppConstants.Storage.alertSound) ?? ""
         ) ?? .fallback
         prioritySounds = Self.loadPrioritySounds(from: defaults)
+    }
+
+    static func activationPolicy(showsInDock: Bool) -> NSApplication.ActivationPolicy {
+        showsInDock ? .regular : .accessory
     }
 
     func loadToken() async {
