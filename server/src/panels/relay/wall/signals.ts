@@ -8,7 +8,7 @@ interface WallExpiry { agentId: string; expiresAt: number }
 export class WallSignals {
   constructor(private ctx: DurableObjectState, private attachment: (ws: WebSocket) => ConnectionAttachment | null) {}
 
-  async changed(panelId: string, agentId: string, expiresAt: string): Promise<void> {
+  async changed(panelId: string, agentId: string, expiresAt: string, invalidate = true): Promise<void> {
     const expiry = Date.parse(expiresAt);
     if (Number.isFinite(expiry) && expiry > Date.now()) {
       await this.ctx.storage.put(`wall-expiry:${panelId}`, { agentId, expiresAt: expiry });
@@ -16,7 +16,7 @@ export class WallSignals {
     } else {
       await this.ctx.storage.delete(`wall-expiry:${panelId}`);
     }
-    this.broadcast(agentId);
+    if (invalidate) this.broadcast(agentId);
   }
 
   private broadcast(agentId: string): void {
