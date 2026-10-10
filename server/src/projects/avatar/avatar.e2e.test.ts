@@ -201,6 +201,23 @@ it('counts the project creator and progress authors as participants', async () =
   }
 });
 
+it('applies the avatar rule to combined profile writes too', async () => {
+  for (const [project, column] of [['avatar-mixed-creator', 'creator'], ['avatar-mixed-post', 'post']]) {
+    await seedProject(project, [caller]);
+    if (column === 'creator') {
+      await env.DB.prepare('UPDATE projects SET created_by_agent_id = ? WHERE id = ?').bind(outsider, project).run();
+    } else {
+      await env.DB.prepare("INSERT INTO progress_posts (id, agent_id, project_id, body) VALUES (?, ?, ?, 'x')")
+        .bind(`${project}-post`, outsider, project).run();
+    }
+    const before = await stored(project);
+    const response = await put(project, { avatar_url: null, bio: null });
+    expect(response.status).toBe(409);
+    expect(await response.text()).toBe('cannot set project avatar: project has data from an agent outside your bosses');
+    expect(await stored(project)).toEqual(before);
+  }
+});
+
 it('rejects a caller who registers a session on another boss project', async () => {
   const project = 'avatar-joined';
   await seedProject(project, [outsider]);

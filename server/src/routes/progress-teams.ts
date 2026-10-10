@@ -239,12 +239,14 @@ routes.put('/:project', apiAuth, async (c) => {
   if (avatarError) return c.text(avatarError, 400);
   const avatarOnly = input.avatar_url !== undefined && isRecord(body) && Object.keys(body).length === 1;
   try {
-    let target: Project | null;
-    if (avatarOnly) {
+    let target: Project | null = null;
+    // Every write that touches the avatar passes the avatar rule, before any project is created.
+    if (input.avatar_url !== undefined) {
       target = await lookupProject(c.env.DB, project);
       const accessError = await avatarAccessError(c.env.DB, target?.id ?? null, agentId);
       if (accessError) return c.text(accessError, 409);
-    } else {
+    }
+    if (!avatarOnly) {
       const resolved = await resolveProject(c.env.DB, identity, agentId, 'explicit', { requireOwnedTarget: true });
       if (!resolved.ok) return c.text(resolved.error, 409);
       target = resolved.project;

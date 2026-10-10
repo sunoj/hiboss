@@ -116,12 +116,13 @@ When peer communication is authorized and sessions are active on the same projec
 - **Direct message**: `hiboss send --to <target> "message"` — for targeted coordination
 - **Check peer status**: `hiboss ss` — see what other sessions are doing
 
-**Addressing (`--to`)** resolves in this order: exact session label, exact nickname within the
-sender's project, then agent name or id prefix and session label or id prefix. `hiboss ss` shows
+**Addressing (`--to`)** resolves in this order: exact agent name, exact session label, exact
+nickname within the sender's project, agent id prefix, then session label or id prefix. No label or
+nickname can take over an existing agent name. `hiboss ss` shows
 `label · nickname`; the CLI picks a stable nature word, and the server adds `-2`, `-3`, … when
 live sessions in the project collide. Use `--to otter-2` to address that peer directly.
 The project name alone works — `--to smart-router` resolves to the one live session whose label
-starts with it. An exact label (`smart-router/main`) always wins outright, even when several
+starts with it. An exact label (`smart-router/main`) wins over nicknames and prefixes, even when several
 sessions share it; the most recently active non-self one is picked. A 409 means a genuine
 choice between two or more *live* sessions, and a 404 lists reachable targets with their idle
 times — both errors name valid targets, so correct the command from the error rather than
