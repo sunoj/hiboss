@@ -97,7 +97,7 @@ final class OverviewResolutionE2ETests: XCTestCase {
         XCTAssertTrue(overview.snapshot.today.decisions.isEmpty)
         XCTAssertEqual(MessageThread.fold(overview.snapshot.history).first?.outcome,
             .chosen(option: "Ship", source: "macos"))
-        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "macos"))
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "Mac"))
         XCTAssertEqual(IslandAttention.presentation(snapshot: overview.snapshot.today,
             active: flow.activeMessage, state: flow.presentationState)?.message.id, "question")
         try await waitForCondition(timeout: .seconds(4)) { flow.activeMessage == nil }

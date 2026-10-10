@@ -117,7 +117,7 @@ public final class OptionFlowStore: ObservableObject {
         do {
             switch try await api.reply(to: messageID, with: choice) {
             case .accepted:
-                await refreshHistory()
+                refreshHistoryInBackground()
                 return true
             case .alreadyResolved:
                 await settleConflict(for: messageID)
@@ -146,7 +146,7 @@ public final class OptionFlowStore: ObservableObject {
         dismiss(message.id)
     }
 
-    /// Replies to the live message. Only `.accepted` dismisses it as this device's answer.
+    /// Replies to the live message. Only `.accepted` resolves it as this device's answer.
     private func send(_ body: String, for message: OptionMessage) async -> Bool {
         guard let api else { return false }
         replyFeedback[message.id] = nil
@@ -154,7 +154,12 @@ public final class OptionFlowStore: ObservableObject {
         do {
             switch try await api.reply(to: message.id, with: body) {
             case .accepted:
-                dismiss(message.id)
+                #if os(macOS)
+                let source = "macos"
+                #else
+                let source = "ios"
+                #endif
+                resolve(OptionResolution(id: message.id, status: .replied, answer: body, source: source))
                 refreshHistoryInBackground()
                 return true
             case .alreadyResolved:
@@ -257,7 +262,7 @@ public final class OptionFlowStore: ObservableObject {
         }
     }
 
-    /// Local dismissal without a resolved card (this device answered, or skip).
+    /// Local dismissal without a resolved card when the user skips.
     private func dismiss(_ messageID: MessageID) {
         expirationTasks.removeValue(forKey: messageID)?.cancel()
         queuedMessages.removeAll { $0.id == messageID }

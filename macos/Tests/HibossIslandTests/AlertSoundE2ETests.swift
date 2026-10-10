@@ -18,7 +18,9 @@ final class AlertSoundE2ETests: XCTestCase {
         XCTAssertEqual(player.played, [settings.alertSound])
 
         await flow.choose("Ship", for: first.id)
-        try await waitUntil { flow.activeMessage?.id == second.id }
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "Mac"))
+        XCTAssertEqual(player.played, [settings.alertSound])
+        try await waitUntil(timeout: .seconds(4)) { flow.activeMessage?.id == second.id }
         XCTAssertEqual(player.played, [settings.alertSound, settings.alertSound])
     }
 

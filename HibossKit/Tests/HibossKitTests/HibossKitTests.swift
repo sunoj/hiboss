@@ -192,11 +192,16 @@ final class OptionFlowStoreTests: XCTestCase {
         let api = RecordingBossAPI(messages: [message])
         let store = OptionFlowStore(reconnectDelay: .seconds(60))
         store.connect(api: api)
+        defer { store.disconnect() }
         await waitFor { store.activeMessage?.id == "m1" }
 
         let ok = await store.choose("Approve", for: "m1")
         XCTAssertTrue(ok)
+        XCTAssertEqual(store.activeMessage?.id, "m1")
+        XCTAssertEqual(store.presentationState, .resolved(answer: "Approve", source: "Mac"))
+        await waitFor(timeout: 4) { store.activeMessage == nil }
         XCTAssertNil(store.activeMessage)
+        XCTAssertEqual(store.presentationState, .idle)
         let recorded = await api.replies
         XCTAssertEqual(recorded, [Reply(id: "m1", body: "Approve")])
     }

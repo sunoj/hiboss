@@ -94,9 +94,11 @@ final class IslandReplyE2ETests: XCTestCase {
         XCTAssertNil(reply.drafts["live"])
         XCTAssertNil(reply.errors["live"])
         XCTAssertEqual(reply.drafts["other"], "Unrelated")
+        XCTAssertEqual(flow.activeMessage?.id, "live")
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship it", source: "Mac"))
+        try await waitForCondition(timeout: .seconds(4)) { flow.activeMessage == nil }
         XCTAssertNil(flow.activeMessage)
-        XCTAssertEqual(flow.presentationState, .idle,
-            "this device's answer is not shown as answered elsewhere")
+        XCTAssertEqual(flow.presentationState, .idle)
     }
 
     private func connected(_ api: OutcomeScriptAPI) async throws -> OptionFlowStore {

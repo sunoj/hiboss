@@ -101,6 +101,7 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         XCTAssertNil(reply.drafts["q"])
         XCTAssertNil(reply.errors["q"])
         XCTAssertNil(flow.replyFeedback["q"])
+        try await waitForCondition { flow.historyMessages.first { $0.id == "q" }?.status == "replied" }
         XCTAssertEqual(flow.historyMessages.first { $0.id == "q" }?.status, "replied")
     }
 
@@ -168,6 +169,8 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         XCTAssertEqual(flow.presentationState, .ready)
 
         _ = await flow.choose("Ship", for: "first")
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "Mac"))
+        try await waitForCondition(timeout: .seconds(4)) { flow.activeMessage == nil }
         XCTAssertNil(flow.activeMessage, "the conflicted question must not come back from the queue")
     }
 
