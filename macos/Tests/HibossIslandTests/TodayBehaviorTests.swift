@@ -104,5 +104,10 @@ final class TodayBehaviorTests: XCTestCase {
             XCTAssertTrue(image.representations.contains { String(describing: type(of: $0)).contains("SVG") })
         }
         XCTAssertFalse(AppIdentity.icon.representations.isEmpty)
+        // The menu bar uses a template glyph so macOS tints it like other menu extras.
+        let status = AppIdentity.statusIcon
+        XCTAssertTrue(status.isTemplate)
+        XCTAssertFalse(status.representations.isEmpty)
+        XCTAssertEqual(status.size, NSSize(width: 18, height: 18))
     }
 }
