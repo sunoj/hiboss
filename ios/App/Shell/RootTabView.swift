@@ -207,7 +207,7 @@ struct RootTabView: View {
         }
     }
 
-    /// Waits for the current API and verifies accountless notification snapshots before opening.
+    /// Waits for the current API, then lets the detail screen own the message fetch.
     private func openPendingMessage() async {
         guard let route = router.pendingMessage else { return }
         showsSettings = false
@@ -216,9 +216,6 @@ struct RootTabView: View {
         for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
             try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
             if Task.isCancelled { return }
-        }
-        if let cached = route.cachedMessage {
-            guard await inbox.cacheMessage(cached.detail) != .ignored else { return }
         }
         await Task.yield()
         guard !Task.isCancelled else { return }
@@ -263,13 +260,8 @@ struct RootTabView: View {
             tab = Self.activityTab
             activitySection = .messages
             activityPath = NavigationPath([id])
-        case .notification(let id):
-            let detail = DemoBossAPI().messageDetail(for: id)
-            let cached = detail.map { PushCachedMessage(detail: $0, requiresRefresh: false) }
-            router.open(messageID: id.rawValue, cachedMessage: cached)
-        case .notificationPreview(let id):
-            let userInfo = DemoBossAPI().notificationPreviewUserInfo(for: id) ?? [:]
-            router.open(messageID: id.rawValue, cachedMessage: PushMessageSnapshot.decode(from: userInfo))
+        case .notification(let id), .notificationPreview(let id):
+            router.open(messageID: id.rawValue)
         case .session(let id, let label):
             tab = Self.activityTab
             activitySection = .sessions

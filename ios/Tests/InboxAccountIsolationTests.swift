@@ -8,14 +8,14 @@ import XCTest
 
 @MainActor
 final class InboxAccountIsolationTests: XCTestCase {
-    func testPreviousNotificationSnapshotIsNotAdmittedByCurrentAccount() async throws {
+    func testPreviousAccountMessageIsNotAdmittedByCurrentAccount() async throws {
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: AccountDetailAPI(body: "Previous account"))
         _ = await store.loadMessage("detail")
-        let snapshot = try XCTUnwrap(store.openedMessages["detail"])
+        XCTAssertNotNil(store.openedMessages["detail"])
         store.start(api: AccountDetailAPI(body: "Current account", failure: .missing))
 
-        await store.cacheMessage(snapshot)
+        _ = await store.loadMessage("detail")
 
         XCTAssertNil(store.openedMessages["detail"])
         XCTAssertNil(store.message(for: "detail"))
@@ -23,21 +23,21 @@ final class InboxAccountIsolationTests: XCTestCase {
         store.stop()
     }
 
-    func testNotificationSnapshotUsesCurrentAPIDetailEvenWhenComplete() async throws {
+    func testReloadedMessageUsesCurrentAccountDetailAndReplies() async throws {
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: AccountDetailAPI(body: "Previous account"))
         _ = await store.loadMessage("detail")
-        let snapshot = try XCTUnwrap(store.openedMessages["detail"])
+        XCTAssertNotNil(store.openedMessages["detail"])
         store.start(api: AccountDetailAPI(body: "Current account"))
 
-        await store.cacheMessage(snapshot)
+        _ = await store.loadMessage("detail")
 
         XCTAssertEqual(store.message(for: "detail")?.body, "Current account")
         XCTAssertEqual(store.reply(to: "detail")?.body, "Current account reply")
         store.stop()
     }
 
-    func testMissingVerificationEvictsCachedPreview() async throws {
+    func testMissingMessageEvictsCachedDetail() async throws {
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: AccountDetailAPI(body: "Preview"))
         _ = await store.loadMessage("detail")
@@ -53,16 +53,16 @@ final class InboxAccountIsolationTests: XCTestCase {
         store.stop()
     }
 
-    func testHeldSnapshotVerificationCannotPopulateReplacementAccount() async throws {
+    func testHeldDetailLoadCannotPopulateReplacementAccount() async throws {
         let store = InboxStore(decisionAlertsEnabled: false)
-        store.start(api: AccountDetailAPI(body: "Snapshot"))
+        store.start(api: AccountDetailAPI(body: "Cached detail"))
         _ = await store.loadMessage("detail")
-        let snapshot = try XCTUnwrap(store.openedMessages["detail"])
+        XCTAssertNotNil(store.openedMessages["detail"])
         let previous = AccountDetailAPI(body: "Previous account")
         store.start(api: previous)
-        let started = expectation(description: "snapshot verification started")
+        let started = expectation(description: "detail fetch started")
         await previous.holdDetail(started)
-        let request = Task { await store.cacheMessage(snapshot) }
+        let request = Task { await store.loadMessage("detail") }
         await fulfillment(of: [started], timeout: 2)
         XCTAssertNil(store.message(for: "detail"), "unverified content must never be visible")
 
@@ -76,14 +76,14 @@ final class InboxAccountIsolationTests: XCTestCase {
         store.stop()
     }
 
-    func testSnapshotAfterSignOutIsNotCached() async throws {
+    func testDetailLoadAfterSignOutIsNotCached() async throws {
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: AccountDetailAPI(body: "Previous account"))
         _ = await store.loadMessage("detail")
-        let snapshot = try XCTUnwrap(store.openedMessages["detail"])
+        XCTAssertNotNil(store.openedMessages["detail"])
         store.stop()
 
-        _ = await store.cacheMessage(snapshot)
+        _ = await store.loadMessage("detail")
 
         XCTAssertTrue(store.openedMessages.isEmpty)
         XCTAssertNil(store.message(for: "detail"))

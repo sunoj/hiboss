@@ -13,12 +13,6 @@ enum MessageLoadResult: Equatable {
 }
 
 extension InboxStore {
-    /// Notification payloads have no account identity; only the current API can admit their ID.
-    @discardableResult
-    func cacheMessage(_ detail: MessageDetail) async -> MessageLoadResult {
-        await loadMessage(detail.message.id)
-    }
-
     func message(for id: MessageID) -> HistoryMessage? {
         history.first { $0.id == id } ?? requiredInputs.first { $0.id == id }
             ?? openedMessages[id]?.message
