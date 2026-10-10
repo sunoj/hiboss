@@ -39,5 +39,8 @@ The snapshot flag writes `dashboard-dark.png` and `dashboard-light.png` into an
 existing directory. These are native component renders using local sample data,
 not screenshots of a connected production dashboard.
 
-[Dark preview](screenshots/panels-v2-dark.png) ·
-[Light preview](screenshots/panels-v2-light.png)
+Dark preview ·
+Light preview
+
+Screenshot captures under `docs/live-panels/screenshots/` are local artifacts and are not
+tracked in git.

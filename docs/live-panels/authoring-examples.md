@@ -67,14 +67,14 @@ input, button, action, or child control. `Stack`, `Grid`, `Section`, `Text`, `Me
 The gated Panels destination was launched with `HIBOSS_PANELS_DEMO=1` and paged through
 all seven fixtures. Final captures are in `screenshots/`:
 
-- [mixed decision form](screenshots/panels-example-01-mixed.png)
-- [metric smoke test](screenshots/panels-example-02-metric.png)
-- [download progress](screenshots/panels-example-03-download-progress.png)
-- [end-to-end test run](screenshots/panels-example-04-e2e-test-run.png)
-- [benchmark sweep](screenshots/panels-example-05-benchmark-sweep.png)
-- [service monitor](screenshots/panels-example-06-service-monitor.png)
-- [service monitor dark-mode spot check](screenshots/panels-example-06-service-monitor-dark.png)
-- [research intake](screenshots/panels-example-07-research-intake.png)
+- mixed decision form
+- metric smoke test
+- download progress
+- end-to-end test run
+- benchmark sweep
+- service monitor
+- service monitor dark-mode spot check
+- research intake
 
 The first visual pass exposed two issues: new fixtures inherited the old “Metric
 fixture” fallback title, and horizontal metric cells wrapped values and units. Both
@@ -86,3 +86,6 @@ submitted. The captured answer contained the entered fields, an array of stable 
 ids, and the changed slider value. The final screenshot shows the native checkboxes and
 slider on Example 7 of 7. No keychain prompt appeared during this run; no password was
 entered.
+
+Screenshot captures under `docs/live-panels/screenshots/` are local artifacts and are not
+tracked in git.

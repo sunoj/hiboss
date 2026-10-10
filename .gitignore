@@ -18,3 +18,7 @@ test_migration*.sql
 result*.md
 .aid/state.toml
 spikes/panel-seam/evidence/
+
+# Generated screenshot captures stay local; they are not tracked in git.
+ios/Screenshots/
+docs/live-panels/screenshots/
