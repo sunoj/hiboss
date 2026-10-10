@@ -25,6 +25,9 @@ final class RequiredInputStore: ObservableObject {
     private var staleTask: Task<Void, Never>?
     private var epoch = 0
     private var fetchVersion = 0
+    /// Stream changes seen while a fetch is in flight, re-applied over its older result.
+    private var resolvedDuringFetch: Set<MessageID> = []
+    private var updatedDuringFetch: [HistoryMessage] = []
     private let reconnectDelay: Duration
     private let staleListDelay: Duration
 
@@ -71,6 +74,8 @@ final class RequiredInputStore: ObservableObject {
         guard let service else { return }
         invalidateFetch()
         state.refreshing = true
+        resolvedDuringFetch = []
+        updatedDuringFetch = []
         let epoch = epoch
         let version = fetchVersion
         fetchTask = Task { [weak self] in
@@ -78,7 +83,9 @@ final class RequiredInputStore: ObservableObject {
                 let messages = try await service.fetchRequiredInputs()
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
-                self.state = RequiredInputState(messages: messages, ready: self.state.ready, loaded: true)
+                self.state = RequiredInputState(messages: self.reconcile(messages), ready: self.state.ready,
+                                                loaded: true)
+                self.fetchTask = nil
                 self.cancelStaleDeadline()
                 if !self.state.ready { self.scheduleStaleDeadline() }
             } catch {
@@ -86,8 +93,20 @@ final class RequiredInputStore: ObservableObject {
                       self.fetchVersion == version else { return }
                 self.state.failed = true
                 self.state.refreshing = false
+                self.fetchTask = nil
             }
         }
+    }
+
+    private func reconcile(_ fetched: [HistoryMessage]) -> [HistoryMessage] {
+        var result = fetched.filter { !resolvedDuringFetch.contains($0.id) }
+        for message in updatedDuringFetch {
+            result.removeAll { $0.id == message.id }
+            result.append(message)
+        }
+        resolvedDuringFetch = []
+        updatedDuringFetch = []
+        return result
     }
 
     private func invalidateFetch() {
@@ -114,19 +133,30 @@ final class RequiredInputStore: ObservableObject {
         }
     }
 
+    /// Only `ready` starts the list fetch. Ordinary events update the list in place and never
+    /// cancel a fetch: the stream polls every few seconds, and on a slow link a fetch restarted
+    /// by each event never finished, so the list stayed "Loading" while the stream was live.
     private func apply(_ event: RequiredInputEvent) {
-        invalidateFetch()
         switch event {
         case .ready:
             cancelStaleDeadline()
             state.ready = true
+            if fetchTask == nil { refresh() }
         case let .message(message):
             state.messages.removeAll { $0.id == message.id }
             state.messages.append(message)
+            if fetchTask != nil {
+                updatedDuringFetch.removeAll { $0.id == message.id }
+                updatedDuringFetch.append(message)
+                resolvedDuringFetch.remove(message.id)
+            }
         case let .resolved(id):
             state.messages.removeAll { $0.id == id }
+            if fetchTask != nil {
+                resolvedDuringFetch.insert(id)
+                updatedDuringFetch.removeAll { $0.id == id }
+            }
         }
-        if state.ready { refresh() }
     }
 
     private func consume(_ service: any RequiredInputServing, epoch: Int) async {
@@ -144,7 +174,6 @@ final class RequiredInputStore: ObservableObject {
                 // Transport errors and EOF share the same bounded stale-list authority.
             }
             guard !Task.isCancelled, self.epoch == epoch else { return }
-            invalidateFetch()
             state.ready = false
             scheduleStaleDeadline()
             do { try await Task.sleep(for: reconnectDelay) }

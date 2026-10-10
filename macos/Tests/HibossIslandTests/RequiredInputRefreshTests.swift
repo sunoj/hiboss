@@ -59,19 +59,22 @@ final class RequiredInputRefreshTests: XCTestCase {
         let resolved = AttentionTestSupport.ask(id: "resolved", options: ["Hold"], now: .now)
         await api.send(.message(resolved))
         try await waitForCondition { inputs.state.messages.count == 2 }
-        try await api.waitForFetch(count: 2)
         var states: [DecisionAnswerState] = []
         let observation = overview.$snapshot.sink { states.append($0.answerability.state(for: question.id)) }
         defer { observation.cancel() }
+        // A fetch in flight whose (older) result still lists the soon-resolved decision.
         await api.blockFetch()
+        inputs.refresh()
+        try await api.waitForFetch(count: 2)
         await api.resolve(resolved.id)
-        try await api.waitForFetch(count: 3)
+        try await waitForCondition { !inputs.state.messages.contains { $0.id == resolved.id } }
         XCTAssertTrue(inputs.state.refreshing)
         XCTAssertEqual(overview.snapshot.answerability.state(for: resolved.id), .closed)
         assertOpen(question, in: overview)
         await api.releaseFetches()
         try await waitForCondition { inputs.state.coverageComplete && !inputs.state.refreshing }
         XCTAssertFalse(states.contains(.checking))
+        XCTAssertEqual(overview.snapshot.answerability.state(for: resolved.id), .closed)
         assertOpen(question, in: overview)
     }
 

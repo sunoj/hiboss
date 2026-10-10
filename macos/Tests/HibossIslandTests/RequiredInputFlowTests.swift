@@ -73,11 +73,32 @@ final class RequiredInputFlowTests: XCTestCase {
         await api.resolve("auto")
         try await waitForCondition { !inputs.state.messages.contains { $0.id == "auto" } }
         XCTAssertEqual(overview.snapshot.today.decisions.map(\.id), ["blocked", "high"])
-        try await api.waitForFetch(count: 3)
+        // Events no longer refetch; the in-flight fetch must not revive the resolved one.
         await api.releaseFetches()
         try await waitForCondition { inputs.state.coverageComplete }
         XCTAssertEqual(overview.snapshot.today.decisions.map(\.id), ["blocked", "high"])
         XCTAssertEqual(IslandAttention.presentation(snapshot: overview.snapshot.today)?.message.id, "blocked")
+    }
+
+    /// Production regression: the server re-sends changed decisions every 3 s. When each event
+    /// restarted the list fetch, a fetch slower than the event interval never finished and the
+    /// Mac stayed "Loading"/"Checking…" while the stream was live.
+    func testStreamEventsDuringASlowFetchStillLoadTheList() async throws {
+        let question = fixtures()[0]
+        let api = ControlledRequiredInputs(messages: [question])
+        await api.slowFetches(.milliseconds(200))
+        let inputs = RequiredInputStore()
+        inputs.connect(api)
+        defer { inputs.disconnect() }
+        let chatter = Task {
+            for _ in 0..<40 {
+                await api.send(.message(question))
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+        defer { chatter.cancel() }
+        try await waitForCondition(timeout: .seconds(1)) { inputs.state.coverageComplete }
+        XCTAssertEqual(inputs.state.messages.map(\.id), [question.id])
     }
 
     func testReadyAndSuccessfulListLoadAreBothRequiredForCoverage() async throws {
@@ -192,6 +213,7 @@ actor ControlledRequiredInputs: RequiredInputServing {
     private var streamCount = 0
     private var blocked = false
     private var failing = false
+    private var fetchDelay: Duration?
 
     init(messages: [HistoryMessage], sendsReady: Bool = true) {
         self.messages = messages
@@ -209,6 +231,7 @@ actor ControlledRequiredInputs: RequiredInputServing {
     func fetchRequiredInputs() async throws -> [HistoryMessage] {
         fetchCount += 1
         if failing { throw TestError.rejected }
+        if let fetchDelay { try await Task.sleep(for: fetchDelay) }
         if blocked {
             return try await withCheckedThrowingContinuation { waits.append(($0, messages)) }
         }
@@ -234,6 +257,8 @@ actor ControlledRequiredInputs: RequiredInputServing {
     }
 
     func blockFetch() { blocked = true }
+    /// A slow link: every fetch takes this long, and cancelling the caller cancels the fetch.
+    func slowFetches(_ delay: Duration) { fetchDelay = delay }
     func suppressReadiness() { sendsReady = false }
     func failFetch() { failing = true }
     func finish(failing: Bool = false) {
