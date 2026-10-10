@@ -34,9 +34,15 @@ export function scopeMessageAgents(
   };
 }
 
-export function emptyMessagePage(cursor: string | undefined): MessagePage {
-  return cursor === undefined ? { messages: [], total: 0 }
-    : { messages: [], total: 0, cursor, has_more: false };
+export async function currentMessageCursor(env: Env): Promise<string> {
+  const cursor = await env.DB.prepare("SELECT datetime('now') AS cursor").first<string>('cursor');
+  if (!cursor) throw new Error('D1 message clock unavailable');
+  return cursor;
+}
+
+export function emptyMessagePage(cursor: string, incremental: boolean): MessagePage {
+  return incremental ? { messages: [], total: 0, cursor, has_more: false }
+    : { messages: [], total: 0, cursor };
 }
 
 export async function fetchMessageDelta(env: Env, query: MessageQuery, cursor: string): Promise<MessagePage> {

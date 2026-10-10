@@ -73,10 +73,10 @@ public actor HistoryCache {
         try FileManager.default.setAttributes(
             [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: url.path
         )
+        #endif
         var url = url
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try url.setResourceValues(values)
-        #endif
     }
 }

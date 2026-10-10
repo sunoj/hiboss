@@ -12,7 +12,8 @@ import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { decodeRequiredInputCursor, fetchRequiredInputPage } from './boss-required-inputs';
 import {
-  emptyMessagePage, fetchMessageDelta, scopeMessageAgents, validMessageCursor, type MessageQuery,
+  currentMessageCursor, emptyMessagePage, fetchMessageDelta, scopeMessageAgents,
+  validMessageCursor, type MessageQuery,
 } from './boss-message-history';
 const routes = new Hono<{ Bindings: Env }>();
 const MAX_LIMIT = 100;
@@ -69,12 +70,13 @@ function messageQuery(c: Context<{ Bindings: Env }>, agentIds: string[]): Messag
 routes.get('/messages', async (c) => {
   const cursor = c.req.query('updated_after');
   if (cursor !== undefined && !validMessageCursor(cursor)) return c.text('invalid updated_after cursor', 400);
+  const pageCursor = cursor ?? await currentMessageCursor(c.env);
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  if (agentIds.length === 0) return c.json(emptyMessagePage(cursor));
+  if (agentIds.length === 0) return c.json(emptyMessagePage(pageCursor, cursor !== undefined));
 
   const query = messageQuery(c, agentIds);
-  if (!query) return c.json(emptyMessagePage(cursor));
+  if (!query) return c.json(emptyMessagePage(pageCursor, cursor !== undefined));
   if (cursor !== undefined) return c.json(await fetchMessageDelta(c.env, query, cursor));
   const { limit, offset, clauses, binds } = query;
 
@@ -84,14 +86,14 @@ routes.get('/messages', async (c) => {
     .bind(...binds)
     .first<{ total: number }>();
   const total = countRow?.total ?? 0;
-  if (Number.isInteger(offset) && offset >= total) return c.json({ messages: [], total });
+  if (Number.isInteger(offset) && offset >= total) return c.json({ messages: [], total, cursor: pageCursor });
   const index = clauses.length === 1 ? 'INDEXED BY idx_messages_agent_page'
     : clauses.length === 2 && clauses[1] === "direction = 'agent_to_boss'" ? 'INDEXED BY idx_messages_boss_page' : '';
   const rows = await c.env.DB
     .prepare(`SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label, sessions.branch AS session_branch, sessions.status AS session_status FROM (SELECT * FROM messages ${index} WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?) messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id LEFT JOIN sessions ON sessions.id = messages.session_id ORDER BY messages.created_at DESC, messages.id DESC`)
     .bind(...binds, limit, offset)
     .all<MessageRow>();
-  return c.json({ messages: (rows.results ?? []).map(mapMessageRow), total });
+  return c.json({ messages: (rows.results ?? []).map(mapMessageRow), total, cursor: pageCursor });
 });
 
 /** GET /api/boss/messages/:id — read a specific message with replies */

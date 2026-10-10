@@ -7,6 +7,12 @@ import Foundation
 import HibossKit
 import UIKit
 
+protocol ConnectionPairingRedeeming: Sendable {
+    func redeem(payload: PairingPayload, deviceLabel: String) async throws -> PairingRedemption
+}
+
+extension PairingRedeemer: ConnectionPairingRedeeming {}
+
 @MainActor
 final class ConnectionStore: ObservableObject {
     @Published var serverAddress: String
@@ -27,7 +33,7 @@ final class ConnectionStore: ObservableObject {
     private let legacyKeychain: (any TokenRemoving)?
     private let sharedDefaults: UserDefaults?
     private let signerStore: any MessageSignerStoring
-    private let pairingRedeemer: PairingRedeemer
+    private let pairingRedeemer: any ConnectionPairingRedeeming
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private var messageSigner: SecureEnclaveMessageSigner?
     private let historyCache: HistoryCache
@@ -40,7 +46,7 @@ final class ConnectionStore: ObservableObject {
         legacyKeychain: (any TokenRemoving)? = nil,
         sharedDefaults: UserDefaults? = UserDefaults(suiteName: ShareConnection.appGroup),
         signerStore: (any MessageSignerStoring)? = nil,
-        pairingRedeemer: PairingRedeemer = PairingRedeemer(),
+        pairingRedeemer: any ConnectionPairingRedeeming = PairingRedeemer(),
         clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
     ) {
         self.defaults = defaults
@@ -85,12 +91,14 @@ final class ConnectionStore: ObservableObject {
             serverAddress: serverAddress,
             bossToken: storedToken
         ) else {
+            do { try await purgeReplacedHistory(with: nil) } catch { return }
             bossToken = ""
             messageSigner = nil
             config = nil
             return
         }
 
+        do { try await purgeReplacedHistory(with: restoredConfig) } catch { return }
         bossToken = storedToken
         messageSigner = stored.signer
         config = restoredConfig
@@ -114,6 +122,7 @@ final class ConnectionStore: ObservableObject {
                 return .failure(error)
             }
             do {
+                try await purgeReplacedHistory(with: candidate)
                 try persistToken(candidate.bossToken)
             } catch {
                 return .failure(error)
@@ -126,10 +135,12 @@ final class ConnectionStore: ObservableObject {
         }
     }
 
-    func activateDeviceToken(_ token: String, replacing current: ConnectionConfig) throws -> HibossAPI {
+    func activateDeviceToken(_ token: String, replacing current: ConnectionConfig) async throws -> HibossAPI {
+        guard config == current else { throw CancellationError() }
+        let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
+        try await purgeReplacedHistory(with: accepted)
         guard config == current else { throw CancellationError() }
         try persistToken(token)
-        let accepted = ConnectionConfig(serverURL: current.serverURL, bossToken: token)
         bossToken = token
         serverAddress = current.serverURL.absoluteString
         clientExchangeNotice = nil
@@ -163,6 +174,7 @@ final class ConnectionStore: ObservableObject {
             ) else {
                 return .failure(SettingsError.invalidServerURL)
             }
+            try await purgeReplacedHistory(with: candidate)
             try signerStore.write(redemption.signer)
             do {
                 try keychain.write(candidate.bossToken)
@@ -192,6 +204,13 @@ final class ConnectionStore: ObservableObject {
         clientExchangeNotice = nil
         messageSigner = nil
         config = nil
+    }
+
+    private func purgeReplacedHistory(with candidate: ConnectionConfig?) async throws {
+        await historyCacheDeletion?.value
+        if let previous = config, previous != candidate {
+            try await historyCache.delete(serverURL: previous.serverURL)
+        }
     }
 
     func makeAPI() -> HibossAPI? {

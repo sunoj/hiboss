@@ -4,6 +4,7 @@ import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { seedDatabase, seedBossToken } from '../test-helpers';
 import type { MessageResponse, MessageRow } from '../types';
+import { validMessageCursor } from './boss-message-history';
 
 const TOKEN = `hb_boss_${'cd'.repeat(16)}`;
 const EMPTY_TOKEN = `hb_boss_${'ef'.repeat(16)}`;
@@ -116,7 +117,8 @@ describe('boss message delta', () => {
     expect((await request({ updated_after: '2024-02-29 23:59:59' })).status).toBe(200);
   });
 
-  it('preserves the legacy response bytes and newest-first order without a cursor', async () => {
+  it('adds a D1 cursor to the full response while preserving newest-first order', async () => {
+    const before = await env.DB.prepare("SELECT datetime('now') AS cursor").first<string>('cursor');
     const response = await request({ direction: 'all', limit: '2', offset: '1' });
     const rows = await env.DB.prepare(
       `SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label,
@@ -126,10 +128,37 @@ describe('boss message delta', () => {
         ORDER BY messages.created_at DESC, messages.id DESC LIMIT 2 OFFSET 1`
     ).bind(...AGENTS.slice(0, 2)).all<MessageRow>();
     const messages = rows.results.map(row => ({ ...row, metadata: JSON.parse(row.metadata ?? 'null') }));
-    expect(await response.text()).toBe(JSON.stringify({ messages, total: 4 }));
+    const page = await response.json() as Page;
+    const after = await env.DB.prepare("SELECT datetime('now') AS cursor").first<string>('cursor');
+    expect(page).toEqual({ messages, total: 4, cursor: expect.any(String) });
+    expect(validMessageCursor(page.cursor!)).toBe(true);
+    expect(page.cursor! >= before! && page.cursor! <= after!).toBe(true);
     expect(messages.map(message => message.id)).toEqual(['delta-b', 'delta-a']);
     expect(messages.every(message => typeof message.updated_at === 'string')).toBe(true);
-    expect(await (await request({}, EMPTY_TOKEN)).json()).toEqual({ messages: [], total: 0 });
+  });
+
+  it('includes a full cursor without has_more on every empty or offset-past-total path', async () => {
+    const paths: [Record<string, string>, string, number][] = [
+      [{}, EMPTY_TOKEN, 0], [{ agent: AGENTS[2] }, TOKEN, 0], [{ agent: 'missing' }, TOKEN, 0],
+      [{ search: 'missing' }, TOKEN, 0], [{ direction: 'all', offset: '4' }, TOKEN, 4],
+      [{ direction: 'all', offset: '100' }, TOKEN, 4],
+    ];
+    for (const [params, token, total] of paths) {
+      const page = await (await request(params, token)).json() as Page;
+      expect(page).toEqual({ messages: [], total, cursor: expect.any(String) });
+      expect(validMessageCursor(page.cursor!)).toBe(true);
+    }
+  });
+
+  it('returns a write after a full fetch in a delta starting from its cursor', async () => {
+    const full = await (await request({ direction: 'all' })).json() as Page;
+    expect(validMessageCursor(full.cursor!)).toBe(true);
+    await env.DB.prepare("UPDATE messages SET body = 'Edited after full fetch' WHERE id = 'delta-old'").run();
+    const page = await delta({ updated_after: full.cursor! });
+    expect(page.messages.find(message => message.id === 'delta-old')).toMatchObject({
+      body: 'Edited after full fetch', updated_at: expect.any(String),
+    });
+    expect(page.messages.every(message => message.updated_at >= full.cursor!)).toBe(true);
   });
 
   it('includes updated_at in message details and every reply', async () => {

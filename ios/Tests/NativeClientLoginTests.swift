@@ -2,8 +2,9 @@
 // Exports: NativeClientLoginTests using isolated defaults and in-memory credentials.
 // Dependencies: XCTest, HibossKit, and the native connection store.
 
+import Combine
 import Foundation
-import HibossKit
+@testable import HibossKit
 import XCTest
 @testable import HiBoss
 
@@ -107,4 +108,129 @@ private struct ClientLoginSignerStore: MessageSignerStoring {
     func read() throws -> SecureEnclaveMessageSigner? { nil }
     func write(_ signer: SecureEnclaveMessageSigner) throws {}
     func delete() throws {}
+}
+
+// Account changes purge disk history before publishing the replacement connection.
+@MainActor
+final class AccountHistoryReplacementTests: XCTestCase {
+    func testDirectConnectPurgesPreviousAccountOnSameAndDifferentServers() async throws {
+        try await checkReplacement(.connect)
+    }
+
+    func testPairingPurgesPreviousAccountOnSameAndDifferentServers() async throws {
+        try await checkReplacement(.pair)
+    }
+
+    func testDeviceTokenActivationPurgesPreviousCredentialCache() async throws {
+        try await checkReplacement(.activate)
+    }
+
+    func testReconnectRetainsUnchangedCredentialCache() async throws {
+        let (connection, cache, key, _) = try await fixture()
+        _ = try await connection.connect().get()
+        let saved = try await cache.load(for: key)
+        XCTAssertNotNil(saved)
+    }
+
+    func testRestoringChangedServerPurgesPreviousCache() async throws {
+        let (connection, cache, key, _) = try await fixture()
+        connection.serverAddress = "https://replacement.test"
+        await connection.restore()
+        let saved = try await cache.load(for: key)
+        XCTAssertNil(saved)
+    }
+
+    func testInvalidRestorationPurgesPreviousCache() async throws {
+        let (connection, cache, key, _) = try await fixture()
+        connection.serverAddress = ""
+        await connection.restore()
+        let saved = try await cache.load(for: key)
+        XCTAssertNil(saved)
+        XCTAssertNil(connection.config)
+    }
+
+    private enum Replacement { case connect, pair, activate }
+
+    private func checkReplacement(_ replacement: Replacement) async throws {
+        for server in ["https://cached.test", "https://replacement.test"] {
+            let (connection, cache, key, root) = try await fixture()
+            let previous = try XCTUnwrap(connection.config)
+            var retainedAtPublication = false
+            let observation = connection.$config.dropFirst().sink { candidate in
+                if candidate != previous {
+                    retainedAtPublication = FileManager.default.fileExists(atPath: root.path)
+                }
+            }
+            switch replacement {
+            case .connect:
+                connection.serverAddress = server
+                connection.bossToken = "synthetic-new"
+                _ = try await connection.connect().get()
+            case .pair:
+                let payload = try PairingPayload.make(server: server,
+                    code: "hb_pair_" + String(repeating: "d", count: 64)).get()
+                _ = try await connection.pair(payload: payload, deviceLabel: "Test device").get()
+            case .activate:
+                _ = try await connection.activateDeviceToken("synthetic-new", replacing: previous)
+            }
+            observation.cancel()
+            XCTAssertFalse(retainedAtPublication)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
+            try await cache.save(HistorySnapshot(), bossID: "old-boss", key: key, epoch: 0)
+            let stale = try await cache.load(for: key)
+            XCTAssertNil(stale, "An outstanding old-account save must not recreate the cache")
+        }
+    }
+
+    private func fixture() async throws -> (ConnectionStore, HistoryCache, HistoryCacheKey, URL) {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = "AccountHistoryReplacement.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: directory)
+            defaults.removePersistentDomain(forName: suite)
+        }
+        let config = ConnectionConfig(
+            serverURL: URL(string: "https://cached.test")!, bossToken: "synthetic-old"
+        )
+        let key = HistoryCacheKey(config: config)
+        let cache = HistoryCache(directory: directory)
+        try await cache.save(HistorySnapshot(), bossID: "old-boss", key: key, epoch: 0)
+        defaults.set(config.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
+        let connection = ConnectionStore(defaults: defaults, historyCache: cache,
+            keychain: ReplacementTokens(), sharedDefaults: nil, signerStore: ReplacementSignerStore(),
+            pairingRedeemer: ReplacementPairingAPI(), clientsAPI: { _ in ReplacementClientsAPI() })
+        await connection.restore()
+        return (connection, cache, key, directory.appendingPathComponent(key.server))
+    }
+}
+
+private final class ReplacementTokens: TokenStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var token = "synthetic-old"
+    func read() throws -> String? { lock.withLock { token } }
+    func write(_ token: String) throws { lock.withLock { self.token = token } }
+}
+
+private struct ReplacementSignerStore: MessageSignerStoring {
+    func read() throws -> SecureEnclaveMessageSigner? { nil }
+    func write(_ signer: SecureEnclaveMessageSigner) throws {}
+    func delete() throws {}
+}
+
+private struct ReplacementClientsAPI: BossClientsServing {
+    func verifyConnection() async throws {}
+    func createClient(kind: BossClientKind, label: String) async throws -> BossClientGrant {
+        throw HibossAPIError.requestFailed(status: 404, message: "")
+    }
+    func listClients() async throws -> [BossClient] { [] }
+    func revokeClient(id: BossClientID) async throws { XCTFail("Unexpected revocation") }
+}
+
+private struct ReplacementPairingAPI: ConnectionPairingRedeeming {
+    func redeem(payload: PairingPayload, deviceLabel: String) async throws -> PairingRedemption {
+        PairingRedemption(token: "synthetic-new", signer: SecureEnclaveMessageSigner(
+            keyRepresentation: Data(), keyID: "synthetic-key", bossID: "new-boss", clientKind: .ios
+        ))
+    }
 }

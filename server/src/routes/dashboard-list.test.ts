@@ -99,15 +99,23 @@ it.each([
   ['session=list-session-2', " AND direction = 'agent_to_boss' AND session_id = ?", ['list-session-2']],
 ])('keeps full message rows, ties, offsets and exact totals: %s', async (params, filter, binds) => {
   for (const offset of [0, 17, 250, 1000]) {
-    const { response } = await request(`/api/boss/messages?${params}&limit=17&offset=${offset}`);
-    const actual = await response.json() as { messages: MessageRow[]; total: number };
+    const { response, queries } = await request(`/api/boss/messages?${params}&limit=17&offset=${offset}`);
+    const clockIndex = queries.findIndex(query => query.sql === "SELECT datetime('now') AS cursor");
+    const countIndex = queries.findIndex(query =>
+      query.sql.startsWith('SELECT COUNT(*) AS total FROM messages'));
+    const pageIndex = queries.findIndex(query => query.sql.startsWith('SELECT messages.*'));
+    expect(clockIndex).toBeGreaterThanOrEqual(0);
+    expect(clockIndex).toBeLessThan(countIndex);
+    if (pageIndex >= 0) expect(clockIndex).toBeLessThan(pageIndex);
+    const actual = await response.json() as { messages: MessageRow[]; total: number; cursor: string };
     const where = `agent_id IN (${placeholders})${filter}`;
     const legacy = await env.DB.prepare(`SELECT messages.*, api_keys.name AS agent_name, sessions.label AS session_label,
       sessions.branch AS session_branch, sessions.status AS session_status FROM (SELECT * FROM messages WHERE ${where}) messages
       LEFT JOIN api_keys ON api_keys.id = messages.agent_id LEFT JOIN sessions ON sessions.id = messages.session_id
       ORDER BY messages.created_at DESC, messages.id DESC LIMIT ? OFFSET ?`).bind(...agents, ...binds, 17, offset).all<MessageRow>();
     const count = await env.DB.prepare(`SELECT COUNT(*) AS total FROM messages WHERE ${where}`).bind(...agents, ...binds).first<{ total: number }>();
-    expect(actual).toEqual({ messages: legacy.results.map(mapMessageRow), total: count?.total });
+    expect(actual).toEqual({ messages: legacy.results.map(mapMessageRow), total: count?.total,
+      cursor: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/) });
   }
 });
 
@@ -145,7 +153,8 @@ it.each([false, true])('keeps session rows and labels, include_inactive=%s', asy
 
 it('keeps inaccessible-agent filters empty', async () => {
   const { response } = await request(`/api/boss/messages?agent=${getTestAgentId()}`);
-  expect(await response.json()).toEqual({ messages: [], total: 0 });
+  expect(await response.json()).toEqual({ messages: [], total: 0,
+    cursor: expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/) });
 });
 
 it.each(['all', 'default'])('bounds narrow-access reads including offsets at and past total: %s', async (direction) => {

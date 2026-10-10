@@ -53,7 +53,7 @@ private struct CacheFlowAPI: BossServing {
     func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {
         let row = HistoryMessage(id: "cached", body: "Cached", direction: "agent_to_boss",
             status: "delivered", priority: "normal", createdAt: "2026-10-01T00:00:00Z")
-        return HistoryResponse(messages: [row], total: 1, cursor: "cursor")
+        return HistoryResponse(messages: [row], total: 1, cursor: "2026-10-10 10:20:30")
     }
     func fetchHistory() async throws -> [HistoryMessage] { [] }
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> { AsyncThrowingStream { _ in } }

@@ -16,7 +16,7 @@ public struct HistoryResponse: Codable, Equatable, Sendable {
         case hasMore = "has_more"
     }
 
-    public init(messages: [HistoryMessage], total: Int, cursor: String? = nil, hasMore: Bool = false) {
+    public init(messages: [HistoryMessage], total: Int, cursor: String? = nil, hasMore: Bool? = nil) {
         self.messages = messages
         self.total = total
         self.cursor = cursor

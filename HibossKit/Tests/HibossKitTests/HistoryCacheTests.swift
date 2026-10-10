@@ -7,6 +7,24 @@ import XCTest
 
 @MainActor
 final class HistoryCacheTests: XCTestCase {
+    func testDirectorySnapshotAndLookupAreExcludedFromBackup() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = HistoryCache(directory: directory)
+        let config = ConnectionConfig(serverURL: URL(string: "https://history.test")!, bossToken: "synthetic")
+        try await cache.save(HistorySnapshot(messages: [historyRow("one")]), bossID: "boss",
+                             key: HistoryCacheKey(config: config), epoch: 0)
+        let root = try XCTUnwrap(FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        ).first)
+        let files = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
+        XCTAssertEqual(files.count, 2)
+        for url in [root] + files {
+            let values = try url.resourceValues(forKeys: [.isExcludedFromBackupKey])
+            XCTAssertEqual(values.isExcludedFromBackup, true)
+        }
+    }
+
     func testRoundTripShowsCachedRowsBeforeNetworkCompletes() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

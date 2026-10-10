@@ -131,7 +131,7 @@ final class HistoryCacheIntegrationTests: XCTestCase {
         XCTAssertEqual(store.history.map(\.id), ["cached"])
         XCTAssertEqual(publications, 0)
         let cursors = await api.cursors
-        XCTAssertEqual(cursors, [nil, "opaque +00:00", "opaque +00:00"])
+        XCTAssertEqual(cursors, [nil, "2026-10-10 10:20:30", "2026-10-10 10:20:30"])
         observation.cancel()
         store.stop()
     }
@@ -187,7 +187,8 @@ private actor CachedInboxAPI: BossServing {
         cursors.append(updatedAfter)
         let row = HistoryMessage(id: "cached", body: "Cached", direction: "agent_to_boss",
             status: "delivered", priority: "normal", createdAt: "2026-10-01T00:00:00Z")
-        return HistoryResponse(messages: cursors.count == 3 ? [] : [row], total: 1, cursor: "opaque +00:00")
+        return HistoryResponse(messages: cursors.count == 3 ? [] : [row], total: 1,
+                               cursor: "2026-10-10 10:20:30")
     }
     func fetchHistory() async throws -> [HistoryMessage] { [] }
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> { AsyncThrowingStream { _ in } }

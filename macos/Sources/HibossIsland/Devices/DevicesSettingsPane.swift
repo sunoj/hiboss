@@ -14,7 +14,7 @@ struct DevicesSettingsPane: View {
             if let config = settings.activeClientConfig {
                 BossClientsSection(api: HibossAPI(config: config), kind: .macos,
                     deviceLabel: settings.deviceLabel) { token in
-                    let accepted = try settings.activateDeviceToken(token, replacing: config)
+                    let accepted = try await settings.activateDeviceToken(token, replacing: config)
                     reconnect(accepted)
                     return HibossAPI(config: accepted)
                 }

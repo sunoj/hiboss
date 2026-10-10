@@ -10,11 +10,11 @@ public struct BossClientsSection: View {
     @State private var showsConfirmation = false
     @State private var deviceLabel: String
     private let kind: BossClientKind
-    private let activate: @MainActor (String) throws -> any BossClientsServing
+    private let activate: @MainActor (String) async throws -> any BossClientsServing
 
     public init(
         api: any BossClientsServing, kind: BossClientKind, deviceLabel: String,
-        activate: @escaping @MainActor (String) throws -> any BossClientsServing
+        activate: @escaping @MainActor (String) async throws -> any BossClientsServing
     ) {
         _store = StateObject(wrappedValue: BossClientsStore(api: api))
         _deviceLabel = State(initialValue: deviceLabel)
