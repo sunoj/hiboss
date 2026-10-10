@@ -18,9 +18,9 @@ bridge for mount, content height, and renderer failure. The light and dark captu
 show the chart bars, label, and system-adaptive colours in both appearances. The
 dark-mode check used System Events and was restored to the original light setting.
 
-![Panels in light appearance](screenshots/panels-light.png)
+Panels in light appearance: `screenshots/panels-light.png`
 
-![Panels in dark appearance](screenshots/panels-dark.png)
+Panels in dark appearance: `screenshots/panels-dark.png`
 
 ## What I saw
 
@@ -100,3 +100,6 @@ check correctly progressed it to `Offline`. The captures are
 One cosmetic issue was visible: wide chart-series tiles reserve more blank vertical
 space than their compact scalar summaries use. The wall remained readable, and the
 full-panel path still renders charts and tables through the existing web leaf.
+
+Screenshot captures under `docs/live-panels/screenshots/` are local artifacts and are not
+tracked in git.

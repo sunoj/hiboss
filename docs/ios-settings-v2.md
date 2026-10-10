@@ -7,7 +7,8 @@ tests use `launchConfiguredDemo()`; verification includes the complete iOS suite
 ## Baseline
 
 Source baseline: `8bafbf17dced787c22be10a4c958e1d222a958cd`.
-Screenshots are in [settings-v2/before](../ios/Screenshots/settings-v2/before/).
+Screenshots are local captures under `ios/Screenshots/settings-v2/before/`, which
+git does not track.
 They show Settings at the top, middle and bottom, pairing, Mac review and code,
 the Mac scan introduction, device requests and review, and the sign-out confirmation.
 The scan introduction was supplemented from unchanged baseline app sources.
@@ -149,25 +150,18 @@ stored `HH:mm` and timezone remain unchanged.
 Large-text screenshot review also exposed a truncated external-channel summary.
 Routing now uses native `LabeledContent` with wrapping values.
 
-The [after gallery](../ios/Screenshots/settings-v2/after/) contains 144 images:
+The after gallery contains 144 images:
 18 stops in each light/dark × en/zh-Hans × default/accessibility L combination.
 Delivery detail images were refreshed after restoring their menu indicators.
-The [state gallery](../ios/Screenshots/settings-v2/after/states/) has nine images
+The state gallery has nine images
 covering waits, denial, failures, empty requests and retained approval details.
 
 | Comparison | Before | After |
 | --- | --- | --- |
-| Root | [22 rows][before-root] | [5 rows][after-root] |
-| Large-text root | Not captured | [Sign Out remains visible][after-large] |
-| Notification controls | [Long-page controls][before-notify] | [Overview][after-notify] |
-| Large-text channel summary | Not captured | [Complete values and menu indicators][after-delivery] |
-
-[before-root]: ../ios/Screenshots/settings-v2/before/en-10-settings.png
-[after-root]: ../ios/Screenshots/settings-v2/after/en-10-settings.png
-[after-large]: ../ios/Screenshots/settings-v2/after/en-axL-10-settings.png
-[before-notify]: ../ios/Screenshots/settings-v2/before/en-12-settings-bottom.png
-[after-notify]: ../ios/Screenshots/settings-v2/after/en-12-notifications.png
-[after-delivery]: ../ios/Screenshots/settings-v2/after/en-axL-12-delivery-bottom.png
+| Root | 22 rows | 5 rows |
+| Large-text root | Not captured | Sign Out remains visible |
+| Notification controls | Long-page controls | Overview |
+| Large-text channel summary | Not captured | Complete values and menu indicators |
 
 Commands, iteration counts and final suite evidence are in
 [verification](ios-settings-v2-verification.md).

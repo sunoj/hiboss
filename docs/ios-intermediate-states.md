@@ -161,6 +161,9 @@ navigation stay usable. A status check never automatically submits the draft aga
 
 ## Before / after evidence
 
+Captures are local artifacts and are not tracked in git. `ios/scripts/intermediate-states.sh`
+regenerates them under `ios/Screenshots/intermediate/`.
+
 The capture harness holds operations for 60 seconds (120 seconds for the long
 Settings preference form) and records ordinary and slow
 forms. File suffix `-slow` is the same held state after eight additional seconds.
@@ -169,70 +172,70 @@ come from `app.launchConfiguredDemo()`; no device installation is used.
 
 | Inventory IDs | Before (English/light) | After |
 |---|---|---|
-| H1, H2 | [Requests](../ios/Screenshots/intermediate/before/en-home-requests.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-requests.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-requests-slow.png) |
-| H3 | [Requests readiness](../ios/Screenshots/intermediate/before/en-home-requests_ready.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-requests_ready.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-requests_ready-slow.png) |
-| H4 | [Clean end](../ios/Screenshots/intermediate/before/en-home-stream-ends-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-stream-ends.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-stream-ends-slow.png) |
-| H5 | [Connecting](../ios/Screenshots/intermediate/before/en-home-connecting.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-connecting.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-connecting-slow.png) |
-| H6 | [Backoff](../ios/Screenshots/intermediate/before/en-home-failed-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-failed.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-failed-slow.png) |
-| H7 | [Panels](../ios/Screenshots/intermediate/before/en-home-panels.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-panels.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-panels-slow.png) |
-| H8 | [Questions](../ios/Screenshots/intermediate/before/en-home-questionnaires.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-questionnaires.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-questionnaires-slow.png) |
-| H9, H10 | [Partial](../ios/Screenshots/intermediate/before/en-home-partial.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-partial.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-partial-slow.png) |
-| L1 | [Sessions](../ios/Screenshots/intermediate/before/en-sessions-load.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-sessions-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-sessions-load-slow.png) |
-| L2 | [Messages](../ios/Screenshots/intermediate/before/en-messages-load.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-messages-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-messages-load-slow.png) |
-| L3 | [Progress](../ios/Screenshots/intermediate/before/en-progress-load.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-progress-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-progress-load-slow.png) |
-| L4 | [Stale messages](../ios/Screenshots/intermediate/before/en-messages-stale.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-messages-stale.png) |
-| L5 | [Feed error](../ios/Screenshots/intermediate/before/en-progress-failed.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-progress-failed.png) |
-| D1 | [Detail](../ios/Screenshots/intermediate/before/en-detail-load.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-detail-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-detail-load-slow.png) |
-| D2 | [Missing](../ios/Screenshots/intermediate/before/en-detail-missing.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-detail-missing.png) |
-| A1 | [Home reply](../ios/Screenshots/intermediate/before/en-home-reply.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-reply.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-home-reply-slow.png) |
-| A2 | [Detail reply](../ios/Screenshots/intermediate/before/en-detail-reply.png), [transcript reply](../ios/Screenshots/intermediate/before/en-transcript-reply.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-detail-reply.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-detail-reply-slow.png) |
-| T1 | [Transcript](../ios/Screenshots/intermediate/before/en-transcript-load.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-load-slow.png) |
-| T2 | [Transcript reconnect](../ios/Screenshots/intermediate/before/en-transcript-reconnect-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-reconnect.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-reconnect-slow.png) |
+| H1, H2 | Requests | ordinary · held |
+| H3 | Requests readiness | ordinary · held |
+| H4 | Clean end | ordinary · held |
+| H5 | Connecting | ordinary · held |
+| H6 | Backoff | ordinary · held |
+| H7 | Panels | ordinary · held |
+| H8 | Questions | ordinary · held |
+| H9, H10 | Partial | ordinary · held |
+| L1 | Sessions | ordinary · held |
+| L2 | Messages | ordinary · held |
+| L3 | Progress | ordinary · held |
+| L4 | Stale messages | ordinary |
+| L5 | Feed error | ordinary |
+| D1 | Detail | ordinary · held |
+| D2 | Missing | ordinary |
+| A1 | Home reply | ordinary · held |
+| A2 | Detail reply, transcript reply | ordinary · held |
+| T1 | Transcript | ordinary · held |
+| T2 | Transcript reconnect | ordinary · held |
 
-| H9 | [Original cached refresh](../ios/Screenshots/intermediate/before/en-home-refresh.png) · [held](../ios/Screenshots/intermediate/before/en-home-refresh-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-refresh.png) |
-| H10 | [Original stale Home](../ios/Screenshots/intermediate/before/en-home-stale.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-home-stale.png) |
-| L1, L4 | [ordinary](../ios/Screenshots/intermediate/before/en-sessions-stale.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-sessions-stale.png) |
-| L1, H9 | Same cached content as H9; original refresh adds no source-specific recovery. | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-sessions-refresh.png) |
-| L6 | [ordinary](../ios/Screenshots/intermediate/before/en-resolved-load.png) · [held](../ios/Screenshots/intermediate/before/en-resolved-load-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-resolved-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-resolved-load-slow.png) |
-| A2, T1 | [ordinary](../ios/Screenshots/intermediate/before/en-transcript-reply.png) · [held](../ios/Screenshots/intermediate/before/en-transcript-reply-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-reply.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-reply-slow.png) |
-| A3 | [ordinary](../ios/Screenshots/intermediate/before/en-typed-reply.png) · [held](../ios/Screenshots/intermediate/before/en-typed-reply-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-typed-reply.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-typed-reply-slow.png) |
-| A3 failure | Original failure/banner behavior is shared with L4/A3. | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-typed-reply-failed.png) |
-| P1 | [ordinary](../ios/Screenshots/intermediate/before/en-progress-more.png) · [held](../ios/Screenshots/intermediate/before/en-progress-more-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-progress-more.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-progress-more-slow.png) |
-| P2 | [ordinary](../ios/Screenshots/intermediate/before/en-progress-like.png) · [held](../ios/Screenshots/intermediate/before/en-progress-like-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-progress-like.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-progress-like-slow.png) |
-| T3 | [ordinary](../ios/Screenshots/intermediate/before/en-transcript-earlier.png) · [held](../ios/Screenshots/intermediate/before/en-transcript-earlier-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-earlier.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-transcript-earlier-slow.png) |
-| M1 Home | [ordinary](../ios/Screenshots/intermediate/before/en-image-home.png) · [held](../ios/Screenshots/intermediate/before/en-image-home-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-home.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-home-slow.png) |
-| M1 detail | [ordinary](../ios/Screenshots/intermediate/before/en-image-detail.png) · [held](../ios/Screenshots/intermediate/before/en-image-detail-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-detail.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-detail-slow.png) |
-| M1 transcript | [ordinary](../ios/Screenshots/intermediate/before/en-image-transcript.png) · [held](../ios/Screenshots/intermediate/before/en-image-transcript-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-transcript.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-transcript-slow.png) |
-| M1 resolved list | [ordinary](../ios/Screenshots/intermediate/before/en-image-resolved.png) · [held](../ios/Screenshots/intermediate/before/en-image-resolved-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-resolved.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-resolved-slow.png) |
-| M1 settled detail | [ordinary](../ios/Screenshots/intermediate/before/en-image-settled-detail.png) · [held](../ios/Screenshots/intermediate/before/en-image-settled-detail-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-settled-detail.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-settled-detail-slow.png) |
-| M2 | [ordinary](../ios/Screenshots/intermediate/before/en-image-zoom.png) · [held](../ios/Screenshots/intermediate/before/en-image-zoom-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-zoom.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-zoom-slow.png) |
-| M3, M6 | [ordinary](../ios/Screenshots/intermediate/before/en-image-progress.png) · [held](../ios/Screenshots/intermediate/before/en-image-progress-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-progress.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-progress-slow.png) |
-| M4 | [ordinary](../ios/Screenshots/intermediate/before/en-image-progress-viewer.png) · [held](../ios/Screenshots/intermediate/before/en-image-progress-viewer-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-image-progress-viewer.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-image-progress-viewer-slow.png) |
-| M5 feed | [ordinary](../ios/Screenshots/intermediate/before/en-video-progress.png) · [held](../ios/Screenshots/intermediate/before/en-video-progress-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-video-progress.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-video-progress-slow.png) |
-| M5 viewer | [ordinary](../ios/Screenshots/intermediate/before/en-video-viewer.png) · [held](../ios/Screenshots/intermediate/before/en-video-viewer-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-video-viewer.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-video-viewer-slow.png) |
-| O1 | [ordinary](../ios/Screenshots/intermediate/before/en-restore.png) · [held](../ios/Screenshots/intermediate/before/en-restore-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-restore.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-restore-slow.png) |
-| O2 | [ordinary](../ios/Screenshots/intermediate/before/en-onboarding-connect.png) · [held](../ios/Screenshots/intermediate/before/en-onboarding-connect-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-onboarding-connect.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-onboarding-connect-slow.png) |
-| S1 code | [ordinary](../ios/Screenshots/intermediate/before/en-owned-pairing-code.png) · [held](../ios/Screenshots/intermediate/before/en-owned-pairing-code-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-pairing-code.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-pairing-code-slow.png) (Settings-owned UI unchanged) |
-| S1 poll | [ordinary](../ios/Screenshots/intermediate/before/en-owned-pairing-poll.png) · [held](../ios/Screenshots/intermediate/before/en-owned-pairing-poll-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-pairing-poll.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-pairing-poll-slow.png) (Settings-owned UI unchanged) |
-| S2 lookup | [ordinary](../ios/Screenshots/intermediate/before/en-owned-signin-load.png) · [held](../ios/Screenshots/intermediate/before/en-owned-signin-load-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-signin-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-signin-load-slow.png) (Settings-owned UI unchanged) |
-| S2 approve/reject | [ordinary](../ios/Screenshots/intermediate/before/en-owned-signin-approve.png) · [held](../ios/Screenshots/intermediate/before/en-owned-signin-approve-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-signin-approve.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-signin-approve-slow.png) (Settings-owned UI unchanged) |
-| S3 list | [ordinary](../ios/Screenshots/intermediate/before/en-owned-devices-load.png) · [held](../ios/Screenshots/intermediate/before/en-owned-devices-load-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-devices-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-devices-load-slow.png) (Settings-owned UI unchanged) |
-| S3 lookup | [ordinary](../ios/Screenshots/intermediate/before/en-owned-device-detail.png) · [held](../ios/Screenshots/intermediate/before/en-owned-device-detail-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-device-detail.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-device-detail-slow.png) (Settings-owned UI unchanged) |
-| S3 approve/reject | [ordinary](../ios/Screenshots/intermediate/before/en-owned-device-approve.png) · [held](../ios/Screenshots/intermediate/before/en-owned-device-approve-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-device-approve.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-device-approve-slow.png) (Settings-owned UI unchanged) |
-| S4 read | [ordinary](../ios/Screenshots/intermediate/before/en-owned-preferences-load.png) · [held](../ios/Screenshots/intermediate/before/en-owned-preferences-load-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-preferences-load.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-preferences-load-slow.png) (Settings-owned UI unchanged) |
-| S4 write | [ordinary](../ios/Screenshots/intermediate/before/en-owned-preferences-save.png) · [held](../ios/Screenshots/intermediate/before/en-owned-preferences-save-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-preferences-save.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-preferences-save-slow.png) (Settings-owned UI unchanged) |
-| S5 register | [ordinary](../ios/Screenshots/intermediate/before/en-owned-push-register.png) · [held](../ios/Screenshots/intermediate/before/en-owned-push-register-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-push-register.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-push-register-slow.png) (Settings-owned UI unchanged) |
-| S6 | [ordinary](../ios/Screenshots/intermediate/before/en-owned-camera-permission.png) · [held](../ios/Screenshots/intermediate/before/en-owned-camera-permission-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-owned-camera-permission.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-owned-camera-permission-slow.png) (Settings-owned UI unchanged) |
-| Q1 | [ordinary](../ios/Screenshots/intermediate/before/en-panel-questions.png) · [held](../ios/Screenshots/intermediate/before/en-panel-questions-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-panel-questions.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-panel-questions-slow.png) |
-| Q2 submit | [ordinary](../ios/Screenshots/intermediate/before/en-questionnaire-submit.png) · [held](../ios/Screenshots/intermediate/before/en-questionnaire-submit-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-questionnaire-submit.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-questionnaire-submit-slow.png) |
-| Q2 recovery | Original pending-submission presentation is shown in Q2 submit. | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-questionnaire-recovery.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-questionnaire-recovery-slow.png) |
-| Q3 awaiting/stale/offline | [Original freshness label](../ios/Screenshots/intermediate/before/en-panel-preference.png) | [awaiting](../ios/Screenshots/intermediate/after/en-light/en-light-panel-stream-awaiting-slow.png) · [stale](../ios/Screenshots/intermediate/after/en-light/en-light-panel-stream-stale-slow.png) · [offline](../ios/Screenshots/intermediate/after/en-light/en-light-panel-stream-offline-slow.png) |
-| Q4 | [ordinary](../ios/Screenshots/intermediate/before/en-panel-route.png) · [held](../ios/Screenshots/intermediate/before/en-panel-route-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-panel-route.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-panel-route-slow.png) |
-| Q5 | [ordinary](../ios/Screenshots/intermediate/before/en-panel-preference.png) · [held](../ios/Screenshots/intermediate/before/en-panel-preference-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-panel-preference.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-panel-preference-slow.png) |
-| Q6 | [ordinary](../ios/Screenshots/intermediate/before/en-panel-web.png) · [held](../ios/Screenshots/intermediate/before/en-panel-web-slow.png) | [ordinary](../ios/Screenshots/intermediate/after/en-light/en-light-panel-web.png) · [held](../ios/Screenshots/intermediate/after/en-light/en-light-panel-web-slow.png) |
+| H9 | Original cached refresh · held | ordinary |
+| H10 | Original stale Home | ordinary |
+| L1, L4 | ordinary | ordinary |
+| L1, H9 | Same cached content as H9; original refresh adds no source-specific recovery. | ordinary |
+| L6 | ordinary · held | ordinary · held |
+| A2, T1 | ordinary · held | ordinary · held |
+| A3 | ordinary · held | ordinary · held |
+| A3 failure | Original failure/banner behavior is shared with L4/A3. | ordinary |
+| P1 | ordinary · held | ordinary · held |
+| P2 | ordinary · held | ordinary · held |
+| T3 | ordinary · held | ordinary · held |
+| M1 Home | ordinary · held | ordinary · held |
+| M1 detail | ordinary · held | ordinary · held |
+| M1 transcript | ordinary · held | ordinary · held |
+| M1 resolved list | ordinary · held | ordinary · held |
+| M1 settled detail | ordinary · held | ordinary · held |
+| M2 | ordinary · held | ordinary · held |
+| M3, M6 | ordinary · held | ordinary · held |
+| M4 | ordinary · held | ordinary · held |
+| M5 feed | ordinary · held | ordinary · held |
+| M5 viewer | ordinary · held | ordinary · held |
+| O1 | ordinary · held | ordinary · held |
+| O2 | ordinary · held | ordinary · held |
+| S1 code | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S1 poll | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S2 lookup | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S2 approve/reject | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S3 list | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S3 lookup | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S3 approve/reject | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S4 read | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S4 write | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S5 register | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| S6 | ordinary · held | ordinary · held (Settings-owned UI unchanged) |
+| Q1 | ordinary · held | ordinary · held |
+| Q2 submit | ordinary · held | ordinary · held |
+| Q2 recovery | Original pending-submission presentation is shown in Q2 submit. | ordinary · held |
+| Q3 awaiting/stale/offline | Original freshness label | awaiting · stale · offline |
+| Q4 | ordinary · held | ordinary · held |
+| Q5 | ordinary · held | ordinary · held |
+| Q6 | ordinary · held | ordinary · held |
 
 S4–S6 use the unchanged original Settings/scanner views held by demo transports.
-The permission-dialog capture is [the native notification prompt](../ios/Screenshots/intermediate/before/en-owned-notification-permission.png).
+The permission-dialog capture is the native notification prompt.
 Approve and Reject share the same pending control state in each Settings-owned review.
 Q3 includes wall acknowledgement and individual panel data. Missing/stale/offline panel
 values now suppress Home all-clear and gain a bounded detail notice with Retry/Settings.
@@ -242,8 +245,8 @@ hold added so the empty AsyncImage phase can be captured.
 
 Live Activity reply controls also gain delayed progress and slow/failure feedback. The
 source trigger is `ios/Shared/DecisionReplyGate.swift:38`; a write can remain pending
-until its service completes. [Ordinary controls](../ios/Screenshots/intermediate/after/en-light/en-light-activity-reply.png)
-and [slow controls](../ios/Screenshots/intermediate/after/en-light/en-light-activity-reply-slow.png)
+until its service completes. Ordinary controls
+and slow controls
 use the exact shared control hosted in a demo view. These are component screenshots,
 not screenshots of the operating system's Lock Screen container. Originally the selected
 button retained its label with the other choice dimmed; it had no progress or escalation.
@@ -262,10 +265,10 @@ capture; the table above uses English light as its compact before/after comparis
 
 | Appearance | English | Simplified Chinese |
 |---|---|---|
-| Light | [Standard](../ios/Screenshots/intermediate/after/en-light/) | [Standard](../ios/Screenshots/intermediate/after/zh-light/) |
-| Dark | [Standard](../ios/Screenshots/intermediate/after/en-dark/) | [Standard](../ios/Screenshots/intermediate/after/zh-dark/) |
-| Light, accessibility L | [Large](../ios/Screenshots/intermediate/after/en-ax-light/) | [Large](../ios/Screenshots/intermediate/after/zh-ax-light/) |
-| Dark, accessibility L | [Large](../ios/Screenshots/intermediate/after/en-ax-dark/) | [Large](../ios/Screenshots/intermediate/after/zh-ax-dark/) |
+| Light | Standard | Standard |
+| Dark | Standard | Standard |
+| Light, accessibility L | Large | Large |
+| Dark, accessibility L | Large | Large |
 
 Focused evidence: 25 initial unit tests passed; 17 coverage/feed/transcript tests passed;
 7 panel-retry/transcript/liveness tests passed; 4 Home/media behavioral tests passed.
