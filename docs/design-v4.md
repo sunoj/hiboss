@@ -175,5 +175,9 @@ runs, the last loaded list stays in charge and nothing flips to "Checking…"; a
 shows its outcome (or "No longer open") instead of controls. This covers Today, the
 decision detail, session threads, All messages / history, notification detail, the
 Live Activity and the notch Island. Counts and labels read "Loading" until the list
-first loads, never 0. What counts as a decision is HibossKit's `HistoryMessage.isDecision`
+first loads, never 0. While the required-input stream is down, the last loaded list
+stays in charge for at most 30 seconds; then the controls show "Checking…" and a manual
+refresh refetches the list. The server is the final authority: it refuses a reply to a
+decision that is definitively closed (already replied, deadline passed, options
+withdrawn) with 409, and the client then shows "No longer open". What counts as a decision is HibossKit's `HistoryMessage.isDecision`
 (the server's open-list shape); neither app defines its own.
