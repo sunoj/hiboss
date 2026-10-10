@@ -49,7 +49,8 @@ final class ProjectIdentityUITests: XCTestCase {
         all.tap()
         XCTAssertTrue(app.navigationBars["Recent peers"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["prod-release · fern"].exists)
-        XCTAssertFalse(app.staticTexts["prod-release · otter"].exists)
+        XCTAssertEqual(app.cells.count, 7)
+        XCTAssertFalse(app.cells.staticTexts["prod-release · otter"].exists)
         app.terminate()
     }
 
