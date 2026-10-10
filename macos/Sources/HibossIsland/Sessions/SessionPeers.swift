@@ -15,12 +15,22 @@ enum SessionPeers {
     static let window: TimeInterval = 24 * 60 * 60
     static let visibleLimit = 5
 
+    /// Runs on every inspector redraw, so the project key is resolved once (not per peer) and
+    /// history is grouped only when some peer lacks an inventory timestamp.
     static func recent(context: SessionContext, now: Date) -> [SessionPeer] {
-        let messages = Dictionary(grouping: context.snapshot.history, by: SessionGrouping.sessionKey(for:))
+        let facts = context.facts
+        let projectID = facts?.projectId ?? facts?.projectRef?.id
+        let project = facts?.projectRef?.slug ?? facts?.projectSlug
+        var messages: [String: [HistoryMessage]]?
         let candidates = context.inventory.compactMap { peer -> SessionPeer? in
-            guard peer.id != context.id, belongs(peer, to: context) else { return nil }
-            let activity = peer.lastSeenAt.flatMap(HistoryTimestamp.date)
-                ?? messages[peer.id]?.compactMap { HistoryTimestamp.date(from: $0.createdAt) }.max()
+            guard peer.id != context.id, belongs(peer, projectID: projectID, project: project) else { return nil }
+            var activity = peer.lastSeenAt.flatMap(HistoryTimestamp.date)
+            if activity == nil {
+                if messages == nil {
+                    messages = Dictionary(grouping: context.snapshot.history, by: SessionGrouping.sessionKey(for:))
+                }
+                activity = messages?[peer.id]?.compactMap { HistoryTimestamp.date(from: $0.createdAt) }.max()
+            }
             guard let activity, activity <= now, now.timeIntervalSince(activity) <= window else { return nil }
             return SessionPeer(session: peer, lastActivity: activity)
         }.sorted {
@@ -34,12 +44,9 @@ enum SessionPeers {
         showAll ? peers : Array(peers.prefix(visibleLimit))
     }
 
-    private static func belongs(_ peer: ProjectSession, to context: SessionContext) -> Bool {
-        if let id = context.facts?.projectId ?? context.facts?.projectRef?.id,
-           let peerID = peer.projectId ?? peer.projectRef?.id {
-            return peerID == id
-        }
-        guard let project = context.project else { return false }
+    private static func belongs(_ peer: ProjectSession, projectID: String?, project: String?) -> Bool {
+        if let projectID, let peerID = peer.projectId ?? peer.projectRef?.id { return peerID == projectID }
+        guard let project else { return false }
         return (peer.projectRef?.slug ?? peer.projectSlug) == project
     }
 }

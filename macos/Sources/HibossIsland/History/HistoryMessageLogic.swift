@@ -70,15 +70,9 @@ enum HistoryMessageLogic {
 }
 
 enum HistoryTimestamp {
-    private static let sqlFormatter = dateFormatter("yyyy-MM-dd HH:mm:ss") // i18n-exempt: SQL parser
-
+    /// Cached: ISO 8601 and SQLite UTC timestamps each parse once per process.
     static func date(from rawValue: String) -> Date? {
-        (try? Date(rawValue, strategy: .iso8601))
-            ?? (try? Date(
-                rawValue,
-                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true)
-            ))
-            ?? sqlFormatter.date(from: rawValue)
+        ISODate.parse(rawValue)
     }
 
     static func shortLocalTime(
@@ -100,14 +94,6 @@ enum HistoryTimestamp {
         guard let date = date(from: rawValue) else { return rawValue }
         return date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened,
             locale: locale, timeZone: timeZone))
-    }
-
-    private static func dateFormatter(_ format: String) -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateFormat = format // i18n-exempt: parses server SQL timestamps, never displayed
-        return formatter
     }
 }
 

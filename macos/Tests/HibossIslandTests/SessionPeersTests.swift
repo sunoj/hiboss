@@ -53,6 +53,19 @@ final class SessionPeersTests: XCTestCase {
         XCTAssertEqual(peers.last?.lastActivity, now.addingTimeInterval(-20))
     }
 
+    /// The inspector ranks peers on every redraw, and the server sends SQLite timestamps.
+    /// Parsing those without a cache, per peer per redraw, made the inspector stall.
+    func testRepeatedRankingOfSQLiteTimestampsStaysFast() {
+        let inventory = (0..<1_000).map { index in
+            let iso = AttentionTestSupport.iso(now.addingTimeInterval(-Double(index)))
+            let sql = iso.replacingOccurrences(of: "T", with: " ").replacingOccurrences(of: "Z", with: "")
+            return session("peer-\(index)", age: nil, rawTimestamp: String(sql.prefix(19)))
+        }
+        let started = Date()
+        for _ in 0..<20 { XCTAssertEqual(recent(inventory).count, 1_000) }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 0.5)
+    }
+
     func testSessionLabelsUseExplicitLabelAndOptionalTrimmedNickname() {
         let named = ProjectSession(id: "self", projectId: "project", projectSlug: "hiboss", branch: "main",
             label: "hiboss/custom", nickname: " otter-2 ")
