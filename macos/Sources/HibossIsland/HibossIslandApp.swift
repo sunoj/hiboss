@@ -54,6 +54,7 @@ private struct AppWindowCommands: Commands {
         CommandGroup(replacing: .appSettings) {
             Button(L("Settings")) {
                 openWindow(id: "settings")
+                NSApp.activate(ignoringOtherApps: true)
             }
             .keyboardShortcut(",", modifiers: .command)
         }
@@ -132,15 +133,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     private func observePresentationPreferences() {
-        Publishers.CombineLatest(
-            settings.$presentationMode.removeDuplicates(),
-            settings.$showsStatusItem.removeDuplicates()
-        )
-        .sink { mode, showsStatusItem in
-            let needsDock = mode == .window || !showsStatusItem
-            NSApp.setActivationPolicy(needsDock ? .regular : .accessory)
-        }
-        .store(in: &cancellables)
+        settings.$showsInDock
+            .removeDuplicates()
+            .map { AppSettings.activationPolicy(showsInDock: $0) }
+            .sink { NSApp.setActivationPolicy($0) }
+            .store(in: &cancellables)
 
         settings.$showsStatusItem
             .removeDuplicates()

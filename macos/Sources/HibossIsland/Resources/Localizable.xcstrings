@@ -9715,6 +9715,22 @@
         }
       }
     },
+    "Show in Dock": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Dock"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Dock 中显示"
+          }
+        }
+      }
+    },
     "Open at login": {
       "localizations": {
         "zh-Hans": {

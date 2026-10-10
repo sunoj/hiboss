@@ -1,11 +1,12 @@
-// General pane for this Mac's app-level behaviour (currently login startup).
+// General pane for this Mac's app-level startup and Dock visibility preferences.
 // Exports: GeneralSettingsPane.
-// Dependencies: AppKit, SwiftUI, and LaunchAtLoginController.
+// Dependencies: AppKit, SwiftUI, AppSettings, and LaunchAtLoginController.
 
 import AppKit
 import SwiftUI
 
 struct GeneralSettingsPane: View {
+    @ObservedObject var settings: AppSettings
     @ObservedObject var launchAtLogin: LaunchAtLoginController
 
     var body: some View {
@@ -26,6 +27,9 @@ struct GeneralSettingsPane: View {
             } footer: {
                 Text(launchAtLogin.explanation)
                     .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle(L("Show in Dock"), isOn: $settings.showsInDock)
             }
         }
         .formStyle(.grouped)
