@@ -132,6 +132,11 @@ struct TodayView: View {
     }
 
     private func syncSelection() {
+        if panels.selectedTile != nil {
+            selection = nil
+            compactDetail = true
+            return
+        }
         if let selection, snapshot.attention.contains(where: { $0.id == selection }) { return }
         selection = snapshot.attention.first?.id
     }
