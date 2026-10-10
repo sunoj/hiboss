@@ -114,6 +114,7 @@ final class InboxStore: ObservableObject {
         startRequiredInputs(api)
         configureHistorySync(api)
         requestHistorySync()
+        Task { await refreshRequiredInputs() }
     }
 
     func retryConnection() {

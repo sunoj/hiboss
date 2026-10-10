@@ -146,4 +146,18 @@ final class HistorySyncTests: XCTestCase {
         XCTAssertTrue(recorder.publications.isEmpty)
     }
 
+    func testStreamDeltaKeepsSessionInventoryRefreshAndUsesCursor() async {
+        let api = HistoryTestAPI([HistoryResponse(messages: [historyRow("one")], total: 1, cursor: "1")])
+        let flow = OptionFlowStore()
+        flow.connect(api: api)
+        defer { flow.disconnect() }
+        await flow.refreshHistory()
+        let refreshed = expectation(description: "stream delta refreshes session inventory")
+        await api.observeInventory { refreshed.fulfill() }
+        await api.sendEvent()
+        await fulfillment(of: [refreshed], timeout: 2)
+        let cursors = await api.cursors
+        XCTAssertEqual(cursors.last, "1")
+    }
+
 }

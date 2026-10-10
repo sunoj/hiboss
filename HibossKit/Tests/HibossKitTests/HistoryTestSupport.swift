@@ -5,7 +5,7 @@
 import Foundation
 @testable import HibossKit
 
-actor HistoryTestAPI: BossServing {
+actor HistoryTestAPI: BossServing, SessionsServing {
     var pages: [HistoryResponse]
     var cursors: [String?] = []
     var blocked = false
@@ -13,6 +13,9 @@ actor HistoryTestAPI: BossServing {
     var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
     let key: HistoryCacheKey?
     let identity: String?
+    var eventContinuation: AsyncThrowingStream<BossEvent, Error>.Continuation?
+    var queuedEvents: [BossEvent] = []
+    var inventoryObserver: (@Sendable () -> Void)?
 
     init(_ pages: [HistoryResponse], config: ConnectionConfig? = nil, identity: String? = nil) {
         self.pages = pages
@@ -25,7 +28,22 @@ actor HistoryTestAPI: BossServing {
     func fetchHistory() async throws -> [HistoryMessage] { [] }
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail { throw URLError(.badURL) }
     func reply(to messageID: MessageID, with choice: String) async throws -> ReplyOutcome { .accepted }
-    func messageStream() async -> AsyncThrowingStream<BossEvent, Error> { AsyncThrowingStream { _ in } }
+    func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {
+        let (stream, continuation) = AsyncThrowingStream<BossEvent, Error>.makeStream()
+        eventContinuation = continuation
+        for event in queuedEvents { continuation.yield(event) }
+        queuedEvents = []
+        return stream
+    }
+    func sendEvent() {
+        let event = BossEvent.message(OptionMessage(id: "event", body: "new note"))
+        if let eventContinuation { eventContinuation.yield(event) } else { queuedEvents.append(event) }
+    }
+    func observeInventory(_ observer: @escaping @Sendable () -> Void) { inventoryObserver = observer }
+    func projectSessions() async throws -> [ProjectSession] {
+        inventoryObserver?()
+        return []
+    }
     func feedStream() async -> AsyncThrowingStream<HistoryMessage, Error> { AsyncThrowingStream { _ in } }
 
     func fetchHistoryPage(updatedAfter: String?) async throws -> HistoryResponse {

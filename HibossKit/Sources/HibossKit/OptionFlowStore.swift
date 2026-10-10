@@ -41,7 +41,6 @@ public final class OptionFlowStore: ObservableObject {
         }
         configureHistorySync(api)
         refreshHistoryInBackground(debounced: false)
-        Task { await self.refreshProjectSessions() }
     }
 
     public func disconnect() {
@@ -74,7 +73,6 @@ public final class OptionFlowStore: ObservableObject {
         guard let historySync else { return }
         historyState = .loading
         await historySync.synchronize(forceFull: true)
-        await refreshProjectSessions()
     }
 
     private func refreshProjectSessions() async {
@@ -94,6 +92,7 @@ public final class OptionFlowStore: ObservableObject {
             }
             let state: HistoryState = error.map { .failed($0) } ?? .loaded
             if self.historyState != state { self.historyState = state }
+            if error == nil { await self.refreshProjectSessions() }
         }
     }
 
