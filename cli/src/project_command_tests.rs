@@ -7,6 +7,7 @@ use clap::CommandFactory;
 fn project_commands_parse() {
     for args in [
         vec!["hiboss", "project", "show"],
+        vec!["hiboss", "project", "set", "--avatar", "avatar.png"],
         vec!["hiboss", "project", "set", "--display-name", "Repo", "--bio", "Ships", "--avatar", "avatar.png"],
         vec!["hiboss", "project", "aliases", "add", "old-name", "--project", "repo"],
         vec!["hiboss", "project", "aliases", "remove", "old-name"],

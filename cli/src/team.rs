@@ -73,6 +73,16 @@ mod tests {
     }
 
     #[test]
+    fn avatar_only_request_omits_strict_profile_fields() {
+        let req = ProgressTeamRequest {
+            avatar_url: Some("https://example.com/avatar.png".into()),
+            ..Default::default()
+        };
+        let json = serde_json::to_value(&req).expect("serialize");
+        assert_eq!(json, serde_json::json!({ "avatar_url": "https://example.com/avatar.png" }));
+    }
+
+    #[test]
     fn team_request_all_fields() {
         let req = ProgressTeamRequest {
             handle: Some("h".into()),

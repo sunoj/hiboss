@@ -3,7 +3,8 @@
 // Depends on Hono, D1/R2, and shared progress identity helpers.
 
 import { lookupProject } from '../projects/inventory';
-import { parseProject, resolveProject } from '../projects';
+import { parseProject, resolveProject, type Project } from '../projects';
+import { avatarAccessError } from '../projects/avatar/access';
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, dualAuth, getAgentId, getBossId, getBossRole, isBossAuth } from '../middleware/auth';
@@ -75,15 +76,30 @@ async function hasHandleConflict(env: Env, handle: string, project: string): Pro
   return !!row;
 }
 
-async function saveTeam(env: Env, project: string, input: TeamInput): Promise<StoredTeam | null> {
+async function saveTeam(
+  env: Env, project: string, input: TeamInput, agentId: string, avatarOnly: boolean,
+): Promise<StoredTeam | null> {
   const existing = await readTeam(env, project);
+  if (!existing) return null;
   const handle = input.handle ?? existing?.handle ?? slugifyProject(project);
   const displayName = input.display_name ?? existing?.display_name ?? project;
   const bio = input.bio === undefined ? existing?.bio ?? null : input.bio;
   const avatarUrl = input.avatar_url === undefined ? existing?.avatar_url ?? null : input.avatar_url;
-  if (await hasHandleConflict(env, handle, project)) return null;
-  await env.DB.prepare("UPDATE projects SET handle = ?, display_name = ?, bio = ?, avatar_url = ?, updated_at = datetime('now') WHERE slug = ?")
-    .bind(handle, displayName, bio, avatarUrl, project).run();
+  if (!avatarOnly && await hasHandleConflict(env, handle, project)) return null;
+  const update = avatarOnly
+    ? env.DB.prepare("UPDATE projects SET avatar_url = ?, updated_at = datetime('now') WHERE id = ?")
+      .bind(avatarUrl, existing.id)
+    : env.DB.prepare(`UPDATE projects SET handle = ?, display_name = ?, bio = ?, avatar_url = ?,
+        updated_at = datetime('now') WHERE id = ?`)
+      .bind(handle, displayName, bio, avatarUrl, existing.id);
+  const statements = [update];
+  if (input.avatar_url !== undefined) {
+    statements.push(env.DB.prepare(`INSERT INTO audit_log
+      (actor_type, actor_id, action, resource_type, resource_id, details)
+      VALUES ('agent', ?, 'project.avatar.set', 'project', ?, ?)`)
+      .bind(agentId, existing.id, JSON.stringify({ avatar_url: avatarUrl })));
+  }
+  await env.DB.batch(statements);
   return readTeam(env, project);
 }
 
@@ -221,10 +237,20 @@ routes.put('/:project', apiAuth, async (c) => {
   const agentId = getAgentId(c);
   const avatarError = await validateAvatar(c.env, input.avatar_url ?? null, new URL(c.req.url), agentId);
   if (avatarError) return c.text(avatarError, 400);
+  const avatarOnly = input.avatar_url !== undefined && isRecord(body) && Object.keys(body).length === 1;
   try {
-    const resolved = await resolveProject(c.env.DB, identity, agentId, 'explicit', { requireOwnedTarget: true });
-    if (!resolved.ok) return c.text(resolved.error, 409);
-    const team = await saveTeam(c.env, resolved.project.slug, input);
+    let target: Project | null;
+    if (avatarOnly) {
+      target = await lookupProject(c.env.DB, project);
+      const accessError = await avatarAccessError(c.env.DB, target?.id ?? null, agentId);
+      if (accessError) return c.text(accessError, 409);
+    } else {
+      const resolved = await resolveProject(c.env.DB, identity, agentId, 'explicit', { requireOwnedTarget: true });
+      if (!resolved.ok) return c.text(resolved.error, 409);
+      target = resolved.project;
+    }
+    if (!target) return c.text('project not found', 404);
+    const team = await saveTeam(c.env, target.slug, input, agentId, avatarOnly);
     if (!team) return c.text('handle is already in use', 409);
     return c.json(mapTeamRow(team, new URL(c.req.url)));
   } catch (error) {
