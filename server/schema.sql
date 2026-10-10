@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0053; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0054; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -89,6 +89,10 @@ CREATE INDEX IF NOT EXISTS idx_messages_target ON messages(target_agent_id, crea
 CREATE INDEX IF NOT EXISTS idx_messages_target_session ON messages(target_session_id) WHERE target_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_expires_at ON messages(expires_at) WHERE expires_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_agent_expires ON messages(agent_id, expires_at) WHERE expires_at IS NOT NULL;
+
+-- Timestamp range reads and automatic timestamps for message updates.
+CREATE INDEX idx_messages_agent_updated ON messages(agent_id, updated_at, id);
+CREATE TRIGGER messages_updated_at AFTER UPDATE ON messages WHEN NEW . updated_at = OLD . updated_at BEGIN UPDATE messages SET updated_at = datetime('now') WHERE id = NEW . id AND updated_at <> datetime('now') ; END;
 
 -- Deferred channel deliveries blocked by boss quiet hours
 CREATE TABLE IF NOT EXISTS delivery_queue (

@@ -11,6 +11,9 @@ import { forwardMessage, validateForwardChannel } from './message-forward';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
 import { decodeRequiredInputCursor, fetchRequiredInputPage } from './boss-required-inputs';
+import {
+  emptyMessagePage, fetchMessageDelta, scopeMessageAgents, validMessageCursor, type MessageQuery,
+} from './boss-message-history';
 const routes = new Hono<{ Bindings: Env }>();
 const MAX_LIMIT = 100;
 
@@ -27,7 +30,7 @@ routes.get('/pending-inputs', async (c) => {
   return c.json(await fetchRequiredInputPage(c.env, agentIds, cursor, new Date().toISOString()));
 });
 
-function messageQuery(c: Context<{ Bindings: Env }>, agentIds: string[]): { limit: number; offset: number; clauses: string[]; binds: (string | number)[] } | null {
+function messageQuery(c: Context<{ Bindings: Env }>, agentIds: string[]): MessageQuery | null {
   const limit = clampNumber(c.req.query('limit'), 20, MAX_LIMIT);
   const offset = Math.max(Number(c.req.query('offset') ?? '0'), 0);
   const unread = c.req.query('unread') === 'true';
@@ -36,17 +39,9 @@ function messageQuery(c: Context<{ Bindings: Env }>, agentIds: string[]): { limi
   const sessionFilter = c.req.query('session');
   const searchFilter = c.req.query('search');
 
-  const clauses: string[] = [];
-  const binds: (string | number)[] = [];
-  if (agentFilter) {
-    const match = agentIds.find((id) => id === agentFilter || id.startsWith(agentFilter));
-    if (!match) return null;
-    clauses.push('agent_id = ?');
-    binds.push(match);
-  } else {
-    clauses.push(`agent_id IN (${agentIds.map(() => '?').join(', ')})`);
-    binds.push(...agentIds);
-  }
+  const scope = scopeMessageAgents(agentIds, agentFilter);
+  if (!scope) return null;
+  const { clauses, binds } = scope;
 
   const directionFilter = c.req.query('direction');
   if (directionFilter === 'all') {
@@ -72,12 +67,15 @@ function messageQuery(c: Context<{ Bindings: Env }>, agentIds: string[]): { limi
 
 /** GET /api/boss/messages — list messages from accessible agents */
 routes.get('/messages', async (c) => {
+  const cursor = c.req.query('updated_after');
+  if (cursor !== undefined && !validMessageCursor(cursor)) return c.text('invalid updated_after cursor', 400);
   const bossId = getBossId(c);
   const agentIds = await getAccessibleAgentIds(c.env, bossId, getBossRole(c));
-  if (agentIds.length === 0) return c.json({ messages: [], total: 0 });
+  if (agentIds.length === 0) return c.json(emptyMessagePage(cursor));
 
   const query = messageQuery(c, agentIds);
-  if (!query) return c.json({ messages: [], total: 0 });
+  if (!query) return c.json(emptyMessagePage(cursor));
+  if (cursor !== undefined) return c.json(await fetchMessageDelta(c.env, query, cursor));
   const { limit, offset, clauses, binds } = query;
 
   const where = clauses.join(' AND ');
