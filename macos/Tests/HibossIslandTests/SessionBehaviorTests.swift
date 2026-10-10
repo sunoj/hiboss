@@ -127,7 +127,8 @@ final class SessionBehaviorTests: XCTestCase {
     }
 
     private func session(_ id: String, project: String? = nil, projectID: String? = nil) -> ProjectSession {
-        ProjectSession(id: id, projectId: projectID, projectSlug: project, branch: nil)
+        ProjectSession(id: id, projectId: projectID, projectSlug: project, branch: nil,
+            lastSeenAt: AttentionTestSupport.iso(.now))
     }
 
     private func message(

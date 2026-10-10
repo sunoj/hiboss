@@ -33,7 +33,7 @@ struct BoxBrowserRow: View {
                     Text(verbatim: note).font(.callout).lineLimit(2).textSelection(.enabled)
                 }
                 HStack {
-                    if let project = item.project { Label(project, systemImage: "folder") }
+                    if let project = item.project { ProjectLabelView(slug: project) }
                     if !item.tags.isEmpty { Text(verbatim: item.tags.joined(separator: ", ")) }
                 }.font(.caption).foregroundStyle(TodayStyle.secondary)
                 if let provenance = item.provenance {

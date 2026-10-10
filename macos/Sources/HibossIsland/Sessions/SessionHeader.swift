@@ -11,10 +11,11 @@ struct SessionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .top) {
+                ProjectAvatarView(project: context.avatarProject, size: 40)
                 Text(context.title).font(.title2.bold())
                     .accessibilityAddTraits(.isHeader).layoutProbe("session.title")
-                if let branch = context.branch {
+                if context.facts == nil, let branch = context.branch {
                     Text(branch).font(.callout).foregroundStyle(TodayStyle.secondary)
                 }
                 Spacer()

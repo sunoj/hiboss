@@ -16,7 +16,10 @@ struct SessionContext {
         return (directory.needsYou + directory.working + directory.idle).first { $0.id == id }
     }
     var project: String? { facts?.projectRef?.slug ?? facts?.projectSlug }
-    var title: String { project ?? summary?.projectLabel ?? L("Session") }
+    var title: String { facts?.namedLabel ?? summary?.projectLabel ?? L("Session") }
+    var avatarProject: ProjectIdentity {
+        facts?.avatarProject ?? ProjectIdentity(id: id, slug: title, displayName: title)
+    }
     var branch: String? { facts?.branch ?? summary?.branch }
     var decisions: [AttentionItem] {
         snapshot.today.decisions.filter { SessionGrouping.sessionKey(for: $0.message) == id }
@@ -41,11 +44,6 @@ struct SessionContext {
         return L("Replying to: \(firstLine)")
     }
     var peers: [ProjectSession] {
-        inventory.filter { peer in
-            guard peer.id != id else { return false }
-            if let projectID = facts?.projectId { return peer.projectId == projectID }
-            guard let project else { return false }
-            return (peer.projectRef?.slug ?? peer.projectSlug) == project
-        }
+        SessionPeers.recent(context: self, now: snapshot.now).map(\.session)
     }
 }
