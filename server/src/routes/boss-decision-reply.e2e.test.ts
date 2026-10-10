@@ -122,7 +122,7 @@ function decision(shape: 'blocking' | 'options'): ParentFields {
 }
 
 async function insertParent(fields: ParentFields): Promise<string> {
-  const id = `closed-decision-${crypto.randomUUID()}`;
+  const id = crypto.randomUUID().replaceAll("-", ""); // production-shaped id; D1 caps LIKE patterns near 50 bytes
   await env.DB.prepare(
     `INSERT INTO messages
      (id, agent_id, direction, mode, channel, body, status, metadata, expires_at, created_at, session_id)

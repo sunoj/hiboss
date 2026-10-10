@@ -99,7 +99,7 @@ describe('paired-device message signing', () => {
   });
 
   it('returns the accepted signed answer after its blocking decision closes', async () => {
-    const parentId = `signed-decision-${crypto.randomUUID()}`;
+    const parentId = crypto.randomUUID().replaceAll("-", ""); // production-shaped id; D1 caps LIKE patterns
     await env.DB.prepare(
       `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status)
        VALUES (?, ?, 'agent_to_boss', 'blocking', 'api', 'Approve?', 'sent')`,
