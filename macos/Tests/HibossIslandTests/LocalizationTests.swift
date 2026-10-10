@@ -7,6 +7,18 @@ import XCTest
 @testable import HibossIsland
 
 final class LocalizationTests: XCTestCase {
+    func testRecentPeerControlsResolveInEnglishAndSimplifiedChinese() throws {
+        XCTAssertEqual(try english("Show all"), "Show all")
+        XCTAssertEqual(try english("Show less"), "Show less")
+        let path = try XCTUnwrap(appResourceBundle.path(forResource: "zh-Hans", ofType: "lproj"))
+        let bundle = try XCTUnwrap(Bundle(path: path))
+        let locale = Locale(identifier: "zh_Hans")
+        XCTAssertEqual(String(localized: "Show all", bundle: bundle, locale: locale), "显示全部")
+        XCTAssertEqual(String(localized: "Show less", bundle: bundle, locale: locale), "收起")
+        XCTAssertEqual(String(localized: "No other sessions active in the last 24 hours.",
+            bundle: bundle, locale: locale), "最近 24 小时内没有其他活跃会话。")
+    }
+
     func testDecisionAvailabilityLabelsResolveInEnglishAndSimplifiedChinese() throws {
         XCTAssertEqual(try english("Checking…"), "Checking…")
         XCTAssertEqual(try english("No longer open"), "No longer open")
@@ -27,7 +39,8 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(try english("Captured submission"), "Captured submission")
         XCTAssertEqual(try english("That decision is no longer available."),
                        "That decision is no longer available.")
-        XCTAssertEqual(try english("Couldn't send your reply. Try again."), "Couldn't send your reply. Try again.")
+        XCTAssertEqual(try english("Couldn't send your reply. Try again."),
+            "Couldn't send your reply. Try again.")
     }
 
     func testCreatedTimestampFormatsPerLocaleAndKeepsUnparseableValues() throws {

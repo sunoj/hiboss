@@ -37,7 +37,8 @@ struct ProgressPostRow: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .top) {
+            ProjectAvatarView(project: post.projectIdentity, size: 32)
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: post.projectIdentity.displayName).font(.headline)
                 Text(verbatim: post.agentLabel ?? (post.agentName.isEmpty ? L("Agent") : post.agentName))

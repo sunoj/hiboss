@@ -31,7 +31,7 @@ enum HistorySegment: String, CaseIterable, Identifiable {
 
 enum HistoryMessageLogic {
     static func sessionTitle(group: SessionGroup, session: ProjectSession?) -> String {
-        group.id == SessionGrouping.directSessionID ? L("Direct") : (session?.displayLabel ?? group.label)
+        group.id == SessionGrouping.directSessionID ? L("Direct") : (session?.namedLabel ?? group.label)
     }
 
     static let directSessionID = SessionGrouping.directSessionID

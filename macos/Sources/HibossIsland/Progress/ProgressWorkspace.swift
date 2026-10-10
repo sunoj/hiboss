@@ -85,7 +85,10 @@ struct ProgressWorkspace: View {
             )) {
                 Text(L("All projects")).tag(nil as String?)
                 ForEach(store.projects) { project in
-                    Text(verbatim: project.projectIdentity.displayName).tag(project.slug as String?)
+                    HStack {
+                        ProjectAvatarView(project: project.projectIdentity, size: 20)
+                        Text(verbatim: project.projectIdentity.displayName)
+                    }.tag(project.slug as String?)
                 }
             }
             .accessibilityLabel(L("Filter by project"))

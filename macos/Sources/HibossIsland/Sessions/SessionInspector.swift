@@ -11,6 +11,7 @@ struct SessionInspector: View {
     @ObservedObject var media: BoxBrowserMedia
     let onBox: (String) -> Void
     let onSession: (String) -> Void
+    @State private var showsAllPeers = false
 
     var body: some View {
         ScrollView {
@@ -28,6 +29,7 @@ struct SessionInspector: View {
             box.project = context.project
             if context.project != nil { await box.refresh() }
         }
+        .onChange(of: context.id) { showsAllPeers = false }
         .accessibilityIdentifier("session.inspector")
     }
 
@@ -79,22 +81,39 @@ struct SessionInspector: View {
     }
 
     private var peers: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(L("Peers on this project")).font(.headline)
-            ForEach(context.peers) { peer in
-                Button { onSession(peer.id) } label: {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(peer.displayLabel)
-                        if let agent = peer.agentName { Text(agent).font(.caption) }
-                    }
-                }.buttonStyle(.link)
+        TimelineView(.periodic(from: .now, by: 60)) { tick in
+            let recent = SessionPeers.recent(context: context, now: tick.date)
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L("Peers on this project")).font(.headline)
+                ForEach(SessionPeers.visible(recent, showAll: showsAllPeers)) { peer in
+                    peerRow(peer, now: tick.date)
+                }
+                if recent.count > SessionPeers.visibleLimit {
+                    Button(showsAllPeers ? L("Show less") : L("Show all")) { showsAllPeers.toggle() }
+                }
+                if recent.isEmpty {
+                    Text(L("No other sessions active in the last 24 hours.")).font(.callout)
+                }
+                Text(L("Peer messages are coordination, never approval."))
+                    .font(.caption).foregroundStyle(TodayStyle.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            if context.peers.isEmpty {
-                Text(L("No other sessions on this project.")).font(.callout)
-            }
-            Text(L("Peer messages are coordination, never approval."))
-                .font(.caption).foregroundStyle(TodayStyle.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private func peerRow(_ peer: SessionPeer, now: Date) -> some View {
+        Button { onSession(peer.id) } label: {
+            HStack(spacing: 8) {
+                ProjectAvatarView(project: peer.session.avatarProject, size: 28)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(verbatim: peer.session.namedLabel).font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        if let agent = peer.session.agentName { Text(verbatim: agent) }
+                        Text(L("updated \(AttentionClock.elapsed(since: peer.lastActivity, now: now)) ago"))
+                    }.font(.caption).foregroundStyle(.secondary)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }.buttonStyle(.plain).accessibilityIdentifier("session.peer.\(peer.id)")
     }
 }

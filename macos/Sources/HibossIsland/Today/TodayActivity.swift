@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct TodayActivity: View {
+    @Environment(\.projectSessions) private var inventory
     let snapshot: TodaySnapshot
     let now: Date
     let onSession: (String) -> Void
@@ -49,12 +50,14 @@ struct TodayActivity: View {
     }
 
     private func sessionRow(_ session: TodaySession) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(String(session.projectLabel.prefix(1)).uppercased()).font(.headline)
-                .foregroundStyle(TodayStyle.live).frame(width: 32, height: 32)
-                .background(TodayStyle.liveSoft, in: RoundedRectangle(cornerRadius: 6))
+        let fact = inventory.first { $0.id == session.id }
+        let project = fact?.avatarProject ?? ProjectIdentity(id: session.id,
+            slug: session.projectLabel, displayName: session.projectLabel)
+        return HStack(alignment: .top, spacing: 12) {
+            ProjectAvatarView(project: project, size: 32)
             VStack(alignment: .leading, spacing: 4) {
-                Text([session.projectLabel, session.branch].compactMap { $0 }.joined(separator: " · "))
+                Text(fact?.namedLabel
+                    ?? [session.projectLabel, session.branch].compactMap { $0 }.joined(separator: " · "))
                     .font(.headline).foregroundStyle(.primary)
                 Text(session.statusText).font(.callout).foregroundStyle(TodayStyle.secondary).lineLimit(2)
                 if let agent = session.agentName {

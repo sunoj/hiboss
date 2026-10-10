@@ -163,6 +163,8 @@ private struct SessionGroupHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            ProjectAvatarView(project: session?.avatarProject
+                ?? ProjectIdentity(id: group.id, slug: group.label, displayName: group.label), size: 28)
             Circle()
                 .fill(statusColor)
                 .frame(width: 8, height: 8)

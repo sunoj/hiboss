@@ -101,6 +101,7 @@ struct MainView: View {
 
     var body: some View {
         observedContent
+        .environment(\.projectSessions, previewSessions ?? flow.projectSessions)
         .onChange(of: settings.activeClientConfig) {
             box.reset()
             progress.reset()

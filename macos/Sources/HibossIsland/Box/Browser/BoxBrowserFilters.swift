@@ -32,7 +32,7 @@ struct BoxBrowserFilters: View {
             HStack {
                 Text(L("Box")).font(.title2.bold())
                 if let project = store.project {
-                    Text(project).font(.callout).foregroundStyle(TodayStyle.secondary)
+                    ProjectLabelView(slug: project).font(.callout).foregroundStyle(TodayStyle.secondary)
                     Button(L("All projects")) { store.project = nil }
                 }
                 Spacer()

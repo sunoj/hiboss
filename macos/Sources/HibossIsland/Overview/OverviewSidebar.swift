@@ -14,6 +14,7 @@ struct OverviewSidebar: View {
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
     let onRefresh: () -> Void
+    @Environment(\.projectSessions) private var inventory
     @State private var sessionSearch = ""
 
     var body: some View {
@@ -94,10 +95,11 @@ struct OverviewSidebar: View {
         let directory = snapshot.today.sessionDirectory
         let sessions = directory.needsYou + directory.working + directory.idle
         guard !query.isEmpty else { return sessions }
-        return sessions.filter {
-            $0.projectLabel.localizedStandardContains(query)
-                || ($0.agentName?.localizedStandardContains(query) ?? false)
-                || ($0.branch?.localizedStandardContains(query) ?? false)
+        return sessions.filter { session in
+            (inventory.first { $0.id == session.id }?.namedLabel ?? session.projectLabel)
+                .localizedStandardContains(query)
+                || (session.agentName?.localizedStandardContains(query) ?? false)
+                || (session.branch?.localizedStandardContains(query) ?? false)
         }
     }
 
@@ -126,7 +128,11 @@ struct OverviewSidebar: View {
     }
 
     private func sessionRow(_ session: TodaySession) -> some View {
-        HStack(spacing: 8) {
+        let fact = inventory.first { $0.id == session.id }
+        let project = fact?.avatarProject ?? ProjectIdentity(id: session.id,
+            slug: session.projectLabel, displayName: session.projectLabel)
+        return HStack(spacing: 8) {
+            ProjectAvatarView(project: project, size: 28)
             Circle().fill(session.needsYou ? TodayStyle.signal
                 : snapshot.today.sessionDirectory.working.contains(where: { $0.id == session.id })
                     ? TodayStyle.live : TodayStyle.tertiary)
@@ -134,8 +140,9 @@ struct OverviewSidebar: View {
                 .accessibilityLabel(session.needsYou ? L("Needs You")
                     : session.hasLiveWork(now: snapshot.now) ? L("Working now") : L("Idle"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.id == SessionGrouping.directSessionID ? L("Direct") : session.projectLabel)
-                    .lineLimit(1)
+                Text(session.id == SessionGrouping.directSessionID ? L("Direct")
+                    : fact?.namedLabel ?? session.projectLabel)
+                    .lineLimit(1).truncationMode(.middle)
                 if let agent = session.agentName {
                     Text(agent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
@@ -143,7 +150,7 @@ struct OverviewSidebar: View {
             Spacer(minLength: 4)
         }
         .padding(.vertical, 3)
-        .help(session.projectLabel)
+        .help(fact?.namedLabel ?? session.projectLabel)
         .accessibilityElement(children: .combine)
     }
 

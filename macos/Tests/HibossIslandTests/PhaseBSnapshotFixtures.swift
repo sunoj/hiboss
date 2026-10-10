@@ -37,9 +37,10 @@ enum PhaseBSnapshotFixtures {
                 host: "Mac mini", agentName: "Design Agent", status: "waiting",
                 statusText: "Waiting for the navigation review",
                 startedAt: AttentionTestSupport.iso(now.addingTimeInterval(-3600)),
-                lastSeenAt: AttentionTestSupport.iso(now.addingTimeInterval(-9))),
+                lastSeenAt: AttentionTestSupport.iso(now.addingTimeInterval(-9)), nickname: "otter"),
             ProjectSession(id: "peer", projectId: "project", projectSlug: "HiBoss", branch: "tests",
-                host: "Build Mac", agentName: "Test Agent", status: "working")
+                host: "Build Mac", agentName: "Test Agent", status: "working",
+                lastSeenAt: AttentionTestSupport.iso(now.addingTimeInterval(-120)), nickname: "fox")
         ]
     }
 }

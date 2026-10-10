@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct TodayDecisionCard: View {
+    @Environment(\.projectSessions) private var inventory
     let item: AttentionItem
     let now: Date
     let isSelected: Bool
@@ -19,6 +20,7 @@ struct TodayDecisionCard: View {
             Button(action: onSelect) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
+                        ProjectAvatarView(project: avatarProject, size: 24)
                         Text(item.provenance).font(.caption).foregroundStyle(TodayStyle.secondary)
                         Spacer(minLength: 4)
                         DecisionDeadline(expiresAt: item.expiresAt, now: now)
@@ -44,6 +46,13 @@ struct TodayDecisionCard: View {
             .stroke(isSelected ? TodayStyle.signal : TodayStyle.hairline, lineWidth: 1))
         .accessibilityIdentifier("today.decision.\(item.id.rawValue)")
     }
+    private var avatarProject: ProjectIdentity {
+        let id = SessionGrouping.sessionKey(for: item.message)
+        return inventory.first { $0.id == id }?.avatarProject
+            ?? ProjectIdentity(id: id, slug: item.message.sessionLabel ?? id,
+                displayName: item.message.sessionLabel ?? id)
+    }
+
 }
 
 struct DecisionDeadline: View {
