@@ -207,20 +207,15 @@ struct RootTabView: View {
         }
     }
 
-    /// Opens cached snapshot or alert text immediately. Alert-only previews refresh
-    /// in the background; payloads without either briefly wait for the restored API.
+    /// Waits for the current API, then lets the detail screen own the message fetch.
     private func openPendingMessage() async {
         guard let route = router.pendingMessage else { return }
         showsSettings = false
         joinRequestTarget = nil
         panels.closeDetail()
-        if let cached = route.cachedMessage {
-            inbox.cacheMessage(cached.detail)
-        } else {
-            for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
-                try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
-                if Task.isCancelled { return }
-            }
+        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
+            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
+            if Task.isCancelled { return }
         }
         await Task.yield()
         guard !Task.isCancelled else { return }
@@ -228,9 +223,6 @@ struct RootTabView: View {
         activitySection = .messages
         activityPath = NavigationPath([route.messageID])
         router.finishOpening(route.messageID)
-        if route.cachedMessage?.requiresRefresh == true {
-            Task { await refreshNotificationPreview(route.messageID) }
-        }
     }
 
     private func openPendingPanel() async {
@@ -259,14 +251,6 @@ struct RootTabView: View {
         router.finishOpening(route)
     }
 
-    private func refreshNotificationPreview(_ messageID: MessageID) async {
-        for _ in 0..<AppConstants.API.notificationReadinessChecks where !inbox.isReady {
-            try? await Task.sleep(for: AppConstants.API.notificationReadinessDelay)
-        }
-        guard inbox.isReady else { return }
-        _ = await inbox.loadMessage(messageID)
-    }
-
     /// Screenshot / demo deep-links: open a message or a session thread.
     private func applyDemoRoute() {
         switch DemoLaunchRoute.resolve() {
@@ -276,13 +260,8 @@ struct RootTabView: View {
             tab = Self.activityTab
             activitySection = .messages
             activityPath = NavigationPath([id])
-        case .notification(let id):
-            let detail = DemoBossAPI().messageDetail(for: id)
-            let cached = detail.map { PushCachedMessage(detail: $0, requiresRefresh: false) }
-            router.open(messageID: id.rawValue, cachedMessage: cached)
-        case .notificationPreview(let id):
-            let userInfo = DemoBossAPI().notificationPreviewUserInfo(for: id) ?? [:]
-            router.open(messageID: id.rawValue, cachedMessage: PushMessageSnapshot.decode(from: userInfo))
+        case .notification(let id), .notificationPreview(let id):
+            router.open(messageID: id.rawValue)
         case .session(let id, let label):
             tab = Self.activityTab
             activitySection = .sessions

@@ -44,7 +44,6 @@ enum PushAction {
 
 struct PushActionRequest: Sendable {
     let messageID: String
-    let cachedMessage: PushCachedMessage?
     let options: [String]
     let actionIdentifier: String
     let replyText: String?
@@ -246,7 +245,6 @@ extension PushManager: UNUserNotificationCenterDelegate {
         guard let messageID = info["messageId"] as? String else { return nil }
         return .message(PushActionRequest(
             messageID: messageID,
-            cachedMessage: PushMessageSnapshot.decode(from: info),
             options: info["options"] as? [String] ?? [],
             actionIdentifier: response.actionIdentifier,
             replyText: (response as? UNTextInputNotificationResponse)?.userText
@@ -260,7 +258,7 @@ extension PushManager: UNUserNotificationCenterDelegate {
         case PushAction.reject: choice = request.options.count > 1 ? request.options[1] : nil
         case PushAction.reply: choice = request.replyText
         case UNNotificationDefaultActionIdentifier:
-            AppRouter.shared.open(messageID: request.messageID, cachedMessage: request.cachedMessage)
+            AppRouter.shared.open(messageID: request.messageID)
             return
         default: choice = nil
         }

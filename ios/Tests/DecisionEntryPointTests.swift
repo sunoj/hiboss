@@ -3,6 +3,7 @@
 // Exports: DecisionEntryPointTests. Dependencies: XCTest, HiBoss app target, HeldReplyAPI, Pending.
 
 import HibossKit
+import UserNotifications
 import XCTest
 @testable import HiBoss
 
@@ -19,6 +20,17 @@ final class DecisionEntryPointTests: XCTestCase {
         HiBossStore.replyAPI = { HiBossStore.bossAPI() }
     }
 
+    func testNotificationTapRoutesWithoutSubmittingAReply() async {
+        let request = PushActionRequest(messageID: "notification-target", options: [],
+            actionIdentifier: UNNotificationDefaultActionIdentifier, replyText: nil)
+
+        await PushManager.shared.handle(request)
+
+        XCTAssertEqual(AppRouter.shared.pendingMessageID, "notification-target")
+        XCTAssertTrue(server.replies.isEmpty)
+        AppRouter.shared.finishOpening("notification-target")
+    }
+
     func testNotificationAndLiveActivityCannotAnswerARetiredDecision() async {
         let message = HistoryMessage(id: "retired", body: "Choose?", direction: "agent_to_boss",
                                      status: "delivered", priority: "normal", mode: "blocking",
@@ -26,7 +38,7 @@ final class DecisionEntryPointTests: XCTestCase {
         let api = HeldReplyAPI(history: [message], detail: MessageDetail(message: message, replies: []),
                                requiredInputs: [])
         HiBossStore.replyAPI = { api }
-        let request = PushActionRequest(messageID: message.id.rawValue, cachedMessage: nil,
+        let request = PushActionRequest(messageID: message.id.rawValue,
             options: message.options, actionIdentifier: PushAction.approve, replyText: nil)
         await PushManager.shared.handle(request)
         _ = try? await RespondDecisionIntent(messageID: message.id.rawValue, choice: "Approve").perform()
@@ -36,7 +48,7 @@ final class DecisionEntryPointTests: XCTestCase {
 
     func testNotificationActionIsAdmittedByTheSharedGate() async throws {
         func action(_ identifier: String) -> PushActionRequest {
-            PushActionRequest(messageID: "push-q1", cachedMessage: nil, options: ["Approve", "Reject"],
+            PushActionRequest(messageID: "push-q1", options: ["Approve", "Reject"],
                               actionIdentifier: identifier, replyText: nil)
         }
         try await assertAdmitted(id: "push-q1", choice: "Reject",
@@ -69,7 +81,9 @@ final class DecisionEntryPointTests: XCTestCase {
 
         let inApp = Pending { await store.reply("Approve", to: id) }
         let repeated = Pending { await again() }
-        await waitUntil { (inApp.isDone && repeated.isDone) || !appAPI.replies.isEmpty || server.replies.count > 1 }
+        await waitUntil {
+            (inApp.isDone && repeated.isDone) || !appAPI.replies.isEmpty || server.replies.count > 1
+        }
         server.release()
         appAPI.release()
         let inAppResult = try await inApp.settled()

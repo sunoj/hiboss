@@ -1,6 +1,6 @@
 // Deep-link router: carries a tapped notification's message or join request into the UI.
 // Exports: AppRouter.shared and JoinRequestTarget, observed by the shell on launch/tap.
-// Dependencies: HibossKit MessageID and push cache values.
+// Dependencies: HibossKit MessageID and PushPanelRequest.
 
 import Combine
 import HibossKit
@@ -11,7 +11,6 @@ struct JoinRequestTarget: Identifiable, Equatable, Sendable {
 
 struct PendingMessageRoute: Equatable, Sendable {
     let messageID: MessageID
-    let cachedMessage: PushCachedMessage?
 }
 
 @MainActor
@@ -38,10 +37,9 @@ final class AppRouter: ObservableObject {
         pendingPanel = nil
     }
 
-    func open(messageID: String, cachedMessage: PushCachedMessage? = nil) {
+    func open(messageID: String) {
         let id = MessageID(rawValue: messageID)
-        let matchingCache = cachedMessage?.detail.message.id == id ? cachedMessage : nil
-        pendingMessage = PendingMessageRoute(messageID: id, cachedMessage: matchingCache)
+        pendingMessage = PendingMessageRoute(messageID: id)
     }
 
     func openJoinRequest(id: String) {

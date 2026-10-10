@@ -8,6 +8,87 @@ import XCTest
 
 @MainActor
 final class InboxAccountIsolationTests: XCTestCase {
+    func testPreviousAccountMessageIsNotAdmittedByCurrentAccount() async throws {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: AccountDetailAPI(body: "Previous account"))
+        _ = await store.loadMessage("detail")
+        XCTAssertNotNil(store.openedMessages["detail"])
+        store.start(api: AccountDetailAPI(body: "Current account", failure: .missing))
+
+        _ = await store.loadMessage("detail")
+
+        XCTAssertNil(store.openedMessages["detail"])
+        XCTAssertNil(store.message(for: "detail"))
+        XCTAssertNil(store.reply(to: "detail"))
+        store.stop()
+    }
+
+    func testReloadedMessageUsesCurrentAccountDetailAndReplies() async throws {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: AccountDetailAPI(body: "Previous account"))
+        _ = await store.loadMessage("detail")
+        XCTAssertNotNil(store.openedMessages["detail"])
+        store.start(api: AccountDetailAPI(body: "Current account"))
+
+        _ = await store.loadMessage("detail")
+
+        XCTAssertEqual(store.message(for: "detail")?.body, "Current account")
+        XCTAssertEqual(store.reply(to: "detail")?.body, "Current account reply")
+        store.stop()
+    }
+
+    func testMissingMessageEvictsCachedDetail() async throws {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: AccountDetailAPI(body: "Preview"))
+        _ = await store.loadMessage("detail")
+        XCTAssertNotNil(store.openedMessages["detail"])
+        store.api = AccountDetailAPI(body: "Current account", failure: .missing)
+
+        let result = await store.loadMessage("detail")
+
+        XCTAssertEqual(result, .missing)
+        XCTAssertNil(store.openedMessages["detail"])
+        XCTAssertNil(store.message(for: "detail"))
+        XCTAssertNil(store.reply(to: "detail"))
+        store.stop()
+    }
+
+    func testHeldDetailLoadCannotPopulateReplacementAccount() async throws {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: AccountDetailAPI(body: "Cached detail"))
+        _ = await store.loadMessage("detail")
+        XCTAssertNotNil(store.openedMessages["detail"])
+        let previous = AccountDetailAPI(body: "Previous account")
+        store.start(api: previous)
+        let started = expectation(description: "detail fetch started")
+        await previous.holdDetail(started)
+        let request = Task { await store.loadMessage("detail") }
+        await fulfillment(of: [started], timeout: 2)
+        XCTAssertNil(store.message(for: "detail"), "unverified content must never be visible")
+
+        store.start(api: AccountDetailAPI(body: "Current account"))
+        _ = await store.loadMessage("detail")
+        await previous.releaseDetail()
+        let result = await request.value
+
+        XCTAssertEqual(result, .ignored)
+        XCTAssertEqual(store.message(for: "detail")?.body, "Current account")
+        store.stop()
+    }
+
+    func testDetailLoadAfterSignOutIsNotCached() async throws {
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: AccountDetailAPI(body: "Previous account"))
+        _ = await store.loadMessage("detail")
+        XCTAssertNotNil(store.openedMessages["detail"])
+        store.stop()
+
+        _ = await store.loadMessage("detail")
+
+        XCTAssertTrue(store.openedMessages.isEmpty)
+        XCTAssertNil(store.message(for: "detail"))
+    }
+
     func testAccountReplacementClearsOpenedMessagesAndDetailState() async {
         let store = InboxStore(decisionAlertsEnabled: false)
         store.start(api: AccountDetailAPI(body: "Previous account"))
@@ -75,10 +156,11 @@ final class InboxAccountIsolationTests: XCTestCase {
         let request = Task { await store.loadMessage("detail") }
         await fulfillment(of: [started], timeout: 2)
         store.start(api: AccountDetailAPI(body: "Current account"))
+        _ = await store.loadMessage("detail")
         await previous.releaseDetail()
         let result = await request.value
         XCTAssertNotEqual(result, .missing)
-        XCTAssertTrue(store.openedMessages.isEmpty)
+        XCTAssertEqual(store.message(for: "detail")?.body, "Current account")
         store.stop()
     }
 
