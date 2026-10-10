@@ -92,6 +92,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         overview.bind(flow: flow, inputs: requiredInputs)
     }
 
+    /// Dock click. SwiftUI does not reopen a closed single `Window` scene here, and the Island
+    /// panel counts as a visible window, so the main window opens whatever `flag` says.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        notificationNavigation.openMainWindow()
+        return false
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] == nil else { return }
         notificationCenter.onOpen = { [weak self] id in self?.notificationNavigation.open(id) }
