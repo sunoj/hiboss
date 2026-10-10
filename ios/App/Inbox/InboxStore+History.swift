@@ -20,8 +20,13 @@ extension InboxStore {
         }
     }
 
+    private func connectedHistorySync() -> HistorySync? {
+        if historySync == nil, let api { configureHistorySync(api) }
+        return historySync
+    }
+
     func requestHistorySync(forceFull: Bool = false, debounced: Bool = false) {
-        guard let historySync else { return }
+        guard let historySync = connectedHistorySync() else { return }
         historyTask = Task { await historySync.synchronize(forceFull: forceFull, debounced: debounced) }
     }
 
@@ -32,7 +37,7 @@ extension InboxStore {
 
     /// Awaitable full reconciliation for pull-to-refresh.
     func refresh() async {
-        guard let historySync else { return }
+        guard let historySync = connectedHistorySync() else { return }
         let version = historyVersion
         isRefreshing = true
         defer { if version == historyVersion { isRefreshing = false } }
