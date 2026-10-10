@@ -23,7 +23,7 @@ export class PanelRoom extends DurableObject<Env> {
       operations TEXT NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)`);
     this.wall = new WallSignals(ctx, ws => this.attachment(ws));
     this.engine = new PanelEngine(ctx.storage, env.DB, (id, frame) => this.broadcast(id, frame),
-      (id, agent, expiry) => this.wall.changed(id, agent, expiry));
+      (id, agent, expiry, invalidate) => this.wall.changed(id, agent, expiry, invalidate));
   }
 
   async fetch(req: Request): Promise<Response> {
