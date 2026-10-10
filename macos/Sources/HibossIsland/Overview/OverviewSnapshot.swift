@@ -67,7 +67,7 @@ struct OverviewSnapshot {
         let listed = Set(requiredInputs.map(\.id))
         let recordedClosed = history.filter {
             $0.isDecision && ["replied", "resolved", "expired"].contains($0.status)
-                && (!requiredInputLoaded || !listed.contains($0.id))
+                && !listed.contains($0.id)
         }.map(\.id)
         let closedDecisionIDs = closedDecisionIDs.union(recordedClosed)
         self.history = TodayProjection.merge(history: history, live: live,

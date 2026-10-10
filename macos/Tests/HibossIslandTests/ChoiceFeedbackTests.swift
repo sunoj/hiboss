@@ -87,10 +87,16 @@ final class ChoiceFeedbackTests: XCTestCase {
         let answered = AttentionTestSupport.ask(id: "answered", options: ["Ship"], status: "replied")
         let stale = AttentionTestSupport.ask(id: "answered", options: ["Ship"])
         let snapshot = OverviewSnapshot(history: [answered], live: nil, now: .now,
-            requiredInputs: [stale], requiredInputLoaded: false)
+            requiredInputs: [stale], requiredInputLoaded: false, closedDecisionIDs: [answered.id])
         XCTAssertEqual(snapshot.answerability.state(for: answered.id), .closed)
         XCTAssertTrue(snapshot.today.decisions.isEmpty)
         XCTAssertEqual(snapshot.count(.completed), 1)
+        let unlisted = OverviewSnapshot(history: [answered], live: nil, now: .now)
+        XCTAssertEqual(unlisted.answerability.state(for: answered.id), .closed)
+        let listed = OverviewSnapshot(history: [answered], live: nil, now: .now,
+            requiredInputs: [stale], requiredInputLoaded: true)
+        XCTAssertEqual(listed.answerability.state(for: answered.id), .open)
+        XCTAssertEqual(listed.today.decisions.map(\.id), [answered.id])
     }
 
     func testFailedReplyKeepsDraftAndReenablesChoices() async {
