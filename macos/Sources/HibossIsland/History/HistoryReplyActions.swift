@@ -8,7 +8,7 @@ import SwiftUI
 struct HistoryReplyActions: View {
     let message: HistoryMessage
     @ObservedObject var reply: AttentionReplyState
-    let canAnswer: Bool
+    let answerability: AnswerableDecisions
     let onChoose: (String) async -> ReplyFeedback?
     @State private var showsComposer = false
     @FocusState private var editorFocused: Bool
@@ -21,7 +21,7 @@ struct HistoryReplyActions: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if canAnswer {
+            if answerability.permitsReply(to: message) {
                 if let feedback = reply.errors[message.id] {
                     Label(hasDraft ? feedback.text : feedback.choiceText,
                         systemImage: "exclamationmark.circle")
@@ -64,7 +64,7 @@ struct HistoryReplyActions: View {
     }
 
     private func send(_ text: String) {
-        guard canAnswer, message.canAnswerHistory(at: .now) else { return }
+        guard answerability.permitsReply(to: message) else { return }
         Task { await reply.send(text, for: message.id) { choice, _ in await onChoose(choice) } }
     }
 }

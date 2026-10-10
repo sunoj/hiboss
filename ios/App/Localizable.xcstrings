@@ -1,6 +1,517 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Checking…": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Checking…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在检查…" } }
+      }
+    },
+    "No longer open": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No longer open" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已不可回复" } }
+      }
+    },
+    "Loading": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Loading" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在加载" } }
+      }
+    },
+    "Discard draft": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Discard draft" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "丢弃草稿" } }
+      }
+    },
+    "Replying to: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replying to: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复对象：%@"
+          }
+        }
+      }
+    },
+    "Custom answer to: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom answer to: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义回答：%@"
+          }
+        }
+      }
+    },
+    "Reply to the newer message": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply to the newer message"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复更新的消息"
+          }
+        }
+      }
+    },
+    "No eligible agent message. Resolved decisions cannot receive replies.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No eligible agent message. Resolved decisions cannot receive replies."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可回复的智能体消息。已解决的决策无法接收回复。"
+          }
+        }
+      }
+    },
+    "This draft's target is unavailable. Discard it or choose a newer message.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This draft's target is unavailable. Discard it or choose a newer message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "草稿的回复对象已不可用。请丢弃草稿或选择更新的消息。"
+          }
+        }
+      }
+    },
+    "Session facts": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session facts"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话详情"
+          }
+        }
+      }
+    },
+    "All": { "localizations": { "en": { "stringUnit": { "state": "translated", "value": "All" } }, "zh-Hans": { "stringUnit": { "state": "translated", "value": "全部" } } } },
+    "Search sessions and messages": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search sessions and messages"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索会话和消息"
+          }
+        }
+      }
+    },
+    "Needs you": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs you"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要你"
+          }
+        }
+      }
+    },
+    "Search notes, links and files": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search notes, links and files"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索笔记、链接和文件"
+          }
+        }
+      }
+    },
+    "From me": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From me"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自我"
+          }
+        }
+      }
+    },
+    "From agents": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From agents"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自智能体"
+          }
+        }
+      }
+    },
+    "Updated %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@ ago"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@前更新"
+          }
+        }
+      }
+    },
+    "Started %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Started %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始于%@"
+          }
+        }
+      }
+    },
+    "No agent message yet. Reply will be available when one arrives.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No agent message yet. Reply will be available when one arrives."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚无智能体消息。收到消息后即可回复。"
+          }
+        }
+      }
+    },
+    "Reply to session…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply to session…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复会话…"
+          }
+        }
+      }
+    },
+    "Attach from Box": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attach from Box"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从收件箱附加"
+          }
+        }
+      }
+    },
+    "Send reply": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send reply"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送回复"
+          }
+        }
+      }
+    },
+    "Message history": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message history"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消息历史"
+          }
+        }
+      }
+    },
+    "Default picked · not approval": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default picked · not approval"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选择默认项 · 不代表批准"
+          }
+        }
+      }
+    },
+    "You chose %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You chose %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你选择了%@"
+          }
+        }
+      }
+    },
+    "Open session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open session"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开会话"
+          }
+        }
+      }
+    },
+    "an unspecified time": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "an unspecified time" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未指定的时间" } }
+      }
+    },
+      "Today": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Today"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "今天"
+            }
+          }
+        }
+      },
+      "Your call": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Your call"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "由你决定"
+            }
+          }
+        }
+      },
+      "Watching": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Watching"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "关注中"
+            }
+          }
+        }
+      },
+      "Working now": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Working now"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "正在工作"
+            }
+          }
+        }
+      },
+      "No deadline": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No deadline"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无截止时间"
+            }
+          }
+        }
+      },
+      "Checking coverage": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Checking coverage"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "正在检查覆盖范围"
+            }
+          }
+        }
+      },
+      "%@ need you": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ need you"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ 项需要你"
+            }
+          }
+        }
+      },
+      "%@ working": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ working"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "%@ 项正在工作"
+            }
+          }
+        }
+      },
+      "No answer in %@ picks “%@”. That is not approval.": {
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No answer in %@ picks “%@”. That is not approval."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "若 %@ 内未回答，将选择“%@”。这不代表批准。"
+            }
+          }
+        }
+      },
     "Added by %@": {
       "localizations": {
         "en": {

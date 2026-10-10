@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>iOS Decision detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#1D5FD8}a:hover{color:#174BAA}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #8A8D93; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #111317; position: relative; overflow: hidden">
+  <div style="position: absolute; left: 0; right: 0; top: 52px; bottom: 0; background: #F2F3F5; border-radius: 14px 14px 0 0; display: flex; flex-direction: column">
+    <div style="display: flex; justify-content: center; padding-top: 8px"><span style="width: 36px; height: 5px; border-radius: 3px; background: #C9CCD1"></span></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 4px">
+      <span style="display: flex; align-items: center; gap: 8px">
+        <span style="width: 32px; height: 32px; border-radius: 9px; background: #F1F2F4; color: #4A505A; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center">HB</span>
+        <span style="display: flex; flex-direction: column">
+          <span style="font-size: 14px; font-weight: 600">hiboss / main</span>
+          <span style="font-size: 12px; color: #5F6570">claude on Mac mini · asked 13:41</span>
+        </span>
+      </span>
+      <a href="Main.dc.html" aria-label="Close" style="width: 32px; height: 32px; border-radius: 16px; background: #E4E6EA; color: #4A505A; display: flex; align-items: center; justify-content: center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </a>
+    </div>
+
+    <div style="padding: 10px 16px 0; display: flex; flex-direction: column; gap: 14px">
+      <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.015em">Deploy migration 0052 and the Worker to production?</h1>
+
+      <div style="background: #FFFFFF; border-radius: 16px; padding: 4px 14px">
+        <div style="display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid #ECEEF1">
+          <span style="width: 64px; flex: none; font-size: 13px; font-weight: 600; color: #5F6570">Changes</span>
+          <span style="font-size: 14px; line-height: 19px">Agents can add items to your Box; each item is labelled with its author.</span>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid #ECEEF1">
+          <span style="width: 64px; flex: none; font-size: 13px; font-weight: 600; color: #5F6570">Risk</span>
+          <span style="font-size: 14px; line-height: 19px">Low. The migration only adds a table and a column; the running Worker works with both.</span>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid #ECEEF1">
+          <span style="width: 64px; flex: none; font-size: 13px; font-weight: 600; color: #5F6570">Undo</span>
+          <span style="font-size: 14px; line-height: 19px">Roll the Worker back; the new table can stay.</span>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 11px 0">
+          <span style="width: 64px; flex: none; font-size: 13px; font-weight: 600; color: #5F6570">Evidence</span>
+          <span style="display: flex; gap: 6px; flex-wrap: wrap">
+            <span style="padding: 3px 8px; border-radius: 8px; background: #EEF6F0; color: #14532D; font-size: 12px; font-weight: 600">Server 1196/1196</span>
+            <span style="padding: 3px 8px; border-radius: 8px; background: #EEF6F0; color: #14532D; font-size: 12px; font-weight: 600">2 audits SHIP</span>
+            <span style="padding: 3px 8px; border-radius: 8px; background: #F1F2F4; color: #2A2E35; font-size: 12px; font-weight: 600">5 known UI failures</span>
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #FFF1E8">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2"></path></svg>
+        <span style="font-size: 13px; line-height: 18px; color: #6B2A0A"><b>18 min left.</b> Then “Not yet” is picked for you; that is recorded as a default, not your approval.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <button style="height: 50px; border-radius: 25px; border: none; background: #111317; color: #FFFFFF; font: 600 17px -apple-system, system-ui, sans-serif">Deploy</button>
+        <button style="height: 50px; border-radius: 25px; border: 1.5px solid #D5D8DD; background: #FFFFFF; color: #111317; font: 600 17px -apple-system, system-ui, sans-serif">Not yet</button>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center">
+        <label for="decreply" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Reply in your own words</label>
+        <input id="decreply" placeholder="Or reply: deploy after 18:00…" style="flex: 1; height: 44px; border-radius: 22px; border: 1px solid #D5D8DD; background: #FFFFFF; padding: 0 16px; font: 16px -apple-system, system-ui, sans-serif">
+        <button aria-label="Send reply" style="width: 44px; height: 44px; border-radius: 22px; border: none; background: #E4E6EA; color: #4A505A; display: flex; align-items: center; justify-content: center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+        </button>
+      </div>
+      <a href="iOS-Session.dc.html" style="align-self: center; font-size: 15px; font-weight: 600; text-decoration: none; padding: 6px">Open the hiboss session</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#C2410C","options":["#C2410C","#B45309","#BE123C","#7C3AED"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#C2410C' };
+  }
+}
+</script>
+</body>
+</html>

@@ -40,7 +40,7 @@ final class NotificationReplyE2ETests: XCTestCase {
         let failed = try await send("Roll back first", to: "b", flow: flow, reply: reply)
 
         XCTAssertEqual(closed, .alreadyResolved)
-        XCTAssertEqual(reply.errors["a"]?.text, L("That decision is no longer available."))
+        XCTAssertEqual(reply.errors["a"]?.text, L("No longer open"))
         XCTAssertEqual(reply.drafts["a"], "Hold until Monday")
         XCTAssertEqual(failed, .failed("The reply was rejected."))
         XCTAssertEqual(reply.errors["b"]?.text, L("Reply failed. Your draft is saved. Try again."))
@@ -72,7 +72,7 @@ final class NotificationReplyE2ETests: XCTestCase {
     ) async throws -> ReplyFeedback? {
         let message = try XCTUnwrap(flow.historyMessages.first { $0.id == id })
         let view = NotificationMessageDetail(messageID: "stale-notification-id", settings: try settings(),
-            reply: reply, onReply: flow.answer)
+            reply: reply, overview: loadedOverview(flow), onReply: flow.answer)
         let detail = view.loadedDetail(message)
         var feedback: ReplyFeedback?
         await reply.send(text, for: detail.message.id) { text, _ in
@@ -80,6 +80,13 @@ final class NotificationReplyE2ETests: XCTestCase {
             return feedback
         }
         return feedback
+    }
+
+    private func loadedOverview(_ flow: OptionFlowStore) -> OverviewStore {
+        let overview = OverviewStore()
+        overview.update(history: flow.historyMessages, live: flow.activeMessage,
+            requiredInputs: flow.historyMessages, requiredInputLoaded: true)
+        return overview
     }
 
     private func connected(_ api: OutcomeScriptAPI) async throws -> OptionFlowStore {

@@ -7,68 +7,6 @@ import HibossKit
 import Combine
 import SwiftUI
 
-enum OptionPanelLayout {
-    private static let contentHorizontalPadding: CGFloat = 36
-    private static let optionTextChrome: CGFloat = 46
-    private static let verticalChrome: CGFloat = 86
-    private static let optionVerticalPadding: CGFloat = 18
-    private static let optionSpacing: CGFloat = 7
-    private static let minimumOptionHeight: CGFloat = 35
-    private static let optionMediaHeight: CGFloat = 128
-    private static let minimumBodyViewportHeight: CGFloat = 56
-    /// Reply input row plus the stack spacing above it.
-    private static let replyFieldHeight: CGFloat = 45
-    /// SwiftUI controls consume slightly more height than AppKit text metrics report.
-    private static let controlLayoutReserve: CGFloat = 24
-
-    static func expandedHeight(
-        for message: OptionMessage,
-        width: CGFloat = AppConstants.Island.width
-    ) -> CGFloat {
-        let contentWidth = width - contentHorizontalPadding
-        let bodyHeight = max(
-            minimumBodyViewportHeight,
-            textHeight(
-                message.body,
-                font: .systemFont(ofSize: 15, weight: .semibold),
-                width: contentWidth
-            )
-        )
-        let optionWidth = contentWidth - optionTextChrome
-        let optionHeights = message.options.map { option in
-            let mediaHeight = hasMedia(for: option, in: message) ? optionMediaHeight : 0
-            return max(
-                minimumOptionHeight,
-                max(
-                    mediaHeight,
-                    textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: optionWidth)
-                )
-                    + optionVerticalPadding
-            )
-        }
-        let gaps = CGFloat(max(optionHeights.count - 1, 0)) * optionSpacing
-        let optionsHeight: CGFloat = optionHeights.reduce(0, +) + gaps
-        let chrome: CGFloat = verticalChrome + replyFieldHeight + controlLayoutReserve
-        return ceil(chrome + bodyHeight + optionsHeight)
-    }
-
-    private static func textHeight(_ text: String, font: NSFont, width: CGFloat) -> CGFloat {
-        let bounds = (text as NSString).boundingRect(
-            with: NSSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: font]
-        )
-        return ceil(bounds.height)
-    }
-
-    private static func hasMedia(for option: String, in message: OptionMessage) -> Bool {
-        let normalizedOption = option.trimmingCharacters(in: .whitespacesAndNewlines)
-        return message.metadata?.optionMedia.contains {
-            $0.label.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedOption
-        } == true
-    }
-}
-
 @MainActor
 final class IslandPanelController {
     let panel: NSPanel
@@ -79,7 +17,9 @@ final class IslandPanelController {
     private let settings: AppSettings
     private let soundPlayer: any SoundPlaying
     private let screens: () -> [IslandGeometry]
+    let overview: OverviewStore
     private let pointerLocation: () -> NSPoint
+    private let activate: () -> Void
     private var questionScreen: IslandGeometry?
     private var cancellables: Set<AnyCancellable> = []
     private(set) var dropReveal: IslandDropRevealController?
@@ -87,15 +27,19 @@ final class IslandPanelController {
     init(
         flow: OptionFlowStore,
         settings: AppSettings,
+        overview: OverviewStore = OverviewStore(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer(),
         screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
-        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation }
+        pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
+        activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) }
     ) {
         self.flow = flow
         self.settings = settings
+        self.overview = overview
         self.soundPlayer = soundPlayer
         self.screens = screens
         self.pointerLocation = pointerLocation
+        self.activate = activate
         panel = IslandPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -124,7 +68,8 @@ final class IslandPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
         panel.isMovable = false
-        let host = BoxDropHostingView(rootView: IslandView(flow: flow, reply: reply), settings: settings)
+        let host = BoxDropHostingView(
+            rootView: IslandView(flow: flow, reply: reply, overview: overview), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
         dropReveal = IslandDropRevealController(
@@ -158,7 +103,7 @@ final class IslandPanelController {
             optionWindow.standardWindowButton(button)?.isHidden = true
         }
         let host = NSHostingView(
-            rootView: IslandView(flow: flow, reply: reply, surfaceStyle: .window)
+            rootView: IslandView(flow: flow, reply: reply, overview: overview, surfaceStyle: .window)
         )
         host.sizingOptions = []
         optionWindow.contentView = host
@@ -171,9 +116,18 @@ final class IslandPanelController {
     ]
 
     private func observeFlow() {
-        Publishers.CombineLatest(flow.$activeMessage, settings.$presentationMode)
-            .sink { [weak self] message, mode in
-                self?.updatePresentation(message: message, mode: mode)
+        let content = Publishers.CombineLatest3(
+            overview.$snapshot, flow.$activeMessage, flow.$presentationState)
+        let presentations = content.map { snapshot, active, state -> IslandPresentation? in
+            IslandAttention.presentation(snapshot: snapshot.today, active: active, state: state)
+        }
+        Publishers.CombineLatest(presentations, settings.$presentationMode)
+            .removeDuplicates { previous, next in
+                previous.0?.message.id == next.0?.message.id
+                    && previous.1 == next.1
+            }
+            .sink { [weak self] presentation, mode in
+                self?.updatePresentation(message: presentation?.message, mode: mode)
             }
             .store(in: &cancellables)
 
@@ -238,7 +192,7 @@ final class IslandPanelController {
         let height = max(expandedHeight(for: message), 180)
         optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: height))
         if !wasVisible { optionWindow.center() }
-        NSApp.activate(ignoringOtherApps: true)
+        activate()
         optionWindow.makeKeyAndOrderFront(nil)
     }
 
@@ -252,7 +206,8 @@ final class IslandPanelController {
         guard settings.presentationMode == .island,
             !followingPointer || questionScreen == nil else { return }
         setContentInset(geometry.expandedTopInset)
-        guard let message = flow.activeMessage else { return }
+        guard let message = IslandAttention.presentation(snapshot: overview.snapshot.today,
+            active: flow.activeMessage, state: flow.presentationState)?.message else { return }
         questionScreen = geometry
         panel.setFrame(
             geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)),

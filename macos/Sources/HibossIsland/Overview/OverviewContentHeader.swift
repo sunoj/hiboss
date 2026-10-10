@@ -16,7 +16,7 @@ struct OverviewContentHeader: View {
                     .font(.largeTitle.bold())
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Text(countsAvailable ? snapshot.messages(for: destination).count.formatted() : "—")
+                Text(countText)
                     .font(.largeTitle.bold()).monospacedDigit()
             }
             .foregroundStyle(.primary)
@@ -25,6 +25,12 @@ struct OverviewContentHeader: View {
         }
         .padding(.horizontal, 24).padding(.vertical, 18)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var countText: String {
+        if case let .category(category) = destination, category.isAttention,
+           !snapshot.answerability.isLoaded { return L("Loading") }
+        return countsAvailable ? snapshot.messages(for: destination).count.formatted() : L("Loading")
     }
 
     private var subtitle: String {
@@ -36,8 +42,10 @@ struct OverviewContentHeader: View {
         case .category(.all): L("Recent messages across your sessions.")
         case .category(.completed): L("Answered and expired questions.")
         case .session: L("Recent messages in this session.")
-        case .dashboard: L("Decisions and live panels.")
+        case .today: L("Decisions and live panels.")
         case .deviceRequests: L("Machines waiting to join.")
+        case .box: L("Box")
+        case .progress: L("Progress")
         }
     }
 }

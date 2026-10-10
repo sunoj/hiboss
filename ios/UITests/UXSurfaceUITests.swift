@@ -27,7 +27,7 @@ final class UXSurfaceUITests: XCTestCase {
         app.swipeUp()
         shot("en-21-panel-form-bottom")
         app.buttons["Done"].firstMatch.tap()
-        let wall = app.staticTexts["Live panels"]
+        let wall = app.staticTexts["Watching"]
         for _ in 0..<10 where !wall.isHittable { app.swipeUp() }
         XCTAssertTrue(wall.isHittable)
         shot("en-22-panel-wall")

@@ -11,8 +11,18 @@ extension InboxStore {
     @discardableResult
     func reply(_ choice: String, to id: MessageID) async -> ReplyResult {
         guard let api else { return .failed }
+        guard replying[id] == nil else { return .busy }
+        replyFeedback[id] = nil
+        let message = message(for: id)
+        let isDecision = message?.isDecision
+            ?? requiredInputs.contains { $0.id == id }
+        let state = isDecision ? answerability(for: id) : .open
+        guard state == .open else {
+            if state == .checking { replyFeedback[id] = state.label }
+            return state == .closed ? .alreadyResolved : .failed
+        }
         let epoch = requiredEpoch
-        let submission = await replyGate.submit(choice, to: id, via: api)
+        let submission = await replyGate.submit(choice, to: id, via: api, answerability: state)
         // Signed out or switched account while in flight: report, but touch no new state.
         guard epoch == requiredEpoch else { return ReplyResult(submission) }
         switch submission {
@@ -23,7 +33,7 @@ extension InboxStore {
             replyConfirmation = String(localized: "Reply sent.")
             refreshHistory()
         case .alreadyResolved:
-            settleReply(nil, for: id)
+            settleReply(nil, for: id, closed: true)
             refreshHistory()
         case let .failed(reason):
             settleReply(nil, for: id, error: reason)
@@ -43,8 +53,9 @@ extension InboxStore {
             return nil
         case .alreadyResolved:
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            return String(localized: "That decision was already answered elsewhere.")
+            return String(localized: "No longer open")
         case .failed:
+            if let feedback = replyFeedback[id] { return feedback }
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             return String(localized: "Couldn't send your reply — check your connection.")
         }

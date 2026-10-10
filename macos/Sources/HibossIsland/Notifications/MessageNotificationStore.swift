@@ -77,7 +77,7 @@ final class MessageNotificationStore: ObservableObject {
 
     func receive(_ message: HistoryMessage) async {
         guard !Task.isCancelled, message.direction == "agent_to_boss",
-              message.options.isEmpty, seenIDs.insert(message.id).inserted, isEnabled else { return }
+              !message.isDecision, seenIDs.insert(message.id).inserted, isEnabled else { return }
         await prepareAuthorization()
         guard !Task.isCancelled, isEnabled,
               authorization == .authorized || authorization == .provisional else { return }

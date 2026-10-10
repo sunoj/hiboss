@@ -11,8 +11,10 @@ private let laLog = Logger(subsystem: "ai.hiboss.app", category: "LiveActivity")
 
 @MainActor
 enum DecisionActivityManager {
-    static func rankedMessages(from messages: [HistoryMessage], now: Date = .now) -> [HistoryMessage] {
-        AttentionModel.items(from: messages, now: now)
+    /// Candidates must come from the loaded required-input list, never bounded history.
+    static func rankedMessages(from requiredInputs: [HistoryMessage], now: Date = .now) -> [HistoryMessage] {
+        TodaySnapshot(history: [], requiredInputs: requiredInputs, health: .loading,
+                      coverageComplete: false, now: now).decisions
             .filter { !$0.options.isEmpty }
             .map(\.message)
     }
@@ -28,7 +30,7 @@ enum DecisionActivityManager {
             "sync: \(pending.count) pending, \(Activity<DecisionActivityAttributes>.activities.count) running"
         )
         let running = Activity<DecisionActivityAttributes>.activities
-        let ranked = rankedMessages(from: pending)
+        let ranked = pending.filter { !$0.options.isEmpty }
         let top = alertsEnabled ? ranked.first : nil
 
         for activity in running where activity.attributes.messageID != top?.id.rawValue {

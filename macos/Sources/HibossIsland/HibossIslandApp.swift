@@ -15,7 +15,8 @@ struct HibossIslandApp: App {
         Window(productName, id: "main") {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow,
                 notificationNavigation: appDelegate.notificationNavigation,
-                joinRequests: appDelegate.joinRequests)
+                joinRequests: appDelegate.joinRequests,
+                overviewStore: appDelegate.overview, requiredInputs: appDelegate.requiredInputs)
         }
         .defaultSize(width: 1320, height: 820)
         .commands {
@@ -29,6 +30,7 @@ struct HibossIslandApp: App {
                 flow: appDelegate.flow,
                 preferencesStore: appDelegate.preferencesStore,
                 notifications: appDelegate.notifications,
+                requiredInputs: appDelegate.requiredInputs,
                 updater: appDelegate.updater.state,
                 launchAtLogin: appDelegate.launchAtLogin,
                 pairingLinks: appDelegate.pairingLinks
@@ -73,6 +75,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
+    let overview = OverviewStore()
+    let requiredInputs = RequiredInputStore()
     var cancellables: Set<AnyCancellable> = []
 
     override init() {
@@ -84,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
         }
         super.init()
+        overview.bind(flow: flow, inputs: requiredInputs)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -95,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         notificationCenter.start()
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
-        panelController = IslandPanelController(flow: flow, settings: settings)
+        panelController = IslandPanelController(flow: flow, settings: settings, overview: overview)
         observeJoinRequests()
         Task { [weak self] in
             guard let self else { return }
@@ -119,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private func connectIfConfigured() {
         if case let .success(config) = settings.connectionConfig() {
             let api = HibossAPI(config: config)
+            requiredInputs.connect(api)
             flow.connect(api: api)
             notifications.connect(api: api)
             Task { await preferencesStore.load() }
@@ -147,6 +153,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .removeDuplicates()
             .sink { [weak self] _ in self?.refreshStatusMenu() }
             .store(in: &cancellables)
+
+        overview.$snapshot
+            .sink { [weak self] snapshot in
+                let count = snapshot.answerability.isLoaded ? snapshot.today.decisions.count : nil
+                self?.updateStatusCount(count)
+            }
+            .store(in: &cancellables)
     }
 
     private func setStatusItemVisible(_ isVisible: Bool) {
@@ -157,13 +170,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
         guard statusItem == nil else { return }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = NSImage(
-            systemSymbolName: "capsule.tophalf.filled",
-            accessibilityDescription: L("HiBoss Island")
-        )
         item.button?.toolTip = L("HiBoss Island")
         statusItem = item
+        let snapshot = overview.snapshot
+        updateStatusCount(snapshot.answerability.isLoaded ? snapshot.today.decisions.count : nil)
         refreshStatusMenu()
+    }
+
+    private func updateStatusCount(_ count: Int?) {
+        guard let button = statusItem?.button else { return }
+        AppIdentity.configure(button, count: count)
     }
 
     func refreshStatusMenu() {
@@ -188,11 +204,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @objc private func reconnect() {
         guard case let .success(config) = settings.connectionConfig() else { return }
         let api = HibossAPI(config: config)
+        requiredInputs.connect(api)
         flow.connect(api: api)
         notifications.connect(api: api)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        requiredInputs.disconnect()
         notifications.disconnect()
     }
 

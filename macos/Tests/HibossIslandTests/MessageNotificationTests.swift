@@ -37,6 +37,15 @@ final class MessageNotificationTests: XCTestCase {
         XCTAssertEqual(center.notices.count, 1)
     }
 
+    func testBlockingAskWithoutOptionsIsSkippedAsADecision() async {
+        let center = RecordingNotificationCenter()
+        let store = MessageNotificationStore(center: center, defaults: defaults)
+        let ask = HistoryMessage(id: "blocking", body: "Review?", direction: "agent_to_boss",
+            status: "delivered", priority: "normal", mode: "blocking", createdAt: "2026-09-11 12:00:00")
+        await store.receive(ask)
+        XCTAssertTrue(center.notices.isEmpty)
+    }
+
     func testOnlyAgentToBossDirectionPosts() async {
         let center = RecordingNotificationCenter()
         let store = MessageNotificationStore(center: center, defaults: defaults)

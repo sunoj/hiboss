@@ -61,7 +61,9 @@ final class MessageThreadingTests: XCTestCase {
     }
 
     func testBadgePrecedence() {
-        XCTAssertEqual(MessageRowBadge.badge(for: Self.ask), .decisionNeeded)
+        XCTAssertEqual(MessageRowBadge.badge(for: Self.ask, answerability: .open), .decisionNeeded)
+        XCTAssertEqual(MessageRowBadge.badge(for: Self.ask, answerability: .checking), .loading)
+        XCTAssertEqual(MessageRowBadge.badge(for: Self.ask, answerability: .closed), .high)
         let answered = Self.message("a", direction: "agent_to_boss", priority: "critical", status: "replied")
         XCTAssertEqual(MessageRowBadge.badge(for: answered), .critical)
         let expired = Self.message("e", direction: "agent_to_boss", priority: "high", status: "expired")

@@ -26,7 +26,7 @@ final class OverviewStoreTests: XCTestCase {
         let live = OptionMessage(id: "live", body: "Ship?", agentName: "Agent",
             metadata: MessageMetadata(options: ["Ship"], defaultOption: "Ship"),
             expiresAt: AttentionTestSupport.iso(Date().addingTimeInterval(60)))
-        store.update(history: [], live: live)
+        store.update(history: [], live: live, requiredInputs: [TodayProjection.historyMessage(from: live)])
         XCTAssertEqual(store.snapshot.count(.automatic), 1)
         store.update(history: [], live: nil)
         XCTAssertEqual(store.snapshot.count(.all), 0)
@@ -37,7 +37,7 @@ final class OverviewStoreTests: XCTestCase {
         let deadline = Date().addingTimeInterval(0.15)
         let question = AttentionTestSupport.ask(id: "timer", options: ["Ship"], defaultOption: "Ship",
             expiresAt: deadline.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
-        store.update(history: [question], live: nil)
+        store.update(history: [question], live: nil, requiredInputs: [question])
         XCTAssertEqual(store.snapshot.count(.automatic), 1)
         for _ in 0..<100 {
             if store.snapshot.count(.automatic) == 0 { break }

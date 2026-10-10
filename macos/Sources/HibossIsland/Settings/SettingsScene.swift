@@ -13,6 +13,7 @@ struct SettingsScene: View {
     @ObservedObject var updater: UpdaterState
     @ObservedObject var launchAtLogin: LaunchAtLoginController
     @ObservedObject var pairingLinks: PairingLinkRouter
+    let requiredInputs: RequiredInputStore
     let soundPlayer: any SoundPlaying
 
     @State private var selection: SettingsPane = .connection
@@ -24,11 +25,13 @@ struct SettingsScene: View {
         flow: OptionFlowStore,
         preferencesStore: BossPreferencesStore,
         notifications: MessageNotificationStore,
+        requiredInputs: RequiredInputStore = RequiredInputStore(),
         updater: UpdaterState = UpdaterState(),
         launchAtLogin: LaunchAtLoginController = LaunchAtLoginController(),
         pairingLinks: PairingLinkRouter = PairingLinkRouter(),
         soundPlayer: any SoundPlaying = SystemSoundPlayer()
     ) {
+        self.requiredInputs = requiredInputs
         self.settings = settings
         self.flow = flow
         self.preferencesStore = preferencesStore
@@ -144,6 +147,7 @@ struct SettingsScene: View {
 
     private func reconnectStreams(_ config: ConnectionConfig) {
         let api = HibossAPI(config: config)
+        requiredInputs.connect(api)
         flow.connect(api: api)
         notifications.connect(api: api)
     }

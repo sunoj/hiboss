@@ -1,4 +1,4 @@
-// Attachment coverage across message detail, Home and ordinary/decision transcript bubbles.
+// Attachment coverage across message detail, Today and ordinary/decision transcript bubbles.
 // Exports: MessageAttachmentUITests, including retained detail screenshot evidence.
 // Dependencies: XCTest, DemoLaunchSupport and bundled DemoMessageAttachments fixtures.
 
@@ -62,8 +62,18 @@ final class MessageAttachmentUITests: XCTestCase {
 
     func testHomeFullBodyIncludesAttachment() {
         launch([:])
+        let decision = app.buttons["home-message-attachment-decision"]
+        XCTAssertTrue(decision.waitForExistence(timeout: 10))
+        XCTAssertTrue(decision.isHittable)
+        decision.tap()
+        let question = app.staticTexts["message-question"]
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertEqual(question.label, "Approve the release banner?")
         assertViewer(app.buttons["message-attachment-open"])
-        XCTAssertTrue(app.buttons["home-message-attachment-decision"].exists)
+        XCTAssertTrue(question.isHittable)
+        app.navigationBars.buttons["Done"].tap()
+        XCTAssertTrue(decision.waitForExistence(timeout: 5))
+        XCTAssertTrue(decision.isHittable)
     }
 
     func testSlowImageOffersRetryAndViewerRemainsDismissible() {
@@ -97,7 +107,16 @@ final class MessageAttachmentUITests: XCTestCase {
 
     private func assertViewer(_ button: XCUIElement) {
         XCTAssertTrue(button.waitForExistence(timeout: 15))
-        for _ in 0..<5 where !button.isHittable { app.swipeUp() }
+        let header = app.descendants(matching: .any).matching(identifier: "session-facts").firstMatch
+        let composer = app.textFields["session-reply-draft"].firstMatch
+        for _ in 0..<8 {
+            if header.exists && button.frame.midY < header.frame.maxY + 24 {
+                app.swipeDown()
+            } else if composer.exists && button.frame.midY > composer.frame.minY - 24 {
+                app.swipeUp()
+            } else if !button.isHittable { app.swipeUp() }
+            else { break }
+        }
         XCTAssertTrue(button.isHittable)
         button.tap()
         XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))

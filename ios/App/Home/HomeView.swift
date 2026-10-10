@@ -14,10 +14,13 @@ struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openConnectionSettings) private var openSettings
     @State private var actionNote: String?
+    @State private var decisionID: MessageID?
+    @State private var showingDecision = false
     @State private var sessionRoute: SessionRoute?
 
     var body: some View {
         content
+            .accessibilityHidden(showingDecision)
             .background(Theme.paper)
             .refreshable {
                 await inbox.refresh()
@@ -34,11 +37,12 @@ struct HomeView: View {
             }
             .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
             .navigationDestination(for: SessionRoute.self) {
-                SessionMessagesView(route: $0, api: sessionAPI, store: inbox)
+                SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
             .navigationDestination(item: $sessionRoute) {
-                SessionMessagesView(route: $0, api: sessionAPI, store: inbox)
+                SessionMessagesView(route: $0, api: sessionAPI, store: inbox, panels: panels)
             }
+            .sheet(isPresented: $showingDecision) { decisionSheet }
             .sheet(isPresented: Binding(
                 get: { panels.selectedTile != nil },
                 set: { if !$0 { panels.closeDetail() } }
@@ -56,16 +60,26 @@ struct HomeView: View {
             }
     }
 
+    private var decisionSheet: some View {
+        NavigationStack {
+            if let decisionID {
+                MessageDetailView(store: inbox, messageID: decisionID, onOpenSession: {
+                    showingDecision = false
+                    sessionRoute = $0
+                })
+                .toolbar { ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingDecision = false }
+                } }
+            }
+        }.presentationDragIndicator(.visible)
+    }
+
     @ViewBuilder
     private var content: some View {
         ScrollView {
             LazyVStack(spacing: 22) {
-                // Only attention ranking depends on time; the wall keeps its own clocks.
                 TimelineView(HomeRefreshSchedule(deadlines: refreshDeadlines)) { context in
-                    attentionContent(now: context.date)
-                }
-                if !panels.tiles.isEmpty {
-                    HomePanelWall(model: panels)
+                    todayContent(now: context.date)
                 }
             }
             .padding(.vertical, 12)
@@ -74,28 +88,39 @@ struct HomeView: View {
 
     /// Expiry moments that change the ranking; countdown text ticks on its own.
     private var refreshDeadlines: [Date] {
-        inbox.requiredInputs.compactMap(\.expirationDate)
+        (inbox.history + inbox.requiredInputs).compactMap(\.expirationDate)
             + panels.pendingQuestionnaires.compactMap { $0.expiresAt.flatMap(ISODate.parse) }
     }
 
-    private func attentionContent(now: Date) -> some View {
-        HomeAttentionSection(
-            snapshot: HomeAttentionSnapshot(
-                messages: inbox.requiredInputs, withdrawn: inbox.withdrawn,
-                questionnaires: panels.pendingQuestionnaires,
-                terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
-                now: now, panelNow: { panels.serverNow(for: $0) }
-            ),
-            hasPanels: !panels.visibleTiles.isEmpty,
-            status: attentionStatus,
-            statusIsFailure: hasCoverageFailure,
-            onRetry: retryCoverage,
-            onSettings: openSettings,
-            replying: inbox.replying,
-            onChoose: handleReply,
-            onOpenPanel: openPanel,
-            onOpenSession: { sessionRoute = $0 }
+    private func todayContent(now: Date) -> some View {
+        let today = inbox.todaySnapshot(now: now, coverageComplete: attentionStatus == nil)
+        let attention = HomeAttentionSnapshot(
+            messages: [], withdrawn: inbox.withdrawn, questionnaires: panels.pendingQuestionnaires,
+            decisions: today.decisions,
+            terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
+            now: now, panelNow: { panels.serverNow(for: $0) }
         )
+        return VStack(spacing: 22) {
+            TodayHeader(snapshot: today, requestCount: attention.count,
+                        inputsLoaded: inbox.requiredInputLoaded, now: now, onSettings: openSettings)
+            HomeAttentionSection(
+                snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
+                isAllClear: today.isAllClear && attention.questionnaires.isEmpty,
+                status: attentionStatus, statusIsFailure: hasCoverageFailure,
+                onRetry: retryCoverage, onSettings: openSettings,
+                replying: inbox.replying,
+                answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
+                    ($0.id, inbox.answerability(for: $0.id, now: now))
+                }), inputsLoaded: inbox.requiredInputLoaded, onChoose: handleReply,
+                onOpenPanel: openPanel, onOpenSession: { sessionRoute = $0 },
+                onOpenDecision: {
+                    decisionID = $0
+                    showingDecision = true
+                }
+            )
+            if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
+            TodayResults(snapshot: today)
+        }
     }
 
     var attentionStatus: String? {

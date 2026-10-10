@@ -253,7 +253,8 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults, keychain: RevealTokenStore())
         settings.playsSound = false
-        return (IslandPanelController(flow: flow, settings: settings), settings)
+        return (IslandPanelController(flow: flow, settings: settings,
+            overview: islandTestOverview(flow: flow)), settings)
     }
 }
 

@@ -2,6 +2,7 @@
 // Exports: AttentionRow.
 // Dependencies: SwiftUI, AttentionItem, DesignTokens.
 
+import HibossKit
 import SwiftUI
 
 struct AttentionRow: View {
@@ -11,7 +12,7 @@ struct AttentionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(item.project)
+                Text(item.projectTitle)
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -52,7 +53,7 @@ struct AttentionRow: View {
                     .lineLimit(1)
             }
             .accessibilityLabel(L("Chooses \(option) in \(remaining)"))
-        } else if item.band(at: now) == .blocked {
+        } else if item.group == .waitingOnYou {
             Text(L("Waiting \(item.waited(at: now))"))
                 .font(.caption)
                 .foregroundStyle(.secondary)

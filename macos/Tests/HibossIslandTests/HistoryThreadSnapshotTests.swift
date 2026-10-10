@@ -34,7 +34,9 @@ final class HistoryThreadSnapshotTests: XCTestCase {
 
     private func renderNative(_ thread: MessageThread, scheme: ColorScheme) async throws -> NSBitmapImageRep {
         let host = NSHostingView(rootView:
-            HistoryThreadRow(thread: thread, reply: AttentionReplyState(),
+            HistoryThreadRow(thread: thread,
+                answerability: AnswerableDecisions(isLoaded: true,
+                    openIDs: thread.outcome == .open ? [thread.id] : []), reply: AttentionReplyState(),
                 isExpanded: .constant(true), isSearching: false, onCollapse: {}, onChoose: { _ in nil })
                 .padding(.horizontal, 24).frame(width: 640).fixedSize(horizontal: false, vertical: true)
                 .background(Color(nsColor: .windowBackgroundColor)).environment(\.colorScheme, scheme))
@@ -73,7 +75,9 @@ final class HistoryThreadSnapshotTests: XCTestCase {
         var rendered: NSImage?
         appearance.performAsCurrentDrawingAppearance {
             let renderer = ImageRenderer(content:
-                HistoryThreadRow(thread: thread, reply: AttentionReplyState(),
+                HistoryThreadRow(thread: thread,
+                    answerability: AnswerableDecisions(isLoaded: true,
+                        openIDs: thread.outcome == .open ? [thread.id] : []), reply: AttentionReplyState(),
                     isExpanded: .constant(true), isSearching: false, onCollapse: {}, onChoose: { _ in nil })
                     .padding(.horizontal, 24).frame(width: 640)
                     .background(Color(nsColor: .windowBackgroundColor))

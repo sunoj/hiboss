@@ -22,7 +22,7 @@ struct HiBossApp: App {
                 progress: progress
             )
                 .task { await connection.restore() }
-                .preferredColorScheme(nil)
+                .preferredColorScheme(isDemoMode ? DemoAppearance.colorScheme : nil)
         }
     }
 }

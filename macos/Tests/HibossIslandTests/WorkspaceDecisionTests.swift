@@ -11,7 +11,7 @@ final class WorkspaceDecisionTests: XCTestCase {
 
     func testOrdinaryQuestionDoesNotDependOnSessionHeartbeat() {
         let question = AttentionTestSupport.ask(id: "normal", options: ["Review"], sessionStatus: "working")
-        let snapshot = OverviewSnapshot(history: [question], live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: [question], live: nil, now: now, requiredInputs: [question])
         XCTAssertEqual(snapshot.count(.needsYou), 1)
         XCTAssertEqual(snapshot.count(.waiting), 1)
     }
@@ -25,15 +25,22 @@ final class WorkspaceDecisionTests: XCTestCase {
         XCTAssertEqual(snapshot.count(.completed), 1)
     }
 
-    func testLiveOrdinaryQuestionAppearsBeforeHistoryArrives() {
-        let live = OptionMessage(id: "live", body: "Review?", metadata: MessageMetadata(options: ["Yes", "No"]))
-        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now).count(.needsYou), 1)
+    func testServerListedOrdinaryQuestionAppearsBeforeHistoryArrives() {
+        let live = OptionMessage(id: "live", body: "Review?",
+            metadata: MessageMetadata(options: ["Yes", "No"]))
+        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now,
+            requiredInputs: [TodayProjection.historyMessage(from: live)]).count(.needsYou), 1)
+    }
+
+    func testHistoryOnlyQuestionNeverReopensAsARequiredDecision() {
+        let question = AttentionTestSupport.ask(id: "retired", options: ["Ship"])
+        XCTAssertEqual(OverviewSnapshot(history: [question], live: nil, now: now).count(.needsYou), 0)
     }
 
     func testDeadlineWithoutDefaultIsStillActionableUntilExpiry() {
         let question = AttentionTestSupport.ask(id: "timed", options: ["Review"],
             expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(30)))
-        let before = OverviewSnapshot(history: [question], live: nil, now: now)
+        let before = OverviewSnapshot(history: [question], live: nil, now: now, requiredInputs: [question])
         let after = OverviewSnapshot(history: [question], live: nil, now: now.addingTimeInterval(30))
         XCTAssertEqual(before.count(.needsYou), 1)
         XCTAssertEqual(before.count(.automatic), 0)
@@ -61,5 +68,23 @@ final class WorkspaceDecisionTests: XCTestCase {
             metadata: MessageMetadata(options: ["Yes"]), createdAt: AttentionTestSupport.iso(now))
         XCTAssertEqual(OverviewSnapshot(history: [message], live: nil, now: now).count(.needsYou), 0)
         XCTAssertFalse(message.canAnswerHistory(at: now))
+    }
+
+    func testBlockingAskWithoutOptionsUsesSharedDecisionShapeInHistoryAndCompleted() {
+        let message = HistoryMessage(id: "blocking", body: "Review?", direction: "agent_to_boss",
+            status: "delivered", priority: "normal", mode: "blocking",
+            expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(30)),
+            createdAt: AttentionTestSupport.iso(now))
+        XCTAssertTrue(message.isDecision)
+        XCTAssertTrue(HistorySegment.blocking.includes(message))
+        let expired = OverviewSnapshot(history: [message], live: nil, now: now.addingTimeInterval(30))
+        XCTAssertEqual(expired.count(.completed), 1)
+    }
+
+    func testDefaultOnlyNotificationDoesNotBecomeCompletedDecisionAtDeadline() {
+        let message = AttentionTestSupport.ask(id: "default-only", options: [], defaultOption: "Hold",
+            expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(-1)))
+        XCTAssertFalse(message.isDecision)
+        XCTAssertEqual(OverviewSnapshot(history: [message], live: nil, now: now).count(.completed), 0)
     }
 }

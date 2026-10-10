@@ -18,17 +18,22 @@ struct BoxBrowserView: View {
             if let error = store.error, !store.items.isEmpty { errorNotice(error, paging: false) }
             content
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            BoxBrowserFilters(store: store)
+            Divider()
+        }
         .navigationTitle(L("Box"))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .workspaceChrome()
+        .background(TodayStyle.ground)
         .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
-        .toolbar { kindToolbar }
         .task(id: store.query) {
             if !store.query.isEmpty { try? await Task.sleep(for: .milliseconds(250)) }
             guard !Task.isCancelled else { return }
             await store.refresh()
         }
         .onChange(of: store.kind) { Task { await store.refresh() } }
+        .onChange(of: store.project) { Task { await store.refresh() } }
         .confirmationDialog(L("Delete this Box item?"), isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
         ), titleVisibility: .visible) {
@@ -44,18 +49,6 @@ struct BoxBrowserView: View {
             get: { store.actionError != nil }, set: { if !$0 { store.actionError = nil } }
         )) { Button(L("OK"), role: .cancel) { store.actionError = nil } }
         message: { Text(verbatim: store.actionError ?? "") }
-    }
-
-    @ToolbarContentBuilder private var kindToolbar: some ToolbarContent {
-        ToolbarItem {
-            Picker(L("Kind"), selection: $store.kind) {
-                Text(L("All kinds")).tag(BoxItem.Kind?.none)
-                ForEach(BoxItem.Kind.allCases, id: \.self) { kind in
-                    Text(kind.title).tag(Optional(kind))
-                }
-            }
-            .accessibilityIdentifier("box.kind")
-        }
     }
 
     @ViewBuilder private var content: some View {
@@ -77,7 +70,10 @@ struct BoxBrowserView: View {
     private var list: some View {
         List {
             if store.isLoading { ProgressView(L("Loading Box…")) }
-            ForEach(store.items) { item in
+            if store.visibleItems.isEmpty {
+                Text(L("No Matching Items")).foregroundStyle(TodayStyle.secondary)
+            }
+            ForEach(store.visibleItems) { item in
                 VStack(alignment: .leading, spacing: 6) {
                     BoxBrowserRow(item: item, media: media)
                     HStack {
@@ -92,6 +88,7 @@ struct BoxBrowserView: View {
                         if store.deleting.contains(item.id) { ProgressView().controlSize(.small) }
                     }.buttonStyle(.borderless)
                 }
+                .listRowBackground(TodayStyle.surface)
                 .contextMenu {
                     Button(L("Open")) { Task { await open(item) } }
                     if let text = item.text { Button(L("Copy text")) { copy(text, id: item.id) } }
@@ -105,6 +102,7 @@ struct BoxBrowserView: View {
                     .accessibilityIdentifier("box.load-more")
             }
         }
+        .scrollContentBackground(.hidden)
         .accessibilityIdentifier("box.list")
     }
 

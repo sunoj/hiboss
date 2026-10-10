@@ -19,6 +19,9 @@ enum HistoryDetailLayout {
 
 struct HistoryThreadRow: View {
     let thread: MessageThread
+    var decision: AttentionItem? = nil
+    var usesV4 = false
+    var answerability: AnswerableDecisions = .loading
     @ObservedObject var reply: AttentionReplyState
     @Binding var isExpanded: Bool
     let isSearching: Bool
@@ -38,7 +41,8 @@ struct HistoryThreadRow: View {
             avatar
             VStack(alignment: .leading, spacing: 12) {
                 header
-                ForEach(HistoryDetailLayout.sections(hasChoices: !message.options.isEmpty), id: \.self) {
+                ForEach(HistoryDetailLayout.sections(
+                    hasChoices: message.isDecision), id: \.self) {
                     section($0)
                 }
             }
@@ -54,11 +58,35 @@ struct HistoryThreadRow: View {
     private func section(_ section: HistoryDetailSection) -> some View {
         switch section {
         case .message:
-            HistoryMessageBody(content: content, isSearching: isSearching,
-                isExpanded: $isExpanded, onCollapse: onCollapse)
+            if usesV4, let decision, answerability.state(for: message.id) == .open {
+                TodayDecisionCard(item: decision, now: now, isSelected: false,
+                    isSubmitting: reply.submitting.contains(message.id),
+                    error: reply.errors[message.id]?.choiceText,
+                    onSelect: { showsMetadata.toggle() }, onChoose: { text in
+                        Task { await reply.send(text, for: message.id) { choice, _ in
+                            await onChoose(choice)
+                        } }
+                    })
+                if let attachment = content.attachment { MessageAttachmentView(attachment: attachment) }
+                HistoryReplyActions(message: message, reply: reply,
+                    answerability: answerability, onChoose: onChoose)
+            } else {
+                HistoryMessageBody(content: content, isSearching: isSearching,
+                    isExpanded: $isExpanded, onCollapse: onCollapse)
+            }
         case .choices:
-            HistoryDecisionBlock(thread: thread, outcome: thread.outcome(at: now),
-                reply: reply, onChoose: onChoose)
+            if usesV4 {
+                if decision == nil || answerability.state(for: message.id) != .open {
+                    ResolvedBanner(thread: thread, outcome: answerability.outcome(for: thread, at: now))
+                    DisclosureGroup(L("Decision options")) {
+                        HistoryDecisionBlock(thread: thread,
+                            reply: reply, answerability: answerability, onChoose: onChoose)
+                    }.font(.callout)
+                }
+            } else {
+                HistoryDecisionBlock(thread: thread,
+                    reply: reply, answerability: answerability, onChoose: onChoose)
+            }
         case .metadata:
             if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies) }
             metadata

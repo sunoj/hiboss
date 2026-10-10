@@ -9,15 +9,15 @@ import HibossKit
 final class OverviewFlowTests: XCTestCase {
     private let now = AttentionTestSupport.now
 
-    func testDashboardUsesTheDecisionQueueWithoutCompletedMessages() {
-        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now)
-        XCTAssertEqual(snapshot.title(for: .dashboard), "Dashboard")
-        XCTAssertEqual(snapshot.messages(for: .dashboard).map(\.id), snapshot.attention.map(\.id))
-        XCTAssertFalse(snapshot.messages(for: .dashboard).contains { $0.id == "done" })
+    func testTodayUsesTheDecisionQueueWithoutCompletedMessages() {
+        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now, requiredInputs: fixtures())
+        XCTAssertEqual(snapshot.title(for: .today), "Today")
+        XCTAssertEqual(snapshot.messages(for: .today).map(\.id), snapshot.attention.map(\.id))
+        XCTAssertFalse(snapshot.messages(for: .today).contains { $0.id == "done" })
     }
 
     func testEveryTileCountMatchesItsDestination() {
-        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: fixtures(), live: nil, now: now, requiredInputs: fixtures())
         for category in OverviewCategory.allCases {
             XCTAssertEqual(snapshot.count(category), snapshot.messages(for: .category(category)).count)
         }
@@ -32,7 +32,7 @@ final class OverviewFlowTests: XCTestCase {
     func testResolvedQuestionLeavesAttentionAndEntersCompleted() {
         let pending = AttentionTestSupport.ask(id: "question", options: ["Ship"], sessionStatus: "waiting")
         let resolved = AttentionTestSupport.ask(id: "question", options: ["Ship"], status: "replied")
-        let before = OverviewSnapshot(history: [pending], live: nil, now: now)
+        let before = OverviewSnapshot(history: [pending], live: nil, now: now, requiredInputs: [pending])
         let after = OverviewSnapshot(history: [resolved], live: nil, now: now)
         XCTAssertEqual(before.count(.needsYou), 1)
         XCTAssertEqual(before.count(.completed), 0)
@@ -40,12 +40,13 @@ final class OverviewFlowTests: XCTestCase {
         XCTAssertEqual(after.messages(for: .category(.completed)).map(\.id), ["question"])
     }
 
-    func testLiveQuestionIsCountedOnceAndResolvedHistoryWins() {
+    func testLiveQuestionRequiresServerMembershipAndDroppedListWins() {
         let live = OptionMessage(id: "live", body: "Ship?", agentName: "Agent",
             metadata: MessageMetadata(options: ["Ship"], defaultOption: "Ship"),
             expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(60)))
         let resolved = AttentionTestSupport.ask(id: "live", options: ["Ship"], status: "replied")
-        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now).count(.automatic), 1)
+        XCTAssertEqual(OverviewSnapshot(history: [], live: live, now: now,
+            requiredInputs: [TodayProjection.historyMessage(from: live)]).count(.automatic), 1)
         let snapshot = OverviewSnapshot(history: [resolved], live: live, now: now)
         XCTAssertEqual(snapshot.count(.all), 1)
         XCTAssertEqual(snapshot.count(.needsYou), 0)
@@ -76,7 +77,8 @@ final class OverviewFlowTests: XCTestCase {
             defaultOption: "Ship", expiresAt: AttentionTestSupport.iso(now.addingTimeInterval(60)))
         let blocked = AttentionTestSupport.ask(id: "blocked", priority: "critical", options: ["Review"],
             sessionStatus: "waiting")
-        let snapshot = OverviewSnapshot(history: [timed, blocked], live: nil, now: now)
+        let snapshot = OverviewSnapshot(history: [timed, blocked], live: nil, now: now,
+            requiredInputs: [timed, blocked])
         XCTAssertEqual(snapshot.count(.urgent), 2)
         XCTAssertEqual(snapshot.count(.automatic), 1)
         XCTAssertEqual(snapshot.count(.waiting), 1)

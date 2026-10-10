@@ -1,28 +1,27 @@
-// Native color tokens mapped to system semantic colors (light + dark automatic).
+// Native color tokens backed by the design-v4 light and dark asset variants.
 // Exports: Theme tokens (ink/surface/line) plus priority accents.
-// Dependencies: SwiftUI, UIKit semantic colors.
+// Dependencies: SwiftUI, UIKit semantic colors, and the app asset catalog.
 
 import SwiftUI
 import UIKit
 import HibossKit
 
-/// Semantic tokens. Names kept for source compatibility; values are now the
-/// system's dynamic colors so the app reads as native iOS, not a web palette.
+/// Text stays semantic; named assets carry the design-v4 surface and state roles.
 enum Theme {
     // Text
     static let ink = Color(.label)
-    static let ink2 = Color(.secondaryLabel)
-    static let ink3 = Color(.tertiaryLabel)
+    static let ink2 = Color("SecondaryText")
+    static let ink3 = Color("TertiaryText")
     static let ink4 = Color(.quaternaryLabel)
 
     // Surfaces (grouped, so List/Form insets read correctly)
-    static let paper = Color(.systemGroupedBackground)
-    static let surface = Color(.secondarySystemGroupedBackground)
+    static let paper = Color("Ground")
+    static let surface = Color("Surface")
     static let surface2 = Color(.tertiarySystemFill)
     static let surface3 = Color(.systemFill)
 
     // Separators
-    static let line = Color(.separator)
+    static let line = Color("Hairline")
     static let line2 = Color(.opaqueSeparator)
 
     // System tint and media surfaces
@@ -30,10 +29,16 @@ enum Theme {
     static let onAccent = Color(uiColor: .systemBackground)
     static let mediaBackground = Color(.systemBackground)
 
+    static let primaryAction = Color("Ink")
+    static let live = Color("Live")
+    static let liveSoft = Color("LiveSoft")
+    static let signalSoft = Color("SignalSoft")
+    static let settledSoft = Color("SettledSoft")
+
     // Status accents
-    static let positive = Color.green
+    static let positive = Color("Settled")
     static let negative = Color.red
-    static let warn = Color.orange
+    static let warn = Color("Signal")
 }
 
 extension View {

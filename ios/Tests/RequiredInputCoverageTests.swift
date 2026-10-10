@@ -68,7 +68,9 @@ final class RequiredInputCoverageTests: XCTestCase {
         XCTAssertFalse(store.hasCompleteRequiredInputs)
         await api.setResponse([Self.ask])
         await api.sendReady(to: 1)
-        await eventually { store.hasCompleteRequiredInputs && store.requiredInputs.map(\.id) == [Self.ask.id] }
+        await eventually {
+            store.hasCompleteRequiredInputs && store.requiredInputs.map(\.id) == [Self.ask.id]
+        }
     }
 
     func testFailureAfterSuccessfulEmptySnapshotDoesNotClaimAllClear() async {
@@ -99,14 +101,16 @@ final class RequiredInputCoverageTests: XCTestCase {
         await api.send(.message(Self.ask), to: 0)
         await api.waitForHeldFetch()
         XCTAssertEqual(store.requiredInputs.map(\.id), [Self.ask.id])
-        XCTAssertFalse(store.hasCompleteRequiredInputs)
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .open)
         await api.releaseFetch()
         await eventually { store.hasCompleteRequiredInputs }
         await api.holdNextFetch(returning: [])
         await api.send(.resolved(Self.ask.id), to: 0)
         await api.waitForHeldFetch()
         XCTAssertTrue(store.requiredInputs.isEmpty)
-        XCTAssertFalse(store.hasCompleteRequiredInputs)
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .closed)
         await api.releaseFetch()
         await eventually { store.hasCompleteRequiredInputs }
     }
@@ -149,7 +153,7 @@ final class RequiredInputCoverageTests: XCTestCase {
             let result = await reply.value
             XCTAssertEqual(result, outcome == .accepted ? .sent : .alreadyResolved)
             XCTAssertEqual(HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn,
-                                                 questionnaires: []).count, outcome == .accepted ? 0 : 1)
+                                                 questionnaires: []).count, 0)
             store.stop()
         }
     }
@@ -231,6 +235,10 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     }
 
     func disconnect(_ index: Int) { streams[index].finish() }
+
+    func failStream(_ index: Int) {
+        streams[index].finish(throwing: URLError(.networkConnectionLost))
+    }
 
     func fetchRequiredInputs() async throws -> [HistoryMessage] {
         if hold {

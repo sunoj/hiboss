@@ -24,7 +24,10 @@ final class AttentionLayoutTests: XCTestCase {
         reply.drafts[message.id] = "Please investigate first."
         await reply.send("Please investigate first.", for: message.id) { _, _ in .failed("") }
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
-            let host = NSHostingView(rootView: HistoryMessageDetail(message: message, reply: reply) { _ in .failed("") })
+            let host = NSHostingView(rootView: HistoryMessageDetail(message: message, reply: reply,
+                answerability: AnswerableDecisions(isLoaded: true, openIDs: [message.id])) { _ in
+                    .failed("")
+                })
             host.sizingOptions = []
             host.appearance = NSAppearance(named: appearance)
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 320),
@@ -42,12 +45,13 @@ final class AttentionLayoutTests: XCTestCase {
     private func verifyWorkspace(size: NSSize) async throws {
         let flow = OptionFlowStore()
         flow.connect(api: ScriptedBossAPI(
-            messages: [], history: AttentionPreview.populated(now: Date()).map(\.message)
+            messages: AttentionPreview.populated(now: Date()).map(\.asOptionMessage),
+            history: AttentionPreview.populated(now: Date()).map(\.message)
         ))
         defer { flow.disconnect() }
         // The window opens on the dashboard; the reply editor lives in the Needs You workspace.
         let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: flow,
-            initialDestination: .category(.needsYou)))
+            overviewStore: islandTestOverview(flow: flow), initialDestination: .category(.needsYou)))
         host.sizingOptions = []
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),

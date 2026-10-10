@@ -7,13 +7,15 @@ import SwiftUI
 
 struct HistoryDecisionBlock: View {
     let thread: MessageThread
-    let outcome: ThreadOutcome
     @ObservedObject var reply: AttentionReplyState
+    var answerability: AnswerableDecisions = .loading
     let onChoose: (String) async -> ReplyFeedback?
     @State private var sendingOption: String?
 
     private var message: HistoryMessage { thread.message }
-    private var isOpen: Bool { outcome == .open }
+    private var answerState: DecisionAnswerState { answerability.state(for: message.id) }
+    private var displayedOutcome: ThreadOutcome { answerability.outcome(for: thread, at: .now) }
+    private var isOpen: Bool { answerState == .open }
     private var isSubmitting: Bool { reply.submitting.contains(message.id) || sendingOption != nil }
     private var textOptions: [String] {
         message.options.filter { option in
@@ -26,7 +28,8 @@ struct HistoryDecisionBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HistoryOptionGrid(options: message.options, media: message.metadata?.optionMedia ?? [],
-                defaultOption: message.defaultOption, outcome: outcome, isSubmitting: isSubmitting,
+                defaultOption: message.defaultOption, outcome: displayedOutcome,
+                isSubmitting: isSubmitting || answerState != .open,
                 sendingOption: sendingOption, choose: send)
             if !textOptions.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
@@ -36,12 +39,22 @@ struct HistoryDecisionBlock: View {
                 }
             }
             settlement
+            if answerState == .checking {
+                Button(L("Checking…")) {}.disabled(true)
+            } else if answerState == .closed, displayedOutcome == .none {
+                Text(ResolvedBanner.title(for: displayedOutcome, message: message) ?? L("No longer open"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if isOpen {
+                if let option = message.defaultOption {
+                    DecisionDefaultLine(option: option, expiresAt: message.expirationDate, now: .now)
+                }
                 if let deadline = message.expirationDate {
                     Text(timerInterval: Date.now...max(Date.now, deadline), countsDown: true)
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
-                HistoryReplyActions(message: message, reply: reply, canAnswer: true, onChoose: onChoose)
+                HistoryReplyActions(message: message, reply: reply,
+                    answerability: answerability, onChoose: onChoose)
             }
         }
         .accessibilityIdentifier("history.actions.\(message.id.rawValue)")
@@ -49,7 +62,7 @@ struct HistoryDecisionBlock: View {
 
     @ViewBuilder
     private func textChoice(_ option: String) -> some View {
-        if isOpen {
+        if answerState != .closed {
             Button { send(option) } label: {
                 HStack(spacing: 6) {
                     Text(option).fixedSize(horizontal: false, vertical: true)
@@ -60,11 +73,11 @@ struct HistoryDecisionBlock: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.bordered).disabled(isSubmitting)
+            .buttonStyle(.bordered).disabled(isSubmitting || !isOpen)
         } else {
-            let selected = HistoryOptionSelection.isSelected(option, outcome: outcome)
+            let selected = HistoryOptionSelection.isSelected(option, outcome: displayedOutcome)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: HistoryOptionSelection.symbol(option, outcome: outcome))
+                Image(systemName: HistoryOptionSelection.symbol(option, outcome: displayedOutcome))
                     .foregroundStyle(selected ? Color.accentColor : .secondary)
                 Text(option).foregroundStyle(selected ? Color.primary : .secondary)
                     .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -74,7 +87,7 @@ struct HistoryDecisionBlock: View {
 
     @ViewBuilder
     private var settlement: some View {
-        switch outcome {
+        switch displayedOutcome {
         case .autoSelected:
             Label(L("Auto-selected when time ran out"), systemImage: "clock.arrow.circlepath")
                 .font(.caption).foregroundStyle(.secondary)
@@ -92,7 +105,7 @@ struct HistoryDecisionBlock: View {
     }
 
     private func send(_ option: String) {
-        guard isOpen, !isSubmitting, message.canAnswerHistory(at: .now) else { return }
+        guard answerability.permitsReply(to: message), !isSubmitting else { return }
         sendingOption = option
         Task {
             await reply.send(option, for: message.id) { text, _ in await onChoose(text) }

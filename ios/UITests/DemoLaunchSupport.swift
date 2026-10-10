@@ -11,6 +11,7 @@ extension XCUIApplication {
     /// transcript over Inbox / Resolved / Progress unless we blank the unused keys.
     private static let demoRouteKeys = [
         "HIBOSS_DEMO_OPEN",
+        "HIBOSS_DEMO_RETIRED_ID",
         "HIBOSS_DEMO_NOTIFICATION_OPEN",
         "HIBOSS_DEMO_NOTIFICATION_PREVIEW",
         "HIBOSS_DEMO_SESSION",
@@ -36,6 +37,7 @@ extension XCUIApplication {
         "HIBOSS_DEMO_PANELS_DELAY_MS",
         "HIBOSS_DEMO_QUESTIONNAIRES_DELAY_MS",
         "HIBOSS_DEMO_TRANSCRIPT_DELAY_MS",
+        "HIBOSS_DEMO_TRANSCRIPT_NEWER_DELAY_MS",
         "HIBOSS_DEMO_TRANSCRIPT_CONNECTION_DELAY_MS",
         "HIBOSS_DEMO_PROGRESS_DELAY_MS",
         "HIBOSS_DEMO_PROGRESS_MORE_DELAY_MS",

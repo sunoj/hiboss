@@ -19,6 +19,21 @@ final class DecisionEntryPointTests: XCTestCase {
         HiBossStore.replyAPI = { HiBossStore.bossAPI() }
     }
 
+    func testNotificationAndLiveActivityCannotAnswerARetiredDecision() async {
+        let message = HistoryMessage(id: "retired", body: "Choose?", direction: "agent_to_boss",
+                                     status: "delivered", priority: "normal", mode: "blocking",
+                                     metadata: MessageMetadata(options: ["Approve", "Reject"]), createdAt: "")
+        let api = HeldReplyAPI(history: [message], detail: MessageDetail(message: message, replies: []),
+                               requiredInputs: [])
+        HiBossStore.replyAPI = { api }
+        let request = PushActionRequest(messageID: message.id.rawValue, cachedMessage: nil,
+            options: message.options, actionIdentifier: PushAction.approve, replyText: nil)
+        await PushManager.shared.handle(request)
+        _ = try? await RespondDecisionIntent(messageID: message.id.rawValue, choice: "Approve").perform()
+        XCTAssertTrue(api.replies.isEmpty)
+        XCTAssertNil(DecisionReplyGate.shared.inFlight[message.id])
+    }
+
     func testNotificationActionIsAdmittedByTheSharedGate() async throws {
         func action(_ identifier: String) -> PushActionRequest {
             PushActionRequest(messageID: "push-q1", cachedMessage: nil, options: ["Approve", "Reject"],

@@ -110,8 +110,11 @@ final class OptionMediaUITests: XCTestCase {
         app.buttons["Open image for \(option)"].tap()
         XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.images["option-media-zoom-image"].waitForExistence(timeout: 20))
-        app.buttons["Done"].tap()
-        XCTAssertTrue(app.buttons["Done"].waitForNonExistence(timeout: 5))
+        // The decision sheet also has Done; dismiss the foreground image viewer.
+        let done = app.buttons.matching(identifier: "Done").allElementsBoundByIndex.first { $0.isHittable }
+        XCTAssertNotNil(done)
+        done?.tap()
+        XCTAssertTrue(app.images["option-media-zoom-image"].waitForNonExistence(timeout: 5))
     }
 
     /// Waits until each tile has settled on a loaded image: its open button exists and

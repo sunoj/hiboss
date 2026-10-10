@@ -1,6 +1,6 @@
 // Defines overview destinations and derives tile counts from the exact destination messages.
 // Exports: OverviewCategory, OverviewDestination, OverviewSnapshot.
-// Dependencies: HibossKit history/session models and AttentionRanking.
+// Dependencies: HibossKit history/session models and TodayProjection.
 
 import Foundation
 import HibossKit
@@ -33,11 +33,11 @@ enum OverviewCategory: String, CaseIterable, Identifiable, Sendable {
 
     var isAttention: Bool { self != .all && self != .completed }
 
-    var band: AttentionBand? {
+    var group: AttentionGroup? {
         switch self {
         case .automatic: .autoDecision
-        case .waiting: .blocked
-        case .urgent: .declaredPriority
+        case .waiting: .waitingOnYou
+        case .urgent: .priority
         default: nil
         }
     }
@@ -46,8 +46,10 @@ enum OverviewCategory: String, CaseIterable, Identifiable, Sendable {
 enum OverviewDestination: Hashable {
     case category(OverviewCategory)
     case session(String)
-    case dashboard
+    case today
     case deviceRequests
+    case box
+    case progress
 }
 
 struct OverviewSnapshot {
@@ -55,10 +57,21 @@ struct OverviewSnapshot {
     let attention: [AttentionItem]
     let sessions: [SessionGroup]
     let now: Date
+    let today: TodaySnapshot
+    let answerability: AnswerableDecisions
 
-    init(history: [HistoryMessage], live: OptionMessage?, now: Date) {
-        self.history = AttentionRanking.merge(history: history, live: live)
-        self.attention = AttentionRanking.items(history: history, live: live, now: now)
+    init(history: [HistoryMessage], live: OptionMessage?, now: Date,
+         health: TodayHealth = .loading, coverageComplete: Bool = false,
+         requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false,
+         closedDecisionIDs: Set<MessageID> = []) {
+        self.history = TodayProjection.merge(history: history, live: live, requiredInputs: requiredInputs)
+        self.today = TodaySnapshot(history: self.history,
+            requiredInputs: requiredInputs.filter { !closedDecisionIDs.contains($0.id) },
+            health: health,
+            coverageComplete: coverageComplete, now: now)
+        self.attention = today.decisions
+        self.answerability = AnswerableDecisions(isLoaded: requiredInputLoaded,
+            openIDs: Set(today.decisions.map(\.id)), closedIDs: closedDecisionIDs)
         self.sessions = SessionGrouping.groupBySession(self.history)
         self.now = now
     }
@@ -69,17 +82,19 @@ struct OverviewSnapshot {
 
     func messages(for destination: OverviewDestination) -> [HistoryMessage] {
         switch destination {
-        case .dashboard:
+        case .today:
             return attention.map(\.message)
-        case .deviceRequests:
+        case .deviceRequests, .box, .progress:
             return []
         case let .session(id):
             return history.filter { SessionGrouping.sessionKey(for: $0) == id }
         case let .category(category) where category.isAttention:
             return attention.filter {
                 if category == .urgent { return $0.priorityRank < 2 }
-                if category == .waiting { return [.blocked, .question].contains($0.band(at: now)) }
-                return category.band == nil || $0.band(at: now) == category.band
+                if category == .waiting {
+                    return $0.group == .waitingOnYou || ($0.group == .priority && $0.priorityRank == 2)
+                }
+                return category.group == nil || $0.group == category.group
             }.map(\.message)
         case .category(.completed):
             return history.filter { Self.isCompleted($0, at: now) }
@@ -92,16 +107,17 @@ struct OverviewSnapshot {
         switch destination {
         case let .category(category): category.title
         case let .session(id): sessions.first { $0.id == id }?.label ?? L("Session")
-        case .dashboard: L("Dashboard")
+        case .today: L("Today")
         case .deviceRequests: L("Device Requests")
+        case .box: L("Box")
+        case .progress: L("Progress")
         }
     }
 
     private static func isCompleted(_ message: HistoryMessage, at now: Date) -> Bool {
         let direction = message.direction.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let status = message.status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let hasChoices = !message.options.isEmpty || message.defaultOption != nil
-        let deadlineElapsed = hasChoices && (message.expirationDate.map { $0 <= now } ?? false)
+        let deadlineElapsed = message.isDecision && (message.expirationDate.map { $0 <= now } ?? false)
         return direction == "agent_to_boss"
             && (["replied", "resolved", "expired"].contains(status)
                 || message.metadata?.isExpired == true || deadlineElapsed)

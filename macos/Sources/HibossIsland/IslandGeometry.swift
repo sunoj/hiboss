@@ -1,8 +1,8 @@
 // Calculates top-edge Island frames from injected display measurements.
-// Exports: IslandGeometry for panel sizing, content clearance and pointer hit testing.
-// Dependencies: Foundation geometry and HibossKit's unchanged plain-screen dimensions.
+// Exports: IslandGeometry and OptionPanelLayout for panel frames and content sizing.
+// Dependencies: AppKit text metrics and HibossKit's unchanged plain-screen dimensions.
 
-import Foundation
+import AppKit
 import HibossKit
 
 struct IslandGeometry: Equatable {
@@ -63,5 +63,67 @@ struct IslandGeometry: Equatable {
             x: (notchFrame?.midX ?? screenFrame.midX) - width / 2,
             y: screenFrame.maxY - height, width: width, height: height
         )
+    }
+}
+
+enum OptionPanelLayout {
+    private static let contentHorizontalPadding: CGFloat = 36
+    private static let optionTextChrome: CGFloat = 46
+    private static let verticalChrome: CGFloat = 86
+    private static let optionVerticalPadding: CGFloat = 18
+    private static let optionSpacing: CGFloat = 7
+    private static let minimumOptionHeight: CGFloat = 35
+    private static let optionMediaHeight: CGFloat = 128
+    private static let minimumBodyViewportHeight: CGFloat = 56
+    /// Reply input row plus the stack spacing above it.
+    private static let replyFieldHeight: CGFloat = 45
+    /// SwiftUI controls consume slightly more height than AppKit text metrics report.
+    private static let controlLayoutReserve: CGFloat = 24
+
+    static func expandedHeight(
+        for message: OptionMessage,
+        width: CGFloat = AppConstants.Island.width
+    ) -> CGFloat {
+        let contentWidth = width - contentHorizontalPadding
+        let bodyHeight = max(
+            minimumBodyViewportHeight,
+            textHeight(
+                message.body,
+                font: .systemFont(ofSize: 15, weight: .semibold),
+                width: contentWidth
+            )
+        )
+        let optionWidth = contentWidth - optionTextChrome
+        let optionHeights = message.options.map { option in
+            let mediaHeight = hasMedia(for: option, in: message) ? optionMediaHeight : 0
+            return max(
+                minimumOptionHeight,
+                max(
+                    mediaHeight,
+                    textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: optionWidth)
+                )
+                    + optionVerticalPadding
+            )
+        }
+        let gaps = CGFloat(max(optionHeights.count - 1, 0)) * optionSpacing
+        let optionsHeight: CGFloat = optionHeights.reduce(0, +) + gaps
+        let chrome: CGFloat = verticalChrome + replyFieldHeight + controlLayoutReserve
+        return ceil(chrome + bodyHeight + optionsHeight)
+    }
+
+    private static func textHeight(_ text: String, font: NSFont, width: CGFloat) -> CGFloat {
+        let bounds = (text as NSString).boundingRect(
+            with: NSSize(width: width, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font]
+        )
+        return ceil(bounds.height)
+    }
+
+    private static func hasMedia(for option: String, in message: OptionMessage) -> Bool {
+        let normalizedOption = option.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.metadata?.optionMedia.contains {
+            $0.label.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedOption
+        } == true
     }
 }

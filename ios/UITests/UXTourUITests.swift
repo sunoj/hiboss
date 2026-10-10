@@ -153,7 +153,7 @@ final class UXTourUITests: XCTestCase {
     }
 
     private func openSettingsRow(_ title: String) {
-        let settings = app.tabBars.buttons.element(boundBy: 3)
+        let settings = app.buttons["today-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 8))
         settings.tap()
         if app.buttons["settings-devices"].exists { app.buttons["settings-devices"].tap() }
@@ -175,18 +175,19 @@ final class UXTourUITests: XCTestCase {
         app.swipeDown()
         if extra["HIBOSS_DEMO_EMPTY"] != "1" { openFirstHomeItem(prefix: prefix) }
         tourActivity(prefix: prefix)
-        // Progress remains one tap away; Settings is the final tab.
-        for (index, name) in ["progress", "settings"].enumerated() {
+        for (index, name) in ["box", "progress"].enumerated() {
             let tab = app.tabBars.buttons.element(boundBy: index + 2)
             XCTAssertTrue(tab.waitForExistence(timeout: 5), "missing tour tab \(name)")
             tab.tap()
             settle()
-            shot("\(prefix)-\(name == "progress" ? "06" : "10")-\(name)")
-            switch name {
-            case "progress": openFirstImage(prefix: prefix)
-            default: tourSettingsDetails(prefix: prefix)
-            }
+            shot("\(prefix)-\(name)")
+            if name == "progress" { openFirstImage(prefix: prefix) }
         }
+        app.tabBars.buttons.element(boundBy: 0).tap()
+        app.buttons["today-settings"].tap()
+        settle()
+        shot("\(prefix)-10-settings")
+        tourSettingsDetails(prefix: prefix)
     }
 
     private func tourActivity(prefix: String) {

@@ -11,6 +11,7 @@ enum OptionSurfaceStyle: Sendable {
 }
 
 struct IslandView: View {
+    @ObservedObject var overview: OverviewStore
     @ObservedObject var flow: OptionFlowStore
     /// Drafts, sending and feedback keyed by message id; owned outside the hosting root so a
     /// new question or presentation never erases them.
@@ -19,9 +20,10 @@ struct IslandView: View {
     var topInset: CGFloat
 
     init(
-        flow: OptionFlowStore, reply: AttentionReplyState,
+        flow: OptionFlowStore, reply: AttentionReplyState, overview: OverviewStore,
         surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0
     ) {
+        self.overview = overview
         self.flow = flow
         self.reply = reply
         self.surfaceStyle = surfaceStyle
@@ -29,7 +31,7 @@ struct IslandView: View {
     }
 
     var body: some View {
-        if flow.activeMessage == nil {
+        if overview.snapshot.today.decisions.isEmpty {
             islandContent(now: .now)
         } else {
             TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -42,12 +44,7 @@ struct IslandView: View {
     private func islandContent(now: Date) -> some View {
         if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
             resolvedCard(message, answer: answer, source: source)
-        } else if (surfaceStyle == .window || flow.activeMessage != nil),
-            let presentation = IslandAttention.presentation(
-            live: flow.activeMessage,
-            history: flow.historyMessages,
-            now: now
-        ) {
+        } else if let presentation = IslandAttention.presentation(snapshot: overview.snapshot.today) {
             let message = presentation.message
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)
@@ -159,7 +156,8 @@ struct IslandView: View {
     }
 
     private func projectTitle(for message: OptionMessage) -> String {
-        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch) ?? nonEmpty(message.agentName) ?? productName
+        nonEmpty(message.sessionLabel) ?? nonEmpty(message.sessionBranch)
+            ?? nonEmpty(message.agentName) ?? productName
     }
 
     private func nonEmpty(_ value: String?) -> String? {
@@ -171,7 +169,9 @@ struct IslandView: View {
 
     /// Typed text and option clicks share one path: only an accepted reply clears the draft.
     private func send(_ text: String, for messageID: MessageID) {
-        Task { await reply.send(text, for: messageID, using: flow.answer) }
+        Task { await reply.send(text, for: messageID) { text, id in
+            await overview.answer(text, for: id, using: flow.answer)
+        } }
     }
 
     private func draft(for messageID: MessageID) -> Binding<String> {
@@ -192,10 +192,14 @@ struct IslandView: View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .overlay(Color.white.opacity(0.12))
-            optionList(message)
-            errorLabel(for: message.id)
-            ReplyField(text: draft(for: message.id), isSubmitting: isSubmitting(message.id)) {
-                send(reply.drafts[message.id] ?? "", for: message.id)
+            if overview.snapshot.answerability.state(for: message.id) == .open {
+                optionList(message)
+                errorLabel(for: message.id)
+                ReplyField(text: draft(for: message.id), isSubmitting: isSubmitting(message.id)) {
+                    send(reply.drafts[message.id] ?? "", for: message.id)
+                }
+            } else {
+                Text(L("Checking…")).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.top, 10)
@@ -207,7 +211,8 @@ struct IslandView: View {
     @ViewBuilder
     private func errorLabel(for messageID: MessageID) -> some View {
         if let feedback = reply.errors[messageID] {
-            let hasDraft = !(reply.drafts[messageID] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let hasDraft = !(reply.drafts[messageID] ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             Text(hasDraft ? feedback.text : feedback.choiceText)
                 .font(.caption)
                 .foregroundStyle(.red)

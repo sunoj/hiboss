@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>iOS Lock screen decision</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #1E2A33; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #FFFFFF; position: relative; overflow: hidden">
+  <span style="position: absolute; right: -80px; top: 380px; width: 360px; height: 360px; border-radius: 180px; background: #2B3B46"></span>
+  <span style="position: absolute; left: -120px; top: 560px; width: 300px; height: 300px; border-radius: 150px; background: #24333D"></span>
+
+  <div style="position: absolute; left: 50%; top: 11px; transform: translateX(-50%); width: 200px; height: 37px; border-radius: 19px; background: #000000; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; box-sizing: border-box">
+    <span style="width: 10px; height: 10px; border-radius: 5px; background: {{accent}}"></span>
+    <span style="font-size: 13px; font-weight: 700; color: #FDBA8C">18m</span>
+  </div>
+
+  <div style="padding-top: 92px; display: flex; flex-direction: column; align-items: center; gap: 2px">
+    <span style="font-size: 18px; font-weight: 600; color: #DCE3E8">Thursday 9 October</span>
+    <span style="font-size: 92px; line-height: 100px; font-weight: 700; letter-spacing: -0.03em">13:44</span>
+  </div>
+
+  <div style="position: absolute; left: 12px; right: 12px; top: 470px; border-radius: 24px; background: rgba(20,22,26,0.82); padding: 16px; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #C7CDD4">
+        <img src="/_blob/cb7ea6611239f8cf2bb51d0a77759152" alt="HiBoss" style="width: 24px; height: 24px; border-radius: 6px">
+        <b style="color: #FFFFFF">hiboss</b> · main
+      </span>
+      <span style="font-size: 13px; font-weight: 700; color: #FDBA8C">18 min</span>
+    </div>
+    <span style="font-size: 17px; line-height: 22px; font-weight: 600">Deploy migration 0052 and the Worker to production?</span>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <button style="height: 44px; border-radius: 22px; border: none; background: #FFFFFF; color: #111317; font: 600 16px -apple-system, system-ui, sans-serif">Deploy</button>
+      <button style="height: 44px; border-radius: 22px; border: none; background: rgba(255,255,255,0.16); color: #FFFFFF; font: 600 16px -apple-system, system-ui, sans-serif">Not yet</button>
+    </div>
+    <span style="font-size: 12px; color: #AEB6BF">1 more decision waiting in HiBoss</span>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 34px; display: flex; justify-content: space-between; padding: 0 46px">
+    <button aria-label="Flashlight" style="width: 50px; height: 50px; border-radius: 25px; border: none; background: rgba(255,255,255,0.14); color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-1 6H9z"></path><path d="M9 8h6v13H9z"></path></svg>
+    </button>
+    <button aria-label="Camera" style="width: 50px; height: 50px; border-radius: 25px; border: none; background: rgba(255,255,255,0.14); color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#F97316","options":["#F97316","#F59E0B","#F43F5E","#A78BFA"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#F97316' };
+  }
+}
+</script>
+</body>
+</html>

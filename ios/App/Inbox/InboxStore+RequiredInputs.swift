@@ -21,6 +21,7 @@ extension InboxStore {
     func startRequiredInputs(_ api: any BossServing) {
         guard let service = api as? any RequiredInputServing else {
             requiredInputError = String(localized: "Requests are unavailable on this connection.")
+            requiredInputLoaded = false
             return
         }
         requiredEpoch += 1
@@ -38,9 +39,12 @@ extension InboxStore {
         requiredStreamTask = nil
         requiredCoverageTask?.cancel()
         requiredCoverageTask = nil
+        requiredStaleTask?.cancel()
+        requiredStaleTask = nil
         requiredInputs = []
         requiredInputReady = false
         requiredInputLoaded = false
+        requiredInputRefreshing = false
         requiredInputError = nil
     }
 
@@ -50,21 +54,26 @@ extension InboxStore {
         let epoch = requiredEpoch
         requiredFetchVersion += 1
         let version = requiredFetchVersion
-        requiredInputLoaded = false
+        requiredInputRefreshing = true
         watchRequiredInputCoverage()
+        defer {
+            if epoch == requiredEpoch, version == requiredFetchVersion { requiredInputRefreshing = false }
+        }
         do {
             let messages = try await service.fetchRequiredInputs()
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
             requiredInputs = messages
-            if requiredInputReady {
-                requiredInputError = nil
-                requiredCoverageTask?.cancel()
-                requiredCoverageTask = nil
-            }
+            requiredInputError = nil
             requiredInputLoaded = true
-            let pending = Set(messages.map(\.id))
-            withdrawn.formIntersection(pending)
+            requiredCoverageTask?.cancel()
+            requiredCoverageTask = nil
+            requiredStaleTask?.cancel()
+            requiredStaleTask = nil
+            if !requiredInputReady {
+                watchRequiredInputStaleness()
+                watchRequiredInputCoverage()
+            }
             await syncDecisionActivity()
         } catch {
             guard !Task.isCancelled, epoch == requiredEpoch,
@@ -76,7 +85,7 @@ extension InboxStore {
 
     func cancelRequiredFetch() {
         requiredFetchVersion += 1
-        requiredInputLoaded = false
+        requiredInputRefreshing = false
         requiredFetchTask?.cancel()
         requiredFetchTask = nil
         watchRequiredInputCoverage()
@@ -106,7 +115,7 @@ extension InboxStore {
         while !Task.isCancelled, epoch == requiredEpoch {
             cancelRequiredFetch()
             requiredInputReady = false
-            requiredInputLoaded = false
+            watchRequiredInputStaleness()
             let stream = await service.requiredInputStream()
             guard !Task.isCancelled, epoch == requiredEpoch else { return }
             do {
@@ -121,7 +130,7 @@ extension InboxStore {
             guard !Task.isCancelled, epoch == requiredEpoch else { return }
             cancelRequiredFetch()
             requiredInputReady = false
-            requiredInputLoaded = false
+            watchRequiredInputStaleness()
             // The server rotates this stream every few minutes; a clean end is routine. The
             // coverage watchdog escalates only if the reconnect does not restore coverage.
             try? await Task<Never, Never>.sleep(for: reconnectDelay)
@@ -133,10 +142,25 @@ extension InboxStore {
         requiredCoverageTask = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(8)) }
             catch { return }
-            guard let self, !self.hasCompleteRequiredInputs else { return }
+            guard let self, !self.hasCompleteRequiredInputs || self.requiredInputRefreshing else { return }
+            if self.requiredStaleTask == nil { self.requiredInputLoaded = false }
             self.requiredInputError = self.requiredInputReady
                 ? String(localized: "Requests are still loading. Retry to check for unanswered requests.")
                 : String(localized: "Requests connection is not ready. Retry to reconnect.")
+        }
+    }
+
+    private func watchRequiredInputStaleness() {
+        guard requiredInputLoaded, requiredStaleTask == nil else { return }
+        requiredStaleTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(30)) }
+            catch { return }
+            guard !Task.isCancelled, let self else { return }
+            self.requiredInputLoaded = false
+            self.requiredInputError = String(
+                localized: "Requests connection is not ready. Retry to reconnect."
+            )
+            // Keep the expired timer until a successful fetch; retries cannot extend the grace period.
         }
     }
 }

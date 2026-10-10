@@ -37,7 +37,33 @@ extension DemoBossAPI {
     ) async -> AsyncThrowingStream<SessionStreamFrame, Error> {
         try? await DemoDelay.wait("TRANSCRIPT_CONNECTION")
         return AsyncThrowingStream { continuation in
-            continuation.onTermination = { _ in }
+            let update = Task {
+                guard DemoDelay.isHeld("TRANSCRIPT_NEWER") else { return }
+                do { try await DemoDelay.wait("TRANSCRIPT_NEWER") }
+                catch { return }
+                guard !Task.isCancelled else { return }
+                let message = HistoryMessage(
+                    id: "newer-update", body: "A newer release update.\nMore context follows.",
+                    direction: "agent_to_boss", status: "delivered", priority: "normal",
+                    mode: "async", createdAt: Date().ISO8601Format(), sessionId: sessionID
+                )
+                messages.append(message)
+                if let event = DemoSessionStream.events(for: sessionID, from: messages).last {
+                    continuation.yield(.event(event))
+                }
+            }
+            continuation.onTermination = { _ in update.cancel() }
         }
+    }
+}
+
+// Inventory facts use the same service boundary as production.
+extension DemoBossAPI: SessionsServing {
+    func projectSessions() async throws -> [ProjectSession] {
+        [ProjectSession(id: "sess-deploy", projectId: nil, projectSlug: "hiboss", branch: "release/v2.4",
+                        label: "prod-release", host: "Mac mini", agentName: "worker-deploy",
+                        status: "working", statusText: "Preparing the release",
+                        startedAt: Date().addingTimeInterval(-3600).ISO8601Format(),
+                        lastSeenAt: Date().addingTimeInterval(-9).ISO8601Format())]
     }
 }

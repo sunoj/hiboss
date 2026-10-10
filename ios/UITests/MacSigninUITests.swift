@@ -18,7 +18,7 @@ final class MacSigninUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_SIGNIN_SCAN": link])
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
-        let settings = app.tabBars.buttons["Settings"]
+        let settings = app.buttons["today-settings"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
         settings.tap()
         app.buttons["settings-devices"].tap()

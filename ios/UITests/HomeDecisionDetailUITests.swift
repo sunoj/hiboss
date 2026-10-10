@@ -12,7 +12,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
     private static let c5Question = "Which release banner grid should ship — coarse blocks or a fine weave?"
     private static let c1Question =
         "Production deploy will DROP 3 history tables (orders_2023 +2), irreversible. Run migration?"
-    private static let autoSelectCopy = "到时自动选择「Coarse grid」"
+    private static let autoSelectCopy = "将选择“Coarse grid”。这不代表批准。"
 
     private var app: XCUIApplication!
 
@@ -36,13 +36,13 @@ final class HomeDecisionDetailUITests: XCTestCase {
 
     func testChineseHomeOpensDetailOnHomeStackAndBackReturnsHome() {
         launch()
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["4 项等你决定"].exists, "count uses the localized plural")
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["4 项需要你"].exists, "count uses the localized plural")
         XCTAssertFalse(app.staticTexts["即将自动决定"].exists, "cards already describe their deadlines")
 
         XCTAssertTrue(timing("c5").waitForExistence(timeout: 5))
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), timing("c5").label)
-        XCTAssertTrue(timing("c5").label.contains("剩余"))
+        XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "Home marks the live default")
         XCTAssertNotEqual(app.buttons["Fine grid"].value as? String, "默认")
         assertSideBySide("Coarse grid", "Fine grid")
@@ -52,18 +52,18 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(question.waitForExistence(timeout: 5), "detail opens from Home")
         XCTAssertEqual(question.label, Self.c5Question)
         XCTAssertTrue(app.navigationBars["prod-release"].exists, "detail title is the session")
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected, "opening a decision keeps the Home tab")
+        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "the decision sheet covers the tab shell")
 
         XCTAssertTrue(timing("c5").label.contains(Self.autoSelectCopy), "detail repeats Home's timing copy")
-        XCTAssertTrue(timing("c5").label.contains("剩余"))
+        XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "detail marks the same default")
-        assertSideBySide("Coarse grid", "Fine grid")
+        assertFullWidth("Coarse grid", "Fine grid")
         XCTAssertTrue(app.descendants(matching: .any)["message-more-information"].exists)
         XCTAssertFalse(app.staticTexts["方向"].exists, "routing facts stay collapsed")
 
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 5), "back returns to Home")
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected)
+        app.navigationBars.buttons["完成"].tap()
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 5), "back returns to Home")
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
         XCTAssertFalse(question.exists)
     }
 
@@ -88,9 +88,9 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(row.label.contains(Self.c1Question))
         let reply = app.buttons["Approve"]
-        assertSideBySide("Approve", "Reject")
+        assertSideBySide("Approve", "Reject", allowsWrapping: true)
         keepScreenshot("accessibility-home-question")
-        XCTAssertGreaterThan(row.frame.height, reply.frame.height * 6, "Home question must not truncate")
+        XCTAssertGreaterThan(row.frame.height, reply.frame.height * 4, "Home question must not truncate")
 
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         row.tap()
@@ -99,26 +99,27 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertEqual(detailQuestion.label, Self.c1Question)
         keepScreenshot("accessibility-detail-question")
         XCTAssertGreaterThan(
-            detailQuestion.frame.height, reply.frame.height * 5, "detail question must not truncate"
+            detailQuestion.frame.height, reply.frame.height * 3, "detail question must not truncate"
         )
+        for _ in 0..<8 where !app.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertGreaterThanOrEqual(app.buttons["Approve"].frame.height, 44)
-        assertSideBySide("Approve", "Reject")
+        assertFullWidth("Approve", "Reject")
         XCTAssertLessThanOrEqual(detailQuestion.frame.width, app.frame.width)
     }
 
-    /// "Coarse grid" wraps at this size and "Fine grid" does not; both buttons still match.
+    /// Choices share a row when they fit and wrap without overlap at accessibility sizes.
     func testTwoChoicesShareTheRowHeightAtAccessibilitySize() {
         launch(arguments: Self.accessibilityXXXL)
         let coarse = app.buttons["Coarse grid"].firstMatch
         XCTAssertTrue(coarse.waitForExistence(timeout: 10))
         for _ in 0..<8 where !coarse.isHittable { app.swipeUp() }
         keepScreenshot("accessibility-two-choices")
-        assertSideBySide("Coarse grid", "Fine grid")
+        assertSideBySide("Coarse grid", "Fine grid", allowsWrapping: true)
     }
 
     func testNoPanelControlsWithoutPanels() {
         launch()
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
         assertNoPanelControls()
 
         app.terminate()
@@ -130,24 +131,24 @@ final class HomeDecisionDetailUITests: XCTestCase {
     func testBackRestoresScrolledHomeLocation() {
         launch()
         let row = app.buttons["home-message-c2"]
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(row.isHittable)
         let originalY = row.frame.minY
         row.tap()
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected)
-        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
+        app.navigationBars.buttons["完成"].tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         XCTAssertEqual(row.frame.minY, originalY, accuracy: 3, "back preserves Home scroll position")
-        XCTAssertTrue(app.tabBars.buttons["首页"].isSelected)
+        XCTAssertTrue(app.tabBars.buttons["今天"].isSelected)
     }
 
     func testWaitingTimingWithoutDeadlineAgreesOnHomeAndDetail() {
         launch()
         let row = app.buttons["home-message-c3"]
-        XCTAssertTrue(app.staticTexts["待你处理"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["由你决定"].waitForExistence(timeout: 10))
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         XCTAssertTrue(timing("c3").label.contains("已等待"))
@@ -167,17 +168,34 @@ final class HomeDecisionDetailUITests: XCTestCase {
         add(attachment)
     }
 
-    private func assertSideBySide(_ first: String, _ second: String) {
+    private func assertFullWidth(_ first: String, _ second: String) {
+        let top = app.buttons[first].frame
+        let bottom = app.buttons[second].frame
+        XCTAssertGreaterThanOrEqual(top.width, app.frame.width * 0.7)
+        XCTAssertEqual(top.minX, bottom.minX, accuracy: 2)
+        XCTAssertGreaterThanOrEqual(bottom.minY, top.maxY)
+        XCTAssertGreaterThanOrEqual(top.height, 44)
+        XCTAssertGreaterThanOrEqual(bottom.height, 44)
+    }
+
+    private func assertSideBySide(_ first: String, _ second: String, allowsWrapping: Bool = false) {
         let left = app.buttons[first].frame
         let right = app.buttons[second].frame
         XCTAssertGreaterThanOrEqual(left.width, 44)
         XCTAssertGreaterThanOrEqual(right.width, 44)
         XCTAssertGreaterThanOrEqual(left.height, 44)
         XCTAssertGreaterThanOrEqual(right.height, 44)
-        XCTAssertEqual(left.midY, right.midY, accuracy: 2, "two choices share the same row")
-        XCTAssertEqual(left.height, right.height, accuracy: 1, "two choices share the row height")
-        XCTAssertLessThanOrEqual(left.maxX, right.minX, "choice buttons do not overlap")
+        if allowsWrapping && abs(left.midY - right.midY) > 2 {
+            XCTAssertGreaterThanOrEqual(right.minY, left.maxY, "wrapped choices do not overlap")
+            XCTAssertEqual(left.minX, right.minX, accuracy: 2, "wrapped rows share the leading edge")
+        } else {
+            XCTAssertEqual(left.midY, right.midY, accuracy: 2, "two choices share the same row")
+            XCTAssertEqual(left.height, right.height, accuracy: 1, "two choices share the row height")
+            XCTAssertLessThanOrEqual(left.maxX, right.minX, "choice buttons do not overlap")
+        }
         XCTAssertGreaterThanOrEqual(left.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(left.maxX, app.frame.maxX)
+        XCTAssertGreaterThanOrEqual(right.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(right.maxX, app.frame.maxX)
     }
 

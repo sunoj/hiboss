@@ -12,7 +12,7 @@ struct HomePanelWall: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Live panels").font(.title2.bold())
+                Text("Watching").font(.title3.bold())
                 Spacer()
                 if model.isDemoMode {
                     Text("Sample data").font(.caption).foregroundStyle(Theme.ink2)

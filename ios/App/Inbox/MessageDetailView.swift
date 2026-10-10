@@ -9,6 +9,8 @@ import UIKit
 struct MessageDetailView: View {
     @ObservedObject var store: InboxStore
     let messageID: MessageID
+    var onOpenSession: ((SessionRoute) -> Void)? = nil
+    @StateObject private var facts = SessionFactsStore()
     @State private var replyDraft = ""
     @State private var actionNote: String?
     @State var fallback: Fallback = .loading
@@ -32,7 +34,7 @@ struct MessageDetailView: View {
     /// The chosen option text, trimmed and non-empty, or nil if unresolved.
     private var chosenAnswer: String? {
         guard let body = reply?.body.trimmingCharacters(in: .whitespacesAndNewlines),
-              !body.isEmpty else { return nil }
+              !body.isEmpty else { return store.settlement(for: messageID)?.answer }
         return body
     }
 
@@ -46,33 +48,35 @@ struct MessageDetailView: View {
 
     /// The recorded answer and its source, so a timeout default is never shown as a choice.
     private var settlement: DecisionSettlement? {
-        reply.flatMap(DecisionSettlement.init(reply:))
+        store.settlement(for: messageID) ?? reply.flatMap(DecisionSettlement.init(reply:))
     }
 
     var body: some View {
         if let message {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    DecisionProvenance(message: message, session: facts.session)
                     question(for: message)
+                    DecisionContextCard(message: message)
                     if let actionNote {
                         Label(actionNote, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(Theme.warn)
                             .font(.hbCallout)
                     }
                     decisionSection(for: message)
+                    sessionLink(for: message)
                     MessageDetailsCard(message: message)
-                    if let session = sessionRoute(for: message) {
-                        NavigationLink(value: session) {
-                            Label("View session · \(session.label)", systemImage: "square.stack.3d.up")
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        }
-                        .buttonStyle(.bordered)
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .accessibilityIdentifier("decision-detail")
             .background(Theme.paper)
+            .task(id: message.sessionId) {
+                if let id = message.sessionId {
+                    await facts.load(id: id, api: store.api as? any SessionsServing)
+                }
+            }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(Text(verbatim: title(for: message)))
             .navigationBarTitleDisplayMode(.inline)
@@ -81,23 +85,30 @@ struct MessageDetailView: View {
         }
     }
 
+    @ViewBuilder private func sessionLink(for message: HistoryMessage) -> some View {
+        if let session = sessionRoute(for: message) {
+            if let onOpenSession {
+                Button { onOpenSession(session) } label: {
+                    Label("Open session", systemImage: "text.alignleft")
+                }.buttonStyle(.bordered).frame(maxWidth: .infinity, minHeight: 44)
+            } else {
+                NavigationLink(value: session) {
+                    Label("Open session", systemImage: "text.alignleft")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }.buttonStyle(.bordered)
+            }
+        }
+    }
+
     /// The question leads, plain and large; it wraps fully at every text size.
     private func question(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(verbatim: message.body)
-                .font(.hbLargeTitle)
+                .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .accessibilityIdentifier("message-question")
-            if let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !content.isEmpty, content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                Text(verbatim: content)
-                    .font(.hbCallout)
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-            }
             if message.direction == "agent_to_boss", let attachment = message.metadata?.attachment {
                 MessageAttachmentView(attachment: attachment)
             }
@@ -114,7 +125,10 @@ struct MessageDetailView: View {
     /// Pending: shared timing, choices, and a free-text reply. Resolved: a read-only
     /// picked/others list, with the chosen option checked and its source noted.
     @ViewBuilder private func decisionSection(for message: HistoryMessage) -> some View {
-        if message.isPendingDecision || AttentionModel.needsTextReply(message) {
+        if message.isDecision,
+           store.answerability(for: message.id) == .checking {
+            Button("Checking…") {}.buttonStyle(.bordered).disabled(true)
+        } else if store.answerability(for: message.id) == .open {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 let timing = DecisionTiming(message: message, now: context.date)
                 pendingDecision(for: message, timing: timing)
@@ -127,12 +141,15 @@ struct MessageDetailView: View {
     private func pendingDecision(for message: HistoryMessage, timing: DecisionTiming) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             DecisionTimingView(timing: timing, messageID: message.id)
+                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.signalSoft, in: RoundedRectangle(cornerRadius: 12))
             OptionMediaComparison(
                 options: message.options,
                 media: message.metadata?.optionMedia ?? []
             )
             if !message.options.isEmpty {
-                DecisionOptions(options: message.options, timing: timing, submitting: submitting) {
+                DecisionOptions(options: message.options, timing: timing,
+                                submitting: submitting, fullWidth: true) {
                     submit($0, for: message.id)
                 }
             }
@@ -143,6 +160,7 @@ struct MessageDetailView: View {
 
     private func resolvedDecision(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            if let settlement { ResolvedBanner(settlement: settlement, date: reply?.createdDate) }
             Text("Options").hbLabel().foregroundStyle(Theme.ink2)
             OptionMediaComparison(
                 options: message.options,
@@ -207,7 +225,7 @@ struct MessageDetailView: View {
             if let def = message.defaultOption { return Text("Timed out — default: \(def)") }
             return Text("Expired — no response")
         }
-        return nil
+        return Text("No longer open")
     }
 
     private func submit(_ choice: String, for id: MessageID) {
@@ -225,10 +243,11 @@ struct MessageDetailView: View {
                 // Don't claim success: refresh re-renders into the resolved branch
                 // showing the answer that actually won.
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                actionNote = String(localized: "Already answered elsewhere — showing the recorded outcome.")
+                actionNote = String(localized: "No longer open")
             case .failed:
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
-                actionNote = store.loadError ?? String(localized: "Couldn't send your reply. Try again.")
+                actionNote = store.replyFeedback[id] ?? store.loadError
+                    ?? String(localized: "Couldn't send your reply. Try again.")
             }
         }
     }

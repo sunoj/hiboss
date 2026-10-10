@@ -1,6 +1,6 @@
 // An agent decision inside the transcript: answerable in place while pending, answer once settled.
-// Exports: SessionDecisionBubble. Shares timing, options and media with the Home and detail surfaces.
-// Dependencies: SwiftUI, HibossKit, SessionBubbleView, DecisionTimingView, DecisionOptions, InboxStore.
+// Exports: SessionDecisionBubble. Pending decisions use Today's shared DecisionCard.
+// Dependencies: SwiftUI, HibossKit, DecisionCard, SessionBubbleView, and InboxStore.
 
 import HibossKit
 import SwiftUI
@@ -11,21 +11,23 @@ struct SessionDecisionBubble: View {
     let message: HistoryMessage
     @ObservedObject var store: InboxStore
     let onChoose: (String) -> Void
-    @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment)
-            OptionMediaComparison(
-                options: message.options,
-                media: message.metadata?.optionMedia ?? [],
-                settlement: isPending ? nil : store.settlement(for: message.id)
-            )
-            .padding(.horizontal, 12)
-            if isPending {
-                pendingControls
-            } else if let settlement = store.settlement(for: message.id) {
-                answered(settlement)
+            if store.answerability(for: message.id) == .open {
+                DecisionCard(message: message, submitting: store.replying[message.id],
+                             header: DecisionCardInfo(message: message), choices: pendingOptions)
+            } else {
+                DecisionProvenance(message: message)
+                SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment)
+                OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [],
+                                      settlement: store.settlement(for: message.id))
+                    .padding(.horizontal, 12)
+                if let settlement = store.settlement(for: message.id) { answered(settlement) }
+                else if let label = store.answerability(for: message.id).label {
+                    Text(verbatim: label).font(.footnote).foregroundStyle(Theme.ink2)
+                        .padding(.horizontal, 12)
+                }
             }
         }
         .padding(.bottom, 8)
@@ -33,35 +35,13 @@ struct SessionDecisionBubble: View {
         .accessibilityIdentifier("transcript-decision-\(message.id.rawValue)")
     }
 
-    private var isPending: Bool {
-        message.isPendingDecision && !store.withdrawn.contains(message.id)
-    }
-
-    private var pendingControls: some View {
-        let timing = DecisionTiming(message: message)
-        return VStack(alignment: .leading, spacing: 10) {
-            DecisionTimingView(timing: timing, messageID: message.id)
-            DecisionOptions(options: message.options, timing: timing,
-                            submitting: store.replying[message.id], onChoose: onChoose)
-            if store.replying[message.id] != nil { ReplyPendingNote(onSettings: openSettings) }
-        }
-        .padding(12)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    private var pendingOptions: some View {
+        DecisionOptions(options: message.options, timing: DecisionTiming(message: message),
+                        submitting: store.replying[message.id], wrapsToFit: true, onChoose: onChoose)
     }
 
     private func answered(_ settlement: DecisionSettlement) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Label { Text(verbatim: settlement.answer) } icon: { Image(systemName: settlement.symbol) }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.ink)
-                .symbolRenderingMode(.hierarchical)
-            settlement.attribution
-                .font(.caption)
-                .foregroundStyle(Theme.ink2)
-        }
-        .padding(.horizontal, 12)
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .combine)
+        ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate)
         .accessibilityIdentifier("transcript-answer-\(message.id.rawValue)")
     }
 }

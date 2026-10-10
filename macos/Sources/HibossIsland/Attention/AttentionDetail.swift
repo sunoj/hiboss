@@ -8,14 +8,25 @@ import SwiftUI
 struct AttentionDetail: View {
     let item: AttentionItem
     let now: Date
+    var earlier: [HistoryMessage] = []
+    var onOpenSession: (() -> Void)?
     let onChoose: (String) -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                HStack(alignment: .top) {
+                    Text(item.provenance).font(.caption).foregroundStyle(TodayStyle.secondary)
+                    Spacer(minLength: 4)
+                    DecisionDeadline(expiresAt: item.expiresAt, now: now)
+                }
                 question
                 if !item.options.isEmpty { choices }
+                if let option = item.defaultOption {
+                    DecisionDefaultLine(option: option, expiresAt: item.expiresAt, now: now)
+                }
                 metadata
+                if onOpenSession != nil { sessionContext }
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -25,9 +36,9 @@ struct AttentionDetail: View {
 
     private var question: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(L("Question")).font(.headline)
+            Text(L("Your call")).font(.headline).foregroundStyle(TodayStyle.signal)
             Text(item.body)
-                .font(.body)
+                .font(.title2.bold())
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -48,36 +59,33 @@ struct AttentionDetail: View {
     private var choices: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Choices")).font(.headline)
-            if let media = item.message.metadata?.optionMedia, !media.isEmpty {
-                OptionMediaPicker(
-                    options: item.options,
-                    media: media,
-                    defaultOption: item.defaultOption,
-                    choose: onChoose
-                )
-            } else {
-                ForEach(item.options, id: \.self) { option in
-                    Button { onChoose(option) } label: {
-                        HStack(alignment: .top) {
-                            Text(option)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 8)
-                            if option == item.defaultOption, item.isRunningAutoDecision(at: now) {
-                                Text(L("default")).foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.bordered)
-                }
+            DecisionChoices(item: item, onChoose: onChoose)
+        }
+    }
+
+    private var sessionContext: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Earlier in this session")).font(.headline)
+            if earlier.isEmpty {
+                Text(L("No earlier messages in the loaded history."))
+                    .font(.callout).foregroundStyle(TodayStyle.secondary)
             }
+            ForEach(earlier) { message in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(message.body).font(.callout).textSelection(.enabled)
+                    Text(HistoryTimestamp.localDateTime(from: message.createdAt))
+                        .font(.caption).foregroundStyle(TodayStyle.tertiary)
+                }
+                Divider()
+            }
+            Button(L("Open session"), systemImage: "arrow.up.right") { onOpenSession?() }
         }
     }
 
     private var metadata: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                metadataRow(L("Project"), value: item.project)
+                metadataRow(L("Project"), value: item.projectTitle)
                 metadataRow(L("From"), value: item.asker)
                 TimelineView(.periodic(from: now, by: 1)) { context in
                     timingMetadata(at: context.date)
@@ -96,7 +104,7 @@ struct AttentionDetail: View {
                 if let remaining = item.remaining(at: now) {
                     metadataRow(L("Time left"), value: remaining)
                 }
-            } else if item.band(at: now) == .blocked {
+            } else if item.group == .waitingOnYou {
                 metadataRow(L("Status"), value: L("Blocked on you"))
             }
         }

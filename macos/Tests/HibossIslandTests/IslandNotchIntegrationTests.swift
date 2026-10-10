@@ -99,6 +99,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         var point = CGPoint(x: notch.screenFrame.midX, y: notch.screenFrame.maxY - 10)
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         let controller = IslandPanelController(flow: flow, settings: try settings(),
+            overview: islandTestOverview(flow: flow),
             screens: { screens }, pointerLocation: { point })
         defer {
             flow.disconnect()
@@ -139,6 +140,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         var point = CGPoint(x: frame.midX, y: frame.maxY - 10)
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         let controller = IslandPanelController(flow: flow, settings: try settings(),
+            overview: islandTestOverview(flow: flow),
             screens: { screens }, pointerLocation: { point })
         defer {
             flow.disconnect()
@@ -172,6 +174,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         let settings = try settings()
         let controller = IslandPanelController(flow: flow, settings: settings,
+            overview: islandTestOverview(flow: flow),
             screens: { [notch] }, pointerLocation: { CGPoint(x: 864, y: 1100) })
         defer {
             flow.disconnect()
@@ -221,7 +224,9 @@ final class IslandNotchIntegrationTests: XCTestCase {
         flow: OptionFlowStore = OptionFlowStore(), screens: [IslandGeometry], pointer: @escaping () -> CGPoint
     ) throws -> IslandPanelController {
         IslandPanelController(
-            flow: flow, settings: try settings(), screens: { screens }, pointerLocation: pointer
+            flow: flow, settings: try settings(),
+            overview: islandTestOverview(flow: flow),
+            screens: { screens }, pointerLocation: pointer
         )
     }
 

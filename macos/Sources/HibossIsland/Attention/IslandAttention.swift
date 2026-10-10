@@ -1,6 +1,6 @@
 // Picks the island's visible option using the same ranking as the window.
 // Exports: IslandAttention.presentation.
-// Dependencies: HibossKit OptionMessage and HistoryMessage, AttentionRanking.
+// Dependencies: HibossKit OptionMessage and HistoryMessage, TodaySnapshot.
 
 import Foundation
 import HibossKit
@@ -11,21 +11,19 @@ struct IslandPresentation: Equatable {
 }
 
 enum IslandAttention {
-    /// Share the window queue, including ordinary live questions and exact expiry. An urgent
-    /// band leads as in the window; among ordinary questions the live interrupt keeps the
-    /// island, so an older pending question never takes over its reply field and draft.
-    static func presentation(
-        live: OptionMessage?,
-        history: [HistoryMessage],
-        now: Date
-    ) -> IslandPresentation? {
-        let items = AttentionRanking.items(history: history, live: live, now: now)
+    /// The most intrusive surface always carries the shared queue's first decision.
+    static func presentation(snapshot: TodaySnapshot) -> IslandPresentation? {
+        let items = snapshot.decisions
         guard let first = items.first else { return nil }
-        if first.band(at: now) == .question, let live,
-           let current = items.first(where: { $0.id == live.id }) {
-            return IslandPresentation(message: current.asOptionMessage, item: current)
-        }
         return IslandPresentation(message: first.asOptionMessage, item: first)
+    }
+
+    static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
+                             state: PresentationState) -> IslandPresentation? {
+        if case .resolved = state, let active {
+            return IslandPresentation(message: active, item: nil)
+        }
+        return presentation(snapshot: snapshot)
     }
 
     static func autoDecisionCaption(for item: AttentionItem, now: Date) -> String? {

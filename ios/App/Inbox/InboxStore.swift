@@ -15,15 +15,19 @@ final class InboxStore: ObservableObject {
     @Published var history: [HistoryMessage] = []
     @Published var requiredInputs: [HistoryMessage] = []
     @Published var requiredInputError: String?
+    /// The last list remains authoritative during refreshes and up to 30 seconds of stream downtime.
     @Published var requiredInputLoaded = false
+    @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published var loadError: String?
     /// False until the first history fetch completes, so views can show a spinner
     /// instead of flashing an empty state on cold launch.
     @Published var didLoad = false
+    var historyCheckedAt: Date?
     @Published var isRefreshing = false
     @Published var replyConfirmation: String?
+    @Published var replyFeedback: [MessageID: String] = [:]
     /// Ids removed optimistically (answered/expired locally) until history catches up.
     @Published var withdrawn: Set<MessageID> = []
     /// Decisions that should keep a settled card after leaving `pending`.
@@ -47,6 +51,7 @@ final class InboxStore: ObservableObject {
     var requiredEpoch = 0
     var requiredFetchVersion = 0
     var requiredCoverageTask: Task<Void, Never>?
+    var requiredStaleTask: Task<Void, Never>?
     /// One timer per pending decision deadline, so an expiring card drops out of
     /// `pending` on time instead of waiting for the next unrelated stream event.
     private var expiryTasks: [MessageID: Task<Void, Never>] = [:]
@@ -71,31 +76,13 @@ final class InboxStore: ObservableObject {
     /// The choice in flight per decision, from any entry point; every button surface reads it.
     var replying: [MessageID: String] { replyGate.inFlight }
 
-    /// Pending decisions, soonest-to-expire first, then critical > high > normal.
+    /// Open option decisions from the shared Today ranking; only the server's required-input
+    /// list can make a decision open, so history never reopens an answered card.
     var pending: [HistoryMessage] {
-        history
-            .filter { $0.isPendingDecision && !withdrawn.contains($0.id) }
-            .sorted(by: Self.moreUrgent)
+        todaySnapshot(now: .now).decisions.filter { !$0.options.isEmpty }.map(\.message)
     }
 
     var pendingCount: Int { pending.count }
-
-    /// Soonest deadline first (none last), then higher priority, then newest.
-    private static func moreUrgent(_ lhs: HistoryMessage, _ rhs: HistoryMessage) -> Bool {
-        switch (lhs.expirationDate, rhs.expirationDate) {
-        case let (a?, b?) where a != b:
-            return a < b
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        default:
-            break
-        }
-        let left = lhs.priorityValue.rank, right = rhs.priorityValue.rank
-        if left != right { return left > right }
-        return (lhs.createdDate ?? .distantPast) > (rhs.createdDate ?? .distantPast)
-    }
 
     /// True once a backing API is attached (i.e. `start` has run). Deep-linked
     /// detail views poll this to avoid declaring a message missing during the
@@ -109,10 +96,10 @@ final class InboxStore: ObservableObject {
     }
 
     func syncDecisionActivity() async {
-        // Wait for the authoritative inputs before ranking, but turning alerts off ends
-        // every activity regardless of inputs, so it must not wait.
+        // An empty projection while inputs load is unknown, not an authoritative empty list.
+        // Turning alerts off ends every activity regardless of inputs, so it must not wait.
         guard requiredInputLoaded || !decisionAlertsEnabled else { return }
-        let candidates = requiredInputs.filter { !withdrawn.contains($0.id) }
+        let candidates = todaySnapshot(now: .now).decisions.map(\.message)
         await decisionActivitySync(candidates, decisionAlertsEnabled)
     }
 
@@ -151,19 +138,25 @@ final class InboxStore: ObservableObject {
         localResolutions = [:]
         openedMessages = [:]
         didLoad = false
+        historyCheckedAt = nil
         isRefreshing = false
         replyConfirmation = nil
+        replyFeedback = [:]
         loadError = nil
         connectionState = .disconnected
     }
 
     /// Commit how a reply landed: a sent choice settles the card; nil rolls back the
-    /// optimistic state so the recorded outcome, or the still-open decision, shows instead.
-    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil) {
+    /// optimistic state. A closed reply keeps the card read-only until its recorded outcome arrives.
+    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil, closed: Bool = false) {
         if let choice {
             withdrawn.insert(id)
             settledIDs.insert(id)
             localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
+        } else if closed {
+            withdrawn.insert(id)
+            settledIDs.insert(id)
+            localResolutions[id] = nil
         } else {
             withdrawn.remove(id)
             settledIDs.remove(id)

@@ -5,8 +5,9 @@
 import Foundation
 import HibossKit
 import XCTest
+@testable import HiBoss
 
-final class HeldReplyAPI: BossServing, @unchecked Sendable {
+final class HeldReplyAPI: BossServing, RequiredInputServing, @unchecked Sendable {
     private let lock = NSLock()
     private var recorded: [String] = []
     private var held: [Int: CheckedContinuation<ReplyOutcome, Error>] = [:]
@@ -17,10 +18,13 @@ final class HeldReplyAPI: BossServing, @unchecked Sendable {
     private var releasedThrough = 0
     private let history: [HistoryMessage]
     private let detail: MessageDetail?
+    private let requiredInputs: [HistoryMessage]?
 
-    init(history: [HistoryMessage] = [], detail: MessageDetail? = nil) {
+    init(history: [HistoryMessage] = [], detail: MessageDetail? = nil,
+         requiredInputs: [HistoryMessage]? = nil) {
         self.history = history
         self.detail = detail
+        self.requiredInputs = requiredInputs
     }
 
     /// Every choice that reached the server, in order.
@@ -78,6 +82,22 @@ final class HeldReplyAPI: BossServing, @unchecked Sendable {
     }
 
     func fetchHistory() async throws -> [HistoryMessage] { history }
+
+    func fetchRequiredInputs() async throws -> [HistoryMessage] {
+        if let requiredInputs { return requiredInputs }
+        if !history.isEmpty {
+            return history.filter { $0.isPendingDecision }
+        }
+        return ["q1", "q2", "push-q1", "intent-q1"].map {
+            HistoryMessage(id: MessageID(rawValue: $0), body: "Choose?", direction: "agent_to_boss",
+                           status: "delivered", priority: "normal", mode: "blocking",
+                           metadata: MessageMetadata(options: ["Approve", "Reject"]), createdAt: "")
+        }
+    }
+
+    func requiredInputStream() async -> AsyncThrowingStream<RequiredInputEvent, Error> {
+        AsyncThrowingStream { $0.yield(.ready) }
+    }
 
     func fetchMessage(_ messageID: MessageID) async throws -> MessageDetail {
         guard let detail else { throw HibossAPIError.requestFailed(status: 404, message: "") }

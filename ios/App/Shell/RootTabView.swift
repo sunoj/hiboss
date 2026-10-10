@@ -1,5 +1,5 @@
 // App shell: native tabs, one message surface, and notification deep-links.
-// Exports: RootTabView switching Home / Activity / Progress / Settings.
+// Exports: RootTabView switching Today / Sessions / Box / Progress.
 // Dependencies: SwiftUI, HibossKit, the feature views, AppRouter, DemoLaunchRoute.
 
 import HibossKit
@@ -30,6 +30,7 @@ struct RootTabView: View {
     @State private var activityPath = NavigationPath()
     @State private var activitySection = ActivitySection.sessions
     @State private var panelRouteNote: String?
+    @State private var showsSettings = false
 
     init(inbox: InboxStore, connection: ConnectionStore,
          preferences: PreferencesStore, progress: ProgressFeedStore) {
@@ -48,7 +49,7 @@ struct RootTabView: View {
     }
 
     private var sessionStreamAPI: (any SessionStreamServing)? {
-        if isDemoMode { return DemoBossAPI() }
+        if isDemoMode { return (inbox.api as? any SessionStreamServing) ?? DemoBossAPI() }
         return connection.makeAPI()
     }
 
@@ -56,12 +57,12 @@ struct RootTabView: View {
         TabView(selection: $tab) {
             homeTabView
             activityTabView
+            boxTabView
             progressTabView
-            settingsTabView
         }
         .environment(\.openConnectionSettings, {
             panels.closeDetail()
-            tab = 5
+            showsSettings = true
         })
         .safeAreaInset(edge: .bottom) {
             if let confirmation = inbox.replyConfirmation {
@@ -81,6 +82,7 @@ struct RootTabView: View {
 
     private var routedTabs: some View {
         tabs
+        .sheet(isPresented: $showsSettings) { settingsSheet }
         .task(id: router.pendingMessageID) { await openPendingMessage() }
         .onChange(of: router.pendingJoinRequest, initial: true) { openPendingJoinRequest() }
         .sheet(item: $joinRequestTarget) { target in
@@ -136,7 +138,7 @@ struct RootTabView: View {
                 }
             }
         }
-        .tabItem { Label("Home", systemImage: "house") }
+        .tabItem { Label("Today", systemImage: "house") }
         .tag(Self.homeTab)
     }
 
@@ -145,11 +147,11 @@ struct RootTabView: View {
             ActivityView(store: inbox, section: $activitySection, connection: connection)
                 .navigationDestination(for: MessageID.self) { MessageDetailView(store: inbox, messageID: $0) }
                 .navigationDestination(for: SessionRoute.self) {
-                    SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox)
+                    SessionMessagesView(route: $0, api: sessionStreamAPI, store: inbox, panels: panels)
                 }
                 .navigationDestination(for: ResolvedRoute.self) { _ in ResolvedDecisionsView(store: inbox) }
         }
-        .tabItem { Label("Activity", systemImage: "bubble.left.and.bubble.right") }
+        .tabItem { Label("Sessions", systemImage: "bubble.left.and.bubble.right") }
         .tag(Self.activityTab)
     }
 
@@ -159,7 +161,7 @@ struct RootTabView: View {
             .tag(Self.progressTab)
     }
 
-    private var settingsTabView: some View {
+    private var settingsSheet: some View {
         NavigationStack {
             SettingsView(
                 connection: connection,
@@ -169,14 +171,29 @@ struct RootTabView: View {
                 onReconnect: reconnect,
                 onDecisionAlertsChanged: { inbox.setDecisionAlertsEnabled($0) }
             )
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showsSettings = false }
+                }
+            }
         }
-        .tabItem { Label("Settings", systemImage: "gearshape") }
-        .tag(5)
+    }
+
+    private var boxTabView: some View {
+        NavigationStack {
+            BoxListView(api: isDemoMode ? DemoBoxAPI.shared : connection.makeAPI())
+                .id(BoxStore.connectionIdentity(connection.config))
+                .navigationTitle("Box")
+        }
+        .tabItem { Label("Box", systemImage: "shippingbox") }
+        .tag(2)
     }
 
     /// A tapped join-request push opens its sheet over whichever tab is showing.
     private func openPendingJoinRequest() {
         guard let target = router.takeJoinRequest() else { return }
+        showsSettings = false
+        panels.closeDetail()
         joinRequestTarget = target
     }
 
@@ -194,6 +211,9 @@ struct RootTabView: View {
     /// in the background; payloads without either briefly wait for the restored API.
     private func openPendingMessage() async {
         guard let route = router.pendingMessage else { return }
+        showsSettings = false
+        joinRequestTarget = nil
+        panels.closeDetail()
         if let cached = route.cachedMessage {
             inbox.cacheMessage(cached.detail)
         } else {
@@ -215,6 +235,8 @@ struct RootTabView: View {
 
     private func openPendingPanel() async {
         guard let route = router.pendingPanel else { return }
+        showsSettings = false
+        joinRequestTarget = nil
         tab = Self.homeTab
         homePath = NavigationPath()
         panels.closeDetail()

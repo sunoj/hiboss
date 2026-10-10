@@ -89,7 +89,7 @@ final class IntermediateStateUITests: IntermediateCaptureCase {
         capture("sessions-stale")
         selectMessages()
         capture("messages-stale")
-        app.tabBars.buttons.element(boundBy: 2).tap()
+        app.tabBars.buttons.element(boundBy: 3).tap()
         pause(2)
         capture("progress-failed")
     }

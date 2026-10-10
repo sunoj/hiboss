@@ -20,9 +20,9 @@ final class ActivityNavigationUITests: XCTestCase {
 
     func testActivityCombinesSessionsAndMessagesAndRemembersSelection() {
         launch()
-        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tabBars.buttons["Sessions"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.tabBars.buttons.count, 4)
-        app.tabBars.buttons["Activity"].tap()
+        app.tabBars.buttons["Sessions"].tap()
         XCTAssertTrue(app.buttons["activity-session-sess-deploy"].waitForExistence(timeout: 5))
         screenshot("activity-sessions")
         app.buttons["activity-session-sess-deploy"].tap()
@@ -32,8 +32,8 @@ final class ActivityNavigationUITests: XCTestCase {
         app.segmentedControls.buttons["Messages"].tap()
         XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 5))
         screenshot("activity-messages")
-        app.tabBars.buttons["Home"].tap()
-        app.tabBars.buttons["Activity"].tap()
+        app.tabBars.buttons["Today"].tap()
+        app.tabBars.buttons["Sessions"].tap()
         XCTAssertTrue(app.segmentedControls.buttons["Messages"].isSelected)
     }
 
@@ -47,7 +47,7 @@ final class ActivityNavigationUITests: XCTestCase {
         session.tap()
         XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["message-question"].exists)
-        XCTAssertTrue(app.tabBars.buttons["Home"].isSelected)
+        XCTAssertTrue(app.tabBars.buttons["Today"].isSelected)
         screenshot("home-direct-transcript")
         app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
