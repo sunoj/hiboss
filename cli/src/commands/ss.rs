@@ -103,6 +103,8 @@ async fn run_board(client: &HiBossClient) -> Result<(), Box<dyn Error>> {
         for s in &group {
             let id_short: String = s.id.chars().take(8).collect();
             let label = s.label.as_deref().unwrap_or("-");
+            let label = s.nickname.as_deref()
+                .map(|nickname| format!("{label} · {nickname}")).unwrap_or_else(|| label.to_owned());
             let agent = s.agent_name.as_deref().unwrap_or(&s.agent_id);
             let text = s.status_text.as_deref().unwrap_or("");
             let text_display = if text.chars().count() > 60 {

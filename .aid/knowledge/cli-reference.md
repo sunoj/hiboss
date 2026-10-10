@@ -28,11 +28,20 @@ hiboss send --to worker-1 "Implement OAuth2 login"                    # agent-to
 hiboss send --to worker-1 --task "Implement OAuth2" --files src/auth/ # with context
 hiboss send --to smart-router "..."        # project name: resolves to its one live session
 hiboss send --to smart-router/main "..."   # exact label: wins outright even if several share it
+hiboss send --to otter-2 "..."            # exact nickname within the sender's project
 hiboss send --to aefb4ffd "..."            # session id prefix
 hiboss send --to smart-router --wait-ack "..."  # block until it leaves 'sent', then report
 hiboss send --content "sim reverted @block 21M" "Retry at 2x gas?"    # --content = notification subtitle
 hiboss send --summary "build status" "Full private-safe body here"    # --summary shown in private-mode pushes
 ```
+
+`hiboss ss` shows `label · nickname`. The CLI picks and saves a stable lowercase
+island or nature word; the server suffixes collisions with `-2`, `-3`, … among
+non-completed sessions seen within 24 hours in the same project. Existing sessions
+gain a nickname on the next CLI registration or heartbeat. `--to` tries an exact
+label first, then an exact nickname in the registered sender's project, then the
+agent name/id and session label/id prefix rules. The `sent -> <target>` receipt
+names the resolved nickname, falling back to the label when unset.
 
 ## Ask (blocking, waits for reply)
 ```bash

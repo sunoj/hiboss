@@ -70,30 +70,7 @@ pub async fn run(
         return run_broadcast(args, client).await;
     }
 
-    // Only send channel when explicitly specified via --channel.
-    // When omitted, server uses channel_routing (per-priority) to decide.
-    let channel = args.channel.clone();
-    let file_url = if let Some(ref path) = args.file {
-        let upload = client.upload_file(path).await?;
-        eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
-        Some(upload.url)
-    } else {
-        args.file_url.clone()
-    };
-    // Build task_context metadata from --task, --files, --branch flags
-    let metadata = build_metadata(args)?;
-    let mut request = SendRequest {
-        body: unescape_body(&args.body),
-        mode: "async".to_owned(),
-        priority: args.priority.clone(),
-        channel,
-        metadata,
-        options: None,
-        file_url,
-        message_type: args.message_type.clone(),
-        session_id: session::read_session_id(),
-        to: args.to.clone(),
-    };
+    let mut request = send_request(args, client).await?;
     let mut response = send_with_session_heal(client, &mut request).await?;
     if args.wait_ack {
         response.status = client
@@ -116,6 +93,33 @@ pub async fn run(
         println!("{}", response.id);
     }
     Ok(())
+}
+
+async fn send_request(args: &SendArgs, client: &HiBossClient) -> Result<SendRequest, Box<dyn Error>> {
+    // Only send channel when explicitly specified via --channel.
+    // When omitted, server uses channel_routing (per-priority) to decide.
+    let channel = args.channel.clone();
+    let file_url = if let Some(ref path) = args.file {
+        let upload = client.upload_file(path).await?;
+        eprintln!("Uploaded: {} ({})", upload.filename, upload.url);
+        Some(upload.url)
+    } else {
+        args.file_url.clone()
+    };
+    // Build task_context metadata from --task, --files, --branch flags
+    let metadata = build_metadata(args)?;
+    Ok(SendRequest {
+        body: unescape_body(&args.body),
+        mode: "async".to_owned(),
+        priority: args.priority.clone(),
+        channel,
+        metadata,
+        options: None,
+        file_url,
+        message_type: args.message_type.clone(),
+        session_id: session::read_session_id(),
+        to: args.to.clone(),
+    })
 }
 
 async fn run_broadcast(args: &SendArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -199,7 +203,7 @@ pub(crate) fn format_peer_target(target: Option<&SendTarget>, requested: &str) -
         .map(|target| {
             format!(
                 "{} ({})",
-                target.label.as_deref().unwrap_or(target.id.as_str()),
+                target.nickname.as_deref().or(target.label.as_deref()).unwrap_or(target.id.as_str()),
                 short_id(&target.id)
             )
         })

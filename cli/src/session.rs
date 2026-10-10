@@ -4,11 +4,13 @@
 // Dependencies: std::fs, std::env, std::sync::OnceLock.
 
 mod markers;
+mod nickname;
 mod parent;
 mod private;
 mod project;
 mod state;
 pub use markers::*;
+pub use nickname::{accept_session_nickname, nickname_for_session};
 pub use parent::{RUNTIME, parent_session_id};
 pub use private::{append_state, open_log, read_state, remove_state, state_file, take_state, write_state};
 pub use project::{ProjectIdentity, resolve_project};

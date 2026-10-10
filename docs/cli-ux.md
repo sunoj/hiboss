@@ -102,6 +102,22 @@ help and the recovery messages from a throwaway `HOME`. Run it on a build host:
 rbox exec <box> <checkout> --untracked -- sh cli/scripts/check-ux.sh
 ```
 
+## Session inventory and addressing
+
+`hiboss ss` displays session identities as `label · nickname`, for example
+`smart-router/main · otter-2`. The CLI chooses a random lowercase island or nature
+word and saves the accepted nickname locally. The server adds `-2`, `-3`, … to
+keep names unique among non-completed sessions seen within 24 hours in the same
+project. Existing sessions gain a nickname on their next CLI heartbeat or registration.
+
+`hiboss send --to otter-2 "hello"` matches that exact nickname within the sender's
+project, excluding the sender. Resolution tries an exact label first, then an exact
+nickname, then the existing agent name/id and session label/id prefix rules. Nicknames
+require a registered sender session and do not support prefix matching. A peer idle
+for more than 15 minutes is still reachable by nickname within 24 hours; the send
+prints a staleness warning. The receipt names the resolved nickname:
+`sent -> otter-2 (<session-id-prefix>) id=<message-id>`.
+
 ## Message status
 
 `hiboss status <id>` is read-only. It sends one `GET /api/messages/<id>` and

@@ -6,6 +6,7 @@ export interface ListedSession {
   agent_id: string;
   project_id: string | null;
   label: string | null;
+  nickname: string | null;
   branch: string | null;
 }
 
@@ -16,8 +17,10 @@ export async function mapSessionList(db: D1Database, rows: ListedSession[]) {
   const [agents, projects] = await Promise.all([
     db.prepare('SELECT id, name FROM api_keys WHERE id IN (SELECT value FROM json_each(?))')
       .bind(JSON.stringify(agentIds)).all<{ id: string; name: string }>(),
-    db.prepare('SELECT id, slug, display_name FROM projects WHERE id IN (SELECT value FROM json_each(?))')
-      .bind(JSON.stringify(projectIds)).all<{ id: string; slug: string; display_name: string }>(),
+    db.prepare(`SELECT id, slug, display_name, avatar_url FROM projects
+      WHERE id IN (SELECT value FROM json_each(?))`)
+      .bind(JSON.stringify(projectIds))
+      .all<{ id: string; slug: string; display_name: string; avatar_url: string | null }>(),
   ]);
   const names = new Map(agents.results.map(agent => [agent.id, agent.name]));
   const identities = new Map(projects.results.map(project => [project.id, project]));
@@ -30,6 +33,7 @@ export async function mapSessionList(db: D1Database, rows: ListedSession[]) {
       agent_name: names.get(row.agent_id) ?? null,
       project_slug: project?.slug ?? null,
       project_display_name: project?.display_name ?? null,
+      project_avatar_url: project?.avatar_url ?? null,
       label: project ? (branch === '' ? project.slug : `${project.slug}/${branch}`) : row.label,
     });
   });
