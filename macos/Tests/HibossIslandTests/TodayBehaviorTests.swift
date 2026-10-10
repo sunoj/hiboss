@@ -76,6 +76,17 @@ final class TodayBehaviorTests: XCTestCase {
         XCTAssertFalse(store.snapshot.today.isAllClear)
     }
 
+    @MainActor
+    func testAllClearTodayHasNoEmptyInspectorColumn() {
+        let store = OverviewStore()
+        store.update(history: [], live: nil, now: now, health: .live(checkedAt: now), coverageComplete: true)
+        let view = TodayView(snapshot: store.snapshot, reply: AttentionReplyState(),
+            panels: PanelsModel(demoMode: true, autoload: false), isPreview: true,
+            onChoose: { _, _ in nil }, onSession: { _ in })
+        // Nothing to inspect: the "Select a question" pane must not take a column.
+        XCTAssertFalse(view.hasInspectorContent)
+    }
+
     func testDefaultCopyExplicitlyDeniesApprovalWithAndWithoutDeadline() {
         XCTAssertEqual(DecisionDefaultLine.text(option: "Hold",
             expiresAt: now.addingTimeInterval(60), now: now),
@@ -104,6 +115,10 @@ final class TodayBehaviorTests: XCTestCase {
             XCTAssertTrue(image.representations.contains { String(describing: type(of: $0)).contains("SVG") })
         }
         XCTAssertFalse(AppIdentity.icon.representations.isEmpty)
+        // The sidebar icon keeps transparent corners, like the Dock icon, never a white square.
+        let bitmap = AppIdentity.icon.representations.compactMap { $0 as? NSBitmapImageRep }.first
+        XCTAssertEqual(bitmap?.hasAlpha, true)
+        XCTAssertEqual(bitmap?.colorAt(x: 0, y: 0)?.alphaComponent, 0)
         // The menu bar uses a template glyph so macOS tints it like other menu extras.
         let status = AppIdentity.statusIcon
         XCTAssertTrue(status.isTemplate)

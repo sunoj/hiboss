@@ -19,9 +19,13 @@ struct TodayView: View {
         snapshot.today.decisions.first { $0.id == selection }
     }
 
+    /// The inspector column appears only with something to show; an empty "Select a
+    /// question" pane would take space and say nothing, so Today uses the full width.
+    var hasInspectorContent: Bool { selected != nil || panels.selectedTile != nil }
+
     var body: some View {
         GeometryReader { geometry in
-            if geometry.size.width >= 760 {
+            if geometry.size.width >= 760, hasInspectorContent {
                 HSplitView {
                     content.frame(minWidth: 360, maxWidth: .infinity)
                     inspector.frame(minWidth: 320, idealWidth: 360, maxWidth: 480)

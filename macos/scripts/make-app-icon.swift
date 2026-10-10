@@ -1,6 +1,6 @@
-// Generates a complete RGBA macOS iconset from one square source image.
-// Usage: swift make-app-icon.swift <source.png> <output.iconset>.
-// Dependencies: AppKit NSImage and NSBitmapImageRep.
+// Generates a complete RGBA macOS iconset from the square iOS artwork, first fitting it to
+// the macOS icon grid: white rim trimmed, an 824-of-1024 rounded square, transparent margins.
+// Usage: swift make-app-icon.swift <source.png> <output.iconset>. Dependencies: AppKit.
 
 import AppKit
 import Foundation
@@ -33,6 +33,30 @@ guard let sourceImage = NSImage(contentsOf: sourceURL) else {
     fatalError("Unable to read source image")
 }
 
+/// The iOS artwork paints its own rounded square inside a white rim; crop the inner 94% and
+/// mask it so the corners are transparent instead of white on every macOS background.
+func macGridImage(_ source: NSImage) -> NSImage {
+    NSImage(size: NSSize(width: 1024, height: 1024), flipped: false) { _ in
+        let body = NSRect(x: 100, y: 90, width: 824, height: 824)
+        let path = NSBezierPath(roundedRect: body, xRadius: 185, yRadius: 185)
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.3)
+        shadow.shadowOffset = NSSize(width: 0, height: -10)
+        shadow.shadowBlurRadius = 24
+        NSGraphicsContext.saveGraphicsState()
+        shadow.set()
+        NSColor.white.setFill()
+        path.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        path.addClip()
+        let inset = source.size.width * 0.03
+        source.draw(in: body, from: NSRect(x: inset, y: inset, width: source.size.width - 2 * inset,
+            height: source.size.height - 2 * inset), operation: .copy, fraction: 1)
+        return true
+    }
+}
+
+let gridImage = macGridImage(sourceImage)
 try FileManager.default.createDirectory(at: outputURL, withIntermediateDirectories: true)
 for spec in specs {
     let size = NSSize(width: spec.pixels, height: spec.pixels)
@@ -52,7 +76,7 @@ for spec in specs {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
     NSGraphicsContext.current?.imageInterpolation = .high
-    sourceImage.draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .copy, fraction: 1)
+    gridImage.draw(in: NSRect(origin: .zero, size: size), from: .zero, operation: .copy, fraction: 1)
     NSGraphicsContext.restoreGraphicsState()
     guard let data = bitmap.representation(using: .png, properties: [:]) else {
         fatalError("Unable to encode icon bitmap")
