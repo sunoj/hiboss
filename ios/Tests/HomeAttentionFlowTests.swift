@@ -149,7 +149,7 @@ final class HomeAttentionFlowTests: XCTestCase {
         XCTAssertEqual(mixed.count, 2)
     }
 
-    func testAlreadyResolvedResponseKeepsStillPendingOptionVisible() async {
+    func testAlreadyResolvedResponseClosesOptionDespiteStaleRequiredInputList() async {
         let option = HistoryMessage(
             id: "null-expiry-option", body: "Choose a path", direction: "agent_to_boss",
             status: "sent", priority: "normal", mode: "blocking",
@@ -166,10 +166,16 @@ final class HomeAttentionFlowTests: XCTestCase {
         XCTAssertEqual(store.requiredInputs.map(\.id), [option.id])
         let result = await store.reply("Proceed", to: option.id)
         XCTAssertEqual(result, .alreadyResolved)
-        XCTAssertFalse(store.withdrawn.contains(option.id))
+        XCTAssertTrue(store.withdrawn.contains(option.id))
+        XCTAssertEqual(store.answerability(for: option.id), .closed)
+        XCTAssertEqual(store.answerability(for: option.id).label, "No longer open")
+        XCTAssertEqual(store.settledCards.map(\.id), [option.id])
+        XCTAssertNil(store.localResolutions[option.id])
         XCTAssertEqual(store.requiredInputs.map(\.id), [option.id])
         XCTAssertEqual(HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn,
-                                             questionnaires: [], now: now).count, 1)
+                                             questionnaires: [], now: now).count, 0)
+        await store.refresh()
+        XCTAssertEqual(store.answerability(for: option.id), .closed, "a stale refetch cannot reopen it")
     }
 
     private func snapshot(_ store: InboxStore) -> HomeAttentionSnapshot {

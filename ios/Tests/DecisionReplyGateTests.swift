@@ -1,8 +1,10 @@
 // One reply per decision in flight, whichever surface sends it: Home, detail, transcript,
 // notification actions and Live Activity intents all pass DecisionReplyGate.
-// Exports: DecisionReplyGateTests. Dependencies: XCTest, HiBoss app target, HeldReplyAPI, Pending.
+// Exports: DecisionReplyGateTests and DecisionConflictTests, including production HTTP 409 coverage.
+// Dependencies: XCTest, Foundation, HiBoss app target, HeldReplyAPI and Pending.
 
 import Combine
+import Foundation
 import HibossKit
 import XCTest
 @testable import HiBoss
@@ -11,7 +13,8 @@ import XCTest
 final class DecisionReplyGateTests: XCTestCase {
     private func makeStore(_ api: HeldReplyAPI, gate: DecisionReplyGate = DecisionReplyGate())
         async -> InboxStore {
-        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false, replyGate: gate)
+        let store = InboxStore(reconnectDelay: .milliseconds(10), decisionAlertsEnabled: false,
+                               replyGate: gate)
         store.start(api: api)
         await waitUntil { store.hasCompleteRequiredInputs }
         XCTAssertTrue(store.hasCompleteRequiredInputs)
@@ -111,4 +114,77 @@ final class DecisionReplyGateTests: XCTestCase {
         _ = try await task.settled()
         observation.cancel()
     }
+}
+
+@MainActor
+final class DecisionConflictTests: XCTestCase {
+    func testDecisionNoLongerOpenConflictClosesTextDecision() async throws {
+        try await assertConflictClosesDecision(options: [])
+    }
+
+    func testOptionConflictClosesOptionDecision() async throws {
+        try await assertConflictClosesDecision(options: ["Yes", "No"])
+    }
+
+    private func assertConflictClosesDecision(options: [String]) async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [DecisionConflictURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let api = HibossAPI(config: ConnectionConfig(
+            serverURL: try XCTUnwrap(URL(string: "https://decision.example")), bossToken: "test-token"
+        ), session: session)
+        let store = InboxStore(decisionAlertsEnabled: false, replyGate: DecisionReplyGate())
+        store.api = api
+        defer { store.stop() }
+        let decision = HistoryMessage(
+            id: options.isEmpty ? "text" : "option", body: "Proceed?", direction: "agent_to_boss",
+            status: "sent", priority: "high", mode: "blocking",
+            metadata: MessageMetadata(options: options), createdAt: ""
+        )
+        let other = HistoryMessage(id: "other", body: "Another decision?", direction: "agent_to_boss",
+                                   status: "sent", priority: "low", mode: "blocking", createdAt: "")
+        store.history = [decision, other]
+        store.requiredInputs = [decision, other]
+        store.requiredInputLoaded = true
+        XCTAssertEqual(store.answerability(for: decision.id), .open)
+        let result = await store.reply("Yes", to: decision.id)
+        XCTAssertEqual(result, .alreadyResolved)
+        XCTAssertEqual(store.answerability(for: decision.id), .closed)
+        XCTAssertEqual(store.answerability(for: decision.id).label, "No longer open")
+        XCTAssertEqual(store.answerability(for: other.id), .open)
+        XCTAssertNil(store.localResolutions[decision.id], "a conflict must not invent an answer")
+        await store.refresh()
+        store.requiredInputs = [decision, other]
+        store.requiredInputLoaded = true
+        XCTAssertEqual(store.answerability(for: decision.id), .closed, "a stale snapshot cannot reopen it")
+    }
+}
+
+private final class DecisionConflictURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url else { return XCTFail("Missing request URL") }
+        let isReply = url.lastPathComponent == "reply"
+        let body: String
+        if isReply {
+            XCTAssertEqual(request.httpMethod, "POST")
+            body = url.path.contains("/text/")
+                ? #"{"error":"decision no longer open"}"#
+                : #"{"error":"options already resolved"}"#
+        } else {
+            body = #"{"messages":[]}"#
+        }
+        guard let response = HTTPURLResponse(url: url, statusCode: isReply ? 409 : 200,
+                                            httpVersion: nil, headerFields: nil) else {
+            return XCTFail("Invalid response URL")
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }

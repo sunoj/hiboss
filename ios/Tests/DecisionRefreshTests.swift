@@ -55,6 +55,10 @@ final class DecisionRefreshTests: XCTestCase {
         await api.sendReady(to: 1)
         await api.waitForHeldFetch()
         assertOpen(store)
+        let heldGrace = expectation(description: "reconnect reconciliation survives the loading watchdog")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.2) { heldGrace.fulfill() }
+        await fulfillment(of: [heldGrace], timeout: 10)
+        assertOpen(store)
         let reconciliation = store.requiredFetchTask
         await api.releaseFetch()
         await reconciliation?.value
@@ -115,7 +119,7 @@ final class DecisionRefreshTests: XCTestCase {
         withExtendedLifetime(observation) {}
     }
 
-    func testReconnectCoverageFailureNeedsReadyBeforeFetchRestoresAuthorization() async {
+    func testReconnectCoverageFailureRecoversWithManualRefreshWhileStreamIsDown() async {
         let (store, api) = await loadedStore()
         defer { store.stop() }
         await api.disconnect(0)
@@ -125,15 +129,68 @@ final class DecisionRefreshTests: XCTestCase {
         let observation = store.$requiredInputLoaded.filter { !$0 }.prefix(1).sink { _ in
             failedCoverage.fulfill()
         }
-        await fulfillment(of: [failedCoverage], timeout: 10)
+        await fulfillment(of: [failedCoverage], timeout: 32)
         XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
         await store.refreshRequiredInputs()
-        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
-        XCTAssertNotNil(store.requiredInputError)
+        assertOpen(store)
+        XCTAssertFalse(store.requiredInputReady)
+        XCTAssertNil(store.requiredInputError)
         await api.sendReady(to: 1)
         await waitUntil { store.hasCompleteRequiredInputs }
         assertOpen(store)
         XCTAssertNil(store.requiredInputError)
+        withExtendedLifetime(observation) {}
+    }
+
+    func testErroredStreamKeepsControlsForThirtySecondsAcrossRetriesThenRefreshRecovers() async {
+        let (store, api) = await loadedStore()
+        defer { store.stop() }
+        let disconnectedAt = ContinuousClock.now
+        await api.failStream(0)
+        await api.waitForStream(1)
+        assertOpen(store)
+        let beforeDeadline = expectation(description: "still within stale-list grace")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 28) { beforeDeadline.fulfill() }
+        await fulfillment(of: [beforeDeadline], timeout: 29)
+        assertOpen(store)
+        await api.failStream(1)
+        await api.waitForStream(2)
+        assertOpen(store)
+        let expired = expectation(description: "thirty-second stale-list deadline")
+        let observation = store.$requiredInputLoaded.filter { !$0 }.prefix(1).sink { _ in
+            expired.fulfill()
+        }
+        await fulfillment(of: [expired], timeout: 4)
+        XCTAssertGreaterThanOrEqual(disconnectedAt.duration(to: .now), .seconds(30))
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+        XCTAssertEqual(store.answerability(for: Self.ask.id).label, "Checking…")
+        await api.setResponse([Self.ask])
+        await store.refresh()
+        assertOpen(store)
+        XCTAssertEqual(store.answerability(for: Self.other.id), .closed, "refresh must refetch the list")
+        XCTAssertFalse(store.requiredInputReady)
+        XCTAssertNil(store.requiredInputError)
+        withExtendedLifetime(observation) {}
+    }
+
+    func testSuccessfulErroredReconnectNeverInvalidatesLoadedControls() async {
+        let (store, api) = await loadedStore()
+        defer { store.stop() }
+        var loadedStates: [Bool] = []
+        let observation = store.$requiredInputLoaded.sink { loadedStates.append($0) }
+        await api.failStream(0)
+        await api.waitForStream(1)
+        assertOpen(store)
+        await api.holdNextFetch(returning: [Self.ask, Self.other])
+        await api.sendReady(to: 1)
+        await api.waitForHeldFetch()
+        assertOpen(store)
+        let reconciliation = store.requiredFetchTask
+        await api.releaseFetch()
+        await reconciliation?.value
+        assertOpen(store)
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
+        XCTAssertTrue(loadedStates.allSatisfy { $0 }, "an errored reconnect never flips controls")
         withExtendedLifetime(observation) {}
     }
 

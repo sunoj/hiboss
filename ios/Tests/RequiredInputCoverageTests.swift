@@ -153,7 +153,7 @@ final class RequiredInputCoverageTests: XCTestCase {
             let result = await reply.value
             XCTAssertEqual(result, outcome == .accepted ? .sent : .alreadyResolved)
             XCTAssertEqual(HomeAttentionSnapshot(messages: store.requiredInputs, withdrawn: store.withdrawn,
-                                                 questionnaires: []).count, outcome == .accepted ? 0 : 1)
+                                                 questionnaires: []).count, 0)
             store.stop()
         }
     }
@@ -235,6 +235,10 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     }
 
     func disconnect(_ index: Int) { streams[index].finish() }
+
+    func failStream(_ index: Int) {
+        streams[index].finish(throwing: URLError(.networkConnectionLost))
+    }
 
     func fetchRequiredInputs() async throws -> [HistoryMessage] {
         if hold {
