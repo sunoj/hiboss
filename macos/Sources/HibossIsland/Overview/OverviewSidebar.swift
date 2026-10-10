@@ -144,7 +144,10 @@ struct OverviewSidebar: View {
                     : fact?.namedLabel ?? session.projectLabel)
                     .lineLimit(1).truncationMode(.middle)
                 if let agent = session.agentName {
-                    Text(agent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    HStack(spacing: 4) {
+                        AgentAvatarView(name: agent, size: 20)
+                        Text(agent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
             }
             Spacer(minLength: 4)

@@ -44,6 +44,7 @@ struct TodayResults: View {
         HStack(spacing: 12) {
             ProjectAvatarView(project: inventory.first { $0.id == session.id }?.avatarProject
                               ?? .fallback(session.projectLabel), size: 40)
+            if let agent = session.agentName { AgentAvatarView(name: agent, size: 24) }
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: [inventory.first { $0.id == session.id }?.namedLabel ?? session.projectLabel,
                                 session.branch, session.agentName]
@@ -72,6 +73,7 @@ struct TodayResults: View {
                             $0.id == message.sessionId
                         }?.avatarProject
                                           ?? inventory.project(slug: message.project ?? ""), size: 24)
+                        AgentAvatarView(name: message.displayName, size: 24)
                         Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel
                                        ?? message.project, message.sessionBranch, message.displayName]
                             .compactMap { $0 }.joined(separator: " · "))

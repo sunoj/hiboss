@@ -109,7 +109,10 @@ struct SessionInspector: View {
                     Text(verbatim: peer.session.namedLabel).font(.callout)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack {
-                        if let agent = peer.session.agentName { Text(verbatim: agent) }
+                        if let agent = peer.session.agentName {
+                            AgentAvatarView(name: agent, size: 20)
+                            Text(verbatim: agent)
+                        }
                         Text(L("updated \(AttentionClock.elapsed(since: peer.lastActivity, now: now)) ago"))
                     }.font(.caption).foregroundStyle(.secondary)
                 }

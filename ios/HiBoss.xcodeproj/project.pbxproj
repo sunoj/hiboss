@@ -14,6 +14,7 @@
 		05E133FED34102AB371F3328 /* HomeDecisionDetailUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A82F760F5C856C7A1F67C2CC /* HomeDecisionDetailUITests.swift */; };
 		067821CD5AB2246A173E22C6 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131996B137584EA3A948402B /* HomeView.swift */; };
 		0776F1220B1F25C0614A8FAC /* ActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C8B4D6B0113426539CC70F1 /* ActivityView.swift */; };
+		0A33C435CDE42BF3D60E99A5 /* AgentAvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24822144570CE5CB53E106E5 /* AgentAvatarView.swift */; };
 		0B8AD0F0F15C84EFBB4F2C2E /* DemoLaunchRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E35550632DFB12DC17F132B /* DemoLaunchRouteTests.swift */; };
 		0C35236BC3E29A83BF9334CD /* ProgressPostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EED8126397A2C498DB5507C4 /* ProgressPostCard.swift */; };
 		0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698713D5102923E7503E7814 /* DemoData.swift */; };
@@ -366,6 +367,7 @@
 		2120DA1B2FD96E5226DDE345 /* HomeContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeContent.swift; sourceTree = "<group>"; };
 		21AD8A576E433550B352A07F /* DemoHomePanelsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoHomePanelsAPI.swift; sourceTree = "<group>"; };
 		23AC8990B7ECAEA0547135BB /* UXSurfaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UXSurfaceUITests.swift; sourceTree = "<group>"; };
+		24822144570CE5CB53E106E5 /* AgentAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAvatarView.swift; sourceTree = "<group>"; };
 		257429A0FDD77E458DEA8B9E /* TodayResults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayResults.swift; sourceTree = "<group>"; };
 		26510494BD0319DD81669D54 /* DecisionOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecisionOptions.swift; sourceTree = "<group>"; };
 		26AFB9BD03FD1060191A602B /* HiBossUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HiBossUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -869,6 +871,7 @@
 		98D47BDA8CAB95724B6F411C /* App */ = {
 			isa = PBXGroup;
 			children = (
+				BF3FA7CF9397077A050E2D73 /* Agents */,
 				EB41DFE0F1F07A6B32BAC1A6 /* Box */,
 				39BD8E216F9DDEC28570BD8D /* Connection */,
 				EC7C0445CBF0EB6223327405 /* Decision */,
@@ -946,6 +949,14 @@
 				7B4F3EAF3E82ED550E106FCA /* ReplyPendingNote.swift */,
 			);
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		BF3FA7CF9397077A050E2D73 /* Agents */ = {
+			isa = PBXGroup;
+			children = (
+				24822144570CE5CB53E106E5 /* AgentAvatarView.swift */,
+			);
+			path = Agents;
 			sourceTree = "<group>";
 		};
 		BF821F47919F06102D7E8F3C = {
@@ -1505,6 +1516,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0776F1220B1F25C0614A8FAC /* ActivityView.swift in Sources */,
+				0A33C435CDE42BF3D60E99A5 /* AgentAvatarView.swift in Sources */,
 				2B30FC8BFBBDD1BF0DE8B30B /* AllClearIslandView.swift in Sources */,
 				9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */,
 				38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */,

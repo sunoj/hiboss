@@ -113,7 +113,7 @@ struct HistoryThreadRow: View {
             .frame(width: 34, height: 34)
             .background(message.isBossHistoryMessage
                 ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.05),
-                in: RoundedRectangle(cornerRadius: 10))
+                in: Circle())
             .accessibilityHidden(true)
     }
 

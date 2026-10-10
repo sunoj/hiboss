@@ -55,6 +55,7 @@ struct TodayActivity: View {
             slug: session.projectLabel, displayName: session.projectLabel)
         return HStack(alignment: .top, spacing: 12) {
             ProjectAvatarView(project: project, size: 32)
+            if let agent = session.agentName { AgentAvatarView(name: agent, size: 24) }
             VStack(alignment: .leading, spacing: 4) {
                 Text(fact?.namedLabel
                     ?? [session.projectLabel, session.branch].compactMap { $0 }.joined(separator: " · "))

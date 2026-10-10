@@ -1,4 +1,4 @@
-// Rendered avatar fallback, successful image, shapes and named color contrast coverage.
+// Rendered avatar fallback, successful image, fixed square clipping and named color contrast coverage.
 // Exports ProjectAvatarTests; depends on SwiftUI ImageRenderer, UIKit and HibossKit.
 
 import HibossKit
@@ -32,11 +32,37 @@ final class ProjectAvatarTests: XCTestCase {
         XCTAssertEqual(image, try rendered(project.placeholder, phase: .empty))
     }
 
-    func testAllShapesStayWithinTheAvatarBounds() {
-        let bounds = CGRect(x: 0, y: 0, width: 44, height: 44)
-        for shape in ProjectAvatarPlaceholder.Shape.allCases {
-            XCTAssertEqual(ProjectAvatarShape(kind: shape).path(in: bounds).boundingRect, bounds)
+    func testPlaceholderAndUploadedImageUseTheSameContinuousSquareAtEverySize() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 80, height: 40)).image { context in
+            UIColor.black.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 80, height: 40))
         }
+        for size: CGFloat in [20, 44, 80] {
+            let expected = try alphaMask(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                .fill(.black).frame(width: size, height: size))
+            for slug in ["hiboss", "house", "smart-router", "ai-dispatch"] {
+                for phase in [AsyncImagePhase.empty, .success(Image(uiImage: image))] {
+                    let content = ProjectAvatarContent(placeholder: ProjectAvatarPlaceholder(slug: slug),
+                        phase: phase).frame(width: size, height: size)
+                    let actual = try alphaMask(content)
+                    XCTAssertEqual(actual.count, expected.count)
+                    XCTAssertEqual(zip(actual, expected).filter { abs(Int($0) - Int($1)) > 2 }.count,
+                                   0, "\(slug), \(size)")
+                }
+            }
+        }
+    }
+
+    func testAgentAndProgressInitialsAreCircular() throws {
+        let agent = try alphaMask(AgentAvatarView(name: "Build Agent", size: 20))
+        let circle = try alphaMask(Circle().fill(Theme.surface2).frame(width: 20, height: 20))
+        XCTAssertEqual(Array(agent.prefix(80)), Array(circle.prefix(80)))
+        let expected = try alphaMask(Circle().fill(.black).frame(width: 20, height: 20))
+        let chip = ProgressAttributionChip(agentLabel: nil, model: "claude-sonnet")
+        XCTAssertEqual(try alphaMask(chip.frame(width: 20, height: 20, alignment: .leading).clipped()),
+                       expected)
+        XCTAssertEqual(HistoryMessage.avatarInitials(agentName: "Build Agent"), "Ba")
+        XCTAssertEqual(HistoryMessage.avatarInitials(agentName: nil), "Ag")
     }
 
     func testNamedTintsKeepWhiteInitialsReadableInBothAppearances() throws {
@@ -60,5 +86,20 @@ final class ProjectAvatarTests: XCTestCase {
         let renderer = ImageRenderer(content: ProjectAvatarContent(placeholder: placeholder, phase: phase)
             .frame(width: 44, height: 44))
         return try XCTUnwrap(renderer.uiImage?.pngData())
+    }
+
+    private func alphaMask<Content: View>(_ content: Content) throws -> [UInt8] {
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 1
+        let image = try XCTUnwrap(renderer.uiImage?.cgImage)
+        var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        try pixels.withUnsafeMutableBytes { bytes in
+            let context = try XCTUnwrap(CGContext(data: bytes.baseAddress, width: image.width,
+                height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        return stride(from: 3, to: pixels.count, by: 4).map { pixels[$0] }
     }
 }

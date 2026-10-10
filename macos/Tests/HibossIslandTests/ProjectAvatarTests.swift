@@ -1,5 +1,5 @@
 // Exercises public image loading and placeholder fallback across missing/failing URLs.
-// Covers: loading state, HTTP errors, malformed images, valid images, no credentials, and shapes.
+// Covers: loading state, HTTP errors, malformed images, valid images, no credentials, and square clipping.
 // Dependencies: XCTest, AppKit, SwiftUI, HibossKit, and loopback media fixture server.
 
 import AppKit
@@ -46,12 +46,7 @@ final class ProjectAvatarTests: XCTestCase {
         XCTAssertNil(loader.image)
     }
 
-    func testAllPlaceholderShapesHaveStableBoundsAndWhiteInitialsHaveReadableTintContrast() throws {
-        for shape in ProjectAvatarPlaceholder.Shape.allCases {
-            let bounds = ProjectAvatarShape(kind: shape).path(in: CGRect(x: 0, y: 0, width: 40, height: 40))
-                .boundingRect
-            XCTAssertEqual(bounds, CGRect(x: 0, y: 0, width: 40, height: 40))
-        }
+    func testWhiteInitialsHaveReadableTintContrast() throws {
         for scheme in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try XCTUnwrap(NSAppearance(named: scheme))
             for tint in ProjectAvatarPlaceholder.Tint.allCases {
@@ -63,6 +58,44 @@ final class ProjectAvatarTests: XCTestCase {
                     + linear(rgb.blueComponent) * 0.0722
                 XCTAssertGreaterThanOrEqual(1.05 / (luminance + 0.05), 4.5, tint.assetName)
             }
+        }
+    }
+
+    func testPlaceholderAndUploadedImageUseTheSameContinuousSquareAtEverySize() throws {
+        let image = NSImage(size: NSSize(width: 80, height: 40), flipped: false) { rect in
+            NSColor.black.setFill()
+            rect.fill()
+            return true
+        }
+        for size: CGFloat in [20, 44, 80] {
+            let expected = try alphaMask(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                .fill(.black).frame(width: size, height: size))
+            for slug in ["hiboss", "house", "smart-router", "ai-dispatch"] {
+                for avatar in [nil, image] {
+                    let content = ProjectAvatarContent(placeholder: ProjectAvatarPlaceholder(slug: slug),
+                        image: avatar, size: size)
+                    let actual = try alphaMask(content)
+                    XCTAssertEqual(actual.count, expected.count)
+                    XCTAssertEqual(zip(actual, expected).filter { abs($0 - $1) > 2 / 255 + 0.0001 }.count,
+                                   0, "\(slug), \(size)")
+                }
+            }
+        }
+    }
+
+    func testAgentInitialsAreCircular() throws {
+        let expected = try alphaMask(Circle().fill(Color.primary.opacity(0.05))
+            .frame(width: 20, height: 20))
+        let agent = try alphaMask(AgentAvatarView(name: "Build Agent", size: 20))
+        XCTAssertEqual(Array(agent.prefix(80)), Array(expected.prefix(80)))
+    }
+
+    private func alphaMask<Content: View>(_ content: Content) throws -> [CGFloat] {
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 1
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(data: XCTUnwrap(renderer.nsImage?.tiffRepresentation)))
+        return (0..<bitmap.pixelsHigh).flatMap { y in
+            (0..<bitmap.pixelsWide).map { x in bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0 }
         }
     }
 

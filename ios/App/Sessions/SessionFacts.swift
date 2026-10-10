@@ -52,7 +52,10 @@ struct SessionFactsHeader: View {
                 Text(verbatim: session.namedLabel).font(.title2.bold())
             }
             HStack {
-                if let agent = clean(session.agentName) { Text(verbatim: agent) }
+                if let agent = clean(session.agentName) {
+                    AgentAvatarView(name: agent, size: 20)
+                    Text(verbatim: agent)
+                }
                 if let host = clean(session.host) { Label { Text(verbatim: host) } icon: {
                     Image(systemName: "desktopcomputer")
                 } }

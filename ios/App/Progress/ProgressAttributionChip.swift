@@ -58,10 +58,9 @@ struct ProgressAttributionChip: View {
         Text(verbatim: vendor.monogram)
             .font(.caption2.weight(.semibold))
             .foregroundStyle(monogramForeground)
-            .frame(minWidth: 14, minHeight: 14)
-            .padding(.horizontal, 3)
-            .padding(.vertical, 1)
-            .background(monogramBackground, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .minimumScaleFactor(0.5).lineLimit(1)
+            .frame(width: 20, height: 20)
+            .background(monogramBackground, in: Circle())
             .accessibilityHidden(true)
     }
 

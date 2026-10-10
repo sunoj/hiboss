@@ -35,7 +35,12 @@ struct ProjectPeersView: View {
             ProjectAvatarView(project: peer.session.avatarProject, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: peer.session.namedLabel).font(.subheadline)
-                if let agent = peer.session.agentName { Text(verbatim: agent).font(.caption) }
+                if let agent = peer.session.agentName {
+                    HStack(spacing: 4) {
+                        AgentAvatarView(name: agent, size: 20)
+                        Text(verbatim: agent).font(.caption)
+                    }
+                }
                 Text(peer.activityDate, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
             }
             Spacer(minLength: 0)

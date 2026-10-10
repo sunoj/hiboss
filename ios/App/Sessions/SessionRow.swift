@@ -27,7 +27,10 @@ struct SessionRow: View {
                 Text(verbatim: session.statusText).font(.subheadline).foregroundStyle(Theme.ink2)
                     .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                 if let agent = session.agentName {
-                    Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+                    HStack(spacing: 4) {
+                        AgentAvatarView(name: agent, size: 22)
+                        Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+                    }
                 }
                 if let date = session.lastActivityDate {
                     Text(date, style: .relative).font(.caption).foregroundStyle(Theme.ink3)

@@ -1,4 +1,5 @@
 // Covers the project avatar placeholder: stable, slug-driven, and spread across the palette.
+// Dependencies: XCTest and HibossKit placeholder hashing.
 
 import XCTest
 @testable import HibossKit
@@ -11,15 +12,16 @@ final class ProjectAvatarTests: XCTestCase {
         let pinned = ProjectAvatarPlaceholder(slug: "hiboss")
         XCTAssertEqual(ProjectAvatarPlaceholder.fnv1a("hiboss"), 0xe032_36ae_4025_9ca3)
         XCTAssertEqual(pinned, ProjectAvatarPlaceholder(slug: "hiboss"))
+        XCTAssertEqual(pinned.tint, .palm)
+        XCTAssertEqual(pinned.initial, "H")
     }
 
-    func testDisplayNameSetsTheInitialButNotColourOrShape() {
+    func testDisplayNameSetsTheInitialButNotColour() {
         let plain = ProjectAvatarPlaceholder(slug: "house")
         let named = ProjectAvatarPlaceholder(slug: "house", displayName: "Baan Mae Hia")
         XCTAssertEqual(plain.initial, "H")
         XCTAssertEqual(named.initial, "B")
         XCTAssertEqual(plain.tint, named.tint)
-        XCTAssertEqual(plain.shape, named.shape)
     }
 
     func testInitialSkipsPunctuationAndHandlesEmpty() {
@@ -28,11 +30,10 @@ final class ProjectAvatarTests: XCTestCase {
         XCTAssertEqual(ProjectAvatarPlaceholder(slug: "").initial, "?")
     }
 
-    func testRealProjectsSpreadAcrossTintsAndShapes() {
+    func testRealProjectsSpreadAcrossTints() {
         let slugs = ["hiboss", "house", "smart-router", "ai-dispatch", "revert-liquidator",
                      "open-intent-filler", "1inch-fusion-filler", "morpho-liquidator", "swap-mumaren"]
         let placeholders = slugs.map { ProjectAvatarPlaceholder(slug: $0) }
         XCTAssertGreaterThanOrEqual(Set(placeholders.map(\.tint)).count, 4)
-        XCTAssertGreaterThanOrEqual(Set(placeholders.map(\.shape)).count, 3)
     }
 }

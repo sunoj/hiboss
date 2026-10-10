@@ -10,6 +10,10 @@ extension HistoryMessage {
 
     /// Two-character avatar seed from the agent name.
     var avatarInitials: String {
+        Self.avatarInitials(agentName: agentName)
+    }
+
+    static func avatarInitials(agentName: String?) -> String {
         let name = (agentName ?? "agent").trimmingCharacters(in: .whitespaces)
         let parts = name.split { $0 == "-" || $0 == "_" || $0 == " " }
         if let first = parts.first, let last = parts.dropFirst().first,

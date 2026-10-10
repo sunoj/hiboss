@@ -21,7 +21,12 @@ struct SessionHeader: View {
                 Spacer()
             }
             HStack(spacing: 12) {
-                if let agent = context.facts?.agentName { Label(agent, systemImage: "person") }
+                if let agent = context.facts?.agentName {
+                    HStack(spacing: 4) {
+                        AgentAvatarView(name: agent, size: 20)
+                        Text(verbatim: agent)
+                    }
+                }
                 if let host = context.facts?.host { Label(host, systemImage: "desktopcomputer") }
             }.font(.callout).foregroundStyle(TodayStyle.secondary)
             step
