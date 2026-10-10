@@ -58,6 +58,7 @@ struct ResolvedOptionRow: View {
 struct OptionButton: View {
     let title: String
     var isDefault: Bool = false
+    var isSending: Bool = false
     let action: () -> Void
     @State private var isHovering = false
 
@@ -81,9 +82,14 @@ struct OptionButton: View {
                         .opacity(0.85)
                 }
                 Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .opacity(isHovering ? 0.9 : 0.35)
+                if isSending {
+                    ProgressView().controlSize(.small)
+                    Text(L("Sending…")).font(.caption)
+                } else {
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption.weight(.semibold))
+                        .opacity(isHovering ? 0.9 : 0.35)
+                }
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 13)

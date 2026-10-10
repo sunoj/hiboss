@@ -183,23 +183,27 @@ struct IslandView: View {
             options: message.options,
             media: message.metadata?.optionMedia ?? [],
             defaultOption: message.defaultOption,
+            isSubmitting: isSubmitting(message.id),
             choose: { send($0, for: message.id) }
         )
         .disabled(isSubmitting(message.id))
     }
 
-    private func fixedActions(_ message: OptionMessage) -> some View {
+    func fixedActions(_ message: OptionMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .overlay(Color.white.opacity(0.12))
-            if overview.snapshot.answerability.state(for: message.id) == .open {
+            switch overview.snapshot.answerability.state(for: message.id) {
+            case .open:
                 optionList(message)
                 errorLabel(for: message.id)
                 ReplyField(text: draft(for: message.id), isSubmitting: isSubmitting(message.id)) {
                     send(reply.drafts[message.id] ?? "", for: message.id)
                 }
-            } else {
+            case .checking:
                 Text(L("Checking…")).font(.caption).foregroundStyle(.secondary)
+            case .closed:
+                Text(L("No longer open")).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.top, 10)

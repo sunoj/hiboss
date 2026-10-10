@@ -10,8 +10,10 @@ struct OptionMediaPicker: View {
     let media: [OptionMedia]
     let defaultOption: String?
     var allowsChoosing = true
+    var isSubmitting = false
     let choose: (String) -> Void
     @State private var selectedMedia: OptionMedia?
+    @State private var sendingOption: String?
 
     var body: some View {
         VStack(spacing: 7) {
@@ -21,21 +23,32 @@ struct OptionMediaPicker: View {
                         option: option,
                         media: optionMedia,
                         isDefault: option == defaultOption,
-                        allowsChoosing: allowsChoosing,
-                        choose: choose,
+                        allowsChoosing: allowsChoosing && !isSubmitting && sendingOption == nil,
+                        isSending: sendingOption == option,
+                        choose: send,
                         openMedia: { selectedMedia = optionMedia }
                     )
                 } else {
-                    OptionButton(title: option, isDefault: option == defaultOption) {
-                        choose(option)
+                    OptionButton(title: option, isDefault: option == defaultOption,
+                                 isSending: sendingOption == option) {
+                        send(option)
                     }
-                    .disabled(!allowsChoosing)
+                    .disabled(!allowsChoosing || isSubmitting || sendingOption != nil)
                 }
             }
         }
         .popover(item: $selectedMedia) { media in
             OptionMediaPopover(media: media)
         }
+        .onChange(of: isSubmitting) { _, sending in
+            if !sending { sendingOption = nil }
+        }
+    }
+
+    private func send(_ option: String) {
+        guard allowsChoosing, !isSubmitting, sendingOption == nil else { return }
+        sendingOption = option
+        choose(option)
     }
 
     private func media(for option: String) -> OptionMedia? {
@@ -51,13 +64,14 @@ private struct OptionMediaRow: View {
     let media: OptionMedia
     let isDefault: Bool
     let allowsChoosing: Bool
+    let isSending: Bool
     let choose: (String) -> Void
     let openMedia: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
             OptionMediaPreview(media: media, openMedia: openMedia)
-            OptionButton(title: option, isDefault: isDefault) {
+            OptionButton(title: option, isDefault: isDefault, isSending: isSending) {
                 choose(option)
             }
             .disabled(!allowsChoosing)

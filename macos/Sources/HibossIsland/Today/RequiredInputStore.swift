@@ -13,6 +13,8 @@ struct RequiredInputState: Equatable {
     var loaded = false // Retained for at most 30 seconds while the stream is down.
     var failed = false
     var refreshing = false
+    var listingVersion = 0
+    var listedIDs: Set<MessageID> = []
 
     var coverageComplete: Bool { ready && loaded && !failed }
 }
@@ -24,15 +26,19 @@ final class RequiredInputStore: ObservableObject {
         didSet {
             guard oldValue.ready != state.ready || oldValue.loaded != state.loaded
                 || oldValue.failed != state.failed else { return }
-            Self.log.info("required-input state ready=\(self.state.ready, privacy: .public) loaded=\(self.state.loaded, privacy: .public) failed=\(self.state.failed, privacy: .public) count=\(self.state.messages.count, privacy: .public)")
+            let summary = "ready=\(state.ready) loaded=\(state.loaded) failed=\(state.failed)"
+                + " count=\(state.messages.count)"
+            Self.log.info("required-input state \(summary, privacy: .public)")
         }
     }
     private var service: (any RequiredInputServing)?
     private var streamTask: Task<Void, Never>?
     private var fetchTask: Task<Void, Never>?
+    private var retryTask: Task<Void, Never>?
     private var staleTask: Task<Void, Never>?
     private var epoch = 0
     private var fetchVersion = 0
+    private var retryAttempt = 0
     /// Stream changes seen while a fetch is in flight, re-applied over its older result.
     private var resolvedDuringFetch: Set<MessageID> = []
     private var updatedDuringFetch: [HistoryMessage] = []
@@ -48,6 +54,7 @@ final class RequiredInputStore: ObservableObject {
     deinit {
         streamTask?.cancel()
         fetchTask?.cancel()
+        retryTask?.cancel()
         staleTask?.cancel()
     }
 
@@ -70,6 +77,7 @@ final class RequiredInputStore: ObservableObject {
 
     func disconnect() {
         epoch += 1
+        retryAttempt = 0
         invalidateFetch()
         streamTask?.cancel()
         streamTask = nil
@@ -91,19 +99,36 @@ final class RequiredInputStore: ObservableObject {
                 let messages = try await service.fetchRequiredInputs()
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
-                self.state = RequiredInputState(messages: self.reconcile(messages), ready: self.state.ready,
-                                                loaded: true)
+                let reconciled = self.reconcile(messages)
+                self.state = RequiredInputState(messages: reconciled, ready: self.state.ready,
+                    loaded: true, listingVersion: self.state.listingVersion + 1,
+                    listedIDs: Set(reconciled.map(\.id)))
                 self.fetchTask = nil
+                self.retryAttempt = 0
                 self.cancelStaleDeadline()
                 if !self.state.ready { self.scheduleStaleDeadline() }
             } catch {
-                Self.log.error("required-input fetch failed: \(String(describing: error), privacy: .public)")
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
+                Self.log.error("required-input fetch failed: \(String(describing: error), privacy: .public)")
                 self.state.failed = true
                 self.state.refreshing = false
                 self.fetchTask = nil
+                self.retryFetch(epoch: epoch, version: version)
             }
+        }
+    }
+
+    private func retryFetch(epoch: Int, version: Int) {
+        guard state.ready else { return }
+        let delay = Duration.seconds(min(5, 1 << min(retryAttempt, 3)))
+        retryAttempt = min(retryAttempt + 1, 3)
+        retryTask = Task { [weak self] in
+            do { try await Task.sleep(for: delay) }
+            catch { return }
+            guard let self, !Task.isCancelled, self.state.ready,
+                  self.epoch == epoch, self.fetchVersion == version else { return }
+            self.refresh()
         }
     }
 
@@ -122,6 +147,8 @@ final class RequiredInputStore: ObservableObject {
         fetchVersion += 1
         fetchTask?.cancel()
         fetchTask = nil
+        retryTask?.cancel()
+        retryTask = nil
         state.refreshing = false
     }
 
@@ -152,8 +179,12 @@ final class RequiredInputStore: ObservableObject {
             state.ready = true
             if fetchTask == nil { refresh() }
         case let .message(message):
-            state.messages.removeAll { $0.id == message.id }
-            state.messages.append(message)
+            var next = state
+            next.messages.removeAll { $0.id == message.id }
+            next.messages.append(message)
+            next.listingVersion += 1
+            next.listedIDs = [message.id]
+            state = next
             if fetchTask != nil {
                 updatedDuringFetch.removeAll { $0.id == message.id }
                 updatedDuringFetch.append(message)

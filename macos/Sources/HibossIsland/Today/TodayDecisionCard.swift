@@ -35,7 +35,7 @@ struct TodayDecisionCard: View {
                 .contentShape(Rectangle())
             }.buttonStyle(.plain)
                 .accessibilityHint(L("Open decision"))
-            DecisionChoices(item: item, onChoose: onChoose).disabled(isSubmitting)
+            DecisionChoices(item: item, isSubmitting: isSubmitting, onChoose: onChoose)
             if let option = item.defaultOption {
                 DecisionDefaultLine(option: option, expiresAt: item.expiresAt, now: now)
             }

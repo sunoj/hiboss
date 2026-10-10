@@ -6,9 +6,12 @@ import HibossKit
 import SwiftUI
 
 struct DecisionChoices: View {
+    @Environment(\.isEnabled) private var isEnabled
     let item: AttentionItem
+    var isSubmitting = false
     let onChoose: (String) -> Void
     @State private var selectedMedia: OptionMedia?
+    @State private var sendingOption: String?
 
     var body: some View {
         DecisionChoiceLayout {
@@ -17,12 +20,33 @@ struct DecisionChoices: View {
                     if let media = media(for: option) {
                         OptionMediaPreview(media: media, openMedia: { selectedMedia = media })
                     }
-                    Button(option) { onChoose(option) }
-                        .buttonStyle(DecisionChoiceStyle(isPrimary: index == 0))
+                    Button { send(option) } label: {
+                        HStack(spacing: 6) {
+                            Text(option)
+                            if sendingOption == option {
+                                ProgressView().controlSize(.small)
+                                Text(L("Sending…")).font(.caption)
+                            }
+                        }
+                    }
+                    .buttonStyle(DecisionChoiceStyle(isPrimary: index == 0))
+                    .disabled(isSubmitting || sendingOption != nil)
                 }
             }
         }
         .popover(item: $selectedMedia) { media in OptionMediaPopover(media: media) }
+        .onChange(of: isSubmitting) { _, sending in
+            if !sending { sendingOption = nil }
+        }
+        .onChange(of: isEnabled) { _, enabled in
+            if enabled && !isSubmitting { sendingOption = nil }
+        }
+    }
+
+    private func send(_ option: String) {
+        guard !isSubmitting, sendingOption == nil else { return }
+        sendingOption = option
+        onChoose(option)
     }
 
     private func media(for option: String) -> OptionMedia? {

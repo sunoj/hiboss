@@ -21,6 +21,7 @@ final class OverviewStore: ObservableObject {
     private var requiredInputs: [HistoryMessage] = []
     private var requiredInputLoaded = false
     private var closedDecisionIDs: Set<MessageID> = []
+    private var requiredListingVersion = 0
     private var lastSeen: [String: Date] = [:]
 
     deinit { expirationTask?.cancel() }
@@ -29,7 +30,24 @@ final class OverviewStore: ObservableObject {
                 using send: (String, MessageID) async -> ReplyFeedback?) async -> ReplyFeedback? {
         guard let target = snapshot.history.first(where: { $0.id == id }) ?? message,
               snapshot.answerability.permitsReply(to: target) else { return .alreadyResolved }
-        return await send(text, id)
+        let feedback = await send(text, id)
+        guard feedback == nil || feedback == .alreadyResolved else { return feedback }
+        var closed = closedDecisionIDs
+        closed.insert(id)
+        var settled = history
+        if feedback == nil {
+            settled.removeAll { $0.id == id || $0.id.rawValue == "local-reply:\(id.rawValue)" }
+            settled.append(answered(target))
+            settled.append(HistoryMessage(id: MessageID(rawValue: "local-reply:\(id.rawValue)"),
+                body: text.trimmingCharacters(in: .whitespacesAndNewlines), direction: "boss_to_agent",
+                status: "sent", priority: "normal", replyTo: id.rawValue,
+                metadata: MessageMetadata(options: [], source: "macos"),
+                createdAt: ISO8601DateFormatter().string(from: .now), targetSessionId: target.sessionId))
+        }
+        update(history: settled, live: live, health: health, coverageComplete: coverageComplete,
+            requiredInputs: requiredInputs, requiredInputLoaded: requiredInputLoaded,
+            closedDecisionIDs: closed)
+        return feedback
     }
 
     func bind(flow: OptionFlowStore, inputs: RequiredInputStore) {
@@ -38,6 +56,8 @@ final class OverviewStore: ObservableObject {
 
     func bind(flow: OptionFlowStore, requiredInputs: AnyPublisher<RequiredInputState, Never>) {
         cancellables.removeAll()
+        closedDecisionIDs = []
+        requiredListingVersion = 0
         flow.$projectSessions
             .sink { [weak self] sessions in self?.setHeartbeats(sessions) }
             .store(in: &cancellables)
@@ -51,13 +71,47 @@ final class OverviewStore: ObservableObject {
             let health = TodayProjection.health(connection: connection.0,
                 history: connection.1, checkedAt: now)
             self?.requiredCoverageComplete = inputs.coverageComplete
-            self?.update(history: messages.0, live: messages.1, now: now,
+            guard let self else { return }
+            var closed = self.closedDecisionIDs
+            if inputs.listingVersion != self.requiredListingVersion {
+                if inputs.listingVersion == 0 { closed = [] }
+                else { closed.subtract(inputs.listedIDs) }
+                self.requiredListingVersion = inputs.listingVersion
+            }
+            closed.formUnion(messages.2.compactMap { $0.value == .alreadyResolved ? $0.key : nil })
+            self.update(history: self.retainAccepted(in: messages.0, closed: closed),
+                live: messages.1, now: now,
                 health: health, coverageComplete: inputs.coverageComplete
-                    && (self?.questionnaireCoverageComplete ?? false),
+                    && self.questionnaireCoverageComplete,
                 requiredInputs: inputs.messages, requiredInputLoaded: inputs.loaded && !inputs.failed,
-                closedDecisionIDs: Set(messages.2.compactMap { $0.value == .alreadyResolved ? $0.key : nil }))
+                closedDecisionIDs: closed)
         }
         .store(in: &cancellables)
+    }
+
+    private func retainAccepted(in incoming: [HistoryMessage], closed: Set<MessageID>) -> [HistoryMessage] {
+        let local = history.filter { $0.direction == "boss_to_agent"
+            && $0.replyTo.map { closed.contains(MessageID(rawValue: $0)) } == true }
+        let parents = Set(local.compactMap(\.replyTo))
+        var result = incoming
+        for parent in history where parents.contains(parent.id.rawValue) {
+            result.removeAll { $0.id == parent.id }
+            result.append(parent)
+        }
+        for reply in local where !incoming.contains(where: { $0.replyTo == reply.replyTo }) {
+            result.append(reply)
+        }
+        return result
+    }
+
+    private func answered(_ message: HistoryMessage) -> HistoryMessage {
+        HistoryMessage(id: message.id, body: message.body, agentName: message.agentName,
+            direction: message.direction, status: "replied", priority: message.priority,
+            channel: message.channel, mode: message.mode, type: message.type, replyTo: message.replyTo,
+            metadata: message.metadata, expiresAt: message.expiresAt, createdAt: message.createdAt,
+            updatedAt: message.updatedAt, sessionId: message.sessionId,
+            targetSessionId: message.targetSessionId, sessionLabel: message.sessionLabel,
+            sessionBranch: message.sessionBranch, sessionStatus: message.sessionStatus)
     }
 
     /// Session heartbeats decide whether a "working" status is still working now.

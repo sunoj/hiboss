@@ -77,6 +77,34 @@ final class OverviewResolutionE2ETests: XCTestCase {
         XCTAssertEqual(overview.snapshot.count(.completed), 1)
     }
 
+    func testAcceptedChoiceShowsResolvedIslandBeforeListCatchUp() async throws {
+        let api = OverviewResolutionAPI(resolvesReply: false)
+        let inputs = RequiredInputStore()
+        let flow = OptionFlowStore()
+        let overview = OverviewStore()
+        overview.bind(flow: flow, inputs: inputs)
+        inputs.connect(api)
+        flow.connect(api: api)
+        defer {
+            flow.disconnect()
+            inputs.disconnect()
+        }
+        try await waitUntil { flow.historyState == .loaded && inputs.state.coverageComplete
+            && flow.activeMessage?.id == "question" }
+        let feedback = await overview.answer("Ship", for: "question", using: flow.answer)
+        XCTAssertNil(feedback)
+        XCTAssertEqual(overview.snapshot.answerability.state(for: "question"), .closed)
+        XCTAssertTrue(overview.snapshot.today.decisions.isEmpty)
+        XCTAssertEqual(MessageThread.fold(overview.snapshot.history).first?.outcome,
+            .chosen(option: "Ship", source: "macos"))
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "macos"))
+        XCTAssertEqual(IslandAttention.presentation(snapshot: overview.snapshot.today,
+            active: flow.activeMessage, state: flow.presentationState)?.message.id, "question")
+        try await waitForCondition(timeout: .seconds(4)) { flow.activeMessage == nil }
+        XCTAssertTrue(overview.snapshot.today.decisions.isEmpty)
+        XCTAssertEqual(inputs.state.messages.map(\.id), ["question"])
+    }
+
     private func waitUntil(_ predicate: @escaping @MainActor () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(2))
         while !predicate() {

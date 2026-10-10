@@ -64,7 +64,14 @@ struct OverviewSnapshot {
          health: TodayHealth = .loading, coverageComplete: Bool = false,
          requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false,
          closedDecisionIDs: Set<MessageID> = [], lastSeen: [String: Date] = [:]) {
-        self.history = TodayProjection.merge(history: history, live: live, requiredInputs: requiredInputs)
+        let listed = Set(requiredInputs.map(\.id))
+        let recordedClosed = history.filter {
+            $0.isDecision && ["replied", "resolved", "expired"].contains($0.status)
+                && (!requiredInputLoaded || !listed.contains($0.id))
+        }.map(\.id)
+        let closedDecisionIDs = closedDecisionIDs.union(recordedClosed)
+        self.history = TodayProjection.merge(history: history, live: live,
+            requiredInputs: requiredInputs.filter { !closedDecisionIDs.contains($0.id) })
         self.today = TodaySnapshot(history: self.history,
             requiredInputs: requiredInputs.filter { !closedDecisionIDs.contains($0.id) },
             health: health,
