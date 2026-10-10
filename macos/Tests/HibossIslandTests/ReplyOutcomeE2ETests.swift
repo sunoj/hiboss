@@ -35,8 +35,8 @@ final class ReplyOutcomeE2ETests: XCTestCase {
     }
 
     func testFeedbackCopySeparatesClosedDecisionFromRetryableFailure() {
-        let closed = L("That decision is no longer available.")
-        XCTAssertEqual(closed, "That decision is no longer available.")
+        let closed = L("No longer open")
+        XCTAssertEqual(closed, "No longer open")
         XCTAssertEqual(ReplyFeedback.alreadyResolved.text, closed)
         XCTAssertEqual(ReplyFeedback.alreadyResolved.choiceText, closed)
         XCTAssertEqual(ReplyFeedback.failed("x").text, L("Reply failed. Your draft is saved. Try again."))
@@ -67,7 +67,7 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         XCTAssertFalse(accepted)
         XCTAssertEqual(reply.drafts["q"], "Ship after the smoke tests")
         XCTAssertEqual(reply.errors["q"], .alreadyResolved)
-        XCTAssertEqual(reply.errors["q"]?.text, "That decision is no longer available.")
+        XCTAssertEqual(reply.errors["q"]?.text, "No longer open")
         XCTAssertEqual(flow.historyMessages.first { $0.id == "q" }?.status, "expired")
         XCTAssertTrue(flow.historyMessages.filter { $0.replyTo == "q" }.isEmpty, "no answer is recorded")
         if case .resolved = flow.presentationState { XCTFail("a history 409 must not present a resolution") }

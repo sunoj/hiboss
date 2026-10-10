@@ -9,6 +9,30 @@ import XCTest
 
 @MainActor
 final class RequiredInputRefreshTests: XCTestCase {
+    func testErroredStreamExpiresAfterThirtySecondsAndManualRefreshRecovers() async throws {
+        let (inputs, overview, api, question) = try await loadedStore()
+        defer { inputs.disconnect() }
+        await api.finish(failing: true)
+        try await waitForCondition { !inputs.state.ready }
+        let clock = ContinuousClock()
+        let interruptedAt = clock.now
+        assertOpen(question, in: overview)
+        try await clock.sleep(for: .seconds(29))
+        assertOpen(question, in: overview)
+        try await waitForCondition(timeout: .seconds(3)) {
+            overview.snapshot.answerability.state(for: question.id) == .checking
+        }
+        XCTAssertGreaterThanOrEqual(interruptedAt.duration(to: clock.now), .seconds(29))
+        XCTAssertFalse(overview.snapshot.answerability.permitsReply(to: question))
+        XCTAssertTrue(SessionContext(id: question.sessionId ?? "", snapshot: overview.snapshot,
+            inventory: []).replyTargets.isEmpty)
+        inputs.refresh()
+        try await api.waitForFetch(count: 2)
+        try await waitForCondition { inputs.state.loaded && !inputs.state.refreshing }
+        XCTAssertFalse(inputs.state.ready)
+        assertOpen(question, in: overview)
+    }
+
     func testRefreshKeepsLoadedDecisionsAnswerableUntilReplacementArrives() async throws {
         let (inputs, overview, api, question) = try await loadedStore()
         defer { inputs.disconnect() }
@@ -53,7 +77,8 @@ final class RequiredInputRefreshTests: XCTestCase {
 
     func testEOFAndFailedStreamReconnectKeepLoadedDecisionsAnswerable() async throws {
         for failing in [false, true] {
-            let (inputs, overview, api, question) = try await loadedStore(reconnectDelay: .milliseconds(20))
+            let (inputs, overview, api, question) = try await loadedStore(
+                reconnectDelay: .milliseconds(20), staleListDelay: .milliseconds(150))
             defer { inputs.disconnect() }
             var states: [DecisionAnswerState] = []
             let observation = overview.$snapshot.sink {
@@ -68,11 +93,51 @@ final class RequiredInputRefreshTests: XCTestCase {
             try await api.waitForFetch(count: 2)
             XCTAssertTrue(inputs.state.refreshing)
             assertOpen(question, in: overview)
+            try await Task.sleep(for: .milliseconds(200))
+            assertOpen(question, in: overview)
             await api.releaseFetches()
             try await waitForCondition { inputs.state.coverageComplete && !inputs.state.refreshing }
             XCTAssertFalse(states.contains(.checking))
             assertOpen(question, in: overview)
         }
+    }
+
+    func testRetriesWithoutReadinessDoNotExtendTheStaleDeadline() async throws {
+        let (inputs, overview, api, question) = try await loadedStore(
+            reconnectDelay: .milliseconds(10), staleListDelay: .milliseconds(150))
+        defer { inputs.disconnect() }
+        await api.suppressReadiness()
+        await api.finish(failing: true)
+        try await api.waitForStream(count: 2)
+        assertOpen(question, in: overview)
+        try await Task.sleep(for: .milliseconds(90))
+        await api.finish(failing: true)
+        try await api.waitForStream(count: 3)
+        try await waitForCondition(timeout: .milliseconds(100)) {
+            overview.snapshot.answerability.state(for: question.id) == .checking
+        }
+        XCTAssertFalse(inputs.state.loaded)
+        await api.send(.ready)
+        try await waitForCondition { inputs.state.coverageComplete }
+        assertOpen(question, in: overview)
+    }
+
+    func testOfflineRefetchRenewsGraceAndAccountSwitchCancelsItsDeadline() async throws {
+        let (inputs, overview, api, question) = try await loadedStore(staleListDelay: .milliseconds(200))
+        defer { inputs.disconnect() }
+        await api.finish()
+        try await waitForCondition { !inputs.state.ready }
+        try await Task.sleep(for: .milliseconds(100))
+        inputs.refresh()
+        try await api.waitForFetch(count: 2)
+        try await waitForCondition { !inputs.state.refreshing }
+        try await Task.sleep(for: .milliseconds(130))
+        assertOpen(question, in: overview)
+        let replacement = ControlledRequiredInputs(messages: [question])
+        inputs.connect(replacement)
+        try await waitForCondition { inputs.state.coverageComplete }
+        try await Task.sleep(for: .milliseconds(200))
+        assertOpen(question, in: overview)
     }
 
     func testCoverageFailureChecksUntilSuccessfulRetryAndAccountSwitchChecksAgain() async throws {
@@ -104,11 +169,12 @@ final class RequiredInputRefreshTests: XCTestCase {
         XCTAssertEqual(overview.snapshot.answerability.state(for: question.id), .closed)
     }
 
-    private func loadedStore(reconnectDelay: Duration = .seconds(60)) async throws
+    private func loadedStore(reconnectDelay: Duration = .seconds(60),
+                             staleListDelay: Duration = .seconds(30)) async throws
         -> (RequiredInputStore, OverviewStore, ControlledRequiredInputs, HistoryMessage) {
         let question = AttentionTestSupport.ask(id: "open", options: ["Ship"], now: .now)
         let api = ControlledRequiredInputs(messages: [question])
-        let inputs = RequiredInputStore(reconnectDelay: reconnectDelay)
+        let inputs = RequiredInputStore(reconnectDelay: reconnectDelay, staleListDelay: staleListDelay)
         let overview = OverviewStore()
         overview.bind(flow: OptionFlowStore(), inputs: inputs)
         inputs.connect(api)

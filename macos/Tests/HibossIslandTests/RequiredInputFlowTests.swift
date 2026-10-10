@@ -185,7 +185,7 @@ final class RequiredInputFlowTests: XCTestCase {
 
 actor ControlledRequiredInputs: RequiredInputServing {
     private var messages: [HistoryMessage]
-    private let sendsReady: Bool
+    private var sendsReady: Bool
     private var continuation: AsyncThrowingStream<RequiredInputEvent, Error>.Continuation?
     private var waits: [(CheckedContinuation<[HistoryMessage], Error>, [HistoryMessage])] = []
     private var fetchCount = 0
@@ -234,6 +234,7 @@ actor ControlledRequiredInputs: RequiredInputServing {
     }
 
     func blockFetch() { blocked = true }
+    func suppressReadiness() { sendsReady = false }
     func failFetch() { failing = true }
     func finish(failing: Bool = false) {
         continuation?.finish(throwing: failing ? TestError.rejected : nil)

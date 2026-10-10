@@ -62,14 +62,16 @@ struct OverviewSnapshot {
 
     init(history: [HistoryMessage], live: OptionMessage?, now: Date,
          health: TodayHealth = .loading, coverageComplete: Bool = false,
-         requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false) {
+         requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false,
+         closedDecisionIDs: Set<MessageID> = []) {
         self.history = TodayProjection.merge(history: history, live: live, requiredInputs: requiredInputs)
-        self.today = TodaySnapshot(history: self.history, requiredInputs: requiredInputs,
+        self.today = TodaySnapshot(history: self.history,
+            requiredInputs: requiredInputs.filter { !closedDecisionIDs.contains($0.id) },
             health: health,
             coverageComplete: coverageComplete, now: now)
         self.attention = today.decisions
         self.answerability = AnswerableDecisions(isLoaded: requiredInputLoaded,
-            openIDs: Set(today.decisions.map(\.id)))
+            openIDs: Set(today.decisions.map(\.id)), closedIDs: closedDecisionIDs)
         self.sessions = SessionGrouping.groupBySession(self.history)
         self.now = now
     }

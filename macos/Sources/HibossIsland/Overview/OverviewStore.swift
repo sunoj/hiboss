@@ -20,6 +20,7 @@ final class OverviewStore: ObservableObject {
     private var questionnaireCoverageComplete = true
     private var requiredInputs: [HistoryMessage] = []
     private var requiredInputLoaded = false
+    private var closedDecisionIDs: Set<MessageID> = []
 
     deinit { expirationTask?.cancel() }
 
@@ -37,7 +38,7 @@ final class OverviewStore: ObservableObject {
     func bind(flow: OptionFlowStore, requiredInputs: AnyPublisher<RequiredInputState, Never>) {
         cancellables.removeAll()
         Publishers.CombineLatest3(
-            Publishers.CombineLatest(flow.$historyMessages, flow.$activeMessage),
+            Publishers.CombineLatest3(flow.$historyMessages, flow.$activeMessage, flow.$replyFeedback),
             Publishers.CombineLatest(flow.$connectionState, flow.$historyState),
             requiredInputs
         )
@@ -49,7 +50,8 @@ final class OverviewStore: ObservableObject {
             self?.update(history: messages.0, live: messages.1, now: now,
                 health: health, coverageComplete: inputs.coverageComplete
                     && (self?.questionnaireCoverageComplete ?? false),
-                requiredInputs: inputs.messages, requiredInputLoaded: inputs.loaded && !inputs.failed)
+                requiredInputs: inputs.messages, requiredInputLoaded: inputs.loaded && !inputs.failed,
+                closedDecisionIDs: Set(messages.2.compactMap { $0.value == .alreadyResolved ? $0.key : nil }))
         }
         .store(in: &cancellables)
     }
@@ -58,17 +60,19 @@ final class OverviewStore: ObservableObject {
         questionnaireCoverageComplete = complete
         update(history: history, live: live, health: health,
             coverageComplete: requiredCoverageComplete && complete, requiredInputs: requiredInputs,
-            requiredInputLoaded: requiredInputLoaded)
+            requiredInputLoaded: requiredInputLoaded, closedDecisionIDs: closedDecisionIDs)
     }
 
     func update(history: [HistoryMessage], live: OptionMessage?, now: Date = .now,
                 health: TodayHealth = .loading, coverageComplete: Bool = false,
-                requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false) {
+                requiredInputs: [HistoryMessage] = [], requiredInputLoaded: Bool = false,
+                closedDecisionIDs: Set<MessageID> = []) {
         let expired = nextExpiration.map { $0 <= now } ?? false
         guard history != self.history || live != self.live || health != self.health
             || coverageComplete != self.coverageComplete || expired
             || requiredInputs != self.requiredInputs
             || requiredInputLoaded != self.requiredInputLoaded
+            || closedDecisionIDs != self.closedDecisionIDs
         else { return }
         self.history = history
         self.live = live
@@ -76,9 +80,11 @@ final class OverviewStore: ObservableObject {
         self.coverageComplete = coverageComplete
         self.requiredInputs = requiredInputs
         self.requiredInputLoaded = requiredInputLoaded
+        self.closedDecisionIDs = closedDecisionIDs
         snapshot = OverviewSnapshot(history: history, live: live, now: now,
             health: health, coverageComplete: coverageComplete,
-            requiredInputs: requiredInputs, requiredInputLoaded: requiredInputLoaded)
+            requiredInputs: requiredInputs, requiredInputLoaded: requiredInputLoaded,
+            closedDecisionIDs: closedDecisionIDs)
         scheduleExpiration(after: now)
     }
 
@@ -99,7 +105,8 @@ final class OverviewStore: ObservableObject {
             guard let self else { return }
             self.update(history: self.history, live: self.live,
                 health: self.health, coverageComplete: self.coverageComplete,
-                requiredInputs: self.requiredInputs, requiredInputLoaded: self.requiredInputLoaded)
+                requiredInputs: self.requiredInputs, requiredInputLoaded: self.requiredInputLoaded,
+                closedDecisionIDs: self.closedDecisionIDs)
         }
     }
 }

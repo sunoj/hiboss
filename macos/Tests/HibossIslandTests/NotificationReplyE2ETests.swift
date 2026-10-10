@@ -40,7 +40,7 @@ final class NotificationReplyE2ETests: XCTestCase {
         let failed = try await send("Roll back first", to: "b", flow: flow, reply: reply)
 
         XCTAssertEqual(closed, .alreadyResolved)
-        XCTAssertEqual(reply.errors["a"]?.text, L("That decision is no longer available."))
+        XCTAssertEqual(reply.errors["a"]?.text, L("No longer open"))
         XCTAssertEqual(reply.drafts["a"], "Hold until Monday")
         XCTAssertEqual(failed, .failed("The reply was rejected."))
         XCTAssertEqual(reply.errors["b"]?.text, L("Reply failed. Your draft is saved. Try again."))

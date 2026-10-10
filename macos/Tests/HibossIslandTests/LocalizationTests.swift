@@ -7,6 +7,16 @@ import XCTest
 @testable import HibossIsland
 
 final class LocalizationTests: XCTestCase {
+    func testDecisionAvailabilityLabelsResolveInEnglishAndSimplifiedChinese() throws {
+        XCTAssertEqual(try english("Checking…"), "Checking…")
+        XCTAssertEqual(try english("No longer open"), "No longer open")
+        let path = try XCTUnwrap(appResourceBundle.path(forResource: "zh-Hans", ofType: "lproj"))
+        let bundle = try XCTUnwrap(Bundle(path: path))
+        let locale = Locale(identifier: "zh_Hans")
+        XCTAssertEqual(String(localized: "Checking…", bundle: bundle, locale: locale), "正在检查…")
+        XCTAssertEqual(String(localized: "No longer open", bundle: bundle, locale: locale), "已不再开放")
+    }
+
     func testCountedStringUsesEnglishPluralVariations() throws {
         XCTAssertEqual(try english("View all \(1) decisions"), "View all 1 decision")
         XCTAssertEqual(try english("View all \(3) decisions"), "View all 3 decisions")
