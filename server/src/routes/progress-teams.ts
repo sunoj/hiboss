@@ -58,9 +58,9 @@ function parseTeamInput(value: unknown): TeamInput | string {
   return input;
 }
 
-async function readTeam(env: Env, project: string): Promise<StoredTeam | null> {
-  return env.DB.prepare('SELECT id, slug AS project, handle, display_name, bio, avatar_url, created_by_agent_id FROM projects WHERE slug = ?')
-    .bind(project).first<StoredTeam>();
+async function readTeam(env: Env, project: string, column: 'slug' | 'id' = 'slug'): Promise<StoredTeam | null> {
+  return env.DB.prepare(`SELECT id, slug AS project, handle, display_name, bio, avatar_url, created_by_agent_id
+    FROM projects WHERE ${column} = ?`).bind(project).first<StoredTeam>();
 }
 
 async function validateAvatar(env: Env, avatarUrl: string | null, requestUrl: URL, agentId: string): Promise<string | null> {
@@ -76,31 +76,34 @@ async function hasHandleConflict(env: Env, handle: string, project: string): Pro
   return !!row;
 }
 
+// Writes by project id, the id the avatar rule checked. A write without avatar_url leaves the
+// avatar column alone, so it cannot restore a stale value over a concurrent avatar change.
 async function saveTeam(
-  env: Env, project: string, input: TeamInput, agentId: string, avatarOnly: boolean,
+  env: Env, projectId: string, input: TeamInput, agentId: string, avatarOnly: boolean,
 ): Promise<StoredTeam | null> {
-  const existing = await readTeam(env, project);
+  const existing = await readTeam(env, projectId, 'id');
   if (!existing) return null;
+  const project = existing.project;
   const handle = input.handle ?? existing?.handle ?? slugifyProject(project);
   const displayName = input.display_name ?? existing?.display_name ?? project;
   const bio = input.bio === undefined ? existing?.bio ?? null : input.bio;
-  const avatarUrl = input.avatar_url === undefined ? existing?.avatar_url ?? null : input.avatar_url;
+  const avatarUrl = input.avatar_url ?? null;
   if (!avatarOnly && await hasHandleConflict(env, handle, project)) return null;
-  const update = avatarOnly
-    ? env.DB.prepare("UPDATE projects SET avatar_url = ?, updated_at = datetime('now') WHERE id = ?")
-      .bind(avatarUrl, existing.id)
-    : env.DB.prepare(`UPDATE projects SET handle = ?, display_name = ?, bio = ?, avatar_url = ?,
-        updated_at = datetime('now') WHERE id = ?`)
-      .bind(handle, displayName, bio, avatarUrl, existing.id);
-  const statements = [update];
+  const statements: D1PreparedStatement[] = [];
+  if (!avatarOnly) {
+    statements.push(env.DB.prepare(`UPDATE projects SET handle = ?, display_name = ?, bio = ?,
+      updated_at = datetime('now') WHERE id = ?`).bind(handle, displayName, bio, existing.id));
+  }
   if (input.avatar_url !== undefined) {
+    statements.push(env.DB.prepare("UPDATE projects SET avatar_url = ?, updated_at = datetime('now') WHERE id = ?")
+      .bind(avatarUrl, existing.id));
     statements.push(env.DB.prepare(`INSERT INTO audit_log
       (actor_type, actor_id, action, resource_type, resource_id, details)
       VALUES ('agent', ?, 'project.avatar.set', 'project', ?, ?)`)
       .bind(agentId, existing.id, JSON.stringify({ avatar_url: avatarUrl })));
   }
   await env.DB.batch(statements);
-  return readTeam(env, project);
+  return readTeam(env, existing.id, 'id');
 }
 
 function parseColor(value: string): Rgb {
@@ -249,10 +252,16 @@ routes.put('/:project', apiAuth, async (c) => {
     if (!avatarOnly) {
       const resolved = await resolveProject(c.env.DB, identity, agentId, 'explicit', { requireOwnedTarget: true });
       if (!resolved.ok) return c.text(resolved.error, 409);
+      // The resolver may land on another project than the lookup did (an alias can move
+      // between the two reads), so the avatar rule is checked again on the id written.
+      if (resolved.project && input.avatar_url !== undefined && resolved.project.id !== target?.id) {
+        const accessError = await avatarAccessError(c.env.DB, resolved.project.id, agentId);
+        if (accessError) return c.text(accessError, 409);
+      }
       target = resolved.project;
     }
     if (!target) return c.text('project not found', 404);
-    const team = await saveTeam(c.env, target.slug, input, agentId, avatarOnly);
+    const team = await saveTeam(c.env, target.id, input, agentId, avatarOnly);
     if (!team) return c.text('handle is already in use', 409);
     return c.json(mapTeamRow(team, new URL(c.req.url)));
   } catch (error) {
