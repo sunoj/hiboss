@@ -18,6 +18,21 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     private var heldReply: CheckedContinuation<ReplyOutcome, Never>?
     private var replyWaiter: CheckedContinuation<Void, Never>?
 
+    private var historyGate: CheckedContinuation<Void, Never>?
+    private var historyWaiter: CheckedContinuation<Void, Never>?
+    private var holdsHistory = false
+    private(set) var historyReads = 0
+
+    func holdHistory() { holdsHistory = true }
+    func waitForHistory() async {
+        if historyGate != nil { return }
+        await withCheckedContinuation { historyWaiter = $0 }
+    }
+    func releaseHistory() {
+        historyGate?.resume()
+        historyGate = nil
+    }
+
     private var messageStreamEndsCleanly = false
 
     func requiredFetchCount() -> Int { fetchCount }
@@ -94,7 +109,18 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
         AsyncThrowingStream { $0.finish() }
     }
 
-    func fetchHistory() async throws -> [HistoryMessage] { [] }
+    func fetchHistory() async throws -> [HistoryMessage] {
+        historyReads += 1
+        if holdsHistory {
+            holdsHistory = false
+            await withCheckedContinuation {
+                historyGate = $0
+                historyWaiter?.resume()
+                historyWaiter = nil
+            }
+        }
+        return []
+    }
     func fetchMessage(_ id: MessageID) async throws -> MessageDetail {
         throw HibossAPIError.requestFailed(status: 404, message: "")
     }

@@ -36,6 +36,14 @@ extension PanelsModel {
         return liveSubscriptions.contains(tile.id) && relayStates[tile.id]?.checkpoint != nil
     }
 
+    func reportPanelCoverage() {
+        let complete = loadState == .loaded && !isFetching
+            && tiles.allSatisfy { hasPanelCoverage(for: $0) }
+        guard complete != reportedPanelCoverage else { return }
+        reportedPanelCoverage = complete
+        if complete { StartupLog.record("panel coverage complete", count: tiles.count) }
+    }
+
     private func expiry(for tile: PanelTile) -> Date? {
         [panelDate(tile.lifecycle.expiresAt), panelDate(relayStates[tile.id]?.checkpoint?.expiresAt)].compactMap { $0 }.max()
     }
@@ -63,7 +71,10 @@ extension PanelsModel {
         for tile in tiles where tile.agentID != nil && !tile.lifecycle.taskState.isTerminal && relayConnections[tile.id] == nil {
             let connection = PanelRelayConnection(config: config, panelID: tile.id) { [weak self] frame in
                 self?.receive(frame, for: tile.id)
-            } onDisconnect: { [weak self] in self?.liveSubscriptions.remove(tile.id) }
+            } onDisconnect: { [weak self] in
+                self?.liveSubscriptions.remove(tile.id)
+                self?.reportPanelCoverage()
+            }
             relayConnections[tile.id] = connection
             connection.start()
         }
@@ -73,6 +84,7 @@ extension PanelsModel {
         if frame == .metadataChanged { reconcileSoon(); return }
         if frame == .subscriptionRevoked {
             liveSubscriptions.remove(tileID)
+            reportPanelCoverage()
             relayConnections.removeValue(forKey: tileID)?.stop()
             reconcileSoon()
             return
@@ -89,5 +101,6 @@ extension PanelsModel {
         relayStates[tileID] = state
         liveSubscriptions.insert(tileID)
         tile.store.replaceTask(state.task)
+        reportPanelCoverage()
     }
 }

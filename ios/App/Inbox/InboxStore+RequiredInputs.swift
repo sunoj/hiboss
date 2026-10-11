@@ -80,6 +80,9 @@ extension InboxStore {
                 watchRequiredInputStaleness()
                 watchRequiredInputCoverage()
             }
+            if hasCompleteRequiredInputs {
+                StartupLog.record("required inputs ready+loaded", count: requiredInputs.count)
+            }
             await syncDecisionActivity()
         } catch {
             guard !Task.isCancelled, epoch == requiredEpoch,
@@ -113,6 +116,9 @@ extension InboxStore {
         case .ready:
             requiredInputReady = true
             if !requiredInputRefreshing { reconcileRequiredInputs() }
+            if hasCompleteRequiredInputs {
+                StartupLog.record("required inputs ready+loaded", count: requiredInputs.count)
+            }
         case let .message(message):
             requiredInputs.removeAll { $0.id == message.id }
             requiredInputs.append(message)

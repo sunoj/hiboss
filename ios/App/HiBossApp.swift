@@ -29,6 +29,7 @@ struct HiBossApp: App {
 
 struct RootView: View {
     @State private var showsClientNotice = false
+    @StateObject private var connectedPanels = ConnectedPanelsStore()
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var inbox: InboxStore
     @ObservedObject var preferences: PreferencesStore
@@ -55,6 +56,7 @@ struct RootView: View {
             } else {
                 inbox.stop()
                 progress.stop()
+                connectedPanels.stop()
             }
         }
         .alert("Device token notice", isPresented: $showsClientNotice) {
@@ -79,7 +81,8 @@ struct RootView: View {
                     inbox: inbox,
                     connection: connection,
                     preferences: preferences,
-                    progress: progress
+                    progress: progress,
+                    panels: connectedPanels.model
                 )
                 .modifier(ProjectInventoryModifier(api: inbox.api as? any SessionsServing,
                                                    refreshRequested: inbox.isRefreshing))
@@ -104,6 +107,7 @@ struct RootView: View {
             if ProcessInfo.processInfo.environment["HIBOSS_DEMO_CONNECTION"] != "disconnected" {
                 let demo = DemoBossAPI()
                 inbox.start(api: demo)
+                connectedPanels.start(api: DemoPanelServices.make())
             }
             progress.start(api: DemoProgressAPI())
         } else if connection.isConfigured, let api = connection.makeAPI() {
@@ -123,6 +127,7 @@ struct RootView: View {
     private func startConnectedServices(_ api: HibossAPI) {
         inbox.setDecisionAlertsEnabled(preferences.decisionAlerts)
         inbox.start(api: api)
+        connectedPanels.start(config: connection.config)
         progress.start(api: api)
         Task {
             await preferences.load(api: api)

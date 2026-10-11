@@ -80,7 +80,10 @@ final class ConnectionStore: ObservableObject {
             let token = (try? keychain.read()) ?? (try? legacy?.read())
             return (token: token, signer: try? signerStore.read())
         }.value
-        defer { isRestoring = false }
+        defer {
+            isRestoring = false
+            if config != nil || isDemoMode { StartupLog.record("connection restored") }
+        }
 
         let storedToken = stored.token ?? ""
         guard case let .success(restoredConfig) = makeConnectionConfig(

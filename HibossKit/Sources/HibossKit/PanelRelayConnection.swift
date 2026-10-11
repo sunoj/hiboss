@@ -107,15 +107,20 @@ public final class PanelRelayConnection {
             }
             guard !stopped, !Task.isCancelled else { return }
             if let frame = try? JSONDecoder().decode(PanelRelayFrame.self, from: data) {
-                if isWall, frame == .wallChanged, !wallAcknowledged {
-                    wallAcknowledged = true
-                    Self.log.info("wall subscription acknowledged")
-                    onWallConnected()
-                }
-                if case .snapshot = frame { Self.log.info("panel snapshot received") }
-                onFrame(frame)
+                deliver(frame, wallAcknowledged: &wallAcknowledged)
             }
         }
+    }
+
+    func deliver(_ frame: PanelRelayFrame, wallAcknowledged: inout Bool) {
+        if isWall, frame == .wallChanged, !wallAcknowledged {
+            wallAcknowledged = true
+            Self.log.info("wall subscription acknowledged")
+            onWallConnected()
+            return
+        }
+        if case .snapshot = frame { Self.log.info("panel snapshot received") }
+        onFrame(frame)
     }
 
     private var subscribeMessage: String {

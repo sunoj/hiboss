@@ -10,7 +10,7 @@ struct RootTabView: View {
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var preferences: PreferencesStore
     @ObservedObject var progress: ProgressFeedStore
-    @StateObject private var panels: PanelsModel
+    let panels: PanelsModel
     @StateObject private var joinRequests: JoinRequestsModel
     @State private var joinRequestTarget: JoinRequestTarget?
     @ObservedObject private var router = AppRouter.shared
@@ -33,16 +33,12 @@ struct RootTabView: View {
     @State private var showsSettings = false
 
     init(inbox: InboxStore, connection: ConnectionStore,
-         preferences: PreferencesStore, progress: ProgressFeedStore) {
+         preferences: PreferencesStore, progress: ProgressFeedStore, panels: PanelsModel) {
         self.inbox = inbox
         self.connection = connection
         self.preferences = preferences
         self.progress = progress
-        let panelAPI: (any PanelsServing)? = isDemoMode ? DemoPanelServices.make() : nil
-        _panels = StateObject(wrappedValue: PanelsModel(api: panelAPI, configurationProvider: {
-            guard let config = connection.config else { throw PanelClientError.notConfigured }
-            return config
-        }, autoload: false))
+        self.panels = panels
         _joinRequests = StateObject(wrappedValue: JoinRequestsModel { () -> (any JoinRequestServing)? in
             isDemoMode ? DemoJoinRequestsAPI.shared : connection.makeAPI()
         })
@@ -89,7 +85,6 @@ struct RootTabView: View {
             NavigationStack { JoinRequestReviewView(requestID: target.id, model: joinRequests) }
         }
         .onChange(of: connection.config) {
-            panels.connectionDidChange()
             joinRequests.reset()
             Task { await joinRequests.refresh() }
         }
