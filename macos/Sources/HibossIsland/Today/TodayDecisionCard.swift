@@ -25,10 +25,10 @@ struct TodayDecisionCard: View {
                         Spacer(minLength: 4)
                         DecisionDeadline(expiresAt: item.expiresAt, now: now)
                     }
-                    Text(item.body).font(.headline).foregroundStyle(.primary)
+                    Text(verbatim: item.message.messageText.title).font(.headline).foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    if let content = item.content {
-                        Text(content).font(.callout).foregroundStyle(TodayStyle.secondary)
+                    if let content = item.message.messageText.content {
+                        MessageMarkdownView(content).font(.callout).foregroundStyle(TodayStyle.secondary)
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)

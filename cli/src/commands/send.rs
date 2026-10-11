@@ -2,11 +2,15 @@
 // Exports: SendArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
+use super::send_metadata::build_metadata;
+use super::session_register::send_with_session_heal;
 use crate::{
-    client::HiBossClient, config::Config, helpers::{short_id, unescape_body}, session,
+    client::HiBossClient,
+    config::Config,
+    helpers::{short_id, unescape_body},
+    session,
     types::{SendRequest, SendTarget},
 };
-use super::session_register::send_with_session_heal;
 use clap::Args;
 use colored::Colorize;
 use serde_json::Value;
@@ -35,15 +39,31 @@ pub struct SendArgs {
     pub broadcast: bool,
     #[arg(long, help = "Task summary for structured context")]
     pub task: Option<String>,
-    #[arg(long, help = "Short non-sensitive summary shown in private-mode push notifications")]
+    #[arg(
+        long,
+        help = "Short non-sensitive summary shown in private-mode push notifications"
+    )]
     pub summary: Option<String>,
-    #[arg(long, help = "Extra context shown in the notification (subtitle)")]
+    #[arg(
+        long,
+        conflicts_with = "content_file",
+        help = "Markdown message details beneath the short title"
+    )]
     pub content: Option<String>,
+    #[arg(
+        long,
+        conflicts_with = "content",
+        help = "UTF-8 Markdown file containing the complete message details"
+    )]
+    pub content_file: Option<std::path::PathBuf>,
     #[arg(long, help = "Relevant file paths (comma-separated)")]
     pub files: Option<String>,
     #[arg(long, help = "Git branch context")]
     pub branch: Option<String>,
-    #[arg(value_name = "body")]
+    #[arg(
+        value_name = "title",
+        help = "Short title, at most 144 Unicode characters"
+    )]
     pub body: String,
 }
 
@@ -52,6 +72,8 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
+    super::message_text::title(&args.body, args.to.is_some() || args.broadcast)?;
+    build_metadata(args)?;
     if args.broadcast && args.to.is_some() {
         return Err("Cannot use --broadcast and --to together".into());
     }
@@ -95,7 +117,10 @@ pub async fn run(
     Ok(())
 }
 
-async fn send_request(args: &SendArgs, client: &HiBossClient) -> Result<SendRequest, Box<dyn Error>> {
+async fn send_request(
+    args: &SendArgs,
+    client: &HiBossClient,
+) -> Result<SendRequest, Box<dyn Error>> {
     // Only send channel when explicitly specified via --channel.
     // When omitted, server uses channel_routing (per-priority) to decide.
     let channel = args.channel.clone();
@@ -109,7 +134,7 @@ async fn send_request(args: &SendArgs, client: &HiBossClient) -> Result<SendRequ
     // Build task_context metadata from --task, --files, --branch flags
     let metadata = build_metadata(args)?;
     Ok(SendRequest {
-        body: unescape_body(&args.body),
+        body: super::message_text::title(&args.body, args.to.is_some())?,
         mode: "async".to_owned(),
         priority: args.priority.clone(),
         channel,
@@ -203,7 +228,11 @@ pub(crate) fn format_peer_target(target: Option<&SendTarget>, requested: &str) -
         .map(|target| {
             format!(
                 "{} ({})",
-                target.nickname.as_deref().or(target.label.as_deref()).unwrap_or(target.id.as_str()),
+                target
+                    .nickname
+                    .as_deref()
+                    .or(target.label.as_deref())
+                    .unwrap_or(target.id.as_str()),
                 short_id(&target.id)
             )
         })
@@ -232,39 +261,4 @@ async fn warn_unread_messages(client: &HiBossClient) {
             "Reply to unread messages with: hiboss reply <id> \"response\" BEFORE sending new messages."
         );
     }
-}
-
-pub(crate) fn build_metadata(args: &SendArgs) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
-    let has_context = args.task.is_some() || args.files.is_some() || args.branch.is_some();
-    let has_content = args.content.as_ref().is_some_and(|s| !s.is_empty());
-    if !has_context && args.summary.is_none() && !has_content {
-        return Ok(None);
-    }
-    let mut meta = HashMap::new();
-    if let Some(ref s) = args.summary {
-        meta.insert("summary".to_owned(), Value::String(s.clone()));
-    }
-    if let Some(ref s) = args.content {
-        if !s.is_empty() {
-            meta.insert("content".to_owned(), Value::String(s.clone()));
-        }
-    }
-    if has_context {
-        let mut ctx = HashMap::new();
-        if let Some(ref t) = args.task {
-            ctx.insert("summary".to_owned(), Value::String(t.clone()));
-        }
-        if let Some(ref f) = args.files {
-            let files: Vec<Value> = f
-                .split(',')
-                .map(|s| Value::String(s.trim().to_owned()))
-                .collect();
-            ctx.insert("files".to_owned(), Value::Array(files));
-        }
-        if let Some(ref b) = args.branch {
-            ctx.insert("branch".to_owned(), Value::String(b.clone()));
-        }
-        meta.insert("task_context".to_owned(), serde_json::to_value(ctx)?);
-    }
-    Ok(Some(meta))
 }

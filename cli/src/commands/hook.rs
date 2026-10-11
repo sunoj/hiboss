@@ -13,6 +13,11 @@ use super::hook_unacked::unacknowledged_outbound_warning;
 
 #[derive(Debug, Args)]
 pub struct HookArgs {
+    #[arg(
+        long,
+        help = "Read Codex hook JSON from stdin and use its session/project context"
+    )]
+    pub codex_input: bool,
     #[command(subcommand)]
     pub event: HookEvent,
 }
@@ -30,6 +35,9 @@ pub enum HookEvent {
 }
 
 pub async fn run(args: &HookArgs) -> Result<(), Box<dyn Error>> {
+    if args.codex_input {
+        return super::codex_hook::run(&args.event);
+    }
     let _ = match &args.event {
         HookEvent::SessionStart => super::hook_start::run().await,
         HookEvent::PostToolUse => run_post_tool_use(),
@@ -70,7 +78,10 @@ fn print_pending_messages() {
     if pending.is_empty() {
         return;
     }
-    println!("REAL-TIME: {} new messages arrived via SSE daemon:", pending.len());
+    println!(
+        "REAL-TIME: {} new messages arrived via SSE daemon:",
+        pending.len()
+    );
     let mut ids_to_mark: Vec<String> = Vec::new();
     for line in &pending {
         if let Ok(msg) = serde_json::from_str::<serde_json::Value>(line) {
@@ -157,7 +168,10 @@ async fn run_bg_check() -> Result<(), Box<dyn Error>> {
 /// Leave an urgent notice for the next PostToolUse: urgent boss messages, and peer messages
 /// when no daemon is delivering them.
 async fn flag_unread_messages(client: &crate::client::HiBossClient, session_id: Option<&str>) {
-    let count = client.inbox_count(Some("critical,high"), session_id).await.unwrap_or(0);
+    let count = client
+        .inbox_count(Some("critical,high"), session_id)
+        .await
+        .unwrap_or(0);
     if count > 0 {
         let msg = format!(
             "URGENT: You have {} unread critical/high priority boss messages. Run: hiboss inbox --priority critical,high\n",

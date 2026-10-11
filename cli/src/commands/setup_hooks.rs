@@ -2,12 +2,9 @@
 // Exports: SetupHooksArgs, run_setup_hooks.
 // Dependencies: clap, serde_json, std::env, std::fs, std::io, std::path.
 
-use clap::Args;
+use clap::{Args, ValueEnum};
 use serde_json::{Map, Value};
-use std::env;
 use std::error::Error;
-use std::fs;
-use std::path::PathBuf;
 
 const EVENT_COMMANDS: &[(&str, &str)] = &[
     ("SessionStart", "session-start"),
@@ -17,87 +14,81 @@ const EVENT_COMMANDS: &[(&str, &str)] = &[
 
 use super::setup_agents::apply_prompt_changes;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum SetupRuntime {
+    Claude,
+    Codex,
+}
+
+impl SetupRuntime {
+    fn profile(self) -> &'static str {
+        match self {
+            Self::Claude => "claude",
+            Self::Codex => "codex",
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct SetupHooksArgs {
+    #[arg(long, default_value = "claude")]
+    pub runtime: SetupRuntime,
     #[arg(long, help = "Project directory (default: current dir)")]
     pub dir: Option<String>,
-    #[arg(long, help = "Install globally in CLAUDE_CONFIG_DIR or ~/.claude")]
+    #[arg(
+        long,
+        help = "Install globally in the selected runtime's configuration directory"
+    )]
     pub global: bool,
     #[arg(long, help = "Remove hiboss hooks instead of adding")]
     pub remove: bool,
 }
 
 pub fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
-    let (claude_dir, label) = hook_destination(args)?;
+    let (claude_dir, label) = super::setup_hook_files::destination(args)?;
     eprintln!("[hiboss]Target: {}", label);
-    let settings_path = claude_dir.join(if args.global {
+    let settings_path = claude_dir.join(if args.runtime == SetupRuntime::Codex {
+        "hooks.json"
+    } else if args.global {
         "settings.json"
     } else {
         "settings.local.json"
     });
-    let mut settings = read_settings(&settings_path)?;
+    let mut settings = super::setup_hook_files::read_settings(&settings_path)?;
     eprintln!("[hiboss]Loaded settings from {}", settings_path.display());
     let project_dir = if !args.global && !args.remove {
-        Some(project_directory(args)?)
+        Some(super::setup_hook_files::project_directory(args)?)
     } else {
         None
     };
     let project_dir_str = project_dir.as_ref().map(|dir| dir.to_string_lossy());
-    let change = apply_hook_changes(&mut settings, args.remove, project_dir_str.as_deref())?;
+    let change = apply_hook_changes(
+        &mut settings,
+        args.remove,
+        project_dir_str.as_deref(),
+        args.runtime.profile(),
+    )?;
     eprintln!("[hiboss]Computed hook updates");
-    if change.changed {
-        fs::create_dir_all(&claude_dir)?;
-        let serialized = serde_json::to_string_pretty(&settings)?;
-        fs::write(&settings_path, format!("{}\n", serialized))?;
-        eprintln!("[hiboss]Wrote {}", settings_path.display());
-    } else {
-        eprintln!("[hiboss]No settings changes required");
-    }
+    super::setup_hook_files::write_settings(&settings_path, &settings, change.changed)?;
     match change.action {
-        HookAction::Added => println!("Added or refreshed hiboss hooks in .claude/settings"),
-        HookAction::Removed => println!("Removed hiboss hooks from .claude/settings"),
-        HookAction::None => println!("hiboss hooks already configured in .claude/settings"),
+        HookAction::Added => println!("Added or refreshed hiboss lifecycle hooks"),
+        HookAction::Removed => println!("Removed hiboss lifecycle hooks"),
+        HookAction::None => println!("hiboss lifecycle hooks already configured"),
     }
-    apply_prompt_changes(&claude_dir.join("CLAUDE.md"), args.remove)?;
-    Ok(())
-}
-
-fn hook_destination(args: &SetupHooksArgs) -> Result<(PathBuf, String), Box<dyn Error>> {
-    let (claude_dir, label) = if args.global {
-        let path = match env::var_os("CLAUDE_CONFIG_DIR").filter(|value| !value.is_empty()) {
-            Some(path) => PathBuf::from(path),
-            None => PathBuf::from(env::var("HOME").map_err(|_| "HOME not set")?).join(".claude"),
-        };
-        let label = format!("global {}", path.display());
-        (path, label)
+    let instructions = if args.runtime == SetupRuntime::Codex {
+        "AGENTS.md"
     } else {
-        let project_dir = project_directory(args)?;
-        (
-            project_dir.join(".claude"),
-            format!("{}", project_dir.display()),
-        )
+        "CLAUDE.md"
     };
-    Ok((claude_dir, label))
-}
-
-fn project_directory(args: &SetupHooksArgs) -> Result<PathBuf, Box<dyn Error>> {
-    Ok(match &args.dir {
-        Some(dir) => PathBuf::from(dir),
-        None => env::current_dir()?,
-    })
-}
-
-fn read_settings(settings_path: &std::path::Path) -> Result<Value, Box<dyn Error>> {
-    if settings_path.exists() {
-        let contents = fs::read_to_string(settings_path)?;
-        let parsed = serde_json::from_str::<Value>(&contents)?;
-        match parsed {
-            Value::Object(_) => Ok(parsed),
-            _ => Err("settings.json must contain an object".into()),
-        }
+    if args.runtime == SetupRuntime::Codex && !args.remove {
+        super::setup_agents::apply_profile_prompt_changes(&claude_dir.join(instructions), "codex")?;
     } else {
-        Ok(Value::Object(Map::new()))
+        apply_prompt_changes(&claude_dir.join(instructions), args.remove)?;
     }
+    if args.runtime == SetupRuntime::Codex && !args.remove {
+        println!("Review and trust the new HiBoss hooks in Codex /hooks before they can run.");
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -126,6 +117,7 @@ fn apply_hook_changes(
     settings: &mut Value,
     remove: bool,
     project_dir: Option<&str>,
+    runtime: &str,
 ) -> Result<HookChange, Box<dyn Error>> {
     let root = settings
         .as_object_mut()
@@ -143,7 +135,7 @@ fn apply_hook_changes(
         .ok_or("hooks must be an object")?;
     let mut change = HookChange::default();
     for event_value in hooks_map.values_mut() {
-        change.changed |= refresh_managed_hooks(event_value, project_dir)?;
+        change.changed |= refresh_managed_hooks(event_value, project_dir, runtime)?;
     }
     for (event, command_label) in EVENT_COMMANDS {
         let entry = hooks_map
@@ -155,7 +147,7 @@ fn apply_hook_changes(
         if arr.iter().any(matcher_contains_hiboss) {
             continue;
         }
-        arr.push(new_hiboss_matcher(command_label, project_dir));
+        arr.push(new_hiboss_matcher(command_label, project_dir, runtime));
         change.changed = true;
     }
     if change.changed {
@@ -222,7 +214,7 @@ fn refresh_managed_hooks(
                 let (_, invocation) = old
                     .split_once("hiboss hook ")
                     .ok_or("invalid HiBoss hook")?;
-                let command = profile_hook_command(invocation, project_dir);
+                let command = profile_hook_command(invocation, project_dir, runtime);
                 if old != command {
                     hook["command"] = Value::String(command);
                     changed = true;
@@ -241,8 +233,8 @@ fn matcher_contains_hiboss(value: &Value) -> bool {
         .unwrap_or(false)
 }
 
-fn new_hiboss_matcher(command_label: &str, project_dir: Option<&str>) -> Value {
-    let command = profile_hook_command(command_label, project_dir);
+fn new_hiboss_matcher(command_label: &str, project_dir: Option<&str>, runtime: &str) -> Value {
+    let command = profile_hook_command(command_label, project_dir, runtime);
     let mut hook_obj = Map::new();
     hook_obj.insert("type".to_string(), Value::String("command".to_string()));
     hook_obj.insert("command".to_string(), Value::String(command));
@@ -255,15 +247,23 @@ fn new_hiboss_matcher(command_label: &str, project_dir: Option<&str>) -> Value {
     Value::Object(matcher_obj)
 }
 
-fn profile_hook_command(command_label: &str, project_dir: Option<&str>) -> String {
+fn profile_hook_command(command_label: &str, project_dir: Option<&str>, runtime: &str) -> String {
+    let label = command_label
+        .strip_prefix("--codex-input ")
+        .unwrap_or(command_label);
+    let command_label = if runtime == "codex" {
+        format!("--codex-input {label}")
+    } else {
+        label.to_owned()
+    };
     let command = if let Some(dir) = project_dir {
         format!(
-            "HIBOSS_PROFILE=claude HIBOSS_PROJECT_DIR={} hiboss hook {}",
+            "HIBOSS_PROFILE={runtime} HIBOSS_PROJECT_DIR={} hiboss hook {}",
             shell_escape(dir),
             command_label
         )
     } else {
-        format!("HIBOSS_PROFILE=claude hiboss hook {}", command_label)
+        format!("HIBOSS_PROFILE={runtime} hiboss hook {}", command_label)
     };
     command
 }

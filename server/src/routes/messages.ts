@@ -4,6 +4,7 @@
 
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
+import { messageTitleError } from '../message-title';
 import { apiAuth, createAuthValidator, getAgentId } from '../middleware/auth';
 import type { Direction, Env, MessageRow, Status } from '../types';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
@@ -109,6 +110,10 @@ routes.patch('/:id', async (c) => {
   const status = validateOption<Status>(payload.status, ['sent', 'delivered', 'read']);
   if (!status && !body) {
     return c.text('status or body is required', 400);
+  }
+  if (body) {
+    const error = messageTitleError(body);
+    if (error) return c.text(error, 400);
   }
   const existing = await fetchMessageRow(c.env, agentId, c.req.param('id'));
   if (!existing) {

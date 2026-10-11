@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI and HistoryReadingContent.
 
 import SwiftUI
+import HibossKit
 
 struct HistoryMessageBody: View {
     let content: HistoryReadingContent
@@ -15,7 +16,7 @@ struct HistoryMessageBody: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(expanded ? content.fullText : content.preview)
+            MessageMarkdownView(expanded ? content.fullText : content.preview)
                 .font(.body).foregroundStyle(.primary).lineSpacing(4)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)

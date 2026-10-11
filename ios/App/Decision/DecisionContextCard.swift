@@ -35,16 +35,11 @@ struct DecisionContextCard: View {
     let message: HistoryMessage
 
     var body: some View {
-        Text(verbatim: message.content?.trimmingCharacters(in: .whitespacesAndNewlines)
-             .nilIfEmpty ?? message.body)
+        MessageMarkdownView(message.messageText.content ?? message.body)
             .font(.subheadline).textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
             .accessibilityIdentifier("decision-facts")
     }
-}
-
-private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

@@ -2,14 +2,10 @@
 // Exports: AskArgs and run().
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
-use super::ask_result::{AskResult, Outcome};
 use super::ask_media::{resolve_option_media, upload_attachment};
-use super::ask_support::{
-    action_metadata, validate_default_option, warn_unread_messages,
-};
-use crate::{
-    client::HiBossClient, config::Config, helpers::unescape_body, session, types::SendRequest,
-};
+use super::ask_result::{AskResult, Outcome};
+use super::ask_support::{action_metadata, validate_default_option, warn_unread_messages};
+use crate::{client::HiBossClient, config::Config, session, types::SendRequest};
 use clap::{ArgAction, Args};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -22,7 +18,10 @@ const MAX_CHOICES: usize = 5;
 pub struct AskArgs {
     #[arg(long, default_value_t = 1800)]
     pub timeout: u32,
-    #[arg(long, help = "Print a JSON result with reply, auto_default, local_default, or timeout outcome")]
+    #[arg(
+        long,
+        help = "Print a JSON result with reply, auto_default, local_default, or timeout outcome"
+    )]
     pub json: bool,
     #[arg(long, help = "Override channel (skips server-side channel_routing)")]
     pub channel: Option<String>,
@@ -73,13 +72,33 @@ pub struct AskArgs {
     pub file: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
     pub to: Option<String>,
-    #[arg(long, default_value = "normal", help = "Message priority: critical, high, normal, or low")]
+    #[arg(
+        long,
+        default_value = "normal",
+        help = "Message priority: critical, high, normal, or low"
+    )]
     pub priority: String,
-    #[arg(long, help = "Short non-sensitive summary shown in private-mode push notifications")]
+    #[arg(
+        long,
+        help = "Short non-sensitive summary shown in private-mode push notifications"
+    )]
     pub summary: Option<String>,
-    #[arg(long, help = "Extra context shown in the notification (subtitle)")]
+    #[arg(
+        long,
+        conflicts_with = "content_file",
+        help = "Markdown message details beneath the short title"
+    )]
     pub content: Option<String>,
-    #[arg(value_name = "body")]
+    #[arg(
+        long,
+        conflicts_with = "content",
+        help = "UTF-8 Markdown file containing the complete message details"
+    )]
+    pub content_file: Option<std::path::PathBuf>,
+    #[arg(
+        value_name = "title",
+        help = "Short title, at most 144 Unicode characters"
+    )]
     pub body: String,
 }
 
@@ -211,6 +230,9 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
+    let title = super::message_text::title(&args.body, args.to.is_some())?;
+    let content =
+        super::message_text::content(args.content.as_deref(), args.content_file.as_deref())?;
     if args.to.is_none() && !args.json {
         warn_unread_messages(client).await;
     }
@@ -218,7 +240,7 @@ pub async fn run(
     let option_media = resolve_option_media(client, &args.option_images, &choices).await?;
     let file_url = upload_attachment(client, args.file.as_deref()).await?;
     let mut request = SendRequest {
-        body: unescape_body(&args.body),
+        body: title,
         mode: "blocking".to_owned(),
         priority: args.priority.clone(),
         channel: args.channel.clone(),
@@ -226,7 +248,7 @@ pub async fn run(
             &choices.actions,
             choices.default_option.as_deref(),
             args.summary.as_deref(),
-            args.content.as_deref(),
+            content.as_deref(),
             option_media,
         )?,
         options: choices.options.clone(),
@@ -260,7 +282,10 @@ fn print_result(result: &AskResult, json: bool) -> Result<(), Box<dyn Error>> {
     } else if result.outcome == Outcome::Reply && crate::session::should_show_ack_hint() {
         if let Some(id) = &result.reply_id {
             let short = &id[..8.min(id.len())];
-            eprintln!("[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍", short, short);
+            eprintln!(
+                "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
+                short, short
+            );
         }
     } else if result.outcome == Outcome::Timeout {
         eprintln!("No reply yet");

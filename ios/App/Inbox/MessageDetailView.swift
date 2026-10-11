@@ -103,7 +103,7 @@ struct MessageDetailView: View {
     /// The question leads, plain and large; it wraps fully at every text size.
     private func question(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: message.body)
+            Text(verbatim: message.messageText.title)
                 .font(.title2.bold())
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)

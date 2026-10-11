@@ -19,7 +19,8 @@ struct SessionDecisionBubble: View {
                              header: DecisionCardInfo(message: message), choices: pendingOptions)
             } else {
                 DecisionProvenance(message: message)
-                SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment)
+                SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment,
+                                  content: message.content)
                 OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [],
                                       settlement: store.settlement(for: message.id))
                     .padding(.horizontal, 12)

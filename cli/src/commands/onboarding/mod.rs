@@ -104,10 +104,16 @@ fn install_profiles(plan: &selection::Plan) -> Result<(), Box<dyn Error>> {
         let result = match entry.profile.as_str() {
             "claude" => super::setup_hooks::run_setup_hooks(&super::setup_hooks::SetupHooksArgs {
                 global: true,
+                runtime: super::setup_hooks::SetupRuntime::Claude,
                 dir: None,
                 remove: false,
             }),
-            "codex" => guidance_path("CODEX_HOME", ".codex", "AGENTS.md", "codex"),
+            "codex" => super::setup_hooks::run_setup_hooks(&super::setup_hooks::SetupHooksArgs {
+                global: true,
+                runtime: super::setup_hooks::SetupRuntime::Codex,
+                dir: None,
+                remove: false,
+            }),
             "gemini" => guidance_path("", ".gemini", "GEMINI.md", "gemini"),
             _ => Ok(()),
         };

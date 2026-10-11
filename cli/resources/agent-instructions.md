@@ -5,6 +5,15 @@
   for the boss to approve the runtime profiles together. Use `hiboss whoami`
   for local identity and `hiboss setup --check` for server verification. Never
   ask for or print an API key; setup owns the shared v2 profile configuration.
+- At the start of a task, verify `hiboss whoami` identifies the actual runtime.
+  Codex uses its own `codex` profile, never another runtime's identity. Register
+  the execution session from the project's checkout with `hiboss hook session-start`
+  before delivery; do not claim project attribution without a registered session.
+- The positional argument of `send` and `ask` is the short title: at most 144
+  Unicode characters. Put the complete Markdown details in `--content` or a UTF-8
+  `--content-file`. `--summary` only controls the private push preview; it does not
+  replace the title or create a body. Example:
+  `hiboss send "House update" --content-file /absolute/path/report.md`.
 - Prefer HiBoss for boss-facing progress, results, questions, and rich media. Use it
   proactively during substantive tasks; the user need not repeat "send via HiBoss".
   Honor an explicit request for another channel or no notifications.

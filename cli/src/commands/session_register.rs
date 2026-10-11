@@ -15,7 +15,10 @@ const FOREIGN_SESSION: &str = "session does not belong to calling agent";
 pub(crate) async fn register_new_session(client: &HiBossClient) -> Result<String, Box<dyn Error>> {
     let id = generate_session_id();
     // The runtime marker is what lets a dispatched sibling tell this directory apart.
-    session::write_state(session::RUNTIME, &crate::runtime::RuntimeIdentity::detect().runtime)?;
+    session::write_state(
+        session::RUNTIME,
+        &crate::runtime::RuntimeIdentity::detect().runtime,
+    )?;
     session::write_session_id(&id)?;
     let branch = get_git_branch();
     let project = session::resolve_project(None).slug;
@@ -59,6 +62,10 @@ pub(crate) async fn send_with_session_heal(
     client: &HiBossClient,
     request: &mut SendRequest,
 ) -> Result<SendResponse, Box<dyn Error>> {
+    if request.session_id.is_none() && crate::runtime::RuntimeIdentity::detect().runtime == "codex"
+    {
+        request.session_id = Some(register_new_session(client).await?);
+    }
     match client.send_message(request).await {
         Err(err) if request.session_id.is_some() && is_foreign_session(err.as_ref()) => {
             request.session_id = Some(heal_foreign_session(client).await?);
@@ -75,18 +82,34 @@ mod tests {
 
     fn rejection(status: StatusCode, body: &str, request_id: Option<&str>) -> Box<dyn Error> {
         let request_id = request_id.map(str::to_owned);
-        Box::new(HttpError { prefix: "request failed", status, request_id, body: body.to_owned() })
+        Box::new(HttpError {
+            prefix: "request failed",
+            status,
+            request_id,
+            body: body.to_owned(),
+        })
     }
 
     #[test]
     fn heals_only_the_exact_400_rejection() {
-        assert!(is_foreign_session(rejection(StatusCode::BAD_REQUEST, FOREIGN_SESSION, None).as_ref()));
+        assert!(is_foreign_session(
+            rejection(StatusCode::BAD_REQUEST, FOREIGN_SESSION, None).as_ref()
+        ));
         let longer = format!("{FOREIGN_SESSION}: other");
-        assert!(!is_foreign_session(rejection(StatusCode::BAD_REQUEST, &longer, None).as_ref()));
-        assert!(!is_foreign_session(rejection(StatusCode::INTERNAL_SERVER_ERROR, FOREIGN_SESSION, None).as_ref()));
+        assert!(!is_foreign_session(
+            rejection(StatusCode::BAD_REQUEST, &longer, None).as_ref()
+        ));
+        assert!(!is_foreign_session(
+            rejection(StatusCode::INTERNAL_SERVER_ERROR, FOREIGN_SESSION, None).as_ref()
+        ));
         let in_request_id = rejection(StatusCode::BAD_REQUEST, "bad", Some(FOREIGN_SESSION));
         assert!(!is_foreign_session(in_request_id.as_ref()));
-        let formatted: Box<dyn Error> = rejection(StatusCode::BAD_REQUEST, FOREIGN_SESSION, None).to_string().into();
-        assert!(!is_foreign_session(formatted.as_ref()), "a formatted message is never matched");
+        let formatted: Box<dyn Error> = rejection(StatusCode::BAD_REQUEST, FOREIGN_SESSION, None)
+            .to_string()
+            .into();
+        assert!(
+            !is_foreign_session(formatted.as_ref()),
+            "a formatted message is never matched"
+        );
     }
 }

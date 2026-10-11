@@ -8,7 +8,9 @@ pub struct DispatchedAsk;
 
 impl std::fmt::Display for DispatchedAsk {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("dispatched agents cannot ask the boss; return the question to your dispatcher")
+        formatter.write_str(
+            "dispatched agents cannot ask the boss; return the question to your dispatcher",
+        )
     }
 }
 
@@ -44,6 +46,15 @@ impl RuntimeIdentity {
                 .unwrap_or_else(|| "default".into());
             return Self {
                 runtime: "claude".into(),
+                session_key,
+            };
+        }
+        if let Some(session_key) = get("CODEX_THREAD_ID")
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| get("CODEX_SESSION_ID").filter(|value| !value.trim().is_empty()))
+        {
+            return Self {
+                runtime: "codex".into(),
                 session_key,
             };
         }
@@ -99,11 +110,24 @@ mod tests {
             assert_eq!(detect(&values).runtime, "none");
         }
         assert_eq!(
-            detect(&[("AID_TASK_ID", " "), ("CODEX_THREAD_ID", "id")]),
+            detect(&[("AID_TASK_ID", " "), ("CODEX_THREAD_ID", " ")]),
             RuntimeIdentity {
                 runtime: "none".into(),
                 session_key: "default".into()
             }
+        );
+    }
+
+    #[test]
+    fn codex_uses_the_thread_or_session_id_without_collapsing_to_default() {
+        for signal in ["CODEX_THREAD_ID", "CODEX_SESSION_ID"] {
+            let found = detect(&[(signal, "codex-1")]);
+            assert_eq!(found.runtime, "codex");
+            assert_eq!(found.session_key, "codex-1");
+        }
+        assert_eq!(
+            detect(&[("CODEX_THREAD_ID", " "), ("CODEX_SESSION_ID", "s")]).session_key,
+            "s"
         );
     }
 }

@@ -221,14 +221,14 @@ struct DecisionCardInfo: View {
                 }
             }
             // The question is the reason the card exists: it wraps fully at every text size.
-            Text(verbatim: message.body)
+            Text(verbatim: message.messageText.title)
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            if let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
+            if let content = message.messageText.content,
                !content.isEmpty,
                content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                Text(verbatim: content)
+                MessageMarkdownView(content)
                     .font(.subheadline)
                     .foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)

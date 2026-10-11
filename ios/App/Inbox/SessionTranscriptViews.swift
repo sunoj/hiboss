@@ -20,7 +20,8 @@ struct SessionTranscriptItemView: View {
                     onChoose($0, decision.id)
                 }
             } else {
-                SessionBubbleView(event: event, style: style, attachment: historyAttachment(for: event))
+                SessionBubbleView(event: event, style: style, attachment: historyAttachment(for: event),
+                                  content: historyContent(for: event))
             }
         case let .steps(_, events):
             SessionStepsRow(events: events)
@@ -36,6 +37,11 @@ struct SessionTranscriptItemView: View {
     private func historyAttachment(for event: SessionEvent) -> MessageAttachment? {
         guard let raw = event.messageId else { return nil }
         return store.message(for: MessageID(rawValue: raw))?.metadata?.attachment
+    }
+
+    private func historyContent(for event: SessionEvent) -> String? {
+        guard let raw = event.messageId else { return nil }
+        return store.message(for: MessageID(rawValue: raw))?.content
     }
 
     /// The agent decision behind a message event, when history still holds it.
@@ -124,6 +130,7 @@ struct SessionBubbleView: View {
     let event: SessionEvent
     let style: SessionBubbleStyle
     var attachment: MessageAttachment? = nil
+    var content: String? = nil
 
     private var agentAttachment: MessageAttachment? {
         guard event.kind == "message", event.direction == "agent_to_boss" else { return nil }
@@ -157,10 +164,16 @@ struct SessionBubbleView: View {
 
     private var bubbleBody: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(verbatim: event.displayBody)
-                .font(.body)
-                .foregroundStyle(textColor)
-                .textSelection(.enabled)
+            if event.direction == "agent_to_boss", event.kind == "message" {
+                let text = MessageText(body: event.displayBody, content: content ?? event.messageContent)
+                Text(verbatim: text.title).font(.body.weight(.semibold))
+                if let details = text.content {
+                    MessageMarkdownView(details).font(.body).foregroundStyle(textColor)
+                }
+            } else {
+                Text(verbatim: event.displayBody).font(.body).foregroundStyle(textColor)
+                    .textSelection(.enabled)
+            }
             if let agentAttachment {
                 MessageAttachmentView(attachment: agentAttachment)
             }
@@ -182,7 +195,8 @@ struct SessionBubbleView: View {
 
     private var accessibilityText: String {
         [SessionTranscriptLayout.directionLabel(for: event), SessionTranscriptLayout.actorLabel(for: event),
-         event.displayBody].formatted(.list(type: .and, width: .narrow))
+         event.displayBody, content ?? event.messageContent ?? ""].filter { !$0.isEmpty }
+            .formatted(.list(type: .and, width: .narrow))
     }
 }
 

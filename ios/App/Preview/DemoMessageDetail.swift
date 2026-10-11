@@ -22,3 +22,31 @@ extension DemoBossAPI {
         return detail
     }
 }
+
+enum DemoMarkdown {
+    static func queue(fallback: [HistoryMessage]) -> [HistoryMessage] {
+        guard ProcessInfo.processInfo.environment["HIBOSS_DEMO_MARKDOWN"] == "1" else { return fallback }
+        let title = ProcessInfo.processInfo.environment["HIBOSS_DEMO_LONG_TITLE"] == "1"
+            ? String(repeating: "Historical title ", count: 12) : "House update"
+        return [HistoryMessage(
+            id: "markdown-report", body: title, agentName: "codex", direction: "agent_to_boss",
+            status: "delivered", priority: "normal", mode: "async", type: "task_update",
+            metadata: MessageMetadata(options: [], content: """
+            ## Result
+
+            **Complete** report with [evidence](https://example.com).
+
+            - First item
+            - Second item
+
+            > Verified details
+
+            ```swift
+            let ready = true
+            ```
+            """),
+            createdAt: Date().ISO8601Format(), sessionId: "sess-markdown",
+            sessionLabel: "house", sessionBranch: "fix/report", sessionStatus: "working"
+        )]
+    }
+}

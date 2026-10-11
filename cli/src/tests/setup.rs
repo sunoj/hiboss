@@ -21,7 +21,7 @@ mod tests {
             ]}],
             "Notification": [{"hooks": [{"command": "hiboss hook post-tool-use"}]}]
         }});
-        let change = apply_hook_changes(&mut settings, false, None).unwrap();
+        let change = apply_hook_changes(&mut settings, false, None, "claude").unwrap();
         assert!(change.changed);
         assert_eq!(settings["theme"], "dark");
         assert_eq!(
@@ -41,7 +41,7 @@ mod tests {
             "HIBOSS_PROFILE=claude hiboss hook post-tool-use"
         );
         assert!(
-            !apply_hook_changes(&mut settings, false, None)
+            !apply_hook_changes(&mut settings, false, None, "claude")
                 .unwrap()
                 .changed
         );
@@ -52,7 +52,7 @@ mod tests {
         let mut settings = json!({"hooks": {"Stop": [{"matcher": "", "hooks": [
             {"command": "other-tool finish"}, {"command": "HIBOSS_PROFILE=claude hiboss hook stop"}
         ]}]}});
-        apply_hook_changes(&mut settings, true, None).unwrap();
+        apply_hook_changes(&mut settings, true, None, "claude").unwrap();
         assert_eq!(
             settings["hooks"]["Stop"][0]["hooks"],
             json!([{"command": "other-tool finish"}])
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn project_commands_quote_the_directory_and_select_claude() {
-        let matcher = new_hiboss_matcher("stop", Some("/tmp/project's ; folder"));
+        let matcher = new_hiboss_matcher("stop", Some("/tmp/project's ; folder"), "claude");
         assert_eq!(
             matcher["hooks"][0]["command"],
             "HIBOSS_PROFILE=claude HIBOSS_PROJECT_DIR='/tmp/project'\\''s ; folder' hiboss hook stop"
@@ -70,7 +70,7 @@ mod tests {
 
     #[test]
     fn matcher_detects_hiboss_hook() {
-        let matcher = new_hiboss_matcher("session-start", None);
+        let matcher = new_hiboss_matcher("session-start", None, "claude");
         assert!(matcher_contains_hiboss(&matcher));
     }
 
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn new_matcher_has_correct_structure() {
-        let m = new_hiboss_matcher("session-start", None);
+        let m = new_hiboss_matcher("session-start", None, "claude");
         assert_eq!(m["matcher"], "");
         let hooks = m["hooks"].as_array().unwrap();
         assert_eq!(hooks.len(), 1);
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn add_hooks_to_empty_settings() {
         let mut settings = json!({});
-        let change = apply_hook_changes(&mut settings, false, None).unwrap();
+        let change = apply_hook_changes(&mut settings, false, None, "claude").unwrap();
         assert!(change.changed);
         assert_eq!(change.action, HookAction::Added);
         let hooks = settings["hooks"].as_object().unwrap();
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn add_hooks_to_empty_hooks_object() {
         let mut settings = json!({"hooks": {}});
-        let change = apply_hook_changes(&mut settings, false, None).unwrap();
+        let change = apply_hook_changes(&mut settings, false, None, "claude").unwrap();
         assert!(change.changed);
         assert_eq!(change.action, HookAction::Added);
     }
@@ -132,8 +132,8 @@ mod tests {
     #[test]
     fn add_hooks_idempotent_when_already_present() {
         let mut settings = json!({});
-        apply_hook_changes(&mut settings, false, None).unwrap();
-        let change = apply_hook_changes(&mut settings, false, None).unwrap();
+        apply_hook_changes(&mut settings, false, None, "claude").unwrap();
+        let change = apply_hook_changes(&mut settings, false, None, "claude").unwrap();
         assert!(!change.changed);
         assert_eq!(change.action, HookAction::None);
     }
@@ -148,7 +148,7 @@ mod tests {
             }
         });
         let mut settings = existing;
-        let change = apply_hook_changes(&mut settings, false, None).unwrap();
+        let change = apply_hook_changes(&mut settings, false, None, "claude").unwrap();
         assert!(change.changed);
         // SessionStart should now have 2 matchers (original + hiboss)
         let session_hooks = settings["hooks"]["SessionStart"].as_array().unwrap();
@@ -162,8 +162,8 @@ mod tests {
     #[test]
     fn remove_hiboss_hooks() {
         let mut settings = json!({});
-        apply_hook_changes(&mut settings, false, None).unwrap();
-        let change = apply_hook_changes(&mut settings, true, None).unwrap();
+        apply_hook_changes(&mut settings, false, None, "claude").unwrap();
+        let change = apply_hook_changes(&mut settings, true, None, "claude").unwrap();
         assert!(change.changed);
         assert_eq!(change.action, HookAction::Removed);
         // hooks key should be removed entirely
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn remove_noop_when_no_hooks() {
         let mut settings = json!({});
-        let change = apply_hook_changes(&mut settings, true, None).unwrap();
+        let change = apply_hook_changes(&mut settings, true, None, "claude").unwrap();
         assert!(!change.changed);
         assert_eq!(change.action, HookAction::None);
     }
@@ -191,7 +191,7 @@ mod tests {
                 ]
             }
         });
-        let change = apply_hook_changes(&mut settings, true, None).unwrap();
+        let change = apply_hook_changes(&mut settings, true, None, "claude").unwrap();
         assert!(change.changed);
         assert_eq!(change.action, HookAction::Removed);
         // SessionStart should keep non-hiboss matcher
@@ -205,8 +205,8 @@ mod tests {
     #[test]
     fn remove_drops_hooks_key_when_only_hiboss() {
         let mut settings = json!({});
-        apply_hook_changes(&mut settings, false, None).unwrap();
-        apply_hook_changes(&mut settings, true, None).unwrap();
+        apply_hook_changes(&mut settings, false, None, "claude").unwrap();
+        apply_hook_changes(&mut settings, true, None, "claude").unwrap();
         assert!(settings.get("hooks").is_none());
     }
 }

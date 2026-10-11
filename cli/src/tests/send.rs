@@ -3,8 +3,9 @@
 // Dependencies: crate::commands::send, serde_json.
 
 use crate::commands::send::{
-    SendArgs, broadcast_request, broadcast_result_prefix, build_metadata, format_peer_target,
+    SendArgs, broadcast_request, broadcast_result_prefix, format_peer_target,
 };
+use crate::commands::send_metadata::build_metadata;
 use serde_json::Value;
 
 fn args_with_content(content: Option<&str>) -> SendArgs {
@@ -20,6 +21,7 @@ fn args_with_content(content: Option<&str>) -> SendArgs {
         task: None,
         summary: None,
         content: content.map(str::to_owned),
+        content_file: None,
         files: None,
         branch: None,
         body: "body".to_owned(),
@@ -63,11 +65,20 @@ fn resolved_target_uses_nickname_before_label_and_keeps_legacy_output() {
         label: Some("smart-router/main".to_owned()),
         nickname: Some("otter-2".to_owned()),
     };
-    assert_eq!(format_peer_target(Some(&target), "main"), "otter-2 (aefb4ffd)");
+    assert_eq!(
+        format_peer_target(Some(&target), "main"),
+        "otter-2 (aefb4ffd)"
+    );
     target.nickname = None;
-    assert_eq!(format_peer_target(Some(&target), "main"), "smart-router/main (aefb4ffd)");
+    assert_eq!(
+        format_peer_target(Some(&target), "main"),
+        "smart-router/main (aefb4ffd)"
+    );
     target.label = None;
-    assert_eq!(format_peer_target(Some(&target), "main"), "aefb4ffd12345678 (aefb4ffd)");
+    assert_eq!(
+        format_peer_target(Some(&target), "main"),
+        "aefb4ffd12345678 (aefb4ffd)"
+    );
 }
 
 #[test]
