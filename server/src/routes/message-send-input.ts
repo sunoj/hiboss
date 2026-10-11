@@ -3,7 +3,6 @@
 import type { Context } from 'hono';
 import type { Env, Mode, Priority, Channel, OptionMedia } from '../types';
 import { getAgentId } from '../middleware/auth';
-import { messageTitleError } from '../message-title';
 import { destinationsMode } from '../delivery';
 import { checkRateLimit, validateOption, priorityOptions, validateChannel, resolveChannelRouting, parseOptions, normalizeMetadata, parseOptionMedia, fetchAllChannelConfigs, selectChannelConfig } from './message-helpers';
 const modeOptions: Mode[] = ['async', 'blocking'];
@@ -31,10 +30,6 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const body = typeof payload.body === 'string' ? payload.body.trim() : '';
   if (!body) {
     return c.text('body is required', 400);
-  }
-  if (!(typeof payload.to === 'string' && payload.to.trim())) {
-    const error = messageTitleError(body);
-    if (error) return c.text(error, 400);
   }
   const idempotencyKey = typeof payload.idempotency_key === 'string' ? payload.idempotency_key.trim() || null : null;
   const agentConfig = await c.env.DB

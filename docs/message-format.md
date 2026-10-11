@@ -2,14 +2,15 @@
      Scope: message content transport and native clients; no deployment state. -->
 # Message titles and Markdown details
 
-Agent-to-boss messages use `body` as a short, plain-text title. The title must contain
-at most 144 Unicode scalar values after trimming surrounding whitespace. Spaces and
+Agent-to-boss messages conventionally use `body` as a short, plain-text title. The current
+CLI enforces at most 144 Unicode scalar values after trimming surrounding whitespace. Spaces and
 punctuation count. A Chinese character or a single-scalar emoji counts once; a composed
-emoji can contain multiple scalars. Send and edit requests reject longer titles rather
-than silently discarding text. Boss replies and agent-to-agent message bodies keep their
-existing full-text behavior.
+emoji can contain multiple scalars. The server accepts longer bodies from older clients
+on send, blocking ask, and edit, retaining the full body after trimming surrounding
+whitespace without moving it into metadata. Boss replies and agent-to-agent message
+bodies keep their existing full-text behavior.
 
-The complete Markdown body belongs in `metadata.content`. The private notification
+Clients can supply complete Markdown details in `metadata.content`. The private notification
 preview in `metadata.summary` is independent; it does not create body content.
 
 ```sh
@@ -28,8 +29,8 @@ Text uses native semantic fonts, selection, and Dynamic Type. HTML is not execut
 Tables, nested-list indentation, and embedded Markdown images are not rendered as rich
 blocks. File/image attachments continue to use message attachment metadata.
 
-Previously stored titles longer than the limit remain unchanged in storage. Native
-presentation bounds their heading and preserves the original text in the details.
+The 144-scalar title is a client-side convention. Native iOS and macOS clients derive
+a bounded heading from a long body on display and preserve the original text in the details.
 
 ## Markdown file attachments
 

@@ -1,0 +1,77 @@
+// Verifies long agent bodies survive send, blocking ask, and edits without metadata changes.
+// Exercises Worker routes and D1 storage, including the existing surrounding-whitespace trim.
+import { env, SELF } from 'cloudflare:test';
+import { beforeAll, describe, expect, it } from 'vitest';
+import type { Mode } from '../types';
+import { authHeaders, seedDatabase } from '../test-helpers';
+
+const bodies = [
+  { label: '145 ASCII scalars', body: 'x'.repeat(145) },
+  { label: '145 CJK scalars', body: '字'.repeat(145) },
+  { label: '145 emoji scalars', body: '🏠'.repeat(145) },
+  { label: '10k-character single line', body: 'x'.repeat(10_000) },
+];
+const metadataCases: { label: string; metadata: Record<string, unknown> | undefined }[] = [
+  { label: 'absent metadata', metadata: undefined },
+  {
+    label: 'existing metadata',
+    metadata: {
+      content: '# Details\n\n```text\n  Keep this whitespace  \n```\n',
+      summary: 'Notification preview',
+      custom: { retained: true, values: ['one', 2] },
+    },
+  },
+];
+
+beforeAll(seedDatabase);
+
+async function createMessage(
+  body: string, mode: Mode, metadata: Record<string, unknown> | undefined,
+): Promise<string> {
+  const response = await SELF.fetch('https://test.local/api/messages', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ body, mode, metadata }),
+  });
+  expect(response.status).toBe(201);
+  return (await response.json() as { id: string }).id;
+}
+
+async function expectStoredMessage(
+  id: string, body: string, mode: Mode, metadata: Record<string, unknown> | undefined,
+): Promise<void> {
+  const stored = await env.DB.prepare('SELECT body, mode, metadata FROM messages WHERE id = ?')
+    .bind(id).first<{ body: string; mode: Mode; metadata: string | null }>();
+  expect(stored).toEqual({ body, mode, metadata: metadata ? JSON.stringify(metadata) : null });
+  const detail = await SELF.fetch(`https://test.local/api/messages/${id}`, { headers: authHeaders() });
+  expect(detail.status).toBe(200);
+  const message = await detail.json() as { body: string; mode: Mode; metadata: unknown };
+  expect(message.body).toBe(body);
+  expect(message.mode).toBe(mode);
+  expect(message.metadata).toEqual(metadata ?? null);
+}
+
+describe('Long agent message bodies', () => {
+  for (const { label, body } of bodies) {
+    for (const { label: metadataLabel, metadata } of metadataCases) {
+      for (const mode of ['async', 'blocking'] as const) {
+        const action = mode === 'blocking' ? 'ask' : 'send';
+        it(`accepts ${label} on ${action} with ${metadataLabel} and preserves trimmed storage`, async () => {
+          const id = await createMessage(` \t\n\u2003${body}\u2003\n\t `, mode, metadata);
+          await expectStoredMessage(id, body, mode, metadata);
+        });
+      }
+
+      it(`accepts ${label} on PATCH with ${metadataLabel} and preserves trimmed storage`, async () => {
+        const id = await createMessage('Ready', 'async', metadata);
+        const response = await SELF.fetch(`https://test.local/api/messages/${id}`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ body: ` \t\n\u2003${body}\u2003\n\t ` }),
+        });
+        expect(response.status).toBe(200);
+        await expectStoredMessage(id, body, 'async', metadata);
+      });
+    }
+  }
+});
