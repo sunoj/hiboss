@@ -55,7 +55,8 @@ struct MessageAttachmentView: View {
         .task(id: attachment.url) {
             documentInfo = nil
             if attachment.kind == .file && attachment.url.pathExtension.isEmpty {
-                documentInfo = try? await MarkdownAttachmentDocument.inspect(attachment.url)
+                let resolved = try? await MarkdownAttachmentDocument.inspect(attachment.url)
+                if !Task.isCancelled { documentInfo = resolved }
             }
         }
         .sheet(isPresented: $previewPresented) {

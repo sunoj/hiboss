@@ -8,9 +8,11 @@ import HibossKit
 enum DemoMessageAttachments {
     static let imageURL = "https://example.com/attachments/release-banner.png"
     static let fileURL = "https://example.com/attachments/release-notes.pdf"
+    static let markdownURL = "https://example.com/attachments/release-notes.md"
 
     static func queue(fallback: [HistoryMessage]) -> [HistoryMessage] {
         let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] ?? ""
+        if mode == "markdown" { return [message(id: "attachment-file", url: markdownURL)] }
         guard ["1", "failure"].contains(mode) else {
             return fallback
         }
@@ -19,6 +21,24 @@ enum DemoMessageAttachments {
             message(id: "attachment-file", url: fileURL),
             message(id: "attachment-decision", url: imageURL, decision: true),
         ]
+    }
+
+    static func markdownSource(for url: URL) -> String? {
+        guard isDemoMode, url.absoluteString == markdownURL,
+              ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] == "markdown" else { return nil }
+        return """
+        # Release notes
+
+        **Ready** for review.
+
+        | Package | Budget |
+        | --- | ---: |
+        | Alpha | 345 |
+
+        ```sh
+        swift test
+        ```
+        """
     }
 
     private static func message(id: MessageID, url: String, decision: Bool = false) -> HistoryMessage {

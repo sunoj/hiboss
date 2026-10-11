@@ -85,3 +85,20 @@ Semantic text and state colours adapt its line art to light and dark appearance.
 The illustration sits beside status copy and has no animation timer. The iOS
 all-clear row no longer reserves 360 points of height. UI checks retain light and
 dark screenshots and require the ordinary-size row to stay within 120 points.
+
+## Retained content during refresh
+
+A refresh of verified Today content previously replaced the idle row with an incomplete
+coverage layout. The screen now retains the known decision and questionnaire projection
+while displaying `Refreshing…` in its existing status positions. This presentation is used
+only after complete coverage has been observed, while both connections remain healthy and
+panel projections remain available. It does not alter reply admission or authoritative
+coverage. Initial loading, lost connections, unread projections, and request failures still
+show the coverage and recovery interface.
+
+The pull gesture returns to its resting position while the asynchronous refresh continues.
+The compact illustration moves only the palm, around its base, during this refresh. The
+render schedule is absent while idle and when Reduce Motion is enabled.
+
+A native UI regression checks that a held refresh preserves the idle row's height, shows
+its small refresh label, and does not mount the large incomplete-coverage view.

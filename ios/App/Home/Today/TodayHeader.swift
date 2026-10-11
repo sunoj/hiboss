@@ -9,6 +9,7 @@ struct TodayHeader: View {
     let snapshot: TodaySnapshot
     let requestCount: Int
     var inputsLoaded = true
+    var isRefreshing = false
     let now: Date
     let onSettings: () -> Void
 
@@ -45,7 +46,9 @@ struct TodayHeader: View {
         if !snapshot.working.isEmpty {
             chip(Text("\(String(snapshot.working.count)) working"), color: Theme.live)
         }
-        if case .live(let checkedAt) = snapshot.health, snapshot.coverageComplete {
+        if isRefreshing {
+            chip(Text("Refreshing…"), color: Theme.live)
+        } else if case .live(let checkedAt) = snapshot.health, snapshot.coverageComplete {
             chip(Text("Live") + Text(verbatim: " · ") + Text(checkedAt, style: .relative),
                  color: Theme.positive)
         } else {

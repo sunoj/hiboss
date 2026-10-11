@@ -1,6 +1,6 @@
 // Separates pipe tables from native Markdown without interpreting fenced code as tables.
 // Exports: MarkdownDocumentSections and MarkdownDocumentTable with column alignment.
-// Dependencies: Foundation; other Markdown blocks remain owned by HibossKit.
+// Dependencies: Foundation; other Markdown blocks use MessageMarkdownView.
 
 import Foundation
 
@@ -17,7 +17,9 @@ enum MarkdownDocumentSection: Equatable, Sendable {
 
 enum MarkdownDocumentSections {
     static func parse(_ source: String) -> [MarkdownDocumentSection] {
-        let lines = source.components(separatedBy: .newlines)
+        let normalized = source.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let lines = normalized.components(separatedBy: "\n")
         var result: [MarkdownDocumentSection] = []
         var text: [String] = []
         var fence: String?

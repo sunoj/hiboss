@@ -2,13 +2,14 @@
 // Exports: MarkdownDocumentView; wide tables do not widen the reading window.
 // Dependencies: SwiftUI Grid, HibossKit MessageMarkdownView, and MarkdownDocumentSections.
 
-import HibossKit
 import SwiftUI
 
-struct MarkdownDocumentView: View {
-    let source: String
+public struct MarkdownDocumentView: View {
+    private let source: String
 
-    var body: some View {
+    public init(source: String) { self.source = source }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             ForEach(Array(MarkdownDocumentSections.parse(source).enumerated()), id: \.offset) { _, section in
                 switch section {
@@ -34,7 +35,7 @@ struct MarkdownDocumentView: View {
                 }
             }.padding(12)
         }
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .accessibilityIdentifier("message.attachment.markdown.table")
     }
 

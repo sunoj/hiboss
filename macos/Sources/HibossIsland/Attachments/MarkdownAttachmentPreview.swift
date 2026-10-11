@@ -3,6 +3,7 @@
 // Dependencies: SwiftUI, MarkdownAttachmentDocument, and MarkdownDocumentView.
 
 import SwiftUI
+import HibossKit
 
 struct MarkdownAttachmentPreview: View {
     let url: URL

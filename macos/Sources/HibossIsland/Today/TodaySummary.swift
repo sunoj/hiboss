@@ -4,6 +4,7 @@
 
 import HibossKit
 import SwiftUI
+import AppKit
 
 struct TodaySummary: View {
     let snapshot: TodaySnapshot
@@ -54,7 +55,7 @@ struct TodaySummary: View {
 struct TodayScene: View {
     var body: some View {
         HStack(spacing: 16) {
-            TodayIdleIllustration(ink: TodayStyle.secondary, accent: TodayStyle.settled)
+            TodaySceneImage().frame(width: 120, height: 72)
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("Nothing needs you")).font(.headline)
                 Text(L("You're clear. Agents will show up here when they need a decision."))
@@ -65,5 +66,22 @@ struct TodayScene: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
         .accessibilityIdentifier("today.allClear")
+    }
+}
+
+private struct TodaySceneImage: NSViewRepresentable {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeNSView(context: Context) -> NSImageView {
+        let image = NSImageView()
+        image.imageScaling = .scaleProportionallyUpOrDown
+        return image
+    }
+
+    func updateNSView(_ view: NSImageView, context: Context) {
+        let renderer = ImageRenderer(content: TodayIdleIllustration(
+            ink: TodayStyle.secondary, accent: TodayStyle.settled).environment(\.colorScheme, colorScheme))
+        renderer.scale = NSScreen.main?.backingScaleFactor ?? 2
+        view.image = renderer.nsImage
     }
 }

@@ -12,6 +12,25 @@ final class TodayV4UITests: XCTestCase {
     func testCompactAllClearInLightAppearance() { captureCompactAllClear("Light") }
     func testCompactAllClearInDarkAppearance() { captureCompactAllClear("Dark") }
 
+    func testRefreshKeepsCompactAllClearAndShowsOnlySmallStatus() {
+        let app = launch("Light", extra: ["HIBOSS_DEMO_EMPTY": "1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
+        let status = app.descendants(matching: .any).matching(identifier: "today-all-clear").firstMatch
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        let originalHeight = status.frame.height
+        let started = Date()
+        expectation(for: NSPredicate { _, _ in Date().timeIntervalSince(started) >= 6 }, evaluatedWith: app)
+        waitForExpectations(timeout: 8)
+        pullToRefresh(app)
+        XCTAssertTrue(app.staticTexts["Refreshing…"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(status.exists, "A refresh must retain the verified idle layout")
+        if status.exists { XCTAssertEqual(status.frame.height, originalHeight, accuracy: 1) }
+        XCTAssertFalse(app.staticTexts["Checking coverage"].exists)
+        let coverage = app.descendants(matching: .any).matching(identifier: "home-connection-status").firstMatch
+        XCTAssertFalse(coverage.exists)
+        shot(app, "Light-compact-refresh")
+        app.terminate()
+    }
+
     private func captureCompactAllClear(_ appearance: String) {
         let app = launch(appearance, extra: ["HIBOSS_DEMO_EMPTY": "1"])
         let status = app.descendants(matching: .any).matching(identifier: "today-all-clear").firstMatch

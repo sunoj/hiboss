@@ -4,11 +4,11 @@
 
 import Foundation
 
-struct MarkdownAttachmentInfo: Equatable, Sendable {
-    let filename: String
-    let isMarkdown: Bool
+public struct MarkdownAttachmentInfo: Equatable, Sendable {
+    public let filename: String
+    public let isMarkdown: Bool
 
-    init(url: URL, response: URLResponse? = nil) {
+    public init(url: URL, response: URLResponse? = nil) {
         filename = response?.suggestedFilename ?? url.lastPathComponent
         let suffix = (filename as NSString).pathExtension.lowercased()
         let mime = response?.mimeType?.lowercased()
@@ -17,10 +17,11 @@ struct MarkdownAttachmentInfo: Equatable, Sendable {
     }
 }
 
-enum MarkdownAttachmentDocument {
-    static let maximumBytes = 2 * 1024 * 1024
+public enum MarkdownAttachmentDocument {
+    public static let maximumBytes = 2 * 1024 * 1024
 
-    static func inspect(_ url: URL, session: URLSession = .shared) async throws -> MarkdownAttachmentInfo {
+    public static func inspect(_ url: URL, session: URLSession = .shared) async throws
+        -> MarkdownAttachmentInfo {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         request.timeoutInterval = 15
@@ -29,7 +30,7 @@ enum MarkdownAttachmentDocument {
         return MarkdownAttachmentInfo(url: url, response: response)
     }
 
-    static func read(_ url: URL, session: URLSession = .shared) async throws -> String {
+    public static func read(_ url: URL, session: URLSession = .shared) async throws -> String {
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
         let (stream, response) = try await session.bytes(for: request)
@@ -50,14 +51,16 @@ enum MarkdownAttachmentDocument {
         }
     }
 
-    enum DocumentError: LocalizedError {
+    public enum DocumentError: LocalizedError {
         case unavailable, tooLarge, invalidText
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
-            case .unavailable: L("The document could not be loaded.")
-            case .tooLarge: L("This document is too large to preview. Open the original file instead.")
-            case .invalidText: L("This file is not a UTF-8 Markdown document.")
+            case .unavailable: kitL("The document could not be loaded.")
+            case .tooLarge:
+                kitL("This document is too large to preview. Open the original file instead.")
+            case .invalidText:
+                kitL("This file is not a UTF-8 Markdown document.")
             }
         }
     }

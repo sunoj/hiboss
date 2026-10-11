@@ -4,6 +4,7 @@
 
 import Foundation
 import XCTest
+@testable import HibossKit
 @testable import HibossIsland
 
 @MainActor
@@ -56,5 +57,11 @@ final class MarkdownAttachmentTests: XCTestCase {
         for source in ["~~~md\n| A | B |\n| --- | --- |\n~~~", "A | B\nparagraph | text"] {
             XCTAssertEqual(MarkdownDocumentSections.parse(source), [.text(source)])
         }
+    }
+
+    func testWindowsLineEndingsKeepTableHeadersAdjacentToSeparators() {
+        let unix = "# Report\n\n| Name | Value |\n| --- | ---: |\n| Alpha | 345 |"
+        let windows = unix.replacingOccurrences(of: "\n", with: "\r\n")
+        XCTAssertEqual(MarkdownDocumentSections.parse(windows), MarkdownDocumentSections.parse(unix))
     }
 }

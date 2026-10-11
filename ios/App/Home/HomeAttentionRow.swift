@@ -9,6 +9,7 @@ struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
     var isAllClear = false
+    var isRefreshing = false
     let status: String?
     var statusIsFailure = false
     var onRetry: (() async -> Void)? = nil
@@ -21,6 +22,7 @@ struct HomeAttentionSection: View {
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -110,12 +112,17 @@ struct HomeAttentionSection: View {
 
     private var allClear: some View {
         HStack(spacing: 12) {
-            TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive)
+            idleIllustration
             VStack(alignment: .leading, spacing: 6) {
                 Text("Nothing needs you").font(.headline).foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                Label("Live", systemImage: "checkmark.circle.fill")
-                    .font(.footnote).foregroundStyle(Theme.positive)
+                if isRefreshing {
+                    Label("Refreshing…", systemImage: "arrow.triangle.2.circlepath")
+                        .font(.footnote).foregroundStyle(Theme.live)
+                } else {
+                    Label("Live", systemImage: "checkmark.circle.fill")
+                        .font(.footnote).foregroundStyle(Theme.positive)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -123,6 +130,17 @@ struct HomeAttentionSection: View {
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("today-all-clear")
+    }
+
+    @ViewBuilder private var idleIllustration: some View {
+        if isRefreshing && !reduceMotion {
+            TimelineView(.animation(minimumInterval: 1.0 / 24)) { context in
+                TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive,
+                    wind: sin(context.date.timeIntervalSinceReferenceDate * 1.8))
+            }
+        } else {
+            TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive)
+        }
     }
 
 }

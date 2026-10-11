@@ -32,8 +32,8 @@ final class TodaySnapshotTests: XCTestCase {
                     "The all-clear scene must be mounted only when clear")
                 for scene in scenes {
                     let frame = scene.convert(scene.bounds, to: host)
-                    XCTAssertGreaterThan(frame.width, 100)
-                    XCTAssertEqual(frame.height, 220, accuracy: 1)
+                    XCTAssertEqual(frame.width, 120, accuracy: 1)
+                    XCTAssertEqual(frame.height, 72, accuracy: 1)
                     XCTAssertTrue(host.bounds.contains(frame), "Scene frame: \(frame), host: \(host.bounds)")
                     let scroll = try XCTUnwrap(scene.enclosingScrollView)
                     let viewport = scroll.contentView.convert(scroll.contentView.bounds, to: host)

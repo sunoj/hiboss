@@ -5,6 +5,30 @@
 import XCTest
 
 final class MessageAttachmentUITests: XCTestCase {
+    func testMarkdownAttachmentPreviewInLightAppearance() { assertMarkdownPreview("Light") }
+    func testMarkdownAttachmentPreviewInDarkAppearance() { assertMarkdownPreview("Dark") }
+
+    private func assertMarkdownPreview(_ appearance: String) {
+        launch(["HIBOSS_DEMO_OPEN": "attachment-file"], fixture: "markdown", appearance: appearance)
+        let file = app.descendants(matching: .any)["message-attachment-file"]
+        XCTAssertTrue(file.waitForExistence(timeout: 10))
+        let preview = app.buttons["message-attachment-markdown-preview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        guard preview.exists else { return }
+        preview.tap()
+        XCTAssertTrue(app.navigationBars["release-notes.md"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Release notes"].exists)
+        XCTAssertTrue(app.staticTexts["Alpha"].exists)
+        XCTAssertTrue(app.staticTexts["345"].exists)
+        XCTAssertTrue(app.staticTexts["swift test"].exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "markdown-preview-\(appearance)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["message-attachment-file"].waitForExistence(timeout: 5))
+    }
+
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -12,11 +36,13 @@ final class MessageAttachmentUITests: XCTestCase {
         app = XCUIApplication()
     }
 
-    private func launch(_ route: [String: String], delay: String = "", fixture: String = "1") {
+    private func launch(_ route: [String: String], delay: String = "", fixture: String = "1",
+                        appearance: String = "Light") {
         app.configureDemoLaunch(route.merging([
             "HIBOSS_DEMO_ATTACHMENTS": fixture, "HIBOSS_DEMO_MEDIA_DELAY_MS": delay,
         ]) { _, new in new })
-        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+                               "-AppleInterfaceStyle", appearance]
         app.launchConfiguredDemo()
     }
 

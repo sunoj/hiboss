@@ -8,6 +8,12 @@ import SwiftUI
 struct MessageAttachmentView: View {
     let attachment: MessageAttachment
     @State private var viewingImage = false
+    @State private var viewingMarkdown = false
+    @State private var documentInfo: MarkdownAttachmentInfo?
+
+    private var info: MarkdownAttachmentInfo {
+        documentInfo ?? MarkdownAttachmentInfo(url: attachment.url)
+    }
 
     var body: some View {
         switch attachment.kind {
@@ -20,18 +26,34 @@ struct MessageAttachmentView: View {
                     )], startIndex: 0)
                 }
         case .file:
-            Link(
-                destination: attachment.url
-            ) {
-                Label { Text(verbatim: attachment.filename) } icon: {
-                    Image(systemName: "doc")
+            VStack(alignment: .leading, spacing: 8) {
+                Link(destination: attachment.url) {
+                    Label { Text(verbatim: info.filename) } icon: { Image(systemName: "doc") }
+                        .font(.hbCallout)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
-                .font(.hbCallout)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("message-attachment-file")
+                if info.isMarkdown {
+                    Button { viewingMarkdown = true } label: {
+                        Label("Preview Markdown", systemImage: "doc.text.magnifyingglass")
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("message-attachment-markdown-preview")
+                }
             }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("message-attachment-file")
+            .task(id: attachment.url) {
+                documentInfo = nil
+                if attachment.url.pathExtension.isEmpty {
+                    let resolved = try? await MarkdownAttachmentDocument.inspect(attachment.url)
+                    if !Task.isCancelled { documentInfo = resolved }
+                }
+            }
+            .sheet(isPresented: $viewingMarkdown) {
+                MarkdownAttachmentPreview(url: attachment.url, filename: info.filename)
+            }
         }
     }
 

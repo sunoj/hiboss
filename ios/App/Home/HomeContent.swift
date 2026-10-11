@@ -13,9 +13,16 @@ struct HomeContent: View {
     @Binding var showingDecision: Bool
     @Binding var sessionRoute: SessionRoute?
     @Environment(\.openConnectionSettings) private var openSettings
+    @State private var hasCompletedCoverage = false
 
     var body: some View {
         content
+            .onChange(of: attentionStatus == nil, initial: true) { _, complete in
+                if complete { hasCompletedCoverage = true }
+            }
+            .onChange(of: inbox.didLoad) { _, loaded in
+                if !loaded { hasCompletedCoverage = false }
+            }
             .sheet(isPresented: Binding(
                 get: { panels.selectedTile != nil },
                 set: { if !$0 { panels.closeDetail() } }
@@ -43,6 +50,7 @@ struct HomeContent: View {
     }
 
     private func todayContent(now: Date) -> some View {
+        let refreshing = isRefreshingKnownContent
         let today = inbox.todaySnapshot(now: now, coverageComplete: attentionStatus == nil)
         let attention = HomeAttentionSnapshot(
             messages: [], withdrawn: inbox.withdrawn, questionnaires: panels.pendingQuestionnaires,
@@ -53,11 +61,14 @@ struct HomeContent: View {
         let onRetry: (() async -> Void)? = inbox.isReady ? { await retryCoverage() } : nil
         return VStack(spacing: 22) {
             TodayHeader(snapshot: today, requestCount: attention.count,
-                        inputsLoaded: inbox.requiredInputLoaded, now: now, onSettings: openSettings)
+                        inputsLoaded: inbox.requiredInputLoaded, isRefreshing: refreshing,
+                        now: now, onSettings: openSettings)
             HomeAttentionSection(
                 snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
-                isAllClear: today.isAllClear && attention.questionnaires.isEmpty,
-                status: attentionStatus, statusIsFailure: hasCoverageFailure,
+                isAllClear: (today.isAllClear || (refreshing && today.decisions.isEmpty))
+                    && attention.questionnaires.isEmpty,
+                isRefreshing: refreshing, status: refreshing ? nil : attentionStatus,
+                statusIsFailure: hasCoverageFailure,
                 onRetry: onRetry, onSettings: openSettings,
                 replying: inbox.replying,
                 answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
@@ -72,6 +83,13 @@ struct HomeContent: View {
             if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
             TodayResults(snapshot: today)
         }
+    }
+
+    private var isRefreshingKnownContent: Bool {
+        hasCompletedCoverage && !hasCoverageFailure && inbox.connectionState == .connected
+            && inbox.hasCompleteRequiredInputs && inbox.didLoad && panels.loadState == .loaded
+            && panels.tiles.allSatisfy { panels.hasPanelCoverage(for: $0) }
+            && (inbox.isRefreshing || inbox.requiredInputRefreshing || panels.isRefreshing)
     }
 
     var attentionStatus: String? {

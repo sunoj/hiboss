@@ -23,9 +23,11 @@ struct HomeView: View {
             .accessibilityHidden(showingDecision)
             .background(Theme.paper)
             .refreshable {
-                async let messages: Void = inbox.refresh()
-                async let wall: Void = panels.load()
-                _ = await (messages, wall)
+                Task {
+                    async let messages: Void = inbox.refresh()
+                    async let wall: Void = panels.load()
+                    _ = await (messages, wall)
+                }
             }
             // Panels load here, not in the wall: the wall only exists once there are tiles.
             .task { await panels.loadIfNeeded() }

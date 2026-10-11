@@ -7,10 +7,12 @@ import SwiftUI
 public struct TodayIdleIllustration: View {
     private let ink: Color
     private let accent: Color
+    private let wind: Double
 
-    public init(ink: Color = .primary, accent: Color = .green) {
+    public init(ink: Color = .primary, accent: Color = .green, wind: Double = 0) {
         self.ink = ink
         self.accent = accent
+        self.wind = max(-1, min(1, wind))
     }
 
     public var body: some View {
@@ -18,7 +20,11 @@ public struct TodayIdleIllustration: View {
             let island = Path(ellipseIn: CGRect(x: 21, y: 48, width: 83, height: 14))
             context.fill(island, with: .color(accent.opacity(0.09)))
             context.stroke(island, with: .color(ink.opacity(0.25)), lineWidth: 1)
-            drawPalm(in: &context)
+            var palm = context
+            palm.translateBy(x: 43, y: 52)
+            palm.rotate(by: .radians(wind * 0.035))
+            palm.translateBy(x: -43, y: -52)
+            drawPalm(in: &palm)
             drawChair(in: &context)
             let sun = Path(ellipseIn: CGRect(x: 82, y: 9, width: 10, height: 10))
             context.fill(sun, with: .color(accent.opacity(0.18)))
