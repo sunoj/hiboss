@@ -17,7 +17,12 @@ final class ProjectIdentityUITests: XCTestCase {
         XCTAssertTrue(peers.waitForExistence(timeout: 10), app.debugDescription)
         peers.tap()
         let all = app.buttons["project-peers-show-all"]
-        for _ in 0..<8 where !all.isHittable { app.swipeUp() }
+        let transcript = app.scrollViews["session-transcript"]
+        let composer = app.descendants(matching: .any)["session-reply-composer"]
+        // Hittability can include content behind the composer; scroll the entire button clear.
+        for _ in 0..<8 where !all.isHittable || all.frame.maxY > composer.frame.minY - 8 {
+            transcript.swipeUp()
+        }
         XCTAssertTrue(all.isHittable)
         all.tap()
         XCTAssertTrue(app.navigationBars["最近活跃的会话"].waitForExistence(timeout: 5))
