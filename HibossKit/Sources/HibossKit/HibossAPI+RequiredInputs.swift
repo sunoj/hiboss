@@ -48,15 +48,37 @@ extension HibossAPI: RequiredInputServing {
                         url: url, method: "GET", acceptsSSE: true
                     ))
                     try validate(response)
-                    var parser = RequiredInputEventDecoder(decoder: decoder)
-                    for try await line in bytes.lines {
-                        if let event = try parser.consume(line: line) { continuation.yield(event) }
-                    }
-                    try parser.finish()
+                    try await consumeRequiredInputBytes(bytes, into: continuation)
                     continuation.finish()
                 } catch { continuation.finish(throwing: error) }
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    private func consumeRequiredInputBytes(
+        _ bytes: URLSession.AsyncBytes,
+        into continuation: AsyncThrowingStream<RequiredInputEvent, Error>.Continuation
+    ) async throws {
+        var parser = RequiredInputEventDecoder(decoder: decoder)
+        var line = Data()
+        // Foundation's lines sequence drops empty lines, which delimit SSE frames.
+        // Decode UTF-8 only after a full line so chunk boundaries cannot split a character.
+        for try await byte in bytes {
+            try Task.checkCancellation()
+            if byte != 10 {
+                line.append(byte)
+                continue
+            }
+            if line.last == 13 { line.removeLast() }
+            if let event = try parser.consume(line: String(decoding: line, as: UTF8.self)) {
+                continuation.yield(event)
+            }
+            line.removeAll(keepingCapacity: true)
+        }
+        if !line.isEmpty {
+            _ = try parser.consume(line: String(decoding: line, as: UTF8.self))
+        }
+        try parser.finish()
     }
 }

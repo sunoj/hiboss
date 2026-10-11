@@ -3,11 +3,39 @@
 // Dependencies: XCTest, HiBoss app target, HibossKit BossServing.
 
 import HibossKit
+import SwiftUI
+import UIKit
 import XCTest
 @testable import HiBoss
 
 @MainActor
 final class InboxStoreTests: XCTestCase {
+    func testTodayFirstAppearanceDoesNotRepeatCompletedStartupHistory() async {
+        let api = MutableBossAPI(messages: [Self.older])
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.start(api: api)
+        defer { store.stop() }
+        await store.historyTask?.value
+        XCTAssertEqual(api.historyReads, 1)
+        let panels = PanelsModel(api: DemoHomePanelsAPI(), demoMode: false, autoload: false)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first!
+        let window = UIWindow(windowScene: scene)
+        let appeared = expectation(description: "Today appeared")
+        window.rootViewController = UIHostingController(rootView:
+            HomeView(inbox: store, sessionAPI: nil, panels: panels)
+                .onAppear { appeared.fulfill() }
+        )
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        await fulfillment(of: [appeared], timeout: 2)
+        let settled = expectation(description: "initial view tasks completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { settled.fulfill() }
+        await fulfillment(of: [settled], timeout: 2)
+        XCTAssertEqual(api.historyReads, 1, "Today must reuse the inbox startup snapshot")
+        XCTAssertTrue(store.didLoad)
+        XCTAssertEqual(store.history.map(\.id), [Self.older.id])
+    }
+
     func testInboxCardSettlesUntilHistoryDropsItWithoutReopeningToday() {
         let store = InboxStore(decisionAlertsEnabled: false)
         store.history = [Self.question, Self.older]
@@ -118,6 +146,9 @@ final class InboxStoreTests: XCTestCase {
 
 private final class MutableBossAPI: BossServing, RequiredInputServing, @unchecked Sendable {
     var messages: [HistoryMessage]
+    private let historyLock = NSLock()
+    private var historyReadCount = 0
+    var historyReads: Int { historyLock.withLock { historyReadCount } }
 
     init(messages: [HistoryMessage]) { self.messages = messages }
 
@@ -129,7 +160,10 @@ private final class MutableBossAPI: BossServing, RequiredInputServing, @unchecke
         AsyncThrowingStream { continuation in continuation.onTermination = { _ in } }
     }
 
-    func fetchHistory() async throws -> [HistoryMessage] { messages }
+    func fetchHistory() async throws -> [HistoryMessage] {
+        historyLock.withLock { historyReadCount += 1 }
+        return messages
+    }
 
     /// The server's open list: unanswered agent messages with options or a blocking ask.
     func fetchRequiredInputs() async throws -> [HistoryMessage] {

@@ -42,7 +42,7 @@ struct RootTabView: View {
         _panels = StateObject(wrappedValue: PanelsModel(api: panelAPI, configurationProvider: {
             guard let config = connection.config else { throw PanelClientError.notConfigured }
             return config
-        }))
+        }, autoload: false))
         _joinRequests = StateObject(wrappedValue: JoinRequestsModel { () -> (any JoinRequestServing)? in
             isDemoMode ? DemoJoinRequestsAPI.shared : connection.makeAPI()
         })
