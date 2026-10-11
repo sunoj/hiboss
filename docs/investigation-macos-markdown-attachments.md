@@ -24,6 +24,11 @@ Download and parsing code is shared in HibossKit. iOS presents a native navigati
 Mac presents a native reading sheet. Both preserve selectable text and the original file link.
 Windows line endings are normalized before table parsing.
 
+Table columns use bounded intrinsic widths scaled with the text size. Each row is measured
+again at those widths before placement. This prevents multiline cells from overlapping when
+an unconstrained horizontal scroll view first measures text at its unwrapped width. Light,
+dark, and accessibility text-size rendering retain separate rows.
+
 Downloads require a successful HTTP response and UTF-8 text. Both the advertised size and
 streamed byte count are limited to 2 MiB. Loading failures expose retry and original-file
 actions. Local filesystem links in an agent's document remain text under the existing

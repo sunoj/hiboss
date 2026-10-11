@@ -12,6 +12,28 @@ import os
 
 @MainActor
 final class MessageAttachmentLayoutTests: XCTestCase {
+    func testMultilineMarkdownTableRemainsReadableInBothAppearances() async throws {
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let host = NSHostingView(rootView: MarkdownDocumentView(
+                source: MarkdownAttachmentServer.multilineSource
+            ).padding().frame(width: 680).background(Color(nsColor: .windowBackgroundColor))
+                .environment(\.colorScheme, appearance == .aqua ? .light : .dark))
+            host.sizingOptions = []
+            host.appearance = NSAppearance(named: appearance)
+            let window = show(host, size: NSSize(width: 680, height: 450))
+            defer { window.close() }
+            try await Task.sleep(for: .milliseconds(350))
+            host.layoutSubtreeIfNeeded()
+            let image = try bitmap(host)
+            let text = try await recognizedText(image)
+            for phrase in ["Client response", "Recorded refresh", "Passive connection",
+                           "The table rows remain separate"] {
+                XCTAssertTrue(text.contains(phrase), text)
+            }
+            try write(image, name: "attachment-multiline-\(appearance.rawValue)")
+        }
+    }
+
     func testMarkdownDocumentShowsHeadingsTablesAndCodeInBothAppearances() async throws {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             let host = NSHostingView(rootView: MarkdownDocumentView(source: MarkdownAttachmentServer.source)

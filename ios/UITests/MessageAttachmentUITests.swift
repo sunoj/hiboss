@@ -8,6 +8,41 @@ final class MessageAttachmentUITests: XCTestCase {
     func testMarkdownAttachmentPreviewInLightAppearance() { assertMarkdownPreview("Light") }
     func testMarkdownAttachmentPreviewInDarkAppearance() { assertMarkdownPreview("Dark") }
 
+    func testMultilineMarkdownTableRowsDoNotOverlapInBothAppearances() {
+        for appearance in ["Light", "Dark"] {
+            assertMultilineTable(appearance)
+        }
+    }
+
+    func testMultilineMarkdownTableRowsDoNotOverlapAtLargeText() {
+        assertMultilineTable("Light", sizeCategory: "UICTContentSizeCategoryAccessibilityL")
+    }
+
+    private func assertMultilineTable(_ appearance: String,
+                                      sizeCategory: String = "UICTContentSizeCategoryL") {
+        if app.state != .notRunning { app.terminate() }
+        launch(["HIBOSS_DEMO_OPEN": "attachment-file"], fixture: "markdown-multiline",
+               appearance: appearance, sizeCategory: sizeCategory)
+        let preview = app.buttons["message-attachment-markdown-preview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        preview.tap()
+        XCTAssertTrue(app.staticTexts["Table layout report"].waitForExistence(timeout: 5))
+        let table = app.descendants(matching: .any)["message.attachment.markdown.table"]
+        table.swipeLeft(velocity: .slow)
+        let rows = ["Client response is interpreted", "Recorded refresh threshold",
+                    "Passive connection state"].map { prefix in
+            app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
+        }
+        for row in rows { XCTAssertTrue(row.exists) }
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "markdown-multiline-\(appearance)-\(sizeCategory)"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        XCTAssertGreaterThan(rows[0].frame.height, 44)
+        XCTAssertGreaterThanOrEqual(rows[1].frame.minY, rows[0].frame.maxY + 8)
+        XCTAssertGreaterThanOrEqual(rows[2].frame.minY, rows[1].frame.maxY + 8)
+    }
+
     private func assertMarkdownPreview(_ appearance: String) {
         launch(["HIBOSS_DEMO_OPEN": "attachment-file"], fixture: "markdown", appearance: appearance)
         let file = app.descendants(matching: .any)["message-attachment-file"]
@@ -37,12 +72,13 @@ final class MessageAttachmentUITests: XCTestCase {
     }
 
     private func launch(_ route: [String: String], delay: String = "", fixture: String = "1",
-                        appearance: String = "Light") {
+                        appearance: String = "Light", sizeCategory: String = "UICTContentSizeCategoryL") {
         app.configureDemoLaunch(route.merging([
             "HIBOSS_DEMO_ATTACHMENTS": fixture, "HIBOSS_DEMO_MEDIA_DELAY_MS": delay,
         ]) { _, new in new })
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US",
-                               "-AppleInterfaceStyle", appearance]
+                               "-AppleInterfaceStyle", appearance,
+                               "-UIPreferredContentSizeCategoryName", sizeCategory]
         app.launchConfiguredDemo()
     }
 

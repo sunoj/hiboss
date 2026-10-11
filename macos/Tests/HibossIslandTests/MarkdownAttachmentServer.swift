@@ -25,6 +25,24 @@ final class MarkdownAttachmentServer {
     ```
     """
 
+    static var multilineSource: String {
+        let descriptions = [
+            "Client response is interpreted as complete before every required source "
+                + "has returned its current snapshot.",
+            "Recorded refresh threshold uses the first callback while the actual result "
+                + "arrives after reconciliation finishes.",
+            "Passive connection state is shown as current data even when the stored snapshot "
+                + "is waiting for an update.",
+        ]
+        let rows = descriptions.enumerated().map { index, description in
+            ["A\(index + 1)", "SNAPSHOT", description, "source-\(index + 1).swift:42"]
+                .joined(separator: " | ")
+        }
+        return (["# Table layout report", "", "| ID | Occurrence | Defect | Source |",
+                 "| --- | --- | --- | --- |"] + rows + ["", "The table rows remain separate."])
+            .joined(separator: "\n")
+    }
+
     func start() async throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Self.source.write(to: directory.appendingPathComponent("report.md"),

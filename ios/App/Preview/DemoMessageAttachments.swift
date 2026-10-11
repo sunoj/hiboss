@@ -12,7 +12,9 @@ enum DemoMessageAttachments {
 
     static func queue(fallback: [HistoryMessage]) -> [HistoryMessage] {
         let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] ?? ""
-        if mode == "markdown" { return [message(id: "attachment-file", url: markdownURL)] }
+        if ["markdown", "markdown-multiline"].contains(mode) {
+            return [message(id: "attachment-file", url: markdownURL)]
+        }
         guard ["1", "failure"].contains(mode) else {
             return fallback
         }
@@ -24,8 +26,10 @@ enum DemoMessageAttachments {
     }
 
     static func markdownSource(for url: URL) -> String? {
+        let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] ?? ""
         guard isDemoMode, url.absoluteString == markdownURL,
-              ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] == "markdown" else { return nil }
+              ["markdown", "markdown-multiline"].contains(mode) else { return nil }
+        if mode == "markdown-multiline" { return multilineTable }
         return """
         # Release notes
 
@@ -39,6 +43,24 @@ enum DemoMessageAttachments {
         swift test
         ```
         """
+    }
+
+    private static var multilineTable: String {
+        let descriptions = [
+            "Client response is interpreted as complete before every required source "
+                + "has returned its current snapshot.",
+            "Recorded refresh threshold uses the first callback while the actual result "
+                + "arrives after reconciliation finishes.",
+            "Passive connection state is shown as current data even when the stored snapshot "
+                + "is waiting for an update.",
+        ]
+        let rows = descriptions.enumerated().map { index, description in
+            ["A\(index + 1)", "REPRODUCIBLE", description, "source-\(index + 1).swift:42"]
+                .joined(separator: " | ")
+        }
+        return (["# Table layout report", "", "| ID | Occurrence | Defect | Source |",
+                 "| --- | --- | --- | --- |"] + rows + ["", "The table rows remain separate."])
+            .joined(separator: "\n")
     }
 
     private static func message(id: MessageID, url: String, decision: Bool = false) -> HistoryMessage {

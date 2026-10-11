@@ -32,14 +32,16 @@ final class DecisionRefreshTests: XCTestCase {
     func testResolutionKeepsOtherDecisionAnswerableDuringHeldRefetch() async {
         let (store, api) = await loadedStore()
         defer { store.stop() }
-        await api.holdNextFetch(returning: [Self.ask])
-        await api.send(.resolved(Self.other.id), to: 0)
+        await api.holdNextFetch(returning: [Self.ask, Self.other])
+        let reconciliation = Task { await store.refreshRequiredInputs() }
         await api.waitForHeldFetch()
+        await api.send(.resolved(Self.other.id), to: 0)
+        await waitUntil { store.answerability(for: Self.other.id) == .closed }
         assertOpen(store)
+        XCTAssertTrue(store.requiredInputRefreshing)
         XCTAssertEqual(store.answerability(for: Self.other.id), .closed)
-        let reconciliation = store.requiredFetchTask
         await api.releaseFetch()
-        await reconciliation?.value
+        await reconciliation.value
         assertOpen(store)
         XCTAssertEqual(store.answerability(for: Self.other.id), .closed)
     }

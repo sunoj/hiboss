@@ -1,11 +1,13 @@
 // Renders Markdown documents with selectable native text and horizontally scrollable tables.
 // Exports: MarkdownDocumentView; wide tables do not widen the reading window.
-// Dependencies: SwiftUI Grid, HibossKit MessageMarkdownView, and MarkdownDocumentSections.
+// Dependencies: SwiftUI Layout, HibossKit MessageMarkdownView, and MarkdownDocumentSections.
 
 import SwiftUI
 
 public struct MarkdownDocumentView: View {
     private let source: String
+    @ScaledMetric(relativeTo: .body) private var minimumColumnWidth: CGFloat = 90
+    @ScaledMetric(relativeTo: .body) private var maximumColumnWidth: CGFloat = 280
 
     public init(source: String) { self.source = source }
 
@@ -27,11 +29,12 @@ public struct MarkdownDocumentView: View {
 
     private func tableView(_ table: MarkdownDocumentTable) -> some View {
         ScrollView(.horizontal) {
-            Grid(alignment: .topLeading, horizontalSpacing: 20, verticalSpacing: 10) {
-                row(table.header, table: table, isHeader: true)
-                Divider().gridCellColumns(table.header.count)
-                ForEach(Array(table.rows.enumerated()), id: \.offset) { _, cells in
-                    row(cells, table: table, isHeader: false)
+            MarkdownTableLayout(columns: table.header.count,
+                                minimumWidth: minimumColumnWidth, maximumWidth: maximumColumnWidth) {
+                let cells = ([table.header] + table.rows).flatMap { $0 }
+                ForEach(Array(cells.enumerated()), id: \.offset) { index, text in
+                    cell(text, alignment: table.alignments[index % table.header.count],
+                         isHeader: index < table.header.count)
                 }
             }.padding(12)
         }
@@ -39,23 +42,64 @@ public struct MarkdownDocumentView: View {
         .accessibilityIdentifier("message.attachment.markdown.table")
     }
 
-    private func row(_ cells: [String], table: MarkdownDocumentTable, isHeader: Bool) -> some View {
-        GridRow {
-            ForEach(Array(cells.enumerated()), id: \.offset) { index, cell in
-                Text(MessageMarkdown.inline(cell))
-                    .fontWeight(isHeader ? .semibold : .regular)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(minWidth: 90, maxWidth: 280, alignment: alignment(table.alignments[index]))
-                    .gridColumnAlignment(horizontalAlignment(table.alignments[index]))
+    private func cell(_ text: String, alignment: MarkdownDocumentTable.Alignment,
+                      isHeader: Bool) -> some View {
+        Text(MessageMarkdown.inline(text))
+            .fontWeight(isHeader ? .semibold : .regular)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: cellAlignment(alignment))
+            .padding(.bottom, isHeader ? 8 : 0)
+            .overlay(alignment: .bottom) { if isHeader { Divider() } }
+    }
+
+    private func cellAlignment(_ value: MarkdownDocumentTable.Alignment) -> Alignment {
+        switch value { case .leading: .topLeading; case .center: .top; case .trailing: .topTrailing }
+    }
+}
+
+private struct MarkdownTableLayout: Layout {
+    let columns: Int
+    let minimumWidth: CGFloat
+    let maximumWidth: CGFloat
+    private let columnSpacing: CGFloat = 20
+    private let rowSpacing: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = measure(subviews)
+        return CGSize(width: sizes.widths.reduce(0, +) + columnSpacing * CGFloat(columns - 1),
+                      height: sizes.heights.reduce(0, +) + rowSpacing * CGFloat(sizes.heights.count - 1))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = measure(subviews)
+        var y = bounds.minY
+        for (row, height) in sizes.heights.enumerated() {
+            var x = bounds.minX
+            for (column, width) in sizes.widths.enumerated() {
+                subviews[row * columns + column].place(
+                    at: CGPoint(x: x, y: y), anchor: .topLeading,
+                    proposal: ProposedViewSize(width: width, height: height)
+                )
+                x += width + columnSpacing
             }
+            y += height + rowSpacing
         }
     }
 
-    private func alignment(_ value: MarkdownDocumentTable.Alignment) -> Alignment {
-        switch value { case .leading: .leading; case .center: .center; case .trailing: .trailing }
-    }
-
-    private func horizontalAlignment(_ value: MarkdownDocumentTable.Alignment) -> HorizontalAlignment {
-        switch value { case .leading: .leading; case .center: .center; case .trailing: .trailing }
+    private func measure(_ subviews: Subviews) -> (widths: [CGFloat], heights: [CGFloat]) {
+        let widths = (0..<columns).map { column in
+            let ideal = stride(from: column, to: subviews.count, by: columns).map {
+                subviews[$0].sizeThatFits(.unspecified).width
+            }.max() ?? minimumWidth
+            return min(maximumWidth, max(minimumWidth, ideal))
+        }
+        let heights = (0..<(subviews.count / columns)).map { row in
+            (0..<columns).map { column in
+                subviews[row * columns + column].sizeThatFits(
+                    ProposedViewSize(width: widths[column], height: nil)
+                ).height
+            }.max() ?? 0
+        }
+        return (widths, heights)
     }
 }
