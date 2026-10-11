@@ -28,13 +28,14 @@ public final class PanelsModel: ObservableObject {
     let api: (any PanelsServing)?
     let configurationProvider: (@MainActor () async throws -> ConnectionConfig)?
     var lastUpdated: [String: Date] = [:]
-    var isFetching = false
+    @Published var isFetching = false
     var needsReconcile = false
     var reconciliationTask: Task<Void, Never>?
     var wallConnection: PanelRelayConnection?
     var wallConfig: ConnectionConfig?
-    var isWallConnected = false
+    @Published var isWallConnected = false
     var lastReconciled = Date.distantPast
+    var reportedPanelCoverage = false
     @Published public var section: PanelWallSection = .active
     @Published public internal(set) var preferenceError: String?
     @Published public internal(set) var pendingPreferenceIDs: Set<String> = []
@@ -47,12 +48,13 @@ public final class PanelsModel: ObservableObject {
     var questionnaireOperation = 0
     #endif
     var questionnaireGeneration: UInt64 = 0
+    var activeQuestionnaireGeneration: UInt64?
     var producerTasks: [Task<Void, Never>] = []
     var clockTask: Task<Void, Never>?
     var serverClocks: [String: (server: Date, uptime: TimeInterval, wall: Date)] = [:]
-    var relayStates: [String: PanelRelayState] = [:]
+    @Published var relayStates: [String: PanelRelayState] = [:]
     var relayConnections: [String: PanelRelayConnection] = [:]
-    var liveSubscriptions: Set<String> = []
+    @Published var liveSubscriptions: Set<String> = []
     var relayConfig: ConnectionConfig?
 
     public init(

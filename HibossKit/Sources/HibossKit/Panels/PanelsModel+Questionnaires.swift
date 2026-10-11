@@ -30,13 +30,20 @@ extension PanelsModel {
         }
     }
 
-    func refreshPendingQuestionnaires(using service: (any QuestionnaireServing)?) async {
+    func refreshPendingQuestionnaires(
+        using service: (any QuestionnaireServing)?, generation: UInt64? = nil
+    ) async {
         guard !isDemoMode else { return }
-        invalidateQuestionnaireCoverage()
-        guard !isLoadingQuestions else { needsReconcile = true; return }
+        if generation == nil { invalidateQuestionnaireCoverage() }
+        guard !isLoadingQuestions else {
+            if generation != activeQuestionnaireGeneration { needsReconcile = true }
+            return
+        }
         guard let service else { return }
-        let generation = questionnaireGeneration
+        let generation = generation ?? questionnaireGeneration
+        activeQuestionnaireGeneration = generation
         isLoadingQuestions = true
+        let wallWasConnected = isWallConnected
         #if os(iOS)
         questionnaireOperation += 1
         let operation = questionnaireOperation
@@ -49,13 +56,14 @@ extension PanelsModel {
             #endif
         }
         do {
-            let fetched = try await service.fetchPendingQuestionnaires()
+            var fetched = try await service.fetchPendingQuestionnaires()
+            if wallConnection != nil, !wallWasConnected, isWallConnected,
+               generation == questionnaireGeneration {
+                fetched = try await service.fetchPendingQuestionnaires()
+            }
             try Task.checkCancellation()
             guard generation == questionnaireGeneration else { return }
-            pendingQuestionnaires = fetched
-            questionnaireError = nil
-            hasCompleteQuestionnaires = (wallConnection == nil || isWallConnected)
-                && !needsReconcile && reconciliationTask == nil
+            installQuestionnaires(fetched)
         } catch is CancellationError {
             return
         } catch {
@@ -65,8 +73,19 @@ extension PanelsModel {
         }
     }
 
+    private func installQuestionnaires(_ fetched: [PendingQuestionnaire]) {
+        pendingQuestionnaires = fetched
+        questionnaireError = nil
+        hasCompleteQuestionnaires = (wallConnection == nil || isWallConnected)
+            && !needsReconcile && reconciliationTask == nil
+        if hasCompleteQuestionnaires {
+            StartupLog.record("questionnaires complete", count: fetched.count)
+        }
+    }
+
     private func finishQuestionnaireFetch() {
         isLoadingQuestions = false
+        activeQuestionnaireGeneration = nil
         if needsReconcile, !isFetching { needsReconcile = false; reconcileSoon() }
     }
 

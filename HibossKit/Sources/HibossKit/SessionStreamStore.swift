@@ -1,4 +1,4 @@
-// Per-session append-only transcript store: history window, SSE tail, scroll lock.
+// Per-session transcript store: live events, scroll lock, and unavailable-session history state.
 // Exports: SessionStreamStore for SessionMessagesView and unit tests.
 // Dependencies: SessionStreamServing, Combine, AppConstants.
 
@@ -15,6 +15,7 @@ public final class SessionStreamStore: ObservableObject {
     @Published public private(set) var isBackfilling = false
     @Published public private(set) var hasEarlier = false
     @Published public private(set) var loadError: String?
+    @Published public private(set) var usesHistory = false
     @Published public private(set) var connectionState: ConnectionState = .disconnected
 
     public private(set) var lastAppliedSequence = -1
@@ -41,6 +42,7 @@ public final class SessionStreamStore: ObservableObject {
         reconnectDelay: Duration = AppConstants.API.reconnectDelay
     ) {
         self.sessionID = sessionID
+        self.usesHistory = sessionID == SessionGrouping.directSessionID
         self.pageSize = pageSize
         self.maxWindow = maxWindow
         self.batchMilliseconds = batchMilliseconds
@@ -48,6 +50,7 @@ public final class SessionStreamStore: ObservableObject {
     }
 
     public func start(api: any SessionStreamServing) {
+        guard sessionID != SessionGrouping.directSessionID else { return }
         stop()
         self.api = api
         Task { await reloadWindow(reason: .initial) }
@@ -71,7 +74,7 @@ public final class SessionStreamStore: ObservableObject {
     }
 
     public func resumeFromForeground() {
-        guard api != nil else { return }
+        guard api != nil, !usesHistory else { return }
         streamTask?.cancel()
         streamTask = Task { await runStreamLoop() }
     }
@@ -113,6 +116,7 @@ public final class SessionStreamStore: ObservableObject {
             hasEarlier = older.count >= pageSize || (events.first?.sequence ?? 1) > 1
         } catch {
             guard !Task.isCancelled, generation == backfillGeneration else { return }
+            if useHistoryIfUnavailable(error) { return }
             loadError = error.localizedDescription
         }
     }
@@ -145,10 +149,12 @@ public final class SessionStreamStore: ObservableObject {
             lastAppliedSequence = window.last?.sequence ?? -1
             isFollowingLive = true
             pendingWhileLocked = 0
+            usesHistory = false
             streamTask?.cancel()
             streamTask = Task { await runStreamLoop() }
         } catch {
             guard !Task.isCancelled, generation == loadGeneration else { return }
+            if useHistoryIfUnavailable(error) { return }
             loadError = error.localizedDescription
             connectionState = .failed(error.localizedDescription)
         }
@@ -196,15 +202,27 @@ public final class SessionStreamStore: ObservableObject {
                 }
             } catch {
                 if Task.isCancelled { return }
+                if useHistoryIfUnavailable(error) { return }
                 if let apiError = error as? HibossAPIError, apiError.isAuthFailure {
                     connectionState = .failed(error.localizedDescription)
                     return
                 }
                 connectionState = .failed(error.localizedDescription)
             }
-            connectionState = .connecting
+            if connectionState == .connected { connectionState = .connecting }
             try? await Task.sleep(for: reconnectDelay)
         }
+    }
+
+    private func useHistoryIfUnavailable(_ error: Error) -> Bool {
+        guard case .requestFailed(status: 404, _) = error as? HibossAPIError else { return false }
+        stop()
+        loadError = nil
+        hasEarlier = false
+        isFollowingLive = true
+        pendingWhileLocked = 0
+        usesHistory = true
+        return true
     }
 
     private func enqueue(_ incoming: [SessionEvent]) {

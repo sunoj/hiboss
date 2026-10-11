@@ -38,10 +38,10 @@ extension PanelsModel {
     }
 
     public func load() async {
-        guard !isDemoMode else { return }
+        guard !isDemoMode, !isFetching else { return }
         invalidateQuestionnaireCoverage()
-        guard !isFetching else { needsReconcile = true; return }
         isFetching = true
+        reportPanelCoverage()
         #if os(iOS)
         loadOperation += 1
         let operation = loadOperation
@@ -60,32 +60,60 @@ extension PanelsModel {
             guard generation == questionnaireGeneration else { return }
             if let relayConfig { startWallSubscription(config: relayConfig) }
             generation = questionnaireGeneration
-            let summaries = try await service.fetchPanels()
-            let additions = try await fetchAdditions(summaries, service: service)
-            guard generation == questionnaireGeneration else { return }
-            var fetched: [PanelTile] = []
-            for summary in summaries {
-                recordServerClock(summary)
-                fetched.append(
-                    try reconcile(
-                        summary, addition: additions[summary.panelId],
-                        order: (tiles.map(\.order).max().map { $0 + 1 } ?? 0) + fetched.count))
-            }
-            let retained = Set(fetched.map(\.id))
-            for id in relayConnections.keys where !retained.contains(id) {
-                relayConnections.removeValue(forKey: id)?.stop()
-                relayStates.removeValue(forKey: id)
-                liveSubscriptions.remove(id)
-            }
-            tiles = fetched.sorted { $0.order < $1.order }
-            if let selectedTileID, !retained.contains(selectedTileID) { self.selectedTileID = nil }
-            loadState = .loaded
-            if let relayConfig { startSubscriptions(config: relayConfig) }
-            await refreshPendingQuestionnaires(using: service as? any QuestionnaireServing)
+            let wallWasConnected = isWallConnected
+            async let questions: Void = refreshPendingQuestionnaires(
+                using: service as? any QuestionnaireServing, generation: generation)
+            try await loadPanels(using: service, generation: generation)
+            await questions
+            try await revalidateAcknowledgedPanels(
+                using: service, generation: generation, wallWasConnected: wallWasConnected)
         } catch {
             guard generation == questionnaireGeneration else { return }
             loadState = .failed(error.localizedDescription)
         }
+    }
+
+    private func loadPanels(using service: any PanelsServing, generation: UInt64) async throws {
+        let summaries = try await service.fetchPanels()
+        try await installPanels(summaries, using: service, generation: generation)
+    }
+
+    private func revalidateAcknowledgedPanels(
+        using service: any PanelsServing, generation: UInt64, wallWasConnected: Bool
+    ) async throws {
+        // The acknowledgement can arrive after panels finish while questionnaires remain in flight.
+        // Recheck across the whole joined load; wall acknowledgement has no replay cursor.
+        if wallConnection != nil, !wallWasConnected, isWallConnected,
+           generation == questionnaireGeneration {
+            let current = try await service.fetchPanels()
+            try await installPanels(current, using: service, generation: generation)
+        }
+    }
+
+    private func installPanels(
+        _ summaries: [PanelMetadata], using service: any PanelsServing, generation: UInt64
+    ) async throws {
+        let additions = try await fetchAdditions(summaries, service: service)
+        guard generation == questionnaireGeneration else { return }
+        var fetched: [PanelTile] = []
+        for summary in summaries {
+            recordServerClock(summary)
+            fetched.append(
+                try reconcile(
+                    summary, addition: additions[summary.panelId],
+                    order: (tiles.map(\.order).max().map { $0 + 1 } ?? 0) + fetched.count))
+        }
+        let retained = Set(fetched.map(\.id))
+        for id in relayConnections.keys where !retained.contains(id) {
+            relayConnections.removeValue(forKey: id)?.stop()
+            relayStates.removeValue(forKey: id)
+            liveSubscriptions.remove(id)
+        }
+        tiles = fetched.sorted { $0.order < $1.order }
+        if let selectedTileID, !retained.contains(selectedTileID) { self.selectedTileID = nil }
+        loadState = .loaded
+        StartupLog.record("panels loaded", count: tiles.count)
+        if let relayConfig { startSubscriptions(config: relayConfig) }
     }
 
     private func recordServerClock(_ summary: PanelMetadata) {
@@ -97,6 +125,7 @@ extension PanelsModel {
 
     private func finishLoad() {
         isFetching = false
+        reportPanelCoverage()
         lastReconciled = Date()
         if needsReconcile { needsReconcile = false; reconcileSoon() }
     }

@@ -18,7 +18,10 @@ struct HomeContent: View {
     var body: some View {
         content
             .onChange(of: attentionStatus == nil, initial: true) { _, complete in
-                if complete { hasCompletedCoverage = true }
+                if complete {
+                    hasCompletedCoverage = true
+                    StartupLog.record("Today settled")
+                }
             }
             .onChange(of: inbox.didLoad) { _, loaded in
                 if !loaded { hasCompletedCoverage = false }

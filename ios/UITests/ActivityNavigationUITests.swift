@@ -47,9 +47,10 @@ final class ActivityNavigationUITests: XCTestCase {
         session.tap()
         XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["message-question"].exists)
-        XCTAssertTrue(app.tabBars.buttons["Today"].isSelected)
+        XCTAssertFalse(app.tabBars.firstMatch.isHittable)
         screenshot("home-direct-transcript")
         app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.tabBars.buttons["Today"].isSelected)
         XCTAssertTrue(row.waitForExistence(timeout: 5))
     }
 

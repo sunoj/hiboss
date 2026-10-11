@@ -1,6 +1,34 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Showing messages sent without a session.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing messages sent without a session."
+          }
+        },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "显示未关联会话的消息。" } }
+      }
+    },
+    "This session is no longer available. Showing its saved messages.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session is no longer available. Showing its saved messages."
+          }
+        },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此会话已不可用，正在显示其已保存的消息。" } }
+      }
+    },
+    "Reconnecting transcript.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Reconnecting transcript." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在重新连接会话记录。" } }
+      }
+    },
     "Recent peers": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Recent peers" } },

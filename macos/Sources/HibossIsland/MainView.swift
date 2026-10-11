@@ -104,6 +104,7 @@ struct MainView: View {
         .environment(\.projectSessions, previewSessions ?? flow.projectSessions)
         .environment(\.agentAvatars, previewHistory == nil ? flow.agentAvatars : AttentionPreview.avatars)
         .onChange(of: settings.activeClientConfig) {
+            panels.connectionDidChange()
             box.reset()
             progress.reset()
             sessionBox.reset()
@@ -124,13 +125,13 @@ struct MainView: View {
         .onChange(of: flow.connectionState) { updateOverview() }
         .onChange(of: flow.historyState) { updateOverview() }
         .onChange(of: flow.replyFeedback) { updateOverview() }
-        .onChange(of: panels.hasCompleteQuestionnaires) { updateOverview() }
+        .onChange(of: panels.hasCompleteCoverage) { updateOverview() }
         .onChange(of: panels.pendingQuestionnaires) { updateOverview() }
     }
 
     private func updateOverview() {
         guard let history = previewHistory else {
-            overviewStore.setQuestionnaireCoverage(panels.hasCompleteQuestionnaires
+            overviewStore.setQuestionnaireCoverage(panels.hasCompleteCoverage
                 && !panels.pendingQuestionnaires.contains(where: \.blocking))
             return
         }

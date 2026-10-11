@@ -10,16 +10,21 @@ struct SessionDecisionBubble: View {
     let style: SessionBubbleStyle
     let message: HistoryMessage
     @ObservedObject var store: InboxStore
+    var sessionAgent: String? = nil
     let onChoose: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if store.answerability(for: message.id) == .open {
                 DecisionCard(message: message, submitting: store.replying[message.id],
-                             header: DecisionCardInfo(message: message), choices: pendingOptions)
+                             header: SessionDecisionHeader(message: message, sessionAgent: sessionAgent),
+                             choices: pendingOptions)
             } else {
-                DecisionProvenance(message: message)
-                SessionBubbleView(event: event, style: style, attachment: message.metadata?.attachment,
+                if let agent = differingAgent {
+                    Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+                }
+                SessionBubbleView(event: event, style: resolvedStyle,
+                                  attachment: message.metadata?.attachment,
                                   content: message.content)
                 OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [],
                                       settlement: store.settlement(for: message.id))
@@ -41,8 +46,48 @@ struct SessionDecisionBubble: View {
                         submitting: store.replying[message.id], wrapsToFit: true, onChoose: onChoose)
     }
 
+    private var differingAgent: String? {
+        message.agentName == sessionAgent ? nil : message.agentName
+    }
+
+    private var resolvedStyle: SessionBubbleStyle {
+        var result = style
+        result.showsSender = false
+        return result
+    }
+
     private func answered(_ settlement: DecisionSettlement) -> some View {
         ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate)
         .accessibilityIdentifier("transcript-answer-\(message.id.rawValue)")
+    }
+}
+
+// The session owns provenance; each card keeps its question, evidence and deadline.
+private struct SessionDecisionHeader: View {
+    let message: HistoryMessage
+    let sessionAgent: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top) {
+                if let agent = message.agentName, agent != sessionAgent {
+                    Text(verbatim: agent).font(.caption).foregroundStyle(Theme.ink2)
+                }
+                Spacer(minLength: 8)
+                if let deadline = message.expirationDate {
+                    CountdownText(deadline: deadline, tint: Theme.warn).font(.footnote)
+                } else {
+                    Text("No deadline").font(.footnote).foregroundStyle(Theme.ink3)
+                }
+            }
+            Text(verbatim: message.messageText.title).font(.headline).foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            if let content = message.messageText.content,
+               !content.isEmpty,
+               content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
+                MessageMarkdownView(content).font(.subheadline).foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }

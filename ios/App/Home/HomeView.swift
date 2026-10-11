@@ -29,8 +29,6 @@ struct HomeView: View {
                     _ = await (messages, wall)
                 }
             }
-            // Panels load here, not in the wall: the wall only exists once there are tiles.
-            .task { await panels.loadIfNeeded() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await panels.load() }
