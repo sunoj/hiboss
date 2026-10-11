@@ -13,6 +13,18 @@ extension DemoBossAPI {
     ) async throws -> SessionEventsPage {
         try await DemoDelay.wait("TRANSCRIPT")
         sessionFetchCount += 1
+        if sessionFetchCount == 1,
+           ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {
+            return SessionEventsPage(events: [])
+        }
+        if sessionFetchCount == 1,
+           ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_RECOVERABLE"] == "1" {
+            throw HibossAPIError.requestFailed(status: 404, message: "Session not accessible")
+        }
+        if sessionID == SessionGrouping.directSessionID
+            || ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE"] == "1" {
+            throw HibossAPIError.requestFailed(status: 404, message: "Session not found")
+        }
         let all = DemoSessionStream.events(for: sessionID, from: messages)
         let backfill = ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EARLIER_DELAY_MS"]
         if backfill?.isEmpty == false {
@@ -36,6 +48,12 @@ extension DemoBossAPI {
         after: Int
     ) async -> AsyncThrowingStream<SessionStreamFrame, Error> {
         try? await DemoDelay.wait("TRANSCRIPT_CONNECTION")
+        if sessionFetchCount == 1,
+           ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {
+            return AsyncThrowingStream {
+                $0.finish(throwing: HibossAPIError.requestFailed(status: 503, message: "Stream unavailable"))
+            }
+        }
         return AsyncThrowingStream { continuation in
             let update = Task {
                 guard DemoDelay.isHeld("TRANSCRIPT_NEWER") else { return }
@@ -60,12 +78,15 @@ extension DemoBossAPI {
 // Inventory facts use the same service boundary as production.
 extension DemoBossAPI: SessionsServing {
     func projectSessions() async throws -> [ProjectSession] {
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE"] == "1" { return [] }
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_PEERS"] == "1" {
             return DemoProjectPeers.sessions
         }
         return [ProjectSession(id: "sess-deploy", projectId: nil, projectSlug: "hiboss",
                         branch: "release/v2.4",
-                        label: "prod-release", host: "Mac mini", agentName: "worker-deploy",
+                        label: "prod-release", host: "Mac mini",
+                        agentName: ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSION_AGENT"]
+                            .flatMap { $0.isEmpty ? nil : $0 } ?? "worker-deploy",
                         status: "working", statusText: "Preparing the release",
                         startedAt: Date().addingTimeInterval(-3600).ISO8601Format(),
                         lastSeenAt: Date().addingTimeInterval(-9).ISO8601Format())]
