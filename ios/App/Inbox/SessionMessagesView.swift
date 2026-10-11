@@ -17,6 +17,7 @@ struct SessionMessagesView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var hasLoaded = false
     @State private var actionNote: String?
+    @State private var showsHistory = false
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
          panels: PanelsModel? = nil) {
@@ -41,8 +42,12 @@ struct SessionMessagesView: View {
         }
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
+        .toolbar(showsHistory ? .visible : .hidden, for: .tabBar)
         .toolbar { historyToolbar }
+        .navigationDestination(isPresented: $showsHistory) {
+            MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")
+                .toolbar(.visible, for: .tabBar)
+        }
     }
 
     private var observedTranscript: some View {
@@ -81,9 +86,8 @@ struct SessionMessagesView: View {
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
-                NavigationLink {
-                    MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")
-                        .toolbar(.visible, for: .tabBar)
+                Button {
+                    showsHistory = true
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
                 }.accessibilityLabel("Message history")

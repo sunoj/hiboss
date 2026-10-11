@@ -193,9 +193,12 @@ final class SessionsV4UITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 10))
         let panel = app.descendants(matching: .any)
             .matching(identifier: "session-panel-demo-panel").firstMatch
-        for _ in 0..<8 where !panel.exists || !panel.isHittable { app.swipeUp() }
+        let composer = app.descendants(matching: .any)["session-reply-composer"]
+        for _ in 0..<8 where !panel.exists || !panel.isHittable
+            || panel.frame.maxY > composer.frame.minY { app.swipeUp() }
         XCTAssertTrue(panel.waitForExistence(timeout: 10))
-        panel.tap()
+        XCTAssertLessThanOrEqual(panel.frame.maxY, composer.frame.minY)
+        panel.buttons.firstMatch.tap()
         XCTAssertTrue(app.buttons["Submit checklist"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Panel actions"].exists)
     }

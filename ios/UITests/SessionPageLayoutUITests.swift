@@ -41,6 +41,20 @@ final class SessionPageLayoutUITests: XCTestCase {
             .firstMatch.exists)
     }
 
+    func testMessageHistoryRestoresTabsAndReturningHidesThem() {
+        let app = launch(session: true)
+        XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.tabBars.firstMatch.isHittable)
+        app.buttons["Message history"].tap()
+        XCTAssertTrue(app.navigationBars["Messages"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Box"].isHittable)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.tabBars.firstMatch.isHittable)
+        XCTAssertTrue(app.textFields["session-reply-draft"].isHittable)
+    }
+
     func testEndedSessionShowsMessagesAndNeutralNote() {
         let app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE": "1"])
