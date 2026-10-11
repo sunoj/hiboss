@@ -11,20 +11,27 @@ if [ ! -f server/wrangler.toml ]; then
   cp server/wrangler.toml.example server/wrangler.toml
 fi
 case "${1:-focused}" in
-  before)
-    python3 - "${2:-HEAD}" <<'PY'
+  before|server-before)
+    git cat-file -e "${2:-HEAD}^{commit}" || exit 2
+    printf 'BASELINE_HEAD=%s\n' "$(git rev-parse "${2:-HEAD}")"
+    python3 - "${2:-HEAD}" "$1" <<'PY'
 from pathlib import Path
 import subprocess
 import sys
-paths = subprocess.check_output(['git', 'ls-files', 'cli/src'], text=True).splitlines()
+paths = []
+if sys.argv[2] == 'before':
+    paths = subprocess.check_output(
+        ['git', 'ls-tree', '-r', '--name-only', sys.argv[1], 'cli/src'], text=True
+    ).splitlines()
 paths += ['server/src/routes/message-send-input.ts', 'server/src/routes/messages.ts']
 for name in paths:
-    result = subprocess.run(['git', 'show', sys.argv[1] + ':' + name], capture_output=True)
-    if result.returncode == 0:
-        Path(name).write_bytes(result.stdout)
+    content = subprocess.check_output(['git', 'show', sys.argv[1] + ':' + name])
+    Path(name).write_bytes(content)
 PY
-    (cd cli && cargo test --test codex_runtime) || result=1
-    (cd cli && cargo test --test message_contract) || result=1
+    if [ "$1" = before ]; then
+      (cd cli && cargo test --test codex_runtime) || result=1
+      (cd cli && cargo test --test message_contract) || result=1
+    fi
     (npm ci && cd server && npx vitest run src/routes/message-title.test.ts) || result=1
     ;;
   focused)

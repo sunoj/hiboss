@@ -1,4 +1,4 @@
-// Purpose: Claude Code hooks configuration for hiboss CLI.
+// Purpose: Claude Code and Codex hooks configuration for hiboss CLI.
 // Exports: SetupHooksArgs, run_setup_hooks.
 // Dependencies: clap, serde_json, std::env, std::fs, std::io, std::path.
 
@@ -202,6 +202,7 @@ fn is_hiboss_hook(value: &Value) -> bool {
 fn refresh_managed_hooks(
     value: &mut Value,
     project_dir: Option<&str>,
+    runtime: &str,
 ) -> Result<bool, Box<dyn Error>> {
     let matchers = value.as_array_mut().ok_or("hook event must be an array")?;
     let mut changed = false;
