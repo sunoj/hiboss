@@ -55,6 +55,9 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   if (!optionsResult.ok) return c.text(optionsResult.error, 400);
   const options = optionsResult.value;
   const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
+  // Only the send timeout can grant a blocking caller its own deadline.
+  delete rawMetadata['ask_deadline'];
+  if (mode === 'blocking' && typeof payload.timeout === 'number') rawMetadata['ask_deadline'] = true;
   const optionMediaResult = parseOptionMedia(rawMetadata['option_media'], options);
   if (!optionMediaResult.ok) return c.text(optionMediaResult.error, 400);
   if (fileUrl) (rawMetadata as Record<string, unknown>)['file_url'] = fileUrl;

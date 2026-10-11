@@ -105,6 +105,37 @@ describe('explicit ask lifetime', () => {
   });
 });
 
+describe('caller cleanup', () => {
+  it.each([
+    ['legacy text', undefined, undefined, 300],
+    ['explicit text', undefined, 60, 300],
+    ['short MCP option poll', ['A', 'B'], undefined, 60],
+  ])('expires abandoned %s at poll end', async (_name, options, timeout, seconds) => {
+    const ask = await send({ options, ...(timeout === undefined ? {} : { timeout }) });
+    if (options === undefined && timeout === undefined) expect(ask.expires_at).toBeNull();
+    if (timeout !== undefined) expect(ask.expires_at).not.toBeNull();
+    const now = Date.now();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(now + Number(seconds) * 1000 + 1);
+    vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + Number(seconds) * 1000 + 1);
+    await request(`/${ask.id}/poll?timeout=${seconds}`);
+    const stored = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(ask.id).first<{ status: string }>();
+    expect(stored?.status).toBe('expired');
+  });
+
+  it('rejects boss reply after legacy text waiter exits', async () => {
+    const ask = await send({ options: undefined });
+    await endPollWindow(ask.id);
+    const reply = await SELF.fetch(`https://test.local/api/boss/messages/${ask.id}/reply`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'late answer' }),
+    });
+    expect(reply.status).toBe(409);
+  });
+});
+
 describe('ask expiry range', () => {
   it.each([
     ['blocking', undefined, 300], ['blocking', 1, 60], ['blocking', 86400, 86400],
@@ -134,5 +165,55 @@ describe('ask default deadline', () => {
     const result = await response.json() as MessageResponse;
     expect(result.replies?.[0].body).toBe('A');
     expect(result.replies?.[0].metadata?.auto_default).toBe(true);
+  });
+});
+
+describe('legacy poll windows', () => {
+  it.each([0, 1, 60, 300])('cleans up text, options and defaults after a %ss window', async (seconds) => {
+    for (const payload of [
+      { options: undefined }, {}, { metadata: { default_option: 'A', ask_deadline: true } },
+    ]) {
+      vi.useRealTimers();
+      const ask = await send(payload);
+      expect(JSON.parse(ask.metadata ?? '{}').ask_deadline).not.toBe(true);
+      const now = Date.now();
+      const window = seconds > 0 ? seconds : 300;
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(now + window * 1000 + 1);
+      vi.spyOn(Date, 'now').mockReturnValueOnce(now).mockReturnValue(now + window * 1000 + 1);
+      const response = await request(`/${ask.id}/poll?timeout=${seconds}`);
+      expect((await response.json() as MessageResponse).replies).toEqual([]);
+      const stored = await env.DB.prepare('SELECT * FROM messages WHERE id = ?')
+        .bind(ask.id).first<MessageRow>();
+      const hasDefault = payload.metadata !== undefined;
+      expect(stored?.status).toBe(hasDefault ? 'replied' : 'expired');
+      expect(JSON.parse(stored?.metadata ?? '{}').options_expired).toBe(true);
+      const answers = await env.DB.prepare('SELECT * FROM messages WHERE reply_to = ?')
+        .bind(ask.id).all<MessageRow>();
+      expect(answers.results).toHaveLength(hasDefault ? 1 : 0);
+      if (hasDefault) {
+        expect(answers.results[0].body).toBe('A');
+        expect(JSON.parse(answers.results[0].metadata ?? '{}').auto_default).toBe(true);
+      }
+      vi.restoreAllMocks();
+    }
+  });
+});
+
+describe('explicit text deadline', () => {
+  it('keeps text asks open across windows and expires them at their scheduled deadline', async () => {
+    const ask = await send({ options: undefined, timeout: 1800, metadata: { ask_deadline: false } });
+    expect(JSON.parse(ask.metadata ?? '{}').ask_deadline).toBe(true);
+    expect(Date.parse(ask.expires_at ?? '')).toBeGreaterThanOrEqual(Date.now() + 1799_000);
+    await endPollWindow(ask.id);
+    const open = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(ask.id).first<{ status: string }>();
+    expect(open?.status).toBe('sent');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(Date.parse(ask.expires_at ?? '') + 1));
+    await handleScheduled(env);
+    const expired = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
+      .bind(ask.id).first<{ status: string }>();
+    expect(expired?.status).toBe('expired');
   });
 });

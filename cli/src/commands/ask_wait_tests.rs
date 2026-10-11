@@ -19,6 +19,9 @@ enum Scenario {
     Empty,
     Stalled,
     InsidePoll,
+    FinalReadTransient,
+    FinalReadUnavailable,
+    FinalReadUnauthorized,
     Backoff,
     DroppedBody,
     MalformedJson,
@@ -44,7 +47,10 @@ impl Server {
             let mut requests = JoinSet::new();
             let reply = stored.clone();
             requests.spawn(async move {
-                let millis = if matches!(scenario, Scenario::InsidePoll) {
+                let millis = if matches!(
+                    scenario,
+                    Scenario::InsidePoll | Scenario::FinalReadTransient
+                ) {
                     500
                 } else {
                     1600
@@ -98,11 +104,22 @@ async fn answer(
         log.push(path);
         index
     };
-    if poll && matches!(scenario, Scenario::Stalled | Scenario::InsidePoll) {
+    if poll
+        && matches!(
+            scenario,
+            Scenario::Stalled
+                | Scenario::InsidePoll
+                | Scenario::FinalReadTransient
+                | Scenario::FinalReadUnavailable
+                | Scenario::FinalReadUnauthorized
+        )
+    {
         tokio::time::sleep(Duration::from_secs(3)).await;
     }
     let has_reply = match scenario {
-        Scenario::InsidePoll | Scenario::Backoff => stored.load(Ordering::SeqCst),
+        Scenario::InsidePoll | Scenario::Backoff | Scenario::FinalReadTransient => {
+            stored.load(Ordering::SeqCst)
+        }
         Scenario::DroppedBody => index > 0,
         _ => false,
     };
@@ -110,6 +127,35 @@ async fn answer(
 }
 
 async fn send_body(stream: &mut TcpStream, scenario: Scenario, has_reply: bool, index: usize) {
+    if index > 0
+        && matches!(
+            scenario,
+            Scenario::FinalReadUnavailable | Scenario::FinalReadUnauthorized
+        )
+    {
+        let status = if matches!(scenario, Scenario::FinalReadUnavailable) {
+            503
+        } else {
+            401
+        };
+        let wire =
+            format!("HTTP/1.1 {status} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        stream
+            .write_all(wire.as_bytes())
+            .await
+            .expect("error response");
+        return;
+    }
+    if matches!(scenario, Scenario::FinalReadTransient) && index == 1 {
+        assert!(has_reply, "reply stored at 500ms");
+        stream
+            .write_all(
+                b"HTTP/1.1 503 Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )
+            .await
+            .expect("503 response");
+        return;
+    }
     let body = if matches!(scenario, Scenario::MalformedJson) {
         "{broken"
     } else if has_reply {
@@ -231,3 +277,6 @@ async fn malformed_json_aborts_without_retry() {
     assert!(error.to_string().contains("decoding response body"));
     assert_eq!(server.paths().len(), 1);
 }
+
+#[path = "ask_wait_final_tests.rs"]
+mod final_reads;

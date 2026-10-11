@@ -10,6 +10,7 @@ use tokio::time::{Instant, sleep_until, timeout_at};
 
 const POLL_WINDOW_SECONDS: u32 = 300;
 const RETRY_BACKOFF: Duration = Duration::from_secs(1);
+const FINAL_READ_ATTEMPTS: u32 = 3;
 
 pub(crate) async fn wait_for_reply(
     client: &HiBossClient,
@@ -41,12 +42,27 @@ pub(crate) async fn wait_for_reply(
         }
         sleep_until(deadline.min(Instant::now() + RETRY_BACKOFF)).await;
     }
-    let message = client.get_message(id).await?;
+    let message = reconcile_reply(client, id).await?;
     Ok(message
         .replies
         .as_ref()
         .is_some_and(|items| !items.is_empty())
         .then_some(message))
+}
+
+async fn reconcile_reply(client: &HiBossClient, id: &str) -> Result<Message, Box<dyn Error>> {
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match client.get_message(id).await {
+            Ok(message) => return Ok(message),
+            Err(error) if attempt < FINAL_READ_ATTEMPTS && is_transient(error.as_ref()) => {
+                eprintln!("hiboss: final reply read failed, retrying: {error}");
+                sleep_until(Instant::now() + RETRY_BACKOFF).await;
+            }
+            Err(error) => return Err(error),
+        }
+    }
 }
 
 fn is_transient(error: &(dyn Error + 'static)) -> bool {

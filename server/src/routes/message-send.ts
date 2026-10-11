@@ -102,8 +102,8 @@ async function persistSend(c: Context<{ Bindings: Env }>, input: SendInput, targ
 async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, target: SendTarget, inserted: MessageRow): Promise<Response> {
   const { agentId, payload, mode, priority, body, sessionId, options, channelConfigs, optionMediaResult, fileUrl, agentConfig } = input;
   const { direction, targetAgentId, targetSession, targetWarning } = target;
-  // Set expires_at for messages with options (enables cron-based expiry sweep)
-  if (options && inserted) {
+  // Options retain their cron lifetime; explicit blocking timeouts also cover text asks.
+  if (options || (mode === 'blocking' && typeof payload.timeout === 'number')) {
     const timeoutSec = mode === 'blocking'
       ? Math.max(60, Math.min(
         typeof payload.timeout === 'number' ? payload.timeout : DEFAULT_TIMEOUT_SECONDS,
