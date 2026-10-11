@@ -1,12 +1,18 @@
 // Inline attachment preview and native links to public message files.
 // Exports: MessageAttachmentView, with a bounded thumbnail and a persistent filename link.
-// Dependencies: SwiftUI AsyncImage and HibossKit MessageAttachment; no API client is used.
+// Dependencies: SwiftUI, HibossKit MessageAttachment, and public Markdown attachment metadata.
 
 import HibossKit
 import SwiftUI
 
 struct MessageAttachmentView: View {
     let attachment: MessageAttachment
+    @State private var documentInfo: MarkdownAttachmentInfo?
+    @State private var previewPresented = false
+
+    private var info: MarkdownAttachmentInfo {
+        documentInfo ?? MarkdownAttachmentInfo(url: attachment.url)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -34,11 +40,26 @@ struct MessageAttachmentView: View {
                 .accessibilityIdentifier("message.attachment.image")
             }
             Link(destination: attachment.url) {
-                Label(attachment.filename, systemImage: "paperclip")
+                Label(info.filename, systemImage: "paperclip")
                     .font(.callout)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityIdentifier("message.attachment.file")
+            if info.isMarkdown {
+                Button(L("Preview Markdown"), systemImage: "doc.text.magnifyingglass") {
+                    previewPresented = true
+                }
+                .accessibilityIdentifier("message.attachment.markdown.preview")
+            }
+        }
+        .task(id: attachment.url) {
+            documentInfo = nil
+            if attachment.kind == .file && attachment.url.pathExtension.isEmpty {
+                documentInfo = try? await MarkdownAttachmentDocument.inspect(attachment.url)
+            }
+        }
+        .sheet(isPresented: $previewPresented) {
+            MarkdownAttachmentPreview(url: attachment.url, filename: info.filename)
         }
     }
 }

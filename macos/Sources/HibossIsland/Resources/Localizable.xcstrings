@@ -1,7 +1,7 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "Connect to HiBoss to browse progress." : {
+    "Connect to HiBoss to browse progress.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -18,7 +18,7 @@
         }
       }
     },
-    "Couldn't update this like. Try again." : {
+    "Couldn't update this like. Try again.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -35,7 +35,7 @@
         }
       }
     },
-    "Delete progress post?" : {
+    "Delete progress post?": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -52,7 +52,7 @@
         }
       }
     },
-    "This post and its media will be removed from the timeline." : {
+    "This post and its media will be removed from the timeline.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -69,7 +69,7 @@
         }
       }
     },
-    "Loading progress…" : {
+    "Loading progress…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -86,7 +86,7 @@
         }
       }
     },
-    "Progress unavailable" : {
+    "Progress unavailable": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -103,7 +103,7 @@
         }
       }
     },
-    "No progress yet" : {
+    "No progress yet": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -120,7 +120,7 @@
         }
       }
     },
-    "Progress updates from your agents appear here." : {
+    "Progress updates from your agents appear here.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -137,7 +137,7 @@
         }
       }
     },
-    "Loading more progress…" : {
+    "Loading more progress…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -154,7 +154,7 @@
         }
       }
     },
-    "Filter by project" : {
+    "Filter by project": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -171,7 +171,7 @@
         }
       }
     },
-    "Unlike" : {
+    "Unlike": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -188,7 +188,7 @@
         }
       }
     },
-    "Like" : {
+    "Like": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -205,7 +205,7 @@
         }
       }
     },
-    "%lld likes" : {
+    "%lld likes": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -222,7 +222,7 @@
         }
       }
     },
-    "Updating like…" : {
+    "Updating like…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -239,7 +239,7 @@
         }
       }
     },
-    "Deleting post…" : {
+    "Deleting post…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -256,7 +256,7 @@
         }
       }
     },
-    "Play video" : {
+    "Play video": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -273,7 +273,7 @@
         }
       }
     },
-    "Open large viewer" : {
+    "Open large viewer": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -290,7 +290,7 @@
         }
       }
     },
-    "Loading image…" : {
+    "Loading image…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -307,7 +307,7 @@
         }
       }
     },
-    "Video unavailable" : {
+    "Video unavailable": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -324,7 +324,7 @@
         }
       }
     },
-    "Loading video…" : {
+    "Loading video…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -341,7 +341,7 @@
         }
       }
     },
-    "Refresh progress" : {
+    "Refresh progress": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -358,7 +358,7 @@
         }
       }
     },
-    "Checking…" : {
+    "Checking…": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -375,7 +375,7 @@
         }
       }
     },
-    "No longer open" : {
+    "No longer open": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -392,7 +392,7 @@
         }
       }
     },
-    "Loading" : {
+    "Loading": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -409,7 +409,7 @@
         }
       }
     },
-    "Discard" : {
+    "Discard": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -426,7 +426,7 @@
         }
       }
     },
-    "This draft's target is unavailable. Discard it or reply to a newer message." : {
+    "This draft's target is unavailable. Discard it or reply to a newer message.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -28661,6 +28661,496 @@
           "stringUnit": {
             "state": "translated",
             "value": "最近 24 小时内没有其他活跃会话。"
+          }
+        }
+      }
+    },
+    "Preview Markdown": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview Markdown"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览 Markdown"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown をプレビュー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown 미리 보기"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu Markdown"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista previa de Markdown"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prévia de Markdown"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Просмотр Markdown"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แสดงตัวอย่าง Markdown"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markdown पूर्वावलोकन"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معاينة Markdown"
+          }
+        }
+      }
+    },
+    "Open original": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open original"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开原文件"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元のファイルを開く"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원본 열기"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir l’original"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir original"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir original"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть оригинал"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดไฟล์ต้นฉบับ"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "मूल फ़ाइल खोलें"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فتح الملف الأصلي"
+          }
+        }
+      }
+    },
+    "Document unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Document unavailable"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文档不可用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文書を利用できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "문서를 사용할 수 없음"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Document indisponible"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Documento no disponible"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Documento indisponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Документ недоступен"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เอกสารไม่พร้อมใช้งาน"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "दस्तावेज़ उपलब्ध नहीं"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المستند غير متاح"
+          }
+        }
+      }
+    },
+    "Loading document…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading document…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在加载文档…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文書を読み込み中…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "문서 불러오는 중…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement du document…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cargando documento…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carregando documento…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка документа…"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังโหลดเอกสาร…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "दस्तावेज़ लोड हो रहा है…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ تحميل المستند…"
+          }
+        }
+      }
+    },
+    "The document could not be loaded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The document could not be loaded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法加载文档。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文書を読み込めませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "문서를 불러올 수 없습니다."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de charger le document."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo cargar el documento."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível carregar o documento."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить документ."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่สามารถโหลดเอกสารได้"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "दस्तावेज़ लोड नहीं हो सका।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذر تحميل المستند."
+          }
+        }
+      }
+    },
+    "This document is too large to preview. Open the original file instead.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This document is too large to preview. Open the original file instead."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文档过大，无法预览。请打开原文件。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文書が大きすぎるためプレビューできません。元のファイルを開いてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "문서가 너무 커서 미리 볼 수 없습니다. 원본 파일을 여세요."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce document est trop volumineux pour un aperçu. Ouvrez le fichier original."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este documento es demasiado grande para una vista previa. Abra el archivo original."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este documento é grande demais para uma prévia. Abra o arquivo original."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Документ слишком большой для просмотра. Откройте исходный файл."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เอกสารนี้ใหญ่เกินไปสำหรับแสดงตัวอย่าง โปรดเปิดไฟล์ต้นฉบับ"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह दस्तावेज़ पूर्वावलोकन के लिए बहुत बड़ा है। मूल फ़ाइल खोलें।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا المستند كبير جدًا للمعاينة. افتح الملف الأصلي."
+          }
+        }
+      }
+    },
+    "This file is not a UTF-8 Markdown document.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file is not a UTF-8 Markdown document."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文件不是 UTF-8 编码的 Markdown 文档。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このファイルは UTF-8 の Markdown 文書ではありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 파일은 UTF-8 Markdown 문서가 아닙니다."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier n’est pas un document Markdown UTF-8."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este archivo no es un documento Markdown UTF-8."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este arquivo não é um documento Markdown UTF-8."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Этот файл не является документом Markdown в кодировке UTF-8."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไฟล์นี้ไม่ใช่เอกสาร Markdown แบบ UTF-8"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह फ़ाइल UTF-8 Markdown दस्तावेज़ नहीं है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا الملف ليس مستند Markdown بترميز UTF-8."
           }
         }
       }

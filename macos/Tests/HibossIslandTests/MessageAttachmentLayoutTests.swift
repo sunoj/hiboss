@@ -12,6 +12,47 @@ import os
 
 @MainActor
 final class MessageAttachmentLayoutTests: XCTestCase {
+    func testMarkdownDocumentShowsHeadingsTablesAndCodeInBothAppearances() async throws {
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            let host = NSHostingView(rootView: MarkdownDocumentView(source: MarkdownAttachmentServer.source)
+                .padding().frame(width: 360)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .environment(\.colorScheme, appearance == .aqua ? .light : .dark))
+            host.sizingOptions = []
+            host.appearance = NSAppearance(named: appearance)
+            let window = show(host, size: NSSize(width: 360, height: 400))
+            defer { window.close() }
+            try await Task.sleep(for: .milliseconds(350))
+            host.layoutSubtreeIfNeeded()
+            let image = try bitmap(host)
+            let text = try await recognizedText(image)
+            XCTAssertTrue(text.contains("Release notes"), text)
+            XCTAssertTrue(text.contains("Alpha"), text)
+            XCTAssertTrue(text.contains("345"), text)
+            XCTAssertTrue(text.contains("swift test"), text)
+            XCTAssertFalse(text.contains("---"), text)
+            XCTAssertLessThanOrEqual(host.fittingSize.width, 360)
+            try write(image, name: "attachment-markdown-\(appearance.rawValue)")
+        }
+    }
+
+    func testMarkdownFileOffersAnInAppPreview() async throws {
+        let attachment = try XCTUnwrap(message(fileURL: "https://example.com/report.md").metadata?.attachment)
+        let host = NSHostingView(rootView: MessageAttachmentView(attachment: attachment).padding()
+            .background(Color(nsColor: .windowBackgroundColor)))
+        host.sizingOptions = []
+        host.appearance = NSAppearance(named: .aqua)
+        let window = show(host, size: NSSize(width: 360, height: 140))
+        defer { window.close() }
+        try await Task.sleep(for: .milliseconds(350))
+        host.layoutSubtreeIfNeeded()
+        let image = try bitmap(host)
+        let text = try await recognizedText(image)
+        XCTAssertTrue(text.contains("report.md"))
+        XCTAssertTrue(text.contains("Preview Markdown"), text)
+        try write(image, name: "attachment-markdown-action")
+    }
+
     func testFilenameIsVisibleInEveryFullBodySurface() async throws {
         let message = message(fileURL: "https://example.com/report.pdf")
         let views: [AnyView] = [
