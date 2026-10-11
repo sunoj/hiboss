@@ -15,7 +15,8 @@ final class TodayStartupUITests: XCTestCase {
         app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["Checking coverage"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
-        XCTAssertFalse(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Live'")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH 'Live'")).firstMatch.exists)
         app.terminate()
     }
 
