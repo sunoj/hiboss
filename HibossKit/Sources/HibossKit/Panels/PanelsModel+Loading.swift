@@ -60,10 +60,13 @@ extension PanelsModel {
             guard generation == questionnaireGeneration else { return }
             if let relayConfig { startWallSubscription(config: relayConfig) }
             generation = questionnaireGeneration
+            let wallWasConnected = isWallConnected
             async let questions: Void = refreshPendingQuestionnaires(
                 using: service as? any QuestionnaireServing, generation: generation)
             try await loadPanels(using: service, generation: generation)
             await questions
+            try await revalidateAcknowledgedPanels(
+                using: service, generation: generation, wallWasConnected: wallWasConnected)
         } catch {
             guard generation == questionnaireGeneration else { return }
             loadState = .failed(error.localizedDescription)
@@ -71,11 +74,15 @@ extension PanelsModel {
     }
 
     private func loadPanels(using service: any PanelsServing, generation: UInt64) async throws {
-        let wallWasConnected = isWallConnected
         let summaries = try await service.fetchPanels()
         try await installPanels(summaries, using: service, generation: generation)
-        // Wall acknowledgement has no replay cursor. Recheck the list across its readiness barrier,
-        // retaining fetched definitions, stores, and live subscriptions for unchanged revisions.
+    }
+
+    private func revalidateAcknowledgedPanels(
+        using service: any PanelsServing, generation: UInt64, wallWasConnected: Bool
+    ) async throws {
+        // The acknowledgement can arrive after panels finish while questionnaires remain in flight.
+        // Recheck across the whole joined load; wall acknowledgement has no replay cursor.
         if wallConnection != nil, !wallWasConnected, isWallConnected,
            generation == questionnaireGeneration {
             let current = try await service.fetchPanels()

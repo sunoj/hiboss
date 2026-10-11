@@ -61,8 +61,18 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
         heldFetch = nil
     }
 
+    func releaseFetchAndHoldNext(returning messages: [HistoryMessage]) {
+        releaseFetch()
+        holdNextFetch(returning: messages)
+    }
+
     func sendReady(to index: Int) async {
         await send(.ready, to: index)
+    }
+
+    func sendReadyBurst(to index: Int) async {
+        await waitForStream(index)
+        for _ in 0..<10 { streams[index].yield(.ready) }
     }
 
     func send(_ event: RequiredInputEvent, to index: Int) async {

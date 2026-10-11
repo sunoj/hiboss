@@ -67,6 +67,54 @@ final class TodayStartupTests: XCTestCase {
         let reads = await api.requiredFetchCount()
         XCTAssertEqual(reads, 2, "Pre-ready HTTP has no stream watermark proving its currency")
     }
+
+    func testReadyCrossingHeldSnapshotWithholdsCoverageUntilPostReadyRead() async {
+        let api = ControlledInputAPI()
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.api = api
+        store.startRequiredInputs(api)
+        defer { store.stop() }
+        await api.waitForStream(0)
+        let retired = HistoryMessage(id: "retired", body: "Choose", direction: "agent_to_boss",
+            status: "sent", priority: "low", mode: "blocking", createdAt: Date().ISO8601Format())
+        await api.holdNextFetch(returning: [retired])
+        let beforeReady = Task { await store.refreshRequiredInputs() }
+        await api.waitForHeldFetch()
+        await api.sendReady(to: 0)
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertTrue(store.requiredInputReady)
+        await api.releaseFetchAndHoldNext(returning: [])
+        await beforeReady.value
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertFalse(store.hasCompleteRequiredInputs, "Pre-ready HTTP cannot certify an empty stream scan")
+        let reads = await api.requiredFetchCount()
+        XCTAssertEqual(reads, 2, "Exactly one post-ready read must be coalesced")
+        await api.sendReady(to: 0)
+        for _ in 0..<100 { await Task.yield() }
+        let duplicateReads = await api.requiredFetchCount()
+        XCTAssertEqual(duplicateReads, 2, "Duplicate ready must retain the post-ready read")
+        await api.releaseFetch()
+        await store.requiredFetchTask?.value
+        XCTAssertTrue(store.requiredInputs.isEmpty)
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
+    }
+
+    func testReadyBurstCoalescesOneReconciliation() async {
+        let api = ControlledInputAPI()
+        await api.holdNextFetch(returning: [])
+        let store = InboxStore(decisionAlertsEnabled: false)
+        store.api = api
+        store.startRequiredInputs(api)
+        defer { store.stop() }
+        await api.sendReadyBurst(to: 0)
+        await api.waitForHeldFetch()
+        for _ in 0..<100 { await Task.yield() }
+        let reads = await api.requiredFetchCount()
+        XCTAssertEqual(reads, 1)
+        await api.releaseFetch()
+        await store.requiredFetchTask?.value
+        XCTAssertTrue(store.hasCompleteRequiredInputs)
+    }
 }
 
 private actor StartupPanelsAPI: PanelsServing, QuestionnaireServing {

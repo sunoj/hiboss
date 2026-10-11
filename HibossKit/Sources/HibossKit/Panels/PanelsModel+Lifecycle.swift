@@ -36,6 +36,11 @@ extension PanelsModel {
         return liveSubscriptions.contains(tile.id) && relayStates[tile.id]?.checkpoint != nil
     }
 
+    public var hasCompleteCoverage: Bool {
+        loadState == .loaded && !isFetching && tiles.allSatisfy { hasPanelCoverage(for: $0) }
+            && hasCompleteQuestionnaires && questionnaireError == nil
+    }
+
     func reportPanelCoverage() {
         let complete = loadState == .loaded && !isFetching
             && tiles.allSatisfy { hasPanelCoverage(for: $0) }

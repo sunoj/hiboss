@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # Captures state-only startup OSLog lines from a deterministic simulator demo launch.
 # Exports a command taking a built .app directory and an output log path.
-# Dependencies: Python stdlib and xcrun simctl; uses only iPhone 18 Pro Max.
+# Dependencies: Python stdlib and xcrun simctl; uses only iPhone 17.
 
 import os
 from pathlib import Path
 import subprocess
 import sys
 
-SIMULATOR = "iPhone 18 Pro Max"
+SIMULATOR = "iPhone 17"
 PREDICATE = 'subsystem == "ai.hiboss.app" AND category == "startup"'
 DELAYS = {
     "HIBOSS_DEMO": "1",

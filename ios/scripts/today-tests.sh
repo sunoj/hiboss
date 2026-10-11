@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs Today tests on the assigned iPhone 18 Pro Max with isolated build output.
+# Runs Today tests on the assigned iPhone 17 with isolated build output.
 # Records HEAD and command beside the log and xcresult for focused and full runs.
 # Usage: today-tests.sh <output-base> [xcodebuild test filters/options]
 set -euo pipefail
@@ -7,7 +7,7 @@ OUT=$1
 shift
 cd "$(dirname "$0")/.."
 COMMAND=(xcodebuild test -project HiBoss.xcodeproj -scheme HiBoss -configuration Debug
-  -destination 'platform=iOS Simulator,name=iPhone 18 Pro Max'
+  -destination 'platform=iOS Simulator,name=iPhone 17'
   -derivedDataPath /private/tmp/hiboss-today-settle-dd CODE_SIGNING_ALLOWED=NO
   -parallel-testing-enabled NO -collect-test-diagnostics never
   -resultBundlePath "$OUT.xcresult" "$@")

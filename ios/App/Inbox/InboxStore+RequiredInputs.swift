@@ -8,7 +8,7 @@ import HibossKit
 @MainActor
 extension InboxStore {
     var hasCompleteRequiredInputs: Bool {
-        requiredInputReady && requiredInputLoaded && requiredInputError == nil
+        requiredInputReady && requiredInputLoaded && !requiredNeedsReadyRead && requiredInputError == nil
     }
 
     func retryRequiredInputConnection() {
@@ -44,6 +44,7 @@ extension InboxStore {
         requiredStaleTask = nil
         requiredInputs = []
         requiredInputReady = false
+        requiredNeedsReadyRead = false
         requiredInputLoaded = false
         requiredInputRefreshing = false
         requiredInputError = nil
@@ -53,6 +54,7 @@ extension InboxStore {
         guard !Task.isCancelled else { return }
         guard let service = api as? any RequiredInputServing else { return }
         let epoch = requiredEpoch
+        let startedReady = requiredInputReady
         requiredFetchVersion += 1
         let version = requiredFetchVersion
         requiredRetryTask?.cancel()
@@ -62,39 +64,29 @@ extension InboxStore {
         requiredInputRefreshing = true
         watchRequiredInputCoverage()
         defer {
-            if epoch == requiredEpoch, version == requiredFetchVersion { requiredInputRefreshing = false }
+            if epoch == requiredEpoch, version == requiredFetchVersion {
+                requiredInputRefreshing = false
+                if !Task.isCancelled, !startedReady, requiredInputReady { reconcileRequiredInputs() }
+            }
         }
         do {
             let messages = try await service.fetchRequiredInputs()
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
-            requiredInputs = reconcileRequiredSnapshot(messages)
-            requiredRetryAttempt = 0
-            requiredInputError = nil
-            requiredInputLoaded = true
-            requiredCoverageTask?.cancel()
-            requiredCoverageTask = nil
-            requiredStaleTask?.cancel()
-            requiredStaleTask = nil
-            if !requiredInputReady {
-                watchRequiredInputStaleness()
-                watchRequiredInputCoverage()
-            }
-            if hasCompleteRequiredInputs {
-                StartupLog.record("required inputs ready+loaded", count: requiredInputs.count)
-            }
+            installRequiredSnapshot(messages, startedReady: startedReady)
             await syncDecisionActivity()
         } catch {
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
             requiredInputError = error.localizedDescription
             requiredInputLoaded = false
-            retryRequiredSnapshot(epoch: epoch, version: version)
+            if startedReady { retryRequiredSnapshot(epoch: epoch, version: version) }
         }
     }
 
     func cancelRequiredFetch() {
         requiredFetchVersion += 1
+        requiredReconcileScheduled = false
         requiredInputRefreshing = false
         requiredFetchTask?.cancel()
         requiredFetchTask = nil
@@ -106,14 +98,19 @@ extension InboxStore {
     }
 
     func reconcileRequiredInputs() {
+        guard !requiredInputRefreshing, !requiredReconcileScheduled else { return }
+        requiredReconcileScheduled = true
         requiredFetchTask = Task { [weak self] in
-            await self?.refreshRequiredInputs()
+            guard !Task.isCancelled, let self else { return }
+            self.requiredReconcileScheduled = false
+            await self.refreshRequiredInputs()
         }
     }
 
     private func applyRequiredInputEvent(_ event: RequiredInputEvent) {
         switch event {
         case .ready:
+            if !requiredInputReady { requiredNeedsReadyRead = true }
             requiredInputReady = true
             if !requiredInputRefreshing { reconcileRequiredInputs() }
             if hasCompleteRequiredInputs {
@@ -132,6 +129,27 @@ extension InboxStore {
                 requiredFetchResolutions.insert(id)
                 requiredFetchUpdates.removeValue(forKey: id)
             }
+        }
+    }
+
+    private func installRequiredSnapshot(_ messages: [HistoryMessage], startedReady: Bool) {
+        requiredInputs = reconcileRequiredSnapshot(messages)
+        requiredRetryAttempt = 0
+        requiredInputError = nil
+        requiredInputLoaded = true
+        if startedReady { requiredNeedsReadyRead = false }
+        // Retained rows stay usable during reconnect; only a post-ready read certifies coverage.
+        guard !requiredNeedsReadyRead else { return }
+        requiredCoverageTask?.cancel()
+        requiredCoverageTask = nil
+        requiredStaleTask?.cancel()
+        requiredStaleTask = nil
+        if !requiredInputReady {
+            watchRequiredInputStaleness()
+            watchRequiredInputCoverage()
+        }
+        if hasCompleteRequiredInputs {
+            StartupLog.record("required inputs ready+loaded", count: requiredInputs.count)
         }
     }
 

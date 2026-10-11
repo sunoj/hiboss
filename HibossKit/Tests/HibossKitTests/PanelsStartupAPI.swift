@@ -3,6 +3,7 @@
 // Dependencies: HibossKit service protocols and Swift continuations.
 
 import Foundation
+import XCTest
 @testable import HibossKit
 
 actor PanelsStartupAPI: PanelsServing, QuestionnaireServing {
@@ -11,6 +12,20 @@ actor PanelsStartupAPI: PanelsServing, QuestionnaireServing {
     private var panelWaiter: CheckedContinuation<Void, Never>?
     private var hold = true
     private var panels: [PanelMetadata] = []
+    private var holdsQuestions = false
+    private var questionGate: CheckedContinuation<Void, Never>?
+    private var questionWaiter: CheckedContinuation<Void, Never>?
+
+    func holdQuestions() { holdsQuestions = true }
+    func holdPanels() { hold = true }
+    func waitForQuestions() async {
+        if questionGate != nil { return }
+        await withCheckedContinuation { questionWaiter = $0 }
+    }
+    func releaseQuestions() {
+        questionGate?.resume()
+        questionGate = nil
+    }
 
     func setPanels(_ value: [PanelMetadata]) { panels = value }
     private(set) var panelReads = 0
@@ -28,6 +43,7 @@ actor PanelsStartupAPI: PanelsServing, QuestionnaireServing {
 
     func fetchPanels() async throws -> [PanelMetadata] {
         panelReads += 1
+        let snapshot = panels
         if hold {
             hold = false
             await withCheckedContinuation {
@@ -36,17 +52,39 @@ actor PanelsStartupAPI: PanelsServing, QuestionnaireServing {
                 panelWaiter = nil
             }
         }
-        return panels
+        return snapshot
     }
 
     func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire] {
         questionReads += 1
+        if holdsQuestions {
+            holdsQuestions = false
+            await withCheckedContinuation {
+                questionGate = $0
+                questionWaiter?.resume()
+                questionWaiter = nil
+            }
+        }
         return []
     }
 
-    func fetchPanel(_ panelID: String) async throws -> PanelDetail { throw HibossAPIError.invalidResponse }
+    func fetchPanel(_ panelID: String) async throws -> PanelDetail {
+        let metadata = try XCTUnwrap(panels.first { $0.panelId == panelID })
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(metadata))
+            as? [String: Any])
+        object["definition"] = [
+            "definitionRevision": 1, "protocolVersion": 2, "catalogId": "hiboss.panel",
+            "catalogVersion": 1, "createdAt": metadata.createdAt,
+            "spec": ["root": "main", "elements": ["main": ["type": "Metric",
+                "props": ["label": "Count", "value": 0], "children": []]]],
+            "stateSchema": ["type": "object"], "initialState": ["task": [:]]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object)
+        return try JSONDecoder().decode(PanelDetail.self, from: data)
+    }
     func fetchPanelState(_ panelID: String) async throws -> PanelRelaySnapshot {
-        throw HibossAPIError.invalidResponse
+        PanelRelaySnapshot(panelID: panelID, definitionRevision: 1, epoch: nil,
+                           sequence: 0, task: .object([:]))
     }
     func updatePanelPreference(_ panelID: String, command: PanelPreferenceCommand) async throws
         -> PanelPreference { throw HibossAPIError.invalidResponse }

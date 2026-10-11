@@ -57,6 +57,7 @@ final class DecisionRefreshTests: XCTestCase {
         await api.sendReady(to: 1)
         await api.waitForHeldFetch()
         assertOpen(store)
+        XCTAssertFalse(store.hasCompleteRequiredInputs, "Reconnect needs a post-ready coverage read")
         let heldGrace = expectation(description: "reconnect reconciliation survives the loading watchdog")
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.2) { heldGrace.fulfill() }
         await fulfillment(of: [heldGrace], timeout: 10)

@@ -102,6 +102,35 @@ final class PanelsStartupTests: XCTestCase {
         XCTAssertEqual(changes, 1, "Real changes must still reconcile")
     }
 
+    func testLateAcknowledgementRechecksPanelsAfterJoinedQuestionnaires() async throws {
+        let api = PanelsStartupAPI()
+        await api.holdQuestions()
+        let model = makeModel(api)
+        model.wallConnection = try connection()
+        let load = Task { await model.load() }
+        await api.waitForPanels()
+        await api.waitForQuestions()
+        await api.releasePanels()
+        for _ in 0..<100 { await Task.yield() }
+        XCTAssertEqual(model.loadState, .loaded)
+        XCTAssertTrue(model.tiles.isEmpty)
+        let metadata = PanelMetadata(
+            serverTime: 0, lifecycle: .running, preference: .automatic, finalSnapshot: nil,
+            supersedesPanelId: nil, panelId: "new", agentId: "agent", agentName: nil,
+            targetBossId: "boss", taskKey: "task", sessionId: "session", sessionLabel: nil,
+            title: "New panel", catalogId: "hiboss.panel", catalogVersion: 1, definitionRevision: 1,
+            metadataVersion: 1, summary: .object([:]), createdAt: "2026-10-11T00:00:00Z")
+        await api.setPanels([metadata])
+        model.wallConnectivityChanged(true)
+        await api.releaseQuestions()
+        await load.value
+        XCTAssertEqual(model.tiles.map(\.id), ["new"], "Ack must revalidate the already-finished list")
+        let reads = await api.panelReads
+        XCTAssertEqual(reads, 2)
+        XCTAssertFalse(model.tiles.allSatisfy { model.hasPanelCoverage(for: $0) },
+                       "The discovered running panel still needs a received relay snapshot")
+    }
+
     private func makeModel(_ api: PanelsStartupAPI) -> PanelsModel {
         let model = PanelsModel(api: api, demoMode: false, autoload: false)
         model.clockTask?.cancel()
