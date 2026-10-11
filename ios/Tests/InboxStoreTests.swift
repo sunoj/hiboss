@@ -26,7 +26,10 @@ final class InboxStoreTests: XCTestCase {
                 .onAppear { appeared.fulfill() }
         )
         window.makeKeyAndVisible()
-        defer { window.isHidden = true; window.rootViewController = nil }
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
         await fulfillment(of: [appeared], timeout: 2)
         let settled = expectation(description: "initial view tasks completed")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { settled.fulfill() }
