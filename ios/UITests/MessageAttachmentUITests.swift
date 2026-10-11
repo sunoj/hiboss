@@ -184,6 +184,7 @@ final class MessageAttachmentUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(app.buttons["Close"].frame.height, 44)
         XCTAssertTrue(app.images["release-banner.png"].waitForExistence(timeout: 15))
+        assertMediaPinchZoom(app)
         app.buttons["Close"].tap()
         XCTAssertTrue(app.buttons["Close"].waitForNonExistence(timeout: 5))
     }

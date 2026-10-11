@@ -1,6 +1,6 @@
 // Box content destinations with selectable text, local file preview and reusable zoom viewer.
 // Exports BoxTextDetail and BoxMediaDetail; media is obtained through BoxMediaStore.
-// Dependencies: SwiftUI, QuickLook, HibossKit and ProgressMediaViewer.
+// Dependencies: SwiftUI, QuickLook, HibossKit and MediaViewer.
 
 import HibossKit
 import QuickLook
@@ -12,6 +12,7 @@ struct BoxTextDetail: View {
     @ObservedObject var media: BoxMediaStore
     @State private var previewURL: URL?
     @State private var shareURL: URL?
+    @State private var openedMedia: MediaSession?
 
     var body: some View {
         ScrollView {
@@ -38,6 +39,9 @@ struct BoxTextDetail: View {
             if item.kind == .file, let resource = media.resources[item.id] { openFile(resource.url) }
         }
         .quickLookPreview($previewURL)
+        .fullScreenCover(item: $openedMedia) { session in
+            MediaViewer(items: session.items, startIndex: session.index)
+        }
         .sheet(isPresented: Binding(
             get: { shareURL != nil }, set: { if !$0 { shareURL = nil } }
         )) {
@@ -46,7 +50,10 @@ struct BoxTextDetail: View {
     }
 
     private func openFile(_ url: URL) {
-        if QLPreviewController.canPreview(url as NSURL) { previewURL = url }
+        if let kind = MediaFileKind.kind(filename: url.lastPathComponent, contentType: item.mediaType) {
+            openedMedia = MediaSession(items: [MediaItem(url: url, kind: kind,
+                                                       title: item.boxTitle, caption: item.note)], index: 0)
+        } else if QLPreviewController.canPreview(url as NSURL) { previewURL = url }
         else { shareURL = url }
     }
 }
@@ -59,14 +66,11 @@ struct BoxMediaDetail: View {
     var body: some View {
         Group {
             if let resource = media.resources[item.id] {
-                ProgressMediaViewer(items: [ProgressMedia(
-                    url: resource.url.absoluteString, kind: item.kind == .video ? .video : .image,
-                    contentType: item.mediaType ?? "application/octet-stream", size: item.mediaBytes ?? 0,
-                    width: item.width, height: item.height, durationMs: item.durationMs, alt: item.boxTitle
-                )], startIndex: 0, localImages: item.kind == .image ? [
-                    resource.url.absoluteString: resource.thumbnail
-                ]
-                    .compactMapValues { $0 } : [:])
+                MediaViewer(items: [MediaItem(
+                    url: resource.url, kind: item.kind == .video ? .video : .image,
+                    title: item.boxTitle, caption: item.note,
+                    aspectRatio: ProgressMediaLayout.clampedAspect(width: item.width, height: item.height)
+                )], startIndex: 0)
             } else {
                 ZStack(alignment: .topLeading) {
                     Theme.mediaBackground.ignoresSafeArea()
@@ -84,7 +88,7 @@ struct BoxMediaDetail: View {
                     .background(.regularMaterial)
             }
         }
-        .preferredColorScheme(.dark)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("box-media-detail")
         .task { await media.load(item) }
     }

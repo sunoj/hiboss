@@ -1,15 +1,17 @@
-// Pinch and double-tap zoom wrapper used by the progress media viewer.
-// Exports: ProgressZoomView.
-// Dependencies: SwiftUI, UIKit, ProgressSwipeDismiss.
+// Pinch and double-tap zoom wrapper used by the shared media viewer.
+// Exports: MediaZoomView.
+// Dependencies: SwiftUI, UIKit, MediaSwipeDismiss.
 
 import SwiftUI
 import UIKit
 
-struct ProgressZoomView<Content: View>: UIViewRepresentable {
+struct MediaZoomView<Content: View>: UIViewRepresentable {
     let pageID: String
+    var allowsZoom = true
     var onZoomed: (Bool) -> Void
     var onDismissDrag: (CGFloat) -> Void
     var onDismiss: () -> Void
+    var onSingleTap: () -> Void
     @ViewBuilder var content: () -> Content
 
     func makeCoordinator() -> Coordinator {
@@ -17,6 +19,7 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
             onZoomed: onZoomed,
             onDismissDrag: onDismissDrag,
             onDismiss: onDismiss,
+            onSingleTap: onSingleTap,
             content: content()
         )
     }
@@ -29,6 +32,13 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
         )
         tap.numberOfTapsRequired = 2
         scroll.addGestureRecognizer(tap)
+        let singleTap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.singleTapped)
+        )
+        singleTap.cancelsTouchesInView = false
+        singleTap.require(toFail: tap)
+        scroll.addGestureRecognizer(singleTap)
         return scroll
     }
 
@@ -36,6 +46,8 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
         context.coordinator.onZoomed = onZoomed
         context.coordinator.onDismissDrag = onDismissDrag
         context.coordinator.onDismiss = onDismiss
+        context.coordinator.onSingleTap = onSingleTap
+        scroll.maximumZoomScale = allowsZoom ? 4 : 1
         context.coordinator.host.rootView = content()
         context.coordinator.syncFrame(scroll)
         if context.coordinator.pageID != pageID {
@@ -49,6 +61,7 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
         var onZoomed: (Bool) -> Void
         var onDismissDrag: (CGFloat) -> Void
         var onDismiss: () -> Void
+        var onSingleTap: () -> Void
         var pageID = ""
         let host: UIHostingController<Content>
         weak var scroll: UIScrollView?
@@ -57,11 +70,13 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
             onZoomed: @escaping (Bool) -> Void,
             onDismissDrag: @escaping (CGFloat) -> Void,
             onDismiss: @escaping () -> Void,
+            onSingleTap: @escaping () -> Void,
             content: Content
         ) {
             self.onZoomed = onZoomed
             self.onDismissDrag = onDismissDrag
             self.onDismiss = onDismiss
+            self.onSingleTap = onSingleTap
             host = UIHostingController(rootView: content)
             host.view.backgroundColor = .clear
             // Not attached as a child VC: UIViewRepresentable has no parent to addChild.
@@ -78,8 +93,9 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
             scroll.bouncesZoom = true
             scroll.showsHorizontalScrollIndicator = false
             scroll.showsVerticalScrollIndicator = false
-            scroll.backgroundColor = .black
-            scroll.accessibilityIdentifier = "progress-zoom-scroll host:0x0@0,0"
+            scroll.backgroundColor = .systemBackground
+            scroll.accessibilityIdentifier = "media-zoom-scroll host:0x0@0,0"
+            scroll.accessibilityValue = String(localized: "Fitted")
             scroll.addSubview(host.view)
             scroll.onBoundsChange = { [weak self, weak scroll] in
                 guard let self, let scroll else { return }
@@ -112,7 +128,7 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
         private func publishHostSize(_ scroll: UIScrollView) {
             let f = host.view.frame
             scroll.accessibilityIdentifier = String(
-                format: "progress-zoom-scroll host:%.0fx%.0f@%.0f,%.0f",
+                format: "media-zoom-scroll host:%.0fx%.0f@%.0f,%.0f",
                 f.width, f.height, f.origin.x, f.origin.y
             )
         }
@@ -120,12 +136,16 @@ struct ProgressZoomView<Content: View>: UIViewRepresentable {
         func viewForZooming(in scrollView: UIScrollView) -> UIView? { host.view }
 
         func scrollViewDidZoom(_ scrollView: UIScrollView) {
-            let zoomed = scrollView.zoomScale > ProgressSwipeDismiss.zoomedScale
+            let zoomed = scrollView.zoomScale > MediaSwipeDismiss.zoomedScale
+            scrollView.accessibilityValue = zoomed
+                ? String(localized: "Zoomed") : String(localized: "Fitted")
             DispatchQueue.main.async { [onZoomed] in onZoomed(zoomed) }
         }
 
+        @objc func singleTapped() { onSingleTap() }
+
         @objc func doubleTapped(_ gesture: UITapGestureRecognizer) {
-            guard let scroll else { return }
+            guard let scroll, scroll.maximumZoomScale > 1 else { return }
             if scroll.zoomScale > 1 {
                 scroll.setZoomScale(1, animated: true)
                 return
@@ -173,7 +193,7 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
     }
 
     @objc func handleDismissPan(_ gesture: UIPanGestureRecognizer) {
-        let y = ProgressSwipeDismiss.dragOffset(
+        let y = MediaSwipeDismiss.dragOffset(
             translation: gesture.translation(in: self),
             zoomScale: zoomScale
         )
@@ -181,7 +201,7 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
         case .changed:
             onDismissDrag?(y)
         case .ended, .cancelled, .failed:
-            if ProgressSwipeDismiss.shouldDismiss(offset: y, zoomScale: zoomScale) {
+            if MediaSwipeDismiss.shouldDismiss(offset: y, zoomScale: zoomScale) {
                 onDismiss?()
             } else {
                 onDismissDrag?(0)
@@ -193,7 +213,7 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer == dismissPan else { return true }
-        return ProgressSwipeDismiss.shouldBegin(
+        return MediaSwipeDismiss.shouldBegin(
             zoomScale: zoomScale,
             velocity: dismissPan.velocity(in: self)
         )

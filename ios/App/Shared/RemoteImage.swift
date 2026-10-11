@@ -14,7 +14,7 @@ struct RemoteImage<Content: View>: View {
 
     var body: some View {
         Group {
-            if url == nil {
+            if url == nil || missingLocalFile {
                 unavailable
             } else if released {
                 AsyncImage(url: url) { phase in
@@ -32,6 +32,11 @@ struct RemoteImage<Content: View>: View {
             catch { return }
             released = true
         }
+    }
+
+    private var missingLocalFile: Bool {
+        guard let url, url.isFileURL else { return false }
+        return !FileManager.default.fileExists(atPath: url.path)
     }
 
     private var waiting: some View {

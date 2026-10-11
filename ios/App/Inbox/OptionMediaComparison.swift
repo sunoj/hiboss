@@ -9,7 +9,7 @@ struct OptionMediaComparison: View {
     let options: [String]
     let media: [OptionMedia]
     var settlement: DecisionSettlement? = nil
-    @State private var selectedMedia: OptionMedia?
+    @State private var selectedMedia: MediaSession?
 
     private var orderedMedia: [OptionMedia] {
         options.compactMap { option in
@@ -25,14 +25,23 @@ struct OptionMediaComparison: View {
         if !orderedMedia.isEmpty {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(orderedMedia) { media in
-                    OptionMediaTile(media: media, settlement: selection(for: media)) { selectedMedia = media }
+                    OptionMediaTile(media: media, settlement: selection(for: media)) { open(media) }
                 }
             }
             .frame(maxWidth: .infinity)
-            .fullScreenCover(item: $selectedMedia) { media in
-                OptionMediaZoom(media: media)
+            .fullScreenCover(item: $selectedMedia) { session in
+                MediaViewer(items: session.items, startIndex: session.index)
             }
         }
+    }
+
+    private func open(_ tapped: OptionMedia) {
+        let items = orderedMedia.compactMap { option -> MediaItem? in
+            guard let url = URL(string: option.url) else { return nil }
+            return MediaItem(url: url, kind: .image, title: option.label, caption: option.caption)
+        }
+        guard let index = items.firstIndex(where: { $0.title == tapped.label }) else { return }
+        selectedMedia = MediaSession(items: items, index: index)
     }
 
     private func selection(for media: OptionMedia) -> DecisionSettlement? {
@@ -97,25 +106,6 @@ private struct OptionMediaTile: View {
                 image.resizable().scaledToFill()
                     .allowsHitTesting(false)
                     .accessibilityIdentifier("option-media-image-\(media.label)")
-        }
-    }
-}
-
-private struct OptionMediaZoom: View {
-    let media: OptionMedia
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Theme.mediaBackground.ignoresSafeArea()
-            RemoteImage(url: URL(string: media.url)) { image in
-                    image.resizable().scaledToFit()
-                        .accessibilityIdentifier("option-media-zoom-image")
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Button("Done") { dismiss() }
-                .prominentAction()
-                .padding()
         }
     }
 }

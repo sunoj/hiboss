@@ -28,6 +28,9 @@ enum DemoMarkdown {
         guard ProcessInfo.processInfo.environment["HIBOSS_DEMO_MARKDOWN"] == "1" else { return fallback }
         let title = ProcessInfo.processInfo.environment["HIBOSS_DEMO_LONG_TITLE"] == "1"
             ? String(repeating: "Historical title ", count: 12) : "House update"
+        let image = Bundle.main.url(forResource: "demo-coarse-grid", withExtension: "png")!
+        let withImages = ProcessInfo.processInfo.environment["HIBOSS_DEMO_MARKDOWN_IMAGES"] == "1"
+        let imageMarkdown = withImages ? "![Report image](\(image.absoluteString) \"Release reference\")" : ""
         return [HistoryMessage(
             id: "markdown-report", body: title, agentName: "codex", direction: "agent_to_boss",
             status: "delivered", priority: "normal", mode: "async", type: "task_update",
@@ -44,8 +47,10 @@ enum DemoMarkdown {
             ```swift
             let ready = true
             ```
+
+            \(imageMarkdown)
             """),
-            createdAt: Date().ISO8601Format(), sessionId: "sess-markdown",
+            createdAt: Date().ISO8601Format(), sessionId: withImages ? "sess-deploy" : "sess-markdown",
             sessionLabel: "house", sessionBranch: "fix/report", sessionStatus: "working"
         )]
     }

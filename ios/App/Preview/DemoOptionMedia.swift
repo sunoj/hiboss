@@ -18,9 +18,9 @@ enum DemoOptionMedia {
         ].compactMap { $0 }
     }
 
-    static func image(label: String, resource: String) -> OptionMedia? {
+    static func image(label: String, resource: String, caption: String? = nil) -> OptionMedia? {
         guard let url = Bundle.main.url(forResource: resource, withExtension: "png") else { return nil }
-        return OptionMedia(label: label, url: url.absoluteString)
+        return OptionMedia(label: label, url: url.absoluteString, caption: caption)
     }
 }
 
@@ -30,6 +30,9 @@ enum DemoOptionMediaFixtures {
         guard ["pending", "resolved", "automatic"].contains(state) else { return fallback }
         let pending = state == "pending"
         let automatic = state == "automatic"
+        let image = Bundle.main.url(forResource: "demo-coarse-grid", withExtension: "png")!
+        let content = ProcessInfo.processInfo.environment["HIBOSS_DEMO_MARKDOWN_IMAGES"] == "1"
+            ? "![Decision image](\(image.absoluteString))" : nil
         let message = HistoryMessage(
             id: "media-decision", body: "Which landscape should lead the release?",
             agentName: "worker-design", direction: "agent_to_boss",
@@ -37,9 +40,11 @@ enum DemoOptionMediaFixtures {
             mode: "blocking", type: "approval_request",
             metadata: MessageMetadata(
                 options: [" Coastal view ", "Mountain view"], optionMedia: [
-                    DemoOptionMedia.image(label: "Mountain view", resource: "demo-fine-grid"),
-                    DemoOptionMedia.image(label: "Coastal view", resource: "demo-coarse-grid"),
-                ].compactMap { $0 }, isExpired: automatic, defaultOption: "Mountain view"
+                    DemoOptionMedia.image(label: "Mountain view", resource: "demo-fine-grid",
+                                              caption: "Fine detail in the mountain landscape."),
+                    DemoOptionMedia.image(label: "Coastal view", resource: "demo-coarse-grid",
+                                              caption: "A wide view of the coastline."),
+                ].compactMap { $0 }, isExpired: automatic, defaultOption: "Mountain view", content: content
             ),
             createdAt: Date().addingTimeInterval(-120).ISO8601Format(),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionStatus: "working"

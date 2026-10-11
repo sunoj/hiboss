@@ -8,7 +8,7 @@ import SwiftUI
 struct ProgressFeedView: View {
     @ObservedObject var store: ProgressFeedStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var opened: ProgressMediaSession?
+    @State private var opened: MediaSession?
 
     var body: some View {
         ListStateView(
@@ -35,7 +35,7 @@ struct ProgressFeedView: View {
         .onAppear { ProgressVideoPlayback.shared.feedVisible = true }
         .onDisappear { ProgressVideoPlayback.shared.feedVisible = false }
         .fullScreenCover(item: $opened) { session in
-            ProgressMediaViewer(items: session.items, startIndex: session.index)
+            MediaViewer(items: session.items, startIndex: session.index)
                 .onAppear { ProgressVideoPlayback.shared.feedVisible = false }
                 .onDisappear { ProgressVideoPlayback.shared.feedVisible = true }
         }
@@ -46,8 +46,16 @@ struct ProgressFeedView: View {
             ForEach(store.posts) { post in
                 ProgressPostCard(post: post, isLiking: store.likingIDs.contains(post.id),
                                  likeError: store.likeErrors[post.id], onOpenMedia: { media in
-                    let index = post.media.firstIndex(where: { $0.url == media.url }) ?? 0
-                    opened = ProgressMediaSession(items: post.media, index: index)
+                    let items = post.media.compactMap { media -> MediaItem? in
+                        guard let url = URL(string: media.url) else { return nil }
+                        return MediaItem(url: url, kind: media.kind == .video ? .video : .image,
+                                         title: media.alt, caption: post.body,
+                                         aspectRatio: ProgressMediaLayout.clampedAspect(
+                                            width: media.width, height: media.height))
+                    }
+                    if let index = items.firstIndex(where: { $0.url == URL(string: media.url) }) {
+                        opened = MediaSession(items: items, index: index)
+                    }
                 }) {
                     Task { await store.toggleLike(id: post.id) }
                 }

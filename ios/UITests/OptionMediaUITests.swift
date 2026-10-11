@@ -31,6 +31,22 @@ final class OptionMediaUITests: XCTestCase {
         assertZoom(option: "Coastal view")
     }
 
+    func testOptionImagePinchReportsZoomed() {
+        launch(state: "pending", route: ["HIBOSS_DEMO_OPEN": "media-decision"])
+        let thumbnail = app.buttons["Open image for Coastal view"]
+        XCTAssertTrue(thumbnail.waitForExistence(timeout: 10))
+        thumbnail.tap()
+        let image = app.images.matching(NSPredicate(
+            format: "identifier IN %@", ["media-viewer-image"]
+        )).firstMatch
+        XCTAssertTrue(image.waitForExistence(timeout: 20))
+        image.pinch(withScale: 2, velocity: 1)
+        let zoom = app.scrollViews.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@", "media-zoom-scroll"
+        )).firstMatch
+        XCTAssertEqual(zoom.value as? String, "Zoomed", "pinch must change the viewer zoom state")
+    }
+
     func testResolvedSessionPreservesImagesAndZoom() {
         launch(state: "resolved", route: ["HIBOSS_DEMO_SESSION": "1"])
         assertImages()
@@ -108,13 +124,11 @@ final class OptionMediaUITests: XCTestCase {
 
     private func assertZoom(option: String) {
         app.buttons["Open image for \(option)"].tap()
-        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.images["option-media-zoom-image"].waitForExistence(timeout: 20))
-        // The decision sheet also has Done; dismiss the foreground image viewer.
-        let done = app.buttons.matching(identifier: "Done").allElementsBoundByIndex.first { $0.isHittable }
-        XCTAssertNotNil(done)
-        done?.tap()
-        XCTAssertTrue(app.images["option-media-zoom-image"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.images["media-viewer-image"].waitForExistence(timeout: 20))
+        assertMediaPinchZoom(app)
+        app.buttons["media-viewer-close"].tap()
+        XCTAssertTrue(app.images["media-viewer-image"].waitForNonExistence(timeout: 5))
     }
 
     /// Waits until each tile has settled on a loaded image: its open button exists and
@@ -126,7 +140,8 @@ final class OptionMediaUITests: XCTestCase {
             XCTAssertTrue(app.buttons["Open image for \(option)"].waitForExistence(timeout: 10))
             XCTAssertFalse(app.buttons["option-media-retry-\(option)"].exists, "image failed or stalled")
         }
-        let loading = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Loading image…"))
+        let loading = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@", "Loading image…"))
         XCTAssertTrue(loading.firstMatch.waitForNonExistence(timeout: 20), "an image never finished loading")
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

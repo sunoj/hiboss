@@ -85,7 +85,7 @@ private struct SessionDecisionHeader: View {
             if let content = message.messageText.content,
                !content.isEmpty,
                content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                MessageMarkdownView(content).font(.subheadline).foregroundStyle(Theme.ink2)
+                MediaMarkdownView(content).font(.subheadline).foregroundStyle(Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)

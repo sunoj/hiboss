@@ -98,14 +98,18 @@ struct TodayResults: View {
         case .image:
             MessageAttachmentView(attachment: attachment).frame(width: 72, height: 72).clipped()
         case .file:
-            Link(
-                destination: attachment.url
-            ) {
-                Image(systemName: "doc").font(.title2)
-                    .frame(width: 72, height: 72)
-                    .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12))
+            if MediaFileKind.kind(filename: attachment.filename) != nil {
+                MessageAttachmentView(attachment: attachment).frame(width: 72, height: 72).clipped()
+            } else {
+                Link(
+                    destination: attachment.url
+                ) {
+                    Image(systemName: "doc").font(.title2)
+                        .frame(width: 72, height: 72)
+                        .background(Theme.surface2, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .accessibilityLabel(Text(verbatim: attachment.filename))
             }
-            .accessibilityLabel(Text(verbatim: attachment.filename))
         }
     }
 

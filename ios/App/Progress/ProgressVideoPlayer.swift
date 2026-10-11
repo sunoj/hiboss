@@ -97,7 +97,7 @@ struct ProgressVideoCell: View {
         Button { unmuted.toggle() } label: {
             Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
                 .font(.body)
-                .padding(8)
+                .frame(minWidth: 44, minHeight: 44)
                 .background(.regularMaterial, in: Circle())
         }
         .buttonStyle(.plain)
