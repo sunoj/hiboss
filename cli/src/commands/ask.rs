@@ -3,8 +3,9 @@
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
 use super::ask_media::{resolve_option_media, upload_attachment};
-use super::ask_result::{AskResult, Outcome};
+use super::ask_result::{AskResult, print_result};
 use super::ask_support::{action_metadata, validate_default_option, warn_unread_messages};
+use super::ask_wait::wait_for_reply;
 use crate::{client::HiBossClient, config::Config, session, types::SendRequest};
 use clap::{ArgAction, Args};
 use serde_json::Value;
@@ -16,7 +17,7 @@ const MAX_CHOICES: usize = 5;
 
 #[derive(Debug, Args)]
 pub struct AskArgs {
-    #[arg(long, default_value_t = 1800)]
+    #[arg(long, default_value_t = 1800, value_parser = clap::value_parser!(u32).range(60..=86400))]
     pub timeout: u32,
     #[arg(
         long,
@@ -230,18 +231,40 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
-    let title = super::message_text::title(&args.body, args.to.is_some())?;
-    let content =
-        super::message_text::content(args.content.as_deref(), args.content_file.as_deref())?;
+    let choices = args.choice_payload()?;
+    let mut request = prepare_request(args, client, &choices).await?;
     if args.to.is_none() && !args.json {
         warn_unread_messages(client).await;
     }
-    let choices = args.choice_payload()?;
-    let option_media = resolve_option_media(client, &args.option_images, &choices).await?;
+    session::mark_asked();
+    let submission = super::session_register::send_with_session_heal(client, &mut request).await?;
+    eprintln!(
+        "[ask {}] sent, waiting up to {}s for reply (recover anytime via: hiboss status {})",
+        submission.id, args.timeout, submission.id
+    );
+    let poll = wait_for_reply(client, &submission.id, args.timeout).await?;
+    let replies = poll.as_ref().and_then(|message| message.replies.as_deref());
+    let result = AskResult::from_poll(&submission.id, replies, &choices);
+    if let Some(reply_id) = &result.reply_id {
+        let _ = client.update_status(reply_id, "read").await;
+    }
+    print_result(&result, args.json)
+}
+
+async fn prepare_request(
+    args: &AskArgs,
+    client: &HiBossClient,
+    choices: &ChoicePayload,
+) -> Result<SendRequest, Box<dyn Error>> {
+    let title = super::message_text::title(&args.body, args.to.is_some())?;
+    let content =
+        super::message_text::content(args.content.as_deref(), args.content_file.as_deref())?;
+    let option_media = resolve_option_media(client, &args.option_images, choices).await?;
     let file_url = upload_attachment(client, args.file.as_deref()).await?;
-    let mut request = SendRequest {
+    Ok(SendRequest {
         body: title,
         mode: "blocking".to_owned(),
+        timeout: Some(args.timeout),
         priority: args.priority.clone(),
         channel: args.channel.clone(),
         metadata: action_metadata(
@@ -256,39 +279,5 @@ pub async fn run(
         message_type: None,
         session_id: session::read_session_id(),
         to: args.to.clone(),
-    };
-    session::mark_asked();
-    let submission = super::session_register::send_with_session_heal(client, &mut request).await?;
-    eprintln!(
-        "[ask {}] sent, waiting up to {}s for reply (recover anytime via: hiboss status {})",
-        submission.id, args.timeout, submission.id
-    );
-    let poll = client.poll_reply(&submission.id, args.timeout).await?;
-    let result = AskResult::from_poll(&submission.id, poll.replies.as_deref(), &choices);
-    if let Some(reply_id) = &result.reply_id {
-        let _ = client.update_status(reply_id, "read").await;
-    }
-    print_result(&result, args.json)
-}
-
-fn print_result(result: &AskResult, json: bool) -> Result<(), Box<dyn Error>> {
-    if json {
-        println!("{}", serde_json::to_string(result)?);
-        return Ok(());
-    }
-    println!("{}", result.text());
-    if let Some(action) = &result.action {
-        eprintln!("Action: {}", action);
-    } else if result.outcome == Outcome::Reply && crate::session::should_show_ack_hint() {
-        if let Some(id) = &result.reply_id {
-            let short = &id[..8.min(id.len())];
-            eprintln!(
-                "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
-                short, short
-            );
-        }
-    } else if result.outcome == Outcome::Timeout {
-        eprintln!("No reply yet");
-    }
-    Ok(())
+    })
 }

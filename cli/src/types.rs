@@ -42,6 +42,8 @@ pub struct Message {
 pub struct SendRequest {
     pub body: String,
     pub mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u32>,
     pub priority: String,
     pub channel: Option<String>,
     pub metadata: Option<HashMap<String, Value>>,

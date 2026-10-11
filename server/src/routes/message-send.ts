@@ -18,6 +18,7 @@ import { dispatchDestinations } from '../delivery';
 import { deliverLegacySend } from './message-send-legacy';
 import { resolveSendTarget } from './message-send-target';
 const DEFAULT_TIMEOUT_SECONDS = 300;
+const MAX_ASK_TIMEOUT_SECONDS = 86400;
 const routes = new Hono<{ Bindings: Env }>();
 function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('UNIQUE constraint failed');
@@ -103,8 +104,11 @@ async function finishSend(c: Context<{ Bindings: Env }>, input: SendInput, targe
   const { direction, targetAgentId, targetSession, targetWarning } = target;
   // Set expires_at for messages with options (enables cron-based expiry sweep)
   if (options && inserted) {
-    const timeoutSec = mode === 'blocking' && typeof payload.timeout === 'number'
-      ? Math.max(60, Math.min(payload.timeout, 3600))
+    const timeoutSec = mode === 'blocking'
+      ? Math.max(60, Math.min(
+        typeof payload.timeout === 'number' ? payload.timeout : DEFAULT_TIMEOUT_SECONDS,
+        MAX_ASK_TIMEOUT_SECONDS,
+      ))
       : DEFAULT_TIMEOUT_SECONDS;
     const expiresAt = new Date(Date.now() + timeoutSec * 1000).toISOString();
     await c.env.DB.prepare('UPDATE messages SET expires_at = ? WHERE id = ?').bind(expiresAt, inserted.id).run();

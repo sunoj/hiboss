@@ -5,6 +5,7 @@ use super::ask::ChoicePayload;
 use super::ask_support::resolve_default_reply;
 use crate::types::Message;
 use serde::Serialize;
+use std::error::Error;
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -66,6 +67,28 @@ impl AskResult {
             Outcome::Timeout => self.message_id.clone(),
         }
     }
+}
+
+pub(crate) fn print_result(result: &AskResult, json: bool) -> Result<(), Box<dyn Error>> {
+    if json {
+        println!("{}", serde_json::to_string(result)?);
+        return Ok(());
+    }
+    println!("{}", result.text());
+    if let Some(action) = &result.action {
+        eprintln!("Action: {}", action);
+    } else if result.outcome == Outcome::Reply && crate::session::should_show_ack_hint() {
+        if let Some(id) = &result.reply_id {
+            let short = &id[..8.min(id.len())];
+            eprintln!(
+                "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
+                short, short
+            );
+        }
+    } else if result.outcome == Outcome::Timeout {
+        eprintln!("No reply yet");
+    }
+    Ok(())
 }
 
 #[cfg(test)]

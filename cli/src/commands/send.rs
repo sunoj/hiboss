@@ -136,6 +136,7 @@ async fn send_request(
     Ok(SendRequest {
         body: super::message_text::title(&args.body, args.to.is_some())?,
         mode: "async".to_owned(),
+        timeout: None,
         priority: args.priority.clone(),
         channel,
         metadata,
@@ -207,6 +208,7 @@ pub(crate) fn broadcast_request(
     SendRequest {
         body: body.to_owned(),
         mode: "async".to_owned(),
+        timeout: None,
         priority: args.priority.clone(),
         channel: None,
         metadata: metadata.cloned(),

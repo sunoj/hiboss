@@ -178,7 +178,9 @@ routes.post('/:id/poll', async (c) => {
       if (finalCheck && (finalCheck.replies?.length ?? 0) > 0) {
         return c.json(finalCheck);
       }
-      c.executionCtx.waitUntil(expireMessageOptions(c.env, agentId, message).catch(() => {}));
+      if (message.expires_at && Date.parse(message.expires_at) <= Date.now()) {
+        c.executionCtx.waitUntil(expireMessageOptions(c.env, agentId, message).catch(() => {}));
+      }
       return c.json(finalCheck ?? { ...mapMessageRow(message), replies: [] });
     }
     await delay(Math.min(WAIT_INTERVAL_MS, deadline - Date.now()));

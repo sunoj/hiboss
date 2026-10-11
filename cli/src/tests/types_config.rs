@@ -103,6 +103,7 @@ mod tests {
         let request = SendRequest {
             body: "lets go".to_string(),
             mode: "async".to_string(),
+            timeout: None,
             priority: "low".to_string(),
             channel: Some("default".to_string()),
             metadata: Some(metadata),
@@ -120,6 +121,7 @@ mod tests {
         let request = SendRequest {
             body: "plain".to_string(),
             mode: "sync".to_string(),
+            timeout: None,
             priority: "medium".to_string(),
             channel: None,
             metadata: None,

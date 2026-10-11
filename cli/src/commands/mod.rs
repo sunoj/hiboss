@@ -7,6 +7,7 @@ pub mod ask;
 pub(crate) mod ask_media;
 mod ask_support;
 mod ask_result;
+mod ask_wait;
 pub mod boss;
 #[path = "box/mod.rs"]
 pub mod box_cmd;

@@ -19,6 +19,22 @@ fn json_output_is_opt_in() {
 }
 
 #[test]
+fn timeout_matches_server_lifetime_range() {
+    for timeout in ["0", "1", "59", "86401", "90000"] {
+        assert!(AskCommand::try_parse_from(["test", "--timeout", timeout, "Choose"]).is_err());
+    }
+    for timeout in ["60", "1800", "86400"] {
+        assert_eq!(
+            parse(&["--timeout", timeout, "Choose"])
+                .args
+                .timeout
+                .to_string(),
+            timeout
+        );
+    }
+}
+
+#[test]
 fn repeated_options_preserve_commas() {
     let command = parse(&[
         "--option",
