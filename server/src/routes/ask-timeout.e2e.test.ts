@@ -217,3 +217,47 @@ describe('explicit text deadline', () => {
     expect(expired?.status).toBe('expired');
   });
 });
+
+describe('partial expiry writes', () => {
+  it('expires an ask when its expiry write fails after insert', async () => {
+    let failed = false;
+    const db = new Proxy(env.DB, {
+      get(target, property) {
+        if (property === 'prepare') return (sql: string) => {
+          if (sql.startsWith('UPDATE messages SET expires_at') && !failed) {
+            failed = true;
+            return { bind: () => ({ run: async () => { throw new Error('synthetic expiry write failure'); } }) };
+          }
+          return target.prepare(sql);
+        };
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const ctx = createExecutionContext();
+    const key = `partial-expiry-${crypto.randomUUID()}`;
+    const response = await messagesRouter.fetch(new Request('https://test.local/', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'Choose', mode: 'blocking', timeout: 60, idempotency_key: key }),
+    }), { ...env, DB: db }, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(500);
+    const row = await env.DB.prepare('SELECT * FROM messages WHERE idempotency_key = ?')
+      .bind(key).first<MessageRow>();
+    expect(row).not.toBeNull();
+    const retry = await request('/', {
+      body: 'Choose', mode: 'blocking', timeout: 60, idempotency_key: key,
+    });
+    expect(retry.status).toBe(200);
+    expect((await retry.json() as { id: string }).id).toBe(row!.id);
+    await endPollWindow(row!.id);
+    const stored = await env.DB.prepare('SELECT * FROM messages WHERE id = ?')
+      .bind(row!.id).first<MessageRow>();
+    const late = await SELF.fetch(`https://test.local/api/boss/messages/${row!.id}/reply`, {
+      method: 'POST', headers: { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: 'late answer' }),
+    });
+    expect({ expires_at: stored?.expires_at, status: stored?.status, late: late.status })
+      .toEqual({ expires_at: null, status: 'expired', late: 409 });
+  });
+});

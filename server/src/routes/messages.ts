@@ -179,7 +179,9 @@ routes.post('/:id/poll', async (c) => {
         return c.json(finalCheck);
       }
       if (mapMessageRow(message).metadata?.ask_deadline !== true
-        || (message.expires_at && Date.parse(message.expires_at) <= Date.now())) {
+        || !message.expires_at
+        || !Number.isFinite(Date.parse(message.expires_at))
+        || Date.parse(message.expires_at) <= Date.now()) {
         c.executionCtx.waitUntil(expireMessageOptions(c.env, agentId, message).catch(() => {}));
       }
       return c.json(finalCheck ?? { ...mapMessageRow(message), replies: [] });
