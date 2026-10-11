@@ -49,7 +49,7 @@ extension PanelsModel {
     }
 
     func wallConnectivityChanged(_ connected: Bool) {
-        guard isWallConnected != connected else { return }
+        guard !connected || isWallConnected != connected else { return }
         isWallConnected = connected
         if connected, isFetching || isLoadingQuestions {
             if !isLoadingQuestions {
