@@ -50,6 +50,7 @@ struct HomeContent: View {
             terminalPanelIDs: Set(panels.tiles.filter { $0.lifecycle.taskState.isTerminal }.map(\.id)),
             now: now, panelNow: { panels.serverNow(for: $0) }
         )
+        let onRetry: (() async -> Void)? = inbox.isReady ? { await retryCoverage() } : nil
         return VStack(spacing: 22) {
             TodayHeader(snapshot: today, requestCount: attention.count,
                         inputsLoaded: inbox.requiredInputLoaded, now: now, onSettings: openSettings)
@@ -57,7 +58,7 @@ struct HomeContent: View {
                 snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
                 isAllClear: today.isAllClear && attention.questionnaires.isEmpty,
                 status: attentionStatus, statusIsFailure: hasCoverageFailure,
-                onRetry: retryCoverage, onSettings: openSettings,
+                onRetry: onRetry, onSettings: openSettings,
                 replying: inbox.replying,
                 answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
                     ($0.id, inbox.answerability(for: $0.id, now: now))
@@ -74,6 +75,7 @@ struct HomeContent: View {
     }
 
     var attentionStatus: String? {
+        if !inbox.isReady { return String(localized: "Not connected") }
         if let connectionNotice = HomeConnectionStatus.notice(for: inbox.connectionState) {
             return connectionNotice
         }

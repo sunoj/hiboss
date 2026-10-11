@@ -18,7 +18,8 @@ enum HomeConnectionStatus {
         case .connected: nil
         case .connecting: String(localized: "Connecting…")
         case .disconnected: String(localized: "Not connected. Pull to refresh or reconnect in Settings.")
-        case .failed: String(localized: "Connection failed. Pull to refresh or reconnect in Settings.")
+        case .failed(let reason):
+            String(localized: "Connection failed. Pull to refresh or reconnect in Settings.") + " " + reason
         }
     }
 }

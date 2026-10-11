@@ -49,7 +49,14 @@ struct TodayHeader: View {
             chip(Text("Live") + Text(verbatim: " · ") + Text(checkedAt, style: .relative),
                  color: Theme.positive)
         } else {
-            chip(Text("Checking coverage"), color: Theme.ink3)
+            switch snapshot.health {
+            case .connecting:
+                chip(Text("Connecting…"), color: Theme.ink3)
+            case .offline:
+                chip(Text("Not connected"), color: Theme.warn)
+            case .loading, .live:
+                chip(Text("Checking coverage"), color: Theme.ink3)
+            }
         }
     }
 

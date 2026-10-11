@@ -27,7 +27,7 @@ struct HomeAttentionSection: View {
             if snapshot.count > 0 { title }
             if let status {
                 PendingStateView(
-                    title: status, showsPlaceholder: snapshot.count == 0 && !hasPanels,
+                    title: status, showsPlaceholder: snapshot.count == 0 && !hasPanels && !statusIsFailure,
                     isFailure: statusIsFailure, statusIdentifier: "home-connection-status",
                     onRetry: onRetry, onSettings: onSettings
                 )

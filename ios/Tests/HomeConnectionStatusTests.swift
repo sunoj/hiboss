@@ -7,6 +7,11 @@ import XCTest
 @testable import HiBoss
 
 final class HomeConnectionStatusTests: XCTestCase {
+    func testConnectionFailurePreservesTheReasonNeededToRecover() {
+        let reason = "Session expired — reconnect in Settings."
+        XCTAssertTrue(HomeConnectionStatus.notice(for: .failed(reason))?.contains(reason) == true)
+    }
+
     func testFailureIsTerminalRatherThanAConnectionWait() {
         XCTAssertTrue(HomeConnectionStatus.isFailure(.failed("Timeout")))
         XCTAssertTrue(HomeConnectionStatus.isFailure(.disconnected))
