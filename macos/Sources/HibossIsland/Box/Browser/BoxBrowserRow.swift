@@ -8,6 +8,7 @@ import SwiftUI
 struct BoxBrowserRow: View {
     let item: BoxItem
     @ObservedObject var media: BoxBrowserMedia
+    let onOpenImage: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -53,7 +54,15 @@ struct BoxBrowserRow: View {
         if item.hasImageMedia {
             Group {
                 if let image = media.thumbnails[item.id] {
-                    Image(nsImage: image).resizable().scaledToFit()
+                    Button(action: onOpenImage) {
+                        Image(nsImage: image).resizable().scaledToFit()
+                            .frame(width: 80, height: 64)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(item.text ?? L("Image"))
+                    .accessibilityHint(L("Open large viewer"))
+                    .accessibilityIdentifier("box.image.open.\(item.id)")
                 } else if media.errors[item.id] != nil {
                     Button { Task { _ = await media.load(item) } } label: {
                         Label(L("Retry image"), systemImage: "arrow.clockwise")

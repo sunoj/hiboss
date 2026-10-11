@@ -1,5 +1,5 @@
 // History window's native Box list with search, kind filtering and confirmed actions.
-// Exports: BoxBrowserView; media opens with the system's default application.
+// Exports: BoxBrowserView; images preview in-app and other media opens with the default application.
 // Dependencies: SwiftUI, AppKit, BoxBrowserStore and BoxBrowserMedia.
 
 import AppKit
@@ -12,6 +12,7 @@ struct BoxBrowserView: View {
     @State private var pendingDelete: BoxItem?
     @State private var opening: Set<String> = []
     @State private var copied: String?
+    @State private var previewImage: BoxItem?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +35,9 @@ struct BoxBrowserView: View {
         }
         .onChange(of: store.kind) { Task { await store.refresh() } }
         .onChange(of: store.project) { Task { await store.refresh() } }
+        .sheet(item: $previewImage) { item in
+            BoxImagePreview(item: item, media: media)
+        }
         .confirmationDialog(L("Delete this Box item?"), isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
         ), titleVisibility: .visible) {
@@ -75,11 +79,12 @@ struct BoxBrowserView: View {
             }
             ForEach(store.visibleItems) { item in
                 VStack(alignment: .leading, spacing: 6) {
-                    BoxBrowserRow(item: item, media: media)
+                    BoxBrowserRow(item: item, media: media) { previewImage = item }
                     HStack {
                         Button(item.kind == .text && !item.hasMedia ? L("Copy text") : L("Open")) {
                             Task { await open(item) }
                         }.disabled(opening.contains(item.id))
+                            .accessibilityIdentifier("box.open.\(item.id)")
                         if opening.contains(item.id) { ProgressView().controlSize(.small) }
                         if copied == item.id { Text(L("Copied")).font(.caption).foregroundStyle(.secondary) }
                         Spacer()
@@ -116,6 +121,10 @@ struct BoxBrowserView: View {
     }
 
     private func open(_ item: BoxItem) async {
+        if item.hasImageMedia {
+            previewImage = item
+            return
+        }
         guard !opening.contains(item.id) else { return }
         opening.insert(item.id)
         defer { opening.remove(item.id) }

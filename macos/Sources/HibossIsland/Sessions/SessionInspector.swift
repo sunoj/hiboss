@@ -12,6 +12,7 @@ struct SessionInspector: View {
     let onBox: (String) -> Void
     let onSession: (String) -> Void
     @State private var showsAllPeers = false
+    @State private var previewImage: BoxItem?
 
     var body: some View {
         ScrollView {
@@ -30,6 +31,7 @@ struct SessionInspector: View {
             if context.project != nil { await box.refresh() }
         }
         .onChange(of: context.id) { showsAllPeers = false }
+        .sheet(item: $previewImage) { item in BoxImagePreview(item: item, media: media) }
         .accessibilityIdentifier("session.inspector")
     }
 
@@ -74,7 +76,7 @@ struct SessionInspector: View {
                     .foregroundStyle(TodayStyle.secondary)
             }
             ForEach(box.items.prefix(3)) { item in
-                BoxBrowserRow(item: item, media: media)
+                BoxBrowserRow(item: item, media: media) { previewImage = item }
             }
             Button(L("Open Box")) { onBox(project) }
         }
