@@ -39,9 +39,11 @@ PY
     (cd cli && cargo test --test message_contract) || result=1
     (npm ci && cd server && npx vitest run src/routes/message-title.test.ts) || result=1
     ;;
-  final)
+  final|final-cli)
     (cd cli && cargo test && python3 scripts/test-agent-guidance.py) || result=1
-    (npm ci && cd server && npm run typecheck && npm test) || result=1
+    if [ "$1" = final ]; then
+      (npm ci && cd server && npm run typecheck && npm test) || result=1
+    fi
     ;;
 esac
 exit "$result"

@@ -156,7 +156,19 @@ fn runtime_rule_three_precedes_default_and_falls_back_to_rule_four() {
     let fallback = identity(&box_.run(&["whoami", "--json"], &[("CODEX_THREAD_ID", "c")]));
     assert_eq!(fallback["profile"], "default");
     assert_eq!(fallback["source_rule"], 4);
-    assert_eq!(fallback["runtime"], "none");
+    assert_eq!(fallback["runtime"], "codex");
+    let mut config = v2();
+    config["profiles"]["codex"] = json!({"key":"synthetic-codex-key", "name":"Codex"});
+    fs::write(box_.path(), config.to_string()).unwrap();
+    let codex = identity(&box_.run(&["whoami", "--json"], &[("CODEX_SESSION_ID", "c")]));
+    assert_eq!(codex["profile"], "codex");
+    assert_eq!(codex["source_rule"], 3);
+    assert_eq!(codex["runtime"], "codex");
+    assert_eq!(codex["agent_name"], "Codex");
+    let unknown = identity(&box_.run(&["whoami", "--json"], &[]));
+    assert_eq!(unknown["profile"], "default");
+    assert_eq!(unknown["source_rule"], 4);
+    assert_eq!(unknown["runtime"], "none");
 }
 
 #[test]

@@ -8,6 +8,8 @@ use session_identity_support::{
     http::{Http, Response},
     read,
 };
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 #[test]
 fn codex_selects_its_identity_and_registers_each_thread_under_house() {
@@ -126,8 +128,6 @@ fn codex_hook_installation_preserves_other_hooks_and_is_idempotent() {
 
 #[test]
 fn codex_hook_uses_the_json_project_and_emits_model_visible_context() {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
     let http = Http::start(|_| {
         Response::json(
             200,
