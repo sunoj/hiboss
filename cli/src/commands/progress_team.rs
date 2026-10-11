@@ -101,6 +101,10 @@ async fn run_register(
         handle: args.handle.clone(), display_name: args.display_name.clone(),
         bio: args.bio.clone(), avatar_url,
     }).await?;
+    if !is_local_project(&server_team.project, client).await {
+        print_team(&server_team);
+        return Ok(());
+    }
     let existing = hiboss_dir::read_local_team();
     let local_team = LocalTeam {
         handle: server_team.handle.clone(), display_name: server_team.display_name.clone(),
@@ -122,6 +126,20 @@ async fn run_set_avatar(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let project = args.project.clone().unwrap_or_else(session::project_name);
+    let target = if project == session::project_name() {
+        project.clone()
+    } else {
+        client.project_profile(&project).await?.project
+    };
+    if !is_local_project(&target, client).await {
+        let avatar_url = Some(client.upload_file(&args.path).await?.url);
+        let team = client.upsert_progress_team(&project, &ProgressTeamRequest {
+            avatar_url,
+            ..Default::default()
+        }).await?;
+        print_team(&team);
+        return Ok(());
+    }
     // Update the local team.json avatar field if team.json exists
     if let Some(mut local) = hiboss_dir::read_local_team() {
         local.avatar = Some("avatar.png".to_owned());
@@ -131,6 +149,28 @@ async fn run_set_avatar(
     let team = push_local_team(&project, client).await?;
     print_team(&team);
     Ok(())
+}
+
+/// Compare canonical server slugs before touching the repository's local identity.
+async fn is_local_project(target: &str, client: &HiBossClient) -> bool {
+    let repository = session::project_name();
+    if target == repository {
+        return true;
+    }
+    let current = match client.project_profile(&repository).await {
+        Ok(team) => team.project,
+        Err(error) => {
+            eprintln!("warning: cannot resolve this repository's project {repository}: {error}");
+            repository
+        }
+    };
+    if target == current {
+        return true;
+    }
+    eprintln!(
+        "local .hiboss not changed: target project {target} differs from this repository's {current}"
+    );
+    false
 }
 
 /// Upload avatar (if present), push `team.json` to server, update `state.json`.
