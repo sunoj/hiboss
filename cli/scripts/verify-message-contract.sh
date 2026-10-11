@@ -5,15 +5,21 @@ set -u
 printf 'REMOTE_HEAD=%s\n' "$(git rev-parse HEAD)"
 git diff --stat
 result=0
+# The remote snapshot excludes private Wrangler configuration.
+# Use the documented, tracked test template rather than local credentials.
+if [ ! -f server/wrangler.toml ]; then
+  cp server/wrangler.toml.example server/wrangler.toml
+fi
 case "${1:-focused}" in
   before)
-    python3 - <<'PY'
+    python3 - "${2:-HEAD}" <<'PY'
 from pathlib import Path
 import subprocess
+import sys
 paths = subprocess.check_output(['git', 'ls-files', 'cli/src'], text=True).splitlines()
 paths += ['server/src/routes/message-send-input.ts', 'server/src/routes/messages.ts']
 for name in paths:
-    result = subprocess.run(['git', 'show', 'HEAD:' + name], capture_output=True)
+    result = subprocess.run(['git', 'show', sys.argv[1] + ':' + name], capture_output=True)
     if result.returncode == 0:
         Path(name).write_bytes(result.stdout)
 PY
