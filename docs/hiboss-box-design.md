@@ -130,6 +130,13 @@ hiboss box rm <id> [--purge]   # agents can remove only items they added
 
 ## macOS (HiBoss Island)
 
+- Clicking an image thumbnail or selecting Open presents an in-app original-image sheet.
+  Shared Box images in the session inspector use the same preview. The sheet fits the
+  complete image initially, supports zoom and scrolling, and closes with its Close button
+  or Escape. Open original opens the downloaded file in the default application.
+- Image previews use the existing authenticated Box download cache. Loading and decode
+  failures keep the preview open with an explicit Retry action. Reopening a cached image
+  does not start another download.
 - Dropping files, text or a URL onto the Island adds an item, with an optional note in a
   small popover.
 - In Island presentation mode, the idle “Drop into Box” bar is hidden and its panel is

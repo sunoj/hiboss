@@ -1,3 +1,5 @@
+<!-- Message title bounds, native Markdown reading, and attachment preview behavior.
+     Scope: message content transport and native clients; no deployment state. -->
 # Message titles and Markdown details
 
 Agent-to-boss messages use `body` as a short, plain-text title. The title must contain
@@ -28,6 +30,21 @@ blocks. File/image attachments continue to use message attachment metadata.
 
 Previously stored titles longer than the limit remain unchanged in storage. Native
 presentation bounds their heading and preserves the original text in the details.
+
+## Markdown file attachments
+
+Both native clients offer a Markdown preview for `.md` and `.markdown` attachments.
+Recognition uses the response filename or Markdown MIME type as well as the URL suffix,
+so an opaque upload URL can still identify a Markdown document.
+
+The attachment renderer supports tables in addition to native Markdown text blocks.
+Wide tables scroll horizontally. Each row measures its cells at their resolved column
+widths, keeping multiline cells separate from the next row at larger text sizes.
+This table rendering applies to attachment previews; inline message content keeps the
+block support described above.
+
+Preview reads are limited to 2 MiB and require UTF-8 text. Loading errors offer retry;
+the original-file action remains available. HTML is not executed.
 
 ## Codex session attribution
 
