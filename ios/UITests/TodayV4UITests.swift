@@ -73,6 +73,8 @@ final class TodayV4UITests: XCTestCase {
         app.buttons["activity-session-sess-deploy"].tap()
         XCTAssertTrue(app.navigationBars["prod-release"].waitForExistence(timeout: 5))
         shot(app, "\(appearance)-session-thread")
+        app.navigationBars.buttons["BackButton"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Box"].tap()
         XCTAssertTrue(app.buttons["box-item-demo-text"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Box"].exists)
