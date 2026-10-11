@@ -88,6 +88,7 @@ struct BoxMediaDetail: View {
                     .background(.regularMaterial)
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("box-media-detail")
         .task { await media.load(item) }
     }
