@@ -13,6 +13,14 @@ extension DemoBossAPI {
     ) async throws -> SessionEventsPage {
         try await DemoDelay.wait("TRANSCRIPT")
         sessionFetchCount += 1
+        if sessionFetchCount == 1,
+           ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {
+            return SessionEventsPage(events: [])
+        }
+        if sessionFetchCount == 1,
+           ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_RECOVERABLE"] == "1" {
+            throw HibossAPIError.requestFailed(status: 404, message: "Session not accessible")
+        }
         if sessionID == SessionGrouping.directSessionID
             || ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE"] == "1" {
             throw HibossAPIError.requestFailed(status: 404, message: "Session not found")
@@ -40,6 +48,12 @@ extension DemoBossAPI {
         after: Int
     ) async -> AsyncThrowingStream<SessionStreamFrame, Error> {
         try? await DemoDelay.wait("TRANSCRIPT_CONNECTION")
+        if sessionFetchCount == 1,
+           ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {
+            return AsyncThrowingStream {
+                $0.finish(throwing: HibossAPIError.requestFailed(status: 503, message: "Stream unavailable"))
+            }
+        }
         return AsyncThrowingStream { continuation in
             let update = Task {
                 guard DemoDelay.isHeld("TRANSCRIPT_NEWER") else { return }

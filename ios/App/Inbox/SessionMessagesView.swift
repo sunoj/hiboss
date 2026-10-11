@@ -63,7 +63,9 @@ struct SessionMessagesView: View {
             if confirmation != nil { Task { await stream.refresh() } }
         }
         .onChange(of: stream.connectionState, initial: true) { _, state in
-            if state == .connected || stream.loadError != nil || stream.usesHistory { hasLoaded = true }
+            if state == .connected || state.detail != nil || stream.loadError != nil || stream.usesHistory {
+                hasLoaded = true
+            }
         }
         .onChange(of: stream.isLoading) { _, loading in
             if !loading { hasLoaded = true }
@@ -131,9 +133,12 @@ struct SessionMessagesView: View {
             onRetry: { await stream.refresh() }
         ) { transcript }
         .safeAreaInset(edge: .bottom) {
-            if !stream.usesHistory, !stream.events.isEmpty, stream.connectionState != .connected {
+            if !stream.usesHistory, hasLoaded, stream.loadError == nil,
+               stream.connectionState != .connected {
                 PendingStateView(
-                    title: String(localized: "Reconnecting transcript. Showing earlier events."),
+                    title: stream.events.isEmpty ? String(localized: "Reconnecting transcript.")
+                        : String(localized: "Reconnecting transcript. Showing earlier events."),
+                    isFailure: stream.connectionState.detail != nil,
                     onRetry: { await stream.refresh() }
                 ).padding(12).background(.bar)
             }
@@ -159,6 +164,9 @@ struct SessionMessagesView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
                             .accessibilityIdentifier("session-history-note")
+                        if route.id != SessionGrouping.directSessionID {
+                            RetryButton { await stream.refresh() }
+                        }
                     }
                     Color.clear.frame(height: 1).id("live-end")
                 }
@@ -205,7 +213,7 @@ struct SessionMessagesView: View {
     private var historyNote: String {
         route.id == SessionGrouping.directSessionID
             ? String(localized: "Showing messages sent without a session.")
-            : String(localized: "This session has ended. Showing its messages.")
+            : String(localized: "This session is no longer available. Showing its saved messages.")
     }
 
     private var transcriptEvents: [SessionEvent] {

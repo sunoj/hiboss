@@ -55,18 +55,65 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertTrue(app.textFields["session-reply-draft"].isHittable)
     }
 
-    func testEndedSessionShowsMessagesAndNeutralNote() {
+    func testInaccessibleSessionShowsMessagesAndNeutralNote() {
         let app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE": "1"])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
         XCTAssertTrue(app.staticTexts["session-history-note"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["session-history-note"].label,
-                       "This session has ended. Showing its messages.")
+                       "This session is no longer available. Showing its saved messages.")
         XCTAssertTrue(app.descendants(matching: .any)["transcript-decision-c1"].exists)
         XCTAssertTrue(app.buttons["Approve"].exists)
-        XCTAssertFalse(app.buttons["Retry"].exists)
-        capture(app, "ended-session")
+        XCTAssertTrue(app.buttons["Retry"].exists)
+        app.buttons["Retry"].tap()
+        XCTAssertTrue(app.staticTexts["session-history-note"].exists)
+        XCTAssertFalse(app.staticTexts["Can't reach the server"].exists)
+        capture(app, "unavailable-session")
+    }
+
+    func testEmptyLiveTranscriptStreamFailureOffersRetry() {
+        let app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1",
+                                 "HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE": "1"])
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchConfiguredDemo()
+        XCTAssertTrue(app.staticTexts["No events yet"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Retry"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.buttons["Retry"].isHittable)
+        capture(app, "empty-stream-failed")
+        app.buttons["Retry"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["session-bubble-incoming"]
+            .waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Retry"].waitForNonExistence(timeout: 5))
+        capture(app, "empty-stream-recovered")
+    }
+
+    func testUnavailableSessionRetryRestoresLiveTranscript() {
+        let app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1",
+                                 "HIBOSS_DEMO_TRANSCRIPT_RECOVERABLE": "1"])
+        app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchConfiguredDemo()
+        let note = app.staticTexts["session-history-note"]
+        XCTAssertTrue(note.waitForExistence(timeout: 10))
+        app.buttons["Retry"].tap()
+        XCTAssertTrue(note.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["session-bubble-incoming"].exists)
+        XCTAssertTrue(app.buttons["Retry"].waitForNonExistence(timeout: 5))
+        capture(app, "history-restored-live")
+    }
+
+    func testUnavailableSessionNoteIsNeutralInChinese() {
+        let app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE": "1"])
+        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
+        app.launchConfiguredDemo()
+        let note = app.staticTexts["session-history-note"]
+        XCTAssertTrue(note.waitForExistence(timeout: 10))
+        XCTAssertEqual(note.label, "此会话已不可用，正在显示其已保存的消息。")
+        XCTAssertTrue(app.buttons["重试"].exists)
+        capture(app, "zh-unavailable-session")
     }
 
     func testCardsKeepOnlyAgentIdentityThatDiffersFromSession() {
@@ -77,8 +124,8 @@ final class SessionPageLayoutUITests: XCTestCase {
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)
-        XCTAssertFalse(card.staticTexts.matching(NSPredicate(format: "label CONTAINS 'prod-release'")).firstMatch
-            .exists)
+        XCTAssertFalse(card.staticTexts.matching(NSPredicate(format: "label CONTAINS 'prod-release'"))
+            .firstMatch.exists)
         card.buttons["Approve"].tap()
         XCTAssertTrue(card.descendants(matching: .any)["transcript-answer-c1"].waitForExistence(timeout: 10))
         XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)

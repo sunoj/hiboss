@@ -50,7 +50,7 @@ public final class SessionStreamStore: ObservableObject {
     }
 
     public func start(api: any SessionStreamServing) {
-        guard !usesHistory else { return }
+        guard sessionID != SessionGrouping.directSessionID else { return }
         stop()
         self.api = api
         Task { await reloadWindow(reason: .initial) }
@@ -149,6 +149,7 @@ public final class SessionStreamStore: ObservableObject {
             lastAppliedSequence = window.last?.sequence ?? -1
             isFollowingLive = true
             pendingWhileLocked = 0
+            usesHistory = false
             streamTask?.cancel()
             streamTask = Task { await runStreamLoop() }
         } catch {
@@ -208,7 +209,7 @@ public final class SessionStreamStore: ObservableObject {
                 }
                 connectionState = .failed(error.localizedDescription)
             }
-            connectionState = .connecting
+            if connectionState == .connected { connectionState = .connecting }
             try? await Task.sleep(for: reconnectDelay)
         }
     }
@@ -216,7 +217,6 @@ public final class SessionStreamStore: ObservableObject {
     private func useHistoryIfUnavailable(_ error: Error) -> Bool {
         guard case .requestFailed(status: 404, _) = error as? HibossAPIError else { return false }
         stop()
-        api = nil
         loadError = nil
         hasEarlier = false
         isFollowingLive = true
