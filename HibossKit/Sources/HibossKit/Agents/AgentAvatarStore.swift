@@ -8,7 +8,6 @@ import SwiftUI
 
 @MainActor @Observable
 public final class AgentAvatarStore {
-    private var byID: [String: URL] = [:]
     private var byName: [String: URL] = [:]
     @ObservationIgnored private var api: (any AgentsServing)?
     @ObservationIgnored private var generation = 0
@@ -19,8 +18,8 @@ public final class AgentAvatarStore {
         replace(agents)
     }
 
-    public func url(for identity: String) -> URL? {
-        byID[identity] ?? byName[identity]
+    public func url(forName name: String) -> URL? {
+        byName[name]
     }
 
     public func connect(api: (any AgentsServing)?) {
@@ -34,7 +33,6 @@ public final class AgentAvatarStore {
         task?.cancel()
         task = nil
         api = nil
-        byID = [:]
         byName = [:]
     }
 
@@ -57,15 +55,12 @@ public final class AgentAvatarStore {
     }
 
     private func replace(_ agents: [BossAgent]) {
-        var ids: [String: URL] = [:]
         var names: [String: URL] = [:]
         for agent in agents {
             guard let url = agent.avatarURL, url.host != nil, url.user == nil, url.password == nil,
                   ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { continue }
-            ids[agent.id] = url
             names[agent.name] = url
         }
-        byID = ids
         byName = names
     }
 }

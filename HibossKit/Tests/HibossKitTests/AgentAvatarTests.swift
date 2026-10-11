@@ -31,15 +31,28 @@ final class AgentAvatarTests: XCTestCase {
         XCTAssertEqual(agents, [BossAgent(id: "a1", name: "Build Agent", avatarURL: url)])
     }
 
-    func testLookupUsesExactIDAndNameAndRejectsNonPublicURLs() {
+    func testLookupUsesExactNameOnlyAndRejectsNonPublicURLs() {
         let store = AgentAvatarStore(agents: [BossAgent(id: "a1", name: "Build Agent", avatarURL: url)])
-        XCTAssertEqual(store.url(for: "a1"), url)
-        XCTAssertEqual(store.url(for: "Build Agent"), url)
-        XCTAssertNil(store.url(for: "build agent"))
+        XCTAssertNil(store.url(forName: "a1"))
+        XCTAssertEqual(store.url(forName: "Build Agent"), url)
+        XCTAssertNil(store.url(forName: "build agent"))
         for invalid in ["file:///tmp/avatar.png", "https://user:password@example.com/a.png", "relative.png"] {
             let invalidStore = AgentAvatarStore(agents: [
                 BossAgent(id: "a1", name: "Build Agent", avatarURL: URL(string: invalid))])
-            XCTAssertNil(invalidStore.url(for: "a1"))
+            XCTAssertNil(invalidStore.url(forName: "Build Agent"))
+        }
+    }
+
+    func testNameMatchingAnotherAgentIDUsesOnlyItsOwnAvatar() {
+        let foreignID = "0123456789abcdef0123456789abcdef"
+        let ownURL = URL(string: "https://images.example/own.png")
+        for avatarURL in [ownURL, nil] {
+            let store = AgentAvatarStore(agents: [
+                BossAgent(id: foreignID, name: "Other Agent", avatarURL: url),
+                BossAgent(id: "own", name: foreignID, avatarURL: avatarURL)
+            ])
+            XCTAssertEqual(store.url(forName: foreignID), avatarURL)
+            XCTAssertNotEqual(store.url(forName: foreignID), url)
         }
     }
 
@@ -49,16 +62,16 @@ final class AgentAvatarTests: XCTestCase {
         store.connect(api: api)
         await waitUntil { await api.pending == 1 }
         await api.complete([BossAgent(id: "a1", name: "Build Agent", avatarURL: url)])
-        await waitUntil { store.url(for: "a1") == self.url }
+        await waitUntil { store.url(forName: "Build Agent") == self.url }
         store.refresh()
         await waitUntil { await api.pending == 1 }
         let changed = URL(string: "https://images.example/changed.png")
         await api.complete([BossAgent(id: "a1", name: "Build Agent", avatarURL: changed)])
-        await waitUntil { store.url(for: "Build Agent") == changed }
+        await waitUntil { store.url(forName: "Build Agent") == changed }
         store.refresh()
         await waitUntil { await api.pending == 1 }
         await api.complete([BossAgent(id: "a1", name: "Build Agent")])
-        await waitUntil { store.url(for: "a1") == nil }
+        await waitUntil { store.url(forName: "Build Agent") == nil }
         store.disconnect()
     }
 
@@ -67,23 +80,23 @@ final class AgentAvatarTests: XCTestCase {
         let next = HeldAgentsAPI()
         let store = AgentAvatarStore(agents: [BossAgent(id: "a1", name: "Build Agent", avatarURL: url)])
         store.connect(api: first)
-        XCTAssertNil(store.url(for: "Build Agent"))
+        XCTAssertNil(store.url(forName: "Build Agent"))
         await waitUntil { await first.pending == 1 }
         store.connect(api: next)
         await waitUntil { await next.pending == 1 }
         let nextURL = URL(string: "https://next.example/avatar.png")
         await next.complete([BossAgent(id: "a1", name: "Build Agent", avatarURL: nextURL)])
-        await waitUntil { store.url(for: "Build Agent") == nextURL }
+        await waitUntil { store.url(forName: "Build Agent") == nextURL }
         await first.complete([BossAgent(id: "a1", name: "Build Agent", avatarURL: url)])
         for _ in 0..<100 { await Task.yield() }
-        XCTAssertEqual(store.url(for: "Build Agent"), nextURL)
+        XCTAssertEqual(store.url(forName: "Build Agent"), nextURL)
         store.refresh()
         await waitUntil { await next.pending == 1 }
         store.disconnect()
         await next.complete([BossAgent(id: "a1", name: "Build Agent", avatarURL: nextURL)])
         for _ in 0..<100 { await Task.yield() }
-        XCTAssertNil(store.url(for: "a1"))
-        XCTAssertNil(store.url(for: "Build Agent"))
+        XCTAssertNil(store.url(forName: "a1"))
+        XCTAssertNil(store.url(forName: "Build Agent"))
     }
 
     private func waitUntil(_ condition: () async -> Bool) async {

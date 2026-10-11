@@ -7,10 +7,23 @@ import SwiftUI
 struct AgentAvatarView: View {
     let name: String
     let size: CGFloat
+    let lookupName: String?
     @Environment(\.agentAvatars) private var avatars
 
+    init(name: String, size: CGFloat) {
+        self.init(name: name, size: size, lookupName: name)
+    }
+
+    init(name: String, size: CGFloat, lookupName: String?) {
+        self.name = name
+        self.size = size
+        self.lookupName = lookupName.flatMap {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
+        }
+    }
+
     var body: some View {
-        let url = avatars?.url(for: name)
+        let url = lookupName.flatMap { avatars?.url(forName: $0) }
         if ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] != nil,
            url == AgentAvatarDemo.url, let image = AgentAvatarDemo.image {
             AgentAvatarContent(name: name, size: size, phase: .success(image))

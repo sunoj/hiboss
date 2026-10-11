@@ -8,6 +8,43 @@ import XCTest
 
 @MainActor
 final class AgentAvatarTests: XCTestCase {
+    func testUnidentifiedMessageRowKeepsInitialsWhenFallbackNameHasAvatar() throws {
+        let key = "HIBOSS_ATTENTION_PREVIEW"
+        let previous = ProcessInfo.processInfo.environment[key]
+        setenv(key, "1", 1)
+        defer {
+            if let previous { setenv(key, previous, 1) }
+            else { unsetenv(key) }
+        }
+        for agentName: String? in [nil, "", " \n"] {
+            let message = HistoryMessage(id: "unidentified", body: "Build finished", agentName: agentName,
+                direction: "agent_to_boss", status: "delivered", priority: "normal",
+                createdAt: "2026-10-11T12:00:00Z")
+            let avatars = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: "Agent"),
+                AgentAvatarDemo.agent(name: message.historyDisplayName),
+                AgentAvatarDemo.agent(name: agentName ?? "Agent")])
+            let row = HistoryThreadRow(thread: MessageThread(message: message),
+                reply: AttentionReplyState(), isExpanded: .constant(false), isSearching: false,
+                onCollapse: {}, onChoose: { _ in nil }).frame(width: 500)
+            try assertSamePixels(row.environment(\.agentAvatars, avatars), row)
+        }
+    }
+
+    func testMissingAndBlankLookupNamesPreserveDisplayInitials() throws {
+        let avatars = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: "Agent")])
+        let initials = AgentAvatarContent(name: "Agent", size: 40, phase: .empty)
+        for lookupName: String? in [nil, "", " \n"] {
+            let view = AgentAvatarView(name: "Agent", size: 40, lookupName: lookupName)
+                .environment(\.agentAvatars, avatars)
+            try assertSamePixels(view, initials)
+        }
+        for name in ["", " \n"] {
+            let store = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: name)])
+            let view = AgentAvatarView(name: name, size: 40).environment(\.agentAvatars, store)
+            try assertSamePixels(view, AgentAvatarContent(name: name, size: 40, phase: .empty))
+        }
+    }
+
     func testBundledDemoAvatarRendersAnImage() throws {
         let image = try XCTUnwrap(AgentAvatarDemo.image)
         let success = AgentAvatarContent(name: "Preview Agent", size: 40, phase: .success(image))

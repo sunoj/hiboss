@@ -8,6 +8,46 @@ import XCTest
 
 @MainActor
 final class AgentAvatarTests: XCTestCase {
+    func testUnidentifiedMessageRowsKeepInitialsWhenFallbackNameHasAvatar() throws {
+        let previous = ProcessInfo.processInfo.environment["HIBOSS_DEMO"]
+        setenv("HIBOSS_DEMO", "1", 1)
+        defer {
+            if let previous { setenv("HIBOSS_DEMO", previous, 1) }
+            else { unsetenv("HIBOSS_DEMO") }
+        }
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-11T12:00:00Z"))
+        for agentName: String? in [nil, "", " \n"] {
+            let message = HistoryMessage(id: "unidentified", body: "Build finished", agentName: agentName,
+                direction: "agent_to_boss", status: "delivered", priority: "normal",
+                createdAt: "2026-10-11T12:00:00Z")
+            let avatars = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: "Agent"),
+                AgentAvatarDemo.agent(name: message.displayName)])
+            let row = HistoryRow(message: message)
+            XCTAssertEqual(try rendered(row.environment(\.agentAvatars, avatars)), try rendered(row))
+            let snapshot = TodaySnapshot(history: [message], health: .live(checkedAt: now),
+                coverageComplete: true, now: now)
+            XCTAssertEqual(snapshot.delivered.map(\.id), [message.id])
+            let today = TodayResults(snapshot: snapshot).frame(width: 390)
+            XCTAssertEqual(try rendered(today.environment(\.agentAvatars, avatars)), try rendered(today))
+        }
+    }
+
+    func testMissingAndBlankLookupNamesPreserveDisplayInitials() throws {
+        let avatars = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: "Agent")])
+        let initials = AgentAvatarContent(name: "Agent", size: 40, phase: .empty)
+        for lookupName: String? in [nil, "", " \n"] {
+            let view = AgentAvatarView(name: "Agent", size: 40, lookupName: lookupName)
+                .environment(\.agentAvatars, avatars)
+            XCTAssertEqual(try rendered(view), try rendered(initials))
+        }
+        for name in ["", " \n"] {
+            let store = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: name)])
+            let view = AgentAvatarView(name: name, size: 40).environment(\.agentAvatars, store)
+            XCTAssertEqual(try rendered(view),
+                try rendered(AgentAvatarContent(name: name, size: 40, phase: .empty)))
+        }
+    }
+
     func testRegisteredDemoLookupReplacesInitialsInAvatarView() throws {
         let previous = ProcessInfo.processInfo.environment["HIBOSS_DEMO"]
         setenv("HIBOSS_DEMO", "1", 1)

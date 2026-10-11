@@ -15,7 +15,7 @@ struct HistoryRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if !dynamicTypeSize.isAccessibilitySize {
-                AgentAvatarView(name: message.displayName, size: 40)
+                AgentAvatarView(name: message.displayName, size: 40, lookupName: message.agentName)
             }
             VStack(alignment: .leading, spacing: 3) {
                 RowHeader(name: Text(verbatim: message.displayName), time: message.relativeCreatedAt)

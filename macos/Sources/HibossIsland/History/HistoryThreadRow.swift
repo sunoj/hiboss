@@ -115,7 +115,8 @@ struct HistoryThreadRow: View {
                 .background(Color.accentColor.opacity(0.1), in: Circle())
                 .accessibilityHidden(true)
         } else {
-            AgentAvatarView(name: message.agentName ?? message.historyDisplayName, size: 34)
+            AgentAvatarView(name: message.agentName ?? message.historyDisplayName, size: 34,
+                            lookupName: message.agentName)
         }
     }
 
