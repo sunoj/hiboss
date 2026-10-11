@@ -39,6 +39,7 @@ struct SessionFactsHeader: View {
         Group {
             if typeSize.isAccessibilitySize {
                 DisclosureGroup("Session facts") { details }
+                    .frame(minHeight: 44)
             } else { details }
         }
         .accessibilityElement(children: .contain)
@@ -46,41 +47,63 @@ struct SessionFactsHeader: View {
     }
 
     private var details: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                ProjectAvatarView(project: session.avatarProject, size: 40)
-                Text(verbatim: session.namedLabel).font(.title2.bold())
-            }
-            HStack {
-                if let agent = clean(session.agentName) {
-                    AgentAvatarView(name: agent, size: 20)
-                    Text(verbatim: agent)
-                }
-                if let host = clean(session.host) { Label { Text(verbatim: host) } icon: {
-                    Image(systemName: "desktopcomputer")
-                } }
-            }.font(.footnote).foregroundStyle(Theme.ink2)
+        VStack(alignment: .leading, spacing: 2) {
+            identityRows.font(.caption).foregroundStyle(Theme.ink2)
             if let step = clean(session.statusText) ?? clean(session.status) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label { Text(verbatim: step) } icon: { Image(systemName: "circle.fill") }
-                        .font(.subheadline).foregroundStyle(Theme.live)
-                    if let date = session.inventoryLastSeenDate {
-                        TimelineView(.periodic(from: .now, by: 10)) { context in
-                            let age = Duration.seconds(max(0, context.date.timeIntervalSince(date)))
-                                .formatted(.units(allowed: [.days, .hours, .minutes, .seconds],
-                                                  width: .abbreviated, maximumUnitCount: 1))
-                            Text("Updated \(age)").font(.caption).foregroundStyle(Theme.ink3)
-                        }
-                    }
-                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12))
+                Text(verbatim: step).font(.caption).foregroundStyle(Theme.live)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            if let date = session.inventoryStartedDate {
-                Text("Started \(date.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption).foregroundStyle(Theme.ink3)
+            timingRows.font(.caption2).foregroundStyle(Theme.ink3)
+        }
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var identityRows: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) { identity }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { identity }
+                VStack(alignment: .leading, spacing: 2) { identity }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var timingRows: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) { timing }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { timing }
+                VStack(alignment: .leading, spacing: 2) { timing }
+            }
+        }
+    }
+
+    @ViewBuilder private var identity: some View {
+        if let agent = clean(session.agentName) {
+            Text(verbatim: agent).fixedSize(horizontal: false, vertical: true)
+        }
+        if let host = clean(session.host) {
+            Label { Text(verbatim: host) } icon: { Image(systemName: "desktopcomputer") }
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder private var timing: some View {
+        if let date = session.inventoryLastSeenDate {
+            TimelineView(.periodic(from: .now, by: 10)) { context in
+                let age = Duration.seconds(max(0, context.date.timeIntervalSince(date)))
+                    .formatted(.units(allowed: [.days, .hours, .minutes, .seconds],
+                                      width: .abbreviated, maximumUnitCount: 1))
+                Text("Updated \(age)").fixedSize(horizontal: false, vertical: true)
+            }.fixedSize(horizontal: false, vertical: true)
+        }
+        if let date = session.inventoryStartedDate {
+            Text("Started \(date.formatted(date: .abbreviated, time: .shortened))")
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func clean(_ value: String?) -> String? {

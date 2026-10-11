@@ -8,6 +8,7 @@ import SwiftUI
 struct SessionTranscriptItemView: View {
     let item: SessionTranscriptItem
     @ObservedObject var store: InboxStore
+    var sessionAgent: String? = nil
     let onChoose: (String, MessageID) -> Void
 
     var body: some View {
@@ -16,7 +17,8 @@ struct SessionTranscriptItemView: View {
             SessionTimeSeparator(date: date)
         case let .bubble(event, style):
             if let decision = decision(for: event) {
-                SessionDecisionBubble(event: event, style: style, message: decision, store: store) {
+                SessionDecisionBubble(event: event, style: style, message: decision, store: store,
+                                      sessionAgent: sessionAgent) {
                     onChoose($0, decision.id)
                 }
             } else {

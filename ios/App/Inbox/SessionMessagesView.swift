@@ -1,4 +1,4 @@
-// Real-time session transcript: append-only events with scroll lock and in-place decisions.
+// Session transcript: live events or cached history, with scroll lock and in-place decisions.
 // Exports: SessionMessagesView bound to SessionStreamStore, InboxStore and SessionRoute.
 // Dependencies: SwiftUI, UIKit haptics, HibossKit SessionStreamStore, system semantic styles.
 
@@ -28,45 +28,52 @@ struct SessionMessagesView: View {
     }
 
     private var connectedTranscript: some View {
-        VStack(spacing: 0) {
-            if let session = facts.session {
-                SessionFactsHeader(session: session).padding(12).background(Theme.paper)
-            }
-            ZStack(alignment: .bottom) {
-                content.clipped()
-                if !stream.isFollowingLive {
-                    jumpToLiveButton
-                }
+        ZStack(alignment: .bottom) {
+            content
+            if !stream.isFollowingLive, !stream.usesHistory {
+                jumpToLiveButton
             }
         }
         .background(Theme.paper)
         .safeAreaInset(edge: .bottom) {
-            SessionReplyComposer(targets: SessionReplyTarget.eligible(events: stream.events, store: store),
+            SessionReplyComposer(targets: SessionReplyTarget.eligible(events: transcriptEvents, store: store),
                                  store: store)
         }
         .navigationTitle(Text(verbatim: facts.session?.namedLabel ?? route.label))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar { historyToolbar }
+    }
+
+    private var observedTranscript: some View {
+        connectedTranscript
         .task(id: route.id) {
             if let api { stream.start(api: api) }
-            await facts.load(id: route.id, api: store.api as? any SessionsServing)
+            if route.id != SessionGrouping.directSessionID {
+                await facts.load(id: route.id, api: store.api as? any SessionsServing)
+            }
         }
         .onDisappear { stream.stop() }
         .onChange(of: store.replyConfirmation) { _, confirmation in
             if confirmation != nil { Task { await stream.refresh() } }
         }
         .onChange(of: stream.connectionState, initial: true) { _, state in
-            if state == .connected || stream.loadError != nil { hasLoaded = true }
+            if state == .connected || stream.loadError != nil || stream.usesHistory { hasLoaded = true }
         }
         .onChange(of: stream.isLoading) { _, loading in
             if !loading { hasLoaded = true }
+        }
+        .onChange(of: stream.usesHistory) { _, history in
+            if history { hasLoaded = true }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream.resumeFromForeground() }
         }
         .refreshable {
             await stream.refresh()
-            await facts.load(id: route.id, api: store.api as? any SessionsServing)
+            if route.id != SessionGrouping.directSessionID {
+                await facts.load(id: route.id, api: store.api as? any SessionsServing)
+            }
             if let panels { await panels.load() }
         }
     }
@@ -76,16 +83,17 @@ struct SessionMessagesView: View {
             HStack {
                 NavigationLink {
                     MessagesView(store: store, sessionID: route.id).navigationTitle("Messages")
+                        .toolbar(.visible, for: .tabBar)
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
                 }.accessibilityLabel("Message history")
-                ConnectionDot(state: stream.connectionState)
+                if !stream.usesHistory { ConnectionDot(state: stream.connectionState) }
             }
         }
     }
 
     var body: some View {
-        connectedTranscript
+        observedTranscript
         .alert(
             String(localized: "Transcript reloaded"),
             isPresented: Binding(
@@ -110,8 +118,8 @@ struct SessionMessagesView: View {
 
     private var content: some View {
         ListStateView(
-            isLoading: !hasLoaded || stream.isLoading, error: stream.loadError,
-            isEmpty: stream.events.isEmpty,
+            isLoading: !stream.usesHistory && (!hasLoaded || stream.isLoading), error: stream.loadError,
+            isEmpty: transcriptEvents.isEmpty && !stream.usesHistory,
             emptyIcon: "text.alignleft", emptyTitle: String(localized: "No events yet"),
             emptyDetail: String(localized: "This session has no transcript events yet."),
             loadingTitle: String(localized: "Loading transcript…"),
@@ -119,7 +127,7 @@ struct SessionMessagesView: View {
             onRetry: { await stream.refresh() }
         ) { transcript }
         .safeAreaInset(edge: .bottom) {
-            if !stream.events.isEmpty, stream.connectionState != .connected {
+            if !stream.usesHistory, !stream.events.isEmpty, stream.connectionState != .connected {
                 PendingStateView(
                     title: String(localized: "Reconnecting transcript. Showing earlier events."),
                     onRetry: { await stream.refresh() }
@@ -132,40 +140,32 @@ struct SessionMessagesView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    if let error = facts.error {
-                        Text(verbatim: error).font(.footnote).foregroundStyle(Theme.ink2)
-                        RetryButton { await facts.load(id: route.id, api: store.api as? any SessionsServing) }
-                    }
-                    if let current = facts.session {
-                        TimelineView(.periodic(from: .now, by: 60)) { context in
-                            ProjectPeersView(peers: RecentProjectPeers.all(
-                                current: current, sessions: facts.sessions, messages: store.history,
-                                now: context.date))
-                        }
-                    }
+                    transcriptContext
                     if stream.hasEarlier {
                         earlierEvents
                     }
-                    ForEach(SessionTranscriptLayout.items(from: stream.events)) { item in
-                        SessionTranscriptItemView(item: item, store: store, onChoose: handleReply)
+                    ForEach(SessionTranscriptLayout.items(from: transcriptEvents)) { item in
+                        SessionTranscriptItemView(item: item, store: store, sessionAgent: sessionAgent,
+                                                  onChoose: handleReply)
                             .id(item.id)
                     }
                     if let panels { SessionPanelCards(sessionID: route.id, model: panels) }
+                    if stream.usesHistory {
+                        Text(verbatim: historyNote).font(.footnote).foregroundStyle(Theme.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                            .accessibilityIdentifier("session-history-note")
+                    }
                     Color.clear.frame(height: 1).id("live-end")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
+            .accessibilityIdentifier("session-transcript")
             .coordinateSpace(name: "transcript")
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 8).onChanged { value in
-                    if value.translation.height > 12 {
-                        stream.readerScrolledAway()
-                    }
-                }
-            )
+            .simultaneousGesture(readerGesture)
             .onAppear { scrollToLive(proxy) }
-            .onChange(of: stream.events.last?.sequence) { _, _ in
+            .onChange(of: transcriptEvents.last?.id) { _, _ in
                 if stream.isFollowingLive { scrollToLive(proxy) }
             }
             .onChange(of: panels?.tiles.count) { _, _ in
@@ -175,6 +175,44 @@ struct SessionMessagesView: View {
                 if following { scrollToLive(proxy) }
             }
         }
+    }
+
+    private var readerGesture: some Gesture {
+        DragGesture(minimumDistance: 8).onChanged { value in
+            if value.translation.height > 12 { stream.readerScrolledAway() }
+        }
+    }
+
+    @ViewBuilder private var transcriptContext: some View {
+        if let error = facts.error {
+            Text(verbatim: error).font(.footnote).foregroundStyle(Theme.ink2)
+            RetryButton { await facts.load(id: route.id, api: store.api as? any SessionsServing) }
+        }
+        if let current = facts.session, !stream.usesHistory {
+            SessionFactsHeader(session: current)
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                ProjectPeersView(peers: RecentProjectPeers.all(
+                    current: current, sessions: facts.sessions, messages: store.history,
+                    now: context.date))
+            }
+        }
+    }
+
+    private var historyNote: String {
+        route.id == SessionGrouping.directSessionID
+            ? String(localized: "Showing messages sent without a session.")
+            : String(localized: "This session has ended. Showing its messages.")
+    }
+
+    private var transcriptEvents: [SessionEvent] {
+        stream.usesHistory ? SessionHistoryTranscript.events(sessionID: route.id, messages: store.history)
+            : stream.events
+    }
+
+    private var sessionAgent: String? {
+        guard route.id != SessionGrouping.directSessionID else { return nil }
+        return facts.session?.agentName ?? SessionGrouping.groupBySession(store.history)
+            .first { $0.id == route.id }?.agentName
     }
 
     private var earlierEvents: some View {

@@ -24,7 +24,7 @@ struct SessionReplyComposer: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             targetLabel
             if let newer = replyDraft.newer(in: targets) {
                 Button("Reply to the newer message") { replyDraft.select(newer) }
@@ -52,7 +52,9 @@ struct SessionReplyComposer: View {
                               || replyDraft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(12).background(.bar)
+        .padding(.horizontal, 12).padding(.vertical, 4).background(.bar)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("session-reply-composer")
         .sheet(isPresented: $picking) {
             NavigationStack {
                 BoxListView(api: boxAPI, onSelect: attach)
@@ -77,6 +79,8 @@ struct SessionReplyComposer: View {
             }
         }
         .font(.footnote).foregroundStyle(Theme.ink2)
+        .lineLimit(1)
+        .truncationMode(.tail)
         .fixedSize(horizontal: false, vertical: true)
         .accessibilityIdentifier("session-reply-target")
     }

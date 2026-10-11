@@ -172,8 +172,10 @@ final class SessionsV4UITests: XCTestCase {
         XCTAssertTrue(field.isHittable)
         XCTAssertLessThanOrEqual(field.frame.maxX, app.frame.maxX)
         XCTAssertTrue(app.buttons["Message history"].isHittable)
-        XCTAssertTrue(app.buttons["Session facts"].exists)
         XCTAssertTrue(app.buttons["Approve"].exists)
+        let facts = app.buttons["Session facts"]
+        for _ in 0..<8 where !facts.isHittable { app.swipeDown() }
+        XCTAssertTrue(facts.isHittable)
     }
 
     func testAutomaticDefaultNeverClaimsApproval() {
