@@ -204,7 +204,12 @@ final class MediaViewerUITests: XCTestCase {
     }
 
     private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let scroll = mediaZoomScroll(app)
+        scroll.tap()
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForNonExistence(timeout: 3))
+        scroll.tap()
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 3))
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
