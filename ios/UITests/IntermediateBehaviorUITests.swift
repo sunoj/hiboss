@@ -73,6 +73,6 @@ final class IntermediateBehaviorUITests: IntermediateCaptureCase {
         let zoom = app.buttons["Open image for Coastal view"].firstMatch
         XCTAssertTrue(zoom.isEnabled)
         zoom.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
-        XCTAssertTrue(app.buttons["Done"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 3))
     }
 }

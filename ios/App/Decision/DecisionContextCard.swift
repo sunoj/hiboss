@@ -35,7 +35,7 @@ struct DecisionContextCard: View {
     let message: HistoryMessage
 
     var body: some View {
-        MessageMarkdownView(message.messageText.content ?? message.body)
+        MediaMarkdownView(message.messageText.content ?? message.body)
             .font(.subheadline).textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)

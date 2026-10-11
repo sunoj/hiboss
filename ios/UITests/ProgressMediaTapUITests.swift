@@ -23,6 +23,7 @@ final class ProgressMediaTapUITests: XCTestCase {
         XCTAssertTrue(image.waitForExistence(timeout: 8), "demo feed image should appear")
         image.tap()
         assertViewerOpened(after: "single-image accessibility tap")
+        assertMediaPinchZoom(app)
     }
 
     func testViewerImageFillsScreenAndIsCentered() {
@@ -89,7 +90,8 @@ final class ProgressMediaTapUITests: XCTestCase {
         dismissViewer()
 
         let clip = media("looping demo clip")
-        XCTAssertTrue(clip.waitForExistence(timeout: 3), "video cell labeled 'looping demo clip' should appear")
+        XCTAssertTrue(clip.waitForExistence(timeout: 3),
+                      "video cell labeled 'looping demo clip' should appear")
         clip.tap()
         assertViewerOpened(after: "video accessibility tap")
     }
@@ -175,7 +177,7 @@ private extension ProgressMediaTapUITests {
 
     func viewerZoomScroll() -> XCUIElement {
         app.scrollViews.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "progress-zoom-scroll")
+            NSPredicate(format: "identifier BEGINSWITH %@", "media-zoom-scroll")
         ).firstMatch
     }
 
@@ -187,18 +189,22 @@ private extension ProgressMediaTapUITests {
     }
 
     /// Zoom host UIView must fill the scroll view, and the image sit near center —
-    /// not a zero/corner UIKit frame (pre-fix ProgressZoomView failure mode).
+    /// not a zero/corner UIKit frame (pre-fix MediaZoomView failure mode).
     /// SwiftUI accessibility frames alone can look fine while the UIKit host is 0x0.
     func assertViewerMediaFitted(label: String) {
         let window = app.windows.firstMatch.frame
         XCTAssertGreaterThan(window.width, 0, "window should have a size")
+        assertZoomHostFitted(window: window)
+        assertViewerImageCentered(label: label, window: window)
+    }
 
+    func assertZoomHostFitted(window: CGRect) {
         let scroll = app.scrollViews.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "progress-zoom-scroll")
+            NSPredicate(format: "identifier BEGINSWITH %@", "media-zoom-scroll")
         ).firstMatch
         XCTAssertTrue(
             scroll.waitForExistence(timeout: 5),
-            "progress-zoom-scroll should exist"
+            "media-zoom-scroll should exist"
         )
 
         var hostWidth: CGFloat = 0
@@ -224,7 +230,9 @@ private extension ProgressMediaTapUITests {
             hostHeight, window.height * 0.9,
             "zoom host height \(hostHeight) should track screen (\(window.height)); id=\(lastID)"
         )
+    }
 
+    func assertViewerImageCentered(label: String, window: CGRect) {
         let query = app.images.matching(NSPredicate(format: "label == %@", label))
         XCTAssertTrue(query.firstMatch.waitForExistence(timeout: 8), "\(label) in viewer")
 

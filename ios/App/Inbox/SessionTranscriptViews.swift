@@ -139,6 +139,13 @@ struct SessionBubbleView: View {
         return attachment ?? event.messageAttachment
     }
 
+    private var hasInlineImages: Bool {
+        MediaMarkdown.segments(content ?? event.messageContent ?? "").contains {
+            if case .image = $0 { return true }
+            return false
+        }
+    }
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
             if style.isOutgoing { Spacer(minLength: 48) }
@@ -147,7 +154,7 @@ struct SessionBubbleView: View {
         }
         .padding(.top, style.isFirstInGroup ? 10 : 2)
         .padding(.bottom, style.isLastInGroup ? 8 : 2)
-        .accessibilityElement(children: agentAttachment == nil ? .combine : .contain)
+        .accessibilityElement(children: agentAttachment == nil && !hasInlineImages ? .combine : .contain)
         .accessibilityLabel(Text(verbatim: accessibilityText))
         .accessibilityIdentifier(style.isOutgoing ? "session-bubble-outgoing" : "session-bubble-incoming")
     }
@@ -170,7 +177,7 @@ struct SessionBubbleView: View {
                 let text = MessageText(body: event.displayBody, content: content ?? event.messageContent)
                 Text(verbatim: text.title).font(.body.weight(.semibold))
                 if let details = text.content {
-                    MessageMarkdownView(details).font(.body).foregroundStyle(textColor)
+                    MediaMarkdownView(details).font(.body).foregroundStyle(textColor)
                 }
             } else {
                 Text(verbatim: event.displayBody).font(.body).foregroundStyle(textColor)

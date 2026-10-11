@@ -154,8 +154,20 @@ struct HomeAttentionRow: View {
     let onOpenDecision: (MessageID) -> Void
 
     var body: some View {
-        DecisionCard(message: item.message, submitting: submitting, header: infoButton,
+        DecisionCard(message: item.message, submitting: submitting, header: header,
                      choices: choices(timing: DecisionTiming(message: item.message)))
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            infoButton
+            if let content = item.message.messageText.content,
+               !content.isEmpty,
+               content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
+                MediaMarkdownView(content).font(.subheadline).foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var infoButton: some View {
@@ -249,14 +261,6 @@ struct DecisionCardInfo: View {
                 .font(.headline)
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            if let content = message.messageText.content,
-               !content.isEmpty,
-               content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {
-                MessageMarkdownView(content)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .contentShape(Rectangle())

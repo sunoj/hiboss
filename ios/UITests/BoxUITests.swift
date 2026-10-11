@@ -43,6 +43,7 @@ final class BoxUITests: XCTestCase {
         image.tap()
         XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.images["Layout reference"].waitForExistence(timeout: 10))
+        assertMediaPinchZoom(app)
         screenshot("box-image-viewer")
         app.buttons["Close"].tap()
         let text = app.buttons["box-item-demo-text"]

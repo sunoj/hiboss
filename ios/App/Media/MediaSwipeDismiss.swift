@@ -1,10 +1,10 @@
-// Decision helpers for zoom-1 swipe-down dismiss in the progress media viewer.
-// Exports: ProgressSwipeDismiss.
+// Decision helpers for zoom-1 swipe-down dismiss in the shared media viewer.
+// Exports: MediaSwipeDismiss.
 // Dependencies: CoreGraphics.
 
 import CoreGraphics
 
-enum ProgressSwipeDismiss {
+enum MediaSwipeDismiss {
     static let threshold: CGFloat = 120
     static let zoomedScale: CGFloat = 1.01
 

@@ -166,6 +166,8 @@ struct ProgressImageCell: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .padding(8)

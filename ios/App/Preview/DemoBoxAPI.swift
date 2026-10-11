@@ -11,10 +11,11 @@ actor DemoBoxAPI: BoxServing {
 
     static var fixtures: [BoxItem] {
         let unsupported = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "unsupported"
+        let imageFile = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "image"
         let kinds: [BoxItem.Kind] = [.image, .text, .link, .video, .file]
         let titles = [
             "Layout reference", "A passage to keep", "Apple Developer", "Motion reference",
-            unsupported ? "Reference.hibossfixture" : "Reference.txt",
+            imageFile ? "Reference.png" : unsupported ? "Reference.hibossfixture" : "Reference.txt",
         ]
         let featured = kinds.enumerated().map { index, kind in
             BoxItem(
@@ -23,7 +24,8 @@ actor DemoBoxAPI: BoxServing {
                 note: kind == .image ? "Use this layout for the next screen." : nil, project: "hiboss",
                 tags: ["reference"], hasMedia: [.image, .video, .file].contains(kind),
                 mediaType: kind == .video ? "video/mp4" : kind == .file
-                    ? (unsupported ? "application/octet-stream" : "text/plain") : "image/png",
+                    ? (imageFile ? "image/png" : unsupported ? "application/octet-stream" : "text/plain")
+                    : "image/png",
                 mediaBytes: kind == .file ? "A saved reference file.".utf8.count : nil,
                 width: 320, height: 200, createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
                     .ISO8601Format()
@@ -62,7 +64,7 @@ actor DemoBoxAPI: BoxServing {
         guard let item = items.first(where: { $0.id == id }), item.hasMedia else {
             throw HibossAPIError.requestFailed(status: 404, message: "")
         }
-        if item.kind == .file {
+        if item.kind == .file, item.mediaType != "image/png" {
             try Data("A saved reference file.".utf8).write(to: destination)
             return
         }

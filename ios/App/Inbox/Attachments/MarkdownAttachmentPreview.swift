@@ -34,7 +34,7 @@ struct MarkdownAttachmentPreview: View {
     @ViewBuilder private var content: some View {
         if let source {
             ScrollView {
-                MarkdownDocumentView(source: source).padding(16)
+                MediaMarkdownView(source, document: true, baseURL: url).padding(16)
             }
         } else if let error {
             ContentUnavailableView {

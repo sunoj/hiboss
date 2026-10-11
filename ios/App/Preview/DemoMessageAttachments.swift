@@ -9,9 +9,11 @@ enum DemoMessageAttachments {
     static let imageURL = "https://example.com/attachments/release-banner.png"
     static let fileURL = "https://example.com/attachments/release-notes.pdf"
     static let markdownURL = "https://example.com/attachments/release-notes.md"
+    static let videoURL = "https://example.com/attachments/release-demo.mp4"
 
     static func queue(fallback: [HistoryMessage]) -> [HistoryMessage] {
         let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] ?? ""
+        if mode == "video" { return [message(id: "attachment-video", url: videoURL)] }
         if ["markdown", "markdown-multiline"].contains(mode) {
             return [message(id: "attachment-file", url: markdownURL)]
         }
@@ -30,10 +32,13 @@ enum DemoMessageAttachments {
         guard isDemoMode, url.absoluteString == markdownURL,
               ["markdown", "markdown-multiline"].contains(mode) else { return nil }
         if mode == "markdown-multiline" { return multilineTable }
+        let image = Bundle.main.url(forResource: "demo-coarse-grid", withExtension: "png")!
         return """
         # Release notes
 
         **Ready** for review.
+
+        ![Document image](\(image.absoluteString) "Release banner")
 
         | Package | Budget |
         | --- | ---: |
@@ -75,11 +80,15 @@ enum DemoMessageAttachments {
         )
     }
 
-    static func imageResource(for url: URL) -> String {
+    static func mediaResource(for url: URL) -> String {
+        if isDemoMode, url.absoluteString == videoURL {
+            return Bundle.main.url(forResource: "demo-box-clip", withExtension: "mp4")?.absoluteString
+                ?? url.absoluteString
+        }
         guard isDemoMode, url.absoluteString == imageURL else { return url.absoluteString }
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] == "failure" {
             // An invalid image resource exercises the unavailable state without a network dependency.
-            return "https://["
+            return Bundle.main.bundleURL.appendingPathComponent("missing-image.png").absoluteString
         }
         return Bundle.main.url(forResource: "demo-coarse-grid", withExtension: "png")?.absoluteString
             ?? url.absoluteString

@@ -1,6 +1,30 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Share": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Share" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "分享" } }
+      }
+    },
+    "Zoomed": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Zoomed" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已放大" } }
+      }
+    },
+    "Fitted": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Fitted" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "适合屏幕" } }
+      }
+    },
+    "Preparing media…": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Preparing media…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在准备媒体…" } }
+      }
+    },
     "Showing messages sent without a session.": {
       "localizations": {
         "en": {

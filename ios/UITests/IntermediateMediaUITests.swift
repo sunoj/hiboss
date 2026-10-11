@@ -26,6 +26,7 @@ final class IntermediateMediaUITests: IntermediateCaptureCase {
             holdAndCapture("image-\(name)")
             if name == "home" {
                 image.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.1)).tap()
+                XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
                 holdAndCapture("image-zoom")
             }
         }
@@ -37,6 +38,7 @@ final class IntermediateMediaUITests: IntermediateCaptureCase {
         let image = app.descendants(matching: .any)["wide landscape screenshot"].firstMatch
         XCTAssertTrue(image.waitForExistence(timeout: 8))
         image.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.8)).tap()
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
         holdAndCapture("image-progress-viewer")
         launch(["HIBOSS_TAB": "progress", "HIBOSS_DEMO_LIKE_DELAY_MS": "60000"])
         let like = app.buttons[variant.contains("zh") ? "喜欢" : "Like"].firstMatch

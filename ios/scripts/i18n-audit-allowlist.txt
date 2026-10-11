@@ -14,7 +14,6 @@ App/Progress/ProgressAttributionChip.swift | unlocalized-var | .accessibilityLab
 # Content, not UI copy: agent-authored alt text (with a localized fallback) and field placeholders.
 App/Progress/ProgressMediaView.swift | unlocalized-var | .accessibilityLabel(media.alt ?? | agent-authored alt text; fallback is localized
 App/Progress/ProgressMediaView.swift | unlocalized-var | .accessibilityValue(alt) | agent-authored alt text
-App/Progress/ProgressMediaViewer.swift | unlocalized-var | .accessibilityLabel(item.alt ?? | agent-authored alt text; fallback is localized
 App/Progress/ProgressVideoPlayer.swift | unlocalized-var | .accessibilityLabel(media.alt ?? | agent-authored alt text; fallback is localized
 App/Onboarding/ConnectView.swift | unlocalized-var | SecureField(placeholder, | placeholder is a token-format example ("hb_…")
 App/Onboarding/ConnectView.swift | unlocalized-var | TextField(placeholder, | placeholder is an example URL or the device's own name
