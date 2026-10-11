@@ -49,8 +49,28 @@ extension PanelsModel {
     }
 
     func wallConnectivityChanged(_ connected: Bool) {
+        guard !connected || isWallConnected != connected else { return }
         isWallConnected = connected
+        if connected, isFetching || isLoadingQuestions {
+            if !isLoadingQuestions {
+                let generation = questionnaireGeneration
+                Task { [weak self] in await self?.recheckAcknowledgedQuestionnaires(generation) }
+            }
+            return
+        }
         reconcileSoon()
+    }
+
+    private func recheckAcknowledgedQuestionnaires(_ generation: UInt64) async {
+        do {
+            let service = try await panelService()
+            guard generation == questionnaireGeneration else { return }
+            await refreshPendingQuestionnaires(
+                using: service as? any QuestionnaireServing, generation: generation)
+        } catch {
+            guard generation == questionnaireGeneration else { return }
+            questionnaireError = error.localizedDescription
+        }
     }
 
     func reconcileSoon() {

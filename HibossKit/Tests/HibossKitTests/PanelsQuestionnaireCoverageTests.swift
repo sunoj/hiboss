@@ -152,7 +152,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
         XCTAssertTrue(model.hasCompleteQuestionnaires)
     }
 
-    func testInvalidationDuringMetadataFetchDefersQuestionnairesToFollowup() async {
+    func testInvalidationDuringMetadataFetchRejectsConcurrentQuestionnaires() async {
         let api = ControlledQuestionnaireAPI()
         let model = makeModel(api)
         await model.load()
@@ -164,7 +164,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
         await old.value
         XCTAssertFalse(model.hasCompleteQuestionnaires)
         let count = await api.questionFetchCount
-        XCTAssertEqual(count, 1, "Superseded metadata must not authorize a questionnaire fetch")
+        XCTAssertEqual(count, 2, "Concurrent questionnaires cannot authorize superseded metadata")
         await model.reconciliationTask?.value
         XCTAssertTrue(model.hasCompleteQuestionnaires)
     }

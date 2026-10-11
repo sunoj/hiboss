@@ -19,6 +19,7 @@ final class InboxStore: ObservableObject {
     @Published var requiredInputLoaded = false
     @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
+    @Published var requiredNeedsReadyRead = false
     @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published var loadError: String?
     /// False until the first history fetch completes, so views can show a spinner
@@ -47,10 +48,12 @@ final class InboxStore: ObservableObject {
     var historyTask: Task<Void, Never>?
     var historySync: HistorySync?
     var historyVersion = 0
+    var historyRequestsInFlight = 0
     var requiredStreamTask: Task<Void, Never>?
     var requiredFetchTask: Task<Void, Never>?
     var requiredEpoch = 0
     var requiredFetchVersion = 0
+    var requiredReconcileScheduled = false
     var requiredFetchUpdates: [MessageID: HistoryMessage] = [:]
     var requiredFetchResolutions: Set<MessageID> = []
     var requiredRetryTask: Task<Void, Never>?
@@ -134,6 +137,7 @@ final class InboxStore: ObservableObject {
         if let historySync { Task { await historySync.stop() } }
         historySync = nil
         historyVersion += 1
+        historyRequestsInFlight = 0
         replyGate.reset()
         stopRequiredInputs()
         streamTask = nil

@@ -18,6 +18,7 @@ extension InboxStore {
             if self.loadError != error { self.loadError = error }
             if !self.didLoad { self.didLoad = true }
             self.historyCheckedAt = .now
+            if error == nil { StartupLog.record("history loaded", count: self.history.count) }
         }
     }
 
@@ -28,12 +29,19 @@ extension InboxStore {
 
     func requestHistorySync(forceFull: Bool = false, debounced: Bool = false) {
         guard let historySync = connectedHistorySync() else { return }
-        historyTask = Task { await historySync.synchronize(forceFull: forceFull, debounced: debounced) }
+        let version = historyVersion
+        historyRequestsInFlight += 1
+        historyTask = Task {
+            defer {
+                if version == historyVersion { historyRequestsInFlight -= 1 }
+            }
+            await historySync.synchronize(forceFull: forceFull, debounced: debounced)
+        }
     }
 
     func refreshHistory() {
-        requestHistorySync(forceFull: true)
-        Task { await refreshRequiredInputs() }
+        if historyRequestsInFlight == 0, !isRefreshing { requestHistorySync(forceFull: true) }
+        if !requiredInputRefreshing { Task { await refreshRequiredInputs() } }
     }
 
     /// Awaitable full reconciliation for pull-to-refresh.
