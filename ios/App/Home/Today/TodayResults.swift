@@ -73,7 +73,7 @@ struct TodayResults: View {
                             $0.id == message.sessionId
                         }?.avatarProject
                                           ?? inventory.project(slug: message.project ?? ""), size: 24)
-                        AgentAvatarView(name: message.displayName, size: 24)
+                        AgentAvatarView(name: message.displayName, size: 24, lookupName: message.agentName)
                         Text(verbatim: [inventory.first { $0.id == message.sessionId }?.namedLabel
                                        ?? message.project, message.sessionBranch, message.displayName]
                             .compactMap { $0 }.joined(separator: " · "))

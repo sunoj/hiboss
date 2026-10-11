@@ -12,6 +12,7 @@ public final class OptionFlowStore: ObservableObject {
     @Published public private(set) var presentationState: PresentationState = .idle
     @Published public private(set) var historyMessages: [HistoryMessage] = []
     @Published public private(set) var historyState: HistoryState = .idle
+    public let agentAvatars = AgentAvatarStore()
     /// Per-message outcome of the last reply that did not land; cleared when one is accepted.
     @Published public private(set) var replyFeedback: [MessageID: ReplyFeedback] = [:]
 
@@ -35,6 +36,7 @@ public final class OptionFlowStore: ObservableObject {
     public func connect(api: any BossServing) {
         disconnect()
         self.api = api
+        agentAvatars.connect(api: api as? any AgentsServing)
         connectionState = .connecting
         streamTask = Task { [weak self] in
             await self?.consumeStreams(from: api)
@@ -44,6 +46,7 @@ public final class OptionFlowStore: ObservableObject {
     }
 
     public func disconnect() {
+        agentAvatars.disconnect()
         streamTask?.cancel()
         historyTask?.cancel()
         if let historySync { Task { await historySync.stop() } }
@@ -193,6 +196,7 @@ public final class OptionFlowStore: ObservableObject {
             connectionState = .connecting
             let stream = await api.messageStream()
             connectionState = .connected
+            agentAvatars.refresh()
             // Reconcile on every (re)connect: a resolution that happened while we
             // were between 5-minute stream cycles is otherwise never delivered.
             refreshHistoryInBackground()

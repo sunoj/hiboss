@@ -1,5 +1,5 @@
-// Circular agent initials for session and peer attribution.
-// Exports AgentAvatarView; depends on the existing HistoryMessage initials and semantic Theme tokens.
+// Circular registered agent images with existing initials while loading or on failure.
+// Exports AgentAvatarView and AgentAvatarContent; depends on the shared lookup and AsyncImage.
 
 import HibossKit
 import SwiftUI
@@ -7,8 +7,57 @@ import SwiftUI
 struct AgentAvatarView: View {
     let name: String
     let size: CGFloat
+    let lookupName: String?
+    @Environment(\.agentAvatars) private var avatars
+
+    init(name: String, size: CGFloat) {
+        self.init(name: name, size: size, lookupName: name)
+    }
+
+    init(name: String, size: CGFloat, lookupName: String?) {
+        self.name = name
+        self.size = size
+        self.lookupName = lookupName.flatMap {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
+        }
+    }
 
     var body: some View {
+        let url = lookupName.flatMap { avatars?.url(forName: $0) }
+        avatar(url: url)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private func avatar(url: URL?) -> some View {
+        if isDemoMode, url == AgentAvatarDemo.url, let image = AgentAvatarDemo.image {
+            AgentAvatarContent(name: name, size: size, phase: .success(image))
+        } else {
+            AsyncImage(url: url) { phase in
+                AgentAvatarContent(name: name, size: size, phase: phase)
+            }
+            .id(url)
+        }
+    }
+}
+
+struct AgentAvatarContent: View {
+    let name: String
+    let size: CGFloat
+    let phase: AsyncImagePhase
+
+    var body: some View {
+        if case let .success(image) = phase {
+            image.resizable().scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+                .accessibilityHidden(true)
+        } else {
+            initials
+        }
+    }
+
+    private var initials: some View {
         Text(verbatim: HistoryMessage.avatarInitials(agentName: name))
             .font(.caption2.weight(.semibold))
             .foregroundStyle(Theme.ink2)

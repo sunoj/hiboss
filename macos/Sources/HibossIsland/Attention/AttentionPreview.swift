@@ -8,6 +8,8 @@ import SwiftUI
 // i18n-exempt-file: fixtures stand in for agent-authored questions, which are never localized
 
 enum AttentionPreview {
+    @MainActor static let avatars = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: "Preview Agent")])
+
     static func historyIfRequested() -> [HistoryMessage]? {
         switch ProcessInfo.processInfo.environment["HIBOSS_ATTENTION_PREVIEW"] {
         case "1", "populated":

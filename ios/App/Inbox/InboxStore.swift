@@ -43,6 +43,7 @@ final class InboxStore: ObservableObject {
     private var gateObservation: AnyCancellable?
 
     var api: (any BossServing)?
+    let agentAvatars = AgentAvatarStore()
     let reconnectDelay: Duration
     private var streamTask: Task<Void, Never>?
     var historyTask: Task<Void, Never>?
@@ -114,6 +115,7 @@ final class InboxStore: ObservableObject {
     func start(api: any BossServing) {
         stop()
         self.api = api
+        agentAvatars.connect(api: api as? any AgentsServing)
         connectionState = .connecting
         streamTask = Task { [weak self] in await self?.consume(api) }
         startRequiredInputs(api)
@@ -132,6 +134,7 @@ final class InboxStore: ObservableObject {
     }
 
     func stop() {
+        agentAvatars.disconnect()
         streamTask?.cancel()
         historyTask?.cancel()
         if let historySync { Task { await historySync.stop() } }
@@ -183,6 +186,7 @@ final class InboxStore: ObservableObject {
             connectionState = .connecting
             let stream = await api.messageStream()
             connectionState = .connected
+            agentAvatars.refresh()
             var endedCleanly = false
             do {
                 for try await event in stream {

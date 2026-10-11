@@ -105,9 +105,15 @@ routes.get('/agents', async (c) => {
   if (agentIds.length === 0) return c.json({ agents: [] });
   const placeholders = agentIds.map(() => '?').join(', ');
   const rows = await c.env.DB
-    .prepare(`SELECT a.id, a.name, a.role, a.last_used_at, a.created_at, (SELECT json_group_array(slug) FROM (SELECT DISTINCT p.slug FROM sessions s JOIN projects p ON p.id = s.project_id WHERE s.agent_id = a.id ORDER BY p.slug)) AS project_slugs FROM api_keys a WHERE a.id IN (${placeholders})`)
+    .prepare(`SELECT a.id, a.name, a.role, a.avatar_url, a.last_used_at, a.created_at,
+      (SELECT json_group_array(slug) FROM (SELECT DISTINCT p.slug FROM sessions s
+        JOIN projects p ON p.id = s.project_id WHERE s.agent_id = a.id ORDER BY p.slug)) AS project_slugs
+      FROM api_keys a WHERE a.id IN (${placeholders})`)
     .bind(...agentIds)
-    .all<{ id: string; name: string; role: string | null; last_used_at: string | null; created_at: string; project_slugs: string }>();
+    .all<{
+      id: string; name: string; role: string | null; avatar_url: string | null;
+      last_used_at: string | null; created_at: string; project_slugs: string;
+    }>();
   return c.json({ agents: rows.results.map(row => ({ ...row, project_slugs: JSON.parse(row.project_slugs) as string[] })) });
 });
 

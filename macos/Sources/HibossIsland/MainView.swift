@@ -102,6 +102,7 @@ struct MainView: View {
     var body: some View {
         observedContent
         .environment(\.projectSessions, previewSessions ?? flow.projectSessions)
+        .environment(\.agentAvatars, previewHistory == nil ? flow.agentAvatars : AttentionPreview.avatars)
         .onChange(of: settings.activeClientConfig) {
             panels.connectionDidChange()
             box.reset()
