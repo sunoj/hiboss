@@ -44,3 +44,23 @@ accessibility L in English and Simplified Chinese, light and dark.
 The final T2 command, source HEAD, log, and result bundle are retained under
 `/private/tmp/hiboss-ux-polish/final.{command,head,log,xcresult}`. Named before/after
 images are exported using `ios/scripts/export-intermediate-shots.py`.
+
+On source `bc99a374124e1219c4c45c79f924a62391410833`, the final T2 run passed
+325 unit tests and 20 UI tests, with one UI test failing. The recovery matrix fails
+at `HomeSimplificationUITests.swift:69`: tapping Settings in English at
+accessibility L does not expose `settings-connection`. The preceding visibility,
+button-height, and position assertions pass. The recorded tap lies inside the
+Settings button frame; the following accessibility snapshot still shows Today.
+The cause is unconfirmed, and T2 is not fully passing.
+
+An isolated replay reproduced the failure in both English appearances. A temporary
+Today-only layout using one `AnyLayout` and vertically stacked accessibility-size
+actions also failed the same assertion. That experiment was reverted. The replay
+and experiment each ran one test with zero passes and one failure; their artifacts
+are `recovery-rerun.xcresult` and `recovery-layout.xcresult` under the same directory.
+The experimental source diff is preserved as `rejected-layout.patch` there.
+
+Further diagnosis can inspect the tap recording for a layout or state transition,
+trace the Settings callback and sheet presentation, and compare baseline and current
+behavior under identical stream-failure timing. No root cause is inferred from
+the passing geometry assertions alone.
