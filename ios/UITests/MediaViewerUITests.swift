@@ -94,6 +94,15 @@ final class MediaViewerUITests: XCTestCase {
                       || app.cells["Save to Files"].exists)
     }
 
+    func testVideoAttachmentPinchReportsZoomed() {
+        launch(["HIBOSS_DEMO_ATTACHMENTS": "video", "HIBOSS_DEMO_OPEN": "attachment-video"])
+        let video = app.buttons["message-attachment-video-open"]
+        XCTAssertTrue(video.waitForExistence(timeout: 10))
+        video.tap()
+        XCTAssertTrue(app.buttons["Unmute"].waitForExistence(timeout: 5))
+        assertMediaPinchZoom(app)
+    }
+
     func testFailedViewerImageCanRetryAndStillClose() {
         launch(["HIBOSS_DEMO_ATTACHMENTS": "failure", "HIBOSS_DEMO_OPEN": "attachment-image"])
         let image = app.buttons["message-attachment-open"]

@@ -65,7 +65,7 @@ struct MediaViewer: View {
     private func page(_ item: MediaItem, size: CGSize) -> some View {
         MediaZoomView(
             pageID: item.id,
-            allowsZoom: item.kind == .image,
+            allowsZoom: true,
             onZoomed: { if currentID == item.id { zoomed = $0 } },
             onDismissDrag: { offset = $0 },
             onDismiss: { dismiss() },
