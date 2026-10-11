@@ -9,6 +9,20 @@ final class TodayV4UITests: XCTestCase {
     func testLightScreens() { captureSurfaces(appearance: "Light") }
     func testDarkScreens() { captureSurfaces(appearance: "Dark") }
 
+    func testCompactAllClearInLightAppearance() { captureCompactAllClear("Light") }
+    func testCompactAllClearInDarkAppearance() { captureCompactAllClear("Dark") }
+
+    private func captureCompactAllClear(_ appearance: String) {
+        let app = launch(appearance, extra: ["HIBOSS_DEMO_EMPTY": "1"])
+        let status = app.descendants(matching: .any).matching(identifier: "today-all-clear").firstMatch
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertTrue(status.isHittable)
+        XCTAssertLessThanOrEqual(status.frame.height, 120, "All-clear must leave room for the workspace")
+        XCTAssertFalse(app.staticTexts["Checking coverage"].exists)
+        shot(app, "\(appearance)-compact-all-clear")
+        app.terminate()
+    }
+
     private func launch(_ appearance: String, extra: [String: String] = [:]) -> XCUIApplication {
         let app = XCUIApplication()
         app.configureDemoLaunch(extra)

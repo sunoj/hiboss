@@ -48,3 +48,40 @@ These tests confirm a native SSE framing failure and duplicate startup history
 loading. They do not establish the cause of an individual panel's offline status
 or an unacknowledged questionnaire wall connection. Loaded panel values, source
 errors, retry actions, and conservative all-clear coverage remain visible.
+
+## Live input reconciliation
+
+The iOS store previously canceled and restarted its complete input fetch for every
+stream event, including duplicate readiness. A slow snapshot could therefore be
+starved by live events. Readiness now initiates a fetch only when none is active;
+message and resolution events update the list immediately and are merged over a
+snapshot that began earlier. Disconnects and epoch changes still invalidate old
+results. Failed snapshots retry with bounded backoff while the stream stays ready.
+
+Three controlled-service regressions failed before this change and passed after it.
+They cover live updates during a held fetch, duplicate readiness, and updates after
+coverage has completed. Additional tests cover retry recovery and stop cancellation.
+The original late-result, reconnect, and silent-stream coverage checks are retained.
+
+## Panel coverage versus producer freshness
+
+A connected panel projection can report an offline or stale producer. Its snapshot
+has still been read; retrying the client cannot restore the producer's lease.
+Today previously treated either freshness label as unfinished panel coverage and
+could remain checking forever even after requests and questionnaires were known.
+
+`PanelsModel.hasPanelCoverage(for:)` now requires a received checkpoint on a live
+relay for running server panels. Producer freshness remains visible on each tile.
+Unread projections and lost relays still prevent all-clear; questionnaire coverage
+is checked independently. A Home regression failed with both expired leases and
+stale observations before the change, then passed while retaining these guards.
+Relay diagnostics record acknowledgement, phase, error domain/code, and HTTP status
+without recording tickets, credentials, payloads, or request URLs.
+
+## Compact all-clear presentation
+
+Both native apps use the same 120-by-72-point transparent vector illustration.
+Semantic text and state colours adapt its line art to light and dark appearance.
+The illustration sits beside status copy and has no animation timer. The iOS
+all-clear row no longer reserves 360 points of height. UI checks retain light and
+dark screenshots and require the ordinary-size row to stay within 120 points.

@@ -69,14 +69,3 @@ struct TodayHeader: View {
         .background(Theme.surface, in: Capsule())
     }
 }
-
-// The supplied scene is decorative and follows the system appearance.
-struct TodayAllClearScene: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        Image(colorScheme == .dark ? "island-night" : "island-day")
-            .resizable().scaledToFit().frame(maxWidth: 280)
-            .accessibilityHidden(true)
-    }
-}

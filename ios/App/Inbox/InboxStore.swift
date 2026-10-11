@@ -51,6 +51,10 @@ final class InboxStore: ObservableObject {
     var requiredFetchTask: Task<Void, Never>?
     var requiredEpoch = 0
     var requiredFetchVersion = 0
+    var requiredFetchUpdates: [MessageID: HistoryMessage] = [:]
+    var requiredFetchResolutions: Set<MessageID> = []
+    var requiredRetryTask: Task<Void, Never>?
+    var requiredRetryAttempt = 0
     var requiredCoverageTask: Task<Void, Never>?
     var requiredStaleTask: Task<Void, Never>?
     /// One timer per pending decision deadline, so an expiring card drops out of

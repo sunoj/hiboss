@@ -28,6 +28,14 @@ extension PanelsModel {
         serverClocks[id].map { $0.server.addingTimeInterval(ProcessInfo.processInfo.systemUptime - $0.uptime) } ?? now
     }
 
+    /// A received projection establishes coverage even when its producer is stale or offline.
+    /// Losing the relay makes the projection unknown until a new snapshot arrives.
+    public func hasPanelCoverage(for tile: PanelTile) -> Bool {
+        if tile.lifecycle.taskState != .running { return true }
+        if tile.agentID == nil { return lastUpdated[tile.id] != nil }
+        return liveSubscriptions.contains(tile.id) && relayStates[tile.id]?.checkpoint != nil
+    }
+
     private func expiry(for tile: PanelTile) -> Date? {
         [panelDate(tile.lifecycle.expiresAt), panelDate(relayStates[tile.id]?.checkpoint?.expiresAt)].compactMap { $0 }.max()
     }

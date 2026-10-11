@@ -107,7 +107,7 @@ struct HomeContent: View {
             sources.append(String(localized: "Messages"))
         }
         if panels.loadState != .loaded || panels.isRefreshing
-            || panels.tiles.contains(where: { displayedPanelFreshness($0, model: panels).isPending }) {
+            || panels.tiles.contains(where: { !panels.hasPanelCoverage(for: $0) }) {
             sources.append(String(localized: "Panels"))
         }
         if !panels.hasCompleteQuestionnaires || panels.questionnaireError != nil {

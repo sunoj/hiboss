@@ -109,14 +109,20 @@ struct HomeAttentionSection: View {
     }
 
     private var allClear: some View {
-        VStack(spacing: 14) {
-            TodayAllClearScene()
-            Text("Nothing needs you").font(.title2.bold()).foregroundStyle(Theme.ink)
-            Label("Live", systemImage: "checkmark.circle.fill")
-                .font(.footnote).foregroundStyle(Theme.positive)
+        HStack(spacing: 12) {
+            TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Nothing needs you").font(.headline).foregroundStyle(Theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Label("Live", systemImage: "checkmark.circle.fill")
+                    .font(.footnote).foregroundStyle(Theme.positive)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, minHeight: 360)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("today-all-clear")
     }
 
 }

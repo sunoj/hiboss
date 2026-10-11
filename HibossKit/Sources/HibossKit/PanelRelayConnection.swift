@@ -3,9 +3,12 @@
 // Dependencies: Foundation URLSessionWebSocketTask and ConnectionConfig.
 
 import Foundation
+import OSLog
 
 @MainActor
 public final class PanelRelayConnection {
+
+    private static let log = Logger(subsystem: "ai.hiboss.native", category: "panel-relay")
 
     private let config: ConnectionConfig
     private let panelID: String
@@ -55,16 +58,25 @@ public final class PanelRelayConnection {
     private func run() async {
         var delay: UInt64 = 1_000_000_000
         while !stopped && !Task.isCancelled {
+            var phase = "ticket"
             do {
                 let api = HibossAPI(config: config)
-                let ticket = try await (isWall ? api.issuePanelWallConnectionTicket() : api.issuePanelConnectionTicket(panelID: panelID))
+                let ticket = try await (isWall ? api.issuePanelWallConnectionTicket()
+                    : api.issuePanelConnectionTicket(panelID: panelID))
                 let task = makeSocket(ticket: ticket.ticket)
                 socket = task
+                phase = "subscribe"
                 task.resume()
                 try await task.send(.string(subscribeMessage))
+                phase = "receive"
                 try await receive(from: task)
             } catch {
-                // A failed handshake or receive is a subscription loss; the next loop gets a new ticket.
+                let failure = error as NSError
+                var status = (socket?.response as? HTTPURLResponse)?.statusCode ?? 0
+                if case let HibossAPIError.requestFailed(code, _) = error { status = code }
+                let summary = "wall=\(isWall) phase=\(phase) domain=\(failure.domain)"
+                    + " code=\(failure.code) http=\(status)"
+                Self.log.error("relay failed \(summary, privacy: .public)")
             }
             socket?.cancel(with: .goingAway, reason: nil)
             socket = nil
@@ -97,8 +109,10 @@ public final class PanelRelayConnection {
             if let frame = try? JSONDecoder().decode(PanelRelayFrame.self, from: data) {
                 if isWall, frame == .wallChanged, !wallAcknowledged {
                     wallAcknowledged = true
+                    Self.log.info("wall subscription acknowledged")
                     onWallConnected()
                 }
+                if case .snapshot = frame { Self.log.info("panel snapshot received") }
                 onFrame(frame)
             }
         }

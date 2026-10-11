@@ -25,6 +25,7 @@ extension InboxStore {
             return
         }
         requiredEpoch += 1
+        requiredRetryAttempt = 0
         let epoch = requiredEpoch
         watchRequiredInputCoverage()
         requiredStreamTask = Task { [weak self] in
@@ -54,6 +55,10 @@ extension InboxStore {
         let epoch = requiredEpoch
         requiredFetchVersion += 1
         let version = requiredFetchVersion
+        requiredRetryTask?.cancel()
+        requiredRetryTask = nil
+        requiredFetchUpdates = [:]
+        requiredFetchResolutions = []
         requiredInputRefreshing = true
         watchRequiredInputCoverage()
         defer {
@@ -63,7 +68,8 @@ extension InboxStore {
             let messages = try await service.fetchRequiredInputs()
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
-            requiredInputs = messages
+            requiredInputs = reconcileRequiredSnapshot(messages)
+            requiredRetryAttempt = 0
             requiredInputError = nil
             requiredInputLoaded = true
             requiredCoverageTask?.cancel()
@@ -80,6 +86,7 @@ extension InboxStore {
                   version == requiredFetchVersion else { return }
             requiredInputError = error.localizedDescription
             requiredInputLoaded = false
+            retryRequiredSnapshot(epoch: epoch, version: version)
         }
     }
 
@@ -88,27 +95,38 @@ extension InboxStore {
         requiredInputRefreshing = false
         requiredFetchTask?.cancel()
         requiredFetchTask = nil
+        requiredRetryTask?.cancel()
+        requiredRetryTask = nil
+        requiredFetchUpdates = [:]
+        requiredFetchResolutions = []
         watchRequiredInputCoverage()
     }
 
-    private func reconcileRequiredInputs() {
+    func reconcileRequiredInputs() {
         requiredFetchTask = Task { [weak self] in
             await self?.refreshRequiredInputs()
         }
     }
 
     private func applyRequiredInputEvent(_ event: RequiredInputEvent) {
-        cancelRequiredFetch()
         switch event {
         case .ready:
             requiredInputReady = true
+            if !requiredInputRefreshing { reconcileRequiredInputs() }
         case let .message(message):
             requiredInputs.removeAll { $0.id == message.id }
             requiredInputs.append(message)
+            if requiredInputRefreshing {
+                requiredFetchUpdates[message.id] = message
+                requiredFetchResolutions.remove(message.id)
+            }
         case let .resolved(id):
             requiredInputs.removeAll { $0.id == id }
+            if requiredInputRefreshing {
+                requiredFetchResolutions.insert(id)
+                requiredFetchUpdates.removeValue(forKey: id)
+            }
         }
-        if requiredInputReady { reconcileRequiredInputs() }
     }
 
     private func consumeRequiredInputs(_ service: any RequiredInputServing, epoch: Int) async {
