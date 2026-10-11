@@ -2,9 +2,14 @@
 // Exercises send/edit/reply routes against the test Worker and isolated D1.
 import { SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { seedDatabase, authHeaders } from '../test-helpers';
+import { seedDatabase, seedBossToken, authHeaders } from '../test-helpers';
 
-beforeAll(seedDatabase);
+const bossToken = 'synthetic-message-title-boss-token';
+
+beforeAll(async () => {
+  await seedDatabase();
+  await seedBossToken('Message Title Boss', 'admin', bossToken);
+});
 
 async function send(body: string, content?: string): Promise<Response> {
   return SELF.fetch('https://test.local/api/messages', {
@@ -45,8 +50,10 @@ describe('Message titles', () => {
     const created = await send('Ready');
     const { id } = await created.json() as { id: string };
     const text = 'Detailed reply '.repeat(30);
-    const reply = await SELF.fetch(`https://test.local/api/messages/${id}/reply`, {
-      method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: text }),
+    const reply = await SELF.fetch(`https://test.local/api/boss/messages/${id}/reply`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bossToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: text }),
     });
     expect(reply.status).toBe(201);
     const detail = await SELF.fetch(`https://test.local/api/messages/${id}`, { headers: authHeaders() });
