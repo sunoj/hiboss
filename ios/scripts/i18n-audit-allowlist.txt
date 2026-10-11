@@ -18,6 +18,8 @@ App/Progress/ProgressMediaViewer.swift | unlocalized-var | .accessibilityLabel(i
 App/Progress/ProgressVideoPlayer.swift | unlocalized-var | .accessibilityLabel(media.alt ?? | agent-authored alt text; fallback is localized
 App/Onboarding/ConnectView.swift | unlocalized-var | SecureField(placeholder, | placeholder is a token-format example ("hb_…")
 App/Onboarding/ConnectView.swift | unlocalized-var | TextField(placeholder, | placeholder is an example URL or the device's own name
+# Link's destination argument is a URL; its filename label uses Text(verbatim:).
+App/Inbox/Attachments/MessageAttachmentView.swift | unlocalized-var | Link(destination: attachment.url) | URL
 
 # Machine formats, never shown as prose.
 App/Push/PushManager.swift | hand-format | String(format: "%02x", $0) | APNs device token hex encoding sent to the server
