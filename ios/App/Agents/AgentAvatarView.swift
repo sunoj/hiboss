@@ -11,6 +11,12 @@ struct AgentAvatarView: View {
 
     var body: some View {
         let url = avatars?.url(for: name)
+        avatar(url: url)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private func avatar(url: URL?) -> some View {
         if isDemoMode, url == AgentAvatarDemo.url, let image = AgentAvatarDemo.image {
             AgentAvatarContent(name: name, size: size, phase: .success(image))
         } else {

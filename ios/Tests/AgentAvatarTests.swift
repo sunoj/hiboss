@@ -8,6 +8,45 @@ import XCTest
 
 @MainActor
 final class AgentAvatarTests: XCTestCase {
+    func testRegisteredDemoLookupReplacesInitialsInAvatarView() throws {
+        let previous = ProcessInfo.processInfo.environment["HIBOSS_DEMO"]
+        setenv("HIBOSS_DEMO", "1", 1)
+        defer {
+            if let previous { setenv("HIBOSS_DEMO", previous, 1) }
+            else { unsetenv("HIBOSS_DEMO") }
+        }
+        let avatars = AgentAvatarStore(agents: [AgentAvatarDemo.agent(name: "worker-design")])
+        let view = AgentAvatarView(name: "worker-design", size: 40).environment(\.agentAvatars, avatars)
+        let image = try XCTUnwrap(AgentAvatarDemo.image)
+        XCTAssertEqual(try rendered(view),
+            try rendered(AgentAvatarContent(name: "worker-design", size: 40, phase: .success(image))))
+        XCTAssertNotEqual(try rendered(view),
+            try rendered(AgentAvatarContent(name: "worker-design", size: 40, phase: .empty)))
+    }
+
+    func testAvatarLayoutRemainsSquareForEveryPhaseAndProposal() throws {
+        let image = try XCTUnwrap(AgentAvatarDemo.image)
+        let phases: [AsyncImagePhase] = [.empty, .failure(URLError(.cannotConnectToHost)), .success(image)]
+        for size: CGFloat in [20, 22, 40, 80] {
+            for proposal in [CGSize(width: 8, height: 8), CGSize(width: 400, height: 800)] {
+                for phase in phases {
+                    let host = UIHostingController(rootView: AgentAvatarContent(
+                        name: "Long Agent Name", size: size, phase: phase)
+                        .environment(\.dynamicTypeSize, .accessibility5))
+                    XCTAssertEqual(host.sizeThatFits(in: proposal), CGSize(width: size, height: size))
+                }
+                let avatars = AgentAvatarStore(agents: [BossAgent(id: "pending", name: "Long Agent Name",
+                    avatarURL: URL(string: "https://demo.hiboss.invalid/pending.png"))])
+                for lookup in [AgentAvatarStore(), avatars] {
+                    let view = AgentAvatarView(name: "Long Agent Name", size: size)
+                    let host = UIHostingController(rootView: view
+                        .environment(\.agentAvatars, lookup).environment(\.dynamicTypeSize, .accessibility5))
+                    XCTAssertEqual(host.sizeThatFits(in: proposal), CGSize(width: size, height: size))
+                }
+            }
+        }
+    }
+
     func testBundledDemoAvatarRendersAnImage() throws {
         let image = try XCTUnwrap(AgentAvatarDemo.image)
         let success = AgentAvatarContent(name: "worker-design", size: 40, phase: .success(image))
