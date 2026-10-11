@@ -9,8 +9,8 @@ const avatarURL = 'http://localhost/api/attachments/agent-avatar.png';
 
 beforeAll(async () => {
   await seedDatabase();
-  await seedBossToken('Avatar Boss', 'viewer', 'avatar-boss', 'avatar-boss-token');
-  await seedBossToken('Empty Boss', 'viewer', 'avatar-empty-boss', 'avatar-empty-token');
+  await seedBossToken('Avatar Boss', 'viewer', 'avatar-boss-token', 'avatar-boss');
+  await seedBossToken('Empty Boss', 'viewer', 'avatar-empty-token', 'avatar-empty-boss');
   await env.DB.prepare('INSERT INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
     .bind('avatar-boss', getTestAgentId()).run();
   await env.DB.prepare('UPDATE api_keys SET avatar_url = ? WHERE id = ?')

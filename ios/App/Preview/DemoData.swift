@@ -10,7 +10,8 @@ var isDemoMode: Bool {
 }
 
 /// A static BossServing replaying sample decisions across a few agent sessions.
-final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing, @unchecked Sendable {
+final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing, AgentsServing,
+    @unchecked Sendable {
     var messages: [HistoryMessage]
     var sessionFetchCount = 0
 

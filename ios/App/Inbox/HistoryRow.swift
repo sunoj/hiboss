@@ -15,12 +15,7 @@ struct HistoryRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if !dynamicTypeSize.isAccessibilitySize {
-                Text(verbatim: message.avatarInitials)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, height: 40)
-                    .background(Color(.tertiarySystemFill), in: Circle())
-                    .accessibilityHidden(true)
+                AgentAvatarView(name: message.displayName, size: 40)
             }
             VStack(alignment: .leading, spacing: 3) {
                 RowHeader(name: Text(verbatim: message.displayName), time: message.relativeCreatedAt)

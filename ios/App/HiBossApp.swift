@@ -63,6 +63,7 @@ struct RootView: View {
             Text(verbatim: connection.clientExchangeNotice ?? "")
         }
         .onAppear(perform: startInitialServices)
+        .environment(\.agentAvatars, inbox.agentAvatars)
     }
 
     private var connectedRoot: some View {

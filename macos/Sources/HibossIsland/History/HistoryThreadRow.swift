@@ -107,14 +107,16 @@ struct HistoryThreadRow: View {
         }
     }
 
-    private var avatar: some View {
-        Text(message.historyMonogram).font(.callout.weight(.semibold))
-            .foregroundStyle(message.isBossHistoryMessage ? Color.accentColor : .secondary)
-            .frame(width: 34, height: 34)
-            .background(message.isBossHistoryMessage
-                ? Color.accentColor.opacity(0.1) : Color.primary.opacity(0.05),
-                in: Circle())
-            .accessibilityHidden(true)
+    @ViewBuilder private var avatar: some View {
+        if message.isBossHistoryMessage {
+            Text(message.historyMonogram).font(.callout.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 34, height: 34)
+                .background(Color.accentColor.opacity(0.1), in: Circle())
+                .accessibilityHidden(true)
+        } else {
+            AgentAvatarView(name: message.agentName ?? message.historyDisplayName, size: 34)
+        }
     }
 
     private var header: some View {

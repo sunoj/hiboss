@@ -228,7 +228,10 @@
 		C94500F51CF3831B4E628F87 /* PushStatusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41BC66C60F00EC2365AD94E6 /* PushStatusStore.swift */; };
 		C9DA96B59D271525C4719182 /* MessageDetailsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A177279A2246F5C1FDC53E3C /* MessageDetailsCard.swift */; };
 		CA01018C53D3413D29DAC0A7 /* ProjectAvatarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1628509AB789296B8FD5BD2 /* ProjectAvatarTests.swift */; };
+		AAB000000000000000000001 /* AgentAvatarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB000000000000000000003 /* AgentAvatarTests.swift */; };
+		AAB000000000000000000002 /* AgentAvatarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB000000000000000000004 /* AgentAvatarUITests.swift */; };
 		CA55FF4A638CD65E78D3E066 /* ShareAttachmentLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39F58ABE07B86CFB71571B1E /* ShareAttachmentLoader.swift */; };
+		CAEC5D465A03552B1ED5E95B /* DemoBossAPI+Agents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DF2459E88B6108A43A9E17 /* DemoBossAPI+Agents.swift */; };
 		CC72796F9BE212F1D15DC780 /* ProgressMediaLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9195B9F8ACC692EF5D82C85 /* ProgressMediaLayoutTests.swift */; };
 		CD2827C535593B6E9AFA6CFB /* ProgressFeedStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31634BC982389484F9C74A2B /* ProgressFeedStoreTests.swift */; };
 		CDAC8A79A7AD8231CA0450FC /* IntermediateOnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD4CF146D4C175E81E0BA760 /* IntermediateOnboardingUITests.swift */; };
@@ -369,6 +372,7 @@
 		1C5AF4099B01BED7AECBCDDA /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		1ED47C53104A286F1959E45E /* BoxDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxDetail.swift; sourceTree = "<group>"; };
 		202904467EBB9526A3211612 /* IntermediateStateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntermediateStateUITests.swift; sourceTree = "<group>"; };
+		20DF2459E88B6108A43A9E17 /* DemoBossAPI+Agents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DemoBossAPI+Agents.swift"; sourceTree = "<group>"; };
 		2120DA1B2FD96E5226DDE345 /* HomeContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeContent.swift; sourceTree = "<group>"; };
 		21AD8A576E433550B352A07F /* DemoHomePanelsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoHomePanelsAPI.swift; sourceTree = "<group>"; };
 		23AC8990B7ECAEA0547135BB /* UXSurfaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UXSurfaceUITests.swift; sourceTree = "<group>"; };
@@ -588,6 +592,8 @@
 		F0E24DEA6DAFB71F9152D0FB /* ProjectIdentityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectIdentityUITests.swift; sourceTree = "<group>"; };
 		F12FB04336EB0918D5AAF738 /* QuietHoursSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuietHoursSection.swift; sourceTree = "<group>"; };
 		F1628509AB789296B8FD5BD2 /* ProjectAvatarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectAvatarTests.swift; sourceTree = "<group>"; };
+		AAB000000000000000000003 /* AgentAvatarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAvatarTests.swift; sourceTree = "<group>"; };
+		AAB000000000000000000004 /* AgentAvatarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentAvatarUITests.swift; sourceTree = "<group>"; };
 		F22253BFC684CDDFAC053556 /* SettingsPermissionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPermissionTests.swift; sourceTree = "<group>"; };
 		F326DFE1442370F26407F92E /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
 		F4256B2C55D7762B819D0313 /* RecentProjectPeers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentProjectPeers.swift; sourceTree = "<group>"; };
@@ -681,6 +687,7 @@
 			children = (
 				9B580B37FB171EE57655410A /* Intermediate */,
 				260E23D5C8773E5336099497 /* Resources */,
+				20DF2459E88B6108A43A9E17 /* DemoBossAPI+Agents.swift */,
 				B163D0EA15F13BCEE14F9311 /* DemoBoxAPI.swift */,
 				698713D5102923E7503E7814 /* DemoData.swift */,
 				282AD89F7AA3EB14D78524D9 /* DemoDevices.swift */,
@@ -846,6 +853,7 @@
 				E97684EBA46782E9B6622F93 /* OptionMediaUITests.swift */,
 				7BA088E4BE58E8E661D87FAA /* ProgressMediaTapUITests.swift */,
 				F0E24DEA6DAFB71F9152D0FB /* ProjectIdentityUITests.swift */,
+				AAB000000000000000000004 /* AgentAvatarUITests.swift */,
 				38A9B87C63F54DD14AA4172F /* ResolvedNavigationUITests.swift */,
 				EBB8B43A28936325F6C158B6 /* SessionBubblesUITests.swift */,
 				B0B43C84724E1C86FB6B6F2E /* SessionsV4UITests.swift */,
@@ -1114,6 +1122,7 @@
 				A9195B9F8ACC692EF5D82C85 /* ProgressMediaLayoutTests.swift */,
 				0E669E95E96627DA0E3A5DC2 /* ProgressSwipeDismissTests.swift */,
 				F1628509AB789296B8FD5BD2 /* ProjectAvatarTests.swift */,
+				AAB000000000000000000003 /* AgentAvatarTests.swift */,
 				DB3DC737168F43D243C0AF4D /* ProminentActionAppearanceTests.swift */,
 				D4A219E8337CF16B70B1FB4C /* PushPanelRequestTests.swift */,
 				3672A0E57BCB53BC323C86DA /* RecentProjectPeersTests.swift */,
@@ -1435,6 +1444,7 @@
 				CC72796F9BE212F1D15DC780 /* ProgressMediaLayoutTests.swift in Sources */,
 				4DD822DA8B29C75A05C5921B /* ProgressSwipeDismissTests.swift in Sources */,
 				CA01018C53D3413D29DAC0A7 /* ProjectAvatarTests.swift in Sources */,
+				AAB000000000000000000001 /* AgentAvatarTests.swift in Sources */,
 				88FFDBDC0D6BF8EE9E253017 /* ProminentActionAppearanceTests.swift in Sources */,
 				CDAD925D96B518DAD11966B4 /* PushPanelRequestTests.swift in Sources */,
 				E11BD25034817FB1495F645A /* RecentProjectPeersTests.swift in Sources */,
@@ -1518,6 +1528,7 @@
 				DE54FA72BA5D9F13FE81ECB4 /* OptionMediaUITests.swift in Sources */,
 				DDC345411AD51AF290865A6F /* ProgressMediaTapUITests.swift in Sources */,
 				C18260A7AFBCB81BE950B0CF /* ProjectIdentityUITests.swift in Sources */,
+				AAB000000000000000000002 /* AgentAvatarUITests.swift in Sources */,
 				66C1CF35EFCD8D717850ADEE /* ResolvedNavigationUITests.swift in Sources */,
 				715CE6532860D22C544AA6FD /* SessionBubblesUITests.swift in Sources */,
 				865851E0A227DDE32735D849 /* SessionsV4UITests.swift in Sources */,
@@ -1561,6 +1572,7 @@
 				F7F1C62A611B267D4AD3A987 /* DecisionTiming.swift in Sources */,
 				A4EF811EFED0B78129C9FCB2 /* DemoActivityStateView.swift in Sources */,
 				600835EE1F01894E87D9CD3F /* DemoAppearance.swift in Sources */,
+				CAEC5D465A03552B1ED5E95B /* DemoBossAPI+Agents.swift in Sources */,
 				9F63F9FAEA66374A17CA7A8D /* DemoBossAPI+Session.swift in Sources */,
 				1F32627CD507F6B93C49D066 /* DemoBoxAPI.swift in Sources */,
 				0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */,
