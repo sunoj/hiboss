@@ -85,6 +85,20 @@ final class AuthorizationBoundaryTests: XCTestCase {
         }
     }
 
+    func testJoinRequestResetRetainsSharedAuthorizationRejection() async {
+        let service = StubJoinService(lists: [[JoinRequestsModelTests.mini]])
+        let model = JoinRequestsModel { service }
+
+        XCTAssertTrue(AccountAuthorization.shared.reject(
+            HibossAPIError.requestFailed(status: 401, message: "")
+        ))
+        model.reset()
+        await model.refresh()
+
+        XCTAssertEqual(service.listCalls, 0)
+        XCTAssertTrue(model.isForbidden)
+    }
+
     func testJoinRequestWrite401And403ClearLoadedRequests() async {
         for status in [401, 403] {
             for approve in [true, false] {

@@ -49,8 +49,6 @@ public final class JoinRequestsModel: ObservableObject {
         self.serviceProvider = serviceProvider
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
             self?.reset()
-            self?.authorizationRejected = AccountAuthorization.shared.hasRejectedAccount
-            if AccountAuthorization.shared.hasRejectedAccount { self?.state = .forbidden }
         }
     }
 
@@ -113,10 +111,10 @@ public final class JoinRequestsModel: ObservableObject {
     public func reset() {
         finishRefresh()
         generation += 1
-        authorizationRejected = false
+        authorizationRejected = AccountAuthorization.shared.hasRejectedAccount
         isRefreshing = false
         requests = []
-        state = .idle
+        state = authorizationRejected ? .forbidden : .idle
         didLoad = false
         decidingID = nil
     }

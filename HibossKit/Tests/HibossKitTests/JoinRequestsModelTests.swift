@@ -8,6 +8,11 @@ import XCTest
 
 @MainActor
 final class JoinRequestsModelTests: XCTestCase {
+    override func tearDown() async throws {
+        AccountAuthorization.shared.connect(nil)
+        try await super.tearDown()
+    }
+
     func testNewRequestsAreAnnouncedOncePerID() async {
         let service = StubJoinService(lists: [[Self.mini], [Self.mini], [Self.mini, Self.lab]])
         let model = JoinRequestsModel { service }
