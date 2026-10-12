@@ -8,7 +8,7 @@ PACKAGE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 SNAPSHOT_DIR="${1:?Usage: capture-v4-snapshots.sh /absolute/output/directory}"
 cd "$PACKAGE_DIR"
 export HIBOSS_V4_SNAPSHOTS="$SNAPSHOT_DIR"
-caffeinate -u -t 1800 /bin/sh -c 'swift test --filter TodaySnapshotTests'
+caffeinate -d -i -u -t 1800 /bin/sh -c 'swift test --filter TodaySnapshotTests'
 for screen in today-decisions today-all-clear island session box progress menu-bar; do
     for appearance in light dark; do
         test -s "$SNAPSHOT_DIR/$screen-$appearance.png"

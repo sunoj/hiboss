@@ -254,8 +254,9 @@ so keep runs few:
 
 - While iterating, run only the affected classes (`swift test --filter <Class>`).
 - Only one `swift test` run touching windows, panels or the Island runs on a Mac at a time; run
-  under `caffeinate -u` so the display stays awake. Concurrent runs and a sleeping display make
-  Island, panel-sizing and capture tests fail with window-lifecycle errors unrelated to the change.
+  under `caffeinate -d -i -u` so the display stays awake for the whole run (`-u` alone holds for
+  five seconds). Concurrent runs and a sleeping display make Island, panel-sizing and capture
+  tests fail with window-lifecycle errors unrelated to the change.
 - Run the full `HibossIslandTests` once, on the final commit, with output saved to a file.
 - A read-only audit runs only the filtered tests that cover its questions.
 - A merge into `main` with no conflict needs no rerun; a resolved conflict in `macos/` or
