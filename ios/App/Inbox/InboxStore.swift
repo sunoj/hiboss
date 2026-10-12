@@ -15,7 +15,7 @@ final class InboxStore: ObservableObject {
     @Published var history: [HistoryMessage] = []
     @Published var requiredInputs: [HistoryMessage] = []
     @Published var requiredInputError: String?
-    /// The last list remains authoritative during refreshes and up to 30 seconds of stream downtime.
+    /// A completed result stays rendered until replacement or an account/authorization boundary.
     @Published var requiredInputLoaded = false
     @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
@@ -41,6 +41,9 @@ final class InboxStore: ObservableObject {
     /// The one per-decision admission point, shared with notification actions and intents.
     let replyGate: DecisionReplyGate
     private var gateObservation: AnyCancellable?
+    private var authorizationObservation: AnyCancellable?
+    @Published var messageDrafts: [MessageID: String] = [:]
+    @Published var sessionReplyDraft = SessionReplyDraft()
 
     var api: (any BossServing)?
     let agentAvatars = AgentAvatarStore()
@@ -80,6 +83,12 @@ final class InboxStore: ObservableObject {
         self.replyGate = replyGate
         self.decisionActivitySync = decisionActivitySync
         gateObservation = replyGate.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] in
+            self?.clearRejectedAccount($0)
+        }
+        replyGate.currentAnswerability = { [weak self] id, verified, didVerify in
+            self?.submissionAnswerability(for: id, verified: verified, didVerify: didVerify) ?? verified
+        }
     }
 
     /// The choice in flight per decision, from any entry point; every button surface reads it.
@@ -133,6 +142,22 @@ final class InboxStore: ObservableObject {
         refreshHistory()
     }
 
+    func rejectAuthorization(_ error: Error) {
+        AccountAuthorization.shared.reject(error)
+    }
+
+    private func clearRejectedAccount(_ error: Error) {
+        stop()
+        connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
+        requiredInputError = error.localizedDescription
+        loadError = error.localizedDescription
+        let epoch = requiredEpoch
+        Task { [weak self] in
+            guard let self, self.requiredEpoch == epoch, self.api == nil else { return }
+            await self.decisionActivitySync([], false)
+        }
+    }
+
     func stop() {
         agentAvatars.disconnect()
         streamTask?.cancel()
@@ -152,6 +177,8 @@ final class InboxStore: ObservableObject {
         settledIDs = []
         localResolutions = [:]
         openedMessages = [:]
+        messageDrafts = [:]
+        sessionReplyDraft = SessionReplyDraft()
         didLoad = false
         historyCheckedAt = nil
         isRefreshing = false
@@ -184,7 +211,7 @@ final class InboxStore: ObservableObject {
     private func consume(_ api: any BossServing) async {
         var failures = 0
         while !Task.isCancelled {
-            connectionState = .connecting
+            if connectionState != .connected { connectionState = .connecting }
             let stream = await api.messageStream()
             connectionState = .connected
             agentAvatars.refresh()
@@ -199,7 +226,7 @@ final class InboxStore: ObservableObject {
                 if (error as? HibossAPIError)?.isAuthFailure == true {
                     // A rejected token won't fix itself — stop reconnecting and
                     // surface it instead of retrying forever every few seconds.
-                    connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
+                    rejectAuthorization(error)
                     return
                 }
                 connectionState = .failed(error.localizedDescription)

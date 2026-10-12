@@ -12,7 +12,7 @@ extension HibossAPI {
         var request = authorizedRequest(url: endpoint, method: "GET")
         request.timeoutInterval = AppConstants.API.notificationMessageTimeout
         let (data, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
         return try decoder.decode(MessageDetail.self, from: data)
     }
 }

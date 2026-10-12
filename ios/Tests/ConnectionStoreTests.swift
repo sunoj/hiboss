@@ -10,6 +10,30 @@ import XCTest
 
 @MainActor
 final class ConnectionStoreTests: XCTestCase {
+    func testAuthorizationRejectionLeavesTheConnectedShellAndKeepsStoredCredentials() async throws {
+        let suite = "ConnectionRejection.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let sharedDefaults = try XCTUnwrap(UserDefaults(suiteName: suite + ".shared"))
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            sharedDefaults.removePersistentDomain(forName: suite + ".shared")
+            AccountAuthorization.shared.connect(nil)
+        }
+        defaults.set("https://example.com", forKey: AppConstants.Storage.serverURL)
+        let tokens = MigrationTokenStore("fixture")
+        let store = ConnectionStore(defaults: defaults, keychain: tokens, sharedDefaults: sharedDefaults,
+                                    signerStore: StubSignerStore())
+        await store.restore()
+        XCTAssertTrue(store.isConfigured)
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        XCTAssertFalse(store.isConfigured, "A rejected shell must offer sign-in instead of an unusable reconnect")
+        XCTAssertNil(store.makeAPI())
+        XCTAssertTrue(AccountAuthorization.shared.hasRejectedAccount)
+        XCTAssertNil(sharedDefaults.string(forKey: AppConstants.Storage.serverURL))
+        XCTAssertEqual(tokens.value, "fixture", "Account invalidation must not delete Keychain credentials")
+        XCTAssertEqual(tokens.deletes, 0)
+    }
+
     func testLaunchMigratesTokenPublishesURLAndSignOutClearsSharedURL() async throws {
         let suiteName = "ConnectionMigration.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

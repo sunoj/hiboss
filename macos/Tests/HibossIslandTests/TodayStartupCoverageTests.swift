@@ -50,6 +50,8 @@ final class TodayStartupCoverageTests: XCTestCase {
 
     func testOverviewRemainsIncompleteWhilePanelsAreHeldOrFailed() async throws {
         let api = try TodayStartupAPI()
+        // Activate the account before connecting its message coverage.
+        let settings = try await makeSettings()
         let model = makeModel(api)
         let flow = OptionFlowStore()
         let overview = OverviewStore()
@@ -58,7 +60,7 @@ final class TodayStartupCoverageTests: XCTestCase {
         overview.bind(flow: flow, requiredInputs: inputs.eraseToAnyPublisher())
         flow.connect(api: api)
         defer { flow.disconnect() }
-        let window = host(settings: try await makeSettings(), model: model, flow: flow, overview: overview)
+        let window = host(settings: settings, model: model, flow: flow, overview: overview)
         defer { window.close() }
         await api.waitForPanels()
         try await waitForCondition { model.hasCompleteQuestionnaires && flow.historyState == .loaded
@@ -74,6 +76,7 @@ final class TodayStartupCoverageTests: XCTestCase {
     func testOverviewWaitsForLivePanelAndObservesCoverageLossWithoutClock() async throws {
         let api = try TodayStartupAPI()
         await api.setPopulated(true)
+        let settings = try await makeSettings()
         let model = makeModel(api)
         let flow = OptionFlowStore()
         let overview = OverviewStore()
@@ -82,7 +85,7 @@ final class TodayStartupCoverageTests: XCTestCase {
         overview.bind(flow: flow, requiredInputs: inputs.eraseToAnyPublisher())
         flow.connect(api: api)
         defer { flow.disconnect() }
-        let window = host(settings: try await makeSettings(), model: model, flow: flow, overview: overview)
+        let window = host(settings: settings, model: model, flow: flow, overview: overview)
         defer { window.close() }
         await api.waitForPanels()
         await api.releasePanels()

@@ -37,6 +37,12 @@ struct SettingsDevicesView: View {
                 }
                 .id(connection.config?.bossToken)
             }
+            if isDemoMode {
+                BossClientsSection(api: DemoBossClientsAPI.shared, kind: .ios,
+                                   deviceLabel: "This phone") { _ in
+                    DemoBossClientsAPI.shared
+                }
+            }
             if connection.config == nil, !isDemoMode {
                 Section { Text("Connect to a server before pairing another device.") }
             }

@@ -1,6 +1,6 @@
 // Regression coverage for decision authorization while required inputs are refetched.
 // Exports DecisionRefreshTests; uses InboxStore and the held ControlledInputAPI fixture.
-// A loaded list remains authoritative until a coverage failure or account reset.
+// Cached controls survive lost coverage; a tap must verify authority before sending.
 
 import Combine
 import HibossKit
@@ -69,17 +69,17 @@ final class DecisionRefreshTests: XCTestCase {
         XCTAssertTrue(store.hasCompleteRequiredInputs)
     }
 
-    func testCoverageFailureDisablesLoadedDecisionUntilRecovery() async {
+    func testCoverageFailureKeepsLoadedDecisionUntilRecovery() async {
         let (store, api) = await loadedStore()
         defer { store.stop() }
         await api.failNextFetch()
         await store.refreshRequiredInputs()
-        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .open)
         XCTAssertEqual(store.requiredInputs.map(\.id), [Self.ask.id, Self.other.id])
         await api.holdNextFetch(returning: [Self.ask, Self.other])
         let recovery = Task { await store.refreshRequiredInputs() }
         await api.waitForHeldFetch()
-        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .open)
         await api.releaseFetch()
         await recovery.value
         assertOpen(store)
@@ -101,7 +101,7 @@ final class DecisionRefreshTests: XCTestCase {
         XCTAssertEqual(store.answerability(for: Self.ask.id), .closed)
     }
 
-    func testHeldRefreshCoverageTimeoutInvalidatesListUntilFetchRecovers() async {
+    func testHeldRefreshCoverageTimeoutRetainsListUntilFetchRecovers() async {
         let (store, api) = await loadedStore()
         defer { store.stop() }
         await api.holdNextFetch(returning: [Self.ask, Self.other])
@@ -109,11 +109,11 @@ final class DecisionRefreshTests: XCTestCase {
         await api.waitForHeldFetch()
         assertOpen(store)
         let failedCoverage = expectation(description: "refresh coverage timeout")
-        let observation = store.$requiredInputLoaded.filter { !$0 }.prefix(1).sink { _ in
+        let observation = store.$requiredInputError.filter { $0 != nil }.prefix(1).sink { _ in
             failedCoverage.fulfill()
         }
         await fulfillment(of: [failedCoverage], timeout: 10)
-        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .open)
         XCTAssertNotNil(store.requiredInputError)
         await api.releaseFetch()
         await refresh.value
@@ -129,11 +129,11 @@ final class DecisionRefreshTests: XCTestCase {
         await api.waitForStream(1)
         assertOpen(store)
         let failedCoverage = expectation(description: "reconnect coverage timeout")
-        let observation = store.$requiredInputLoaded.filter { !$0 }.prefix(1).sink { _ in
+        let observation = store.$requiredInputError.filter { $0 != nil }.prefix(1).sink { _ in
             failedCoverage.fulfill()
         }
         await fulfillment(of: [failedCoverage], timeout: 32)
-        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .open)
         await store.refreshRequiredInputs()
         assertOpen(store)
         XCTAssertFalse(store.requiredInputReady)
@@ -160,20 +160,19 @@ final class DecisionRefreshTests: XCTestCase {
         await api.waitForStream(2)
         assertOpen(store)
         let expired = expectation(description: "thirty-second stale-list deadline")
-        let observation = store.$requiredInputLoaded.filter { !$0 }.prefix(1).sink { _ in
-            expired.fulfill()
-        }
+        // The eight-second annotation may already exist; observe the actual grace deadline.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { expired.fulfill() }
         await fulfillment(of: [expired], timeout: 4)
+        XCTAssertNotNil(store.requiredInputError)
         XCTAssertGreaterThanOrEqual(disconnectedAt.duration(to: .now), .seconds(30))
-        XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
-        XCTAssertEqual(store.answerability(for: Self.ask.id).label, "Checking…")
+        XCTAssertEqual(store.answerability(for: Self.ask.id), .open)
+        XCTAssertNil(store.answerability(for: Self.ask.id).label)
         await api.setResponse([Self.ask])
         await store.refresh()
         assertOpen(store)
         XCTAssertEqual(store.answerability(for: Self.other.id), .closed, "refresh must refetch the list")
         XCTAssertFalse(store.requiredInputReady)
         XCTAssertNil(store.requiredInputError)
-        withExtendedLifetime(observation) {}
     }
 
     func testSuccessfulErroredReconnectNeverInvalidatesLoadedControls() async {
@@ -195,6 +194,72 @@ final class DecisionRefreshTests: XCTestCase {
         XCTAssertTrue(store.hasCompleteRequiredInputs)
         XCTAssertTrue(loadedStates.allSatisfy { $0 }, "an errored reconnect never flips controls")
         withExtendedLifetime(observation) {}
+    }
+
+    func testUnconfirmedTapVerifiesBeforeSendingAndKeepsOtherChoicesUsable() async {
+        let (store, api) = await loadedStore()
+        defer { store.stop() }
+        store.requiredInputReady = false
+        let before = await api.requiredFetchCount()
+        await api.holdNextFetch(returning: [Self.ask, Self.other])
+        let reply = Task { await store.reply("Yes", to: Self.ask.id) }
+        let started = expectation(description: "admission read starts")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { started.fulfill() }
+        await fulfillment(of: [started], timeout: 2)
+        let reads = await api.requiredFetchCount()
+        let replies = await api.replyAttempts
+        XCTAssertEqual(reads, before + 1)
+        XCTAssertEqual(replies, 0, "An unconfirmed cached choice cannot go straight to reply")
+        XCTAssertFalse(store.replyGate.locksControls(for: Self.ask.id))
+        XCTAssertNil(store.replying[Self.other.id])
+        await api.releaseFetch()
+        await api.waitForHeldReply()
+        await api.releaseReply(.accepted)
+        let result = await reply.value
+        XCTAssertEqual(result, .sent)
+    }
+
+    func testAuthorizationRejectionClearsTheCachedDecisionImmediately() async {
+        for status in [401, 403] {
+            let (store, api) = await loadedStore()
+            await api.failNextFetch(status: status)
+            await store.refreshRequiredInputs()
+            XCTAssertTrue(store.requiredInputs.isEmpty)
+            XCTAssertTrue(store.history.isEmpty)
+            XCTAssertFalse(store.requiredInputLoaded)
+            XCTAssertEqual(store.answerability(for: Self.ask.id), .checking)
+            store.stop()
+            let (tapped, tappedAPI) = await loadedStore()
+            tapped.requiredInputReady = false
+            await tappedAPI.failNextFetch(status: status)
+            let attempt = await tapped.reply("Yes", to: Self.ask.id)
+            XCTAssertEqual(attempt, .failed)
+            XCTAssertTrue(tapped.history.isEmpty)
+            XCTAssertTrue(tapped.requiredInputs.isEmpty)
+            tapped.stop()
+        }
+    }
+
+    func testTappedVerificationEscalatesAtEightSecondsWithoutSendingALateReply() async {
+        let (store, api) = await loadedStore()
+        defer { store.stop() }
+        store.requiredInputReady = false
+        await api.holdNextFetch(returning: [Self.ask, Self.other])
+        let reply = Task { await store.reply("Yes", to: Self.ask.id) }
+        await api.waitForHeldFetch()
+        XCTAssertFalse(store.replyGate.locksControls(for: Self.ask.id))
+        let timeout = expectation(description: "tapped verification escalation")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.2) { timeout.fulfill() }
+        await fulfillment(of: [timeout], timeout: 10)
+        XCTAssertTrue(store.replyGate.verificationTimedOut.contains(Self.ask.id))
+        XCTAssertTrue(store.replyGate.locksControls(for: Self.ask.id))
+        assertOpen(store)
+        await api.releaseFetch()
+        let outcome = await reply.value
+        let sent = await api.replyAttempts
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(sent, 0)
+        XCTAssertNil(store.replying[Self.ask.id])
     }
 
     private func loadedStore() async -> (InboxStore, ControlledInputAPI) {

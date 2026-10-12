@@ -24,6 +24,9 @@ public final class BossPreferencesStore: ObservableObject {
     @Published public private(set) var state: BossPreferencesState = .idle
 
     private let api: any BossPreferencesServing
+    private var authorizationObservation: AnyCancellable?
+    private var generation = 0
+    @Published public private(set) var authorizationRejected = false
 
     public init(
         api: any BossPreferencesServing,
@@ -31,30 +34,52 @@ public final class BossPreferencesStore: ObservableObject {
     ) {
         self.api = api
         self.preferences = initialPreferences
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.generation += 1
+            self?.authorizationRejected = true
+            self?.preferences = BossPreferences()
+            self?.state = .failed(error.localizedDescription)
+        }
     }
 
     public func load() async {
+        guard !authorizationRejected || !AccountAuthorization.shared.hasRejectedAccount else { return }
+        authorizationRejected = false
+        let version = generation
         state = .loading
         do {
-            preferences = try await api.fetchPreferences()
+            let loaded = try await api.fetchPreferences()
+            guard version == generation else { return }
+            preferences = loaded
             state = .loaded
         } catch where Task.isCancelled {
+            guard version == generation else { return }
             state = .idle
             return
         } catch {
+            guard version == generation else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
     }
 
     public func save() async {
+        guard !authorizationRejected || !AccountAuthorization.shared.hasRejectedAccount else { return }
+        authorizationRejected = false
+        let version = generation
         state = .saving
         do {
-            preferences = try await api.updatePreferences(preferences)
+            let loaded = try await api.updatePreferences(preferences)
+            guard version == generation else { return }
+            preferences = loaded
             state = .loaded
         } catch where Task.isCancelled {
+            guard version == generation else { return }
             state = .idle
             return
         } catch {
+            guard version == generation else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
     }

@@ -8,6 +8,11 @@ import XCTest
 
 @MainActor
 final class JoinRequestsModelTests: XCTestCase {
+    override func tearDown() async throws {
+        AccountAuthorization.shared.connect(nil)
+        try await super.tearDown()
+    }
+
     func testNewRequestsAreAnnouncedOncePerID() async {
         let service = StubJoinService(lists: [[Self.mini], [Self.mini], [Self.mini, Self.lab]])
         let model = JoinRequestsModel { service }
@@ -44,6 +49,40 @@ final class JoinRequestsModelTests: XCTestCase {
         XCTAssertEqual(missing, .notPending)
     }
 
+    func testEqualAccountReconnectRestartsPollingAndAllowsImmediateLookup() async throws {
+        let account = ConnectionConfig(
+            serverURL: try XCTUnwrap(URL(string: "https://unit.test")), bossToken: "unit-token"
+        )
+        let pollService = CountingJoinService(request: Self.mini)
+        let lookupService = CountingJoinService(request: Self.mini)
+        let pollModel = JoinRequestsModel(pollInterval: .milliseconds(5)) { pollService }
+        let lookupModel = JoinRequestsModel { lookupService }
+        AccountAuthorization.shared.connect(account)
+
+        XCTAssertTrue(AccountAuthorization.shared.reject(
+            HibossAPIError.requestFailed(status: 401, message: "")
+        ))
+        AccountAuthorization.shared.connect(account)
+
+        let secondRead = expectation(description: "poll continues after the first read")
+        var didFulfillSecondRead = false
+        pollService.onRead = {
+            if pollService.listCalls >= 2, !didFulfillSecondRead {
+                didFulfillSecondRead = true
+                secondRead.fulfill()
+            }
+        }
+        let polling = Task { await pollModel.poll() }
+        let lookup = await lookupModel.lookup(id: Self.mini.id)
+
+        XCTAssertEqual(lookup, .found(Self.mini))
+        await fulfillment(of: [secondRead], timeout: 1)
+        XCTAssertGreaterThanOrEqual(pollService.listCalls, 2)
+        XCTAssertNotEqual(pollModel.state, .forbidden)
+        polling.cancel()
+        await polling.value
+    }
+
     func testApproveRemovesTheRequest() async throws {
         let service = StubJoinService(lists: [[Self.mini]])
         let model = JoinRequestsModel { service }
@@ -51,7 +90,9 @@ final class JoinRequestsModelTests: XCTestCase {
 
         let result = await model.approve(Self.mini)
 
-        guard case let .approved(approval) = result else { return XCTFail("Expected approval, got \(result)") }
+        guard case let .approved(approval) = result else {
+            return XCTFail("Expected approval, got \(result)")
+        }
         XCTAssertEqual(approval.id, "jr-1")
         XCTAssertEqual(service.approved, ["jr-1"])
         XCTAssertTrue(model.requests.isEmpty)
@@ -91,6 +132,38 @@ final class JoinRequestsModelTests: XCTestCase {
 
         XCTAssertEqual(result, .failed(kitL("Only an admin can approve devices")))
         XCTAssertTrue(model.isForbidden)
+    }
+
+    func testFailedFirstReadKeepsItsResultDuringRetry() async {
+        let service = HeldFailedJoinRead()
+        let model = JoinRequestsModel { service }
+        await model.refresh()
+        let previous = model.state
+        XCTAssertFalse(model.didLoad)
+        await service.holdNext()
+        let retry = Task { await model.refresh() }
+        await service.waitForRead()
+        XCTAssertEqual(model.state, previous)
+        await service.release()
+        await retry.value
+    }
+
+    func testLookupWaitsForTheInitialInventoryRead() async {
+        let service = HeldFailedJoinRead()
+        await service.holdNext()
+        let model = JoinRequestsModel { service }
+        let refresh = Task { await model.refresh() }
+        await service.waitForRead()
+        var outcome: JoinRequestLookup?
+        let lookup = Task { outcome = await model.lookup(id: Self.mini.id) }
+        let pending = expectation(description: "lookup waits for inventory")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { pending.fulfill() }
+        await fulfillment(of: [pending], timeout: 2)
+        XCTAssertNil(outcome)
+        await service.release(returning: [Self.mini])
+        await refresh.value
+        await lookup.value
+        XCTAssertEqual(outcome, .found(Self.mini))
     }
 
     func testMissingConnectionStaysIdle() async {
@@ -134,4 +207,57 @@ final class StubJoinService: JoinRequestServing, @unchecked Sendable {
     func rejectJoinRequest(id: String) async throws {
         if let decisionError { throw decisionError }
     }
+}
+
+@MainActor
+private final class CountingJoinService: JoinRequestServing {
+    let request: JoinRequest
+    private(set) var listCalls = 0
+    var onRead: (() -> Void)?
+
+    init(request: JoinRequest) {
+        self.request = request
+    }
+
+    func listPendingJoinRequests() async throws -> [JoinRequest] {
+        listCalls += 1
+        onRead?()
+        return [request]
+    }
+
+    func approveJoinRequest(id: String) async throws -> JoinApproval {
+        throw JoinRequestError.notFound
+    }
+
+    func rejectJoinRequest(id: String) async throws {}
+}
+
+private actor HeldFailedJoinRead: JoinRequestServing {
+    private var hold = false
+    private var read: CheckedContinuation<[JoinRequest], Error>?
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    func holdNext() { hold = true }
+    func waitForRead() async {
+        if read != nil { return }
+        await withCheckedContinuation { waiter = $0 }
+    }
+    func release() {
+        read?.resume(throwing: URLError(.notConnectedToInternet))
+        read = nil
+    }
+    func release(returning requests: [JoinRequest]) {
+        read?.resume(returning: requests)
+        read = nil
+    }
+    func listPendingJoinRequests() async throws -> [JoinRequest] {
+        if !hold { throw URLError(.notConnectedToInternet) }
+        return try await withCheckedThrowingContinuation {
+            read = $0
+            waiter?.resume()
+            waiter = nil
+        }
+    }
+    func approveJoinRequest(id: String) async throws -> JoinApproval { throw JoinRequestError.forbidden }
+    func rejectJoinRequest(id: String) async throws { throw JoinRequestError.forbidden }
 }

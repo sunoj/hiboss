@@ -20,7 +20,7 @@ struct MainView: View {
     @StateObject private var progress: ProgressFeedStore
     @StateObject private var boxMedia: BoxBrowserMedia
     @StateObject private var sessionBox: BoxBrowserStore
-    private let identity: AccountIdentityGeneration
+    private let identity: AccountAuthorization
     private let previewSessions: [ProjectSession]?
     @State private var destination: OverviewDestination = .today
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -42,7 +42,7 @@ struct MainView: View {
          progressProvider: ProgressFeedStore.Provider? = nil,
          progressStore: ProgressFeedStore? = nil,
          panelsModel: PanelsModel? = nil,
-         identity: AccountIdentityGeneration? = nil) {
+         identity: AccountAuthorization? = nil) {
         let accountIdentity = identity ?? overviewStore?.identity ?? settings.identity
         self.identity = accountIdentity
         self.requiredInputs = requiredInputs
@@ -250,7 +250,7 @@ struct MainView: View {
                 box.query = ""
                 box.project = project
                 destination = .box
-            }, onSession: { destination = .session($0) }, identityGeneration: identity.value)
+            }, onSession: { destination = .session($0) }, identityGeneration: identity.generation)
     }
 
     @ViewBuilder

@@ -8,7 +8,10 @@ import SwiftUI
 struct SessionReplyComposer: View {
     let targets: [SessionReplyTarget]
     @ObservedObject var store: InboxStore
-    @State private var replyDraft = SessionReplyDraft()
+    private var replyDraft: SessionReplyDraft {
+        get { store.sessionReplyDraft }
+        nonmutating set { store.sessionReplyDraft = newValue }
+    }
     @State private var picking = false
     @State private var note: String?
 
@@ -16,6 +19,7 @@ struct SessionReplyComposer: View {
         store.requiredInputLoaded ? replyDraft.target(in: targets) : nil
     }
     private var submitting: Bool { target.map { store.replying[$0.id] != nil } ?? false }
+    private var locksControls: Bool { target.map { store.replyGate.locksControls(for: $0.id) } ?? false }
     private var draft: Binding<String> {
         Binding(get: { replyDraft.text }, set: { replyDraft.update($0, targets: targets) })
     }
@@ -39,16 +43,17 @@ struct SessionReplyComposer: View {
                 Button { picking = true } label: {
                     Image(systemName: "plus").frame(minWidth: 44, minHeight: 44)
                 }.accessibilityLabel("Attach from Box")
-                    .disabled(target == nil || submitting)
+                    .disabled(target == nil || locksControls)
                 TextField("Reply to session…", text: draft, axis: .vertical)
                     .lineLimit(1...5).textFieldStyle(.roundedBorder)
                     .frame(minHeight: 44).accessibilityIdentifier("session-reply-draft")
-                    .disabled(target == nil || submitting)
+                    .disabled(target == nil || locksControls)
                 Button(action: send) {
-                    if submitting { DelayedProgressView() }
-                    else { Image(systemName: "arrow.up").frame(minWidth: 44, minHeight: 44) }
+                    Image(systemName: "arrow.up").opacity(submitting ? 0 : 1)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .overlay { if submitting { DelayedProgressView() } }
                 }.prominentAction().tint(Theme.primaryAction).accessibilityLabel("Send reply")
-                    .disabled(target == nil || submitting
+                    .disabled(target == nil || locksControls
                               || replyDraft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
@@ -68,7 +73,9 @@ struct SessionReplyComposer: View {
 
     private var targetLabel: some View {
         Group {
-            if !store.requiredInputLoaded {
+            if let target, store.replyGate.verificationTimedOut.contains(target.id) {
+                Text("This is taking longer than expected.")
+            } else if !store.requiredInputLoaded {
                 Text("Checking…")
             } else if let target {
                 Text(verbatim: target.label)
@@ -96,7 +103,7 @@ struct SessionReplyComposer: View {
         guard let target, !submitting else { return }
         let text = replyDraft.text
         Task {
-            switch await store.reply(text, to: target.id) {
+            switch await store.reply(text, to: target.id, isDecision: target.isDecision) {
             case .sent:
                 replyDraft = SessionReplyDraft()
                 note = String(localized: "Reply sent.")

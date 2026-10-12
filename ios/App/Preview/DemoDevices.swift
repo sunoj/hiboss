@@ -32,6 +32,7 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
     /// One instance per launch, so an approval removes the row on the next refresh.
     static let shared = DemoJoinRequestsAPI()
 
+    private let started = Date()
     private var requests: [JoinRequest] = [
         JoinRequest(
             id: "jr-build", deviceLabel: "build-box-2", deviceHost: "build-box-2.local",
@@ -46,6 +47,12 @@ final class DemoJoinRequestsAPI: JoinRequestServing, @unchecked Sendable {
     ]
 
     func listPendingJoinRequests() async throws -> [JoinRequest] {
+        if Date().timeIntervalSince(started) > 5 {
+            try await DemoDelay.wait("REFRESH")
+            if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REFRESH_FAILS"] == "1" {
+                throw URLError(.notConnectedToInternet)
+            }
+        }
         try await DemoSettingsOperation.run("requests")
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_REQUESTS_EMPTY"] == "1" { return [] }
         try await DemoDelay.wait("DEVICES")

@@ -28,7 +28,14 @@ final class ProgressFeedStore: ObservableObject {
     private var accountGeneration = 0
     private var deletedIDs: Set<String> = []
 
-    init(apiProvider: @escaping Provider) { self.apiProvider = apiProvider }
+    private var authorizationObservation: AnyCancellable?
+
+    init(apiProvider: @escaping Provider) {
+        self.apiProvider = apiProvider
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.reset()
+        }
+    }
 
     func reset() {
         generation += 1

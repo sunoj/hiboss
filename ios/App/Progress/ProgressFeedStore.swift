@@ -18,6 +18,14 @@ final class ProgressFeedStore: ObservableObject {
     @Published private(set) var likingIDs: Set<String> = []
     @Published private(set) var likeErrors: [String: String] = [:]
 
+    private var authorizationObservation: AnyCancellable?
+
+    init() {
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.stop()
+        }
+    }
+
     private var api: (any ProgressServing)?
     private var nextCursor: ProgressCursor?
     private var operation: Task<Void, Never>?
@@ -95,7 +103,6 @@ final class ProgressFeedStore: ObservableObject {
             return
         } catch {
             loadError = error.localizedDescription
-            didLoad = true
             return
         }
         if let list = try? await api.progressProjects() {

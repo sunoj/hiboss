@@ -47,9 +47,12 @@ extension HibossAPI: QuestionnaireServing {
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode >= 400,
            let error = try? JSONDecoder().decode(QuestionnaireError.self, from: data) {
-            throw HibossAPIError.requestFailed(status: http.statusCode, message: error.error.message)
+            let rejection = HibossAPIError.requestFailed(status: http.statusCode,
+                                                        message: error.error.message)
+            await AccountAuthorization.shared.reject(rejection, account: config)
+            throw rejection
         }
-        try validate(response)
+        try await validate(response)
         return try decoder.decode(QuestionnaireReceipt.self, from: data)
     }
 }

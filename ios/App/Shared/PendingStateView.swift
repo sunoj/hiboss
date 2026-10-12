@@ -111,22 +111,29 @@ struct DelayedProgressView: View {
 }
 
 struct RetryButton: View {
+    var title: LocalizedStringKey = "Retry"
+    var compact = false
     let action: () async -> Void
     @State private var retrying = false
 
     var body: some View {
+        if compact {
+            control.buttonStyle(.borderless).font(.footnote)
+        } else {
+            control.buttonStyle(.bordered).controlSize(.regular).buttonBorderShape(.roundedRectangle)
+        }
+    }
+
+    private var control: some View {
         Button {
             retrying = true
             Task { await action(); retrying = false }
         } label: {
-            HStack {
-                Text("Retry")
-                if retrying { DelayedProgressView() }
-            }.frame(minHeight: 44)
+            Text(title).padding(.horizontal, 20).frame(minHeight: 44)
+                .overlay(alignment: .trailing) {
+                    if retrying { DelayedProgressView() }
+                }
         }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .buttonBorderShape(.roundedRectangle)
         .disabled(retrying)
         .accessibilityIdentifier("pending-retry")
     }

@@ -12,12 +12,12 @@ enum ProgressMediaLayout {
     static let gap: CGFloat = 2
     static let cornerRadius: CGFloat = 16
 
-    static func clampedAspect(width: Int?, height: Int?, measured: CGFloat? = nil) -> CGFloat {
+    static func clampedAspect(width: Int?, height: Int?) -> CGFloat {
         let raw: CGFloat?
         if let width, let height, width > 0, height > 0 {
             raw = CGFloat(width) / CGFloat(height)
         } else {
-            raw = measured
+            raw = nil
         }
         guard let raw, raw > 0 else { return groupAspect }
         return min(max(raw, minPortraitAspect), maxLandscapeAspect)

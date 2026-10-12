@@ -21,6 +21,8 @@ final class ConnectionStore: ObservableObject {
     @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var config: ConnectionConfig? {
         didSet {
+            if let config { AccountAuthorization.shared.connect(config) }
+            else { AccountAuthorization.shared.disconnect() }
             sharedDefaults?.set(config?.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
         }
     }
@@ -36,6 +38,7 @@ final class ConnectionStore: ObservableObject {
     private let pairingRedeemer: any ConnectionPairingRedeeming
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private var messageSigner: SecureEnclaveMessageSigner?
+    private var authorizationObservation: AnyCancellable?
 
     init(
         defaults: UserDefaults = .standard,
@@ -65,6 +68,9 @@ final class ConnectionStore: ObservableObject {
         self.clientsAPI = clientsAPI
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            if AccountAuthorization.shared.hasRejectedAccount { self?.config = nil }
+        }
     }
 
     var isConfigured: Bool { config != nil }

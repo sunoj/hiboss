@@ -42,51 +42,87 @@ final class DecisionReplyGate: ObservableObject {
 
     /// The choice in flight per decision. Every reply button reads it to disable itself.
     @Published private(set) var inFlight: [MessageID: String] = [:]
+    @Published private(set) var verifying: Set<MessageID> = []
+    @Published private(set) var verificationTimedOut: Set<MessageID> = []
     private var generation = 0
+    typealias AnswerabilityCheck = @MainActor (MessageID, DecisionAnswerability, Bool)
+        -> DecisionAnswerability
+    var currentAnswerability: AnswerabilityCheck?
+
+    func locksControls(for id: MessageID) -> Bool {
+        inFlight[id] != nil && (!verifying.contains(id) || verificationTimedOut.contains(id))
+    }
 
     /// Called only at the inbox's account boundary; obsolete submissions retain no current slot.
     func reset() {
         generation += 1
         inFlight = [:]
+        verifying = []
+        verificationTimedOut = []
     }
 
     /// Sends the choice unless a reply for this decision is already in flight. The slot is
     /// released on every exit (success, already-resolved, failure, cancellation) and any
     /// Live Activity for the decision shows the submission, then its recorded outcome.
     func submit(_ choice: String, to id: MessageID, via api: any BossServing,
-                answerability: DecisionAnswerability? = nil) async -> DecisionSubmission {
+                answerability: DecisionAnswerability? = nil, recheck: AnswerabilityCheck? = nil,
+                onAuthorizationFailure: @MainActor (Error) -> Void) async -> DecisionSubmission {
         guard inFlight[id] == nil else { return .busy }
         let version = generation
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
         inFlight[id] = text
+        if answerability == nil { verifying.insert(id) }
         defer {
-            if version == generation { inFlight[id] = nil }
+            if version == generation {
+                inFlight[id] = nil
+                verifying.remove(id)
+                verificationTimedOut.remove(id)
+            }
         }
         await DecisionActivityLink.showSubmitting(text, for: id)
         let progress = submissionProgress(text, for: id, version: version)
         defer { progress.cancel() }
-        let submission: DecisionSubmission
-        do {
-            let state: DecisionAnswerability
-            if let answerability { state = answerability }
-            else { state = try await loadAnswerability(for: id, via: api) }
-            guard version == generation else { return .failed(String(localized: "Connection isn't ready.")) }
-            if state != .open {
-                submission = state == .closed ? .alreadyResolved : .failed(state.label ?? "")
-            } else {
-                switch try await api.reply(to: id, with: choice) {
-                case .accepted: submission = .accepted
-                case let .acceptedOn(device): submission = .acceptedOn(device)
-                case .alreadyResolved: submission = .alreadyResolved
-                }
-            }
-        } catch {
-            submission = .failed(error.localizedDescription)
-        }
+        let submission = await performSubmission(choice, to: id, via: api,
+                                                 answerability: answerability, recheck: recheck,
+                                                 version: version,
+                                                 onAuthorizationFailure: onAuthorizationFailure)
         progress.cancel()
         guard version == generation else { return submission }
         await DecisionActivityLink.settle(id, after: submission, choice: text, api: api)
         return submission
+    }
+
+    private func performSubmission(_ choice: String, to id: MessageID, via api: any BossServing,
+                                   answerability: DecisionAnswerability?, recheck: AnswerabilityCheck?,
+                                   version: Int,
+                                   onAuthorizationFailure: @MainActor (Error) -> Void) async
+        -> DecisionSubmission {
+        do {
+            let verified: @MainActor () -> DecisionAnswerability
+            if let answerability { verified = { answerability } }
+            else { verified = try await loadAnswerability(for: id, via: api) }
+            guard version == generation else { return .failed(String(localized: "Connection isn't ready.")) }
+            guard !verificationTimedOut.contains(id) else {
+                return .failed(String(localized: "This is taking longer than expected."))
+            }
+            verifying.remove(id)
+            let check = recheck ?? currentAnswerability
+            let state = check?(id, verified(), answerability == nil) ?? verified()
+            if state != .open {
+                return state == .closed ? .alreadyResolved : .failed(state.label ?? "")
+            } else {
+                switch try await api.reply(to: id, with: choice) {
+                case .accepted: return .accepted
+                case let .acceptedOn(device): return .acceptedOn(device)
+                case .alreadyResolved: return .alreadyResolved
+                }
+            }
+        } catch {
+            if version == generation, (error as? HibossAPIError)?.isAuthFailure == true {
+                onAuthorizationFailure(error)
+            }
+            return .failed(error.localizedDescription)
+        }
     }
 
     private func submissionProgress(_ text: String, for id: MessageID, version: Int) -> Task<Void, Never> {
@@ -97,22 +133,27 @@ final class DecisionReplyGate: ObservableObject {
                 await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true)
                 try await Task.sleep(for: .milliseconds(7_700))
                 guard version == generation else { return }
+                if verifying.contains(id) { verificationTimedOut.insert(id) }
                 await DecisionActivityLink.showSubmitting(text, for: id, progressVisible: true, slow: true)
             } catch { return }
         }
     }
 
     private func loadAnswerability(for id: MessageID, via api: any BossServing) async throws
-        -> DecisionAnswerability {
-        guard let service = api as? any RequiredInputServing else { return .checking }
+        -> @MainActor () -> DecisionAnswerability {
+        guard let service = api as? any RequiredInputServing else { return { .checking } }
         let inputs = try await service.fetchRequiredInputs()
         let today = TodaySnapshot(history: [], requiredInputs: inputs, health: .loading,
                                   coverageComplete: true, now: .now)
         let state = DecisionAnswerability(id: id, openIDs: Set(today.decisions.map(\.id)), loaded: true)
         if state == .closed {
             let message = try await api.fetchMessage(id).message
-            if !message.isDecision { return .open }
+            if !message.isDecision { return { .open } }
         }
-        return state
+        return {
+            let current = TodaySnapshot(history: [], requiredInputs: inputs, health: .loading,
+                                        coverageComplete: true, now: .now)
+            return DecisionAnswerability(id: id, openIDs: Set(current.decisions.map(\.id)), loaded: true)
+        }
     }
 }

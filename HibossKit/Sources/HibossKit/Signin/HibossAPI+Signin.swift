@@ -52,7 +52,7 @@ extension HibossAPI {
             .appendingPathComponent(id)
         if let action { endpoint = endpoint.appendingPathComponent(action) }
         let (data, response) = try await session.data(for: authorizedRequest(url: endpoint, method: method))
-        try validate(response)
+        try await validate(response)
         do {
             return try decoder.decode(T.self, from: data)
         } catch {

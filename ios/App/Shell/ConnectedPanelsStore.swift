@@ -8,6 +8,14 @@ import HibossKit
 @MainActor
 final class ConnectedPanelsStore: ObservableObject {
     @Published private(set) var model = PanelsModel(demoMode: false, autoload: false)
+    private var authorizationObservation: AnyCancellable?
+
+    init() {
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.stop()
+        }
+    }
+
     private var config: ConnectionConfig?
     private var hasStarted = false
     private(set) var startup: Task<Void, Never>?

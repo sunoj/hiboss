@@ -6,6 +6,7 @@ import XCTest
 
 class IntermediateCaptureCase: XCTestCase {
     var app: XCUIApplication!
+    var appearance: String? { nil }
     var variant: String { ProcessInfo.processInfo.environment["INTERMEDIATE_VARIANT"] ?? "en" }
 
     override func setUpWithError() throws {
@@ -17,6 +18,7 @@ class IntermediateCaptureCase: XCTestCase {
         app.terminate()
         app.configureDemoLaunch(extra)
         app.launchArguments = ["-AppleLanguages", variant.contains("zh") ? "(zh-Hans)" : "(en)"]
+        if let appearance { app.launchArguments += ["-AppleInterfaceStyle", appearance] }
         if variant.contains("ax") {
             app.launchArguments += [
                 "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityL",

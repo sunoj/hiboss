@@ -29,6 +29,22 @@ final class SettingsPreferencesTests: XCTestCase {
         XCTAssertTrue(store.didSave)
     }
 
+    func testFailedCleanReadKeepsItsAnnotationDuringRetry() async {
+        let api = ControlledPreferencesAPI()
+        let store = PreferencesStore()
+        await store.load(api: api)
+        api.shouldFail = true
+        await store.load(api: api)
+        let previous = store.state
+        api.pause = true
+        let retry = Task { await store.load(api: api) }
+        while api.continuation == nil { await Task.yield() }
+        XCTAssertEqual(store.state, previous)
+        XCTAssertTrue(store.hasLoaded)
+        api.continuation?.resume()
+        await retry.value
+    }
+
     func testConnectionChangeDropsTheDraftAndTheOldAPI() async {
         let old = ControlledPreferencesAPI()
         let store = PreferencesStore()
@@ -83,6 +99,21 @@ final class SettingsPreferencesTests: XCTestCase {
         XCTAssertFalse(store.isDirty)
     }
 
+    func testAnEditDuringReadKeepsTheDraftDirty() async {
+        let api = ControlledPreferencesAPI()
+        let store = PreferencesStore()
+        await store.load(api: api)
+        api.pause = true
+        let read = Task { await store.load(api: api) }
+        while api.continuation == nil { await Task.yield() }
+        store.setPrivatePush(true)
+        let draft = store.prefs
+        api.continuation?.resume()
+        await read.value
+        XCTAssertEqual(store.prefs, draft)
+        XCTAssertTrue(store.isDirty)
+    }
+
     func testWaitProgressStartsAt300MillisecondsAndEscalatesAtEightSeconds() {
         XCTAssertEqual(SettingsWaitStage.at(elapsed: .milliseconds(299)), .context)
         XCTAssertEqual(SettingsWaitStage.at(elapsed: .milliseconds(300)), .progress)
@@ -110,7 +141,11 @@ private final class ControlledPreferencesAPI: BossPreferencesServing {
     var pause = false
     var continuation: CheckedContinuation<Void, Never>?
 
-    func fetchPreferences() async throws -> BossPreferences { BossPreferences() }
+    func fetchPreferences() async throws -> BossPreferences {
+        if pause { await withCheckedContinuation { continuation = $0 } }
+        if shouldFail { throw URLError(.notConnectedToInternet) }
+        return BossPreferences()
+    }
 
     var saves = 0
 

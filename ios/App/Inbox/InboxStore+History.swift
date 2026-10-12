@@ -10,15 +10,22 @@ extension InboxStore {
         let version = historyVersion
         historySync = HistorySync(api: api) { [weak self] messages, error in
             guard let self, version == self.historyVersion else { return }
+            if case let .authorization(rejected) = error {
+                self.rejectAuthorization(rejected)
+                return
+            }
             if let messages {
                 self.applyHistory(messages)
                 await self.syncDecisionActivity()
             }
             guard version == self.historyVersion else { return }
-            if self.loadError != error { self.loadError = error }
-            if !self.didLoad { self.didLoad = true }
-            self.historyCheckedAt = .now
-            if error == nil { StartupLog.record("history loaded", count: self.history.count) }
+            let description = error?.localizedDescription
+            if self.loadError != description { self.loadError = description }
+            if error == nil {
+                if !self.didLoad { self.didLoad = true }
+                self.historyCheckedAt = .now
+                StartupLog.record("history loaded", count: self.history.count)
+            }
         }
     }
 

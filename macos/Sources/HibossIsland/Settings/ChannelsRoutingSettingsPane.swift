@@ -25,6 +25,7 @@ struct ChannelsRoutingSettingsPane: View {
             }
         }
         .formStyle(.grouped)
+        .disabled(preferencesStore.authorizationRejected)
     }
 }
 

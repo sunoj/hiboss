@@ -49,7 +49,7 @@ final class OverviewStoreTests: XCTestCase {
     }
 
     func testLateAnswerFromPreviousIdentityDoesNotRestoreHistory() async {
-        let identity = AccountIdentityGeneration()
+        let identity = AccountAuthorization()
         let store = OverviewStore(identity: identity)
         let question = AttentionTestSupport.ask(id: "old", options: ["Ship"], sessionStatus: "waiting")
         store.update(history: [question], live: nil, requiredInputs: [question], requiredInputLoaded: true)

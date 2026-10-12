@@ -67,7 +67,7 @@ final class AttentionReplyE2ETests: XCTestCase {
     }
 
     func testLateReplyFromPreviousIdentityDoesNotClearTheNewDraft() async {
-        let identity = AccountIdentityGeneration()
+        let identity = AccountAuthorization()
         let reply = AttentionReplyState(identity: identity)
         reply.drafts["old"] = "Old account draft"
         let started = expectation(description: "reply started")

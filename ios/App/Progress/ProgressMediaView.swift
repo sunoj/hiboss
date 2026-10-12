@@ -9,7 +9,6 @@ import UIKit
 struct ProgressMediaView: View {
     let items: [ProgressMedia]
     var onOpen: (ProgressMedia) -> Void
-    @State private var measuredAspect: CGFloat?
 
     var body: some View {
         Group {
@@ -29,10 +28,10 @@ struct ProgressMediaView: View {
     private func single(_ item: ProgressMedia) -> some View {
         framed(
             aspect: ProgressMediaLayout.clampedAspect(
-                width: item.width, height: item.height, measured: measuredAspect
+                width: item.width, height: item.height
             )
         ) {
-            tile(item, reportRatio: item.width == nil || item.height == nil)
+            tile(item)
         }
     }
 
@@ -85,14 +84,13 @@ struct ProgressMediaView: View {
     }
 
     @ViewBuilder
-    private func tile(_ item: ProgressMedia, reportRatio: Bool = false) -> some View {
+    private func tile(_ item: ProgressMedia) -> some View {
         Group {
             switch item.kind {
             case .image:
                 ProgressImageCell(
                     media: item,
-                    onOpen: { onOpen(item) },
-                    onRatio: reportRatio ? { measuredAspect = $0 } : nil
+                    onOpen: { onOpen(item) }
                 )
             case .video:
                 ProgressVideoCell(media: item, onExpand: { onOpen(item) })
@@ -107,7 +105,6 @@ struct ProgressMediaView: View {
 struct ProgressImageCell: View {
     let media: ProgressMedia
     var onOpen: () -> Void
-    var onRatio: ((CGFloat) -> Void)?
 
     @State private var image: UIImage?
     @State private var failed = false
@@ -188,9 +185,6 @@ struct ProgressImageCell: View {
             guard let loaded = UIImage(data: data), loaded.size.height > 0 else {
                 failed = true
                 return
-            }
-            if media.width == nil || media.height == nil {
-                onRatio?(loaded.size.width / loaded.size.height)
             }
             image = loaded
         } catch where Task.isCancelled { return }

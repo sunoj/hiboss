@@ -29,19 +29,16 @@ private struct PanelQuestionnairesContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if !panels.isDemoMode && isRefreshing && error == nil {
-                #if os(iOS)
-                NativePendingNotice(title: kitL("Loading questions…"), retry: retry)
-                #else
-                if !hasLoaded { ProgressView(kitL("Loading questions…")) }
-                #endif
-            }
+            #if os(iOS)
+            NativeRefreshStatus(isRefreshing: !panels.isDemoMode && isRefreshing,
+                                error: error, title: kitL("Loading questions…"), retry: retry)
+            #else
+            if !hasLoaded && isRefreshing { ProgressView(kitL("Loading questions…")) }
             if let error {
-                Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark").foregroundStyle(
-                    .orange)
                 Text(verbatim: error).foregroundStyle(.secondary).font(.callout)
                 Button(kitL("Retry questions")) { Task { await refresh() } }.disabled(isRefreshing)
             }
+            #endif
             if let service, let bossID = tile.metadata?.targetBossId {
                 ForEach(records) { record in
                     QuestionnaireEditor(
@@ -80,7 +77,7 @@ private struct PanelQuestionnairesContent: View {
         } catch is CancellationError { return }
         catch {
             guard generation == refreshGeneration else { return }
-            if (error as? HibossAPIError)?.isAuthFailure == true { records = []; service = nil }
+            if AccountAuthorization.shared.reject(error) { return }
             self.error = error.localizedDescription
         }
     }

@@ -49,8 +49,10 @@ extension MessageDetailView {
     }
 
     private func restartLookup() async {
-        fallback = .loading
-        loadAttempt += 1
+        switch fallback {
+        case .loading: loadAttempt += 1
+        case .missing, .failed: await load()
+        }
     }
 
     /// Waits briefly for restored credentials, then fetches only the notification

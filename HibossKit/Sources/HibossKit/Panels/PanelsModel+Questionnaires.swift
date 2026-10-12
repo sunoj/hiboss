@@ -62,7 +62,7 @@ extension PanelsModel {
             return
         } catch {
             guard generation == questionnaireGeneration else { return }
-            if (error as? HibossAPIError)?.isAuthFailure == true { pendingQuestionnaires = [] }
+            if AccountAuthorization.shared.reject(error) { return }
             questionnaireError = error.localizedDescription
         }
     }

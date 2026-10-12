@@ -44,6 +44,22 @@ struct HomeContent: View {
             }
             .padding(.vertical, 12)
         }
+        .overlay(alignment: .bottom) {
+            if hasCompletedCoverage {
+                CompactRefreshNotice(isRefreshing: isRefreshingKnownContent,
+                                     error: hasCoverageFailure ? attentionStatus : nil,
+                                     title: attentionStatus ?? String(localized: "Refreshing…"),
+                                     onRetry: { await retryCoverage() },
+                                     statusIdentifier: "home-connection-status")
+            } else if let attentionStatus {
+                PendingStateView(title: attentionStatus,
+                                 showsPlaceholder: inbox.requiredInputs.isEmpty && panels.tiles.isEmpty,
+                                 isFailure: hasCoverageFailure,
+                                 statusIdentifier: "home-connection-status",
+                                 onRetry: { await retryCoverage() }, onSettings: openSettings)
+                    .padding(16)
+            }
+        }
     }
 
     /// Expiry moments that change the ranking; countdown text ticks on its own.
@@ -68,12 +84,14 @@ struct HomeContent: View {
                         now: now, onSettings: openSettings)
             HomeAttentionSection(
                 snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
-                isAllClear: (today.isAllClear || (refreshing && today.decisions.isEmpty))
+                isAllClear: (today.isAllClear || (hasCompletedCoverage && today.decisions.isEmpty))
                     && attention.questionnaires.isEmpty,
                 isRefreshing: refreshing, status: refreshing ? nil : attentionStatus,
                 statusIsFailure: hasCoverageFailure,
                 onRetry: onRetry, onSettings: openSettings,
                 replying: inbox.replying,
+                verifying: inbox.replyGate.verifying,
+                verificationTimedOut: inbox.replyGate.verificationTimedOut,
                 answerability: Dictionary(uniqueKeysWithValues: today.decisions.map {
                     ($0.id, inbox.answerability(for: $0.id, now: now))
                 }), inputsLoaded: inbox.requiredInputLoaded, onChoose: handleReply,
@@ -89,10 +107,8 @@ struct HomeContent: View {
     }
 
     private var isRefreshingKnownContent: Bool {
-        hasCompletedCoverage && !hasCoverageFailure && inbox.connectionState == .connected
-            && inbox.hasCompleteRequiredInputs && inbox.didLoad && panels.loadState == .loaded
-            && panels.tiles.allSatisfy { panels.hasPanelCoverage(for: $0) }
-            && (inbox.isRefreshing || inbox.requiredInputRefreshing || panels.isRefreshing)
+        hasCompletedCoverage && (inbox.isRefreshing || inbox.requiredInputRefreshing
+            || panels.isRefreshing || (!hasCoverageFailure && attentionStatus != nil))
     }
 
     var attentionStatus: String? {

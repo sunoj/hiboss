@@ -11,7 +11,6 @@ struct MarkdownAttachmentPreview: View {
     @Environment(\.dismiss) private var dismiss
     @State private var source: String?
     @State private var error: String?
-    @State private var attempt = 0
 
     var body: some View {
         NavigationStack {
@@ -26,7 +25,7 @@ struct MarkdownAttachmentPreview: View {
                         Link("Open original", destination: url)
                     }
                 }
-                .task(id: attempt) { await load() }
+                .task { await load() }
         }
         .accessibilityIdentifier("message-attachment-markdown-document")
     }
@@ -42,7 +41,7 @@ struct MarkdownAttachmentPreview: View {
             } description: {
                 Text(verbatim: error)
             } actions: {
-                Button("Retry") { attempt += 1 }
+                RetryButton(action: load)
             }
         } else {
             ProgressView("Loading document…").frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -50,17 +49,17 @@ struct MarkdownAttachmentPreview: View {
     }
 
     private func load() async {
-        source = nil
-        error = nil
+        guard source == nil else { return }
         do {
             let document: String
-            if let fixture = DemoMessageAttachments.markdownSource(for: url) {
+            if let fixture = try await DemoMessageAttachments.previewSource(for: url) {
                 document = fixture
             } else {
                 document = try await MarkdownAttachmentDocument.read(url)
             }
             try Task.checkCancellation()
             source = document
+            error = nil
         } catch is CancellationError {
             return
         } catch {

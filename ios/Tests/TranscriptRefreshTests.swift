@@ -57,6 +57,42 @@ final class TranscriptRefreshTests: XCTestCase {
         store.stop()
     }
 
+    func testEmptyResultErrorAnnotationSurvivesHeldRetry() async {
+        let api = HeldTranscriptAPI()
+        let store = SessionStreamStore(sessionID: "session")
+        store.start(api: api)
+        defer { store.stop() }
+        await api.waitForFetch(1)
+        await api.finishEmpty(1)
+        await settled()
+        XCTAssertTrue(store.didLoad)
+        let failure = Task { await store.refresh() }
+        await api.waitForFetch(2)
+        await api.fail(2)
+        await failure.value
+        let previous = store.loadError
+        XCTAssertNotNil(previous)
+        let retry = Task { await store.refresh() }
+        await api.waitForFetch(3)
+        XCTAssertTrue(store.events.isEmpty)
+        XCTAssertEqual(store.loadError, previous)
+        await api.finishEmpty(3)
+        await retry.value
+        XCTAssertNil(store.loadError)
+    }
+
+    func testFirstTranscriptFailureDoesNotClaimAnEmptyResult() async {
+        let api = HeldTranscriptAPI()
+        let store = SessionStreamStore(sessionID: "session")
+        store.start(api: api)
+        defer { store.stop() }
+        await api.waitForFetch(1)
+        await api.fail(1)
+        await settled()
+        XCTAssertFalse(store.didLoad)
+        XCTAssertNotNil(store.loadError)
+    }
+
     private func settled() async {
         let settled = expectation(description: "late read completion")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { settled.fulfill() }
@@ -88,6 +124,14 @@ private actor HeldTranscriptAPI: SessionStreamServing {
                                  kind: "message", payload: .object(["body": .string(body)]),
                                  createdAt: "2026-10-07T00:00:00Z")
         reads.removeValue(forKey: number)?.resume(returning: SessionEventsPage(events: [event]))
+    }
+
+    func finishEmpty(_ number: Int) {
+        reads.removeValue(forKey: number)?.resume(returning: SessionEventsPage(events: []))
+    }
+
+    func fail(_ number: Int) {
+        reads.removeValue(forKey: number)?.resume(throwing: URLError(.notConnectedToInternet))
     }
 
     func sessionEventStream(sessionID: String, after: Int)

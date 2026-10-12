@@ -21,11 +21,17 @@ public final class JoinRequestReview: ObservableObject {
     public let requestID: String
     private let model: JoinRequestsModel
     private let generation: Int
+    private var authorizationObservation: AnyCancellable?
 
     public init(requestID: String, model: JoinRequestsModel) {
         self.requestID = requestID
         self.model = model
         generation = model.generation
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.phase = .unavailable(error.localizedDescription)
+            self?.failureMessage = nil
+            self?.isDeciding = false
+        }
         if let known = model.request(id: requestID) { phase = .ready(known) }
     }
 

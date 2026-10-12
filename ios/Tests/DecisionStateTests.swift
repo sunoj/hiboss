@@ -136,9 +136,14 @@ final class DecisionStateTests: XCTestCase {
 
     func testListPhaseKeepsRowsAndReportsAFailedRefresh() {
         XCTAssertEqual(ListStatePhase.resolve(isLoading: true, error: nil, isEmpty: true), .loading)
+        XCTAssertEqual(ListStatePhase.resolve(isLoading: true, error: "down", isEmpty: true),
+                       .unreachable("down"), "A first-load error result stays visible during retry")
         XCTAssertEqual(
             ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: true), .unreachable("down"))
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: nil, isEmpty: true), .empty)
+        XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: true,
+                                              hasLoaded: true), .empty,
+                       "A completed empty result survives a failed refresh")
         XCTAssertEqual(ListStatePhase.resolve(isLoading: true, error: nil, isEmpty: true, hasLoaded: true),
                        .empty, "Refreshing a previously empty result must retain the cached state")
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: false),

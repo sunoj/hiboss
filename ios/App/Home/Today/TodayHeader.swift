@@ -12,6 +12,7 @@ struct TodayHeader: View {
     var isRefreshing = false
     let now: Date
     let onSettings: () -> Void
+    @State private var refreshVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -35,6 +36,13 @@ struct TodayHeader: View {
             }
         }
         .padding(.horizontal, 16)
+        .task(id: isRefreshing) {
+            refreshVisible = false
+            guard isRefreshing else { return }
+            do { try await Task.sleep(for: PendingTiming.revealDelay) }
+            catch { return }
+            refreshVisible = true
+        }
     }
 
     @ViewBuilder private var chips: some View {
@@ -46,27 +54,30 @@ struct TodayHeader: View {
         if !snapshot.working.isEmpty {
             chip(Text("\(String(snapshot.working.count)) working"), color: Theme.live)
         }
-        if isRefreshing {
-            chip(Text("Refreshing…"), color: Theme.live)
+        if refreshVisible {
+            chip(Text("Refreshing…"), color: Theme.live, reservesHealthWidth: true)
         } else if case .live(let checkedAt) = snapshot.health, snapshot.coverageComplete {
             chip(Text("Live") + Text(verbatim: " · ") + Text(checkedAt, style: .relative),
-                 color: Theme.positive)
+                 color: Theme.positive, reservesHealthWidth: true)
         } else {
             switch snapshot.health {
             case .connecting:
-                chip(Text("Connecting…"), color: Theme.ink3)
+                chip(Text("Connecting…"), color: Theme.ink3, reservesHealthWidth: true)
             case .offline:
-                chip(Text("Not connected"), color: Theme.warn)
+                chip(Text("Not connected"), color: Theme.warn, reservesHealthWidth: true)
             case .loading, .live:
-                chip(Text("Checking coverage"), color: Theme.ink3)
+                chip(Text("Checking coverage"), color: Theme.ink3, reservesHealthWidth: true)
             }
         }
     }
 
-    private func chip(_ label: Text, color: Color) -> some View {
+    private func chip(_ label: Text, color: Color, reservesHealthWidth: Bool = false) -> some View {
         HStack(spacing: 6) {
             Circle().fill(color).frame(width: 7, height: 7).accessibilityHidden(true)
-            label.font(.footnote).foregroundStyle(Theme.ink2)
+            ZStack(alignment: .leading) {
+                if reservesHealthWidth { Text("Checking coverage").hidden() }
+                label.lineLimit(1)
+            }.font(.footnote).foregroundStyle(Theme.ink2)
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
         .background(Theme.surface, in: Capsule())

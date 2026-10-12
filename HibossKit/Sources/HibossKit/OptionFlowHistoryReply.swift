@@ -29,6 +29,7 @@ extension OptionFlowStore {
             }
         } catch {
             guard version == historyVersion, !Task.isCancelled else { return false }
+            if AccountAuthorization.shared.reject(error) { return false }
             setHistoryReplyFeedback(.failed(error.localizedDescription), for: messageID)
             return false
         }

@@ -2,6 +2,7 @@
 // Exports: PanelsModel, PanelTile, and PanelFreshness.
 // Dependencies: PanelsServing, injected ConnectionConfig, and panel renderer models.
 
+import Combine
 import SwiftUI
 
 public enum PanelsLoadState: Equatable {
@@ -27,6 +28,8 @@ public final class PanelsModel: ObservableObject {
     @Published public internal(set) var loadState: PanelsLoadState = .idle
     @Published public internal(set) var didLoadPanels = false
     @Published public internal(set) var identityGeneration: UInt64 = 0
+    private var authorizationObservation: AnyCancellable?
+    var authorizationRejected = false
     let api: (any PanelsServing)?
     let configurationProvider: (@MainActor () async throws -> ConnectionConfig)?
     var lastUpdated: [String: Date] = [:]
@@ -86,6 +89,11 @@ public final class PanelsModel: ObservableObject {
             startClock()
             if autoload { Task { await load() } }
         }
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.authorizationRejected = true
+            self?.connectionDidChange()
+            self?.loadState = .failed(error.localizedDescription)
+        }
     }
 
     public var isRefreshing: Bool { isFetching && didLoadPanels }
@@ -127,6 +135,7 @@ public final class PanelsModel: ObservableObject {
     public func animationDelay(for tile: PanelTile) -> Double { Double(tile.order) * 0.045 }
 
     func panelService() async throws -> any PanelsServing {
+        guard !authorizationRejected else { throw CancellationError() }
         if let api { return api }
         guard let configurationProvider else { throw PanelClientError.notConfigured }
         let identity = identityGeneration
@@ -137,6 +146,7 @@ public final class PanelsModel: ObservableObject {
     }
 
     func questionnaireService() async throws -> any QuestionnaireServing {
+        guard !authorizationRejected else { throw CancellationError() }
         if let service = api as? any QuestionnaireServing { return service }
         guard let configurationProvider else { throw PanelClientError.notConfigured }
         let config = try await configurationProvider()

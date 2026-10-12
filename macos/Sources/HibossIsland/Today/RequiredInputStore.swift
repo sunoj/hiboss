@@ -31,6 +31,7 @@ final class RequiredInputStore: ObservableObject {
             Self.log.info("required-input state \(summary, privacy: .public)")
         }
     }
+    private var authorizationObservation: AnyCancellable?
     private var service: (any RequiredInputServing)?
     private var streamTask: Task<Void, Never>?
     private var fetchTask: Task<Void, Never>?
@@ -49,6 +50,9 @@ final class RequiredInputStore: ObservableObject {
          staleListDelay: Duration = .seconds(30)) {
         self.reconnectDelay = reconnectDelay
         self.staleListDelay = staleListDelay
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.disconnect()
+        }
     }
 
     deinit {
@@ -111,6 +115,7 @@ final class RequiredInputStore: ObservableObject {
                 guard let self, !Task.isCancelled, self.epoch == epoch,
                       self.fetchVersion == version else { return }
                 Self.log.error("required-input fetch failed: \(String(describing: error), privacy: .public)")
+                if AccountAuthorization.shared.reject(error) { return }
                 self.state.failed = true
                 self.state.refreshing = false
                 self.fetchTask = nil
@@ -212,6 +217,7 @@ final class RequiredInputStore: ObservableObject {
             } catch {
                 Self.log.error("required-input stream ended: \(String(describing: error), privacy: .public)")
                 guard !Task.isCancelled, self.epoch == epoch else { return }
+                if AccountAuthorization.shared.reject(error) { return }
                 // Transport errors and EOF share the same bounded stale-list authority.
             }
             guard !Task.isCancelled, self.epoch == epoch else { return }

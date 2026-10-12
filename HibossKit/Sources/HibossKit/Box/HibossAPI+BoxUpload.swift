@@ -26,7 +26,7 @@ extension HibossAPI: BoxUploading {
             result = try await session.upload(
                 for: request, from: JSONEncoder().encode(upload), delegate: delegate)
         }
-        try validate(result.1)
+        try await validate(result.1)
         let item = try decoder.decode(BoxItem.self, from: result.0)
         progress(1)
         return item

@@ -14,7 +14,7 @@ enum DemoMessageAttachments {
     static func queue(fallback: [HistoryMessage]) -> [HistoryMessage] {
         let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] ?? ""
         if mode == "video" { return [message(id: "attachment-video", url: videoURL)] }
-        if ["markdown", "markdown-multiline"].contains(mode) {
+        if ["markdown", "markdown-multiline", "markdown-error"].contains(mode) {
             return [message(id: "attachment-file", url: markdownURL)]
         }
         guard ["1", "failure"].contains(mode) else {
@@ -25,6 +25,14 @@ enum DemoMessageAttachments {
             message(id: "attachment-file", url: fileURL),
             message(id: "attachment-decision", url: imageURL, decision: true),
         ]
+    }
+
+    static func previewSource(for url: URL) async throws -> String? {
+        if isDemoMode, ProcessInfo.processInfo.environment["HIBOSS_DEMO_ATTACHMENTS"] == "markdown-error" {
+            try await DemoDelay.wait("MEDIA")
+            throw MarkdownAttachmentDocument.DocumentError.unavailable
+        }
+        return markdownSource(for: url)
     }
 
     static func markdownSource(for url: URL) -> String? {

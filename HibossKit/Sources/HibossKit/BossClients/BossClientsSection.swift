@@ -23,38 +23,55 @@ public struct BossClientsSection: View {
     }
 
     public var body: some View {
-        Section {
-            if store.needsRegistration(kind: kind) { registrationCallout }
-            if let notice = store.registrationNotice {
-                Label(notice, systemImage: "exclamationmark.triangle")
-                    .font(.callout).foregroundStyle(.secondary)
-            }
-            if store.isBusy {
-                ProgressView(kitL("Loading devices…"))
-            }
-            if let error = store.error {
-                Label(error, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.red)
-            } else if !store.isBusy && store.clients.isEmpty {
-                Text(kitL("No devices registered.")).foregroundStyle(.secondary)
-            }
-            ForEach(store.clients) { client in
-                row(client)
-            }
-            Button(kitL("Refresh devices")) { Task { await store.load() } }
-                .disabled(store.isBusy)
-        } header: {
-            Text(kitL("Devices"))
-        }
+        inventory
         .task { await store.load() }
-        .alert(kitL("Revoke device?"), isPresented: $showsConfirmation, presenting: pendingRevocation) { client in
+        .alert(kitL("Revoke device?"), isPresented: $showsConfirmation,
+               presenting: pendingRevocation) { client in
             Button(kitL("Cancel"), role: .cancel) { pendingRevocation = nil }
             Button(kitL("Revoke"), role: .destructive) {
                 Task { await store.revoke(client) }
                 pendingRevocation = nil
             }
         } message: { client in
-            Text(verbatim: client.label) + Text(verbatim: "\n") + Text(kitL("This device will lose access and stop receiving push notifications."))
+            Text(verbatim: client.label) + Text(verbatim: "\n")
+                + Text(kitL("This device will lose access and stop receiving push notifications."))
+        }
+    }
+
+    private var inventory: some View {
+        Section {
+            if store.needsRegistration(kind: kind) { registrationCallout }
+            if let notice = store.registrationNotice {
+                Label(notice, systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            if store.isRefreshing && !store.hasLoaded {
+                ProgressView(kitL("Loading devices…"))
+            }
+            if !store.hasLoaded, let error = store.error {
+                Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+            } else if store.hasLoaded && store.clients.isEmpty {
+                Text(kitL("No devices registered.")).foregroundStyle(.secondary)
+            }
+            ForEach(store.clients) { client in
+                row(client)
+            }
+            Button { Task { await store.load() } } label: {
+                HStack {
+                    Text(kitL("Refresh devices"))
+                    #if os(iOS)
+                    NativeDelayedProgress(active: store.isRefreshing)
+                        .accessibilityHidden(!store.isRefreshing)
+                    #endif
+                }
+            }
+                .disabled(store.isBusy)
+                .accessibilityIdentifier("boss-clients-refresh")
+        } header: {
+            Text(kitL("Devices"))
+        } footer: {
+            Text(verbatim: store.hasLoaded ? store.error ?? " " : " ")
+                .lineLimit(1).accessibilityHidden(store.error == nil)
         }
     }
 
@@ -94,6 +111,7 @@ public struct BossClientsSection: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(store.isBusy)
+                .accessibilityIdentifier("boss-client-revoke-\(client.id.rawValue)")
                 .accessibilityLabel(Text(kitL("Revoke")) + Text(verbatim: " ") + Text(verbatim: client.label))
             }
         }

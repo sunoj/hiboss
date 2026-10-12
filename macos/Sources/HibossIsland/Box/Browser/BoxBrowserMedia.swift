@@ -18,7 +18,14 @@ final class BoxBrowserMedia: ObservableObject {
     private var generation = 0
     private let apiProvider: BoxBrowserStore.Provider
 
-    init(apiProvider: @escaping BoxBrowserStore.Provider) { self.apiProvider = apiProvider }
+    private var authorizationObservation: AnyCancellable?
+
+    init(apiProvider: @escaping BoxBrowserStore.Provider) {
+        self.apiProvider = apiProvider
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.reset()
+        }
+    }
 
     func reset() {
         generation += 1

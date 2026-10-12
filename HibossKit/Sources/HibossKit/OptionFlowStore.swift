@@ -10,22 +10,23 @@ public final class OptionFlowStore: ObservableObject {
     @Published public private(set) var activeMessage: OptionMessage?
     @Published public private(set) var connectionState: ConnectionState = .disconnected
     @Published public private(set) var presentationState: PresentationState = .idle
-    @Published public private(set) var historyMessages: [HistoryMessage] = []
-    @Published public private(set) var historyState: HistoryState = .idle
-    @Published public private(set) var historyLoadedAt: Date?
-    @Published public private(set) var isRefreshingHistory = false
+    @Published public internal(set) var historyMessages: [HistoryMessage] = []
+    @Published public internal(set) var historyState: HistoryState = .idle
+    @Published public internal(set) var historyLoadedAt: Date?
+    @Published public internal(set) var isRefreshingHistory = false
     public let agentAvatars = AgentAvatarStore()
     /// Per-message outcome of the last reply that did not land; cleared when one is accepted.
     @Published public private(set) var replyFeedback: [MessageID: ReplyFeedback] = [:]
 
+    private var authorizationObservation: AnyCancellable?
     private let reconnectDelay: Duration
-    private(set) var api: (any BossServing)?
+    var api: (any BossServing)?
     var queuedMessages: [OptionMessage] = []
     private var seenMessageIDs: Set<MessageID> = []
     private var streamTask: Task<Void, Never>?
-    private var historyTask: Task<Void, Never>?
-    private var historySync: HistorySync?
-    private(set) var historyVersion = 0
+    var historyTask: Task<Void, Never>?
+    var historySync: HistorySync?
+    var historyVersion = 0
     private var expirationTasks: [MessageID: Task<Void, Never>] = [:]
     private var resolvedDismissTask: Task<Void, Never>?
     /// How long the "answered on <device>" card lingers before advancing.
@@ -33,6 +34,11 @@ public final class OptionFlowStore: ObservableObject {
 
     public init(reconnectDelay: Duration = AppConstants.API.reconnectDelay) {
         self.reconnectDelay = reconnectDelay
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.disconnect()
+            self?.connectionState = .failed(error.localizedDescription)
+            self?.historyState = .failed(error.localizedDescription)
+        }
     }
 
     public func connect(api: any BossServing) {
@@ -74,38 +80,7 @@ public final class OptionFlowStore: ObservableObject {
         connectionState = .disconnected
     }
 
-    @Published public private(set) var projectSessions: [ProjectSession] = []
-
-    public func refreshHistory() async {
-        guard let historySync else { return }
-        let version = historyVersion
-        isRefreshingHistory = true
-        defer { if version == historyVersion { isRefreshingHistory = false } }
-        if case .failed = historyState {} else { historyState = .loading }
-        await historySync.synchronize(forceFull: true)
-    }
-
-    private func refreshProjectSessions() async {
-        let version = historyVersion
-        guard let sessionsAPI = api as? any SessionsServing else { return }
-        let sessions = (try? await sessionsAPI.projectSessions()) ?? []
-        if version == historyVersion, projectSessions != sessions { projectSessions = sessions }
-    }
-
-    private func configureHistorySync(_ api: any BossServing) {
-        let version = historyVersion
-        historySync = HistorySync(api: api) { [weak self] messages, error in
-            guard let self, version == self.historyVersion else { return }
-            if let messages {
-                self.historyMessages = messages
-                self.reconcileActiveAgainstHistory()
-            }
-            let state: HistoryState = error.map { .failed($0) } ?? .loaded
-            if error == nil { self.historyLoadedAt = .now }
-            if self.historyState != state { self.historyState = state }
-            if error == nil { await self.refreshProjectSessions() }
-        }
-    }
+    @Published public internal(set) var projectSessions: [ProjectSession] = []
 
     /// `messageID` is the message the caller was looking at: a skip or a stream resolution can
     /// advance `activeMessage` between the click and this call, and the answer must not follow.
@@ -138,8 +113,10 @@ public final class OptionFlowStore: ObservableObject {
         guard let api else { return false }
         replyFeedback[message.id] = nil
         presentationState = .submitting(body)
+        let version = historyVersion
         do {
             let outcome = try await api.reply(to: message.id, with: body)
+            guard version == historyVersion else { return false }
             switch outcome {
             case .accepted, .acceptedOn:
                 #if os(macOS)
@@ -156,6 +133,8 @@ public final class OptionFlowStore: ObservableObject {
                 return false
             }
         } catch {
+            guard version == historyVersion else { return false }
+            if AccountAuthorization.shared.reject(error) { return false }
             replyFeedback[message.id] = .failed(error.localizedDescription)
             if activeMessage?.id == message.id, case .submitting = presentationState {
                 presentationState = .ready
@@ -193,6 +172,7 @@ public final class OptionFlowStore: ObservableObject {
                     receive(event)
                 }
             } catch where !Task.isCancelled {
+                if AccountAuthorization.shared.reject(error) { return }
                 connectionState = .failed(error.localizedDescription)
             } catch {
                 return
@@ -211,11 +191,6 @@ public final class OptionFlowStore: ObservableObject {
             resolve(resolution)
             refreshHistoryInBackground()
         }
-    }
-
-    func refreshHistoryInBackground(debounced: Bool = true) {
-        guard let historySync else { return }
-        historyTask = Task { await historySync.synchronize(debounced: debounced) }
     }
 
     func setHistoryReplyFeedback(_ feedback: ReplyFeedback?, for messageID: MessageID) {

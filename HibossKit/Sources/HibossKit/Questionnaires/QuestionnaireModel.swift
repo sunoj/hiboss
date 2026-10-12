@@ -2,6 +2,7 @@
 // Exports QuestionnaireModel; network failures never trigger automatic resubmission.
 // Dependencies: injectable questionnaire service, UserDefaults, and PanelStore.
 
+import Combine
 import SwiftUI
 
 @MainActor
@@ -14,6 +15,8 @@ public final class QuestionnaireModel: ObservableObject {
     @Published public private(set) var error: String?
     @Published public private(set) var hasSavedDraft = false
     @Published public private(set) var isRecovering = false
+    private var authorizationObservation: AnyCancellable?
+    private var authorizationRejected = false
     private let currentTime: @MainActor () -> Date
     private let service: any QuestionnaireServing
     private let bossID: String
@@ -33,26 +36,43 @@ public final class QuestionnaireModel: ObservableObject {
         hasSavedDraft = saved != nil
         store = PanelStore(fixture: PanelFixture(questionnaire: record, answers: saved?.answers ?? record.definition.defaults))
         connectSubmission()
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            guard let self else { return }
+            authorizationRejected = true
+            let prefix = "hiboss.questionnaire.\(service.questionnaireScope).\(bossID)."
+            for key in storage.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+                storage.removeObject(forKey: key)
+            }
+            store = PanelStore(fixture: PanelFixture(questionnaire: editing, answers: .object([:])))
+            pendingID = nil
+            hasSavedDraft = false
+            isSending = false
+            isRecovering = false
+            self.error = error.localizedDescription
+        }
     }
 
-    public var canEdit: Bool { latest.isOpen(at: currentTime()) && !hasNewRevision && pendingID == nil && !isSending }
+    public var canEdit: Bool {
+        !authorizationRejected && latest.isOpen(at: currentTime())
+            && !hasNewRevision && pendingID == nil && !isSending
+    }
     public var hasNewRevision: Bool { latest.requestRevision != editing.requestRevision }
     public var answers: PanelValue { panelValue(at: "/form", in: store.state) ?? .object([:]) }
 
     public func update(_ record: QuestionnaireRecord) {
-        guard record.requestRevision >= latest.requestRevision else { return }
+        guard !authorizationRejected, record.requestRevision >= latest.requestRevision else { return }
         if latest.state != "open", record.state == "open" { return }
         latest = record
     }
 
     public func save() {
-        guard latest.submission == nil else { return }
+        guard !authorizationRejected, latest.submission == nil else { return }
         let draft = Draft(answers: answers, submissionID: pendingID)
         if let data = try? JSONEncoder().encode(draft) { storage.set(data, forKey: draftKey); hasSavedDraft = true }
     }
 
     public func restart() {
-        guard pendingID == nil, !isSending else { return }
+        guard !authorizationRejected, pendingID == nil, !isSending else { return }
         save()
         editing = latest
         store = PanelStore(fixture: PanelFixture(questionnaire: latest, answers: latest.definition.defaults))
@@ -68,7 +88,7 @@ public final class QuestionnaireModel: ObservableObject {
         defer { isSending = false }
         do {
             update(try await service.fetchQuestionnaire(editing.requestId))
-            guard latest.isOpen(at: currentTime()), !hasNewRevision else { return }
+            guard !authorizationRejected, latest.isOpen(at: currentTime()), !hasNewRevision else { return }
             let id = UUID().uuidString.lowercased()
             pendingID = id
             save()
@@ -77,6 +97,7 @@ public final class QuestionnaireModel: ObservableObject {
             update(try await service.fetchQuestionnaire(editing.requestId))
             clearConfirmedDraft(id)
         } catch {
+            if AccountAuthorization.shared.reject(error) { return }
             if let failure = error as? HibossAPIError, case let .requestFailed(status, _) = failure, (400..<500).contains(status) {
                 pendingID = nil
                 if let current = try? await service.fetchQuestionnaire(editing.requestId) { update(current) }
@@ -87,7 +108,7 @@ public final class QuestionnaireModel: ObservableObject {
     }
 
     public func recover() async {
-        guard let pendingID, !isSending else { return }
+        guard !authorizationRejected, let pendingID, !isSending else { return }
         isSending = true
         isRecovering = true
         defer { isSending = false; isRecovering = false }
@@ -97,15 +118,22 @@ public final class QuestionnaireModel: ObservableObject {
             clearConfirmedDraft(pendingID)
             error = nil
         } catch let failure as HibossAPIError {
+            if AccountAuthorization.shared.reject(failure) { return }
             if case .requestFailed(status: 404, _) = failure {
                 do {
                     update(try await service.fetchQuestionnaire(editing.requestId))
                     self.pendingID = nil
                     error = kitL("No saved answer found. Review your answers before submitting again.")
                     save()
-                } catch { self.error = error.localizedDescription }
+                } catch {
+                    if AccountAuthorization.shared.reject(error) { return }
+                    self.error = error.localizedDescription
+                }
             } else { error = failure.localizedDescription }
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if AccountAuthorization.shared.reject(error) { return }
+            self.error = error.localizedDescription
+        }
     }
 
     private func clearConfirmedDraft(_ submissionID: String) {

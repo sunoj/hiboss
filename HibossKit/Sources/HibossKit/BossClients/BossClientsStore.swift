@@ -11,21 +11,43 @@ public final class BossClientsStore: ObservableObject {
     @Published public private(set) var isBusy = false
     @Published public private(set) var error: String?
     @Published public private(set) var registrationNotice: String?
-    @Published private var hasLoaded = false
+    @Published public private(set) var hasLoaded = false
+    @Published public private(set) var isRefreshing = false
+    private var inventoryVersion = 0
+    private var authorizationObservation: AnyCancellable?
+    private var authorizationRejected = false
     private var api: any BossClientsServing
 
-    public init(api: any BossClientsServing) { self.api = api }
+    public init(api: any BossClientsServing) {
+        self.api = api
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.inventoryVersion += 1
+            self?.authorizationRejected = true
+            self?.clients = []
+            self?.hasLoaded = false
+            self?.isBusy = false
+            self?.isRefreshing = false
+            self?.registrationNotice = nil
+            self?.error = error.localizedDescription
+        }
+    }
 
     public func load() async {
-        guard !isBusy else { return }
-        isBusy = true
-        error = nil
-        defer { isBusy = false }
+        guard !authorizationRejected, !isBusy, !isRefreshing else { return }
+        let version = inventoryVersion
+        isRefreshing = true
+        defer { isRefreshing = false }
         do {
-            clients = try await api.listClients()
+            let fetched = try await api.listClients()
+            guard version == inventoryVersion else { return }
+            clients = fetched
             hasLoaded = true
+            error = nil
+        } catch {
+            guard version == inventoryVersion else { return }
+            if AccountAuthorization.shared.reject(error) { return }
+            self.error = error.localizedDescription
         }
-        catch { self.error = error.localizedDescription }
     }
 
     public func needsRegistration(kind: BossClientKind) -> Bool {
@@ -38,7 +60,8 @@ public final class BossClientsStore: ObservableObject {
         activate: @MainActor (String) throws -> any BossClientsServing
     ) async {
         let label = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isBusy, needsRegistration(kind: kind), !label.isEmpty else { return }
+        guard !authorizationRejected, !isBusy, needsRegistration(kind: kind), !label.isEmpty else { return }
+        inventoryVersion += 1
         isBusy = true
         registrationNotice = nil
         error = nil
@@ -48,6 +71,7 @@ public final class BossClientsStore: ObservableObject {
             try Task.checkCancellation()
             api = try activate(grant.token)
         } catch {
+            if AccountAuthorization.shared.reject(error) { return }
             registrationNotice = ManualClientLogin.compatibilityNotice
             return
         }
@@ -56,11 +80,16 @@ public final class BossClientsStore: ObservableObject {
         do {
             clients = try await api.listClients()
             hasLoaded = true
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if AccountAuthorization.shared.reject(error) { return }
+            self.error = error.localizedDescription
+        }
     }
 
     public func revoke(_ client: BossClient) async {
-        guard !isBusy, clients.contains(where: { $0.id == client.id && $0.canRevoke }) else { return }
+        guard !authorizationRejected, !isBusy,
+              clients.contains(where: { $0.id == client.id && $0.canRevoke }) else { return }
+        inventoryVersion += 1
         isBusy = true
         error = nil
         defer { isBusy = false }
@@ -71,6 +100,9 @@ public final class BossClientsStore: ObservableObject {
                 clients[index].hasPushDevice = false
             }
             clients = try await api.listClients()
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if AccountAuthorization.shared.reject(error) { return }
+            self.error = error.localizedDescription
+        }
     }
 }

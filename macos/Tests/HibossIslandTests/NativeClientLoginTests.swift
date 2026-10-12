@@ -12,28 +12,30 @@ import XCTest
 final class NativeClientLoginTests: XCTestCase {
     func testIdentityChangesBeforeConnectionPublicationAndNotForEqualReconnect() async throws {
         let (store, _, _) = try fixture(stored: "existing-token")
+        let initialGeneration = store.identity.generation
         var publishedGenerations: [Int] = []
         let observer = store.$activeClientConfig.dropFirst().sink { _ in
-            publishedGenerations.append(store.identity.value)
+            publishedGenerations.append(store.identity.generation - initialGeneration)
         }
         defer { observer.cancel() }
         await store.loadToken()
-        XCTAssertEqual(store.identity.value, 1)
+        XCTAssertEqual(store.identity.generation - initialGeneration, 1)
         _ = try await store.connect().get()
-        XCTAssertEqual(store.identity.value, 1, "Equal configs retain the identity")
+        XCTAssertEqual(store.identity.generation - initialGeneration, 1, "Equal configs retain the identity")
         let current = try XCTUnwrap(store.activeClientConfig)
         _ = try store.activateDeviceToken("replacement-token", replacing: current)
-        XCTAssertEqual(store.identity.value, 2)
+        XCTAssertEqual(store.identity.generation - initialGeneration, 2)
         let grant = PairingRedemptionGrant(token: "paired-token", bossID: "boss", signingKeyID: nil)
         _ = try store.adopt(grant, server: current.serverURL)
-        XCTAssertEqual(store.identity.value, 3)
+        XCTAssertEqual(store.identity.generation - initialGeneration, 3)
         XCTAssertEqual(publishedGenerations, [1, 1, 2, 3])
     }
 
     func testChangedManualConnectionBumpsIdentityBeforeReturning() async throws {
         let (store, _, _) = try fixture()
+        let initialGeneration = store.identity.generation
         _ = try await store.connect().get()
-        XCTAssertEqual(store.identity.value, 1)
+        XCTAssertEqual(store.identity.generation - initialGeneration, 1)
     }
 
     func testExchangeReplacesPastedTokenAndUsesEditableDeviceLabel() async throws {
@@ -170,6 +172,7 @@ final class NativeClientLoginTests: XCTestCase {
     private func fixture(
         exchangeFails: Bool = false, verificationFails: Bool = false, stored: String? = nil
     ) throws -> (AppSettings, ClientLoginTokens, ClientLoginAPI) {
+        AccountAuthorization.shared.connect(nil)
         let suite = "NativeClientLoginTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }

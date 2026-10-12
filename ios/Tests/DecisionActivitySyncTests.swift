@@ -112,6 +112,23 @@ final class DecisionActivitySyncTests: XCTestCase {
         XCTAssertEqual(sink.requestCount, 1)
     }
 
+    func testAuthorizationRejectionEndsTheCachedActivity() async {
+        let api = ControlledInputAPI()
+        let sink = ActivitySink(running: Self.ask.id)
+        let store = InboxStore(decisionActivitySync: sink.sync)
+        store.api = api
+        store.requiredInputs = [Self.ask]
+        store.requiredInputLoaded = true
+        await api.failNextFetch(status: 401)
+        await store.refreshRequiredInputs()
+        let completed = expectation(description: "authorization boundary activity retirement")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { completed.fulfill() }
+        await fulfillment(of: [completed], timeout: 2)
+        XCTAssertNil(sink.running)
+        XCTAssertEqual(sink.endCount, 1)
+        store.stop()
+    }
+
     private func waitFor(_ publisher: Published<Bool>.Publisher) async {
         let loaded = expectation(description: "store snapshot loaded")
         let observation = publisher.filter { $0 }.prefix(1).sink { _ in loaded.fulfill() }

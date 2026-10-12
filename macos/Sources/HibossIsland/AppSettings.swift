@@ -56,14 +56,17 @@ extension OptionDisplayMode {
 
 @MainActor
 final class AppSettings: ObservableObject {
-    let identity = AccountIdentityGeneration()
+    let identity = AccountAuthorization.shared
     @Published var serverAddress: String
     @Published var bossToken: String
     @Published var deviceLabel = Host.current().localizedName ?? "Mac" // i18n-exempt: fallback device name stored and sent to the server
     @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var activeClientConfig: ConnectionConfig? {
-        willSet { if newValue != activeClientConfig { identity.changed() } }
+        willSet {
+            if let newValue { identity.connect(newValue) }
+        }
     }
+    private var authorizationObservation: AnyCancellable?
     @Published var presentationMode: OptionPresentationMode {
         didSet { defaults.set(presentationMode.rawValue, forKey: AppConstants.Storage.presentationMode) }
     }
@@ -131,6 +134,9 @@ final class AppSettings: ObservableObject {
             rawValue: defaults.string(forKey: AppConstants.Storage.alertSound) ?? ""
         ) ?? .fallback
         prioritySounds = Self.loadPrioritySounds(from: defaults)
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            if AccountAuthorization.shared.hasRejectedAccount { self?.activeClientConfig = nil }
+        }
     }
 
     static func activationPolicy(showsInDock: Bool) -> NSApplication.ActivationPolicy {

@@ -23,9 +23,9 @@ final class OverviewStore: ObservableObject {
     private var closedDecisionIDs: Set<MessageID> = []
     private var requiredListingVersion = 0
     private var lastSeen: [String: Date] = [:]
-    let identity: AccountIdentityGeneration
+    let identity: AccountAuthorization
 
-    init(identity: AccountIdentityGeneration = AccountIdentityGeneration()) {
+    init(identity: AccountAuthorization = .shared) {
         self.identity = identity
     }
 
@@ -35,9 +35,9 @@ final class OverviewStore: ObservableObject {
                 using send: (String, MessageID) async -> ReplyFeedback?) async -> ReplyFeedback? {
         guard let target = snapshot.history.first(where: { $0.id == id }) ?? message,
               snapshot.answerability.permitsReply(to: target) else { return .alreadyResolved }
-        let generation = identity.value
+        let generation = identity.generation
         let feedback = await send(text, id)
-        guard generation == identity.value else { return feedback }
+        guard generation == identity.generation else { return feedback }
         guard feedback == nil || feedback == .alreadyResolved else { return feedback }
         var closed = closedDecisionIDs
         closed.insert(id)

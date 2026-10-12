@@ -13,6 +13,12 @@ enum MessageLoadResult: Equatable {
 }
 
 extension InboxStore {
+    func retainOpenMessage(_ message: HistoryMessage) {
+        let replies = history.filter { $0.replyTo == message.id.rawValue }
+        let detail = MessageDetail(message: message, replies: replies)
+        if openedMessages[message.id] != detail { openedMessages[message.id] = detail }
+    }
+
     func message(for id: MessageID) -> HistoryMessage? {
         history.first { $0.id == id } ?? requiredInputs.first { $0.id == id }
             ?? openedMessages[id]?.message
@@ -38,6 +44,7 @@ extension InboxStore {
             return .loaded
         } catch let error as HibossAPIError {
             guard version == historyVersion, !Task.isCancelled else { return .ignored }
+            if error.isAuthFailure { rejectAuthorization(error) }
             if case .requestFailed(status: 404, message: _) = error {
                 openedMessages[id] = nil
                 return .missing

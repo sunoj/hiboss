@@ -15,6 +15,8 @@ struct HomeAttentionSection: View {
     var onRetry: (() async -> Void)? = nil
     var onSettings: (() -> Void)? = nil
     var replying: [MessageID: String] = [:]
+    var verifying: Set<MessageID> = []
+    var verificationTimedOut: Set<MessageID> = []
     var answerability: [MessageID: DecisionAnswerability] = [:]
     var inputsLoaded = true
     let onChoose: (String, MessageID) -> Void
@@ -22,18 +24,11 @@ struct HomeAttentionSection: View {
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var refreshVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if snapshot.count > 0 { title }
-            if let status {
-                PendingStateView(
-                    title: status, showsPlaceholder: snapshot.count == 0 && !hasPanels && !statusIsFailure,
-                    isFailure: statusIsFailure, statusIdentifier: "home-connection-status",
-                    onRetry: onRetry, onSettings: onSettings
-                )
-            }
             if isAllClear {
                 allClear
             } else {
@@ -42,6 +37,10 @@ struct HomeAttentionSection: View {
                         ForEach(group.items) { item in
                             HomeAttentionRow(
                                 item: item, submitting: replying[item.id],
+                                locksControls: !verifying.contains(item.id)
+                                    || verificationTimedOut.contains(item.id),
+                                verifying: verifying.contains(item.id),
+                                verificationTimedOut: verificationTimedOut.contains(item.id),
                                 answerability: answerability[item.id] ?? .checking,
                                 onChoose: { onChoose($0, item.id) }, onOpenSession: onOpenSession,
                                 onOpenDecision: onOpenDecision
@@ -56,6 +55,13 @@ struct HomeAttentionSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
+        .task(id: isRefreshing) {
+            refreshVisible = false
+            guard isRefreshing else { return }
+            do { try await Task.sleep(for: PendingTiming.revealDelay) }
+            catch { return }
+            refreshVisible = true
+        }
     }
 
     /// Side by side at ordinary sizes; stacked at accessibility sizes, where sharing a
@@ -116,13 +122,19 @@ struct HomeAttentionSection: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Nothing needs you").font(.headline).foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
-                if isRefreshing {
-                    Label("Refreshing…", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.footnote).foregroundStyle(Theme.live)
-                } else {
-                    Label("Live", systemImage: "checkmark.circle.fill")
-                        .font(.footnote).foregroundStyle(Theme.positive)
-                }
+                ZStack(alignment: .leading) {
+                    Label("Checking coverage", systemImage: "exclamationmark.circle").hidden()
+                    Label("Refreshing…", systemImage: "arrow.triangle.2.circlepath").hidden()
+                    if statusIsFailure {
+                        Label("Checking coverage", systemImage: "exclamationmark.circle")
+                            .foregroundStyle(Theme.warn)
+                    } else if refreshVisible {
+                        Label("Refreshing…", systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(Theme.live)
+                    } else {
+                        Label("Live", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.positive)
+                    }
+                }.font(.footnote).lineLimit(1)
             }
             Spacer(minLength: 0)
         }
@@ -132,15 +144,8 @@ struct HomeAttentionSection: View {
         .accessibilityIdentifier("today-all-clear")
     }
 
-    @ViewBuilder private var idleIllustration: some View {
-        if isRefreshing && !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1.0 / 24)) { context in
-                TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive,
-                    wind: sin(context.date.timeIntervalSinceReferenceDate * 1.8))
-            }
-        } else {
-            TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive)
-        }
+    private var idleIllustration: some View {
+        TodayIdleIllustration(ink: Theme.ink2, accent: Theme.positive)
     }
 
 }
@@ -148,13 +153,17 @@ struct HomeAttentionSection: View {
 struct HomeAttentionRow: View {
     let item: AttentionItem
     var submitting: String?
+    var locksControls = true
+    var verifying = false
+    var verificationTimedOut = false
     var answerability: DecisionAnswerability = .checking
     let onChoose: (String) -> Void
     let onOpenSession: (SessionRoute) -> Void
     let onOpenDecision: (MessageID) -> Void
 
     var body: some View {
-        DecisionCard(message: item.message, submitting: submitting, header: header,
+        DecisionCard(message: item.message, submitting: submitting, verifying: verifying,
+                     verificationTimedOut: verificationTimedOut, header: header,
                      choices: choices(timing: DecisionTiming(message: item.message)))
     }
 
@@ -205,6 +214,7 @@ struct HomeAttentionRow: View {
             .buttonStyle(.bordered)
         } else {
             DecisionOptions(options: item.options, timing: timing, submitting: submitting,
+                            locksControls: locksControls,
                             wrapsToFit: true, onChoose: onChoose)
         }
     }
@@ -214,6 +224,8 @@ struct HomeAttentionRow: View {
 struct DecisionCard<Header: View, Choices: View>: View {
     let message: HistoryMessage
     var submitting: String?
+    var verifying = false
+    var verificationTimedOut = false
     let header: Header
     let choices: Choices
     @Environment(\.openConnectionSettings) private var openSettings
@@ -228,7 +240,11 @@ struct DecisionCard<Header: View, Choices: View>: View {
             choices
             DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id,
                                compact: true, showsNoDeadline: false)
-            if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
+            if verificationTimedOut {
+                Text("This is taking longer than expected.").font(.footnote).foregroundStyle(Theme.ink2)
+            } else if submitting != nil && !verifying {
+                ReplyPendingNote(onSettings: openSettings)
+            }
         }
         .padding(12)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))

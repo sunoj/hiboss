@@ -30,7 +30,8 @@ final class DecisionReplyGateTests: XCTestCase {
         let current = HeldReplyAPI()
         let store = await makeStore(previous, gate: gate)
         defer { store.stop() }
-        let oldReply = Pending { await gate.submit("Approve", to: "q1", via: previous) }
+        let oldReply = Pending { await gate.submit("Approve", to: "q1", via: previous,
+            onAuthorizationFailure: { AccountAuthorization.shared.reject($0) }) }
         await waitUntil { previous.replies.count == 1 }
         XCTAssertEqual(store.replying["q1"], "Approve")
 
@@ -95,6 +96,24 @@ final class DecisionReplyGateTests: XCTestCase {
         XCTAssertTrue(store.localResolutions.isEmpty)
         XCTAssertNil(store.replyConfirmation)
         XCTAssertNil(store.loadError)
+    }
+
+    func testOldAuthorizationRejectionCannotClearTheNewAccount() async throws {
+        for status in [401, 403] {
+            let previous = HeldReplyAPI()
+            let current = HeldReplyAPI()
+            let store = await makeStore(previous)
+            let reply = Pending { await store.reply("Approve", to: "q1") }
+            await waitUntil { previous.replies.count == 1 }
+            store.start(api: current)
+            await waitUntil { store.hasCompleteRequiredInputs }
+            previous.release(.failure(HibossAPIError.requestFailed(status: status, message: "Rejected")))
+            _ = try await reply.settled()
+            XCTAssertTrue(store.hasCompleteRequiredInputs)
+            XCTAssertTrue(store.requiredInputLoaded)
+            XCTAssertTrue(store.isReady)
+            store.stop()
+        }
     }
 
     func testSecondTapWhileReplyIsInFlightSendsNothing() async throws {
@@ -180,7 +199,8 @@ final class DecisionReplyGateTests: XCTestCase {
         let store = await makeStore(api, gate: gate)
         var changes = 0
         let observation = store.objectWillChange.sink { _ in changes += 1 }
-        let task = Pending { await gate.submit("Approve", to: "q1", via: api) }
+        let task = Pending { await gate.submit("Approve", to: "q1", via: api,
+            onAuthorizationFailure: { AccountAuthorization.shared.reject($0) }) }
         await waitUntil { changes > 0 && api.replies.count == 1 }
         XCTAssertGreaterThan(changes, 0, "views observing the store re-render when a reply starts")
         api.release()
@@ -220,6 +240,7 @@ final class DecisionConflictTests: XCTestCase {
         store.history = [decision, other]
         store.requiredInputs = [decision, other]
         store.requiredInputLoaded = true
+        store.requiredInputReady = true
         XCTAssertEqual(store.answerability(for: decision.id), .open)
         let result = await store.reply("Yes", to: decision.id)
         XCTAssertEqual(result, .alreadyResolved)
@@ -230,6 +251,7 @@ final class DecisionConflictTests: XCTestCase {
         await store.refresh()
         store.requiredInputs = [decision, other]
         store.requiredInputLoaded = true
+        store.requiredInputReady = true
         XCTAssertEqual(store.answerability(for: decision.id), .closed, "a stale snapshot cannot reopen it")
     }
 }
