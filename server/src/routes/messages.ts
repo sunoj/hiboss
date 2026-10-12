@@ -4,7 +4,8 @@
 
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
-import { apiAuth, createAuthValidator, getAgentId } from '../middleware/auth';
+import { apiAuth, createAuthValidator, getAgentId, getAgentKeyId } from '../middleware/auth';
+import { actionContent, agentRequiresSignature, authenticateAgentMessage } from '../message-security';
 import type { Direction, Env, MessageRow, Status } from '../types';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { propagateMessageEdit } from './message-edit';
@@ -18,6 +19,7 @@ import {
   fetchMessageWithReplies,
   mapMessageRow,
   parsePriorityFilter,
+  safeParse,
   validateOption,
 } from './message-helpers';
 import { messageReplyRouter } from './message-reply';
@@ -91,6 +93,11 @@ routes.post('/:id/forward', async (c) => {
   if (!targetChannel) {
     return c.text('channel must be discord or telegram', 400);
   }
+  const auth = await authenticateAgentMessage({
+    env: c.env, agentId, agentKeyId: getAgentKeyId(c), signedMessage: payload.signed_message,
+    content: actionContent({ kind: 'forward', message_id: original.id, channel: targetChannel }, ''),
+  });
+  if (!auth.ok) return c.text(auth.error, auth.status);
   try {
     const forwarded = await forwardMessage(c.env, original, targetChannel);
     c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.forward', 'message', original.id, targetChannel));
@@ -125,6 +132,12 @@ routes.patch('/:id', async (c) => {
     return c.text('only message owner can update message', 403);
   }
 
+  // A signed message is immutable: an edit would need replay and ordering state that every other
+  // metadata writer could disturb. A signing agent sends a new message instead, and a row that
+  // carries an agent signature stays unedited even after a boss reset.
+  if (body && (hasAgentSignature(existing) || await agentRequiresSignature(c.env, agentId))) {
+    return c.text('editing is unavailable to a signing agent; send a new message instead', 409);
+  }
   const updated = await updateMessage(c, existing, status, body);
   if (updated instanceof Response) return updated;
   if (!updated) {
@@ -191,6 +204,13 @@ routes.post('/:id/poll', async (c) => {
 });
 
 export const messagesRouter = routes;
+
+function hasAgentSignature(row: MessageRow): boolean {
+  const provenance = safeParse(row.metadata)?.['provenance'];
+  const signature = provenance && typeof provenance === 'object'
+    ? (provenance as Record<string, unknown>)['signature'] : null;
+  return !!signature && typeof signature === 'object' && 'scheme' in signature;
+}
 
 async function updateMessage(c: Context<{ Bindings: Env }>, existing: MessageRow, status: Status | null, body: string | undefined): Promise<Response | MessageRow | null> {
   const updates: string[] = ["updated_at = datetime('now')"];

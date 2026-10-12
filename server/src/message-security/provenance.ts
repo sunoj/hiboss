@@ -1,4 +1,4 @@
-// Server-owned provenance builders for native, provider, and system messages.
+// Server-owned provenance builders for native, agent, provider, and system messages.
 // Exports metadata composition without trusting client-supplied source labels.
 // Depends on stored signing-key types only.
 
@@ -48,6 +48,42 @@ export function agentApiMetadata(agentId: string): Record<string, unknown> {
       actor: { kind: 'agent', id: agentId },
       authentication: { kind: 'api_key', credential_id: agentId },
       signature: { status: 'not_configured' },
+    },
+  };
+}
+
+/** Unsigned agent write: authorship rests on the bearer credential alone. */
+export function agentBearerProvenance(agentId: string, agentKeyId: string | null): Record<string, unknown> {
+  return {
+    source: 'agent',
+    provenance: {
+      version: 1,
+      source: 'agent',
+      actor: { kind: 'agent', id: agentId },
+      authentication: { kind: 'api_key', credential_id: agentKeyId },
+      signature: { status: 'not_configured' },
+    },
+  };
+}
+
+export function agentSignedProvenance(
+  agentId: string,
+  key: { readonly key_id: string; readonly agent_key_id: string; readonly public_key: string },
+  signedMessage: string,
+): Record<string, unknown> {
+  return {
+    source: 'agent',
+    provenance: {
+      version: 1,
+      source: 'agent',
+      actor: { kind: 'agent', id: agentId },
+      authentication: { kind: 'agent_signature', credential_id: key.agent_key_id },
+      signature: {
+        scheme: 'JWS-ES256',
+        key_id: key.key_id,
+        public_key: key.public_key,
+        signed_message: signedMessage,
+      },
     },
   };
 }

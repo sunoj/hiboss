@@ -28,6 +28,8 @@ pub enum KeyCommand {
     },
     /// Revoke one credential by its full ID
     Revoke { id: String },
+    /// Create this device's message-signing key and bind it to the current credential
+    Enroll,
 }
 
 pub async fn run(args: &KeyArgs, config: &Config) -> Result<(), Box<dyn Error>> {
@@ -37,6 +39,13 @@ pub async fn run(args: &KeyArgs, config: &Config) -> Result<(), Box<dyn Error>> 
         KeyCommand::Revoke { id } => {
             api.revoke(id).await?;
             println!("Revoked key {id}");
+        }
+        KeyCommand::Enroll => {
+            let key = config.require_key()?;
+            let outcome = crate::signing::enroll(&config.require_server()?, &key, None).await?;
+            let verb = if outcome.created { "Enrolled" } else { "Already enrolled" };
+            println!("{verb} signing key {} ({}); messages from this credential are now signed.",
+                outcome.fingerprint, outcome.enrolled_via);
         }
         KeyCommand::Rotate { label } => {
             let id = rotate(
@@ -99,6 +108,12 @@ async fn rotate_saved(
                 .into(),
         );
     }
+    // The old key endorses the new credential's key, so signing continues without the boss.
+    let old_signer = crate::signing::load_signer(&config.require_key()?)?;
+    if let Some(signer) = &old_signer {
+        crate::signing::enroll(&config.require_server()?, &grant.key, Some(signer)).await
+            .map_err(|error| format!("new key minted but its signing key was not endorsed: {error}; active config unchanged"))?;
+    }
     storage.install(&grant.key)?;
     if new.revoke(&old_id).await.is_err() {
         // A lost HTTP response can hide a successful revoke. Never restore a dead bearer.
@@ -107,6 +122,9 @@ async fn rotate_saved(
             return Err("old-key revocation failed; restored the previous active key; the new key may still be live".into());
         }
         return Err("old-key revocation outcome uncertain; verified new key remains active; previous key saved for recovery".into());
+    }
+    if old_signer.is_some() {
+        crate::signing::remove_signer(&config.require_key()?)?;
     }
     Ok(grant.id)
 }

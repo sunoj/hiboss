@@ -8,6 +8,8 @@ import migration from '../../migrations/0045_agent_keys.sql?raw';
 it('keeps agent and dual boss auth available before migration, then honors migrated revocation', async () => {
   await seedDatabase();
   await seedBossToken('Deployment boss', 'admin', 'deployment-boss');
+  // Pre-0045 state: later tables that reference agent_keys do not exist yet either.
+  await env.DB.prepare('DROP TABLE agent_signing_keys').run();
   await env.DB.prepare('DROP TABLE agent_keys').run();
   await env.DB.prepare('ALTER TABLE api_keys DROP COLUMN is_admin').run();
   const response = await SELF.fetch('https://test.local/api/agents/me', { headers: authHeaders() });
@@ -21,6 +23,10 @@ it('keeps agent and dual boss auth available before migration, then honors migra
       headers: { Authorization: 'Bearer invalid-deployment-token' },
     })).status).toBe(401);
   }
+  const sent = await SELF.fetch('https://test.local/api/messages', {
+    method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'before signing migration' }),
+  });
+  expect(sent.status).toBe(201);
   expect(await env.DB.prepare('SELECT last_used_at FROM api_keys WHERE id = ?')
     .bind('test-agent-id').first()).toEqual({ last_used_at: expect.any(String) });
   const statements = migration.replace(/^--.*$/gm, '').split(';').map(sql => sql.trim()).filter(Boolean);

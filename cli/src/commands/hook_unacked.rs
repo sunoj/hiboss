@@ -100,6 +100,8 @@ mod tests {
             created_at: Some(created_at.to_owned()),
             updated_at: None,
             session_id: Some(session_id.to_owned()),
+            target_agent_id: None,
+            target_session_id: None,
             session_label: None,
             session_branch: None,
             session_status: None,

@@ -1,30 +1,18 @@
-# Agent Message Signing — Design Draft
+# Agent Message Signing
 
-Status: draft for review. Companion to `docs/message-signing.md`, which covers the
-boss → agent direction.
+Covers the server, the CLI and the MCP plugin. Companion to `docs/message-signing.md`, which
+covers the boss → agent direction. The native boss clients do not verify agent signatures;
+see Limitations.
 
 ## Goal
 
 An agent's message carries an ES256 signature from a key that never leaves the agent's
-machine. Boss clients, boss-agents and peer agents verify that signature before they
-show the body or act on it. Today an agent's identity is only a bearer credential, so
+machine. The server, boss-agents and peer agents verify that signature before they show
+the body or act on it. Without signing, an agent's identity is only a bearer credential, so
 anyone who holds that string, or the server itself, can author an "agent" message.
 
 Signing proves who wrote a message and that it was not altered. It does not prove that the
 content is true or safe. Prompt-injection handling still applies to every body.
-
-## Current state
-
-| Fact | Where |
-| --- | --- |
-| Agent credential is `hb_` + 32 random bytes; the server stores only its SHA-256 | `server/src/agent-keys/repository.ts` |
-| One agent identity (`api_keys`) can hold several credentials (`agent_keys`), one per device or rotation | migration `0045_agent_keys.sql` |
-| Credentials sit in plain text in `config.json` profiles, or in `HIBOSS_KEY` for the MCP plugin | `cli/src/config.rs`, `mcp/config.ts` |
-| `agent_to_boss` and `agent_to_agent` rows carry no provenance; only group fan-out uses `agentApiMetadata` | `server/src/routes/message-send.ts`, `groups.ts` |
-| Client-supplied `metadata` is stored unfiltered; an agent can write its own `provenance`/`source` keys | `normalizeMetadata` in `message-helpers.ts` |
-| CLI and MCP verifiers label every non-`boss_to_agent` message `agent` without checking it | `cli/src/message_security.rs`, `mcp/message-security.ts` |
-| A boss's signed reply covers the parent message **id**, not the parent's content | `SignedBossPayload.action` |
-| Agents may edit the body of their `agent_to_boss` messages | `PATCH /api/messages/:id` |
 
 ## Threat model
 
@@ -32,220 +20,192 @@ What this design defends against:
 
 1. **A leaked bearer credential.** The credential goes out on every HTTP request and sits in
    env vars, MCP configs and shell history. A signing key never goes out over the network.
-   Once a credential has a signing key bound to it, an attacker who holds only the bearer string cannot send
-   a message as that agent.
-2. **Tampering after admission.** This covers database edits, buggy migrations, and a compromised
-   Worker that rewrites a stored question. Boss clients that pin agent keys (§ Pinning) detect it.
-3. **Approve-a-different-question.** A server rewrites an `ask` after the boss has seen it,
-   and then attaches the boss's signed "Approve" to the new text. Bound replies
-   (§ Reply binding) close this gap.
-4. **Peer impersonation into model context.** A forged `agent_to_agent` message is a
-   prompt-injection vector. The receiving agent rejects an invalid signature before the
-   body reaches the model.
+   Once an agent has a signing key, an attacker who holds only a bearer string cannot send
+   a message as that agent, **including from a credential minted with the leaked one**
+   (§ Enforcement).
+2. **Tampering after admission.** This covers database edits, buggy migrations, and a Worker
+   that rewrites a stored message. Peer agents and boss-agents detect it.
+3. **Peer impersonation into model context.** A forged `agent_to_agent` message is a
+   prompt-injection vector. The receiving CLI or MCP plugin rejects an invalid signature
+   before the body reaches the model.
 
 What this design does not defend against:
 
-- **Filesystem compromise of the agent's machine.** With software keys (phase 1), whoever can read
-  `config.json` can usually read the key file too. Hardware-backed keys (phase 3) narrow this.
+- **Filesystem compromise of the agent's machine.** The software key file sits next to the
+  config that holds the bearer.
 - **A malicious server, for any client that does not pin keys.** The server remains the key
-  directory, exactly as it is for boss keys today.
+  directory, exactly as it is for boss keys.
 - **Discord and Telegram readers.** These channels cannot verify a signature. They display server-attested text.
 
-## Design
+## Server-owned metadata
 
-### 1. Key and binding
+Client-supplied `metadata` on `POST /api/messages` loses every server-owned key before it is
+stored: `provenance`, `source`, `boss_id`, `boss_name`, `auto_default`,
+`ask_deadline`, `options`, `file_url`, resolution state, reactions and delivery bookkeeping
+(`server/src/message-security/metadata.ts`), so an agent cannot store its own
+`provenance`, a forged `source: "ios"`, or `options_resolved: true` on its message.
 
-- Algorithm: **ES256 (P-256)**. This reuses the existing verifiers in the server (Web Crypto),
-  the CLI (`ring`), MCP (Web Crypto) and HibossKit (CryptoKit). Ed25519 was considered and
-  rejected because it would need a second verifier stack on four clients.
-- One signing key per **credential** (`agent_keys.id`), not per agent identity. This mirrors
-  `boss_signing_keys.boss_token_id`. Revoking a credential retires its key.
-- Key ID = `base64url(SHA-256(uncompressed SEC1 public key))`, the same derivation the boss side uses.
-- Storage (phase 1): a PKCS#8 file at `<config dir>/hiboss/signing/<agent_key_id>.p8` with mode
-  `0600`. It lives outside `config.json`, so a config dump or paste does not leak it. `ring` and
-  Bun Web Crypto both import PKCS#8. MCP finds the file through `HIBOSS_SIGNING_KEY`, or by
-  credential ID when it shares the CLI config.
-
-New table, in a new migration:
-
-```sql
-CREATE TABLE agent_signing_keys (
-  id TEXT PRIMARY KEY,                -- key ID
-  agent_id TEXT NOT NULL REFERENCES api_keys(id),
-  agent_key_id TEXT NOT NULL UNIQUE REFERENCES agent_keys(id),
-  algorithm TEXT NOT NULL CHECK (algorithm = 'ES256'),
-  public_key TEXT NOT NULL,
-  enrolled_via TEXT NOT NULL CHECK (enrolled_via IN ('join', 'rotation', 'enroll', 'recovery')),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  revoked_at TEXT
-);
-```
-
-### 2. Registration
-
-Every registration carries a proof that is domain-separated from the boss proofs:
-
-```text
-ES256("hiboss-agent-key-v1\n" + <subject> + "\n" + agent_id_or_profile + "\n" + base64url(public_key))
-```
-
-| Path | Subject | Trust |
-| --- | --- | --- |
-| **Join** (`POST /api/join`): each profile entry carries `signing` | join request ID | The boss approves the join on a native client, and the sheet shows each key's fingerprint next to the existing verification code. The server binds the key to the minted credential in the same batch. This is the strongest path and the default for new devices. |
-| **Rotation** (`hiboss key rotate`): the new credential's key | new credential ID | The request is also signed by the **current** signing key, so trust carries forward without asking the boss again. |
-| **Enroll** (existing unsigned credential) | credential ID | Bearer authentication plus proof. This is trust-on-first-use: the boss gets a notification and an audit row. Allowed only while the credential has no key. |
-| **Recovery** (lost key) | credential ID | Same request as Enroll, but it waits for boss approval, like a join. Replacement never happens silently. |
-
-Once a credential has a bound key, **every message write made with that credential must be
-signed**. An unsigned request gets `401 signed message required`, so the request cannot
-downgrade itself. This is the same rule that boss tokens follow.
-
-### 3. Signed message format
-
-Compact JWS, the same shape as boss messages, with a distinct type and purpose so neither
-can be replayed as the other:
+Every agent-authored row now carries server-written provenance. An unsigned row looks like this:
 
 ```json
-{ "alg": "ES256", "kid": "<key-id>", "typ": "hiboss-agent-message+jws" }
+{ "source": "agent", "provenance": { "version": 1, "source": "agent",
+  "actor": { "kind": "agent", "id": "<agent id>" },
+  "authentication": { "kind": "api_key", "credential_id": "<agent_keys.id | null>" },
+  "signature": { "status": "not_configured" } } }
 ```
+
+## Keys, enrollment, admission, verification
+
+### Keys
+
+- Algorithm: **ES256 (P-256)**. It reuses the verifiers that already exist in the server, the
+  CLI (`ring`), MCP (Web Crypto) and HibossKit (CryptoKit).
+- There is one key per **credential** (`agent_keys.id`), stored in `agent_signing_keys`
+  (migration `0055`). Revoking a credential retires its key.
+- Key ID = `base64url(SHA-256(uncompressed SEC1 public key))`.
+- Local storage is `<dir of the real config.json>/signing/<hex(SHA-256(bearer))[0..32]>.json`
+  with mode `0600` inside a `0700` directory. The file contains `{version, agent_id,
+  agent_key_id, key_id, pkcs8}`. The key is kept out of `config.json` because older CLI and
+  MCP builds reject unknown config fields. The path follows symlinks, so a symlinked config
+  still finds its key. The MCP plugin derives the same path from `HIBOSS_CONFIG` and the bearer.
+
+### Enforcement is per agent identity
+
+Any credential can mint another credential (`POST /api/agents/me/keys`). If the binding were
+enforced per credential, someone holding a leaked bearer could mint a fresh credential that
+has no key and send unsigned messages from it. So the rule is:
+
+- Once the agent has enrolled **any** key that a boss has not reset, every message write must be
+  signed by the live key bound to the calling credential. An unsigned write gets `401 signed
+  message required`. Revoking credentials does not lift the requirement: otherwise a bearer
+  holder could mint a credential, revoke every signing credential and send unsigned. If every
+  signing credential is revoked, the agent cannot write until a boss resets its keys.
+- A credential with no key cannot bind one through first use while the requirement holds. It
+  needs an endorsement from a live key (see Registration).
+- An unsigned write admitted just before an enrollment commits is stored. That is equivalent to
+  an unsigned write sent just before the enrollment, which any bearer holder could send.
+
+### Registration
+
+`POST /api/agents/me/signing-keys` with `{public_key, proof, endorsement?}`. The proof is
+`ES256("hiboss-agent-key-v1\n" + agent_key_id + "\n" + agent_id + "\n" + public_key)`.
+
+| Path | When | Trust |
+| --- | --- | --- |
+| **First use** | `hiboss key enroll`, and the agent has no live keys | Trust on first use. The boss receives a system message with the key fingerprint, and an audit row is written. |
+| **Endorsed** | `hiboss key rotate`, or another credential of an agent that already signs | `endorsement` is a `hiboss-agent-key+jws` token signed by one of the agent's live keys. It covers `{agent_id, agent_key_id, key_id, issued_at}` and must be no more than 300 s old. |
+| **Reset** | Lost key, or a suspected compromise | `DELETE /api/boss/agents/:agentId/signing-keys[/:keyId]` (admin or manager). With no live keys left, the agent can enroll by first use again. Re-enrolling on the same device reuses the local key file, so delete that file to rotate the key. |
+
+`GET /api/agents/me/signing-keys` and `GET /api/boss/agents/:agentId/signing-keys` list the
+live keys with their fingerprints. `hiboss setup` does not enroll automatically.
+
+### Signed message format
+
+The token is a compact JWS with header `{alg: "ES256", kid, typ: "hiboss-agent-message+jws"}`. The
+payload has exactly these keys:
 
 ```json
 {
-  "version": 1,
-  "purpose": "hiboss.agent-message",
-  "message_id": "<client uuid>",
-  "issued_at": 1791763200,
-  "agent_id": "<agent id>",
-  "session_id": "<session id> | null",
-  "action": { "kind": "send" } ,
-  "audience": { "kind": "boss" },
-  "body": "Deploy finished",
-  "mode": "async",
-  "options": null,
-  "default_option": null,
-  "attachments": []
+  "version": 1, "purpose": "hiboss.agent-message", "message_id": "<uuid v4>",
+  "issued_at": 1791763200, "agent_id": "<agent id>",
+  "session_id": "<id> | null",
+  "action": { "kind": "send", "audience": { "kind": "boss" } },
+  "body": "Deploy finished", "mode": "async", "timeout": null,
+  "file_url": null, "options": null, "metadata": { "content": "…" }
 }
 ```
 
-- `action.kind`: `send`, `ask`, `reply` (with `message_id` of the parent), or `edit`
-  (with `message_id` of the message being replaced).
-- `audience`: `{kind: "boss"}` or `{kind: "agent", selector: "<--to value>"}`. The
-  selector is signed as the sender typed it. Server-side resolution is recorded unsigned
-  (see open question 3). `--broadcast` already sends one request per peer, so each
-  message gets its own signature.
-- `options`, `default_option` and `timeout` are signed because they shape what the boss can
-  choose and what is chosen if the boss does nothing.
-- `attachments`: `[{ "url": "...", "sha256": "<base64url>" }]` for `file_url` and option media.
-  The CLI already holds the bytes when it uploads them. Clients that download a file check the digest.
-- Priority, channel routing and title are delivery hints and stay unsigned.
-
-### 4. Server admission
-
-`authenticateAgentMessage` sits next to `authenticateBossReply` in `server/src/message-security/`:
-
-1. It looks up a key by `c.agentKeyId`. With no key, the message stays bearer-only and
-   gets provenance `api/not_configured`. With a key, the message must carry `signed_message`.
-2. It verifies the header, signature and payload shape, checks `agent_id` against the caller,
-   checks that body, mode, options, default, attachments and parent match the request, and
-   enforces a 300-second freshness window.
-3. Idempotency key: `sig:<kid>:<message_id>`. A replay returns the stored row.
-4. It writes server-owned provenance and **strips every client-supplied `provenance`, `source`,
-   `boss_id`, `boss_name` and `auto_default` key** from `metadata` before merging. This
-   stripping fixes an existing spoofing gap and ships first, independent of signing.
-
-Agent provenance:
-
-```json
-{
-  "version": 1,
-  "source": "agent",
-  "actor": { "kind": "agent", "id": "...", "name": "..." },
-  "authentication": { "kind": "agent_signature", "credential_id": "<agent_key_id>" },
-  "signature": {
-    "scheme": "JWS-ES256", "key_id": "...", "public_key": "...", "signed_message": "..."
-  }
-}
-```
-
-A bearer-only message uses the same envelope with `authentication.kind = "api_key"` and
-`signature.status = "not_configured"`.
-
-### 5. Verification on receipt
-
-| Reader | Behavior |
-| --- | --- |
-| Peer agent (CLI, MCP) on `agent_to_agent` | Verifies the signature before inbox rendering, SSE, poll or hooks, the same boundary as for boss messages. Labels: `agent/verified`, `agent/not_configured`. Invalid messages are rejected. |
-| Boss-agent (`hiboss boss inbox`, bot handlers) | Same as a peer agent. A boss-agent never acts on an invalid message. |
-| iOS / macOS (HibossKit) | CryptoKit verification plus the pinning described below. The body shows with a verified mark, an unsigned mark, or a warning that replaces the decision buttons when the signature is invalid or the key is unpinned. |
-| Discord / Telegram | No verification. A link to the native client is the only way to check. |
-
-Clients also check that `|issued_at − created_at| ≤ 300 s`, so a stored message cannot be
-re-dated without detection.
-
-### 6. Pinning (boss clients)
-
-The server is the key directory, so pinning is what turns signing into protection against a
-compromised server, at least on the boss's devices:
-
-- A key is pinned when the boss approves the join that carried it. The fingerprint was on
-  screen at that moment.
-- Keys learned any other way, such as enroll or a different boss device, are pinned on first
-  use. The client shows a "new key for <agent> on <device>" notice.
-- A rotation signed by a pinned key extends the pin to the new key automatically.
-- A key the boss never saw that replaces a pinned one shows a blocking warning on that agent's
-  decisions until the boss accepts it.
-- Pins live in the Keychain and sync through iCloud Keychain, so a second boss device inherits them.
-
-Peer agents do not pin in phase 1. They trust the server's directory, as the boss side does today.
-
-### 7. Reply binding
-
-The boss reply payload gains `action.parent_digest = base64url(SHA-256(parent.signed_message))`
-whenever the parent is signed. That makes it boss reply `version: 2`, and version 1 stays valid
-for unsigned parents. The asking agent still holds its own JWS while `ask` waits, and it checks
-the digest. An approval then authorizes exactly the text the agent sent and nothing the server
-substituted.
-
-### 8. Edits
-
-An edit is a new JWS with `action: {kind: "edit", message_id}`. The row keeps the latest
-signature in `provenance`, and the replaced signatures move to
-`metadata.provenance_history[]` so a client can show that the message was edited. An edit
-may not change options or the default after the boss has seen the message. The server
-already restricts body edits to `agent_to_boss`.
-
-## Rollout
-
-| Phase | Ships | Gate |
+| `action.kind` | Endpoint | Other fields |
 | --- | --- | --- |
-| 0 | Strip client-supplied provenance keys from agent metadata | E2E test: a forged `metadata.provenance` does not survive |
-| 1 | Table, join/enroll/rotate registration, CLI and MCP signing, server admission, CLI and MCP verification of `agent_to_agent` | Server E2E plus CLI tests: signed send, downgrade rejected, replay deduplicated, peer forgery rejected |
-| 2 | HibossKit verification and pinning on iOS and macOS, fingerprint in the join sheet, boss reply v2 `parent_digest` | iOS T3 run, macOS `swift build` and tests |
-| 3 | Hardware-backed agent keys on macOS (CryptoKit Secure Enclave key blob through a small helper); signing for questionnaires and box items | Separate design |
+| `send` | `POST /api/messages` | `audience`: `{kind: "boss"}` or the resolved `{kind: "agent", agent_id, session_id}` |
+| `reply` | `POST /api/messages/:id/reply` | `message_id` of the parent; `audience` derived from the parent |
+| `forward` | `POST /api/messages/:id/forward` | `message_id`, `channel`; `body` is `""` |
+| `boss_reply` | `POST /api/boss/inbox/:id/reply` (an agent acting as boss) | `message_id` |
 
-Older CLI binaries keep working against credentials that have no bound key. When a newer
-CLI enrolls a key on a shared config, older binaries on that machine get the 401 with an
-upgrade hint. That outcome is intended, because allowing a fallback would bring the downgrade back.
+A signer learns a peer recipient from `POST /api/messages/resolve-target` (`{to, session_id}`),
+the same resolution a send performs. The server compares the signed audience with its own
+resolution, so a recipient that changed in between yields 401. Except where the table says
+otherwise, the server compares `mode`, `timeout`, `file_url`, `options`, `metadata` and
+`session_id` against `null`. Signed values are compared in the
+server's normalized form: body and options are trimmed, `metadata` has its server-owned keys
+removed, and `mode` defaults to `async`. Signers send the normalized values. Priority, channel
+routing, title and `option_media` are delivery hints and are not signed. `file_url` is signed
+as a URL; the attachment content is not signed.
+
+### Server admission (`server/src/message-security/agent-message.ts`)
+
+1. The server looks up the live key of the calling credential. If there is none, it rejects
+   `signed_message` (400) and rejects an unsigned write when the agent has any live key (401).
+   Otherwise the write stays bearer-only and gets `not_configured` provenance.
+2. It verifies the header, the signature and the exact payload key set. It checks that
+   `agent_id` matches the caller and that the content deep-equals the request, and it allows
+   a clock window of 300 s.
+3. Replays: send and reply rows store `idempotency_key = sig:<kid>:<message_id>`,
+   so a replay returns the original row.
+4. Provenance is written with `authentication.kind = "agent_signature"` and
+   `signature = {scheme: "JWS-ES256", key_id, public_key, signed_message}`.
+5. If the Worker is deployed before migration 0055, the server treats every agent as having
+   no keys and sends keep working.
+
+Forwarded rows and boss-agent replies are not stored with the agent signature: the signature
+authorizes the write, and the row keeps an attribution its readers can check. A forward is a
+server-composed copy and carries `system` provenance. A boss-agent reply keeps the boss `api`
+attribution.
+
+A signed message is immutable: a body edit (`PATCH /api/messages/:id` with `body`) returns 409
+when the agent is required to sign or the row carries an agent signature, including after a boss
+reset. The agent sends a new message instead. An editable signed row would need
+replay and ordering state that every other metadata writer (delivery bookkeeping, reactions,
+option resolution) could disturb. Status updates are unaffected. Agents that do not sign keep
+editing unchanged.
+
+Group broadcast (`POST /api/groups/:id/broadcast`) returns 409 for a signing agent. A recipient
+cannot verify group membership, so a signed fan-out could not be verified on receipt. A signing
+agent sends to each member instead (`hiboss send --to` or `--broadcast`), and each of those
+messages is bound to its recipient. Agents that do not sign keep group broadcast unchanged.
+
+### Verification on receipt
+
+`cli/src/agent_provenance.rs` and `mcp/agent-provenance.ts` run on every message that is not a
+boss reply, before inbox rendering, polling, SSE and hooks:
+
+- A row with no provenance (written before this change) is labelled `agent`.
+- `source: "agent"` with `not_configured` is labelled `agent/not_configured`. `source: "system"`
+  is accepted as `not_applicable`. Any other source on an agent row is rejected.
+- A signed row is accepted only if the key ID matches the public key, the ES256 signature
+  verifies, `payload.agent_id` equals `provenance.actor.id` and, for agent-authored
+  directions, the row's `agent_id`, and the body matches.
+- The action must fit the row: `send` with no parent, `reply` with the same parent, and, for
+  both, a direction and recipient (`target_agent_id`, `target_session_id`) equal to the
+  signed audience. A row addressed to the boss must name no peer target. No other kind appears
+  on a stored row.
+- `content`, `summary`, `default_option` and `task_context` must equal the stored values, and
+  `options` and `file_url` must match including absence, so a row cannot gain choices or a file.
+  The row must have a parseable `created_at` (SQLite UTC or RFC 3339), and
+  `|issued_at − created_at| ≤ 300 s` must hold.
+- The verifier takes the public key from the row. It proves the row is consistent with a key,
+  not that the key belongs to the agent; that rests on server admission, because no client pins
+  keys. For the same reason, a row whose provenance was removed reads as a pre-attribution
+  `agent` row. Display names are not signed; the MCP plugin passes `sender_id` with each message.
+- A verified row is labelled `agent/verified`. Any failure rejects the message.
+
+## Limitations
+
+- iOS and macOS do not verify agent signatures, and no client pins agent keys, so the server
+  remains the key directory for every reader.
+- A boss reply signs the parent message ID, not the parent's content. A server that rewrites
+  an `ask` after the boss saw it can attach the boss's answer to the new text.
+- Enrollment is separate from device join; a boss does not see the key fingerprint at approval.
+- Agent keys are software keys on disk.
+- Attachment content, option media, questionnaires, panels, progress posts and Box items are
+  not signed.
 
 ## Alternatives considered
 
-- **HMAC with the bearer credential.** This adds nothing against a leaked credential and gives
-  verifiers nothing public to check. Rejected.
-- **One key per agent identity, shared across devices.** This requires copying private keys
-  between machines, and one device's loss would revoke all of them. Rejected in favor of
-  per-credential keys.
-- **Server-side signing.** The server already authenticates the request, so a server
-  signature adds no new evidence. Rejected.
-
-## Open questions for review
-
-1. **Enroll as trust-on-first-use with a notification, or require boss approval for every
-   existing credential?** The draft uses trust-on-first-use, because migrating many agents
-   through approval taps is costly and the exposure lasts only while unenrolled credentials exist.
-2. **Should an invalid signature on a boss client hide the body or show it with a warning?**
-   The draft shows it with a warning and disables the decision buttons.
-3. **Should the sender pre-resolve `--to` and sign the resolved session ID?** This needs a
-   resolve-only endpoint. It would stop a server from replaying a peer message to a different
-   recipient. The draft signs only the selector.
-4. **Should panels, progress posts and questionnaires join phase 1?** Questionnaire answers
-   can gate actions, so they are the strongest candidate.
+- **HMAC with the bearer credential.** It adds nothing against a leaked credential and gives
+  verifiers nothing public to check.
+- **One key per agent identity, shared across devices.** It requires copying private keys
+  between machines, and one device's loss would revoke them all.
+- **Enforcement per credential.** Minting a fresh credential would bypass it.
+- **Automatic enrollment on first send.** A credential copied to a second machine would break
+  there without warning. Enrollment is an explicit step.

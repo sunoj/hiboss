@@ -3,7 +3,7 @@
 // Dependencies: reqwest, serde_json, crate::types, std::error::Error.
 use crate::types::{
     AgentsResponse, ChannelStatsResponse, ChannelsResponse, CreateAgentResponse, ReactionsResponse,
-    SendRequest, SendResponse, UploadResponse,
+    UploadResponse,
 };
 use reqwest::Client;
 use serde_json::Value;
@@ -84,16 +84,6 @@ impl HiBossClient {
                 .build()
                 .expect("failed to build HTTP client"),
         }
-    }
-    pub async fn send_message(&self, req: &SendRequest) -> Result<SendResponse, Box<dyn Error>> {
-        let resp = self
-            .http
-            .post(format!("{}/api/messages", self.base_url))
-            .bearer_auth(&self.api_key)
-            .json(req)
-            .send()
-            .await?;
-        messages::parse_send_response(resp).await
     }
     pub async fn create_agent(&self, name: &str) -> Result<CreateAgentResponse, Box<dyn Error>> {
         let resp = self
@@ -291,6 +281,7 @@ mod sessions;
 mod bosses;
 mod groups;
 mod messages;
+mod signed;
 mod panels;
 mod progress;
 pub(crate) mod box_items;
