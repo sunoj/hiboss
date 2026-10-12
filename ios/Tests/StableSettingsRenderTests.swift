@@ -15,6 +15,7 @@ final class StableSettingsRenderTests: XCTestCase {
         let store = PreferencesStore()
         await store.load(api: api)
         let push = PushStatusStore()
+        await push.refresh()
         let screens: [(String, AnyView)] = [
             ("notifications", AnyView(SettingsNotificationsView(store: store, push: push, api: nil,
                                                                onDecisionAlertsChanged: { _ in }))),

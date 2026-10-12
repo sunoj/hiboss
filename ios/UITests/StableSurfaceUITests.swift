@@ -37,7 +37,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
     }
 
     func testAllClearSurvivesHeldRefreshAndItsWatchdog() {
-        launch(["HIBOSS_DEMO_EMPTY": "1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "12000"])
+        launch(["HIBOSS_DEMO_EMPTY": "1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
         let clear = app.descendants(matching: .any)["today-all-clear"].firstMatch
         XCTAssertTrue(clear.waitForExistence(timeout: 10))
         pause(6)
@@ -50,7 +50,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
     }
 
     func testHomeChoicesKeepTheirFramesDuringRefresh() {
-        launch(["HIBOSS_DEMO_REFRESH_DELAY_MS": "12000"])
+        launch(["HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
         let choice = app.buttons["Reject"].firstMatch
         XCTAssertTrue(choice.waitForExistence(timeout: 10))
         pause(6)
@@ -83,7 +83,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
     }
 
     func testDetailKeepsItsReplyFieldAcrossForegroundRefresh() {
-        launch(["HIBOSS_DEMO_OPEN": "c1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "12000"])
+        launch(["HIBOSS_DEMO_OPEN": "c1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
         let field = app.textFields["message-reply-draft"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         reveal(field)
@@ -98,7 +98,7 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
     }
 
     func testTranscriptKeepsItsComposerAcrossForegroundRefresh() {
-        launch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "12000"])
+        launch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_REFRESH_DELAY_MS": "60000"])
         let field = app.textFields["session-reply-draft"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         pause(6)
@@ -193,6 +193,6 @@ final class StableSurfaceUITests: IntermediateCaptureCase {
         pullToRefresh(app)
         pause(0.5)
         capture("progress-mid-refresh")
-        XCTAssertTrue(app.scrollViews.firstMatch.exists)
+        XCTAssertTrue(app.cells.firstMatch.exists)
     }
 }

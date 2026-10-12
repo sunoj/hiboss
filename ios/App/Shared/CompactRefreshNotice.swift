@@ -19,6 +19,23 @@ struct CompactRefreshNotice: View {
     private var active: Bool { error != nil || (isRefreshing && visible) }
 
     var body: some View {
+        Color.clear.frame(height: rowHeight)
+            .overlay { if active { notice } }
+            .allowsHitTesting(active)
+        .task(id: isRefreshing) {
+            visible = false
+            slow = false
+            guard isRefreshing else { return }
+            do {
+                try await Task.sleep(for: PendingTiming.revealDelay)
+                visible = true
+                try await Task.sleep(for: PendingTiming.escalationDelay)
+                slow = true
+            } catch { return }
+        }
+    }
+
+    private var notice: some View {
         HStack(spacing: 8) {
             ProgressView().opacity(isRefreshing && visible && error == nil && !slow ? 1 : 0)
                 .accessibilityHidden(!isRefreshing || !visible || error != nil || slow)
@@ -38,19 +55,6 @@ struct CompactRefreshNotice: View {
         .padding(.horizontal, 12)
         .frame(height: rowHeight)
         .background(.bar)
-        .opacity(active ? 1 : 0)
-        .allowsHitTesting(active)
-        .accessibilityHidden(!active)
-        .task(id: isRefreshing) {
-            visible = false
-            slow = false
-            guard isRefreshing else { return }
-            do {
-                try await Task.sleep(for: PendingTiming.revealDelay)
-                visible = true
-                try await Task.sleep(for: PendingTiming.escalationDelay)
-                slow = true
-            } catch { return }
-        }
     }
+
 }

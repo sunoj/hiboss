@@ -138,6 +138,11 @@ final class InboxStore: ObservableObject {
         connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
         requiredInputError = error.localizedDescription
         loadError = error.localizedDescription
+        let epoch = requiredEpoch
+        Task { [weak self] in
+            guard let self, self.requiredEpoch == epoch, self.api == nil else { return }
+            await self.decisionActivitySync([], false)
+        }
     }
 
     func stop() {

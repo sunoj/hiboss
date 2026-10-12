@@ -75,10 +75,11 @@ final class SessionsV4UITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Needs you"].exists)
         shot(app, "\(appearance)-sessions")
         app.buttons["activity-session-sess-deploy"].tap()
+        for _ in 0..<8 where !app.staticTexts["Mac mini"].isHittable { app.swipeDown() }
         XCTAssertTrue(app.staticTexts["Mac mini"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Preparing the release"].exists)
         let open = app.descendants(matching: .any)["transcript-decision-c1"]
-        for _ in 0..<8 where !open.buttons["Approve"].isHittable { app.swipeDown() }
+        for _ in 0..<8 where !open.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertTrue(open.buttons["Approve"].isHittable)
         shot(app, "\(appearance)-thread-open")
         open.buttons["Approve"].tap()

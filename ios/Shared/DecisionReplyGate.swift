@@ -111,7 +111,9 @@ final class DecisionReplyGate: ObservableObject {
                 }
             }
         } catch {
-            if (error as? HibossAPIError)?.isAuthFailure == true { onAuthorizationFailure(error) }
+            if version == generation, (error as? HibossAPIError)?.isAuthFailure == true {
+                onAuthorizationFailure(error)
+            }
             return .failed(error.localizedDescription)
         }
     }

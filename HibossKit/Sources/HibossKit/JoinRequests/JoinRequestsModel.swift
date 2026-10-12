@@ -36,6 +36,7 @@ public final class JoinRequestsModel: ObservableObject {
     private let serviceProvider: @MainActor () -> (any JoinRequestServing)?
     private let pollInterval: Duration
     private var seenIDs: Set<String> = []
+    private var lookupWaiters: [CheckedContinuation<Void, Never>] = []
 
     public init(
         pollInterval: Duration = .seconds(30),
@@ -61,7 +62,12 @@ public final class JoinRequestsModel: ObservableObject {
         }
         if !didLoad && state == .idle { state = .loading }
         isRefreshing = true
-        defer { isRefreshing = false }
+        defer {
+            isRefreshing = false
+            let waiting = lookupWaiters
+            lookupWaiters = []
+            for waiter in waiting { waiter.resume() }
+        }
         do {
             let pending = try await service.listPendingJoinRequests()
                 .filter { $0.status == "pending" }
@@ -101,7 +107,11 @@ public final class JoinRequestsModel: ObservableObject {
     /// Resolves a pushed or notified request ID, refreshing when it is not in the list yet.
     public func lookup(id: String) async -> JoinRequestLookup {
         if let match = request(id: id) { return .found(match) }
-        await refresh()
+        if isRefreshing {
+            await withCheckedContinuation { lookupWaiters.append($0) }
+        } else {
+            await refresh()
+        }
         switch state {
         case .forbidden: return .forbidden
         case let .failed(message): return .failed(message)

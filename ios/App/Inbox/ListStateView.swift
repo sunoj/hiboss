@@ -63,7 +63,9 @@ struct ListStateView<Content: View>: View {
 
     private var cachedNotice: some View {
         CompactRefreshNotice(isRefreshing: isLoading || reconnecting, error: error,
-                             title: String(localized: "Refreshing. Showing earlier results."),
+                             title: reconnecting && !isLoading
+                                ? String(localized: "Reconnecting transcript. Showing earlier events.")
+                                : String(localized: "Refreshing. Showing earlier results."),
                              onRetry: onRetry, statusIdentifier: "list-stale-banner")
     }
 }

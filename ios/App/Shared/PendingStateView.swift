@@ -129,10 +129,10 @@ struct RetryButton: View {
             retrying = true
             Task { await action(); retrying = false }
         } label: {
-            HStack {
-                Text(title)
-                if retrying { DelayedProgressView() }
-            }.frame(minHeight: 44)
+            Text(title).padding(.horizontal, 20).frame(minHeight: 44)
+                .overlay(alignment: .trailing) {
+                    if retrying { DelayedProgressView() }
+                }
         }
         .disabled(retrying)
         .accessibilityIdentifier("pending-retry")

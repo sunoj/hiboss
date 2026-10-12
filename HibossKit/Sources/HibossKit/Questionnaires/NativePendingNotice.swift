@@ -65,6 +65,24 @@ struct NativeRefreshStatus: View {
     @State private var retrying = false
 
     var body: some View {
+        Color.clear.frame(height: rowHeight)
+            .overlay {
+                if error != nil || (isRefreshing && visible) { notice }
+            }
+        .task(id: isRefreshing) {
+            visible = false
+            slow = false
+            guard isRefreshing else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                visible = true
+                try await Task.sleep(for: .milliseconds(7_700))
+                slow = true
+            } catch { return }
+        }
+    }
+
+    private var notice: some View {
         HStack {
             ProgressView().opacity(isRefreshing && visible && error == nil ? 1 : 0)
             Text(verbatim: error ?? (slow ? kitL("This is taking longer than expected.") : title))
@@ -81,19 +99,6 @@ struct NativeRefreshStatus: View {
                 .accessibilityHidden(error == nil && !slow)
         }
         .frame(height: rowHeight)
-        .opacity(error != nil || (isRefreshing && visible) ? 1 : 0)
-        .accessibilityHidden(error == nil && !(isRefreshing && visible))
-        .task(id: isRefreshing) {
-            visible = false
-            slow = false
-            guard isRefreshing else { return }
-            do {
-                try await Task.sleep(for: .milliseconds(300))
-                visible = true
-                try await Task.sleep(for: .milliseconds(7_700))
-                slow = true
-            } catch { return }
-        }
     }
 }
 

@@ -109,6 +109,24 @@ final class JoinRequestsModelTests: XCTestCase {
         await retry.value
     }
 
+    func testLookupWaitsForTheInitialInventoryRead() async {
+        let service = HeldFailedJoinRead()
+        await service.holdNext()
+        let model = JoinRequestsModel { service }
+        let refresh = Task { await model.refresh() }
+        await service.waitForRead()
+        var outcome: JoinRequestLookup?
+        let lookup = Task { outcome = await model.lookup(id: Self.mini.id) }
+        let pending = expectation(description: "lookup waits for inventory")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { pending.fulfill() }
+        await fulfillment(of: [pending], timeout: 2)
+        XCTAssertNil(outcome)
+        await service.release(returning: [Self.mini])
+        await refresh.value
+        await lookup.value
+        XCTAssertEqual(outcome, .found(Self.mini))
+    }
+
     func testMissingConnectionStaysIdle() async {
         let model = JoinRequestsModel { nil }
         await model.refresh()
@@ -164,6 +182,10 @@ private actor HeldFailedJoinRead: JoinRequestServing {
     }
     func release() {
         read?.resume(throwing: URLError(.notConnectedToInternet))
+        read = nil
+    }
+    func release(returning requests: [JoinRequest]) {
+        read?.resume(returning: requests)
         read = nil
     }
     func listPendingJoinRequests() async throws -> [JoinRequest] {

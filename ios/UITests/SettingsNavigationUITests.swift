@@ -60,7 +60,7 @@ final class SettingsNavigationUITests: XCTestCase {
     }
 
     func testLongSaveDisablesOnlySaveAndAllowsAnotherEdit() {
-        launch(["HIBOSS_DEMO_PREFERENCES_DELAY_MS": "12000"])
+        launch(["HIBOSS_DEMO_PREFERENCES_SAVE_DELAY_MS": "12000"])
         app.buttons["settings-notifications"].tap()
         let mute = app.switches["settings-quiet-hours"]
         XCTAssertTrue(mute.waitForExistence(timeout: 5))
