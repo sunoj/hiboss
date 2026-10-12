@@ -39,6 +39,24 @@ final class AccountAuthorizationTests: XCTestCase {
         }
     }
 
+    func testDeviceRequestsResumeAfterSuccessfulAccountConnection() async throws {
+        let api = ReconnectingJoinAPI()
+        let requests = JoinRequestsModel { api }
+        await requests.refresh()
+        XCTAssertEqual(api.reads, 1)
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        await requests.refresh()
+        XCTAssertEqual(api.reads, 1)
+        let account = ConnectionConfig(serverURL: try XCTUnwrap(URL(string: "https://unit.test")),
+                                       bossToken: "unit-token")
+        AccountAuthorization.shared.connect(account)
+        defer { AccountAuthorization.shared.connect(nil) }
+        await requests.refresh()
+        XCTAssertEqual(api.reads, 2)
+        XCTAssertFalse(requests.isForbidden)
+        XCTAssertTrue(requests.didLoad)
+    }
+
     func testRejectionDisconnectsRequiredInputAuthority() async {
         let api = ControlledRequiredInputs(messages: [])
         let store = RequiredInputStore()
@@ -80,4 +98,15 @@ private actor AccountContentAPI: BossServing, BossPreferencesServing {
         saves += 1
         return preferences
     }
+}
+
+@MainActor
+private final class ReconnectingJoinAPI: JoinRequestServing {
+    private(set) var reads = 0
+    func listPendingJoinRequests() async throws -> [JoinRequest] {
+        reads += 1
+        return []
+    }
+    func approveJoinRequest(id: String) async throws -> JoinApproval { throw JoinRequestError.notFound }
+    func rejectJoinRequest(id: String) async throws {}
 }

@@ -62,6 +62,7 @@ public final class JoinRequestsModel: ObservableObject {
     }
 
     public func refresh() async {
+        if authorizationRejected && !AccountAuthorization.shared.hasRejectedAccount { reset() }
         guard !isRefreshing, !authorizationRejected else { return }
         guard let service = serviceProvider() else {
             requests = []

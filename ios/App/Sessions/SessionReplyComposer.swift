@@ -103,7 +103,7 @@ struct SessionReplyComposer: View {
         guard let target, !submitting else { return }
         let text = replyDraft.text
         Task {
-            switch await store.reply(text, to: target.id) {
+            switch await store.reply(text, to: target.id, isDecision: target.isDecision) {
             case .sent:
                 replyDraft = SessionReplyDraft()
                 note = String(localized: "Reply sent.")

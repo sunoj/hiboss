@@ -44,6 +44,27 @@ final class StableBoundaryTests: XCTestCase {
         store.stop()
     }
 
+    func testOrdinaryTranscriptMessageOutsideCachedHistoryRemainsSendable() async {
+        let api = BoundaryAPI()
+        let store = loadedStore(api)
+        XCTAssertNil(store.message(for: "new-ordinary-message"))
+        let result = await store.reply("Noted", to: "new-ordinary-message", isDecision: false)
+        XCTAssertEqual(result, .sent)
+        XCTAssertEqual(api.posts, 1)
+        XCTAssertTrue(store.requiredInputs.contains { $0.id == "decision" },
+                      "Sending to an ordinary message must not settle the existing decision")
+        store.stop()
+    }
+
+    func testUnclassifiedMessageOutsideCachedHistoryCannotPost() async {
+        let api = BoundaryAPI()
+        let store = loadedStore(api)
+        let result = await store.reply("Unknown answer", to: "unknown-message")
+        XCTAssertEqual(result, .alreadyResolved)
+        XCTAssertEqual(api.posts, 0)
+        store.stop()
+    }
+
     func testResolutionWhileVerificationIsHeldNeverPosts() async throws {
         let api = BoundaryAPI()
         let store = loadedStore(api)
