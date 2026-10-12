@@ -10,69 +10,64 @@ struct BoxBrowserRow: View {
     @ObservedObject var media: BoxBrowserMedia
     let onOpenImage: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            thumbnail
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Label(item.kindTitle, systemImage: item.kindSymbol)
-                        .font(.caption).foregroundStyle(TodayStyle.secondary)
-                    Spacer()
-                    if let date = ISODate.parse(item.createdAt) {
-                        Text(date, format: .dateTime.month().day().hour().minute())
-                            .font(.caption).foregroundStyle(TodayStyle.secondary)
-                    } else {
-                        Text(verbatim: item.createdAt).font(.caption).foregroundStyle(TodayStyle.secondary)
+        TimelineView(.periodic(from: .now, by: 30)) { tick in
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            layout {
+                thumbnail
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(verbatim: item.displayTitle).font(.headline)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                    if !item.summary.isEmpty {
+                        Text(verbatim: item.summary).font(.callout).lineLimit(1)
+                            .foregroundStyle(item.kind == .link ? Color.accentColor : Color.secondary)
                     }
-                }
-                Text(verbatim: item.text ?? item.url ?? item.kindTitle).font(.body).lineLimit(3)
-                    .textSelection(.enabled)
-                if let url = item.url, item.text != nil {
-                    Text(verbatim: url).font(.callout).foregroundStyle(TodayStyle.secondary).lineLimit(1)
-                }
-                if let note = item.note, !note.isEmpty {
-                    Text(verbatim: note).font(.callout).lineLimit(2).textSelection(.enabled)
-                }
-                HStack {
-                    if let project = item.project { ProjectLabelView(slug: project) }
-                    if !item.tags.isEmpty { Text(verbatim: item.tags.joined(separator: ", ")) }
-                }.font(.caption).foregroundStyle(TodayStyle.secondary)
-                if let provenance = item.provenance {
-                    Label(provenance, systemImage: "person.crop.circle.badge.checkmark")
-                        .font(.caption).foregroundStyle(TodayStyle.live)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(TodayStyle.liveSoft, in: RoundedRectangle(cornerRadius: 6))
-                        .accessibilityIdentifier("box.provenance")
+                    Text(verbatim: item.metadata(now: tick.date))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
         }
         .padding(.vertical, 6)
+        .alignmentGuide(.listRowSeparatorLeading) { dimensions in
+            dimensions[.leading] + (typeSize.isAccessibilitySize ? 0 : 56)
+        }
         .accessibilityIdentifier("box.item.\(item.id)")
+        .layoutProbe("box.item.\(item.id)")
     }
 
-    @ViewBuilder private var thumbnail: some View {
-        if item.hasImageMedia {
-            Group {
-                if let image = media.thumbnails[item.id] {
-                    Button(action: onOpenImage) {
-                        Image(nsImage: image).resizable().scaledToFit()
-                            .frame(width: 80, height: 64)
-                            .contentShape(Rectangle())
+    private var thumbnail: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6).fill(.quaternary)
+            if let image = media.thumbnails[item.id] {
+                Image(nsImage: image).resizable().scaledToFill()
+                    .frame(width: 44, height: 44)
+            } else {
+                VStack(spacing: 2) {
+                    Image(systemName: item.kindSymbol).font(.title3).foregroundStyle(.secondary)
+                    if item.kind == .file, !item.fileExtension.isEmpty {
+                        Text(verbatim: item.fileExtension).font(.caption2).lineLimit(1)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(item.text ?? L("Image"))
-                    .accessibilityHint(L("Open large viewer"))
-                    .accessibilityIdentifier("box.image.open.\(item.id)")
-                } else if media.errors[item.id] != nil {
-                    Button { Task { _ = await media.load(item) } } label: {
-                        Label(L("Retry image"), systemImage: "arrow.clockwise")
-                    }.help(media.errors[item.id] ?? "")
-                } else { ProgressView().controlSize(.small) }
+                }
             }
-            .frame(width: 80, height: 64)
-            .task(id: item.id) { _ = await media.load(item) }
+            if item.kind == .video {
+                VStack {
+                    Image(systemName: "play.circle.fill")
+                    if let duration = item.durationTitle { Text(verbatim: duration).font(.caption2) }
+                }.foregroundStyle(.primary).padding(2).background(.regularMaterial)
+            }
+        }
+        .frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
+        .layoutProbe("box.thumbnail.\(item.id)")
+        .onTapGesture(count: 2) { if item.hasImageMedia { onOpenImage() } }
+        .task(id: item.id) {
+            if item.hasImageMedia || item.kind == .video { _ = await media.load(item) }
         }
     }
+
 }
 
 extension BoxItem {
@@ -90,7 +85,7 @@ extension BoxItem {
 
     var kindSymbol: String {
         switch kind {
-        case .link: "link"
+        case .link: "globe"
         case .text: "text.alignleft"
         case .image: "photo"
         case .video: "video"

@@ -1,4 +1,4 @@
-// Native filter chips for Box authors and kinds, retaining project scoping.
+// Native segmented kind picker and author pop-up, retaining project scoping.
 // Exports: BoxAuthorFilter and BoxBrowserFilters; author filters preserve paging.
 // Dependencies: SwiftUI, HibossKit BoxItem, and BoxBrowserStore.
 
@@ -11,8 +11,8 @@ enum BoxAuthorFilter: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .all: L("All")
-        case .boss: L("From me")
-        case .agents: L("From agents")
+        case .boss: L("Me")
+        case .agents: L("Agents")
         }
     }
     func includes(_ item: BoxItem) -> Bool {
@@ -28,34 +28,31 @@ struct BoxBrowserFilters: View {
     @ObservedObject var store: BoxBrowserStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(L("Box")).font(.title2.bold())
-                if let project = store.project {
-                    ProjectLabelView(slug: project).font(.callout).foregroundStyle(TodayStyle.secondary)
-                    Button(L("All projects")) { store.project = nil }
-                }
-                Spacer()
+        Picker(L("Kind"), selection: $store.kind) {
+            Text(L("All")).tag(nil as BoxItem.Kind?)
+            ForEach(BoxItem.Kind.allCases, id: \.self) { kind in
+                Text(kind.filterTitle).tag(Optional(kind))
             }
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    ForEach(BoxAuthorFilter.allCases) { author in
-                        chip(author.title, selected: store.author == author) { store.author = author }
-                    }
-                    Divider().frame(height: 20)
-                    chip(L("All kinds"), selected: store.kind == nil) { store.kind = nil }
-                    ForEach(BoxItem.Kind.allCases, id: \.self) { kind in
-                        chip(kind.title, selected: store.kind == kind) { store.kind = kind }
-                    }
-                }.padding(.vertical, 2)
-            }
-        }.padding(20).background(TodayStyle.surface)
-        .accessibilityIdentifier("box.filters")
+        }.pickerStyle(.segmented).labelsHidden().controlSize(.small)
+            .accessibilityIdentifier("box.filters")
     }
 
-    private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action).buttonStyle(.bordered)
-            .tint(selected ? TodayStyle.ink : TodayStyle.tertiary)
-            .accessibilityValue(selected ? L("Selected") : L("Not selected"))
+    var authorPicker: some View {
+        Picker(L("Source:"), selection: $store.author) {
+            ForEach(BoxAuthorFilter.allCases) { author in
+                Text(L("Source:") + " " + author.title).tag(author)
+            }
+        }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
+            .accessibilityIdentifier("box.source")
+            .layoutProbe("box.source")
     }
+
+    @ViewBuilder var projectPicker: some View {
+        if let project = store.project {
+            Menu {
+                Button(L("All projects")) { store.project = nil }
+            } label: { ProjectLabelView(slug: project) }
+        }
+    }
+
 }

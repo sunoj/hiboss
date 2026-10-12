@@ -3,6 +3,7 @@
 // Dependencies: AppKit, ImageIO, UniformTypeIdentifiers and BoxBrowserStore.Provider.
 
 import AppKit
+import AVFoundation
 import Combine
 import HibossKit
 import ImageIO
@@ -48,6 +49,26 @@ final class BoxBrowserMedia: ObservableObject {
         return file
     }
 
+    func referenceFile(_ item: BoxItem) throws -> URL {
+        if let file = files[item.id] { return file }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let name = String(item.displayTitle.prefix(80)).replacingOccurrences(of: "/", with: "-")
+        let file = directory.appendingPathComponent(name + (item.kind == .link ? ".webloc" : ".txt"))
+        do {
+            if item.kind == .link {
+                let data = try PropertyListSerialization.data(fromPropertyList: ["URL": item.url ?? ""],
+                    format: .xml, options: 0)
+                try data.write(to: file)
+            } else { try (item.text ?? "").write(to: file, atomically: true, encoding: .utf8) }
+            files[item.id] = file
+            return file
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            throw error
+        }
+    }
+
     private func download(_ item: BoxItem, generation current: Int) async -> URL? {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let ext = item.mediaType.flatMap { UTType(mimeType: $0)?.preferredFilenameExtension } ?? "bin"
@@ -61,14 +82,15 @@ final class BoxBrowserMedia: ObservableObject {
             try await api.downloadBoxMedia(id: item.id, to: file)
             try Task.checkCancellation()
             guard current == generation else { throw CancellationError() }
-            if item.hasImageMedia {
+            if item.hasImageMedia || item.kind == .video {
                 // Decoding a full-size image takes tens of milliseconds; keep it off the main actor.
-                guard let image = await Task.detached(priority: .userInitiated, operation: {
-                    Self.thumbnail(of: file)
-                }).value else { throw HibossAPIError.invalidResponse }
+                let image = await Task.detached(priority: .userInitiated, operation: {
+                    await Self.previewThumbnail(of: file, kind: item.kind)
+                }).value
                 try Task.checkCancellation()
                 guard current == generation else { throw CancellationError() }
-                thumbnails[item.id] = NSImage(cgImage: image, size: .zero)
+                if let image { thumbnails[item.id] = NSImage(cgImage: image, size: .zero) }
+                else if item.kind != .video { throw HibossAPIError.invalidResponse }
             }
             files[item.id] = file
             errors[item.id] = nil
@@ -80,11 +102,17 @@ final class BoxBrowserMedia: ObservableObject {
         }
     }
 
-    nonisolated private static func thumbnail(of file: URL) -> CGImage? {
+    nonisolated private static func previewThumbnail(of file: URL, kind: BoxItem.Kind) async -> CGImage? {
+        if kind == .video {
+            let generator = AVAssetImageGenerator(asset: AVURLAsset(url: file))
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 800, height: 800)
+            return try? await generator.image(at: .zero).image
+        }
         guard let source = CGImageSourceCreateWithURL(file as CFURL, nil) else { return nil }
         return CGImageSourceCreateThumbnailAtIndex(source, 0, [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: 160,
+            kCGImageSourceThumbnailMaxPixelSize: 1000,
             kCGImageSourceCreateThumbnailWithTransform: true
         ] as CFDictionary)
     }

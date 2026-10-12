@@ -37,6 +37,7 @@ struct MainView: View {
          previewHistory: [HistoryMessage]? = AttentionPreview.historyIfRequested(),
          previewSessions: [ProjectSession]? = nil,
          boxProvider: BoxBrowserStore.Provider? = nil,
+         boxStore: BoxBrowserStore? = nil, boxMedia: BoxBrowserMedia? = nil,
          progressProvider: ProgressFeedStore.Provider? = nil,
          progressStore: ProgressFeedStore? = nil,
          panelsModel: PanelsModel? = nil) {
@@ -52,8 +53,8 @@ struct MainView: View {
         let provider: BoxBrowserStore.Provider = boxProvider ?? {
             settings.activeClientConfig.map { HibossAPI(config: $0) }
         }
-        _box = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
-        _boxMedia = StateObject(wrappedValue: BoxBrowserMedia(apiProvider: provider))
+        _box = StateObject(wrappedValue: boxStore ?? BoxBrowserStore(apiProvider: provider))
+        _boxMedia = StateObject(wrappedValue: boxMedia ?? BoxBrowserMedia(apiProvider: provider))
         _sessionBox = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
         _progress = StateObject(wrappedValue: progressStore ?? ProgressFeedStore(
             apiProvider: progressProvider ?? {
@@ -149,15 +150,21 @@ struct MainView: View {
     }
 
     private func messageShell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            overview(snapshot)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
-        } detail: {
-            if compact && showsCompactOverview {
-                overview(snapshot).navigationTitle(L("Overview"))
+        Group {
+            if destination == .box && !(compact && showsCompactOverview) {
+                BoxBrowserView(store: box, media: boxMedia, sidebar: AnyView(overview(snapshot)))
             } else {
-                destinationContent(snapshot)
-                    .navigationTitle(snapshot.title(for: destination))
+                NavigationSplitView(columnVisibility: $columnVisibility) {
+                    overview(snapshot)
+                        .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
+                } detail: {
+                    if compact && showsCompactOverview {
+                        overview(snapshot).navigationTitle(L("Overview"))
+                    } else {
+                        destinationContent(snapshot)
+                            .navigationTitle(snapshot.title(for: destination))
+                    }
+                }
             }
         }
         .toolbar(removing: .sidebarToggle)
@@ -205,8 +212,6 @@ struct MainView: View {
             } else if case let .session(id) = destination {
                 sessionSurface(id: id, snapshot: snapshot)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
-            } else if destination == .box {
-                BoxBrowserView(store: box, media: boxMedia)
             } else if destination == .progress {
                 ProgressWorkspace(store: progress)
             } else if destination == .deviceRequests {

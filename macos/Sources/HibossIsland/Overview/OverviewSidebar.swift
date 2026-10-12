@@ -29,6 +29,7 @@ struct OverviewSidebar: View {
                         .accessibilityIdentifier("overview.today")
                     Label(L("Box"), systemImage: "shippingbox")
                         .tag(OverviewDestination.box)
+                        .accessibilityIdentifier("overview.box")
                     Label(L("Progress"), systemImage: "play.rectangle")
                         .tag(OverviewDestination.progress)
                 }
@@ -49,8 +50,8 @@ struct OverviewSidebar: View {
         .accessibilityIdentifier("overview.sidebar")
     }
 
-    private var decisionBadge: String {
-        guard snapshot.answerability.isLoaded else { return L("Loading") }
+    var decisionBadge: String {
+        guard snapshot.answerability.isLoaded else { return "" }
         return snapshot.today.decisions.isEmpty ? "" : snapshot.today.decisions.count.formatted()
     }
 

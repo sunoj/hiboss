@@ -17,6 +17,7 @@ final class BoxImagePreviewTests: XCTestCase {
         let media = BoxBrowserMedia { provider.api }
         defer { media.reset() }
         await store.refresh()
+        store.selection = "image"
         let host = NSHostingView(rootView: NavigationStack { BoxBrowserView(store: store, media: media) })
         host.sizingOptions = []
         let window = NSWindow(contentRect: NSRect(x: 60, y: 60, width: 800, height: 700),
@@ -43,7 +44,7 @@ final class BoxImagePreviewTests: XCTestCase {
         XCTAssertEqual(downloads, 1)
     }
 
-    func testThumbnailOpensFullResolutionImageInBothAppearances() async throws {
+    func testSelectedImageOpensFullResolutionImageInBothAppearances() async throws {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             let api = ScriptedBoxBrowser(media: try imageData())
             let store = BoxBrowserStore { api }
@@ -60,9 +61,11 @@ final class BoxImagePreviewTests: XCTestCase {
             window.orderFront(nil)
             defer { window.close() }
             try await waitForCondition { media.thumbnails["image"] != nil }
-            let filename = try XCTUnwrap(recognize(host).first { $0.text == "Navigation preview.png" })
-            let thumbnail = CGPoint(x: 64 / host.bounds.width, y: filename.bounds.midY)
-            try click(thumbnail, in: host, window: window)
+            store.selection = "image"
+            try await waitForCondition {
+                (try? self.recognize(host).contains { $0.text == L("Open") }) == true
+            }
+            try clickLabel(L("Open"), in: host, window: window)
             try await waitForCondition { window.attachedSheet != nil }
             let sheet = try XCTUnwrap(window.attachedSheet)
             try await waitForCondition { self.imageView(sheet.contentView)?.image != nil }
@@ -77,7 +80,7 @@ final class BoxImagePreviewTests: XCTestCase {
             try await waitForCondition { window.attachedSheet == nil }
             try clickLabel(L("Open"), in: host, window: window)
             try await waitForCondition { window.attachedSheet != nil }
-            let downloads = await api.downloads
+            let downloads = await api.downloadsByID["image"]
             XCTAssertEqual(downloads, 1)
         }
     }

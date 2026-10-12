@@ -10,6 +10,25 @@ import XCTest
 
 @MainActor
 final class BoxBrowserSnapshotTests: XCTestCase {
+    func testPersistentDetailWithAndWithoutSelectionInBothAppearances() async throws {
+        let api = ScriptedBoxBrowser(media: BoxBrowserFixtures.imageData())
+        let store = BoxBrowserStore { api }
+        let media = BoxBrowserMedia { api }
+        defer { media.reset() }
+        await store.refresh()
+        for scheme in [ColorScheme.light, .dark] {
+            for selection in [nil, "image"] as [String?] {
+                store.selection = selection
+                let name = "box-\(selection == nil ? "unselected" : "selected")"
+                    + "-\(scheme == .light ? "light" : "dark")"
+                let bitmap = try await render(store: store, media: media, scheme: scheme,
+                    waitsForImage: true, captureName: name)
+                XCTAssertEqual(store.selectedItem?.id, selection)
+                try write(bitmap, name: name)
+            }
+        }
+    }
+
     func testHostedBoxInLightAndDarkWithLoadedThumbnailAndProvenance() async throws {
         let api = ScriptedBoxBrowser(media: BoxBrowserFixtures.imageData())
         let store = BoxBrowserStore { api }
@@ -43,32 +62,58 @@ final class BoxBrowserSnapshotTests: XCTestCase {
     }
 
     private func render(
-        store: BoxBrowserStore, media: BoxBrowserMedia, scheme: ColorScheme, waitsForImage: Bool
+        store: BoxBrowserStore, media: BoxBrowserMedia, scheme: ColorScheme, waitsForImage: Bool,
+        captureName: String? = nil
     ) async throws -> NSBitmapImageRep {
         _ = NSApplication.shared
         var mounted = false
+        let snapshot = OverviewSnapshot(history: [], live: nil, now: .now)
         let host = NSHostingView(rootView:
-            NavigationStack { BoxBrowserView(store: store, media: media) }
-                .frame(width: 800, height: 700).environment(\.colorScheme, scheme)
+            BoxBrowserView(store: store, media: media, sidebar: AnyView(
+                OverviewSidebar(snapshot: snapshot, selection: .box, historyState: .loaded,
+                    connectionState: .connected, onSelect: { _ in }, onSettings: {}, onRefresh: {})))
+                .environment(\.colorScheme, scheme)
                 .onAppear { mounted = true })
-        let window = NSWindow(contentRect: NSRect(x: -20_000, y: -20_000, width: 800, height: 700),
-            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        host.sizingOptions = []
+        let screen = try XCTUnwrap(NSScreen.main).visibleFrame
+        let size = NSSize(width: min(1120, screen.width - 40), height: min(650, screen.height - 100))
+        let window = NSWindow(contentRect: NSRect(origin: screen.origin, size: size),
+            styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: scheme == .light ? .aqua : .darkAqua)
         window.contentView = host
-        window.orderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
         defer { window.close() }
-        try await waitForCondition { mounted && store.didLoad && !store.isLoading }
+        try await waitForCondition { mounted && store.didLoad && !store.isLoading && window.toolbar != nil }
         if waitsForImage { try await waitForCondition { media.thumbnails["image"] != nil } }
+        var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+        frame.size.height = min(frame.height, screen.height)
+        frame.origin = NSPoint(x: screen.minX + 20, y: screen.maxY - frame.height)
+        window.setFrame(frame, display: true)
+        XCTAssertLessThanOrEqual(window.frame.height, screen.height)
         host.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
-        XCTAssertGreaterThanOrEqual(bitmap.pixelsWide, 800)
-        XCTAssertGreaterThanOrEqual(bitmap.pixelsHigh, 700)
+        if let captureName { try await capture(window, name: captureName) }
+        XCTAssertGreaterThanOrEqual(bitmap.pixelsWide, Int(size.width))
+        XCTAssertGreaterThanOrEqual(bitmap.pixelsHigh, Int(size.height))
         XCTAssertEqual(try XCTUnwrap(bitmap.colorAt(x: 8, y: 8)).alphaComponent, 1, accuracy: 0.01,
             "The Box background must fill the window in every state")
         return bitmap
+    }
+
+    private func capture(_ window: NSWindow, name: String) async throws {
+        guard let directory = ProcessInfo.processInfo.environment["HIBOSS_SNAPSHOT_DIR"] else { return }
+        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let capture = Process()
+        capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        capture.arguments = ["-x", "-o", "-l", String(window.windowNumber),
+            URL(fileURLWithPath: directory).appendingPathComponent("\(name)-window.png").path]
+        try capture.run()
+        try await waitForCondition { !capture.isRunning }
+        XCTAssertEqual(capture.terminationStatus, 0)
     }
 
     private func write(_ bitmap: NSBitmapImageRep, name: String) throws {

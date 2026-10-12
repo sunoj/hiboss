@@ -9,6 +9,14 @@ import XCTest
 
 @MainActor
 final class MainWindowNavigationTests: XCTestCase {
+    func testRefreshLabelsFollowWorkspaceDestination() {
+        XCTAssertEqual(MainWindowRefreshHelp.title(for: .box), L("Refresh Box"))
+        XCTAssertEqual(MainWindowRefreshHelp.title(for: .progress), L("Refresh progress"))
+        XCTAssertEqual(MainWindowRefreshHelp.title(for: .today), L("Refresh Today"))
+        XCTAssertEqual(MainWindowRefreshHelp.title(for: .deviceRequests), L("Refresh device requests"))
+        XCTAssertEqual(MainWindowRefreshHelp.title(for: .category(.all)), L("Refresh messages"))
+    }
+
     /// Stands in for the single `Window` scene: opening shows it, closing hides it.
     @MainActor private final class SceneWindow {
         let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 200, height: 120),
