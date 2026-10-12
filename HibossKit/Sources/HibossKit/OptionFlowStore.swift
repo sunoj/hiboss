@@ -19,13 +19,13 @@ public final class OptionFlowStore: ObservableObject {
     @Published public private(set) var replyFeedback: [MessageID: ReplyFeedback] = [:]
 
     private let reconnectDelay: Duration
-    private var api: (any BossServing)?
+    private(set) var api: (any BossServing)?
     var queuedMessages: [OptionMessage] = []
     private var seenMessageIDs: Set<MessageID> = []
     private var streamTask: Task<Void, Never>?
     private var historyTask: Task<Void, Never>?
     private var historySync: HistorySync?
-    private var historyVersion = 0
+    private(set) var historyVersion = 0
     private var expirationTasks: [MessageID: Task<Void, Never>] = [:]
     private var resolvedDismissTask: Task<Void, Never>?
     /// How long the "answered on <device>" card lingers before advancing.
@@ -116,30 +116,6 @@ public final class OptionFlowStore: ObservableObject {
         return await send(choice, for: message)
     }
 
-    /// Answers a past (history) option message by id, independent of the live `activeMessage`.
-    /// True only when the server accepted this reply; otherwise `replyFeedback[messageID]` says why.
-    @discardableResult
-    public func answerHistory(_ choice: String, for messageID: MessageID) async -> Bool {
-        guard let api else {
-            replyFeedback[messageID] = .failed(kitL("Disconnected"))
-            return false
-        }
-        replyFeedback[messageID] = nil
-        do {
-            switch try await api.reply(to: messageID, with: choice) {
-            case .accepted, .acceptedOn:
-                refreshHistoryInBackground()
-                return true
-            case .alreadyResolved:
-                await settleConflict(for: messageID)
-                return false
-            }
-        } catch {
-            replyFeedback[messageID] = .failed(error.localizedDescription)
-            return false
-        }
-    }
-
     /// Answers with free-form text instead of one of the offered options.
     /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
     @discardableResult
@@ -191,9 +167,11 @@ public final class OptionFlowStore: ObservableObject {
     /// A 409 means the decision is closed (answered elsewhere or expired). Reload history so only a
     /// recorded answer is shown as the outcome; otherwise withdraw the stale choice without inventing one.
     /// Leaves other messages and an already observed resolution for this one untouched.
-    private func settleConflict(for messageID: MessageID) async {
+    func settleConflict(for messageID: MessageID) async {
+        let version = historyVersion
         replyFeedback[messageID] = .alreadyResolved
         await refreshHistory()
+        guard version == historyVersion, !Task.isCancelled else { return }
         expirationTasks.removeValue(forKey: messageID)?.cancel()
         queuedMessages.removeAll { $0.id == messageID }
         guard activeMessage?.id == messageID else { return }
@@ -235,9 +213,13 @@ public final class OptionFlowStore: ObservableObject {
         }
     }
 
-    private func refreshHistoryInBackground(debounced: Bool = true) {
+    func refreshHistoryInBackground(debounced: Bool = true) {
         guard let historySync else { return }
         historyTask = Task { await historySync.synchronize(debounced: debounced) }
+    }
+
+    func setHistoryReplyFeedback(_ feedback: ReplyFeedback?, for messageID: MessageID) {
+        replyFeedback[messageID] = feedback
     }
 
     private func receive(_ message: OptionMessage) {

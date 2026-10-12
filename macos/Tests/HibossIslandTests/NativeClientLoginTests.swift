@@ -3,12 +3,39 @@
 // Dependencies: XCTest, HibossKit, and the native connection store.
 
 import Foundation
+import Combine
 import HibossKit
 import XCTest
 @testable import HibossIsland
 
 @MainActor
 final class NativeClientLoginTests: XCTestCase {
+    func testIdentityChangesBeforeConnectionPublicationAndNotForEqualReconnect() async throws {
+        let (store, _, _) = try fixture(stored: "existing-token")
+        var publishedGenerations: [Int] = []
+        let observer = store.$activeClientConfig.dropFirst().sink { _ in
+            publishedGenerations.append(store.identity.value)
+        }
+        defer { observer.cancel() }
+        await store.loadToken()
+        XCTAssertEqual(store.identity.value, 1)
+        _ = try await store.connect().get()
+        XCTAssertEqual(store.identity.value, 1, "Equal configs retain the identity")
+        let current = try XCTUnwrap(store.activeClientConfig)
+        _ = try store.activateDeviceToken("replacement-token", replacing: current)
+        XCTAssertEqual(store.identity.value, 2)
+        let grant = PairingRedemptionGrant(token: "paired-token", bossID: "boss", signingKeyID: nil)
+        _ = try store.adopt(grant, server: current.serverURL)
+        XCTAssertEqual(store.identity.value, 3)
+        XCTAssertEqual(publishedGenerations, [1, 1, 2, 3])
+    }
+
+    func testChangedManualConnectionBumpsIdentityBeforeReturning() async throws {
+        let (store, _, _) = try fixture()
+        _ = try await store.connect().get()
+        XCTAssertEqual(store.identity.value, 1)
+    }
+
     func testExchangeReplacesPastedTokenAndUsesEditableDeviceLabel() async throws {
         let (store, tokens, api) = try fixture()
         store.deviceLabel = "Office device"
