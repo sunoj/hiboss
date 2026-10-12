@@ -34,7 +34,7 @@ pub fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
         );
     }
     if args.runtime == SetupRuntime::Codex && !args.remove {
-        eprintln!("Review and trust the new HiBoss hooks in Codex /hooks before they can run.");
+        println!("Review and trust the new HiBoss hooks in Codex /hooks before they can run.");
     }
     Ok(())
 }
