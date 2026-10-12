@@ -6,6 +6,30 @@ import XCTest
 
 @MainActor
 final class PanelsIdentityTests: XCTestCase {
+    func testEarlierRejectionDoesNotInvalidateANewPanelModel() {
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        defer { AccountAuthorization.shared.connect(nil) }
+        let model = PanelsModel(demoMode: false, autoload: false)
+        model.clockTask?.cancel()
+        model.connectionDidChange()
+        model.reconciliationTask?.cancel()
+        XCTAssertFalse(model.authorizationRejected,
+                       "A new model did not observe the previous account's rejection")
+    }
+
+    func testRejectedPanelModelRemainsBlockedUntilAccountReconnects() {
+        let model = PanelsModel(demoMode: false, autoload: false)
+        model.clockTask?.cancel()
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        model.connectionDidChange()
+        model.reconciliationTask?.cancel()
+        XCTAssertTrue(model.authorizationRejected)
+        AccountAuthorization.shared.connect(nil)
+        model.connectionDidChange()
+        model.reconciliationTask?.cancel()
+        XCTAssertFalse(model.authorizationRejected)
+    }
+
     func testAccountChangeImmediatelyClearsContentAndRejectsOldRead() async throws {
         let api = PanelsStartupAPI()
         let model = PanelsModel(api: api, demoMode: false, autoload: false)
