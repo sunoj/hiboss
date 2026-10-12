@@ -29,6 +29,22 @@ final class SettingsPreferencesTests: XCTestCase {
         XCTAssertTrue(store.didSave)
     }
 
+    func testFailedCleanReadKeepsItsAnnotationDuringRetry() async {
+        let api = ControlledPreferencesAPI()
+        let store = PreferencesStore()
+        await store.load(api: api)
+        api.shouldFail = true
+        await store.load(api: api)
+        let previous = store.state
+        api.pause = true
+        let retry = Task { await store.load(api: api) }
+        while api.continuation == nil { await Task.yield() }
+        XCTAssertEqual(store.state, previous)
+        XCTAssertTrue(store.hasLoaded)
+        api.continuation?.resume()
+        await retry.value
+    }
+
     func testConnectionChangeDropsTheDraftAndTheOldAPI() async {
         let old = ControlledPreferencesAPI()
         let store = PreferencesStore()
@@ -110,7 +126,11 @@ private final class ControlledPreferencesAPI: BossPreferencesServing {
     var pause = false
     var continuation: CheckedContinuation<Void, Never>?
 
-    func fetchPreferences() async throws -> BossPreferences { BossPreferences() }
+    func fetchPreferences() async throws -> BossPreferences {
+        if pause { await withCheckedContinuation { continuation = $0 } }
+        if shouldFail { throw URLError(.notConnectedToInternet) }
+        return BossPreferences()
+    }
 
     var saves = 0
 

@@ -13,6 +13,7 @@ final class PreferencesStore: ObservableObject {
     @Published private(set) var prefs = BossPreferences()
     @Published private(set) var state: LoadState = .idle
     @Published private(set) var isSaving = false
+    @Published private(set) var isRefreshing = false
     @Published private(set) var hasLoaded = false
     @Published private(set) var didSave = false
 
@@ -61,17 +62,19 @@ final class PreferencesStore: ObservableObject {
         saved = BossPreferences()
         state = .idle
         isSaving = false
+        isRefreshing = false
         hasLoaded = false
         didSave = false
     }
 
     func load(api: (any BossPreferencesServing)?) async {
-        guard !isDirty, !isSaving else { return }
+        guard !isDirty, !isSaving, !isRefreshing else { return }
         guard let api else { state = .unavailable; return }
         self.api = api
-        if case .loading = state { return }
-        state = .loading
+        if !hasLoaded { state = .loading }
+        isRefreshing = true
         let started = generation
+        defer { if started == generation { isRefreshing = false } }
         do {
             let loaded = try await api.fetchPreferences()
             guard started == generation else { return }

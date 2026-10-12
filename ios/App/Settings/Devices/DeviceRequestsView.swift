@@ -13,10 +13,12 @@ struct DeviceRequestsView: View {
     var body: some View {
         List {
             content
-            if case .failed = model.state { retryButton }
-            if !model.requests.isEmpty, model.state == .loading {
-                SettingsWaitView(title: "Loading device requests…") { dismiss() }
-            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            CompactRefreshNotice(isRefreshing: model.didLoad && model.isRefreshing,
+                                 error: refreshError,
+                                 title: String(localized: "Loading device requests…"),
+                                 onRetry: { await model.refresh() })
         }
         .navigationTitle("Device Requests")
         .refreshable { await model.refresh() }
@@ -42,34 +44,36 @@ struct DeviceRequestsView: View {
                     Button { target = JoinRequestTarget(id: request.id) } label: { row(request) }
                         .foregroundStyle(Theme.ink)
                 }
-            } footer: {
-                if case let .failed(message) = model.state { Text(verbatim: message) }
             }
         }
     }
 
     @ViewBuilder
     private var emptyContent: some View {
-        switch model.state {
-        case .loading, .idle:
-            SettingsWaitView(title: "Loading device requests…") { dismiss() }
-        case let .failed(message):
-            ContentUnavailableView {
-                Label("Device requests unavailable", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(verbatim: message)
-            }
-        case .loaded, .forbidden:
-            ContentUnavailableView {
-                Label("No device requests", systemImage: "desktopcomputer")
-            } description: {
-                Text("New machines appear here when they ask to join.")
+        if model.didLoad && !model.isForbidden {
+            ContentUnavailableView("No device requests", systemImage: "desktopcomputer",
+                                   description: Text("New machines appear here when they ask to join."))
+                .accessibilityIdentifier("device-requests-empty")
+        } else {
+            switch model.state {
+            case .loading, .idle:
+                SettingsWaitView(title: "Loading device requests…") { dismiss() }
+            case let .failed(message):
+                ContentUnavailableView {
+                    Label("Device requests unavailable", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(verbatim: message)
+                }
+            case .loaded, .forbidden:
+                ContentUnavailableView("No device requests", systemImage: "desktopcomputer",
+                                       description: Text("New machines appear here when they ask to join."))
             }
         }
     }
 
-    private var retryButton: some View {
-        Button("Try again") { Task { await model.refresh() } }
+    private var refreshError: String? {
+        if case let .failed(message) = model.state { return message }
+        return nil
     }
 
     private func row(_ request: JoinRequest) -> some View {

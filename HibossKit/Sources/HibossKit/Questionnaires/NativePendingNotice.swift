@@ -53,11 +53,57 @@ struct NativePendingNotice: View {
     }
 }
 
+// A permanently reserved status row keeps cached editors still during polling and recovery.
+struct NativeRefreshStatus: View {
+    let isRefreshing: Bool
+    let error: String?
+    let title: String
+    let retry: () async -> Void
+    @State private var visible = false
+    @State private var slow = false
+    @State private var retrying = false
+
+    var body: some View {
+        HStack {
+            ProgressView().opacity(isRefreshing && visible && error == nil ? 1 : 0)
+            Text(verbatim: error ?? (slow ? kitL("This is taking longer than expected.") : title))
+                .font(.caption).foregroundStyle(NativePendingTheme.secondary).lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                retrying = true
+                Task { await retry(); retrying = false }
+            } label: {
+                Text(kitL("Retry questions")).frame(minHeight: 44)
+            }.disabled(retrying)
+                .opacity(error != nil || slow ? 1 : 0)
+                .allowsHitTesting(error != nil || slow)
+                .accessibilityHidden(error == nil && !slow)
+        }
+        .frame(height: 44)
+        .opacity(error != nil || (isRefreshing && visible) ? 1 : 0)
+        .accessibilityHidden(error == nil && !(isRefreshing && visible))
+        .task(id: isRefreshing) {
+            visible = false
+            slow = false
+            guard isRefreshing else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                visible = true
+                try await Task.sleep(for: .milliseconds(7_700))
+                slow = true
+            } catch { return }
+        }
+    }
+}
+
 struct NativeDelayedProgress: View {
+    var active = true
     @State private var visible = false
     var body: some View {
-        ProgressView().opacity(visible ? 1 : 0).accessibilityHidden(!visible)
-            .task {
+        ProgressView().opacity(active && visible ? 1 : 0).accessibilityHidden(!active || !visible)
+            .task(id: active) {
+                visible = false
+                guard active else { return }
                 do { try await Task.sleep(for: .milliseconds(300)) }
                 catch { return }
                 visible = true

@@ -79,7 +79,10 @@ extension InboxStore {
             guard !Task.isCancelled, epoch == requiredEpoch,
                   version == requiredFetchVersion else { return }
             requiredInputError = error.localizedDescription
-            requiredInputLoaded = false
+            if (error as? HibossAPIError)?.isAuthFailure == true {
+                rejectAuthorization(error)
+                return
+            }
             if startedReady { retryRequiredSnapshot(epoch: epoch, version: version) }
         }
     }
@@ -167,6 +170,10 @@ extension InboxStore {
                 }
             } catch {
                 guard !Task.isCancelled, epoch == requiredEpoch else { return }
+                if (error as? HibossAPIError)?.isAuthFailure == true {
+                    rejectAuthorization(error)
+                    return
+                }
                 requiredInputError = error.localizedDescription
             }
             guard !Task.isCancelled, epoch == requiredEpoch else { return }
@@ -185,7 +192,6 @@ extension InboxStore {
             do { try await Task.sleep(for: .seconds(8)) }
             catch { return }
             guard let self, !self.hasCompleteRequiredInputs || self.requiredInputRefreshing else { return }
-            if self.requiredStaleTask == nil { self.requiredInputLoaded = false }
             self.requiredInputError = self.requiredInputReady
                 ? String(localized: "Requests are still loading. Retry to check for unanswered requests.")
                 : String(localized: "Requests connection is not ready. Retry to reconnect.")
@@ -198,7 +204,6 @@ extension InboxStore {
             do { try await Task.sleep(for: .seconds(30)) }
             catch { return }
             guard !Task.isCancelled, let self else { return }
-            self.requiredInputLoaded = false
             self.requiredInputError = String(
                 localized: "Requests connection is not ready. Retry to reconnect."
             )

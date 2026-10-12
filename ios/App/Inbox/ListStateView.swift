@@ -16,7 +16,7 @@ enum ListStatePhase: Equatable {
         isLoading: Bool, error: String?, isEmpty: Bool, hasLoaded: Bool = false
     ) -> ListStatePhase {
         if isLoading && isEmpty && !hasLoaded { return .loading }
-        if isEmpty { return error.map(ListStatePhase.unreachable) ?? .empty }
+        if isEmpty { return hasLoaded ? .empty : error.map(ListStatePhase.unreachable) ?? .empty }
         return .content(staleError: error)
     }
 }
@@ -30,6 +30,7 @@ struct ListStateView<Content: View>: View {
     let emptyDetail: String
     var loadingTitle: String = String(localized: "Loading messages…")
     var hasLoaded = false
+    var reconnecting = false
     let onRetry: () async -> Void
     @ViewBuilder var content: () -> Content
 
@@ -53,45 +54,15 @@ struct ListStateView<Content: View>: View {
             }
         case .empty:
             ContentUnavailableView(emptyTitle, systemImage: emptyIcon, description: Text(emptyDetail))
-                .safeAreaInset(edge: .bottom) { refreshingNotice }
-        case let .content(staleError):
-            // Bottom, like Mail's update status: a top inset would cover the large title.
-            content().safeAreaInset(edge: .bottom, spacing: 0) {
-                if let staleError { staleBanner(staleError) }
-                else { refreshingNotice }
-            }
+                .safeAreaInset(edge: .bottom, spacing: 0) { cachedNotice }
+        case .content:
+            content().safeAreaInset(edge: .bottom, spacing: 0) { cachedNotice }
         }
     }
 
-    @ViewBuilder private var refreshingNotice: some View {
-        if isLoading {
-            PendingStateView(title: String(localized: "Refreshing. Showing earlier results."),
-                             onRetry: onRetry)
-                .padding(12).background(.bar)
-        }
-    }
-
-    private func staleBanner(_ error: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Couldn't reach the server. Showing earlier results.")
-                    .font(.hbCallout)
-                    .foregroundStyle(Theme.ink)
-                Text(verbatim: error)
-                    .font(.hbCaption)
-                    .foregroundStyle(Theme.ink2)
-            }
-            } icon: {
-                Image(systemName: "exclamationmark.triangle").foregroundStyle(Theme.warn)
-            }
-            RetryButton(action: onRetry)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("list-stale-banner")
+    private var cachedNotice: some View {
+        CompactRefreshNotice(isRefreshing: isLoading || reconnecting, error: error,
+                             title: String(localized: "Refreshing. Showing earlier results."),
+                             onRetry: onRetry, statusIdentifier: "list-stale-banner")
     }
 }

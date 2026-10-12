@@ -17,6 +17,8 @@ struct SessionDecisionBubble: View {
         VStack(alignment: .leading, spacing: 8) {
             if store.answerability(for: message.id) == .open {
                 DecisionCard(message: message, submitting: store.replying[message.id],
+                             verifying: store.replyGate.verifying.contains(message.id),
+                             verificationTimedOut: store.replyGate.verificationTimedOut.contains(message.id),
                              header: SessionDecisionHeader(message: message, sessionAgent: sessionAgent),
                              choices: pendingOptions)
             } else {
@@ -43,7 +45,9 @@ struct SessionDecisionBubble: View {
 
     private var pendingOptions: some View {
         DecisionOptions(options: message.options, timing: DecisionTiming(message: message),
-                        submitting: store.replying[message.id], wrapsToFit: true, onChoose: onChoose)
+                        submitting: store.replying[message.id],
+                        locksControls: store.replyGate.locksControls(for: message.id),
+                        wrapsToFit: true, onChoose: onChoose)
     }
 
     private var differingAgent: String? {

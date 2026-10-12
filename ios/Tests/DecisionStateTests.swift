@@ -139,6 +139,9 @@ final class DecisionStateTests: XCTestCase {
         XCTAssertEqual(
             ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: true), .unreachable("down"))
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: nil, isEmpty: true), .empty)
+        XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: true,
+                                              hasLoaded: true), .empty,
+                       "A completed empty result survives a failed refresh")
         XCTAssertEqual(ListStatePhase.resolve(isLoading: true, error: nil, isEmpty: true, hasLoaded: true),
                        .empty, "Refreshing a previously empty result must retain the cached state")
         XCTAssertEqual(ListStatePhase.resolve(isLoading: false, error: "down", isEmpty: false),

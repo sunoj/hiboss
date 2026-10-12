@@ -33,12 +33,7 @@ struct PanelPendingNotice: View {
     @Environment(\.openConnectionSettings) private var openSettings
 
     var body: some View {
-        if freshness.isPending {
-            PendingStateView(
-                title: String(localized: "Waiting for panel updates…"),
-                detail: String(localized: "Current panel data has not arrived. Retry or check Settings."),
-                onRetry: retry, onSettings: openSettings
-            )
-        }
+        CompactRefreshNotice(isRefreshing: freshness.isPending,
+                             title: String(localized: "Waiting for panel updates…"), onRetry: retry)
     }
 }

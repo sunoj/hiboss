@@ -56,6 +56,25 @@ final class BossClientsStoreTests: XCTestCase {
         XCTAssertNotNil(store.error)
     }
 
+    func testInventoryReadKeepsWritesEnabledAndPreviousErrorVisible() async throws {
+        let api = try InventoryAPI()
+        let store = BossClientsStore(api: api)
+        await store.load()
+        await api.failListing()
+        await store.load()
+        let previous = store.clients
+        let error = store.error
+        await api.holdListing()
+        let read = Task { await store.load() }
+        await api.waitForListing()
+        XCTAssertFalse(store.isBusy, "Only writes make the inventory controls busy")
+        XCTAssertEqual(store.clients, previous)
+        XCTAssertEqual(store.error, error)
+        XCTAssertTrue(store.needsRegistration(kind: .macos))
+        await api.releaseListing()
+        await read.value
+    }
+
     func testLoadFailureCanBeRetried() async throws {
         let api = try InventoryAPI()
         await api.failListing()
@@ -75,9 +94,25 @@ private actor InventoryAPI: BossClientsServing {
     private var listingFails = false
     private var revocationFails = false
     var revokedIDs: [BossClientID] = []
+    private var hold = false
+    private var held: CheckedContinuation<Void, Never>?
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    func holdListing() { hold = true }
+    func waitForListing() async {
+        if held != nil { return }
+        await withCheckedContinuation { waiter = $0 }
+    }
+    func releaseListing() {
+        held?.resume()
+        held = nil
+    }
+
 
     init() throws {
-        let json = #"{"id":"other","kind":"ios","label":"Phone","created_at":"2026-09-11 10:00:00","last_seen_at":null,"revoked_at":null,"has_push_device":true,"has_signing_key":true,"is_current":false}"#
+        let json = #"{"id":"other","kind":"ios","label":"Phone","created_at":"2026-09-11 10:00:00","#
+            + #""last_seen_at":null,"revoked_at":null,"has_push_device":true,"#
+            + #""has_signing_key":true,"is_current":false}"#
         let current = json.replacingOccurrences(of: "other", with: "current")
             .replacingOccurrences(of: "\"is_current\":false", with: "\"is_current\":true")
         let revoked = json.replacingOccurrences(of: "other", with: "revoked")
@@ -95,6 +130,14 @@ private actor InventoryAPI: BossClientsServing {
         throw HibossAPIError.invalidResponse
     }
     func listClients() async throws -> [BossClient] {
+        if hold {
+            hold = false
+            await withCheckedContinuation {
+                held = $0
+                waiter?.resume()
+                waiter = nil
+            }
+        }
         if listingFails { throw HibossAPIError.invalidResponse }
         return clients
     }

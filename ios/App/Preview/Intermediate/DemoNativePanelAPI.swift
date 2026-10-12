@@ -18,6 +18,8 @@ enum DemoPanelServices {
 actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "native-demo-\(UUID().uuidString)"
     private var submission: QuestionnaireSubmission?
+    private let started = Date()
+    private var questionReads = 0
     private var preference = PanelPreference.automatic
 
     init() {
@@ -29,6 +31,7 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
     }
 
     func fetchPanels() async throws -> [PanelMetadata] {
+        if Date().timeIntervalSince(started) > 5 { try await DemoDelay.wait("REFRESH") }
         try await DemoDelay.wait("PANELS")
         var metadata: PanelMetadata = try decode(Self.panelJSON)
         metadata.preference = preference
@@ -55,7 +58,8 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
 
     func fetchPendingQuestionnaires() async throws -> [PendingQuestionnaire] {
         try await DemoDelay.wait("QUESTIONNAIRES")
-        guard submission == nil else { return [] }
+        guard submission == nil,
+              ProcessInfo.processInfo.environment["HIBOSS_DEMO_REQUESTS_EMPTY"] != "1" else { return [] }
         return [try decode("""
         {"requestId":"demo-intake","panelId":"demo-panel","requestRevision":1,
          "title":"Release checklist","blocking":true,"createdAt":"2026-10-07T00:00:00Z"}
@@ -63,6 +67,8 @@ actor DemoNativePanelAPI: PanelsServing, QuestionnaireServing {
     }
 
     func fetchQuestionnaires(panelID: String) async throws -> [QuestionnaireRecord] {
+        questionReads += 1
+        if questionReads > 1 { try await DemoDelay.wait("REFRESH") }
         try await DemoDelay.wait("QUESTIONS")
         return [try await fetchQuestionnaire("demo-intake")]
     }

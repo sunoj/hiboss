@@ -15,7 +15,7 @@ final class InboxStore: ObservableObject {
     @Published var history: [HistoryMessage] = []
     @Published var requiredInputs: [HistoryMessage] = []
     @Published var requiredInputError: String?
-    /// The last list remains authoritative during refreshes and up to 30 seconds of stream downtime.
+    /// A completed result stays rendered until replacement or an account/authorization boundary.
     @Published var requiredInputLoaded = false
     @Published var requiredInputRefreshing = false
     @Published var requiredInputReady = false
@@ -133,6 +133,13 @@ final class InboxStore: ObservableObject {
         refreshHistory()
     }
 
+    func rejectAuthorization(_ error: Error) {
+        stop()
+        connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
+        requiredInputError = error.localizedDescription
+        loadError = error.localizedDescription
+    }
+
     func stop() {
         agentAvatars.disconnect()
         streamTask?.cancel()
@@ -184,7 +191,7 @@ final class InboxStore: ObservableObject {
     private func consume(_ api: any BossServing) async {
         var failures = 0
         while !Task.isCancelled {
-            connectionState = .connecting
+            if connectionState != .connected { connectionState = .connecting }
             let stream = await api.messageStream()
             connectionState = .connected
             agentAvatars.refresh()
@@ -199,7 +206,7 @@ final class InboxStore: ObservableObject {
                 if (error as? HibossAPIError)?.isAuthFailure == true {
                     // A rejected token won't fix itself — stop reconnecting and
                     // surface it instead of retrying forever every few seconds.
-                    connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
+                    rejectAuthorization(error)
                     return
                 }
                 connectionState = .failed(error.localizedDescription)

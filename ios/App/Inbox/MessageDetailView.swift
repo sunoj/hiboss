@@ -72,6 +72,9 @@ struct MessageDetailView: View {
             }
             .accessibilityIdentifier("decision-detail")
             .background(Theme.paper)
+            .onChange(of: message, initial: true) { _, current in
+                store.retainOpenMessage(current)
+            }
             .task(id: message.sessionId) {
                 if let id = message.sessionId {
                     await facts.load(id: id, api: store.api as? any SessionsServing)
@@ -151,12 +154,18 @@ struct MessageDetailView: View {
             )
             if !message.options.isEmpty {
                 DecisionOptions(options: message.options, timing: timing,
-                                submitting: submitting, fullWidth: true) {
+                                submitting: submitting,
+                                locksControls: store.replyGate.locksControls(for: message.id),
+                                fullWidth: true) {
                     submit($0, for: message.id)
                 }
             }
             replyField(for: message)
-            if submitting != nil { ReplyPendingNote(onSettings: openSettings) }
+            if store.replyGate.verificationTimedOut.contains(message.id) {
+                Text("This is taking longer than expected.").font(.footnote).foregroundStyle(Theme.ink2)
+            } else if submitting != nil && !store.replyGate.verifying.contains(message.id) {
+                ReplyPendingNote(onSettings: openSettings)
+            }
         }
     }
 
@@ -191,13 +200,14 @@ struct MessageDetailView: View {
                 .frame(minHeight: 44)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             Button { submit(replyDraft, for: message.id) } label: {
-                HStack {
-                    Text("Send")
-                    if submitting != nil { DelayedProgressView() }
-                }.frame(minWidth: 44, minHeight: 44)
+                Text("Send").opacity(submitting == nil ? 1 : 0)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .overlay { if submitting != nil { DelayedProgressView() } }
+                    .accessibilityLabel("Send")
             }
             .buttonStyle(.bordered)
-            .disabled(submitting != nil || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(store.replyGate.locksControls(for: message.id)
+                      || replyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 

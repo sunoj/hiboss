@@ -13,12 +13,19 @@ public struct PanelWallFilter: View {
                 picker.pickerStyle(.segmented).fixedSize(horizontal: true, vertical: false)
                 picker.pickerStyle(.menu)
             }
+            #if os(iOS)
+            NativeRefreshStatus(isRefreshing: model.isLoadingQuestions,
+                                error: model.questionnaireError, title: kitL("Loading questions…"),
+                                retry: { await model.refreshPendingQuestionnaires() })
+            #else
             if let error = model.questionnaireError {
-                Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark").foregroundStyle(.orange)
+                Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark")
+                    .foregroundStyle(.orange)
                 Text(verbatim: error).font(.caption).foregroundStyle(.secondary)
                 Button(kitL("Retry questions")) { Task { await model.refreshPendingQuestionnaires() } }
                     .disabled(model.isLoadingQuestions && !model.didLoadQuestionnaires)
             }
+            #endif
             if let error = model.preferenceError {
                 Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
             }
@@ -28,7 +35,7 @@ public struct PanelWallFilter: View {
     private var picker: some View {
         Picker(kitL("Panels"), selection: $model.section) {
             ForEach(PanelWallSection.allCases) { section in Text(verbatim: title(section)).tag(section) }
-        }
+        }.accessibilityIdentifier("panel-wall-filter")
     }
 
     private func title(_ section: PanelWallSection) -> String {
@@ -50,9 +57,11 @@ public struct PanelWallEmptyState: View {
                 && !model.didLoadQuestionnaires {
                 ProgressView(kitL("Loading questions…"))
             } else {
-                Label(title, systemImage: model.section == .needsInput ? "text.bubble" : "rectangle.stack").font(.headline)
+                Label(title, systemImage: model.section == .needsInput ? "text.bubble" : "rectangle.stack")
+                    .font(.headline)
                 Text(verbatim: message).font(.callout).foregroundStyle(.secondary)
                 Button(kitL("Refresh")) { Task { await model.load() } }.disabled(model.isLoading)
+                    .accessibilityIdentifier("panel-wall-refresh")
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -81,12 +90,16 @@ public struct PanelLifecycleMenu: View {
     public var body: some View {
         if tile.metadata != nil {
             Button(tile.preference.placement == .pinned ? kitL("Unpin") : kitL("Pin"), systemImage: "pin") {
-                Task { await model.setPreference(tile, placement: tile.preference.placement == .pinned ? .automatic : .pinned) }
+                Task { await model.setPreference(tile, placement: tile.preference.placement == .pinned
+                    ? .automatic : .pinned) }
             }
-            Button(tile.preference.placement == .archived ? kitL("Restore") : kitL("Archive"), systemImage: "archivebox") {
-                Task { await model.setPreference(tile, placement: tile.preference.placement == .archived ? .automatic : .archived) }
+            Button(tile.preference.placement == .archived
+                ? kitL("Restore") : kitL("Archive"), systemImage: "archivebox") {
+                Task { await model.setPreference(tile, placement: tile.preference.placement == .archived
+                    ? .automatic : .archived) }
             }
-            if tile.lifecycle.taskState.isTerminal, tile.preference.acknowledgedTerminalVersion != tile.metadata?.metadataVersion {
+            if tile.lifecycle.taskState.isTerminal,
+               tile.preference.acknowledgedTerminalVersion != tile.metadata?.metadataVersion {
                 Button(kitL("Acknowledge result"), systemImage: "checkmark.circle") {
                     Task { await model.setPreference(tile, acknowledge: true) }
                 }
@@ -101,8 +114,12 @@ public struct PanelOutcomeView: View {
         if let result = tile.lifecycle.result {
             VStack(alignment: .leading, spacing: 6) {
                 Label(result.title, systemImage: tile.lifecycle.taskState.symbol).font(.headline)
-                if let message = result.message { Text(verbatim: message).font(.callout).foregroundStyle(.secondary) }
-                if let date = panelDate(tile.lifecycle.terminalAt) { Text(date, style: .date).font(.caption).foregroundStyle(.secondary) }
+                if let message = result.message {
+                    Text(verbatim: message).font(.callout).foregroundStyle(.secondary)
+                }
+                if let date = panelDate(tile.lifecycle.terminalAt) {
+                    Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
     }

@@ -12,7 +12,11 @@ struct PreferencesFeedbackSection: View {
 
     var body: some View {
         Section {
-            if store.isSaving {
+            if store.hasLoaded {
+                CompactRefreshNotice(isRefreshing: store.isRefreshing, error: cachedError,
+                                     title: String(localized: "Loading preferences…"),
+                                     onRetry: retry, retryIdentifier: "settings-preferences-retry")
+            } else if store.isSaving {
                 EmptyView()
             } else if store.state == .loading || store.state == .idle {
                 SettingsWaitView(title: "Loading preferences…", actionTitle: "Go Back") { dismiss() }
@@ -37,6 +41,18 @@ struct PreferencesFeedbackSection: View {
                     .accessibilityIdentifier("settings-preferences-saved")
             }
         }
+    }
+
+    private var cachedError: String? {
+        if case let .failed(message) = store.state { return message }
+        if store.isDirty { return String(localized: "Unsaved changes") }
+        if store.didSave { return String(localized: "Changes saved") }
+        return nil
+    }
+
+    private func retry() async {
+        if store.isDirty { await store.save() }
+        else { await store.load(api: api) }
     }
 }
 

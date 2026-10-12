@@ -136,7 +136,6 @@ public final class SessionStreamStore: ObservableObject {
         isBackfilling = false
         let generation = loadGeneration
         isLoading = true
-        loadError = nil
         if reason == .resync { needsResyncNotice = true }
         defer { if generation == loadGeneration { isLoading = false } }
         do {
@@ -145,6 +144,7 @@ public final class SessionStreamStore: ObservableObject {
             knownIDs = Set(loaded.map(\.id))
             let window = Array(loaded.suffix(maxWindow))
             events = window
+            loadError = nil
             hasEarlier = loaded.count > window.count || (window.first?.sequence ?? 1) > 1
             lastAppliedSequence = window.last?.sequence ?? -1
             isFollowingLive = true

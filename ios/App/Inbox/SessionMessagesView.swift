@@ -130,19 +130,9 @@ struct SessionMessagesView: View {
             emptyDetail: String(localized: "This session has no transcript events yet."),
             loadingTitle: String(localized: "Loading transcript…"),
             hasLoaded: hasLoaded,
+            reconnecting: !stream.usesHistory && stream.connectionState != .connected,
             onRetry: { await stream.refresh() }
         ) { transcript }
-        .safeAreaInset(edge: .bottom) {
-            if !stream.usesHistory, hasLoaded, stream.loadError == nil,
-               stream.connectionState != .connected {
-                PendingStateView(
-                    title: stream.events.isEmpty ? String(localized: "Reconnecting transcript.")
-                        : String(localized: "Reconnecting transcript. Showing earlier events."),
-                    isFailure: stream.connectionState.detail != nil,
-                    onRetry: { await stream.refresh() }
-                ).padding(12).background(.bar)
-            }
-        }
     }
 
     private var transcript: some View {

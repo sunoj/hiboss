@@ -15,6 +15,8 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     private var heldResponse: [HistoryMessage] = []
     private var response: [HistoryMessage] = []
     private var fail = false
+    private var failureStatus = 503
+    private(set) var replyAttempts = 0
     private var heldReply: CheckedContinuation<ReplyOutcome, Never>?
     private var replyWaiter: CheckedContinuation<Void, Never>?
 
@@ -39,7 +41,10 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
 
     func setResponse(_ messages: [HistoryMessage]) { response = messages }
     func endMessageStreamsCleanly() { messageStreamEndsCleanly = true }
-    func failNextFetch() { fail = true }
+    func failNextFetch(status: Int = 503) {
+        fail = true
+        failureStatus = status
+    }
 
     func waitForStream(_ index: Int) async {
         if streams.count > index { return }
@@ -98,7 +103,7 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
         }
         if fail {
             fail = false
-            throw HibossAPIError.requestFailed(status: 503, message: "Unavailable")
+            throw HibossAPIError.requestFailed(status: failureStatus, message: "Unavailable")
         }
         return response
     }
@@ -145,7 +150,8 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     }
 
     func reply(to id: MessageID, with choice: String) async throws -> ReplyOutcome {
-        await withCheckedContinuation {
+        replyAttempts += 1
+        return await withCheckedContinuation {
             heldReply = $0
             replyWaiter?.resume()
             replyWaiter = nil

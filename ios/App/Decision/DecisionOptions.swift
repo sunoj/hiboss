@@ -9,6 +9,7 @@ struct DecisionOptions: View {
     let options: [String]
     let timing: DecisionTiming
     var submitting: String?
+    var locksControls = true
     var wrapsToFit = false
     var fullWidth = false
     let onChoose: (String) -> Void
@@ -51,20 +52,20 @@ struct DecisionOptions: View {
                     }
             }
         }
-        .disabled(submitting != nil)
+        .disabled(submitting != nil && locksControls)
     }
 
     private func label(_ option: String, alignment: Alignment) -> some View {
-        HStack(spacing: 8) {
-            // Agent-authored text: shown verbatim, never looked up in the catalog.
-            Text(verbatim: option)
-                .multilineTextAlignment(alignment == .leading ? .leading : .center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: alignment)
-            if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) {
-                DelayedProgressView(tint: option == options.first ? Theme.onAccent : Theme.ink)
+        Text(verbatim: option)
+            .multilineTextAlignment(alignment == .leading ? .leading : .center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: alignment)
+            .padding(.horizontal, 20)
+            .overlay(alignment: .trailing) {
+                if submitting == option.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    DelayedProgressView(tint: option == options.first ? Theme.onAccent : Theme.ink)
+                }
             }
-        }
         .frame(minWidth: 44, minHeight: 44)
         .frame(maxHeight: alignment == .center ? .infinity : nil)
     }

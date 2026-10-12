@@ -24,7 +24,7 @@ struct HomePanelWall: View {
             PanelWallFilter(model: model)
             if !model.visibleTiles.isEmpty {
                 wall
-            } else if model.isLoading {
+            } else if model.isLoading && !model.didLoadPanels {
                 PendingStateView(title: String(localized: "Loading panels…"),
                                  onRetry: { await model.retryLoading() })
             } else {

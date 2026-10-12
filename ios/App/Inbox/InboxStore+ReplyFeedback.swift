@@ -22,7 +22,10 @@ extension InboxStore {
             return state == .closed ? .alreadyResolved : .failed
         }
         let epoch = requiredEpoch
-        let submission = await replyGate.submit(choice, to: id, via: api, answerability: state)
+        let confirmed = hasCompleteRequiredInputs
+        let submission = await replyGate.submit(choice, to: id, via: api,
+                                                answerability: confirmed ? state : nil,
+                                                onAuthorizationFailure: rejectAuthorization)
         // Signed out or switched account while in flight: report, but touch no new state.
         guard epoch == requiredEpoch else { return ReplyResult(submission) }
         switch submission {

@@ -220,6 +220,7 @@ final class DecisionConflictTests: XCTestCase {
         store.history = [decision, other]
         store.requiredInputs = [decision, other]
         store.requiredInputLoaded = true
+        store.requiredInputReady = true
         XCTAssertEqual(store.answerability(for: decision.id), .open)
         let result = await store.reply("Yes", to: decision.id)
         XCTAssertEqual(result, .alreadyResolved)
@@ -230,6 +231,7 @@ final class DecisionConflictTests: XCTestCase {
         await store.refresh()
         store.requiredInputs = [decision, other]
         store.requiredInputLoaded = true
+        store.requiredInputReady = true
         XCTAssertEqual(store.answerability(for: decision.id), .closed, "a stale snapshot cannot reopen it")
     }
 }
