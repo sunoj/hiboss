@@ -1,4 +1,4 @@
-// Search and author/kind filters shared by the Box grid and reference picker.
+// Independent search, author and kind filters for the Box browser and reference picker.
 // Exports BoxFilter and BoxFilterChips; filters preserve the server's item order.
 // Dependencies: SwiftUI, HibossKit BoxItem, and localized kind labels.
 
@@ -6,37 +6,57 @@ import HibossKit
 import SwiftUI
 
 enum BoxFilter: String, CaseIterable {
-    case all, mine, agents, link, text, image, video, file
+    case all, link, text, image, video, file
 
     var title: String {
         switch self {
         case .all: String(localized: "All")
-        case .mine: String(localized: "From me")
-        case .agents: String(localized: "From agents")
-        case .link: String(localized: "Link")
+        case .link: String(localized: "Links")
         case .text: String(localized: "Text")
-        case .image: String(localized: "Image")
-        case .video: String(localized: "Video")
-        case .file: String(localized: "File")
+        case .image: String(localized: "Images")
+        case .video: String(localized: "Videos")
+        case .file: String(localized: "Files")
         }
     }
 
-    func matches(_ item: BoxItem, search: String) -> Bool {
-        let kindMatches: Bool
-        switch self {
-        case .all: kindMatches = true
-        case .mine: kindMatches = item.author.isBoss
-        case .agents: kindMatches = !item.author.isBoss
-        default: kindMatches = item.kind.rawValue == rawValue
-        }
+    var isMedia: Bool { self == .image || self == .video }
+
+    func matches(_ item: BoxItem, search: String, author: BoxAuthorFilter = .all) -> Bool {
+        let kindMatches = self == .all || item.kind.rawValue == rawValue
         let terms = [item.text, item.url, item.note, item.project, item.provenanceLabel]
             .compactMap { $0 }.joined(separator: " ") + " " + item.tags.joined(separator: " ")
-        return kindMatches && (search.isEmpty || terms.localizedCaseInsensitiveContains(search))
+        return kindMatches && author.matches(item) &&
+            (search.isEmpty || terms.localizedCaseInsensitiveContains(search))
+    }
+}
+
+enum BoxAuthorFilter: String, CaseIterable {
+    case all, mine, agents
+
+    var title: String {
+        switch self {
+        case .all: String(localized: "All")
+        case .mine: String(localized: "Me")
+        case .agents: String(localized: "Agents")
+        }
+    }
+
+    func matches(_ item: BoxItem) -> Bool {
+        self == .all || (self == .mine ? item.author.isBoss : !item.author.isBoss)
+    }
+}
+
+enum BoxListStyle: String, CaseIterable {
+    case list, cards
+
+    var title: String {
+        self == .list ? String(localized: "List") : String(localized: "Cards")
     }
 }
 
 struct BoxFilterChips: View {
     @Binding var selection: BoxFilter
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -50,16 +70,21 @@ struct BoxFilterChips: View {
             .padding(.horizontal, 16)
         }
         .scrollIndicators(.hidden)
+        .frame(height: textSize.isAccessibilitySize ? 88 : 64)
     }
 
     @ViewBuilder private func chip(_ filter: BoxFilter) -> some View {
         let button = Button { selection = filter } label: {
-            Text(verbatim: filter.title).font(.subheadline).frame(minHeight: 44)
+            Text(verbatim: filter.title).font(.subheadline)
         }
         if selection == filter {
-            button.prominentAction().tint(Theme.primaryAction)
+            button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                .controlSize(.small).tint(Theme.primaryAction)
+                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         } else {
             button.buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Theme.ink2)
+                .controlSize(.small)
+                .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
         }
     }
 }

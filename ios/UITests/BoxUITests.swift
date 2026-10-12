@@ -20,19 +20,20 @@ final class BoxUITests: XCTestCase {
     func testAgentProvenanceAppearsInRowAndDetailWhileBossItemsHaveNoBadge() {
         let agent = app.buttons["box-item-demo-agent-text"]
         XCTAssertTrue(agent.waitForExistence(timeout: 10))
-        XCTAssertTrue(agent.staticTexts["Added by Researcher"].exists)
+        XCTAssertTrue(agent.label.contains("Agents · Researcher"))
         XCTAssertTrue(app.buttons["box-item-demo-image"].exists)
         XCTAssertFalse(app.buttons["box-item-demo-image"].staticTexts
-            .matching(NSPredicate(format: "label BEGINSWITH 'Added by'")).firstMatch.exists)
+            .matching(NSPredicate(format: "label BEGINSWITH 'Agents'")).firstMatch.exists)
         screenshot("box-agent-provenance-list")
         agent.tap()
-        XCTAssertTrue(app.staticTexts["Added by Researcher"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS %@", "Agents · Researcher")).firstMatch.waitForExistence(timeout: 5))
         screenshot("box-agent-provenance-detail")
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["box-item-demo-text"].tap()
-        XCTAssertTrue(app.staticTexts["A passage to keep"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["A passage to keep"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts.matching(
-            NSPredicate(format: "label BEGINSWITH 'Added by'")).firstMatch.exists)
+            NSPredicate(format: "label BEGINSWITH 'Agents'")).firstMatch.exists)
     }
 
     func testBoxListOpensImageVideoAndSelectableTextThenDeletes() {
@@ -42,25 +43,27 @@ final class BoxUITests: XCTestCase {
         screenshot("box-segment")
         image.tap()
         XCTAssertTrue(app.buttons["Close"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.images["Layout reference"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.images["media-viewer-image"].waitForExistence(timeout: 10))
         assertMediaPinchZoom(app)
         screenshot("box-image-viewer")
         app.buttons["Close"].tap()
         let text = app.buttons["box-item-demo-text"]
         XCTAssertTrue(text.waitForExistence(timeout: 5))
         text.tap()
-        XCTAssertTrue(app.staticTexts["A passage to keep"].waitForExistence(timeout: 5))
-        app.staticTexts["A passage to keep"].press(forDuration: 1)
+        XCTAssertTrue(app.staticTexts["A passage to keep"].firstMatch.waitForExistence(timeout: 5))
+        app.staticTexts["A passage to keep"].firstMatch.press(forDuration: 1)
         XCTAssertTrue(app.menuItems["Copy"].waitForExistence(timeout: 5))
         app.navigationBars.buttons.firstMatch.tap()
         let video = app.buttons["box-item-demo-video"]
         XCTAssertTrue(video.waitForExistence(timeout: 5))
         video.tap()
-        XCTAssertTrue(app.buttons["Unmute"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["media-viewer-video"].waitForExistence(timeout: 10))
         screenshot("box-video-viewer")
         app.buttons["Close"].tap()
         text.press(forDuration: 1)
         app.buttons["Delete"].tap()
+        XCTAssertTrue(app.alerts["Delete A passage to keep?"].waitForExistence(timeout: 5))
+        app.alerts.buttons["Delete"].tap()
         XCTAssertTrue(text.waitForNonExistence(timeout: 5))
         screenshot("box-after-delete")
     }
@@ -84,15 +87,19 @@ final class BoxUITests: XCTestCase {
         for _ in 0..<4 where !file.isHittable { app.swipeUp() }
         XCTAssertTrue(file.waitForExistence(timeout: 5))
         XCTAssertTrue(file.staticTexts["Reference.txt"].exists)
-        XCTAssertTrue(file.staticTexts["23 bytes"].exists)
+        XCTAssertTrue(file.label.contains("23 bytes"))
         screenshot("box-file-row")
         file.tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        let open = app.buttons["Open file"]
+        for _ in 0..<6 where !open.isHittable { app.swipeUp() }
+        open.tap()
         let close = app.buttons["QLOverlayDoneButtonAccessibilityIdentifier"]
         XCTAssertTrue(close.waitForExistence(timeout: 10))
         XCTAssertTrue(app.textViews["A saved reference file."].waitForExistence(timeout: 5))
         screenshot("box-file-preview")
         close.tap()
-        XCTAssertTrue(app.scrollViews["box-text-detail"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
     }
 
     func testFileWithoutQuickLookPreviewOpensNativeShareSheet() {
@@ -105,6 +112,10 @@ final class BoxUITests: XCTestCase {
         for _ in 0..<4 where !file.isHittable { app.swipeUp() }
         XCTAssertTrue(file.waitForExistence(timeout: 5))
         file.tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        let open = app.buttons["Open file"]
+        for _ in 0..<6 where !open.isHittable { app.swipeUp() }
+        open.tap()
         XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.cells["Save to Files"].exists)
         screenshot("box-file-share-sheet")

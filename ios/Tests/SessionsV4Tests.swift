@@ -182,12 +182,15 @@ final class SessionsV4Tests: XCTestCase {
                             createdAt: "", addedBy: .agent(id: "worker", name: "Researcher"))
         let boss = BoxItem(id: "mine", bossID: "boss", bossName: "Boss", kind: .image, text: "Reference",
                            createdAt: "")
-        XCTAssertTrue(BoxFilter.agents.matches(agent, search: "researcher"))
-        XCTAssertFalse(BoxFilter.mine.matches(agent, search: ""))
-        XCTAssertTrue(BoxFilter.mine.matches(boss, search: "reference"))
-        XCTAssertFalse(BoxFilter.agents.matches(boss, search: ""))
+        XCTAssertTrue(BoxFilter.all.matches(agent, search: "researcher", author: .agents))
+        XCTAssertFalse(BoxFilter.all.matches(agent, search: "", author: .mine))
+        XCTAssertTrue(BoxFilter.all.matches(boss, search: "reference", author: .mine))
+        XCTAssertFalse(BoxFilter.all.matches(boss, search: "", author: .agents))
         XCTAssertTrue(BoxFilter.image.matches(boss, search: ""))
         XCTAssertFalse(BoxFilter.image.matches(agent, search: ""))
+        XCTAssertTrue(BoxFilter.image.matches(boss, search: "", author: .mine))
+        XCTAssertFalse(BoxFilter.image.matches(boss, search: "", author: .agents))
+        XCTAssertFalse(BoxFilter.text.matches(agent, search: "absent", author: .agents))
     }
 
     func testBoxSearchMatchesNotesProjectsTagsAndLinks() {

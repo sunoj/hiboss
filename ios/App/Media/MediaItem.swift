@@ -7,7 +7,7 @@ import Foundation
 struct MediaItem: Identifiable {
     enum Kind { case image, video }
 
-    let id = UUID().uuidString
+    var id = UUID().uuidString
     let url: URL
     let kind: Kind
     var title: String? = nil

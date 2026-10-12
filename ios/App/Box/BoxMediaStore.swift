@@ -32,7 +32,7 @@ final class BoxMediaStore: ObservableObject {
     init(api: (any BoxServing)?) { self.api = api }
 
     func load(_ item: BoxItem) async {
-        guard item.hasMedia, resources[item.id] == nil else { return }
+        guard item.hasMedia, resources[item.id] == nil, errors[item.id] == nil else { return }
         if let task = tasks[item.id] { await task.value; return }
         let task = Task { await download(item) }
         tasks[item.id] = task

@@ -300,6 +300,13 @@
 		FDC1A3BF9198781209569CBD /* MediaViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49449666C6AFCAB96F2C45DB /* MediaViewerUITests.swift */; };
 		EF1635BF8B9EC084D3EFECCF /* MediaMarkdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BFCA6BEAB6F043DC68B566F /* MediaMarkdownTests.swift */; };
 		D3B2472F9FD67481CA4AEF66 /* MediaFileKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EEF544B394637179D54DFEC /* MediaFileKind.swift */; };
+		3B13E00BF3F1DAAD7B69B648 /* BoxActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2A6DE2CE09E98681F3A48C /* BoxActions.swift */; };
+		3B3627494D8412801F3A7E09 /* BoxCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C9DE080C3C900A3BE7BB557 /* BoxCollection.swift */; };
+		A943C03F8239819D35163CEE /* BoxMediaDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50AEC78E5D68CD32232D8548 /* BoxMediaDetail.swift */; };
+		27269733A05C5E25F89AD201 /* BoxPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C6F47A3C0C456F8365E5243 /* BoxPresentation.swift */; };
+		6514042EBA968525E3FF42DE /* MediaSystemVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5632D73951644987EB0DF504 /* MediaSystemVideo.swift */; };
+		7AA79A01949FC0B7745CC6AB /* BoxV2UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19AC4603BD165567EB538DED /* BoxV2UITests.swift */; };
+		AA5FCAC092F844B5579F94C7 /* BoxV2CaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43FE3235E8809F682175990 /* BoxV2CaptureUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -642,6 +649,13 @@
 		49449666C6AFCAB96F2C45DB /* MediaViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaViewerUITests.swift; sourceTree = "<group>"; };
 		3BFCA6BEAB6F043DC68B566F /* MediaMarkdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaMarkdownTests.swift; sourceTree = "<group>"; };
 		2EEF544B394637179D54DFEC /* MediaFileKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFileKind.swift; sourceTree = "<group>"; };
+		BD2A6DE2CE09E98681F3A48C /* BoxActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxActions.swift; sourceTree = "<group>"; };
+		9C9DE080C3C900A3BE7BB557 /* BoxCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxCollection.swift; sourceTree = "<group>"; };
+		50AEC78E5D68CD32232D8548 /* BoxMediaDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxMediaDetail.swift; sourceTree = "<group>"; };
+		3C6F47A3C0C456F8365E5243 /* BoxPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxPresentation.swift; sourceTree = "<group>"; };
+		5632D73951644987EB0DF504 /* MediaSystemVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaSystemVideo.swift; sourceTree = "<group>"; };
+		19AC4603BD165567EB538DED /* BoxV2UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxV2UITests.swift; sourceTree = "<group>"; };
+		A43FE3235E8809F682175990 /* BoxV2CaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxV2CaptureUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -859,6 +873,8 @@
 			children = (
 				943E9189437FDAC2704D1C1F /* ActivityNavigationUITests.swift */,
 				571323C46976EF02180CACDE /* BoxUITests.swift */,
+				A43FE3235E8809F682175990 /* BoxV2CaptureUITests.swift */,
+				19AC4603BD165567EB538DED /* BoxV2UITests.swift */,
 				EDDC470231CF4C5E99372E9B /* BrandIconUITests.swift */,
 				049A5D6AF53C15F67170121C /* DecisionStateUITests.swift */,
 				D4CA44EC297641F85A330F02 /* DemoLaunchSupport.swift */,
@@ -1094,6 +1110,10 @@
 				0ECC13C2AAA43AAA6E3B4BCC /* BoxListView.swift */,
 				8334DC61942D00633E145ABD /* BoxMediaStore.swift */,
 				E89B6587EB00400B11FDB4BD /* BoxRow.swift */,
+				3C6F47A3C0C456F8365E5243 /* BoxPresentation.swift */,
+				50AEC78E5D68CD32232D8548 /* BoxMediaDetail.swift */,
+				9C9DE080C3C900A3BE7BB557 /* BoxCollection.swift */,
+				BD2A6DE2CE09E98681F3A48C /* BoxActions.swift */,
 				E93B5A23376647B22F7EEEB1 /* BoxStore.swift */,
 			);
 			path = Box;
@@ -1244,6 +1264,7 @@
 				C92C4156E7627C86F0C10ED6 /* MediaShareStore.swift */,
 				DD336BA3B7007A0B19207656 /* MediaSwipeDismiss.swift */,
 				0F0055CA35F82569DEFFEE33 /* MediaViewer.swift */,
+				5632D73951644987EB0DF504 /* MediaSystemVideo.swift */,
 				CCAF1F8FA1CBE5B516D462F4 /* MediaZoomView.swift */,
 			);
 			path = Media;
@@ -1562,6 +1583,8 @@
 			files = (
 				77C522C416C1D6A71B57C264 /* ActivityNavigationUITests.swift in Sources */,
 				6F144382F69D150604BE4CC5 /* BoxUITests.swift in Sources */,
+				AA5FCAC092F844B5579F94C7 /* BoxV2CaptureUITests.swift in Sources */,
+				7AA79A01949FC0B7745CC6AB /* BoxV2UITests.swift in Sources */,
 				717D5351FDAD8F1503C25D07 /* BrandIconUITests.swift in Sources */,
 				5F8D974226A18F3BCE99BC7A /* DecisionStateUITests.swift in Sources */,
 				C1B14ACF73F1B33DD53A84C9 /* DemoLaunchSupport.swift in Sources */,
@@ -1612,6 +1635,10 @@
 				2B16A936396ACA77578AB532 /* BoxListView.swift in Sources */,
 				E93C64DA3E852BED8095A21D /* BoxMediaStore.swift in Sources */,
 				5982E40B392ED8D9F45A0F56 /* BoxRow.swift in Sources */,
+				27269733A05C5E25F89AD201 /* BoxPresentation.swift in Sources */,
+				A943C03F8239819D35163CEE /* BoxMediaDetail.swift in Sources */,
+				3B3627494D8412801F3A7E09 /* BoxCollection.swift in Sources */,
+				3B13E00BF3F1DAAD7B69B648 /* BoxActions.swift in Sources */,
 				107DCEBC92D7EBCA5D310F93 /* BoxStore.swift in Sources */,
 				86203834974A33A8C0E3584B /* ConnectView.swift in Sources */,
 				87FD3326164B10CB6D44CB92 /* ConnectedPanelsStore.swift in Sources */,
@@ -1703,6 +1730,7 @@
 				B802594AE8424CAB6717EA17 /* ProgressMediaView.swift in Sources */,
 				D3B2472F9FD67481CA4AEF66 /* MediaFileKind.swift in Sources */,
 				E08B2758EE7D46B2F408F5EF /* MediaViewer.swift in Sources */,
+				6514042EBA968525E3FF42DE /* MediaSystemVideo.swift in Sources */,
 				32AF836F725F641E0FE8F2DC /* MediaMarkdownView.swift in Sources */,
 				E2237AFCFB7FE010921BDF04 /* MediaMarkdown.swift in Sources */,
 				DDADA7CD297E2A5680FE9929 /* MediaShareStore.swift in Sources */,
