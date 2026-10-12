@@ -199,16 +199,18 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 
 ### iOS verification tiers
 
-Run the checks the change can break. A full iOS unit and UI run takes about 15 minutes
-on a simulator, so pick the tier from the changed paths:
+Run the checks the change can break. A full iOS unit and UI run takes 15–85 minutes on a
+simulator and mostly surfaces simulator faults, so it is reserved for T5. Pick the tier from
+the changed paths:
 
 | Tier | Change | Checks |
 |---|---|---|
 | T0 | Docs, comments, or string copy only | `python3 ios/scripts/i18n-audit.py`; no build |
 | T1 | Non-UI logic in one type (store, model, ranking) | The focused unit test fails before the fix and passes after it; then the `HiBossTests` target |
 | T2 | One screen's views | Build, `HiBossTests`, the UI test classes for that screen, and a simulator screenshot of the screen |
-| T3 | Shared components, navigation, deep links, demo routing, `project.yml`, or `HibossKit/` | One full unit and UI run on the final commit, skipping only `UXTourUITests`; `cd macos && swift build` when `HibossKit/` changed |
-| T4 | A merge into `main` of branches that touch shared files (for example `Localizable.xcstrings` or `project.pbxproj`) | One full run on `main` after the merge |
+| T3 | Shared components, navigation, deep links, demo routing, `project.yml`, or `HibossKit/` | Build, `HiBossTests`, and the UI test classes that exercise the changed component (find them by searching the UI tests for its screens and accessibility identifiers); `cd macos && swift build` when `HibossKit/` changed |
+| T4 | A merge into `main` | No full run. Build and `HiBossTests` on `main` when the merge resolved conflicts in shared or generated files (`Localizable.xcstrings`, `project.pbxproj`); otherwise nothing beyond the branches' own evidence |
+| T5 | A release (TestFlight/App Store), or the boss asks for it | One full unit and UI run, skipping only `UXTourUITests`, at most once per batch of merges |
 | — | A device install of a commit that was already tested | Build only |
 
 - Iterate on the focused tests and run the tier's suites once, on the final commit.
@@ -220,6 +222,19 @@ on a simulator, so pick the tier from the changed paths:
 - Concurrent runs on one Mac use different simulators.
 - UI tests launch through `app.launchConfiguredDemo()`, because a cold simulator launch
   can drop the demo environment.
+- Save test output to a file on the first run (`| tee <log>`); never rerun a suite only to
+  recover its counts.
+
+### macOS verification
+
+`swift test` in `macos/` opens windows on the desktop of the Mac running it, and several runs may overlap
+so keep runs few:
+
+- While iterating, run only the affected classes (`swift test --filter <Class>`).
+- Run the full `HibossIslandTests` once, on the final commit, with output saved to a file.
+- A read-only audit runs only the filtered tests that cover its questions.
+- A merge into `main` with no conflict needs no rerun; a resolved conflict in `macos/` or
+  `HibossKit/` gets `swift build` plus the filtered tests for the conflicted files.
 
 ## Reference
 
