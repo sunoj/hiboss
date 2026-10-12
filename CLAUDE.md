@@ -197,6 +197,24 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 ### Both
 - Files ≤ 300 lines, functions ≤ 50 lines
 
+### Verification tiers for every component
+
+Test what the change can break, at the smallest scope that covers it. A full suite is the
+exception, not the default.
+
+| Component | Default for a change | Full suite only when |
+|---|---|---|
+| `server/` | The changed modules' test files plus `npx vitest related <changed files>`, run remotely | A deploy is being prepared, or `wrangler.toml`, migrations, shared types (`src/types.ts`), auth middleware or `package-lock.json` changed |
+| `cli/` | `cargo test <module>` for the changed modules, run remotely | `Cargo.toml`/`Cargo.lock` changed, or a release is being cut |
+| `HibossKit/` | `swift test --filter <Class>` for the changed types | Its public API changed (then also `cd macos && swift build`) |
+| `macos/` | See macOS verification below | Once per task, on the final commit |
+| `ios/` | See the iOS tiers below | Only at T5 |
+| `mcp/` | The changed module's tests | `package.json`/lockfile changed |
+
+- A change spanning several components runs each component's default, not each full suite.
+- The pre-deploy server run is the deploy gate; a task does not repeat it.
+- Every bug fix still needs the focused test that fails before the fix.
+
 ### iOS verification tiers
 
 Run the checks the change can break. A full iOS unit and UI run takes 15–85 minutes on a
