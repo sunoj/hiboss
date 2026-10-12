@@ -60,13 +60,12 @@ pub(super) fn write_settings(
     if changed {
         let parent = path.parent().ok_or("Missing settings directory")?;
         fs::create_dir_all(parent)?;
-        fs::write(
-            path,
-            format!("{}\n", serde_json::to_string_pretty(settings)?),
-        )?;
-        eprintln!("[hiboss]Wrote {}", path.display());
-    } else {
-        eprintln!("[hiboss]No settings changes required");
+        let content = if path.exists() {
+            super::setup_json_edit::update(&fs::read_to_string(path)?, settings)?
+        } else {
+            format!("{}\n", serde_json::to_string_pretty(settings)?)
+        };
+        super::setup_agents::write_atomic(path, &content)?;
     }
     Ok(())
 }

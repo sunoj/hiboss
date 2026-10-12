@@ -3,7 +3,12 @@
 // Dependencies: clap, dirs, and filesystem operations; no credentials or network.
 
 use clap::Args;
-use std::{error::Error, fs, path::{Path, PathBuf}};
+use std::{
+    error::Error,
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 pub const PANEL_GUIDE: &str = include_str!("../../resources/panel-agent-guide.md");
 const BEGIN: &str = "<!-- hiboss:panels:begin -->";
@@ -38,7 +43,12 @@ pub fn run(args: &SetupAgentsArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn replace_block(existing: &str, begin: &str, end: &str, replacement: &str) -> Result<String, Box<dyn Error>> {
+fn replace_block(
+    existing: &str,
+    begin: &str,
+    end: &str,
+    replacement: &str,
+) -> Result<String, Box<dyn Error>> {
     let starts: Vec<_> = existing.match_indices(begin).collect();
     let ends: Vec<_> = existing.match_indices(end).collect();
     if starts.is_empty() && ends.is_empty() { return Ok(existing.to_owned()); }
@@ -63,7 +73,6 @@ pub(crate) fn apply_prompt_changes(path: &Path, remove: bool) -> Result<(), Box<
     let existing = if path.exists() { fs::read_to_string(path)? } else { String::new() };
     let content = managed_content(&existing, remove)?;
     write_atomic(path, &content)?;
-    println!("Updated HiBoss instructions in {}", path.display());
     Ok(())
 }
 
@@ -75,16 +84,77 @@ pub(crate) fn apply_profile_prompt_changes(path: &Path, profile: &str) -> Result
         "- For this runtime, prefix every HiBoss command with `HIBOSS_PROFILE={profile}`.\n"
     ));
     write_atomic(path, &content)?;
-    println!("Updated HiBoss instructions in {}", path.display());
     Ok(())
 }
 
-fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {
-    let parent = path.parent().ok_or("Invalid instruction destination")?;
-    fs::create_dir_all(parent)?;
-    let temporary = path.with_extension(format!("hiboss-{}.tmp", std::process::id()));
-    fs::write(&temporary, content)?;
-    if path.exists() { fs::set_permissions(&temporary, fs::metadata(path)?.permissions())?; }
-    fs::rename(temporary, path)?;
+pub(crate) fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {
+    let resolved = resolve_write_path(path)?;
+    let parent = resolved.parent().ok_or("Invalid instruction destination")?;
+    fs::create_dir_all(parent).map_err(|error| atomic_write_error(path, &resolved, error))?;
+    let name = resolved
+        .file_name()
+        .ok_or("Invalid instruction destination")?;
+    let temporary = parent.join(format!(
+        ".{}.hiboss-{}.tmp",
+        name.to_string_lossy(),
+        std::process::id()
+    ));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
+    file.write_all(content.as_bytes())
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
+    file.sync_all()
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
+    drop(file);
+    if resolved.exists() {
+        let permissions = fs::metadata(&resolved)
+            .map_err(|error| atomic_write_error(path, &resolved, error))?
+            .permissions();
+        fs::set_permissions(&temporary, permissions)
+            .map_err(|error| atomic_write_error(path, &resolved, error))?;
+    }
+    fs::rename(temporary, &resolved)
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
     Ok(())
+}
+
+fn atomic_write_error(path: &Path, resolved: &Path, error: std::io::Error) -> Box<dyn Error> {
+    if path == resolved {
+        return error.into();
+    }
+    format!(
+        "Cannot safely update symlink {} -> {}: {error}",
+        path.display(),
+        resolved.display()
+    )
+    .into()
+}
+
+fn resolve_write_path(path: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(path.to_path_buf());
+        }
+        Err(error) => return Err(error.into()),
+    };
+    if !metadata.file_type().is_symlink() {
+        return Ok(path.to_path_buf());
+    }
+    let link_target = fs::read_link(path)?;
+    let target = path
+        .parent()
+        .ok_or("Invalid instruction destination")?
+        .join(link_target);
+    fs::canonicalize(path).map_err(|error| {
+        format!(
+            "Cannot safely update symlink {} -> {}: resolved target is unavailable: {error}",
+            path.display(),
+            target.display()
+        )
+        .into()
+    })
 }

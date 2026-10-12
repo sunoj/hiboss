@@ -112,6 +112,7 @@ async fn run_post(
     }
     let project = session::resolve_project(args.project.as_deref());
     let session_id = args.session.clone().or_else(session::read_session_id);
+    super::claude_profiles::warn_missing_session(session_id.as_deref());
     let attr = crate::attribution::detect();
     let agent_label = args.agent.clone().or(attr.agent_label);
     let model = args.model.clone().or(attr.model);

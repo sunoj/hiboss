@@ -72,6 +72,7 @@ pub async fn run(
     _config: &Config,
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
+    super::claude_profiles::warn_missing_session(session::read_session_id().as_deref());
     super::message_text::title(&args.body, args.to.is_some() || args.broadcast)?;
     build_metadata(args)?;
     if args.broadcast && args.to.is_some() {
