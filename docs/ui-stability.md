@@ -37,6 +37,22 @@ directly to that result.
 8. **One result, one change.** Apply a refresh result in a single update. Do not clear a
    collection and then refill it, and do not publish intermediate partial states to the view.
 
+## Exception: the account boundary
+
+The rule covers refreshes, not a change of who the content belongs to. Two events clear account
+content on purpose, on iOS and macOS. Both go through `HibossKit` `AccountAuthorization`:
+
+- **Rejection.** An authenticated 401/403 on a boss-token request calls `reject(_:)`.
+  Observers drop cached content, reply drafts, questionnaire editors and saved drafts, panel
+  state and device requests. Requests stay refused until an accepted reconnect, which
+  includes a same-account reconnect.
+- **Account change.** A different `ConnectionConfig` calls `connect(_:)`. It purges the
+  previous account's persisted drafts and advances the identity generation, so in-flight
+  results from the previous account are discarded.
+
+A model that mirrors the boundary's refusal derives it from `AccountAuthorization` in its
+`reset()`. It never writes a default, so a later reset cannot reopen a rejected account.
+
 ## Verification
 
 - Every list or dashboard surface has a test that refreshes with cached content and asserts
