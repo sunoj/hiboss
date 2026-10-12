@@ -17,7 +17,7 @@ public struct PanelWallFilter: View {
                 Label(kitL("Questions unavailable"), systemImage: "wifi.exclamationmark").foregroundStyle(.orange)
                 Text(verbatim: error).font(.caption).foregroundStyle(.secondary)
                 Button(kitL("Retry questions")) { Task { await model.refreshPendingQuestionnaires() } }
-                    .disabled(model.isLoadingQuestions)
+                    .disabled(model.isLoadingQuestions && !model.didLoadQuestionnaires)
             }
             if let error = model.preferenceError {
                 Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
@@ -46,7 +46,8 @@ public struct PanelWallEmptyState: View {
     public init(model: PanelsModel) { self.model = model }
     public var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if model.section == .needsInput && model.isLoadingQuestions {
+            if model.section == .needsInput && model.isLoadingQuestions
+                && !model.didLoadQuestionnaires {
                 ProgressView(kitL("Loading questions…"))
             } else {
                 Label(title, systemImage: model.section == .needsInput ? "text.bubble" : "rectangle.stack").font(.headline)
@@ -56,16 +57,19 @@ public struct PanelWallEmptyState: View {
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var title: String {
-        if model.failureMessage != nil { return kitL("Panels unavailable") }
+        if model.failureMessage != nil && !model.didLoadPanels { return kitL("Panels unavailable") }
         if model.section == .needsInput {
-            return model.questionnaireError == nil ? kitL("No questions waiting") : kitL("Questions unavailable")
+            return model.didLoadQuestionnaires || model.questionnaireError == nil
+                ? kitL("No questions waiting") : kitL("Questions unavailable")
         }
         return kitL("No panels here")
     }
     private var message: String {
-        if let failure = model.failureMessage { return failure }
+        if let failure = model.failureMessage, !model.didLoadPanels { return failure }
         if model.section == .needsInput {
-            return model.questionnaireError == nil ? kitL("New questions from your agents appear here.") : kitL("Retry to check for unanswered questions.")
+            return model.didLoadQuestionnaires || model.questionnaireError == nil
+                ? kitL("New questions from your agents appear here.")
+                : kitL("Retry to check for unanswered questions.")
         }
         return kitL("Task progress and results appear here.")
     }

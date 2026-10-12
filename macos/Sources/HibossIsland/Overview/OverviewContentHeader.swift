@@ -12,12 +12,9 @@ struct OverviewContentHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text(snapshot.title(for: destination))
-                    .font(.largeTitle.bold())
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
                 Text(countText)
-                    .font(.largeTitle.bold()).monospacedDigit()
+                    .font(.headline).monospacedDigit()
+                Spacer(minLength: 8)
             }
             .foregroundStyle(.primary)
             Text(subtitle).font(.callout).foregroundStyle(.secondary)

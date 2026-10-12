@@ -36,6 +36,29 @@ extension PanelsModel {
     }
 
     public func connectionDidChange() {
+        identityGeneration &+= 1
+        loadOperation += 1
+        questionnaireOperation += 1
+        reconciliationTask?.cancel()
+        reconciliationTask = nil
+        needsReconcile = false
+        isFetching = false
+        isLoadingQuestions = false
+        activeQuestionnaireGeneration = nil
+        producerTasks.forEach { $0.cancel() }
+        producerTasks.removeAll()
+        selectedTileID = nil
+        tiles = []
+        pendingQuestionnaires = []
+        didLoadPanels = false
+        loadState = .loading
+        questionnaireError = nil
+        preferenceError = nil
+        pendingPreferenceIDs = []
+        relayStates = [:]
+        serverClocks = [:]
+        lastUpdated = [:]
+        didLoadQuestionnaires = false
         invalidateQuestionnaireCoverage()
         wallConfig = nil
         wallConnection?.stop()

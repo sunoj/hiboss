@@ -16,7 +16,7 @@ extension PanelsModel {
     }
 
     public func refreshPendingQuestionnaires() async {
-        invalidateQuestionnaireCoverage()
+        invalidateQuestionnaireCoverage(preservingCached: true)
         if isFetching { needsReconcile = true }
         let generation = questionnaireGeneration
         do {
@@ -34,7 +34,7 @@ extension PanelsModel {
         using service: (any QuestionnaireServing)?, generation: UInt64? = nil
     ) async {
         guard !isDemoMode else { return }
-        if generation == nil { invalidateQuestionnaireCoverage() }
+        if generation == nil { invalidateQuestionnaireCoverage(preservingCached: true) }
         guard !isLoadingQuestions else {
             if generation != activeQuestionnaireGeneration { needsReconcile = true }
             return
@@ -44,16 +44,10 @@ extension PanelsModel {
         activeQuestionnaireGeneration = generation
         isLoadingQuestions = true
         let wallWasConnected = isWallConnected
-        #if os(iOS)
         questionnaireOperation += 1
         let operation = questionnaireOperation
-        #endif
         defer {
-            #if os(iOS)
             if operation == questionnaireOperation { finishQuestionnaireFetch() }
-            #else
-            finishQuestionnaireFetch()
-            #endif
         }
         do {
             var fetched = try await service.fetchPendingQuestionnaires()
@@ -75,6 +69,7 @@ extension PanelsModel {
 
     private func installQuestionnaires(_ fetched: [PendingQuestionnaire]) {
         pendingQuestionnaires = fetched
+        didLoadQuestionnaires = true
         questionnaireError = nil
         hasCompleteQuestionnaires = (wallConnection == nil || isWallConnected)
             && !needsReconcile && reconciliationTask == nil
@@ -85,12 +80,16 @@ extension PanelsModel {
 
     private func finishQuestionnaireFetch() {
         isLoadingQuestions = false
+        if !isFetching { retainedRefreshCoverage = false }
         activeQuestionnaireGeneration = nil
         if needsReconcile, !isFetching { needsReconcile = false; reconcileSoon() }
     }
 
-    func invalidateQuestionnaireCoverage() {
+    func invalidateQuestionnaireCoverage(preservingCached: Bool = false) {
         questionnaireGeneration &+= 1
+        #if os(macOS)
+        retainedRefreshCoverage = preservingCached && (hasCompleteCoverage || retainedRefreshCoverage)
+        #endif
         hasCompleteQuestionnaires = false
     }
 }

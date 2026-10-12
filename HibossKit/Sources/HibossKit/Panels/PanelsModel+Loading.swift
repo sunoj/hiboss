@@ -39,21 +39,17 @@ extension PanelsModel {
 
     public func load() async {
         guard !isDemoMode, !isFetching else { return }
-        invalidateQuestionnaireCoverage()
+        reconciliationTask?.cancel()
+        reconciliationTask = nil
+        invalidateQuestionnaireCoverage(preservingCached: true)
         isFetching = true
         reportPanelCoverage()
-        #if os(iOS)
         loadOperation += 1
         let operation = loadOperation
-        #endif
         var generation = questionnaireGeneration
-        if tiles.isEmpty { loadState = .loading }
+        if tiles.isEmpty && !didLoadPanels { loadState = .loading }
         defer {
-            #if os(iOS)
             if operation == loadOperation { finishLoad() }
-            #else
-            finishLoad()
-            #endif
         }
         do {
             let service = try await panelService()
@@ -74,8 +70,13 @@ extension PanelsModel {
     }
 
     private func loadPanels(using service: any PanelsServing, generation: UInt64) async throws {
-        let summaries = try await service.fetchPanels()
-        try await installPanels(summaries, using: service, generation: generation)
+        do {
+            let summaries = try await service.fetchPanels()
+            try await installPanels(summaries, using: service, generation: generation)
+        } catch {
+            if generation == questionnaireGeneration { loadState = .failed(error.localizedDescription) }
+            throw error
+        }
     }
 
     private func revalidateAcknowledgedPanels(
@@ -112,6 +113,7 @@ extension PanelsModel {
         tiles = fetched.sorted { $0.order < $1.order }
         if let selectedTileID, !retained.contains(selectedTileID) { self.selectedTileID = nil }
         loadState = .loaded
+        didLoadPanels = true
         StartupLog.record("panels loaded", count: tiles.count)
         if let relayConfig { startSubscriptions(config: relayConfig) }
     }
@@ -125,6 +127,7 @@ extension PanelsModel {
 
     private func finishLoad() {
         isFetching = false
+        retainedRefreshCoverage = false
         reportPanelCoverage()
         lastReconciled = Date()
         if needsReconcile { needsReconcile = false; reconcileSoon() }
@@ -173,6 +176,7 @@ extension PanelsModel {
         guard let current = tiles.first(where: { $0.id == tile.id }), let metadata = current.metadata else {
             return
         }
+        let identity = identityGeneration
         #if os(iOS)
         guard !pendingPreferenceIDs.contains(tile.id) else { return }
         pendingPreferenceIDs.insert(tile.id)
@@ -184,10 +188,15 @@ extension PanelsModel {
                 expectedPreferenceVersion: metadata.preference.preferenceVersion, placement: placement,
                     seenTerminalVersion: seen,
                     acknowledgedTerminalVersion: acknowledge ? metadata.metadataVersion : nil))
+            guard identity == identityGeneration else { return }
             if let index = tiles.firstIndex(where: { $0.id == tile.id }) {
                 tiles[index].metadata?.preference = preference
             }
             preferenceError = nil
-        } catch { preferenceError = error.localizedDescription; await load() }
+        } catch {
+            guard identity == identityGeneration else { return }
+            preferenceError = error.localizedDescription
+            await load()
+        }
     }
 }

@@ -10,6 +10,7 @@ struct OverviewSidebar: View {
     let selection: OverviewDestination
     let historyState: HistoryState
     let connectionState: ConnectionState
+    var hasLoadedHistory = false
     var deviceRequestCount = 0
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
@@ -103,7 +104,7 @@ struct OverviewSidebar: View {
         }
     }
 
-    private var countsAvailable: Bool { historyState == .loaded || !snapshot.history.isEmpty }
+    var countsAvailable: Bool { hasLoadedHistory || historyState == .loaded || !snapshot.history.isEmpty }
 
     private var notice: String? {
         if case let .failed(error) = historyState { return error }

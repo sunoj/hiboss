@@ -13,7 +13,7 @@ struct MainView: View {
     @ObservedObject var notificationNavigation: MessageNotificationNavigation
     @ObservedObject var joinRequests: JoinRequestsModel
     @StateObject private var reply = AttentionReplyState()
-    private let requiredInputs: RequiredInputStore
+    @ObservedObject private var requiredInputs: RequiredInputStore
     @StateObject private var overviewStore = OverviewStore()
     @StateObject private var panels: PanelsModel
     @StateObject private var box: BoxBrowserStore
@@ -38,6 +38,7 @@ struct MainView: View {
          previewSessions: [ProjectSession]? = nil,
          boxProvider: BoxBrowserStore.Provider? = nil,
          progressProvider: ProgressFeedStore.Provider? = nil,
+         progressStore: ProgressFeedStore? = nil,
          panelsModel: PanelsModel? = nil) {
         self.requiredInputs = requiredInputs
         _overviewStore = StateObject(wrappedValue: overviewStore)
@@ -54,9 +55,10 @@ struct MainView: View {
         _box = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
         _boxMedia = StateObject(wrappedValue: BoxBrowserMedia(apiProvider: provider))
         _sessionBox = StateObject(wrappedValue: BoxBrowserStore(apiProvider: provider))
-        _progress = StateObject(wrappedValue: ProgressFeedStore(apiProvider: progressProvider ?? {
-            settings.activeClientConfig.map { HibossAPI(config: $0) }
-        }))
+        _progress = StateObject(wrappedValue: progressStore ?? ProgressFeedStore(
+            apiProvider: progressProvider ?? {
+                settings.activeClientConfig.map { HibossAPI(config: $0) }
+            }))
         _panels = StateObject(wrappedValue: panelsModel ?? PanelsModel(configurationProvider: {
             guard let config = settings.activeClientConfig else {
                 throw PanelClientError.notConfigured
@@ -125,13 +127,13 @@ struct MainView: View {
         .onChange(of: flow.connectionState) { updateOverview() }
         .onChange(of: flow.historyState) { updateOverview() }
         .onChange(of: flow.replyFeedback) { updateOverview() }
-        .onChange(of: panels.hasCompleteCoverage) { updateOverview() }
+        .onChange(of: panels.hasDisplayCoverage) { updateOverview() }
         .onChange(of: panels.pendingQuestionnaires) { updateOverview() }
     }
 
     private func updateOverview() {
         guard let history = previewHistory else {
-            overviewStore.setQuestionnaireCoverage(panels.hasCompleteCoverage
+            overviewStore.setQuestionnaireCoverage(panels.hasDisplayCoverage
                 && !panels.pendingQuestionnaires.contains(where: \.blocking))
             return
         }
@@ -143,20 +145,7 @@ struct MainView: View {
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
         messageShell(snapshot: snapshot, compact: compact)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Image(systemName: flow.connectionState == .connected
-                    ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
-                    .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : .secondary)
-                    .help(flow.connectionState.label)
-                Button(action: refresh) { Image(systemName: "arrow.clockwise") }
-                    .help(refreshHelp)
-                    .keyboardShortcut("r", modifiers: .command)
-                    .disabled(destination == .box ? box.isLoading
-                        : destination == .progress ? progress.isRefreshing || progress.isLoadingMore
-                        : flow.historyState == .loading || (destination == .today && panels.isLoading))
-            }
-        }
+            .modifier(WorkspaceToolbar(flow: flow, destination: destination, onRefresh: refresh))
     }
 
     private func messageShell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
@@ -186,20 +175,11 @@ struct MainView: View {
         }
     }
 
-    private var refreshHelp: String {
-        if destination == .box { return L("Refresh Box") }
-        if destination == .progress { return L("Refresh progress") }
-        switch destination {
-        case .today: return L("Refresh Today")
-        case .deviceRequests: return L("Refresh device requests")
-        default: return L("Refresh messages")
-        }
-    }
-
     private func overview(_ snapshot: OverviewSnapshot) -> some View {
         OverviewSidebar(snapshot: snapshot, selection: destination,
             historyState: previewHistory == nil ? flow.historyState : .loaded,
             connectionState: previewHistory == nil ? flow.connectionState : .connected,
+            hasLoadedHistory: previewHistory != nil || flow.historyLoadedAt != nil,
             deviceRequestCount: joinRequests.pendingCount,
             onSelect: {
                 destination = $0
@@ -217,21 +197,13 @@ struct MainView: View {
         GeometryReader { geometry in
             if destination == .today {
                 TodayView(snapshot: snapshot, reply: reply, panels: panels, isPreview: previewHistory != nil,
+                    isRefreshing: flow.isRefreshingHistory || panels.isRefreshing
+                        || requiredInputs.state.refreshing,
                     onChoose: answer,
                     onSession: { destination = .session($0) })
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if case let .session(id) = destination {
-                SessionView(context: SessionContext(id: id, snapshot: snapshot,
-                    inventory: previewSessions ?? flow.projectSessions), flow: flow, reply: reply,
-                    panels: panels, box: sessionBox, media: boxMedia, isPreview: previewHistory != nil,
-                    onChoose: answer,
-                    onBox: { project in
-                        box.author = .all
-                        box.kind = nil
-                        box.query = ""
-                        box.project = project
-                        destination = .box
-                    }, onSession: { destination = .session($0) })
+                sessionSurface(id: id, snapshot: snapshot)
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             } else if destination == .box {
                 BoxBrowserView(store: box, media: boxMedia)
@@ -244,7 +216,7 @@ struct MainView: View {
             } else {
                 VStack(spacing: 0) {
                     OverviewContentHeader(destination: destination, snapshot: snapshot,
-                        countsAvailable: previewHistory != nil || flow.historyState == .loaded
+                        countsAvailable: previewHistory != nil || flow.historyLoadedAt != nil
                             || !snapshot.history.isEmpty)
                     Divider()
                     messageSurface(snapshot)
@@ -252,6 +224,20 @@ struct MainView: View {
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             }
         }
+    }
+
+    private func sessionSurface(id: String, snapshot: OverviewSnapshot) -> some View {
+        SessionView(context: SessionContext(id: id, snapshot: snapshot,
+            inventory: previewSessions ?? flow.projectSessions), flow: flow, reply: reply,
+            panels: panels, box: sessionBox, media: boxMedia, isPreview: previewHistory != nil,
+            onChoose: answer,
+            onBox: { project in
+                box.author = .all
+                box.kind = nil
+                box.query = ""
+                box.project = project
+                destination = .box
+            }, onSession: { destination = .session($0) })
     }
 
     @ViewBuilder

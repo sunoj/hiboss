@@ -25,6 +25,8 @@ public final class PanelsModel: ObservableObject {
     @Published public internal(set) var selectedTileID: String?
     public internal(set) var now = Date()
     @Published public internal(set) var loadState: PanelsLoadState = .idle
+    @Published public internal(set) var didLoadPanels = false
+    @Published public internal(set) var identityGeneration: UInt64 = 0
     let api: (any PanelsServing)?
     let configurationProvider: (@MainActor () async throws -> ConnectionConfig)?
     var lastUpdated: [String: Date] = [:]
@@ -43,10 +45,10 @@ public final class PanelsModel: ObservableObject {
     @Published public internal(set) var questionnaireError: String?
     @Published public internal(set) var isLoadingQuestions = false
     @Published public internal(set) var hasCompleteQuestionnaires = false
-    #if os(iOS)
+    @Published public internal(set) var didLoadQuestionnaires = false
+    @Published var retainedRefreshCoverage = false
     var loadOperation = 0
     var questionnaireOperation = 0
-    #endif
     var questionnaireGeneration: UInt64 = 0
     var activeQuestionnaireGeneration: UInt64?
     var producerTasks: [Task<Void, Never>] = []
@@ -77,6 +79,7 @@ public final class PanelsModel: ObservableObject {
             }
             lastUpdated = Dictionary(uniqueKeysWithValues: tiles.map { ($0.id, Date()) })
             loadState = .loaded
+            didLoadPanels = true
             startSimulation()
         } else {
             fixtures = nil
@@ -85,13 +88,13 @@ public final class PanelsModel: ObservableObject {
         }
     }
 
-    #if os(iOS)
-    public var isRefreshing: Bool { isFetching && loadState == .loaded }
-    #endif
+    public var isRefreshing: Bool { isFetching && didLoadPanels }
 
     public var selectedTile: PanelTile? { tiles.first { $0.id == selectedTileID } }
     public var isLoading: Bool { if case .loading = loadState { true } else { false } }
-    public var failureMessage: String? { if case let .failed(message) = loadState { message } else { nil } }
+    public var failureMessage: String? {
+        if case let .failed(message) = loadState { message } else { questionnaireError }
+    }
 
     public func loadIfNeeded() async {
         guard !isDemoMode, loadState == .idle else { return }
@@ -126,7 +129,9 @@ public final class PanelsModel: ObservableObject {
     func panelService() async throws -> any PanelsServing {
         if let api { return api }
         guard let configurationProvider else { throw PanelClientError.notConfigured }
+        let identity = identityGeneration
         let config = try await configurationProvider()
+        guard identity == identityGeneration else { throw CancellationError() }
         relayConfig = config
         return HibossAPI(config: config)
     }

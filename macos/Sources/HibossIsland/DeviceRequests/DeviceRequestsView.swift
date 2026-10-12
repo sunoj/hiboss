@@ -21,6 +21,13 @@ struct DeviceRequestsView: View {
             .sheet(item: $target) { JoinRequestSheet(requestID: $0.id, model: model) }
             .onChange(of: focus?.id, initial: true) { openFocusedRequest() }
             .task { await model.refresh() }
+            .toolbar {
+                ToolbarItem(placement: .status) {
+                    CachedReadStatus(isRefreshing: model.didLoad && model.isRefreshing,
+                        failure: failure, retry: { Task { await model.refresh() } })
+                }
+                .quietStatusBackground()
+            }
     }
 
     @ViewBuilder
@@ -34,13 +41,12 @@ struct DeviceRequestsView: View {
             List(model.requests) { request in
                 row(request)
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) { failureNotice }
         }
     }
 
     @ViewBuilder
     private var emptyContent: some View {
-        switch model.state {
+        switch model.didLoad ? JoinRequestsState.loaded : model.state {
         case .idle:
             ContentUnavailableView {
                 Label(L("Connect to HiBoss"), systemImage: "antenna.radiowaves.left.and.right.slash")
@@ -92,15 +98,9 @@ struct DeviceRequestsView: View {
             .joined(separator: " · ") // i18n-exempt: list separator
     }
 
-    @ViewBuilder
-    private var failureNotice: some View {
-        if case let .failed(message) = model.state {
-            Label(message, systemImage: "exclamationmark.triangle")
-                .font(.callout).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(.bar)
-        }
+    private var failure: String? {
+        if case let .failed(message) = model.state { return message }
+        return nil
     }
 
     private func openFocusedRequest() {

@@ -13,11 +13,8 @@ struct SessionHeader: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 ProjectAvatarView(project: context.avatarProject, size: 40)
-                Text(context.title).font(.title2.bold())
+                Text(context.branch ?? L("Session activity")).font(.title2.bold())
                     .accessibilityAddTraits(.isHeader).layoutProbe("session.title")
-                if context.facts == nil, let branch = context.branch {
-                    Text(branch).font(.callout).foregroundStyle(TodayStyle.secondary)
-                }
                 Spacer()
             }
             HStack(spacing: 12) {

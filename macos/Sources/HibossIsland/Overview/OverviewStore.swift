@@ -63,13 +63,13 @@ final class OverviewStore: ObservableObject {
             .store(in: &cancellables)
         Publishers.CombineLatest3(
             Publishers.CombineLatest3(flow.$historyMessages, flow.$activeMessage, flow.$replyFeedback),
-            Publishers.CombineLatest(flow.$connectionState, flow.$historyState),
+            Publishers.CombineLatest3(flow.$connectionState, flow.$historyState, flow.$historyLoadedAt),
             requiredInputs
         )
         .sink { [weak self] messages, connection, inputs in
             let now = Date.now
             let health = TodayProjection.health(connection: connection.0,
-                history: connection.1, checkedAt: now)
+                history: connection.1, checkedAt: now, loadedAt: connection.2)
             self?.requiredCoverageComplete = inputs.coverageComplete
             guard let self else { return }
             var closed = self.closedDecisionIDs

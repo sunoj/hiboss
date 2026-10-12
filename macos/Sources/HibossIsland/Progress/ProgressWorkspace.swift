@@ -14,7 +14,14 @@ struct ProgressWorkspace: View {
         content
         .workspaceChrome()
         .background(TodayStyle.ground).tint(TodayStyle.live)
-        .toolbar { filter }
+        .toolbar {
+            filter
+            ToolbarItem(placement: .status) {
+                CachedReadStatus(isRefreshing: store.isRefreshing, failure: store.loadError,
+                    retry: { Task { await store.refresh() } })
+            }
+            .quietStatusBackground()
+        }
         .task { if !store.didLoad { await store.refresh() } }
         .sheet(item: $opened) { ProgressMediaViewer(media: $0) }
         .alert(L("Delete progress post?"), isPresented: Binding(
@@ -29,9 +36,9 @@ struct ProgressWorkspace: View {
     @ViewBuilder
     private var content: some View {
         if store.posts.isEmpty {
-            if !store.didLoad || store.isRefreshing {
+            if !store.didLoad {
                 ProgressView(L("Loading progress…")).frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = store.loadError {
+            } else if let error = store.loadError, !store.hasResult {
                 ContentUnavailableView {
                     Label(L("Progress unavailable"), systemImage: "exclamationmark.triangle")
                 } description: { Text(verbatim: error) } actions: {
@@ -48,8 +55,6 @@ struct ProgressWorkspace: View {
 
     private var timeline: some View {
         List {
-            if store.isRefreshing { ProgressView(L("Loading progress…")) }
-            if let error = store.loadError { readError(error, retry: { await store.refresh() }) }
             ForEach(store.posts) { post in
                 ProgressPostRow(post: post, isLiking: store.likingIDs.contains(post.id),
                     isDeleting: store.deletingIDs.contains(post.id), error: store.actionErrors[post.id],
@@ -63,7 +68,6 @@ struct ProgressWorkspace: View {
             if let error = store.pageError { readError(error, retry: { await store.loadMore() }) }
             else if store.nextCursor != nil && !store.isLoadingMore {
                 Button(L("Load more")) { Task { await store.loadMore() } }
-                    .disabled(store.isRefreshing)
             }
         }
         .listStyle(.plain)

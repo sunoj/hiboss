@@ -7,6 +7,19 @@ import SwiftUI
 public struct PanelQuestionnairesView: View {
     let tile: PanelTile
     @ObservedObject var panels: PanelsModel
+
+    public init(tile: PanelTile, panels: PanelsModel) { self.tile = tile; self.panels = panels }
+
+    public var body: some View {
+        if panels.tiles.contains(where: { $0.id == tile.id }) {
+            PanelQuestionnairesContent(tile: tile, panels: panels).id(panels.identityGeneration)
+        }
+    }
+}
+
+private struct PanelQuestionnairesContent: View {
+    let tile: PanelTile
+    @ObservedObject var panels: PanelsModel
     @State private var records: [QuestionnaireRecord] = []
     @State private var service: (any QuestionnaireServing)?
     @State private var error: String?
@@ -14,9 +27,7 @@ public struct PanelQuestionnairesView: View {
     @State private var hasLoaded = false
     @State private var refreshGeneration = 0
 
-    public init(tile: PanelTile, panels: PanelsModel) { self.tile = tile; self.panels = panels }
-
-    public var body: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if !panels.isDemoMode && isRefreshing && error == nil {
                 #if os(iOS)

@@ -12,6 +12,8 @@ public final class OptionFlowStore: ObservableObject {
     @Published public private(set) var presentationState: PresentationState = .idle
     @Published public private(set) var historyMessages: [HistoryMessage] = []
     @Published public private(set) var historyState: HistoryState = .idle
+    @Published public private(set) var historyLoadedAt: Date?
+    @Published public private(set) var isRefreshingHistory = false
     public let agentAvatars = AgentAvatarStore()
     /// Per-message outcome of the last reply that did not land; cleared when one is accepted.
     @Published public private(set) var replyFeedback: [MessageID: ReplyFeedback] = [:]
@@ -66,6 +68,8 @@ public final class OptionFlowStore: ObservableObject {
         historyMessages.removeAll()
         projectSessions.removeAll()
         historyState = .idle
+        historyLoadedAt = nil
+        isRefreshingHistory = false
         replyFeedback.removeAll()
         connectionState = .disconnected
     }
@@ -74,7 +78,10 @@ public final class OptionFlowStore: ObservableObject {
 
     public func refreshHistory() async {
         guard let historySync else { return }
-        historyState = .loading
+        let version = historyVersion
+        isRefreshingHistory = true
+        defer { if version == historyVersion { isRefreshingHistory = false } }
+        if case .failed = historyState {} else { historyState = .loading }
         await historySync.synchronize(forceFull: true)
     }
 
@@ -94,6 +101,7 @@ public final class OptionFlowStore: ObservableObject {
                 self.reconcileActiveAgainstHistory()
             }
             let state: HistoryState = error.map { .failed($0) } ?? .loaded
+            if error == nil { self.historyLoadedAt = .now }
             if self.historyState != state { self.historyState = state }
             if error == nil { await self.refreshProjectSessions() }
         }

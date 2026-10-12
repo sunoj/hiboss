@@ -35,7 +35,7 @@ struct SessionThreadView: View {
 
     @ViewBuilder
     private func rows(reader: ScrollViewProxy) -> some View {
-        if threads.isEmpty, flow.historyState == .loading {
+        if threads.isEmpty, flow.historyState == .loading, flow.historyLoadedAt == nil {
             ProgressView(L("Loading messages…")).padding(24).frame(maxWidth: .infinity)
         } else if threads.isEmpty {
             ContentUnavailableView(L("No Messages"), systemImage: "tray",

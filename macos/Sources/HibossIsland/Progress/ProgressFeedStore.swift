@@ -13,6 +13,7 @@ final class ProgressFeedStore: ObservableObject {
     @Published private(set) var projects: [ProgressProject] = []
     @Published private(set) var selectedProject: String?
     @Published private(set) var didLoad = false
+    @Published private(set) var hasResult = false
     @Published private(set) var isRefreshing = false
     @Published private(set) var isLoadingMore = false
     @Published private(set) var nextCursor: ProgressCursor?
@@ -24,18 +25,21 @@ final class ProgressFeedStore: ObservableObject {
     private let apiProvider: Provider
     private var operation: Task<Void, Never>?
     private var generation = 0
+    private var accountGeneration = 0
     private var deletedIDs: Set<String> = []
 
     init(apiProvider: @escaping Provider) { self.apiProvider = apiProvider }
 
     func reset() {
         generation += 1
+        accountGeneration += 1
         operation?.cancel()
         operation = nil
         posts = []
         projects = []
         selectedProject = nil
         didLoad = false
+        hasResult = false
         isRefreshing = false
         isLoadingMore = false
         nextCursor = nil
@@ -59,14 +63,7 @@ final class ProgressFeedStore: ObservableObject {
         guard project != selectedProject else { return }
         generation += 1
         selectedProject = project
-        posts = []
-        nextCursor = nil
-        didLoad = false
-        loadError = nil
         pageError = nil
-        likingIDs = []
-        deletingIDs = []
-        actionErrors = [:]
         await refresh()
     }
 
@@ -81,12 +78,14 @@ final class ProgressFeedStore: ObservableObject {
         }
     }
 
-    private func enqueue(_ action: @escaping @MainActor (ProgressFeedStore, Int) async -> Void) async {
+    private func enqueue(accountScoped: Bool = false,
+                         _ action: @escaping @MainActor (ProgressFeedStore, Int) async -> Void) async {
         let previous = operation
-        let current = generation
+        let current = accountScoped ? accountGeneration : generation
         let task = Task { @MainActor [weak self] in
             await previous?.value
-            guard let self, current == generation, !Task.isCancelled else { return }
+            guard let self, current == (accountScoped ? accountGeneration : generation),
+                  !Task.isCancelled else { return }
             await action(self, current)
         }
         operation = task
@@ -112,6 +111,7 @@ final class ProgressFeedStore: ObservableObject {
             loadError = nil
             pageError = nil
             didLoad = true
+            hasResult = true
             if cursor == nil, let rows = try? await api.progressProjects(), current == generation {
                 projects = Self.groupProjects(rows)
             }
@@ -125,11 +125,13 @@ final class ProgressFeedStore: ObservableObject {
 
     func toggleLike(id: String) async {
         guard !likingIDs.contains(id), !deletingIDs.contains(id) else { return }
-        let current = generation
+        let current = accountGeneration
         likingIDs.insert(id)
         actionErrors[id] = nil
-        defer { if current == generation { likingIDs.remove(id) } }
-        await enqueue { store, current in await store.performLike(id: id, generation: current) }
+        defer { if current == accountGeneration { likingIDs.remove(id) } }
+        await enqueue(accountScoped: true) { store, current in
+            await store.performLike(id: id, generation: current)
+        }
     }
 
     private func performLike(id: String, generation current: Int) async {
@@ -140,10 +142,10 @@ final class ProgressFeedStore: ObservableObject {
             guard let api = apiProvider() else { throw ProgressFeedError.notConfigured }
             let result = original.liked
                 ? try await api.unlikeProgressPost(id: id) : try await api.likeProgressPost(id: id)
-            guard current == generation, !Task.isCancelled else { return }
+            guard current == accountGeneration, !Task.isCancelled else { return }
             replace(original.withLike(count: result.likeCount, liked: result.liked))
         } catch {
-            guard current == generation else { return }
+            guard current == accountGeneration else { return }
             replace(original)
             actionErrors[id] = L("Couldn't update this like. Try again.")
         }
@@ -151,22 +153,24 @@ final class ProgressFeedStore: ObservableObject {
 
     func delete(id: String) async {
         guard !deletingIDs.contains(id), !likingIDs.contains(id) else { return }
-        let current = generation
+        let current = accountGeneration
         deletingIDs.insert(id)
         actionErrors[id] = nil
-        defer { if current == generation { deletingIDs.remove(id) } }
-        await enqueue { store, current in await store.performDelete(id: id, generation: current) }
+        defer { if current == accountGeneration { deletingIDs.remove(id) } }
+        await enqueue(accountScoped: true) { store, current in
+            await store.performDelete(id: id, generation: current)
+        }
     }
 
     private func performDelete(id: String, generation current: Int) async {
         do {
             guard let api = apiProvider() else { throw ProgressFeedError.notConfigured }
             try await api.deleteProgressPost(id: id)
-            guard current == generation, !Task.isCancelled else { return }
+            guard current == accountGeneration, !Task.isCancelled else { return }
             deletedIDs.insert(id)
             posts.removeAll { $0.id == id }
         } catch {
-            if current == generation { actionErrors[id] = error.localizedDescription }
+            if current == accountGeneration { actionErrors[id] = error.localizedDescription }
         }
     }
 

@@ -41,6 +41,12 @@ extension PanelsModel {
             && hasCompleteQuestionnaires && questionnaireError == nil
     }
 
+    /// Ordinary reads keep the last complete display; relay invalidations revoke it immediately.
+    public var hasDisplayCoverage: Bool {
+        hasCompleteCoverage || (retainedRefreshCoverage && (isFetching || isLoadingQuestions)
+            && failureMessage == nil && tiles.allSatisfy { hasPanelCoverage(for: $0) })
+    }
+
     func reportPanelCoverage() {
         let complete = loadState == .loaded && !isFetching
             && tiles.allSatisfy { hasPanelCoverage(for: $0) }

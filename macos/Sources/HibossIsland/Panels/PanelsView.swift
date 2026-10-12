@@ -14,18 +14,19 @@ struct DashboardPanelsSection: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(L("Live tasks")).font(.title2.bold())
-                Text(verbatim: model.tiles.isEmpty && model.loadState != .loaded
+                Text(verbatim: !model.didLoadPanels
                     ? "—" : tiles.count.formatted())
                     .foregroundStyle(TodayStyle.secondary).monospacedDigit()
                 Spacer()
-                if model.isLoading { ProgressView().controlSize(.small) }
+                CachedReadStatus(isRefreshing: model.isRefreshing, failure: model.failureMessage,
+                    retry: { Task { await model.load() } })
             }
             PanelWallFilter(model: model)
             if model.isDemoMode {
                 Label(L("Sample data · Local preview"), systemImage: "info.circle")
                     .font(.callout).foregroundStyle(TodayStyle.secondary)
             }
-            if let failure = model.failureMessage {
+            if let failure = model.failureMessage, !model.didLoadPanels {
                 Label(failure, systemImage: "exclamationmark.triangle")
                     .font(.callout).foregroundStyle(TodayStyle.signal)
                     .fixedSize(horizontal: false, vertical: true)
@@ -33,7 +34,7 @@ struct DashboardPanelsSection: View {
             }
             if !tiles.isEmpty {
                 PanelWall(model: model, sessionID: sessionID)
-            } else if !model.isLoading && model.failureMessage == nil {
+            } else if model.didLoadPanels || (!model.isLoading && model.failureMessage == nil) {
                 if sessionID != nil {
                     Text(L("No panels in this session.")).foregroundStyle(TodayStyle.secondary)
                 } else {

@@ -39,7 +39,7 @@ final class ProgressFeedStoreTests: XCTestCase {
         XCTAssertEqual(api.reads.map(\.cursor), [nil, ProgressFixtures.cursor])
     }
 
-    func testFilterSupersedesInFlightPageAndClearsTheCursor() async throws {
+    func testFilterSupersedesInFlightPageAndPreservesRowsUntilItsResult() async throws {
         let api = ScriptedProgressAPI(pages: [
             ProgressFeedPage(posts: [.test("old")], nextCursor: ProgressFixtures.cursor),
             ProgressFeedPage(posts: [.test("stale")]), ProgressFeedPage(posts: [.test("filtered")])])
@@ -54,7 +54,8 @@ final class ProgressFeedStoreTests: XCTestCase {
         try await waitForCondition { api.pendingRead != nil }
         let filter = Task { await store.selectProject("repo") }
         try await waitForCondition { store.selectedProject == "repo" }
-        XCTAssertTrue(store.posts.isEmpty)
+        XCTAssertEqual(store.posts.map(\.id), ["old"])
+        XCTAssertEqual(store.nextCursor, ProgressFixtures.cursor)
         api.holdsRead = false
         api.releaseRead()
         await paging.value

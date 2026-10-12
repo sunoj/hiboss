@@ -10,6 +10,7 @@ struct TodayView: View {
     @ObservedObject var reply: AttentionReplyState
     @ObservedObject var panels: PanelsModel
     var isPreview = false
+    var isRefreshing = false
     let onChoose: (String, MessageID) async -> ReplyFeedback?
     let onSession: (String) -> Void
     @State private var selection: MessageID?
@@ -57,10 +58,11 @@ struct TodayView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                TodaySummary(snapshot: snapshot.today, now: snapshot.now)
+                TodaySummary(snapshot: snapshot.today, now: snapshot.now, isRefreshing: isRefreshing)
                 if snapshot.today.isAllClear { TodayScene() }
                 if !snapshot.today.decisions.isEmpty { decisions }
-                if !isPreview && (!panels.visibleTiles.isEmpty || panels.failureMessage != nil) {
+                if !isPreview && (!panels.visibleTiles.isEmpty
+                    || (!panels.didLoadPanels && panels.failureMessage != nil)) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(L("Watching")).font(.headline)
                         DashboardPanelsSection(model: panels)

@@ -9,7 +9,6 @@ extension View {
     func workspaceChrome() -> some View {
         if #available(macOS 26, *) {
             scrollEdgeEffectHidden(true, for: .top)
-                .toolbarBackground(.visible, for: .windowToolbar)
         } else {
             self
         }

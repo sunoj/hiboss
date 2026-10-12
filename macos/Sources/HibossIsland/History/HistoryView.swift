@@ -67,7 +67,7 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var historyContent: some View {
-        if scopedThreads.isEmpty, flow.historyState == .loading {
+        if scopedThreads.isEmpty, flow.historyState == .loading, flow.historyLoadedAt == nil {
             ProgressView(L("Loading messages…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if threads.isEmpty {
@@ -135,18 +135,18 @@ struct HistoryView: View {
     }
 
     private var emptyTitle: String {
-        if case .failed = flow.historyState { return L("History Unavailable") }
+        if case .failed = flow.historyState, flow.historyLoadedAt == nil { return L("History Unavailable") }
         if scopedThreads.isEmpty, scope == .category(.completed) { return L("No completed questions") }
         return scopedThreads.isEmpty ? L("No Messages") : L("No Matching Messages")
     }
 
     private var emptySystemImage: String {
-        if case .failed = flow.historyState { return "exclamationmark.triangle" }
+        if case .failed = flow.historyState, flow.historyLoadedAt == nil { return "exclamationmark.triangle" }
         return "tray"
     }
 
     private var emptyDescription: String {
-        if case let .failed(message) = flow.historyState { return message }
+        if case let .failed(message) = flow.historyState, flow.historyLoadedAt == nil { return message }
         if scopedThreads.isEmpty, scope == .category(.completed) {
             return L("Answered and expired questions appear here.")
         }

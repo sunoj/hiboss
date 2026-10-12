@@ -9,12 +9,13 @@ import AppKit
 struct TodaySummary: View {
     let snapshot: TodaySnapshot
     let now: Date
+    var isRefreshing = false
+    @StateObject private var refreshStatus = RefreshStatus()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                 .font(.caption).foregroundStyle(TodayStyle.tertiary)
-            Text(L("Today")).font(.title.bold())
             HStack(spacing: 16) {
                 if !snapshot.decisions.isEmpty {
                     Label(L("\(snapshot.decisions.count) need you"), systemImage: "circle.fill")
@@ -28,7 +29,8 @@ struct TodaySummary: View {
             if case let .live(checkedAt) = snapshot.health {
                 TimelineView(.periodic(from: now, by: 1)) { context in
                     let age = AttentionClock.elapsed(since: checkedAt, now: context.date)
-                    Label(L("Live · updated \(age) ago"), systemImage: "checkmark.circle.fill")
+                    Label(refreshStatus.showsUpdating ? L("Updating…") : L("Live · updated \(age) ago"),
+                        systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundStyle(TodayStyle.settled)
                 }
             } else {
@@ -39,6 +41,9 @@ struct TodaySummary: View {
                 Text(L("Coverage is incomplete. Older decisions may not be visible."))
                     .font(.callout).foregroundStyle(TodayStyle.secondary)
             }
+        }
+        .task(id: isRefreshing) {
+            await refreshStatus.update(isRefreshing: isRefreshing)
         }
     }
 

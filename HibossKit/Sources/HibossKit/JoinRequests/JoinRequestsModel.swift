@@ -27,6 +27,8 @@ public enum JoinDecisionResult: Equatable, Sendable {
 public final class JoinRequestsModel: ObservableObject {
     @Published public private(set) var requests: [JoinRequest] = []
     @Published public private(set) var state: JoinRequestsState = .idle
+    @Published public private(set) var didLoad = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var decidingID: String?
     /// Called once per request ID the model has never seen, across refreshes and reconnects.
     public var onNewRequests: (([JoinRequest]) -> Void)?
@@ -51,17 +53,21 @@ public final class JoinRequestsModel: ObservableObject {
     }
 
     public func refresh() async {
+        guard !isRefreshing else { return }
         guard let service = serviceProvider() else {
             requests = []
             state = .idle
             return
         }
-        if state != .loaded { state = .loading }
+        if !didLoad { state = .loading }
+        isRefreshing = true
+        defer { isRefreshing = false }
         do {
             let pending = try await service.listPendingJoinRequests()
                 .filter { $0.status == "pending" }
             requests = pending
             state = .loaded
+            didLoad = true
             announce(pending)
         } catch JoinRequestError.forbidden {
             requests = []
@@ -88,6 +94,7 @@ public final class JoinRequestsModel: ObservableObject {
     public func reset() {
         requests = []
         state = .idle
+        didLoad = false
         decidingID = nil
     }
 

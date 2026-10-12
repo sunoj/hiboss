@@ -29,10 +29,12 @@ enum TodayProjection {
             sessionLabel: live.sessionLabel, sessionBranch: live.sessionBranch)
     }
 
-    static func health(connection: ConnectionState, history: HistoryState, checkedAt: Date) -> TodayHealth {
-        if history == .loading || history == .idle { return .loading }
+    static func health(connection: ConnectionState, history: HistoryState, checkedAt: Date,
+                       loadedAt: Date? = nil) -> TodayHealth {
+        if (history == .loading || history == .idle) && loadedAt == nil { return .loading }
+        if case .failed = history { return .offline(since: loadedAt ?? checkedAt) }
         switch connection {
-        case .connected: return .live(checkedAt: checkedAt)
+        case .connected: return .live(checkedAt: loadedAt ?? checkedAt)
         case .connecting: return .connecting
         case .disconnected, .failed: return .offline(since: checkedAt)
         }

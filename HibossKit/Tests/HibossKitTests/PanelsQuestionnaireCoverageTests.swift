@@ -89,7 +89,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
         XCTAssertFalse(model.hasCompleteQuestionnaires)
     }
 
-    func testConnectionChangeRejectsOldFetchAndPreservesKnownRows() async {
+    func testConnectionChangeRejectsOldFetchAndClearsKnownRows() async {
         let api = ControlledQuestionnaireAPI()
         let model = makeModel(api)
         await api.setQuestions([Self.request])
@@ -99,9 +99,11 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
         await api.waitForQuestions()
         model.connectionDidChange()
         XCTAssertFalse(model.hasCompleteQuestionnaires)
+        XCTAssertTrue(model.pendingQuestionnaires.isEmpty)
+        XCTAssertFalse(model.didLoadQuestionnaires)
         await api.releaseQuestions()
         await old.value
-        XCTAssertEqual(model.pendingQuestionnaires, [Self.request])
+        XCTAssertTrue(model.pendingQuestionnaires.isEmpty, "Old-account responses cannot restore rows")
         XCTAssertFalse(model.hasCompleteQuestionnaires)
         await model.reconciliationTask?.value
         XCTAssertTrue(model.hasCompleteQuestionnaires)
@@ -214,7 +216,7 @@ final class PanelsQuestionnaireCoverageTests: XCTestCase {
     )
 }
 
-private actor ControlledQuestionnaireAPI: PanelsServing, QuestionnaireServing {
+actor ControlledQuestionnaireAPI: PanelsServing, QuestionnaireServing {
     nonisolated let questionnaireScope = "coverage-tests"
     private var questions: [PendingQuestionnaire] = []
     private var heldQuestions: [PendingQuestionnaire]?
