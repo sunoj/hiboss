@@ -87,6 +87,14 @@ for, and that answer deserves to feel settled rather than merely empty.
   the island lost its home when the Inbox tab was merged away, and nobody
   noticed until the boss asked.
 
+- **Loading and refresh never move the layout.** Follow `docs/ui-stability.md`: after the
+  first load, a refresh changes only a small status element.
+- **Every image and video zooms, in one viewer.** All media opens in
+  `ios/App/Media/MediaViewer.swift` (pinch and double-tap zoom, paging, share, swipe down to
+  close). No surface ships its own full-screen media view.
+- **Visual deliveries attach full-screen screenshots** of each touched screen (light, dark, one
+  large text size). They are reviewed for alignment and duplicated titles before merging.
+
 ## 5. Reach and touch
 
 - Anything tappable is at least 44×44 pt, including a chevron.

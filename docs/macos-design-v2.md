@@ -135,6 +135,19 @@ logic and those tests. This pass changes presentation only.
 
 ## 6. Verification
 
+Loading and refresh follow `docs/ui-stability.md`: once content is shown, a refresh changes
+only a small status element, never the layout.
+
+**Window chrome is the system's.** `NavigationSplitView` draws the sidebar, the toolbar band and
+their separators; do not force `.toolbarBackground` or draw dividers that must meet the
+system's. Edges, separators and baselines line up across the sidebar and detail columns. A
+title appears once: the window/toolbar title or an in-content large title, never both.
+
+**Every visual change ships full-window screenshots** at real size (not component snapshots)
+of each surface it touched, light and dark, attached to the delivery. Review them for
+alignment, duplicated titles and clipped controls before merging; a delivery without them is
+not reviewed.
+
 `swift build && swift test` in `macos/`. Beyond green tests, check by reasoning: switching
 the system between light and dark must carry every surface with it, with no hardcoded colour
 left stranded. Grep your own diff for `system(size:` and `Color(hex:` — both should return
