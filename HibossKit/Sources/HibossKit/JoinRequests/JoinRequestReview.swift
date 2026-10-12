@@ -20,16 +20,21 @@ public final class JoinRequestReview: ObservableObject {
     @Published public private(set) var isDeciding = false
     public let requestID: String
     private let model: JoinRequestsModel
+    private let generation: Int
 
     public init(requestID: String, model: JoinRequestsModel) {
         self.requestID = requestID
         self.model = model
+        generation = model.generation
         if let known = model.request(id: requestID) { phase = .ready(known) }
     }
 
     public func load() async {
+        guard generation == model.generation, !Task.isCancelled else { return }
         if case .ready = phase { return }
-        switch await model.lookup(id: requestID) {
+        let result = await model.lookup(id: requestID)
+        guard generation == model.generation, !Task.isCancelled else { return }
+        switch result {
         case let .found(request): phase = .ready(request)
         case .notPending: phase = .unavailable(JoinRequestError.notFound.localizedDescription)
         case .forbidden: phase = .unavailable(JoinRequestError.forbidden.localizedDescription)
@@ -51,11 +56,13 @@ public final class JoinRequestReview: ObservableObject {
     private func decide(
         _ request: JoinRequest, _ action: (JoinRequest) async -> JoinDecisionResult
     ) async {
-        guard !isDeciding else { return }
+        guard !isDeciding, generation == model.generation, !Task.isCancelled else { return }
         isDeciding = true
         failureMessage = nil
         defer { isDeciding = false }
-        switch await action(request) {
+        let result = await action(request)
+        guard generation == model.generation, !Task.isCancelled else { return }
+        switch result {
         case let .approved(approval): phase = .approved(request, approval)
         case .rejected: phase = .rejected(request)
         case let .failed(message): settle(after: message)

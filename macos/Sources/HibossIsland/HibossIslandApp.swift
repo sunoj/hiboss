@@ -77,7 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
-    let identity = AccountIdentityGeneration()
+    var identity: AccountIdentityGeneration { settings.identity }
     let overview: OverviewStore
     let requiredInputs = RequiredInputStore()
     var cancellables: Set<AnyCancellable> = []
@@ -90,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         joinRequests = JoinRequestsModel {
             (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
         }
-        overview = OverviewStore(identity: identity)
+        overview = OverviewStore(identity: settings.identity)
         super.init()
         overview.bind(flow: flow, inputs: requiredInputs)
     }

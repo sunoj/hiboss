@@ -43,7 +43,7 @@ struct MainView: View {
          progressStore: ProgressFeedStore? = nil,
          panelsModel: PanelsModel? = nil,
          identity: AccountIdentityGeneration? = nil) {
-        let accountIdentity = identity ?? overviewStore?.identity ?? AccountIdentityGeneration()
+        let accountIdentity = identity ?? overviewStore?.identity ?? settings.identity
         self.identity = accountIdentity
         self.requiredInputs = requiredInputs
         _overviewStore = StateObject(wrappedValue: overviewStore
@@ -113,6 +113,7 @@ struct MainView: View {
         .environment(\.agentAvatars, previewHistory == nil ? flow.agentAvatars : AttentionPreview.avatars)
         .onChange(of: settings.activeClientConfig) {
             overviewStore.accountDidChange()
+            joinRequests.reset()
             reply.reset()
             destination = .today
             showsCompactOverview = false
@@ -139,7 +140,6 @@ struct MainView: View {
         .onChange(of: panels.hasDisplayCoverage) { updateOverview() }
         .onChange(of: panels.pendingQuestionnaires) { updateOverview() }
     }
-
     private func updateOverview() {
         guard let history = previewHistory else {
             overviewStore.setQuestionnaireCoverage(panels.hasDisplayCoverage

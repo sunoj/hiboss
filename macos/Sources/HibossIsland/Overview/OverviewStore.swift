@@ -58,7 +58,6 @@ final class OverviewStore: ObservableObject {
     }
 
     func accountDidChange() {
-        identity.changed()
         expirationTask?.cancel()
         expirationTask = nil
         history = []

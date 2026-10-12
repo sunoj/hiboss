@@ -65,6 +65,7 @@ final class OverviewStoreTests: XCTestCase {
             })
         }
         await fulfillment(of: [started])
+        identity.changed()
         store.accountDidChange()
         release?()
         _ = await task.value
