@@ -14,7 +14,9 @@ fn explicit_auto_default_drops_the_stored_action() {
     })));
     assert_eq!(reply.outcome, ReplyOutcome::AutoDefault);
     assert_eq!(reply.action, None);
-    assert!(reply.text().contains("not a boss reply or execution authorization"));
+    assert!(reply
+        .text()
+        .contains("not a boss reply or execution authorization"));
 }
 
 #[test]
@@ -24,7 +26,10 @@ fn non_boolean_auto_default_is_not_a_discriminator() {
     })));
     assert_eq!(reply.outcome, ReplyOutcome::Reply);
     assert_eq!(reply.action.as_deref(), Some("deploy"));
-    assert_eq!(reply.text(), "Reply r1 [reply]: Approve\n  Source: agent\n  Action: deploy\n");
+    assert_eq!(
+        reply.text(),
+        "Reply r1 [reply]: Approve\n  Source: agent\n  Action: deploy\n"
+    );
 }
 
 #[test]
@@ -40,11 +45,16 @@ fn boss_replies_carry_the_verifier_assurance_label() {
     };
     let api = ReplyReport::from_reply(&attributed("api", "not_configured", json!({})));
     assert_eq!(api.assurance, "api/not_configured");
-    assert_eq!(api.text(), "Reply r1 [reply]: Approve\n  Source: api/not_configured\n");
+    assert_eq!(
+        api.text(),
+        "Reply r1 [reply]: Approve\n  Source: api/not_configured\n"
+    );
     let auto_meta = json!({"auto_default": true});
     let auto = ReplyReport::from_reply(&attributed("system", "not_applicable", auto_meta));
     assert_eq!(auto.assurance, "system/not_applicable");
-    assert!(auto.text().contains("\n  Source: system/not_applicable\n  Automatic timeout"));
+    assert!(auto
+        .text()
+        .contains("\n  Source: system/not_applicable\n  Automatic timeout"));
 }
 
 #[test]
@@ -68,7 +78,25 @@ fn expired_options_without_reply_claim_no_decision() {
 #[test]
 fn missing_fields_render_as_unknown_and_serialize_as_null() {
     let report = StatusReport::from_message(&message(json!({"id": "m1"})));
-    assert!(report.text().contains("Direction: unknown\nStatus: unknown"));
+    assert!(report
+        .text()
+        .contains("Direction: unknown\nStatus: unknown"));
     let value = serde_json::to_value(&report).expect("serializable report");
-    assert_eq!(value, json!({"message_id": "m1", "direction": null, "status": null, "replies": []}));
+    assert_eq!(
+        value,
+        json!({"message_id": "m1", "direction": null, "status": null, "replies": []})
+    );
+}
+
+#[test]
+fn device_name_is_added_to_json_and_text_without_changing_assurance() {
+    let reply = ReplyReport::from_reply(&message(json!({
+        "id": "r1", "direction": "boss_to_agent", "body": "Ship", "metadata": {"source": "api",
+            "provenance": {"version": 1, "source": "api", "signature": {"status": "not_configured"}},
+            "answered_by": {"client_id": "phone", "kind": "ios", "label": "Ming's iPhone"}}
+    })));
+    assert!(reply.text().contains("Source: Ming's iPhone"));
+    let json = serde_json::to_value(&reply).expect("JSON reply");
+    assert_eq!(json["device_label"], "Ming's iPhone");
+    assert_eq!(reply.assurance, "api/not_configured");
 }

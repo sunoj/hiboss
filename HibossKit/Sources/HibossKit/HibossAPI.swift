@@ -75,11 +75,15 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         request.httpBody = try JSONEncoder().encode(
             ReplyPayload(body: body, signedMessage: signedMessage)
         )
-        let (_, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
         if (response as? HTTPURLResponse)?.statusCode == 409 {
             return .alreadyResolved
         }
         try validate(response)
+        struct ReplyReceipt: Decodable { let metadata: MessageMetadata? }
+        if let device = (try? decoder.decode(ReplyReceipt.self, from: data))?.metadata?.answeredBy {
+            return .acceptedOn(device)
+        }
         return .accepted
     }
 

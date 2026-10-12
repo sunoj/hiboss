@@ -2,6 +2,7 @@
 // This module re-exports functions from focused modules (queries, options).
 
 import { SESSION_NICKNAME_SQL } from './session-nickname';
+import { readAnsweredBy } from '../answered-by';
 import type {
   Channel,
   Direction,
@@ -30,9 +31,12 @@ export const resolutionSourceOptions: ResolutionSource[] = ['ios', 'macos', 'tel
 const LIKE_ESCAPE_PATTERN = /[%_\\]/g;
 
 export function mapMessageRow(row: MessageRow): MessageResponse {
+  const metadata = safeParse(row.metadata);
+  const answeredBy = readAnsweredBy(metadata);
   return {
     ...row,
-    metadata: safeParse(row.metadata),
+    metadata,
+    ...(answeredBy ? { answered_by: answeredBy } : {}),
   };
 }
 

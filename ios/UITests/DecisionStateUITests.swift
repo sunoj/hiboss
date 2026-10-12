@@ -29,6 +29,17 @@ final class DecisionStateUITests: XCTestCase {
         row.tap()
     }
 
+    func testResolvedDecisionShowsAnsweringDevice() {
+        launch(["HIBOSS_DEMO_OPEN": "media-decision", "HIBOSS_DEMO_OPTION_MEDIA": "resolved",
+                "HIBOSS_DEMO_DEVICE_LABEL": "Ming's iPhone"])
+        XCTAssertTrue(app.staticTexts["Answered on Ming's iPhone"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Answered on API"].exists)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "answered-device-ios"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     func testTimeoutDefaultIsNotShownAsTheBossChoice() {
         launch(["HIBOSS_DEMO_OPEN": "a1"])
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))

@@ -33,8 +33,9 @@ struct HistoryReplies: View {
                 Text(L("Me"))
             }
             Text(HistoryTimestamp.shortLocalTime(from: reply.createdAt))
-            if let source = reply.metadata?.source, !source.isEmpty {
-                Text(source.capitalized)
+            if let source = reply.metadata?.answeredBy?.displayLabel ?? reply.metadata?.source?.capitalized,
+               !source.isEmpty {
+                Text(verbatim: source)
             }
         }
         .font(.caption).foregroundStyle(.secondary)

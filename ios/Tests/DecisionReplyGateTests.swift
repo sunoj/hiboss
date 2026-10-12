@@ -52,6 +52,19 @@ final class DecisionReplyGateTests: XCTestCase {
         XCTAssertTrue(store.replying.isEmpty)
     }
 
+    func testAcceptedReplyShowsServerDeviceBeforeHistoryRefresh() async throws {
+        let api = HeldReplyAPI()
+        let store = await makeStore(api)
+        defer { store.stop() }
+        let reply = Pending { await store.reply("Approve", to: "q1") }
+        await waitUntil { api.replies.count == 1 }
+        let device = AnsweringDevice(clientID: "phone", kind: "ios", label: "Ming's iPhone")
+        api.release(.success(.acceptedOn(device)))
+        let result = try await reply.settled()
+        XCTAssertEqual(result, .sent)
+        XCTAssertEqual(store.localResolutions["q1"]?.sourceLabel, device.label)
+    }
+
     func testSignOutIgnoresOldInAppReplyFailure() async throws {
         let api = HeldReplyAPI()
         let store = await makeStore(api)

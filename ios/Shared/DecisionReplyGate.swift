@@ -28,6 +28,7 @@ enum DecisionAnswerability: Equatable {
 /// What became of one reply attempt.
 enum DecisionSubmission: Equatable {
     case accepted
+    case acceptedOn(AnsweringDevice)
     case alreadyResolved
     case failed(String)
     /// Another reply for this decision was still in flight, so nothing was sent.
@@ -75,6 +76,7 @@ final class DecisionReplyGate: ObservableObject {
             } else {
                 switch try await api.reply(to: id, with: choice) {
                 case .accepted: submission = .accepted
+                case let .acceptedOn(device): submission = .acceptedOn(device)
                 case .alreadyResolved: submission = .alreadyResolved
                 }
             }

@@ -28,8 +28,10 @@ extension InboxStore {
         switch submission {
         case .busy:
             break
-        case .accepted:
-            settleReply(choice.trimmingCharacters(in: .whitespacesAndNewlines), for: id)
+        case .accepted, .acceptedOn:
+            let device: AnsweringDevice?
+            if case let .acceptedOn(value) = submission { device = value } else { device = nil }
+            settleReply(choice.trimmingCharacters(in: .whitespacesAndNewlines), for: id, answeredBy: device)
             replyConfirmation = String(localized: "Reply sent.")
             refreshHistory()
         case .alreadyResolved:
@@ -65,7 +67,7 @@ extension InboxStore {
 extension ReplyResult {
     init(_ submission: DecisionSubmission) {
         switch submission {
-        case .accepted: self = .sent
+        case .accepted, .acceptedOn: self = .sent
         case .alreadyResolved: self = .alreadyResolved
         case .failed: self = .failed
         case .busy: self = .busy

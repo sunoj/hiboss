@@ -48,13 +48,15 @@ final class IslandNotchRenderingTests: XCTestCase {
         let message = OptionMessage.fixture(id: "notch-resolved", options: ["Ship", "Wait"])
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         defer { flow.disconnect() }
-        let resolution = OptionResolution(id: message.id, status: .replied, answer: "Ship", source: "Phone")
+        let resolution = OptionResolution(id: message.id, status: .replied, answer: "Ship", source: "api",
+            answeredBy: AnsweringDevice(clientID: "phone", kind: "ios", label: "Ming's iPhone"))
         flow.connect(api: ScriptedBossAPI(events: [.message(message), .resolved(resolution)],
             eventInterval: .milliseconds(100)))
         try await waitForCondition {
             if case .resolved = flow.presentationState { return true }
             return false
         }
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "Ming's iPhone"))
         let geometry = IslandNotchFixtures.macBook14
         let bitmap = try await render(flow: flow, geometry: geometry, expanded: true)
         let frame = geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message))

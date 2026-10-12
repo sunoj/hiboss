@@ -14,14 +14,19 @@ fn choices() -> ChoicePayload {
 fn reply(metadata: serde_json::Value) -> Message {
     serde_json::from_value(json!({
         "id": "reply-1", "body": "Approve", "metadata": metadata,
-    })).expect("valid reply fixture")
+    }))
+    .expect("valid reply fixture")
 }
 
 #[test]
 fn server_default_is_not_an_explicit_reply_or_action() {
-    let result = AskResult::from_poll("ask-1", Some(&[reply(json!({
-        "auto_default": true, "action": "deploy",
-    }))]), &choices());
+    let result = AskResult::from_poll(
+        "ask-1",
+        Some(&[reply(json!({
+            "auto_default": true, "action": "deploy",
+        }))]),
+        &choices(),
+    );
     let json = serde_json::to_value(&result).expect("serializable result");
     assert_eq!(json["outcome"], "auto_default");
     assert_eq!(json["reply_id"], "reply-1");
@@ -33,12 +38,18 @@ fn server_default_is_not_an_explicit_reply_or_action() {
 
 #[test]
 fn explicit_reply_matching_default_keeps_its_action() {
-    for metadata in [json!({"action": "deploy"}), json!({"auto_default": false, "action": "deploy"})] {
+    for metadata in [
+        json!({"action": "deploy"}),
+        json!({"auto_default": false, "action": "deploy"}),
+    ] {
         let result = AskResult::from_poll("ask-1", Some(&[reply(metadata)]), &choices());
         assert_eq!(result.outcome, Outcome::Reply);
         assert_eq!(result.text(), "Approve");
         assert_eq!(result.action.as_deref(), Some("deploy"));
-        assert_eq!(serde_json::to_value(result).expect("JSON")["outcome"], "reply");
+        assert_eq!(
+            serde_json::to_value(result).expect("JSON")["outcome"],
+            "reply"
+        );
     }
 }
 
@@ -50,7 +61,10 @@ fn local_default_is_unconfirmed_and_has_no_action() {
         assert!(result.reply_id.is_none());
         assert!(result.action.is_none());
         assert!(result.text().contains("not a confirmed server selection"));
-        assert_eq!(serde_json::to_value(result).expect("JSON")["outcome"], "local_default");
+        assert_eq!(
+            serde_json::to_value(result).expect("JSON")["outcome"],
+            "local_default"
+        );
     }
 }
 
@@ -62,7 +76,10 @@ fn timeout_without_default_preserves_recovery_id() {
     assert_eq!(result.outcome, Outcome::Timeout);
     assert_eq!(result.text(), "ask-1");
     assert!(result.body.is_none());
-    assert_eq!(serde_json::to_value(result).expect("JSON")["outcome"], "timeout");
+    assert_eq!(
+        serde_json::to_value(result).expect("JSON")["outcome"],
+        "timeout"
+    );
 }
 
 #[test]
@@ -72,4 +89,19 @@ fn bodyless_reply_does_not_invent_a_default() {
     let result = AskResult::from_poll("ask-1", Some(&[reply]), &choices());
     assert_eq!(result.outcome, Outcome::Reply);
     assert!(result.body.is_none());
+}
+
+#[test]
+fn reply_json_includes_the_answering_device() {
+    let result = AskResult::from_poll(
+        "ask-1",
+        Some(&[reply(json!({
+            "answered_by": {"client_id": "mac", "kind": "macos", "label": "Mac mini"}
+        }))]),
+        &choices(),
+    );
+    assert_eq!(
+        serde_json::to_value(result).expect("JSON")["device_label"],
+        "Mac mini"
+    );
 }

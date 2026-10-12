@@ -11,8 +11,9 @@ struct DecisionSettlement: Equatable {
     let source: String?
     /// The server's timeout default, from the reply's `auto_default` marker, never from `source`.
     var isAutoDefault = false
+    var answeredBy: AnsweringDevice? = nil
 
-    var sourceLabel: String? { resolutionSourceLabel(source) }
+    var sourceLabel: String? { answeredBy?.displayLabel ?? resolutionSourceLabel(source) }
 
     /// True when the answer came from another boss surface, not this iOS client.
     var answeredElsewhere: Bool {
@@ -23,7 +24,9 @@ struct DecisionSettlement: Equatable {
     /// Who produced the answer. A timeout default is never worded as the boss's answer.
     var attribution: Text {
         if isAutoDefault { return Text("Auto-selected when time ran out") }
-        if answeredElsewhere, let sourceLabel { return Text("Answered on \(sourceLabel)") }
+        if answeredBy != nil || answeredElsewhere, let sourceLabel {
+            return Text("Answered on \(sourceLabel)")
+        }
         return Text("Answered")
     }
 
@@ -34,14 +37,15 @@ struct DecisionSettlement: Equatable {
 extension DecisionSettlement {
     /// The persisted reply's answer, source and automatic marker; nil for an empty reply.
     init?(reply: HistoryMessage) {
-        self.init(outcome: ThreadOutcome(reply: reply), source: reply.metadata?.source)
+        self.init(outcome: ThreadOutcome(reply: reply), source: reply.metadata?.source,
+                  answeredBy: reply.metadata?.answeredBy)
     }
 
-    private init?(outcome: ThreadOutcome, source: String?) {
+    private init?(outcome: ThreadOutcome, source: String?, answeredBy: AnsweringDevice? = nil) {
         switch outcome {
         case let .chosen(answer, replySource), let .replied(answer, replySource):
             guard !answer.isEmpty else { return nil }
-            self.init(answer: answer, source: replySource)
+            self.init(answer: answer, source: replySource, answeredBy: answeredBy)
         case let .autoSelected(answer):
             guard let answer, !answer.isEmpty else { return nil }
             self.init(answer: answer, source: source, isAutoDefault: true)
@@ -54,14 +58,16 @@ extension DecisionSettlement {
     init?(resolution: OptionResolution) {
         guard let text = resolution.answer?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else { return nil }
-        self.init(answer: text, source: resolution.source, isAutoDefault: resolution.isAutoDefault)
+        self.init(answer: text, source: resolution.source, isAutoDefault: resolution.isAutoDefault,
+                  answeredBy: resolution.answeredBy)
     }
 
     static func fromReply(in history: [HistoryMessage], for id: MessageID) -> DecisionSettlement? {
         guard let thread = MessageThread.fold(history).first(where: { $0.id == id }),
               let reply = thread.newestReply else { return nil }
         let outcome = thread.message.options.isEmpty ? ThreadOutcome(reply: reply) : thread.outcome
-        return DecisionSettlement(outcome: outcome, source: reply.metadata?.source)
+        return DecisionSettlement(outcome: outcome, source: reply.metadata?.source,
+                                  answeredBy: reply.metadata?.answeredBy)
     }
 }
 

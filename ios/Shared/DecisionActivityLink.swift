@@ -55,7 +55,7 @@ enum DecisionActivityLink {
         of id: MessageID, after submission: DecisionSubmission, choice: String, api: any BossServing
     ) async -> DecisionCompletion? {
         switch submission {
-        case .accepted: return .answered(choice)
+        case .accepted, .acceptedOn: return .answered(choice)
         case .alreadyResolved: return .recorded(in: try? await api.fetchMessage(id))
         case .failed, .busy: return nil
         }

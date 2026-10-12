@@ -23,7 +23,8 @@ extension OptionFlowStore {
             id: active.id,
             status: resolved.status == "expired" ? .expired : .replied,
             answer: reply?.body,
-            source: reply?.metadata?.source
+            source: reply?.metadata?.source,
+            answeredBy: reply?.metadata?.answeredBy
         ))
     }
 

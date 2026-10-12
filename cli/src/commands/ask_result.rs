@@ -23,6 +23,8 @@ pub(crate) struct AskResult {
     pub outcome: Outcome,
     pub body: Option<String>,
     pub action: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
 }
 
 impl AskResult {
@@ -32,19 +34,35 @@ impl AskResult {
         choices: &ChoicePayload,
     ) -> Self {
         let mut result = Self {
-            message_id: message_id.to_owned(), reply_id: None,
-            outcome: Outcome::Timeout, body: None, action: None,
+            message_id: message_id.to_owned(),
+            reply_id: None,
+            outcome: Outcome::Timeout,
+            body: None,
+            action: None,
+            device_label: None,
         };
         if let Some(reply) = replies.and_then(|items| items.first()) {
-            let automatic = reply.metadata.as_ref()
+            let automatic = reply
+                .metadata
+                .as_ref()
                 .and_then(|meta| meta.get("auto_default"))
-                .and_then(|value| value.as_bool()) == Some(true);
+                .and_then(|value| value.as_bool())
+                == Some(true);
+            result.device_label = super::status_result::device_label(reply);
             result.reply_id = Some(reply.id.clone());
             result.body = reply.body.clone();
-            result.outcome = if automatic { Outcome::AutoDefault } else { Outcome::Reply };
+            result.outcome = if automatic {
+                Outcome::AutoDefault
+            } else {
+                Outcome::Reply
+            };
             if !automatic {
-                result.action = reply.metadata.as_ref().and_then(|meta| meta.get("action"))
-                    .and_then(|value| value.as_str()).map(str::to_owned);
+                result.action = reply
+                    .metadata
+                    .as_ref()
+                    .and_then(|meta| meta.get("action"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_owned);
             }
         } else if let Some(default) = resolve_default_reply(choices, replies) {
             result.outcome = Outcome::LocalDefault;
