@@ -40,6 +40,8 @@ public final class AccountAuthorization: ObservableObject {
         hasRejectedAccount = false
     }
 
+    public func disconnect() { account = nil }
+
     public func reject(_ error: Error, account: ConnectionConfig) {
         guard account == self.account, !hasRejectedAccount, Self.isRejected(error) else { return }
         hasRejectedAccount = true
