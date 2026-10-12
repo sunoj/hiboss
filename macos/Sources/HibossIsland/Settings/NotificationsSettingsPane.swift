@@ -37,6 +37,7 @@ struct NotificationsSettingsPane: View {
                     }
                 }
                 Toggle(L("Critical bypasses Do Not Disturb"), isOn: criticalBypassBinding)
+                    .disabled(preferencesStore.authorizationRejected)
                 Toggle(L("Show menu bar icon"), isOn: $settings.showsStatusItem)
             } header: {
                 Text(L("Delivery"))

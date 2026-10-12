@@ -45,6 +45,7 @@ final class DecisionReplyGate: ObservableObject {
     @Published private(set) var verifying: Set<MessageID> = []
     @Published private(set) var verificationTimedOut: Set<MessageID> = []
     private var generation = 0
+    var currentAnswerability: (@MainActor (MessageID, DecisionAnswerability, Bool) -> DecisionAnswerability)?
 
     func locksControls(for id: MessageID) -> Bool {
         inFlight[id] != nil && (!verifying.contains(id) || verificationTimedOut.contains(id))
@@ -63,7 +64,7 @@ final class DecisionReplyGate: ObservableObject {
     /// Live Activity for the decision shows the submission, then its recorded outcome.
     func submit(_ choice: String, to id: MessageID, via api: any BossServing,
                 answerability: DecisionAnswerability? = nil,
-                onAuthorizationFailure: @MainActor (Error) -> Void = { _ in }) async -> DecisionSubmission {
+                onAuthorizationFailure: @MainActor (Error) -> Void) async -> DecisionSubmission {
         guard inFlight[id] == nil else { return .busy }
         let version = generation
         let text = choice.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -93,14 +94,15 @@ final class DecisionReplyGate: ObservableObject {
                                    onAuthorizationFailure: @MainActor (Error) -> Void) async
         -> DecisionSubmission {
         do {
-            let state: DecisionAnswerability
-            if let answerability { state = answerability }
-            else { state = try await loadAnswerability(for: id, via: api) }
+            let verified: @MainActor () -> DecisionAnswerability
+            if let answerability { verified = { answerability } }
+            else { verified = try await loadAnswerability(for: id, via: api) }
             guard version == generation else { return .failed(String(localized: "Connection isn't ready.")) }
             guard !verificationTimedOut.contains(id) else {
                 return .failed(String(localized: "This is taking longer than expected."))
             }
             verifying.remove(id)
+            let state = currentAnswerability?(id, verified(), answerability == nil) ?? verified()
             if state != .open {
                 return state == .closed ? .alreadyResolved : .failed(state.label ?? "")
             } else {
@@ -133,16 +135,20 @@ final class DecisionReplyGate: ObservableObject {
     }
 
     private func loadAnswerability(for id: MessageID, via api: any BossServing) async throws
-        -> DecisionAnswerability {
-        guard let service = api as? any RequiredInputServing else { return .checking }
+        -> @MainActor () -> DecisionAnswerability {
+        guard let service = api as? any RequiredInputServing else { return { .checking } }
         let inputs = try await service.fetchRequiredInputs()
         let today = TodaySnapshot(history: [], requiredInputs: inputs, health: .loading,
                                   coverageComplete: true, now: .now)
         let state = DecisionAnswerability(id: id, openIDs: Set(today.decisions.map(\.id)), loaded: true)
         if state == .closed {
             let message = try await api.fetchMessage(id).message
-            if !message.isDecision { return .open }
+            if !message.isDecision { return { .open } }
         }
-        return state
+        return {
+            let current = TodaySnapshot(history: [], requiredInputs: inputs, health: .loading,
+                                        coverageComplete: true, now: .now)
+            return DecisionAnswerability(id: id, openIDs: Set(current.decisions.map(\.id)), loaded: true)
+        }
     }
 }

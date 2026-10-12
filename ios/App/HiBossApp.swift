@@ -29,6 +29,7 @@ struct HiBossApp: App {
 
 struct RootView: View {
     @State private var showsClientNotice = false
+    @ObservedObject private var authorization = AccountAuthorization.shared
     @StateObject private var connectedPanels = ConnectedPanelsStore()
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var inbox: InboxStore
@@ -87,7 +88,7 @@ struct RootView: View {
                 )
                 .modifier(ProjectInventoryModifier(api: inbox.api as? any SessionsServing,
                                                    refreshRequested: inbox.isRefreshing))
-                .id(BoxStore.connectionIdentity(connection.config))
+                .id("\(BoxStore.connectionIdentity(connection.config))/\(authorization.generation)")
             } else if connection.isRestoring {
                 restoringView
             } else {

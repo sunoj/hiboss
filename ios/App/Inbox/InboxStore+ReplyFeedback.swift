@@ -6,6 +6,16 @@ import HibossKit
 import UIKit
 
 extension InboxStore {
+    func submissionAnswerability(for id: MessageID, verified: DecisionAnswerability,
+                                 didVerify: Bool) -> DecisionAnswerability {
+        guard api != nil else { return .checking }
+        if withdrawn.contains(id) { return .closed }
+        if let message = message(for: id), !message.isDecision { return .open }
+        let current = answerability(for: id)
+        guard current == .open else { return current }
+        return hasCompleteRequiredInputs ? current : (didVerify ? verified : .checking)
+    }
+
     /// Sends through the shared gate, so a second reply for the same decision from any
     /// surface returns `.busy` without reaching the server.
     @discardableResult

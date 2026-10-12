@@ -4,8 +4,20 @@
 
 import Foundation
 
+public enum HistorySyncError: Error, Sendable {
+    case authorization(HibossAPIError)
+    case failed(String)
+
+    public var localizedDescription: String {
+        switch self {
+        case let .authorization(error): error.localizedDescription
+        case let .failed(message): message
+        }
+    }
+}
+
 public actor HistorySync {
-    public typealias Observer = @MainActor @Sendable ([HistoryMessage]?, String?) async -> Void
+    public typealias Observer = @MainActor @Sendable ([HistoryMessage]?, HistorySyncError?) async -> Void
     private let api: any BossServing
     private let limit: Int
     private let debounce: Duration
@@ -68,7 +80,17 @@ public actor HistorySync {
             do {
                 try await fetch(forceFull: forceFull)
             } catch {
-                if !stopped && !Task.isCancelled { await observer(nil, error.localizedDescription) }
+                guard !stopped, !Task.isCancelled else { return }
+                if let rejected = error as? HibossAPIError, rejected.isAuthFailure {
+                    messages = []
+                    cursor = nil
+                    pending = false
+                    timer?.cancel()
+                    stopped = true
+                    await observer(nil, .authorization(rejected))
+                } else {
+                    await observer(nil, .failed(error.localizedDescription))
+                }
             }
         }
         worker = nil

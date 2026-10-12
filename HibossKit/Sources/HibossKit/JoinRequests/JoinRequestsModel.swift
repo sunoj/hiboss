@@ -36,6 +36,9 @@ public final class JoinRequestsModel: ObservableObject {
     private let serviceProvider: @MainActor () -> (any JoinRequestServing)?
     private let pollInterval: Duration
     private var seenIDs: Set<String> = []
+    private var authorizationObservation: AnyCancellable?
+    private var generation = 0
+    private var authorizationRejected = false
     private var lookupWaiters: [CheckedContinuation<Void, Never>] = []
 
     public init(
@@ -44,6 +47,11 @@ public final class JoinRequestsModel: ObservableObject {
     ) {
         self.pollInterval = pollInterval
         self.serviceProvider = serviceProvider
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.reset()
+            self?.authorizationRejected = true
+            self?.state = .forbidden
+        }
     }
 
     public var pendingCount: Int { requests.count }
@@ -54,7 +62,7 @@ public final class JoinRequestsModel: ObservableObject {
     }
 
     public func refresh() async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing, !authorizationRejected else { return }
         guard let service = serviceProvider() else {
             requests = []
             state = .idle
@@ -62,23 +70,19 @@ public final class JoinRequestsModel: ObservableObject {
         }
         if !didLoad && state == .idle { state = .loading }
         isRefreshing = true
-        defer {
-            isRefreshing = false
-            let waiting = lookupWaiters
-            lookupWaiters = []
-            for waiter in waiting { waiter.resume() }
-        }
+        let version = generation
+        defer { if version == generation { finishRefresh() } }
         do {
             let pending = try await service.listPendingJoinRequests()
                 .filter { $0.status == "pending" }
+            guard version == generation else { return }
             requests = pending
             state = .loaded
             didLoad = true
             announce(pending)
-        } catch JoinRequestError.forbidden {
-            requests = []
-            state = .forbidden
         } catch {
+            guard version == generation else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
     }
@@ -97,7 +101,18 @@ public final class JoinRequestsModel: ObservableObject {
     }
 
     /// Forgets the list on disconnect; seen IDs survive so a reconnect does not re-announce.
+    private func finishRefresh() {
+        isRefreshing = false
+        let waiting = lookupWaiters
+        lookupWaiters = []
+        for waiter in waiting { waiter.resume() }
+    }
+
     public func reset() {
+        finishRefresh()
+        generation += 1
+        authorizationRejected = false
+        isRefreshing = false
         requests = []
         state = .idle
         didLoad = false
@@ -141,26 +156,28 @@ public final class JoinRequestsModel: ObservableObject {
         _ request: JoinRequest,
         _ action: (any JoinRequestServing) async throws -> JoinDecisionResult
     ) async -> JoinDecisionResult {
+        guard !authorizationRejected else { return .failed(kitL("Only an admin can approve devices")) }
         guard decidingID == nil else { return .failed(kitL("Another decision is in progress.")) }
         guard let service = serviceProvider() else {
             return .failed(kitL("Connect to a server first."))
         }
+        let version = generation
         decidingID = request.id
-        defer { decidingID = nil }
+        defer { if version == generation { decidingID = nil } }
         do {
             let result = try await action(service)
+            guard version == generation else { return .failed(kitL("Disconnected")) }
             requests.removeAll { $0.id == request.id }
             return result
         } catch let error as JoinRequestError {
-            if error == .forbidden {
-                requests = []
-                state = .forbidden
-            } else {
+            guard version == generation else { return .failed(error.localizedDescription) }
+            if !AccountAuthorization.shared.reject(error) {
                 // 409 may mean "name taken" with the request still pending; the server decides.
                 await refresh()
             }
             return .failed(error.localizedDescription)
         } catch {
+            if version == generation { AccountAuthorization.shared.reject(error) }
             return .failed(error.localizedDescription)
         }
     }

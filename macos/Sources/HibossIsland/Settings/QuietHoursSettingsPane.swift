@@ -59,6 +59,7 @@ struct QuietHoursSettingsPane: View {
             }
         }
         .formStyle(.grouped)
+        .disabled(preferencesStore.authorizationRejected)
     }
 
     private var timezoneChoices: [String] {

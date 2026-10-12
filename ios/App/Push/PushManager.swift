@@ -266,7 +266,8 @@ extension PushManager: UNUserNotificationCenterDelegate {
 
         if let api = HiBossStore.replyAPI() {
             let id = MessageID(rawValue: request.messageID)
-            let outcome = await DecisionReplyGate.shared.submit(choice, to: id, via: api)
+            let outcome = await DecisionReplyGate.shared.submit(choice, to: id, via: api,
+                onAuthorizationFailure: { AccountAuthorization.shared.reject($0) })
             pushLog.info("notification action for \(request.messageID): \(String(describing: outcome))")
         }
     }

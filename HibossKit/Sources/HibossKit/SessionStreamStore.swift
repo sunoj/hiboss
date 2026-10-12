@@ -32,6 +32,7 @@ public final class SessionStreamStore: ObservableObject {
     private var batchTask: Task<Void, Never>?
     private var pendingBatch: [SessionEvent] = []
     private var knownIDs: Set<String> = []
+    private var authorizationObservation: AnyCancellable?
     private var loadGeneration = 0
     private var backfillGeneration = 0
 
@@ -48,6 +49,9 @@ public final class SessionStreamStore: ObservableObject {
         self.maxWindow = maxWindow
         self.batchMilliseconds = batchMilliseconds
         self.reconnectDelay = reconnectDelay
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.clearRejectedAccount(error)
+        }
     }
 
     public func start(api: any SessionStreamServing) {
@@ -117,6 +121,7 @@ public final class SessionStreamStore: ObservableObject {
             hasEarlier = older.count >= pageSize || (events.first?.sequence ?? 1) > 1
         } catch {
             guard !Task.isCancelled, generation == backfillGeneration else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             if useHistoryIfUnavailable(error) { return }
             loadError = error.localizedDescription
         }
@@ -156,6 +161,7 @@ public final class SessionStreamStore: ObservableObject {
             streamTask = Task { await runStreamLoop() }
         } catch {
             guard !Task.isCancelled, generation == loadGeneration else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             if useHistoryIfUnavailable(error) { return }
             loadError = error.localizedDescription
             connectionState = .failed(error.localizedDescription)
@@ -204,16 +210,28 @@ public final class SessionStreamStore: ObservableObject {
                 }
             } catch {
                 if Task.isCancelled { return }
+                if AccountAuthorization.shared.reject(error) { return }
                 if useHistoryIfUnavailable(error) { return }
-                if let apiError = error as? HibossAPIError, apiError.isAuthFailure {
-                    connectionState = .failed(error.localizedDescription)
-                    return
-                }
                 connectionState = .failed(error.localizedDescription)
             }
             if connectionState == .connected { connectionState = .connecting }
             try? await Task.sleep(for: reconnectDelay)
         }
+    }
+
+    private func clearRejectedAccount(_ error: Error) {
+        stop()
+        api = nil
+        events = []
+        knownIDs = []
+        didLoad = false
+        hasEarlier = false
+        lastAppliedSequence = -1
+        pendingWhileLocked = 0
+        needsResyncNotice = false
+        isFollowingLive = true
+        loadError = error.localizedDescription
+        connectionState = .failed(error.localizedDescription)
     }
 
     private func useHistoryIfUnavailable(_ error: Error) -> Bool {

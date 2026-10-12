@@ -30,7 +30,8 @@ final class DecisionReplyGateTests: XCTestCase {
         let current = HeldReplyAPI()
         let store = await makeStore(previous, gate: gate)
         defer { store.stop() }
-        let oldReply = Pending { await gate.submit("Approve", to: "q1", via: previous) }
+        let oldReply = Pending { await gate.submit("Approve", to: "q1", via: previous,
+            onAuthorizationFailure: { AccountAuthorization.shared.reject($0) }) }
         await waitUntil { previous.replies.count == 1 }
         XCTAssertEqual(store.replying["q1"], "Approve")
 
@@ -198,7 +199,8 @@ final class DecisionReplyGateTests: XCTestCase {
         let store = await makeStore(api, gate: gate)
         var changes = 0
         let observation = store.objectWillChange.sink { _ in changes += 1 }
-        let task = Pending { await gate.submit("Approve", to: "q1", via: api) }
+        let task = Pending { await gate.submit("Approve", to: "q1", via: api,
+            onAuthorizationFailure: { AccountAuthorization.shared.reject($0) }) }
         await waitUntil { changes > 0 && api.replies.count == 1 }
         XCTAssertGreaterThan(changes, 0, "views observing the store re-render when a reply starts")
         api.release()

@@ -21,6 +21,8 @@ final class ConnectionStore: ObservableObject {
     @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var config: ConnectionConfig? {
         didSet {
+            authorizationRejected = false
+            AccountAuthorization.shared.connect(config)
             sharedDefaults?.set(config?.serverURL.absoluteString, forKey: AppConstants.Storage.serverURL)
         }
     }
@@ -36,6 +38,8 @@ final class ConnectionStore: ObservableObject {
     private let pairingRedeemer: any ConnectionPairingRedeeming
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
     private var messageSigner: SecureEnclaveMessageSigner?
+    private var authorizationObservation: AnyCancellable?
+    @Published private(set) var authorizationRejected = false
 
     init(
         defaults: UserDefaults = .standard,
@@ -65,6 +69,9 @@ final class ConnectionStore: ObservableObject {
         self.clientsAPI = clientsAPI
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.authorizationRejected = true
+        }
     }
 
     var isConfigured: Bool { config != nil }
@@ -197,7 +204,7 @@ final class ConnectionStore: ObservableObject {
     }
 
     func makeAPI() -> HibossAPI? {
-        guard let config else { return nil }
+        guard !authorizationRejected, let config else { return nil }
         return HibossAPI(config: config, messageSigner: messageSigner)
     }
 }

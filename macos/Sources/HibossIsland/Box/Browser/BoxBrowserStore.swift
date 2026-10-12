@@ -44,7 +44,14 @@ final class BoxBrowserStore: ObservableObject {
     private var deleted: Set<String> = []
     private var loadedPages = 0
 
-    init(apiProvider: @escaping Provider) { self.apiProvider = apiProvider }
+    private var authorizationObservation: AnyCancellable?
+
+    init(apiProvider: @escaping Provider) {
+        self.apiProvider = apiProvider
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.reset()
+        }
+    }
 
     func reset() {
         selection = nil

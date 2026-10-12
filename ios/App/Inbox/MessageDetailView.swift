@@ -11,7 +11,13 @@ struct MessageDetailView: View {
     let messageID: MessageID
     var onOpenSession: ((SessionRoute) -> Void)? = nil
     @StateObject private var facts = SessionFactsStore()
-    @State private var replyDraft = ""
+    private var replyDraft: String {
+        get { store.messageDrafts[messageID] ?? "" }
+        nonmutating set { store.messageDrafts[messageID] = newValue }
+    }
+    private var draftBinding: Binding<String> {
+        Binding(get: { replyDraft }, set: { replyDraft = $0 })
+    }
     @State private var actionNote: String?
     @State var fallback: Fallback = .loading
     @State var loadAttempt = 0
@@ -194,7 +200,7 @@ struct MessageDetailView: View {
 
     private func replyField(for message: HistoryMessage) -> some View {
         HStack(alignment: .bottom, spacing: 8) {
-            TextField("Reply…", text: $replyDraft, axis: .vertical)
+            TextField("Reply…", text: draftBinding, axis: .vertical)
                 .accessibilityIdentifier("message-reply-draft")
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)

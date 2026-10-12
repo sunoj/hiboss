@@ -77,7 +77,7 @@ private struct PanelQuestionnairesContent: View {
         } catch is CancellationError { return }
         catch {
             guard generation == refreshGeneration else { return }
-            if (error as? HibossAPIError)?.isAuthFailure == true { records = []; service = nil }
+            if AccountAuthorization.shared.reject(error) { return }
             self.error = error.localizedDescription
         }
     }

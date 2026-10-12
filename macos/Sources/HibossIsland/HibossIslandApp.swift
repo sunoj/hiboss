@@ -90,6 +90,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
         super.init()
         overview.bind(flow: flow, inputs: requiredInputs)
+        AccountAuthorization.shared.observe { [weak self] _ in
+            self?.notifications.disconnect()
+            self?.notificationNavigation.target = nil
+            self?.notificationNavigation.deviceRequestsFocus = nil
+        }.store(in: &cancellables)
     }
 
     /// Dock click. SwiftUI does not reopen a closed single `Window` scene here, and the Island

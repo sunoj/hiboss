@@ -99,6 +99,21 @@ final class SettingsPreferencesTests: XCTestCase {
         XCTAssertFalse(store.isDirty)
     }
 
+    func testAnEditDuringReadKeepsTheDraftDirty() async {
+        let api = ControlledPreferencesAPI()
+        let store = PreferencesStore()
+        await store.load(api: api)
+        api.pause = true
+        let read = Task { await store.load(api: api) }
+        while api.continuation == nil { await Task.yield() }
+        store.setPrivatePush(true)
+        let draft = store.prefs
+        api.continuation?.resume()
+        await read.value
+        XCTAssertEqual(store.prefs, draft)
+        XCTAssertTrue(store.isDirty)
+    }
+
     func testWaitProgressStartsAt300MillisecondsAndEscalatesAtEightSeconds() {
         XCTAssertEqual(SettingsWaitStage.at(elapsed: .milliseconds(299)), .context)
         XCTAssertEqual(SettingsWaitStage.at(elapsed: .milliseconds(300)), .progress)

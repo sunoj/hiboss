@@ -20,16 +20,27 @@ public final class JoinRequestReview: ObservableObject {
     @Published public private(set) var isDeciding = false
     public let requestID: String
     private let model: JoinRequestsModel
+    private var authorizationObservation: AnyCancellable?
+    private var generation = 0
 
     public init(requestID: String, model: JoinRequestsModel) {
         self.requestID = requestID
         self.model = model
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.generation += 1
+            self?.phase = .unavailable(error.localizedDescription)
+            self?.failureMessage = nil
+            self?.isDeciding = false
+        }
         if let known = model.request(id: requestID) { phase = .ready(known) }
     }
 
     public func load() async {
         if case .ready = phase { return }
-        switch await model.lookup(id: requestID) {
+        let version = generation
+        let result = await model.lookup(id: requestID)
+        guard version == generation else { return }
+        switch result {
         case let .found(request): phase = .ready(request)
         case .notPending: phase = .unavailable(JoinRequestError.notFound.localizedDescription)
         case .forbidden: phase = .unavailable(JoinRequestError.forbidden.localizedDescription)
@@ -55,7 +66,10 @@ public final class JoinRequestReview: ObservableObject {
         isDeciding = true
         failureMessage = nil
         defer { isDeciding = false }
-        switch await action(request) {
+        let version = generation
+        let result = await action(request)
+        guard version == generation else { return }
+        switch result {
         case let .approved(approval): phase = .approved(request, approval)
         case .rejected: phase = .rejected(request)
         case let .failed(message): settle(after: message)

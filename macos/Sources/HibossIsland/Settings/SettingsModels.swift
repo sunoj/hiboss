@@ -246,7 +246,8 @@ final class SettingsPreferencesService: BossPreferencesServing, @unchecked Senda
 
     private func makeAPI() async throws -> HibossAPI {
         let config = try await MainActor.run {
-            try settings.connectionConfig().get()
+            guard !AccountAuthorization.shared.hasRejectedAccount else { throw CancellationError() }
+            return try settings.connectionConfig().get()
         }
         return HibossAPI(config: config)
     }

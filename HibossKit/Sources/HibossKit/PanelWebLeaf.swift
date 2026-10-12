@@ -88,7 +88,8 @@ public struct PanelWebLeafSlot: View {
             }
             #if os(iOS)
             if model.failureMessage == nil && !model.isReady {
-                NativePendingNotice(title: kitL("Loading display…"), retry: { model.retryDisplay() })
+                NativePendingNotice(title: kitL("Loading display…"), source: .display,
+                                    retry: { model.retryDisplay() })
                     .id(model.reloadGeneration)
                     .padding().background(.regularMaterial)
             }

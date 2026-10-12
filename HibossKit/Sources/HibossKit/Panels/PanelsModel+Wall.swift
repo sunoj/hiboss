@@ -36,6 +36,7 @@ extension PanelsModel {
     }
 
     public func connectionDidChange() {
+        authorizationRejected = AccountAuthorization.shared.hasRejectedAccount
         identityGeneration &+= 1
         loadOperation += 1
         questionnaireOperation += 1

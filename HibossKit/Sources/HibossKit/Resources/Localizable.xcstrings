@@ -1,6 +1,198 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Requests are taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requests are taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Panels are taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panels are taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "面板加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Questionnaires are taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questionnaires are taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "问卷加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Messages are taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messages are taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消息加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Transcript is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcript is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话记录加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Preferences are taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferences are taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "偏好设置加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Device requests are taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device requests are taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备请求加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Progress is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progress is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "进展加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Connection is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接所需时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Display is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示内容加载时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Submission receipt is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Submission receipt is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交回执所需时间比预期更长。"
+          }
+        }
+      }
+    },
+    "Refresh is taking longer than expected.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh is taking longer than expected."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新所需时间比预期更长。"
+          }
+        }
+      }
+    },
     "Retry": {
       "localizations": {
         "en": {

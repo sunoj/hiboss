@@ -73,7 +73,8 @@ final class DecisionClassificationTests: XCTestCase {
         let message = Self.message(mode: "async")
         let api = HeldReplyAPI(detail: MessageDetail(message: message, replies: []), requiredInputs: [])
         let gate = DecisionReplyGate()
-        let reply = Pending { await gate.submit("Acknowledged", to: message.id, via: api) }
+        let reply = Pending { await gate.submit("Acknowledged", to: message.id, via: api,
+            onAuthorizationFailure: { AccountAuthorization.shared.reject($0) }) }
         await waitUntil { reply.isDone || !api.replies.isEmpty }
         api.release()
         let result = try await reply.settled()

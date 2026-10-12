@@ -41,6 +41,9 @@ final class InboxStore: ObservableObject {
     /// The one per-decision admission point, shared with notification actions and intents.
     let replyGate: DecisionReplyGate
     private var gateObservation: AnyCancellable?
+    private var authorizationObservation: AnyCancellable?
+    @Published var messageDrafts: [MessageID: String] = [:]
+    @Published var sessionReplyDraft = SessionReplyDraft()
 
     var api: (any BossServing)?
     let agentAvatars = AgentAvatarStore()
@@ -80,6 +83,12 @@ final class InboxStore: ObservableObject {
         self.replyGate = replyGate
         self.decisionActivitySync = decisionActivitySync
         gateObservation = replyGate.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] in
+            self?.clearRejectedAccount($0)
+        }
+        replyGate.currentAnswerability = { [weak self] id, verified, didVerify in
+            self?.submissionAnswerability(for: id, verified: verified, didVerify: didVerify) ?? verified
+        }
     }
 
     /// The choice in flight per decision, from any entry point; every button surface reads it.
@@ -134,6 +143,10 @@ final class InboxStore: ObservableObject {
     }
 
     func rejectAuthorization(_ error: Error) {
+        AccountAuthorization.shared.reject(error)
+    }
+
+    private func clearRejectedAccount(_ error: Error) {
         stop()
         connectionState = .failed(String(localized: "Session expired — reconnect in Settings."))
         requiredInputError = error.localizedDescription
@@ -164,6 +177,8 @@ final class InboxStore: ObservableObject {
         settledIDs = []
         localResolutions = [:]
         openedMessages = [:]
+        messageDrafts = [:]
+        sessionReplyDraft = SessionReplyDraft()
         didLoad = false
         historyCheckedAt = nil
         isRefreshing = false

@@ -12,6 +12,7 @@ enum NativePendingTheme {
 
 struct NativePendingNotice: View {
     let title: String
+    var source: PendingNoticeSource = .submission
     var detail: String = kitL("This is taking longer than expected.")
     var retry: (() async -> Void)? = nil
     @State private var visible = false
@@ -23,7 +24,8 @@ struct NativePendingNotice: View {
             if visible {
                 HStack(alignment: .top) {
                     if !slow { ProgressView() }
-                    Text(verbatim: title).font(.callout).foregroundStyle(NativePendingTheme.secondary)
+                    Text(verbatim: slow ? source.slowTitle : title)
+                        .font(.callout).foregroundStyle(NativePendingTheme.secondary)
                 }
                 if slow {
                     Text(verbatim: detail).font(.callout).foregroundStyle(NativePendingTheme.ink)
@@ -58,6 +60,7 @@ struct NativeRefreshStatus: View {
     let isRefreshing: Bool
     let error: String?
     let title: String
+    var source: PendingNoticeSource = .questionnaires
     let retry: () async -> Void
     @ScaledMetric(relativeTo: .caption) private var rowHeight: CGFloat = 44
     @State private var visible = false
@@ -85,7 +88,7 @@ struct NativeRefreshStatus: View {
     private var notice: some View {
         HStack {
             ProgressView().opacity(isRefreshing && visible && error == nil ? 1 : 0)
-            Text(verbatim: error ?? (slow ? kitL("This is taking longer than expected.") : title))
+            Text(verbatim: error ?? (slow ? source.slowTitle : title))
                 .font(.caption).foregroundStyle(NativePendingTheme.secondary).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button {

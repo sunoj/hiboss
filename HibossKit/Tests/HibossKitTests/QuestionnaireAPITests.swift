@@ -40,6 +40,33 @@ final class QuestionnaireAPITests: XCTestCase {
         catch { XCTAssertEqual((error as? HibossAPIError)?.isAuthFailure, true) }
     }
 
+    @MainActor
+    func testStructuredSubmissionAuthorizationErrorClearsTheAccount() async throws {
+        let client = api()
+        defer { AccountAuthorization.shared.connect(nil) }
+        let definition = QuestionnaireDefinition(title: "Settings", kind: "intake", blocking: true,
+            formSpec: PanelSpec(root: "root", elements: [:]), answerSchema: .object([:]),
+            defaults: .object([:]), context: .object([:]))
+        let record = QuestionnaireRecord(requestId: "request", panelId: "panel", requestRevision: 1,
+            definitionRevision: 1, state: "open", expiresAt: nil, withdrawalReason: nil,
+            definition: definition, submission: nil)
+        for status in [401, 403] {
+            AccountAuthorization.shared.connect(client.config)
+            var cleared = false
+            let observation = AccountAuthorization.shared.observe { _ in cleared = true }
+            QuestionnaireURLProtocol.handler = { _ in
+                (status, Data(#"{"error":{"message":"Rejected"}}"#.utf8))
+            }
+            do {
+                _ = try await client.submitQuestionnaire(record, bossID: "boss", submissionID: "submission",
+                                                         answers: .object([:]))
+                XCTFail("Expected authorization failure")
+            } catch { XCTAssertEqual((error as? HibossAPIError)?.isAuthFailure, true) }
+            XCTAssertTrue(cleared)
+            observation.cancel()
+        }
+    }
+
     private func api() -> HibossAPI {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [QuestionnaireURLProtocol.self]

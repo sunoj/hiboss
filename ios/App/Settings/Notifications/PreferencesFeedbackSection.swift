@@ -14,7 +14,7 @@ struct PreferencesFeedbackSection: View {
         Section {
             if store.hasLoaded {
                 CompactRefreshNotice(isRefreshing: store.isRefreshing, error: cachedError,
-                                     title: String(localized: "Loading preferences…"),
+                                     title: String(localized: "Loading preferences…"), source: .preferences,
                                      onRetry: retry, retryIdentifier: "settings-preferences-retry")
             } else if store.isSaving {
                 EmptyView()

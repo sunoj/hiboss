@@ -47,7 +47,7 @@ extension HibossAPI: RequiredInputServing {
                     let (bytes, response) = try await session.bytes(for: authorizedRequest(
                         url: url, method: "GET", acceptsSSE: true
                     ))
-                    try validate(response)
+                    try await validate(response)
                     try await consumeRequiredInputBytes(bytes, into: continuation)
                     continuation.finish()
                 } catch { continuation.finish(throwing: error) }

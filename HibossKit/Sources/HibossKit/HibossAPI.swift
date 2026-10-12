@@ -79,7 +79,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         if (response as? HTTPURLResponse)?.statusCode == 409 {
             return .alreadyResolved
         }
-        try validate(response)
+        try await validate(response)
         struct ReplyReceipt: Decodable { let metadata: MessageMetadata? }
         if let device = (try? decoder.decode(ReplyReceipt.self, from: data))?.metadata?.answeredBy {
             return .acceptedOn(device)
@@ -95,7 +95,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         let endpoint = apiURL.appendingPathComponent("me").appendingPathComponent("preferences")
         let request = authorizedRequest(url: endpoint, method: "GET")
         let (data, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
         do {
             return try decoder.decode(BossPreferences.self, from: data)
         } catch {
@@ -110,7 +110,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         var request = authorizedRequest(url: endpoint, method: "PUT")
         request.httpBody = try JSONEncoder().encode(preferences)
         let (data, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
         return try decoder.decode(BossPreferences.self, from: data)
     }
 
@@ -118,7 +118,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         let endpoint = apiURL.appendingPathComponent("me")
         let request = authorizedRequest(url: endpoint, method: "GET")
         let (_, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
     }
 
     /// Registers this device's APNs token so the server can push to it.
@@ -134,7 +134,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
             DeviceRegistration(token: token, bundleId: bundleId, environment: environment, platform: platform)
         )
         let (_, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
     }
 
     var apiURL: URL {
@@ -157,7 +157,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         )
         let request = authorizedRequest(url: endpoint, method: "GET", acceptsSSE: true)
         let (bytes, response) = try await session.bytes(for: request)
-        try validate(response)
+        try await validate(response)
         var eventDecoder = SSEEventDecoder(decoder: decoder)
         for try await line in bytes.lines {
             if let message = eventDecoder.consume(line: line) {
@@ -185,12 +185,14 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
         return request
     }
 
-    func validate(_ response: URLResponse) throws {
+    func validate(_ response: URLResponse) async throws {
         guard let http = response as? HTTPURLResponse else {
             throw HibossAPIError.invalidResponse
         }
         guard (200..<300).contains(http.statusCode) else {
-            throw HibossAPIError.requestFailed(status: http.statusCode, message: "")
+            let error = HibossAPIError.requestFailed(status: http.statusCode, message: "")
+            await AccountAuthorization.shared.reject(error, account: config)
+            throw error
         }
     }
 
@@ -208,7 +210,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     ) async throws -> T {
         let request = authorizedRequest(url: url, method: method)
         let (data, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
         do {
             return try decoder.decode(type, from: data)
         } catch {
@@ -222,7 +224,7 @@ public final class HibossAPI: BossServing, BossPreferencesServing, @unchecked Se
     func send(_ method: String, url: URL) async throws {
         let request = authorizedRequest(url: url, method: method)
         let (_, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
     }
 }
 

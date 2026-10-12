@@ -22,6 +22,21 @@ final class QuestionnaireModelTests: XCTestCase {
         XCTAssertEqual(restored.answers.object?["count"], .number(7))
     }
 
+    func testAuthorizationRejectionClearsQuestionnaireDraftAndDisablesEditing() {
+        let (model, service, storage) = fixture()
+        model.store.setNumber(7, at: "/form/count")
+        model.save()
+        XCTAssertTrue(model.hasSavedDraft)
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        XCTAssertFalse(model.canEdit)
+        XCTAssertFalse(model.hasSavedDraft)
+        XCTAssertEqual(model.answers, .object([:]))
+        let restored = QuestionnaireModel(record: question(), bossID: "boss",
+                                          service: service, storage: storage)
+        XCTAssertEqual(restored.answers.object?["count"], .number(3))
+        AccountAuthorization.shared.connect(nil)
+    }
+
     func testExpiredQuestionCannotBeEditedOrSubmitted() async {
         let record = question(expiresAt: "2000-01-01T00:00:00Z")
         let (model, service, _) = fixture(record)

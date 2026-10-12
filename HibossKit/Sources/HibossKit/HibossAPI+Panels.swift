@@ -148,7 +148,7 @@ extension HibossAPI: PanelsServing {
         var request = authorizedRequest(url: panelsURL.appendingPathComponent(panelID).appendingPathComponent("preferences"), method: "PUT")
         request.httpBody = try JSONEncoder().encode(command)
         let (data, response) = try await session.data(for: request)
-        try validate(response)
+        try await validate(response)
         return try decoder.decode(PanelPreference.self, from: data)
     }
 

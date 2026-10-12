@@ -8,7 +8,10 @@ import SwiftUI
 struct SessionReplyComposer: View {
     let targets: [SessionReplyTarget]
     @ObservedObject var store: InboxStore
-    @State private var replyDraft = SessionReplyDraft()
+    private var replyDraft: SessionReplyDraft {
+        get { store.sessionReplyDraft }
+        nonmutating set { store.sessionReplyDraft = newValue }
+    }
     @State private var picking = false
     @State private var note: String?
 

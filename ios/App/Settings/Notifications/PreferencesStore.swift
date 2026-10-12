@@ -10,7 +10,10 @@ import HibossKit
 final class PreferencesStore: ObservableObject {
     enum LoadState: Equatable { case idle, loading, loaded, unavailable, failed(String) }
 
-    @Published private(set) var prefs = BossPreferences()
+    @Published private(set) var prefs = BossPreferences() {
+        didSet { editRevision += 1 }
+    }
+    private var editRevision = 0
     @Published private(set) var state: LoadState = .idle
     @Published private(set) var isSaving = false
     @Published private(set) var isRefreshing = false
@@ -22,6 +25,14 @@ final class PreferencesStore: ObservableObject {
     /// Bumped on a connection change so a load or save started for the previous login
     /// cannot write its result into the next one.
     private var generation = 0
+    private var authorizationObservation: AnyCancellable?
+
+    init() {
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
+            self?.connectionDidChange()
+            self?.state = .failed(error.localizedDescription)
+        }
+    }
 
     var isDirty: Bool { prefs != saved }
 
@@ -74,16 +85,18 @@ final class PreferencesStore: ObservableObject {
         if !hasLoaded { state = .loading }
         isRefreshing = true
         let started = generation
+        let draftAtStart = editRevision
         defer { if started == generation { isRefreshing = false } }
         do {
             let loaded = try await api.fetchPreferences()
             guard started == generation else { return }
-            prefs = loaded
+            if editRevision == draftAtStart { prefs = loaded }
             saved = loaded
             state = .loaded
             hasLoaded = true
         } catch {
             guard started == generation else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
     }
@@ -104,6 +117,7 @@ final class PreferencesStore: ObservableObject {
             didSave = true
         } catch {
             guard started == generation else { return }
+            if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
     }

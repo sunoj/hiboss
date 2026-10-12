@@ -27,7 +27,7 @@ extension HibossAPI {
         )
         let request = authorizedRequest(url: endpoint, method: "GET", acceptsSSE: true)
         let (bytes, response) = try await session.bytes(for: request)
-        try validate(response)
+        try await validate(response)
         var decoder = BossFeedDecoder()
         for try await line in bytes.lines {
             try Task.checkCancellation()

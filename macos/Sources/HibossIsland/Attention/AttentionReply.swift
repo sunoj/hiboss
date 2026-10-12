@@ -2,6 +2,7 @@
 // Exports: AttentionReplyState, AttentionReplyComposer, OptionFlowStore.answer, ReplyFeedback copy.
 // Dependencies: SwiftUI, HibossKit OptionFlowStore and ReplyFeedback.
 
+import Combine
 import HibossKit
 import SwiftUI
 
@@ -10,6 +11,18 @@ final class AttentionReplyState: ObservableObject {
     @Published var drafts: [MessageID: String] = [:]
     @Published private(set) var submitting: Set<MessageID> = []
     @Published private(set) var errors: [MessageID: ReplyFeedback] = [:]
+
+    private var authorizationObservation: AnyCancellable?
+    private var generation = 0
+
+    init() {
+        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
+            self?.generation += 1
+            self?.drafts = [:]
+            self?.errors = [:]
+            self?.submitting = []
+        }
+    }
 
     /// `submit` returns nil when the server accepted the reply; otherwise the draft stays and
     /// the message-specific feedback is shown for `id` only.
@@ -22,7 +35,9 @@ final class AttentionReplyState: ObservableObject {
         guard !trimmed.isEmpty, !submitting.contains(id) else { return }
         submitting.insert(id)
         errors[id] = nil
+        let version = generation
         let feedback = await submit(trimmed, id)
+        guard version == generation else { return }
         submitting.remove(id)
         if let feedback {
             errors[id] = feedback

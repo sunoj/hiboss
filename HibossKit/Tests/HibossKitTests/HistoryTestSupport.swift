@@ -68,9 +68,9 @@ final class HistoryRecorder {
     var publications: [[HistoryMessage]] = []
     var errors: [String] = []
 
-    func receive(_ rows: [HistoryMessage]?, _ error: String?) {
+    func receive(_ rows: [HistoryMessage]?, _ error: HistorySyncError?) {
         if let rows { publications.append(rows) }
-        if let error { errors.append(error) }
+        if let error { errors.append(error.localizedDescription) }
     }
 }
 

@@ -34,6 +34,7 @@ struct PanelPendingNotice: View {
 
     var body: some View {
         CompactRefreshNotice(isRefreshing: freshness.isPending,
-                             title: String(localized: "Waiting for panel updates…"), onRetry: retry)
+                             title: String(localized: "Waiting for panel updates…"),
+                             source: .panels, onRetry: retry)
     }
 }

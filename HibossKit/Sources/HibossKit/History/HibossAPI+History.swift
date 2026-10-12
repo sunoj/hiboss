@@ -19,7 +19,7 @@ extension HibossAPI {
             .replacingOccurrences(of: "+", with: "%2B")
         guard let url = components.url else { throw HibossAPIError.invalidResponse }
         let (data, response) = try await session.data(for: authorizedRequest(url: url, method: "GET"))
-        try validate(response)
+        try await validate(response)
         return try JSONDecoder().decode(HistoryResponse.self, from: data)
     }
 

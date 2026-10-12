@@ -44,6 +44,7 @@ extension InboxStore {
             return .loaded
         } catch let error as HibossAPIError {
             guard version == historyVersion, !Task.isCancelled else { return .ignored }
+            if error.isAuthFailure { rejectAuthorization(error) }
             if case .requestFailed(status: 404, message: _) = error {
                 openedMessages[id] = nil
                 return .missing

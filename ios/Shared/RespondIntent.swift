@@ -24,7 +24,8 @@ struct RespondDecisionIntent: LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         if let api = HiBossStore.replyAPI() {
-            _ = await DecisionReplyGate.shared.submit(choice, to: MessageID(rawValue: messageID), via: api)
+            _ = await DecisionReplyGate.shared.submit(choice, to: MessageID(rawValue: messageID), via: api,
+                onAuthorizationFailure: { AccountAuthorization.shared.reject($0) })
         }
         return .result()
     }
