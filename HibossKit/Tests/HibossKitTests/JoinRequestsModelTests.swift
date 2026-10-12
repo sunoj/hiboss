@@ -49,6 +49,40 @@ final class JoinRequestsModelTests: XCTestCase {
         XCTAssertEqual(missing, .notPending)
     }
 
+    func testEqualAccountReconnectRestartsPollingAndAllowsImmediateLookup() async throws {
+        let account = ConnectionConfig(
+            serverURL: try XCTUnwrap(URL(string: "https://unit.test")), bossToken: "unit-token"
+        )
+        let pollService = CountingJoinService(request: Self.mini)
+        let lookupService = CountingJoinService(request: Self.mini)
+        let pollModel = JoinRequestsModel(pollInterval: .milliseconds(5)) { pollService }
+        let lookupModel = JoinRequestsModel { lookupService }
+        AccountAuthorization.shared.connect(account)
+
+        XCTAssertTrue(AccountAuthorization.shared.reject(
+            HibossAPIError.requestFailed(status: 401, message: "")
+        ))
+        AccountAuthorization.shared.connect(account)
+
+        let secondRead = expectation(description: "poll continues after the first read")
+        var didFulfillSecondRead = false
+        pollService.onRead = {
+            if pollService.listCalls >= 2, !didFulfillSecondRead {
+                didFulfillSecondRead = true
+                secondRead.fulfill()
+            }
+        }
+        let polling = Task { await pollModel.poll() }
+        let lookup = await lookupModel.lookup(id: Self.mini.id)
+
+        XCTAssertEqual(lookup, .found(Self.mini))
+        await fulfillment(of: [secondRead], timeout: 1)
+        XCTAssertGreaterThanOrEqual(pollService.listCalls, 2)
+        XCTAssertNotEqual(pollModel.state, .forbidden)
+        polling.cancel()
+        await polling.value
+    }
+
     func testApproveRemovesTheRequest() async throws {
         let service = StubJoinService(lists: [[Self.mini]])
         let model = JoinRequestsModel { service }
@@ -173,6 +207,29 @@ final class StubJoinService: JoinRequestServing, @unchecked Sendable {
     func rejectJoinRequest(id: String) async throws {
         if let decisionError { throw decisionError }
     }
+}
+
+@MainActor
+private final class CountingJoinService: JoinRequestServing {
+    let request: JoinRequest
+    private(set) var listCalls = 0
+    var onRead: (() -> Void)?
+
+    init(request: JoinRequest) {
+        self.request = request
+    }
+
+    func listPendingJoinRequests() async throws -> [JoinRequest] {
+        listCalls += 1
+        onRead?()
+        return [request]
+    }
+
+    func approveJoinRequest(id: String) async throws -> JoinApproval {
+        throw JoinRequestError.notFound
+    }
+
+    func rejectJoinRequest(id: String) async throws {}
 }
 
 private actor HeldFailedJoinRead: JoinRequestServing {

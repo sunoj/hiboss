@@ -32,10 +32,11 @@ public final class AccountAuthorization: ObservableObject {
 
     public func connect(_ account: ConnectionConfig?) {
         let didChange = self.account != account
+        let didClearRejection = hasRejectedAccount
         if didChange { clearDrafts(for: self.account) }
         self.account = account
         hasRejectedAccount = false
-        if didChange { changed() }
+        if didChange || didClearRejection { changed() }
     }
 
     public func disconnect() {
