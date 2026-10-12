@@ -89,6 +89,16 @@ describe('answering device attribution', () => {
       .toEqual({ source: 'api', action: 'Ship' });
   });
 
+  it('does not label a reply with a revoked client', async () => {
+    const revokedClientId = 'revoked-answering-device' as ClientId;
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO boss_clients (id, boss_id, kind, label, revoked_at) VALUES (?, ?, ?, ?, ?)',
+    ).bind(revokedClientId, bossId, 'ios', 'Revoked iPhone', '2026-10-12 10:00:00').run();
+
+    expect(await stampAnsweredBy(env, bossId, revokedClientId, { source: 'ios' }))
+      .toEqual({ source: 'ios' });
+  });
+
   it('reads only the additive attribution shape', () => {
     expect(readAnsweredBy(null)).toBeUndefined();
     for (const value of [null, [], 'fake', {}, { ...DEVICE, kind: 'api' }, { ...DEVICE, label: 9 }]) {

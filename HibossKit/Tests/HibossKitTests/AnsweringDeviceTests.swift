@@ -52,6 +52,18 @@ final class AnsweringDeviceTests: XCTestCase {
         XCTAssertNil(ReplyOutcome.accepted.answeredBy)
     }
 
+    func testMalformedAnsweredByDoesNotBreakHistoryPageDecoding() throws {
+        let pageJSON = #"""
+        {"messages":[{"id":"malformed","body":"reply","direction":"boss_to_agent",
+        "status":"replied","priority":"normal","created_at":"2026-10-12T10:00:00Z",
+        "metadata":{"answered_by":{"client_id":"phone"}}}],"total":1}
+        """#
+
+        let page = try JSONDecoder().decode(HistoryResponse.self, from: Data(pageJSON.utf8))
+        XCTAssertEqual(page.messages.count, 1)
+        XCTAssertNil(page.messages[0].metadata?.answeredBy)
+    }
+
     func testReplyReceiptReturnsServerDeviceImmediately() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [DeviceReplyProtocol.self]

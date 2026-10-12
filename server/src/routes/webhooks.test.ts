@@ -82,6 +82,23 @@ describe('POST /api/webhooks/telegram', () => {
     expect(data.metadata?.message).toBeDefined();
   });
 
+  it('strips caller-supplied answered_by from telegram text metadata', async () => {
+    const res = await postTelegramWebhook({
+      update_id: 4201,
+      answered_by: { client_id: 'forged', kind: 'ios', label: 'Forged device' },
+      message: {
+        message_id: 4201,
+        chat: { id: 'test-chat', type: 'private' },
+        text: 'Telegram metadata boundary',
+        from: { id: 1, is_bot: false },
+      },
+    });
+
+    expect(res.status).toBe(201);
+    const data = await res.json() as { metadata: Record<string, unknown> | null };
+    expect(data.metadata?.['answered_by']).toBeUndefined();
+  });
+
   it('creates a boss_to_agent message from /msg command text', async () => {
     const payload = {
       update_id: 6001,
@@ -451,6 +468,24 @@ describe('POST /api/webhooks/discord', () => {
     expect(data.channel).toBe('discord');
     expect(data.direction).toBe('boss_to_agent');
     expect(data.body).toBe('Hello from discord');
+  });
+
+  it('strips caller-supplied answered_by from discord text metadata', async () => {
+    const res = await postDiscordWebhook({
+      id: 'discord-forged-attribution',
+      channel_id: 'test-discord-ch',
+      answered_by: { client_id: 'forged', kind: 'macos', label: 'Forged device' },
+      message: {
+        id: 'discord-forged-attribution',
+        content: 'Discord metadata boundary',
+        channel_id: 'test-discord-ch',
+        author: { id: 'author', bot: false },
+      },
+    });
+
+    expect(res.status).toBe(201);
+    const data = await res.json() as { metadata: Record<string, unknown> | null };
+    expect(data.metadata?.['answered_by']).toBeUndefined();
   });
 
   it('targets the matching session when a discord thread maps to discord_thread_id', async () => {
