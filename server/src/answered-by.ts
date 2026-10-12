@@ -16,7 +16,7 @@ export async function stampAnsweredBy(
 ): Promise<Record<string, unknown>> {
   const { answered_by: ignored, ...trusted } = metadata;
   const client = clientId ? await env.DB.prepare(
-    'SELECT id AS client_id, kind, label FROM boss_clients WHERE id = ? AND boss_id = ?',
+    'SELECT id AS client_id, kind, label FROM boss_clients WHERE id = ? AND boss_id = ? AND revoked_at IS NULL',
   ).bind(clientId, bossId).first<AnsweredBy>() : null;
   return client ? { ...trusted, answered_by: client } : trusted;
 }

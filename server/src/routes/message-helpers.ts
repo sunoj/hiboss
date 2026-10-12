@@ -3,6 +3,7 @@
 
 import { SESSION_NICKNAME_SQL } from './session-nickname';
 import { readAnsweredBy } from '../answered-by';
+import { stripServerOwnedMetadata } from '../message-security';
 import type {
   Channel,
   Direction,
@@ -70,7 +71,7 @@ export function normalizeMetadata(value: unknown): Metadata {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
-  return value as Record<string, unknown>;
+  return stripServerOwnedMetadata(value as Record<string, unknown>);
 }
 
 export function validateOption<T extends string>(value: unknown, options: readonly T[], fallback?: T): T | null {

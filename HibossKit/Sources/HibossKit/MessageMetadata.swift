@@ -84,7 +84,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
         source = try values.decodeIfPresent(String.self, forKey: .source)
-        answeredBy = try values.decodeIfPresent(AnsweringDevice.self, forKey: .answeredBy)
+        answeredBy = try? values.decodeIfPresent(AnsweringDevice.self, forKey: .answeredBy)
         isAutoDefault = (try? values.decodeIfPresent(Bool.self, forKey: .isAutoDefault)) == true
         content = try values.decodeIfPresent(String.self, forKey: .content)
         let direct = try values.decodeIfPresent([String].self, forKey: .files) ?? []
