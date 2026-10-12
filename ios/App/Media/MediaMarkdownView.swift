@@ -23,6 +23,22 @@ struct MediaMarkdownView: View {
     }
 
     var body: some View {
+        if images.isEmpty {
+            textOnlyBody
+        } else {
+            mediaBody
+        }
+    }
+
+    @ViewBuilder
+    private var textOnlyBody: some View {
+        if case let .text(source) = segments.first {
+            if document { MarkdownDocumentView(source: source) }
+            else { MessageMarkdownView(source) }
+        }
+    }
+
+    private var mediaBody: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                 switch segment {
