@@ -88,9 +88,12 @@ pub(crate) fn apply_profile_prompt_changes(path: &Path, profile: &str) -> Result
 }
 
 pub(crate) fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {
-    let parent = path.parent().ok_or("Invalid instruction destination")?;
-    fs::create_dir_all(parent)?;
-    let name = path.file_name().ok_or("Invalid instruction destination")?;
+    let resolved = resolve_write_path(path)?;
+    let parent = resolved.parent().ok_or("Invalid instruction destination")?;
+    fs::create_dir_all(parent).map_err(|error| atomic_write_error(path, &resolved, error))?;
+    let name = resolved
+        .file_name()
+        .ok_or("Invalid instruction destination")?;
     let temporary = parent.join(format!(
         ".{}.hiboss-{}.tmp",
         name.to_string_lossy(),
@@ -99,13 +102,59 @@ pub(crate) fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Err
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(&temporary)?;
-    file.write_all(content.as_bytes())?;
-    file.sync_all()?;
+        .open(&temporary)
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
+    file.write_all(content.as_bytes())
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
+    file.sync_all()
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
     drop(file);
-    if path.exists() {
-        fs::set_permissions(&temporary, fs::metadata(path)?.permissions())?;
+    if resolved.exists() {
+        let permissions = fs::metadata(&resolved)
+            .map_err(|error| atomic_write_error(path, &resolved, error))?
+            .permissions();
+        fs::set_permissions(&temporary, permissions)
+            .map_err(|error| atomic_write_error(path, &resolved, error))?;
     }
-    fs::rename(temporary, path)?;
+    fs::rename(temporary, &resolved)
+        .map_err(|error| atomic_write_error(path, &resolved, error))?;
     Ok(())
+}
+
+fn atomic_write_error(path: &Path, resolved: &Path, error: std::io::Error) -> Box<dyn Error> {
+    if path == resolved {
+        return error.into();
+    }
+    format!(
+        "Cannot safely update symlink {} -> {}: {error}",
+        path.display(),
+        resolved.display()
+    )
+    .into()
+}
+
+fn resolve_write_path(path: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(path.to_path_buf());
+        }
+        Err(error) => return Err(error.into()),
+    };
+    if !metadata.file_type().is_symlink() {
+        return Ok(path.to_path_buf());
+    }
+    let link_target = fs::read_link(path)?;
+    let target = path
+        .parent()
+        .ok_or("Invalid instruction destination")?
+        .join(link_target);
+    fs::canonicalize(path).map_err(|error| {
+        format!(
+            "Cannot safely update symlink {} -> {}: resolved target is unavailable: {error}",
+            path.display(),
+            target.display()
+        )
+        .into()
+    })
 }

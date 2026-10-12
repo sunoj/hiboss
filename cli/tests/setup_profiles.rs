@@ -172,15 +172,17 @@ fn setup_global_installs_every_profile_without_config_override() {
 }
 
 #[test]
-fn setup_replaces_a_settings_symlink_without_writing_its_target() {
+fn setup_preserves_symlinked_settings_and_instructions_targets() {
     let fixture = profiles();
     let outside = fixture.root.join("outside");
     fs::create_dir_all(&outside).expect("outside directory");
     let target = outside.join("settings.json");
     fs::write(&target, "{\"owned\":true}").expect("target settings");
-    let profile = fixture.root.join("explicit");
-    fs::create_dir_all(&profile).expect("explicit profile");
+    let instructions_target = outside.join("CLAUDE.md");
+    fs::write(&instructions_target, "user instructions\n").expect("target instructions");
+    let profile = fixture.root.join(".claude");
     symlink(&target, profile.join("settings.json")).expect("settings symlink");
+    symlink(&instructions_target, profile.join("CLAUDE.md")).expect("instructions symlink");
 
     let out = fixture.run(
         &fixture.repo,
@@ -197,11 +199,18 @@ fn setup_replaces_a_settings_symlink_without_writing_its_target() {
     assert!(fs::symlink_metadata(profile.join("settings.json"))
         .expect("settings metadata")
         .file_type()
-        .is_file());
-    assert_eq!(
-        fs::read_to_string(target).expect("target settings"),
-        "{\"owned\":true}"
-    );
+        .is_symlink());
+    assert!(fs::symlink_metadata(profile.join("CLAUDE.md"))
+        .expect("instructions metadata")
+        .file_type()
+        .is_symlink());
+    let settings: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(target).expect("target settings"))
+            .expect("target settings JSON");
+    assert!(settings["hooks"]["SessionStart"].is_array());
+    assert!(fs::read_to_string(instructions_target)
+        .expect("target instructions")
+        .contains("hiboss"));
 }
 
 #[test]
