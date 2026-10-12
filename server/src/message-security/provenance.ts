@@ -119,7 +119,8 @@ export function systemMetadata(base: Record<string, unknown> = {}): Record<strin
   };
 }
 
-export function stripServerOwnedMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+/** Channel callers cannot supply the server-written answering device. */
+function withoutAnsweredBy(metadata: Record<string, unknown>): Record<string, unknown> {
   const { answered_by: ignored, ...callerMetadata } = metadata;
   return callerMetadata;
 }
@@ -128,7 +129,7 @@ export function mergeProvenance(
   base: Record<string, unknown>,
   provenanceMetadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  return { ...stripServerOwnedMetadata(base), ...provenanceMetadata };
+  return { ...withoutAnsweredBy(base), ...provenanceMetadata };
 }
 
 function addCompatibilityFields(

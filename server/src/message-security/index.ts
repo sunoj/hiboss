@@ -18,7 +18,6 @@ export {
   bearerApiMetadata,
   channelMetadata,
   mergeProvenance,
-  stripServerOwnedMetadata,
   signedApiMetadata,
   systemMetadata,
 } from './provenance';
