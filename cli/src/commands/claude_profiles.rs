@@ -117,7 +117,7 @@ fn session_warning(profile: &Path, warned: &AtomicBool) -> Option<String> {
             "messages will appear as direct messages. Fix: {}"
         ),
         profile.display(),
-        fix_command(&profile)
+        fix_command(profile)
     ))
 }
 
