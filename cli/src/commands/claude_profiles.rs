@@ -37,7 +37,11 @@ pub(super) fn absolute(path: &Path) -> Result<PathBuf, Box<dyn Error>> {
 
 pub(super) fn discover() -> Result<Vec<PathBuf>, Box<dyn Error>> {
     let home = home()?;
-    let mut paths = vec![current()?, absolute(&home.join(".claude"))?];
+    // The current profile always counts; ~/.claude joins it only when it already exists.
+    let mut paths = vec![current()?];
+    if home.join(".claude").is_dir() {
+        paths.push(absolute(&home.join(".claude"))?);
+    }
     if home.is_dir() {
         for entry in fs::read_dir(&home)? {
             let entry = entry?;
