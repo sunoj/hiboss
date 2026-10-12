@@ -29,6 +29,11 @@ pub struct Message {
     pub updated_at: Option<String>,
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Recipient of an agent_to_agent row; signed agent messages bind it.
+    #[serde(default)]
+    pub target_agent_id: Option<String>,
+    #[serde(default)]
+    pub target_session_id: Option<String>,
     #[serde(default)]
     pub session_label: Option<String>,
     #[serde(default)]

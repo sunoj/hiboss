@@ -8,6 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult, type Notification, type Request } from '@modelcontextprotocol/sdk/types.js';
 import { sendFile } from './send-file.js';
+import { loadAgentSigner, signAction, signSend } from './agent-signer.js';
 import { enumField, fail, field, formatAskResult, formatReplyBody, formatMessageList, formatSessionList, latestReply as latestReplyFromList, ok, tool } from './tool-helpers.js';
 import { assuranceLabel, verifyMessage, verifyMessages, type VerifiableMessage } from './message-security.js';
 import { parseEvents } from './sse-events.js';
@@ -18,7 +19,7 @@ type MessageList = { messages?: Message[] };
 type Session = { id: string };
 type SessionInfo = { id: string; label?: string | null; status?: string | null; agent_name?: string | null };
 type SessionList = { sessions?: SessionInfo[] };
-type ClaudeChannelNotification = Notification & { method: 'notifications/claude/channel'; params: { content: string; meta: { source: 'hiboss'; origin: string; signature: string; message_id: string; direction: string; from: string; priority?: string; type?: string | null; reply_to?: string | null } } };
+type ClaudeChannelNotification = Notification & { method: 'notifications/claude/channel'; params: { content: string; meta: { source: 'hiboss'; origin: string; signature: string; message_id: string; direction: string; from: string; sender_id: string; priority?: string; type?: string | null; reply_to?: string | null } } };
 
 const VERSION = '1.3.0';
 const INSTRUCTIONS = [
@@ -94,13 +95,14 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<Ca
 
 async function sendTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const payload = { body: str(args.body, 'body'), to: optStr(args.to), priority: optStr(args.priority), options: splitOptions(args.options), session_id: mustState().session.id };
-  const message = await api('POST', '/api/messages', compact(payload)) as Message;
+  const message = await api('POST', '/api/messages', await signSend(mustState().config.server, mustState().config.key, compact(payload))) as Message;
   return ok(`Sent ${message.id}.`);
 }
 
 async function askTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const timeout = intOr(args.timeout, 300);
-  const created = await api('POST', '/api/messages', compact({ body: str(args.body, 'body'), mode: 'blocking', options: splitOptions(args.options), session_id: mustState().session.id })) as Message;
+  const request = compact({ body: str(args.body, 'body'), mode: 'blocking', options: splitOptions(args.options), session_id: mustState().session.id });
+  const created = await api('POST', '/api/messages', await signSend(mustState().config.server, mustState().config.key, request)) as Message;
   const polled = await api('POST', `/api/messages/${encodeURIComponent(created.id)}/poll?timeout=${timeout}`) as Message;
   await verifyMessage(polled);
   const reply = latestReply(polled);
@@ -109,12 +111,25 @@ async function askTool(args: Record<string, unknown>): Promise<CallToolResult> {
 
 async function replyTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const id = str(args.message_id, 'message_id');
-  const message = await api('POST', `/api/messages/${encodeURIComponent(id)}/reply`, { body: str(args.body, 'body') }) as Message;
+  const signed = await signedReply(id, str(args.body, 'body'));
+  const message = await api('POST', `/api/messages/${encodeURIComponent(signed.id)}/reply`, signed.request) as Message;
   return ok(`Replied with ${message.id}.`);
+}
+/** Signs a reply over the full parent ID and the recipient the server derives from the parent. */
+async function signedReply(id: string, body: string): Promise<{ id: string; request: Record<string, unknown> }> {
+  const key = mustState().config.key;
+  if (!await loadAgentSigner(key)) return { id, request: { body } };
+  const row = await api('GET', `/api/messages/${encodeURIComponent(id)}`) as Message;
+  const audience = row.direction === 'agent_to_agent'
+    ? { kind: 'agent', agent_id: row.agent_id, session_id: row.session_id ?? row.target_session_id ?? null } : { kind: 'boss' };
+  return { id: row.id, request: await signAction(key, { body }, { kind: 'reply', message_id: row.id, audience }) };
 }
 async function forwardTool(args: Record<string, unknown>): Promise<CallToolResult> {
   const id = str(args.message_id, 'message_id');
-  const message = await api('POST', `/api/messages/${encodeURIComponent(id)}/forward`, { channel: str(args.channel, 'channel') }) as Message;
+  const channel = str(args.channel, 'channel');
+  const full = await loadAgentSigner(mustState().config.key) ? (await api('GET', `/api/messages/${encodeURIComponent(id)}`) as Message).id : id;
+  const request = await signAction(mustState().config.key, { channel }, { kind: 'forward', message_id: full, channel });
+  const message = await api('POST', `/api/messages/${encodeURIComponent(full)}/forward`, request) as Message;
   return ok(`Forwarded as ${message.id}.`);
 }
 async function reactTool(args: Record<string, unknown>): Promise<CallToolResult> {
@@ -194,7 +209,7 @@ async function streamMessages(controller: AbortController): Promise<void> {
 async function forwardMessage(mcp: Server<Request, ClaudeChannelNotification>, msg: Message): Promise<void> {
   const assurance = await verifyMessage(msg);
   const [origin, signature] = assuranceLabel(assurance).split('/');
-  await mcp.notification({ method: 'notifications/claude/channel', params: { content: formatReplyBody(msg), meta: { source: 'hiboss', origin: origin ?? 'unknown', signature: signature ?? 'not_applicable', message_id: msg.id, direction: msg.direction, from: msg.agent_name || msg.agent_id || 'unknown', priority: msg.priority, type: msg.type, reply_to: msg.reply_to } } });
+  await mcp.notification({ method: 'notifications/claude/channel', params: { content: formatReplyBody(msg), meta: { source: 'hiboss', origin: origin ?? 'unknown', signature: signature ?? 'not_applicable', message_id: msg.id, direction: msg.direction, from: msg.agent_name || msg.agent_id || 'unknown', sender_id: msg.agent_id || 'unknown', priority: msg.priority, type: msg.type, reply_to: msg.reply_to } } });
   try {
     await api('PATCH', `/api/messages/${encodeURIComponent(msg.id)}`, { status: 'delivered' });
   } catch (error) {

@@ -2,6 +2,7 @@
 // Exports: client, commands, config, help, sse, types modules.
 // Dependencies: all CLI module dependencies.
 
+pub mod agent_provenance;
 pub mod attribution;
 pub mod box_types;
 pub mod client;
@@ -13,6 +14,7 @@ pub mod hiboss_dir;
 pub mod message_security;
 pub mod runtime;
 pub mod session;
+pub mod signing;
 pub mod sse;
 pub mod team;
 pub mod types;

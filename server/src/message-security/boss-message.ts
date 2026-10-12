@@ -3,7 +3,7 @@
 // Depends on D1, JWS helpers, and server-owned provenance builders.
 
 import type { Env } from '../types';
-import { decodeBase64Url, verifyEs256 } from './crypto';
+import { isFresh, verifyCompactJws } from './jws';
 import { bearerApiMetadata, signedApiMetadata } from './provenance';
 import type {
   BossMessageAuthResult,
@@ -11,7 +11,6 @@ import type {
   StoredSigningKey,
 } from './types';
 
-const MAX_CLOCK_SKEW_SECONDS = 300;
 const MESSAGE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i;
 
 interface ReplyAuthenticationInput {
@@ -78,33 +77,10 @@ async function verifySignedReply(
   compact: string,
   key: StoredSigningKey,
 ): Promise<{ payload: SignedBossPayload } | null> {
-  const segments = compact.split('.');
-  if (segments.length !== 3) return null;
-  const [encodedHeader, encodedPayload, encodedSignature] = segments;
-  if (!encodedHeader || !encodedPayload || !encodedSignature) return null;
-  const header = decodeJson(encodedHeader);
-  const payload = decodeJson(encodedPayload);
-  const signature = decodeBase64Url(encodedSignature);
-  const publicKey = decodeBase64Url(key.public_key);
-  if (!header || !payload || !signature || !publicKey) return null;
-  if (header['alg'] !== 'ES256' || header['kid'] !== key.id) return null;
-  if (header['typ'] !== 'hiboss-message+jws') return null;
-  const signingInput = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
-  if (!(await verifyEs256(publicKey, signature, signingInput))) return null;
-  return isSignedBossPayload(payload) ? { payload } : null;
-}
-
-function decodeJson(value: string): Record<string, unknown> | null {
-  const bytes = decodeBase64Url(value);
-  if (!bytes) return null;
-  try {
-    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? parsed as Record<string, unknown>
-      : null;
-  } catch {
-    return null;
-  }
+  const payload = await verifyCompactJws(
+    compact, { keyId: key.id, publicKey: key.public_key }, 'hiboss-message+jws',
+  );
+  return payload && isSignedBossPayload(payload) ? { payload } : null;
 }
 
 function isSignedBossPayload(
@@ -128,11 +104,6 @@ function matchesRequest(payload: SignedBossPayload, input: ReplyAuthenticationIn
   return payload.boss_id === input.bossId
     && payload.action.message_id === input.parentMessageId
     && payload.body === input.body;
-}
-
-function isFresh(issuedAt: number): boolean {
-  const now = Math.floor(Date.now() / 1000);
-  return Math.abs(now - issuedAt) <= MAX_CLOCK_SKEW_SECONDS;
 }
 
 function failure(status: 400 | 401, error: string): BossMessageAuthResult {

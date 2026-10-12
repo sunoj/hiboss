@@ -1,5 +1,5 @@
 // P-256 helpers for pairing proof verification and strict base64url handling.
-// Exports signing-registration parsing, verification, and stable key IDs.
+// Exports registration parsing, proof verification, ES256 checks, and stable key IDs.
 // Depends on Web Crypto and message-security domain types.
 
 import type { RegisteredSigningKey, SigningKeyId, SigningRegistration } from './types';
@@ -43,16 +43,23 @@ async function verifyRegistration(
   subject: string,
   registration: SigningRegistration,
 ): Promise<RegisteredSigningKey | null> {
-  const publicKey = decodeBase64Url(registration.publicKey);
-  const proof = decodeBase64Url(registration.proof);
+  const input = `${domain}\n${subject}\n${registration.clientKind}\n${registration.publicKey}`;
+  const id = await verifyKeyProof(input, registration.publicKey, registration.proof);
+  return id ? { ...registration, id } : null;
+}
+
+/** Verifies an ES256 proof of possession over `input`; returns the key ID on success. */
+export async function verifyKeyProof(
+  input: string,
+  encodedPublicKey: string,
+  encodedProof: string,
+): Promise<SigningKeyId | null> {
+  const publicKey = decodeBase64Url(encodedPublicKey);
+  const proof = decodeBase64Url(encodedProof);
   if (!publicKey || publicKey.length !== P256_PUBLIC_KEY_BYTES) return null;
   if (!proof || proof.length !== ES256_SIGNATURE_BYTES) return null;
-  const input = new TextEncoder().encode(
-    `${domain}\n${subject}\n${registration.clientKind}\n${registration.publicKey}`,
-  );
-  if (!(await verifyEs256(publicKey, proof, input))) return null;
-  const id = await deriveSigningKeyId(publicKey);
-  return { ...registration, id };
+  if (!(await verifyEs256(publicKey, proof, new TextEncoder().encode(input)))) return null;
+  return deriveSigningKeyId(publicKey);
 }
 
 export async function verifyEs256(
@@ -85,7 +92,7 @@ export function decodeBase64Url(value: string): Uint8Array | null {
   }
 }
 
-async function deriveSigningKeyId(publicKey: Uint8Array): Promise<SigningKeyId> {
+export async function deriveSigningKeyId(publicKey: Uint8Array): Promise<SigningKeyId> {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', toArrayBuffer(publicKey)));
   let binary = '';
   for (const byte of digest) binary += String.fromCharCode(byte);

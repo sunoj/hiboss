@@ -1,4 +1,4 @@
-// Verifies long agent bodies survive send, blocking ask, and edits without metadata changes.
+// Verifies long agent bodies survive send, blocking ask, and edits without client metadata changes.
 // Exercises Worker routes and D1 storage, including the existing surrounding-whitespace trim.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -37,18 +37,29 @@ async function createMessage(
   return (await response.json() as { id: string }).id;
 }
 
+/** Client metadata survives unchanged; the server adds only its own attribution keys. */
+function clientMetadata(value: unknown): Record<string, unknown> | null {
+  const record = { ...(value as Record<string, unknown>) };
+  expect(record['source']).toBe('agent');
+  expect(record['provenance']).toMatchObject({ source: 'agent', actor: { kind: 'agent', id: 'test-agent-id' } });
+  delete record['source'];
+  delete record['provenance'];
+  return Object.keys(record).length > 0 ? record : null;
+}
+
 async function expectStoredMessage(
   id: string, body: string, mode: Mode, metadata: Record<string, unknown> | undefined,
 ): Promise<void> {
   const stored = await env.DB.prepare('SELECT body, mode, metadata FROM messages WHERE id = ?')
     .bind(id).first<{ body: string; mode: Mode; metadata: string | null }>();
-  expect(stored).toEqual({ body, mode, metadata: metadata ? JSON.stringify(metadata) : null });
+  expect(stored).toMatchObject({ body, mode });
+  expect(clientMetadata(JSON.parse(stored?.metadata ?? 'null'))).toEqual(metadata ?? null);
   const detail = await SELF.fetch(`https://test.local/api/messages/${id}`, { headers: authHeaders() });
   expect(detail.status).toBe(200);
   const message = await detail.json() as { body: string; mode: Mode; metadata: unknown };
   expect(message.body).toBe(body);
   expect(message.mode).toBe(mode);
-  expect(message.metadata).toEqual(metadata ?? null);
+  expect(clientMetadata(message.metadata)).toEqual(metadata ?? null);
 }
 
 describe('Long agent message bodies', () => {

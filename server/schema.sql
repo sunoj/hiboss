@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0054; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0055; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -222,6 +222,25 @@ CREATE INDEX idx_boss_signing_keys_client ON boss_signing_keys(client_id);
 
 CREATE INDEX IF NOT EXISTS idx_boss_signing_keys_boss
   ON boss_signing_keys(boss_id, created_at DESC);
+
+-- P-256 message-signing keys bound to agent credentials
+CREATE TABLE IF NOT EXISTS agent_signing_keys (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  key_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  agent_key_id TEXT NOT NULL REFERENCES agent_keys(id) ON DELETE CASCADE,
+  algorithm TEXT NOT NULL CHECK (algorithm = 'ES256'),
+  public_key TEXT NOT NULL,
+  enrolled_via TEXT NOT NULL CHECK (enrolled_via IN ('first_use', 'endorsed')),
+  endorsed_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at TEXT
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_signing_keys_live_credential
+  ON agent_signing_keys(agent_key_id) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_agent_signing_keys_agent
+  ON agent_signing_keys(agent_id, created_at DESC);
 
 -- One-time codes for enrolling boss clients
 CREATE TABLE IF NOT EXISTS boss_pairing_codes (

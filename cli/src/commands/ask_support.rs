@@ -156,6 +156,8 @@ mod tests {
             created_at: None,
             updated_at: None,
             session_id: None,
+            target_agent_id: None,
+            target_session_id: None,
             session_label: None,
             session_branch: None,
             session_status: None,

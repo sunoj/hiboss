@@ -3,6 +3,7 @@
 // Depends on Bun.file, native fetch/FormData, and node:path.
 
 import { basename } from 'node:path';
+import { signSend } from './agent-signer.js';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -69,7 +70,7 @@ async function sendAttachmentMessage(config: SendFileConfig, input: SendFileInpu
   const response = await fetch(new URL('/api/messages', config.serverUrl), {
     method: 'POST',
     headers: authHeaders(config.apiKey, { 'Content-Type': 'application/json' }),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(await signSend(config.serverUrl, config.apiKey, payload)),
   });
   if (!response.ok) throw new Error(`send failed (${response.status}): ${await response.text()}`);
   const message = parseJson<Partial<MessageResponse>>(await response.text(), 'send failed');

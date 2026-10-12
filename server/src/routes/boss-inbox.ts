@@ -5,8 +5,8 @@
 import { Hono } from 'hono';
 import type { Env, MessageRow, Priority, Status } from '../types';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
-import { apiAuth, getAgentId } from '../middleware/auth';
-import { bearerApiMetadata } from '../message-security';
+import { apiAuth, getAgentId, getAgentKeyId } from '../middleware/auth';
+import { actionContent, authenticateAgentMessage, bearerApiMetadata } from '../message-security';
 import { mapMessageRow, parsePriorityFilter, priorityOptions, clampNumber, validateOption, replyTargetSession } from './message-helpers';
 import { escapeLike } from './bosses';
 import { notifyAgentCallback } from '../notify';
@@ -152,6 +152,12 @@ routes.post('/:id/reply', async (c) => {
   if (!body) {
     return c.text('body is required', 400);
   }
+  // A boss-agent answers with its agent credential, so a signing agent must sign the answer.
+  const auth = await authenticateAgentMessage({
+    env: c.env, agentId, agentKeyId: getAgentKeyId(c), signedMessage: payload.signed_message,
+    content: actionContent({ kind: 'boss_reply', message_id: parent.id }, body),
+  });
+  if (!auth.ok) return c.text(auth.error, auth.status);
   const result = await insertInboxReply(c.env, parent, boss, agentId, body);
   if (result.kind === 'resolved') return c.text('option already resolved', 409);
   if (result.kind === 'failed' || result.kind === 'invalid_choice') return c.text('failed to persist', 500);
