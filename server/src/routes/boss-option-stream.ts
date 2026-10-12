@@ -4,6 +4,8 @@
 
 import type { Channel, Env, MessageRow, ResolutionSource, Status } from '../types';
 import { mapMessageRow } from './message-helpers';
+import { readAnsweredBy, type AnsweredBy } from '../answered-by';
+import { safeParse } from './message-helpers';
 
 const POLL_INTERVAL_MS = 3_000;
 const KEEPALIVE_INTERVAL_MS = 15_000;
@@ -17,6 +19,7 @@ interface TrackedOption {
 }
 
 interface OptionResolution {
+  answered_by?: AnsweredBy;
   id: string;
   status: 'replied' | 'expired';
   answer: string | null;
@@ -160,11 +163,13 @@ async function resolveStatus(
   const reply = await env.DB.prepare(
     'SELECT body, channel, metadata FROM messages WHERE reply_to = ? AND direction = ? ORDER BY created_at ASC LIMIT 1',
   ).bind(messageId, 'boss_to_agent').first<ReplyResolutionRow>();
+  const answeredBy = readAnsweredBy(safeParse(reply?.metadata ?? null));
   return {
     id: messageId,
     status: 'replied',
     answer: reply?.body ?? null,
     source: reply ? resolutionSource(reply) : null,
+    ...(answeredBy ? { answered_by: answeredBy } : {}),
   };
 }
 

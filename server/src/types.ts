@@ -3,6 +3,7 @@
 // Depends on Cloudflare D1 and R2 typings for bindings.
 
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
+import type { AnsweredBy } from './answered-by';
 
 export type Env = {
   DB: D1Database;
@@ -63,6 +64,7 @@ export interface MessageRow {
 }
 
 export interface MessageResponse {
+  answered_by?: AnsweredBy;
   id: string;
   agent_id: string;
   direction: Direction;

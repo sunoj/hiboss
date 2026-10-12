@@ -26,6 +26,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public let defaultOption: String?
     /// On a reply's metadata, where the answer came from: "ios", "telegram", etc.
     public let source: String?
+    public let answeredBy: AnsweringDevice?
     /// On a reply's metadata: the server wrote this answer when the decision timed out.
     /// `auto_default: true` is the only marker of an automatic answer. `source` is not:
     /// older timeout replies carry `source: "api"`, newer ones `source: "system"`.
@@ -44,6 +45,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         case isExpired = "options_expired"
         case defaultOption = "default_option"
         case source
+        case answeredBy = "answered_by"
         case isAutoDefault = "auto_default"
         case content
         case files
@@ -57,6 +59,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isExpired: Bool = false,
         defaultOption: String? = nil,
         source: String? = nil,
+        answeredBy: AnsweringDevice? = nil,
         isAutoDefault: Bool = false,
         content: String? = nil,
         files: [String] = [],
@@ -67,6 +70,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         self.isExpired = isExpired
         self.defaultOption = defaultOption
         self.source = source
+        self.answeredBy = answeredBy
         self.isAutoDefault = isAutoDefault
         self.content = content
         self.files = files
@@ -80,6 +84,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
         source = try values.decodeIfPresent(String.self, forKey: .source)
+        answeredBy = try? values.decodeIfPresent(AnsweringDevice.self, forKey: .answeredBy)
         isAutoDefault = (try? values.decodeIfPresent(Bool.self, forKey: .isAutoDefault)) == true
         content = try values.decodeIfPresent(String.self, forKey: .content)
         let direct = try values.decodeIfPresent([String].self, forKey: .files) ?? []
@@ -95,6 +100,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         try values.encode(isExpired, forKey: .isExpired)
         try values.encodeIfPresent(defaultOption, forKey: .defaultOption)
         try values.encodeIfPresent(source, forKey: .source)
+        try values.encodeIfPresent(answeredBy, forKey: .answeredBy)
         if isAutoDefault { try values.encode(true, forKey: .isAutoDefault) }
         try values.encodeIfPresent(content, forKey: .content)
         if !files.isEmpty { try values.encode(files, forKey: .files) }

@@ -3,6 +3,7 @@
 // Depends on the worker API, D1 test fixtures, and Web Crypto P-256 support.
 
 import { env, SELF } from 'cloudflare:test';
+import type { AnsweredBy } from '../answered-by';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 
@@ -55,10 +56,15 @@ describe('paired-device message signing', () => {
 
   it('delivers a signed reply with independently verifiable provenance', async () => {
     const signedMessage = await signReply('Approve', crypto.randomUUID());
-    const response = await reply({ body: 'Approve', source: 'discord', signed_message: signedMessage });
+    const response = await reply({ body: 'Approve', source: 'discord', signed_message: signedMessage,
+      answered_by: { client_id: 'fake', kind: 'ios', label: 'Fake Phone' } });
     expect(response.status).toBe(201);
     const message = await response.json() as SignedReplyResponse;
     expect(message.body).toBe('Approve');
+    const device = await env.DB.prepare(`SELECT c.id AS client_id, c.kind, c.label FROM boss_clients c
+      JOIN boss_signing_keys k ON k.client_id = c.id WHERE k.id = ?`)
+      .bind(signingKeyId).first<AnsweredBy>();
+    expect(message.metadata.answered_by).toEqual(device);
     expect(message.metadata.source).toBe('ios');
     expect(message.metadata.provenance.source).toBe('ios');
     expect(message.metadata.provenance.signature).toMatchObject({
@@ -204,6 +210,7 @@ interface SignedReplyResponse {
   id: string;
   body: string;
   metadata: {
+    answered_by?: AnsweredBy;
     source: string;
     provenance: {
       source: string;

@@ -50,11 +50,15 @@ enum DemoOptionMediaFixtures {
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionStatus: "working"
         )
         guard !pending else { return [message] }
+        let device = ProcessInfo.processInfo.environment["HIBOSS_DEMO_DEVICE_LABEL"].map {
+            AnsweringDevice(clientID: "demo-phone", kind: "ios", label: $0)
+        }
         let reply = HistoryMessage(
             id: "media-reply", body: automatic ? "Mountain view" : "Coastal view",
             agentName: "worker-design", direction: "boss_to_agent", status: "sent",
             priority: "normal", channel: "api", mode: "async", replyTo: message.id.rawValue,
-            metadata: MessageMetadata(options: [], source: "ios", isAutoDefault: automatic),
+            metadata: MessageMetadata(options: [], source: device == nil ? "ios" : "api",
+                                      answeredBy: device, isAutoDefault: automatic),
             createdAt: Date().addingTimeInterval(-60).ISO8601Format(),
             targetSessionId: "sess-deploy", sessionLabel: "prod-release", sessionStatus: "working"
         )

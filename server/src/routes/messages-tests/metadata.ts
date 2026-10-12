@@ -38,6 +38,30 @@ describe('POST /api/messages with metadata', () => {
     expect(msg.metadata?.['task']).toBe('test-123');
   });
 
+  it('strips malformed answered_by before storing agent message history', async () => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        body: 'History should remain decodable',
+        metadata: { answered_by: { client_id: 'forged' }, task: 'keep' },
+      }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+    const stored = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+      .bind(id).first<{ metadata: string }>();
+    expect(JSON.parse(stored?.metadata ?? '{}')).toEqual({ task: 'keep' });
+
+    const history = await SELF.fetch('https://test.local/api/messages?direction=all&limit=100', {
+      headers: authHeaders(),
+    });
+    const page = await history.json() as {
+      messages: { id: string; metadata: Record<string, unknown> | null }[];
+    };
+    expect(page.messages.find(message => message.id === id)?.metadata?.['answered_by']).toBeUndefined();
+  });
+
   it('accepts option arrays and preserves commas inside an option', async () => {
     const res = await SELF.fetch('https://test.local/api/messages', {
       method: 'POST',

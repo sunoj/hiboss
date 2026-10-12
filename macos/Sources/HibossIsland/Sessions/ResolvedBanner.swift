@@ -50,8 +50,9 @@ struct ResolvedBanner: View {
                 if case let .replied(text, _) = outcome {
                     Text(text).font(.body).textSelection(.enabled)
                 }
-                if recorded, let source = thread.newestReply?.metadata?.source {
-                    Text(L("Answered on \(source.capitalized)")).font(.caption)
+                if recorded, let source = thread.newestReply?.metadata?.answeredBy?.displayLabel
+                    ?? thread.newestReply?.metadata?.source?.capitalized {
+                    Text(L("Answered on \(source)")).font(.caption)
                 }
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)

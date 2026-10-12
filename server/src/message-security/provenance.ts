@@ -83,11 +83,16 @@ export function systemMetadata(base: Record<string, unknown> = {}): Record<strin
   };
 }
 
+export function stripServerOwnedMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const { answered_by: ignored, ...callerMetadata } = metadata;
+  return callerMetadata;
+}
+
 export function mergeProvenance(
   base: Record<string, unknown>,
   provenanceMetadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  return { ...base, ...provenanceMetadata };
+  return { ...stripServerOwnedMetadata(base), ...provenanceMetadata };
 }
 
 function addCompatibilityFields(

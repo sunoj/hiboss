@@ -40,6 +40,18 @@ final class DecisionStateTests: XCTestCase {
         XCTAssertEqual(api.symbol, "checkmark.circle.fill")
     }
 
+    func testSettlementUsesDeviceNameForNativeAndAPIReplies() throws {
+        let device = AnsweringDevice(clientID: "phone", kind: "ios", label: "Ming's iPhone")
+        for source in ["ios", "api"] {
+            let recorded = reply("Keep", MessageMetadata(options: [], source: source, answeredBy: device))
+            let settlement = try XCTUnwrap(DecisionSettlement(reply: recorded))
+            XCTAssertEqual(settlement.sourceLabel, device.label)
+            let stream = try XCTUnwrap(DecisionSettlement(resolution: OptionResolution(
+                id: "q1", status: .replied, answer: "Keep", source: source, answeredBy: device)))
+            XCTAssertEqual(stream.sourceLabel, device.label)
+        }
+    }
+
     func testBossChoosingTheDefaultIsNotAutomatic() throws {
         let chosen = try XCTUnwrap(
             DecisionSettlement(reply: reply("Keep", try metadata(#"{"source":"ios"}"#))))

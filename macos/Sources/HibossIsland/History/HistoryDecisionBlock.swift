@@ -92,8 +92,9 @@ struct HistoryDecisionBlock: View {
             Label(L("Auto-selected when time ran out"), systemImage: "clock.arrow.circlepath")
                 .font(.caption).foregroundStyle(.secondary)
         case let .chosen(_, source):
-            if let source, !source.isEmpty, source.lowercased() != "macos" {
-                Text(L("Answered on \(source.capitalized)"))
+            if let label = thread.newestReply?.metadata?.answeredBy?.displayLabel
+                ?? source.flatMap({ $0.lowercased() == "macos" ? nil : $0.capitalized }) {
+                Text(L("Answered on \(label)"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         case .expired:

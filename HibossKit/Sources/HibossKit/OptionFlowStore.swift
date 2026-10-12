@@ -119,7 +119,7 @@ public final class OptionFlowStore: ObservableObject {
         replyFeedback[messageID] = nil
         do {
             switch try await api.reply(to: messageID, with: choice) {
-            case .accepted:
+            case .accepted, .acceptedOn:
                 refreshHistoryInBackground()
                 return true
             case .alreadyResolved:
@@ -155,14 +155,16 @@ public final class OptionFlowStore: ObservableObject {
         replyFeedback[message.id] = nil
         presentationState = .submitting(body)
         do {
-            switch try await api.reply(to: message.id, with: body) {
-            case .accepted:
+            let outcome = try await api.reply(to: message.id, with: body)
+            switch outcome {
+            case .accepted, .acceptedOn:
                 #if os(macOS)
                 let source = "macos"
                 #else
                 let source = "ios"
                 #endif
-                resolve(OptionResolution(id: message.id, status: .replied, answer: body, source: source))
+                resolve(OptionResolution(id: message.id, status: .replied, answer: body, source: source,
+                                         answeredBy: outcome.answeredBy))
                 refreshHistoryInBackground()
                 return true
             case .alreadyResolved:

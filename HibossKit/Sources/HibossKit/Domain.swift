@@ -184,15 +184,20 @@ public struct OptionResolution: Codable, Equatable, Sendable {
     /// Where the answer came from: "ios", "macos", "telegram", "discord", "api".
     public let source: String?
 
+    public let answeredBy: AnsweringDevice?
+
     enum CodingKeys: String, CodingKey {
         case id, status, answer, source
+        case answeredBy = "answered_by"
     }
 
-    public init(id: MessageID, status: ResolutionStatus, answer: String? = nil, source: String? = nil) {
+    public init(id: MessageID, status: ResolutionStatus, answer: String? = nil, source: String? = nil,
+                answeredBy: AnsweringDevice? = nil) {
         self.id = id
         self.status = status
         self.answer = answer
         self.source = source
+        self.answeredBy = answeredBy
     }
 
     /// Tolerant decode: older servers omit answer/source.
@@ -202,10 +207,11 @@ public struct OptionResolution: Codable, Equatable, Sendable {
         status = try values.decode(ResolutionStatus.self, forKey: .status)
         answer = try values.decodeIfPresent(String.self, forKey: .answer)
         source = try values.decodeIfPresent(String.self, forKey: .source)
+        answeredBy = try values.decodeIfPresent(AnsweringDevice.self, forKey: .answeredBy)
     }
 
     /// Human label for the resolving surface, e.g. "iOS", "Mac", "Telegram".
-    public var sourceLabel: String? { resolutionSourceLabel(source) }
+    public var sourceLabel: String? { answeredBy?.displayLabel ?? resolutionSourceLabel(source) }
 
     /// The stream event carries no metadata: the server encodes a reply marked
     /// `auto_default: true` as source `system`, and emits `system` for nothing else.
@@ -233,6 +239,7 @@ public enum BossEvent: Equatable, Sendable {
 
 public enum ReplyOutcome: Equatable, Sendable {
     case accepted
+    case acceptedOn(AnsweringDevice)
     case alreadyResolved
 }
 

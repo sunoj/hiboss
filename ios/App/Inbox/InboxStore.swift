@@ -163,11 +163,12 @@ final class InboxStore: ObservableObject {
 
     /// Commit how a reply landed: a sent choice settles the card; nil rolls back the
     /// optimistic state. A closed reply keeps the card read-only until its recorded outcome arrives.
-    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil, closed: Bool = false) {
+    func settleReply(_ choice: String?, for id: MessageID, error: String? = nil, closed: Bool = false,
+                     answeredBy: AnsweringDevice? = nil) {
         if let choice {
             withdrawn.insert(id)
             settledIDs.insert(id)
-            localResolutions[id] = DecisionSettlement(answer: choice, source: "ios")
+            localResolutions[id] = DecisionSettlement(answer: choice, source: "ios", answeredBy: answeredBy)
         } else if closed {
             withdrawn.insert(id)
             settledIDs.insert(id)

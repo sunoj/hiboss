@@ -25,6 +25,8 @@ pub(crate) struct ReplyReport {
     pub action: Option<String>,
     /// Verified provenance label, e.g. `ios/verified`, `api/not_configured`, `agent`.
     pub assurance: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
 }
 
 /// Stored server state only: `status` is the raw technical value, never an approval.
@@ -42,29 +44,48 @@ fn metadata_field<'a>(message: &'a Message, key: &str) -> Option<&'a Value> {
     message.metadata.as_ref().and_then(|meta| meta.get(key))
 }
 
+pub(crate) fn device_label(reply: &Message) -> Option<String> {
+    metadata_field(reply, "answered_by")
+        .and_then(|device| device.get("label"))
+        .and_then(Value::as_str)
+        .filter(|label| !label.trim().is_empty())
+        .map(str::to_owned)
+}
+
 impl ReplyReport {
     /// Only an explicit `metadata.auto_default == true` marks an automatic default,
     /// and an automatic default never carries an action.
     pub(crate) fn from_reply(reply: &Message) -> Self {
-        let automatic = metadata_field(reply, "auto_default").and_then(Value::as_bool) == Some(true);
+        let automatic =
+            metadata_field(reply, "auto_default").and_then(Value::as_bool) == Some(true);
         let action = if automatic {
             None
         } else {
-            metadata_field(reply, "action").and_then(Value::as_str).map(str::to_owned)
+            metadata_field(reply, "action")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
         };
-        let outcome = if automatic { ReplyOutcome::AutoDefault } else { ReplyOutcome::Reply };
+        let outcome = if automatic {
+            ReplyOutcome::AutoDefault
+        } else {
+            ReplyOutcome::Reply
+        };
         Self {
             reply_id: reply.id.clone(),
             body: reply.body.clone(),
             outcome,
             action,
             assurance: assurance_label(reply),
+            device_label: device_label(reply),
         }
     }
 
     fn text(&self) -> String {
         let body = self.body.as_deref().unwrap_or("-");
-        let source = format!("  Source: {}\n", self.assurance);
+        let source = format!(
+            "  Source: {}\n",
+            self.device_label.as_deref().unwrap_or(&self.assurance)
+        );
         match self.outcome {
             ReplyOutcome::AutoDefault => format!(
                 "Reply {} [auto_default]: {body}\n{source}  {AUTO_DEFAULT_NOTE}\n",
@@ -94,7 +115,10 @@ impl StatusReport {
 
     pub(crate) fn text(&self) -> String {
         let mut out = format!("Message: {}\n", self.message_id);
-        out.push_str(&format!("Direction: {}\n", self.direction.as_deref().unwrap_or("unknown")));
+        out.push_str(&format!(
+            "Direction: {}\n",
+            self.direction.as_deref().unwrap_or("unknown")
+        ));
         out.push_str(&format!(
             "Status: {} (stored message state)\n",
             self.status.as_deref().unwrap_or("unknown"),

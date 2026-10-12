@@ -7,9 +7,10 @@ import type { Env, MessageRow } from '../types';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { isDecisionAnswerable } from '../decision-answerability';
 import {
-  bossAuth, getBossId, getBossName, getBossRole, getBossTokenId,
+  bossAuth, getBossId, getBossName, getBossRole, getBossTokenId, getClientId,
 } from '../middleware/auth';
 import { authenticateBossReply } from '../message-security';
+import { stampAnsweredBy } from '../answered-by';
 import { createMessageId } from '../session-events';
 import { notifyAgentCallback } from '../notify';
 import { logAudit } from '../audit';
@@ -40,7 +41,8 @@ async function handleReply(c: BossContext): Promise<Response> {
   const duplicate = await findDuplicate(c.env, parent.agent_id, authenticated.value.idempotencyKey);
   if (duplicate) return c.json(mapMessageRow(duplicate));
   if (!await isDecisionAnswerable(c.env, parent.id)) return c.text('decision no longer open', 409);
-  const optionClaim = await insertReply(c.env, parent, authenticated.value);
+  const provenance = await stampAnsweredBy(c.env, bossId, getClientId(c), authenticated.value.provenance);
+  const optionClaim = await insertReply(c.env, parent, { ...authenticated.value, provenance });
   if (optionClaim.kind === 'resolved') return c.text('decision no longer open', 409);
   if (optionClaim.kind === 'failed' || optionClaim.kind === 'invalid_choice') return c.text('failed to persist', 500);
   finishReply(c, parent, optionClaim.reply, optionClaim.kind, bossId, getBossName(c));
