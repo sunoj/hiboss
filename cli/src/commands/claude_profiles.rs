@@ -42,10 +42,15 @@ pub(super) fn discover() -> Result<Vec<PathBuf>, Box<dyn Error>> {
         for entry in fs::read_dir(&home)? {
             let entry = entry?;
             let path = entry.path();
-            if entry.file_name().to_string_lossy().starts_with(".claude-")
-                && path.is_dir()
-                && (path.join("settings.json").is_file() || path.join("projects").is_dir())
-            {
+            if !entry.file_name().to_string_lossy().starts_with(".claude-") {
+                continue;
+            }
+            let metadata = fs::symlink_metadata(&path)?;
+            if metadata.file_type().is_symlink() {
+                println!("Claude profile {}: skipped (symlink)", path.display());
+                continue;
+            }
+            if metadata.is_dir() && path.join("projects").is_dir() {
                 paths.push(absolute(&path)?);
             }
         }

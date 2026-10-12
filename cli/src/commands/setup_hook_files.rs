@@ -65,7 +65,7 @@ pub(super) fn write_settings(
         } else {
             format!("{}\n", serde_json::to_string_pretty(settings)?)
         };
-        fs::write(path, content)?;
+        super::setup_agents::write_atomic(path, &content)?;
     }
     Ok(())
 }

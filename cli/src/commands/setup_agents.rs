@@ -3,7 +3,12 @@
 // Dependencies: clap, dirs, and filesystem operations; no credentials or network.
 
 use clap::Args;
-use std::{error::Error, fs, path::{Path, PathBuf}};
+use std::{
+    error::Error,
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 pub const PANEL_GUIDE: &str = include_str!("../../resources/panel-agent-guide.md");
 const BEGIN: &str = "<!-- hiboss:panels:begin -->";
@@ -38,7 +43,12 @@ pub fn run(args: &SetupAgentsArgs) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn replace_block(existing: &str, begin: &str, end: &str, replacement: &str) -> Result<String, Box<dyn Error>> {
+fn replace_block(
+    existing: &str,
+    begin: &str,
+    end: &str,
+    replacement: &str,
+) -> Result<String, Box<dyn Error>> {
     let starts: Vec<_> = existing.match_indices(begin).collect();
     let ends: Vec<_> = existing.match_indices(end).collect();
     if starts.is_empty() && ends.is_empty() { return Ok(existing.to_owned()); }
@@ -77,12 +87,25 @@ pub(crate) fn apply_profile_prompt_changes(path: &Path, profile: &str) -> Result
     Ok(())
 }
 
-fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {
+pub(crate) fn write_atomic(path: &Path, content: &str) -> Result<(), Box<dyn Error>> {
     let parent = path.parent().ok_or("Invalid instruction destination")?;
     fs::create_dir_all(parent)?;
-    let temporary = path.with_extension(format!("hiboss-{}.tmp", std::process::id()));
-    fs::write(&temporary, content)?;
-    if path.exists() { fs::set_permissions(&temporary, fs::metadata(path)?.permissions())?; }
+    let name = path.file_name().ok_or("Invalid instruction destination")?;
+    let temporary = parent.join(format!(
+        ".{}.hiboss-{}.tmp",
+        name.to_string_lossy(),
+        std::process::id()
+    ));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)?;
+    file.write_all(content.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    if path.exists() {
+        fs::set_permissions(&temporary, fs::metadata(path)?.permissions())?;
+    }
     fs::rename(temporary, path)?;
     Ok(())
 }

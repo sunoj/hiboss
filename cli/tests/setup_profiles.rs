@@ -6,12 +6,14 @@ mod session_identity_support;
 
 use session_identity_support::Fixture;
 use std::fs;
+use std::os::unix::fs::symlink;
 
 fn profiles() -> Fixture {
     let fixture = Fixture::new("profiles", "http://127.0.0.1:1");
     for name in [".claude", ".claude-m", ".claude-foo"] {
         fs::create_dir_all(fixture.root.join(name)).expect("profile directory");
     }
+    fs::create_dir_all(fixture.root.join(".claude-m/projects")).expect("projects");
     fs::create_dir_all(fixture.root.join(".claude-second/projects")).expect("projects");
     fs::write(fixture.root.join(".claude-m/settings.json"), "{}").expect("settings");
     fs::write(
@@ -24,6 +26,12 @@ fn profiles() -> Fixture {
         "backup only",
     )
     .expect("backup-only directory");
+    fs::create_dir_all(fixture.root.join(".claude-settings-only")).expect("settings-only");
+    fs::write(
+        fixture.root.join(".claude-settings-only/settings.json"),
+        "{\"settings_only\":true}",
+    )
+    .expect("settings-only file");
     fixture
 }
 
@@ -156,4 +164,94 @@ fn setup_global_installs_every_profile_without_config_override() {
         fs::read_to_string(fixture.root.join(".claude-m/settings.json.bak-123")).expect("backup"),
         "backup bytes"
     );
+    assert_eq!(
+        fs::read_to_string(fixture.root.join(".claude-settings-only/settings.json"))
+            .expect("settings-only file"),
+        "{\"settings_only\":true}"
+    );
+}
+
+#[test]
+fn setup_replaces_a_settings_symlink_without_writing_its_target() {
+    let fixture = profiles();
+    let outside = fixture.root.join("outside");
+    fs::create_dir_all(&outside).expect("outside directory");
+    let target = outside.join("settings.json");
+    fs::write(&target, "{\"owned\":true}").expect("target settings");
+    let profile = fixture.root.join("explicit");
+    fs::create_dir_all(&profile).expect("explicit profile");
+    symlink(&target, profile.join("settings.json")).expect("settings symlink");
+
+    let out = fixture.run(
+        &fixture.repo,
+        &[
+            "setup",
+            "hooks",
+            "--config-dir",
+            profile.to_str().expect("profile"),
+        ],
+        &[],
+    );
+
+    assert_eq!(out.code, 0, "{}", out.stderr);
+    assert!(fs::symlink_metadata(profile.join("settings.json"))
+        .expect("settings metadata")
+        .file_type()
+        .is_file());
+    assert_eq!(
+        fs::read_to_string(target).expect("target settings"),
+        "{\"owned\":true}"
+    );
+}
+
+#[test]
+fn setup_skips_symlinked_discovered_profiles_and_reports_them() {
+    let fixture = profiles();
+    let outside = fixture.root.join("outside-profile");
+    fs::create_dir_all(outside.join("projects")).expect("outside projects");
+    symlink(&outside, fixture.root.join(".claude-linked")).expect("profile symlink");
+
+    let out = fixture.run(&fixture.repo, &["setup", "hooks", "--global"], &[]);
+
+    assert_eq!(out.code, 0, "{}", out.stderr);
+    assert!(out.stdout.contains(".claude-linked"));
+    assert!(out.stdout.contains("skipped"));
+    assert!(!outside.join("settings.json").exists());
+    assert!(!outside.join("CLAUDE.md").exists());
+}
+
+#[test]
+fn remove_preserves_commands_that_only_contain_hiboss_hook_text() {
+    let fixture = profiles();
+    let profile = fixture.root.join(".claude-m");
+    let settings = serde_json::json!({
+        "hooks": {"Stop": [{"hooks": [
+            {"type": "command", "command": "echo \\\"hiboss hook stop\\\""},
+            {"type": "command", "command": "hiboss hook stop"},
+            {"type": "command", "command": "HIBOSS_PROFILE=claude hiboss hook stop"}
+        ]}]}
+    });
+    fs::write(profile.join("settings.json"), settings.to_string()).expect("settings");
+
+    let out = fixture.run(
+        &fixture.repo,
+        &[
+            "setup",
+            "hooks",
+            "--config-dir",
+            profile.to_str().expect("profile"),
+            "--remove",
+        ],
+        &[],
+    );
+
+    assert_eq!(out.code, 0, "{}", out.stderr);
+    let updated: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(profile.join("settings.json")).expect("updated"))
+            .expect("updated JSON");
+    let hooks = updated["hooks"]["Stop"][0]["hooks"]
+        .as_array()
+        .expect("hooks");
+    assert_eq!(hooks.len(), 1);
+    assert_eq!(hooks[0]["command"], "echo \\\"hiboss hook stop\\\"");
 }

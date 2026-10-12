@@ -18,7 +18,7 @@ hiboss whoami --json                # offline resolved identity, masked key
 ```
 
 Global Claude hook setup covers `$CLAUDE_CONFIG_DIR`, `~/.claude`, and each
-`~/.claude-*` directory containing `settings.json` or `projects/`. It reports one
+`~/.claude-*` directory containing `projects/`. It reports one
 result per directory; `--config-dir <path>` limits setup or removal to that profile.
 Backup settings files and directories without profile markers are left alone.
 `hiboss doctor` lists hook coverage and repair commands; a missing current profile

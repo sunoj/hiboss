@@ -23,6 +23,7 @@ pub mod group;
 pub mod hook;
 mod codex_hook;
 mod setup_hook_files;
+mod setup_hook_commands;
 mod setup_hook_install;
 mod setup_json_edit;
 mod setup_json_spans;
