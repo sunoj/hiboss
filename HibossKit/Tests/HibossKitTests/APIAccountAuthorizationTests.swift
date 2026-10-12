@@ -17,7 +17,11 @@ final class APIAccountAuthorizationTests: XCTestCase {
         for status in [401, 403] {
             boundary.connect(account)
             var rejections = 0
-            let observation = boundary.observe { _ in rejections += 1 }
+            var identityChanges = 0
+            let observation = boundary.observe { error in
+                if AccountAuthorization.isRejected(error) { rejections += 1 }
+                else { identityChanges += 1 }
+            }
             let response = try XCTUnwrap(HTTPURLResponse(url: account.serverURL, statusCode: status,
                                                         httpVersion: nil, headerFields: nil))
             for _ in 0..<2 {
@@ -26,9 +30,11 @@ final class APIAccountAuthorizationTests: XCTestCase {
             }
             XCTAssertEqual(rejections, 1)
             boundary.connect(ConnectionConfig(serverURL: account.serverURL, bossToken: "replacement-token"))
+            XCTAssertEqual(identityChanges, 1, "Account replacement must clear previous content")
             do { try await api.validate(response); XCTFail("Expected original API error") }
             catch { XCTAssertEqual((error as? HibossAPIError)?.isAuthFailure, true) }
             XCTAssertEqual(rejections, 1, "Old credentials must not clear a replacement account")
+            XCTAssertEqual(identityChanges, 1, "Old credentials must not invalidate the new identity")
             observation.cancel()
         }
     }
@@ -50,6 +56,30 @@ final class APIAccountAuthorizationTests: XCTestCase {
         boundary.reject(HibossAPIError.requestFailed(status: 401, message: ""), account: account)
         XCTAssertNil(storage.object(forKey: rejected))
         XCTAssertEqual(storage.string(forKey: other), "Other draft")
+    }
+
+    func testAccountChangePurgesUnmountedDraftsOnlyForThePreviousServer() throws {
+        let boundary = AccountAuthorization()
+        let account = ConnectionConfig(serverURL: try XCTUnwrap(URL(string: "https://old-drafts.unit.test")),
+                                       bossToken: "unit-token")
+        let next = ConnectionConfig(serverURL: try XCTUnwrap(URL(string: "https://next-drafts.unit.test")),
+                                    bossToken: "unit-token")
+        let oldDraft = "hiboss.questionnaire.https://old-drafts.unit.test.boss.request.1"
+        let nextDraft = "hiboss.questionnaire.https://next-drafts.unit.test.boss.request.1"
+        let storage = UserDefaults.standard
+        boundary.connect(account)
+        storage.set("Previous account draft", forKey: oldDraft)
+        storage.set("Next account draft", forKey: nextDraft)
+        defer {
+            storage.removeObject(forKey: oldDraft)
+            storage.removeObject(forKey: nextDraft)
+        }
+        let generation = boundary.generation
+        boundary.connect(next)
+        XCTAssertEqual(boundary.generation, generation + 1)
+        XCTAssertFalse(boundary.hasRejectedAccount)
+        XCTAssertNil(storage.object(forKey: oldDraft))
+        XCTAssertEqual(storage.string(forKey: nextDraft), "Next account draft")
     }
 
     func testCommonValidationRetainsContentForOrdinaryResponseErrors() async throws {

@@ -24,12 +24,7 @@ public final class AccountAuthorization: ObservableObject {
     public func reject(_ error: Error) -> Bool {
         guard Self.isRejected(error) else { return false }
         hasRejectedAccount = true
-        if let account {
-            let prefix = "hiboss.questionnaire.\(account.serverURL.absoluteString)."
-            for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
+        clearDrafts(for: account)
         generation &+= 1
         changes.send(error)
         return true
@@ -37,6 +32,7 @@ public final class AccountAuthorization: ObservableObject {
 
     public func connect(_ account: ConnectionConfig?) {
         let didChange = self.account != account
+        if didChange { clearDrafts(for: self.account) }
         self.account = account
         hasRejectedAccount = false
         if didChange { changed() }
@@ -55,6 +51,15 @@ public final class AccountAuthorization: ObservableObject {
         guard account == self.account, !hasRejectedAccount, Self.isRejected(error) else { return }
         hasRejectedAccount = true
         reject(error)
+    }
+
+    private func clearDrafts(for account: ConnectionConfig?) {
+        if let account {
+            let prefix = "hiboss.questionnaire.\(account.serverURL.absoluteString)."
+            for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
     }
 
     public func observe(_ clear: @escaping @MainActor (Error) -> Void) -> AnyCancellable {
