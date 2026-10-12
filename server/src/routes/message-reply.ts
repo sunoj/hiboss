@@ -2,7 +2,9 @@
 // Exports messageReplyRouter; depends on message helpers and destination dispatch.
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
-import { getAgentId } from '../middleware/auth';
+import { getAgentId, getAgentKeyId } from '../middleware/auth';
+import { actionContent, audienceOf, authenticateAgentMessage, signedIdempotencyKey } from '../message-security';
+import { findByIdempotencyKey } from './message-queries';
 import { notifyTargetAgent } from '../notify';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import type { Channel, Direction, Env, MessageRow } from '../types';
@@ -46,10 +48,21 @@ routes.post('/:id/reply', async (c) => {
     : 'agent_to_boss';
   const replyTargetAgentId = replyDirection === 'agent_to_agent' ? parent.agent_id : null;
   const replyTargetSessionId = replyDirection === 'agent_to_agent' ? replyTargetSession(parent) : null;
+  const audience = audienceOf(replyDirection, replyTargetAgentId, replyTargetSessionId);
+  const auth = await authenticateAgentMessage({
+    env: c.env, agentId, agentKeyId: getAgentKeyId(c), signedMessage: payload.signed_message,
+    content: actionContent({ kind: 'reply', message_id: parent.id, audience }, body),
+  });
+  if (!auth.ok) return c.text(auth.error, auth.status);
+  const idempotencyKey = auth.signed ? signedIdempotencyKey(auth.signed) : null;
+  if (idempotencyKey) {
+    const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
+    if (existing) return c.json(mapMessageRow(existing), 200);
+  }
   const inserted = await insertMessageWithEvent(
     c.env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId],
+    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id, metadata, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId, JSON.stringify(auth.metadata), idempotencyKey],
     replyTargetSession(parent),
   );
   if (!inserted) {
@@ -117,9 +130,12 @@ async function markReplyDelivered(env: Env, messageId: string, telegramMessageId
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: (string | number)[] = [];
   if (telegramMessageId) {
-    updates.push('metadata = ?');
-    binds.push(JSON.stringify({ telegram_message_id: telegramMessageId,
-      ...(typeof telegramChatId === 'string' ? { telegram_chat_id: telegramChatId } : {}) }));
+    // Merge, never replace: the row's provenance must survive delivery bookkeeping.
+    updates.push(typeof telegramChatId === 'string'
+      ? "metadata = json_set(COALESCE(metadata, '{}'), '$.telegram_message_id', ?, '$.telegram_chat_id', ?)"
+      : "metadata = json_set(COALESCE(metadata, '{}'), '$.telegram_message_id', ?)");
+    binds.push(telegramMessageId);
+    if (typeof telegramChatId === 'string') binds.push(telegramChatId);
   }
   binds.push(messageId);
   await env.DB

@@ -51,7 +51,9 @@ describe('POST /api/messages with metadata', () => {
     const { id } = await res.json() as { id: string };
     const stored = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
       .bind(id).first<{ metadata: string }>();
-    expect(JSON.parse(stored?.metadata ?? '{}')).toEqual({ task: 'keep' });
+    const storedMetadata = JSON.parse(stored?.metadata ?? '{}') as Record<string, unknown>;
+    expect(storedMetadata['task']).toBe('keep');
+    expect(storedMetadata['answered_by']).toBeUndefined();
 
     const history = await SELF.fetch('https://test.local/api/messages?direction=all&limit=100', {
       headers: authHeaders(),

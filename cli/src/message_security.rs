@@ -91,7 +91,7 @@ pub fn assurance_label(message: &Message) -> String {
 
 fn verify_single(message: &Message) -> Result<MessageAssurance, MessageVerificationError> {
     if message.direction.as_deref() != Some("boss_to_agent") {
-        return Ok(MessageAssurance::NotApplicable);
+        return crate::agent_provenance::verify_agent_row(message);
     }
     let metadata = message.metadata.as_ref().ok_or_else(|| fail(message, "missing metadata"))?;
     let provenance = object(metadata.get("provenance"))
@@ -112,7 +112,7 @@ fn verify_single(message: &Message) -> Result<MessageAssurance, MessageVerificat
     }
 }
 
-fn verify_attribution(
+pub(crate) fn verify_attribution(
     message: &Message,
     signature: &Map<String, Value>,
     source: &str,
@@ -120,7 +120,7 @@ fn verify_attribution(
     let status = string(signature, "status").ok_or_else(|| fail(message, "missing signature status"))?;
     let expected = match source {
         "discord" | "telegram" => "unsupported",
-        "api" => "not_configured",
+        "api" | "agent" => "not_configured",
         "system" => "not_applicable",
         _ => return Err(fail(message, "unsigned native source")),
     };
@@ -216,7 +216,7 @@ fn validate_payload(
     Ok(())
 }
 
-fn required<'a>(
+pub(crate) fn required<'a>(
     message: &Message,
     object: &'a Map<String, Value>,
     key: &str,
@@ -224,7 +224,7 @@ fn required<'a>(
     string(object, key).ok_or_else(|| fail(message, &format!("missing {key}")))
 }
 
-fn decode_required(
+pub(crate) fn decode_required(
     message: &Message,
     object: &Map<String, Value>,
     key: &str,
@@ -242,7 +242,7 @@ fn decode_json<T: for<'de> Deserialize<'de>>(
     serde_json::from_slice(&bytes).map_err(|_| fail(message, &format!("invalid JWS {part}")))
 }
 
-fn decode(value: &str) -> Result<Vec<u8>, &'static str> {
+pub fn decode(value: &str) -> Result<Vec<u8>, &'static str> {
     if value.is_empty() || value.len() % 4 == 1 {
         return Err("invalid base64url encoding");
     }
@@ -275,15 +275,15 @@ fn base64_value(byte: u8) -> Result<u8, &'static str> {
     }
 }
 
-fn object(value: Option<&Value>) -> Option<&Map<String, Value>> {
+pub(crate) fn object(value: Option<&Value>) -> Option<&Map<String, Value>> {
     value?.as_object()
 }
 
-fn string<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a str> {
+pub(crate) fn string<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a str> {
     object.get(key)?.as_str().filter(|value| !value.is_empty())
 }
 
-fn fail(message: &Message, detail: &str) -> MessageVerificationError {
+pub(crate) fn fail(message: &Message, detail: &str) -> MessageVerificationError {
     MessageVerificationError {
         message_id: message.id.clone(),
         detail: detail.to_owned(),

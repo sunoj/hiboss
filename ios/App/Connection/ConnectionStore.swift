@@ -69,7 +69,7 @@ final class ConnectionStore: ObservableObject {
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
-            self?.config = nil
+            if AccountAuthorization.shared.hasRejectedAccount { self?.config = nil }
         }
     }
 

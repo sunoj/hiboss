@@ -1,10 +1,10 @@
 // Purpose: Implement message-focused HiBossClient HTTP methods.
-// Exports: extension impl for listing, reading, editing, and reacting to messages.
+// Exports: extension impl for sending (signed when enrolled), listing, reading, editing, and replying.
 // Dependencies: super::HiBossClient, crate::types, reqwest, serde_json.
 
 use super::HiBossClient;
 use crate::message_security;
-use crate::types::{Message, MessagesResponse, PollResponse, ReplyRequest, SendResponse, StatusUpdate};
+use crate::types::{Message, MessagesResponse, PollResponse, SendRequest, SendResponse, StatusUpdate};
 use reqwest::StatusCode;
 use serde::Deserialize;
 use std::error::Error;
@@ -154,10 +154,19 @@ impl HiBossClient {
         verified_message(Self::parse_response(resp).await?)
     }
 
+    pub async fn send_message(&self, req: &SendRequest) -> Result<SendResponse, Box<dyn Error>> {
+        let body = self.signed_send_body(req).await?;
+        let resp = self
+            .http
+            .post(format!("{}/api/messages", self.base_url))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await?;
+        parse_send_response(resp).await
+    }
     pub async fn reply_to(&self, id: &str, body: &str) -> Result<Message, Box<dyn Error>> {
-        let req = ReplyRequest {
-            body: body.to_owned(),
-        };
+        let (id, req) = self.signed_reply(id, body).await?;
         let resp = self
             .http
             .post(format!("{}/api/messages/{}/reply", self.base_url, id))
@@ -198,11 +207,12 @@ impl HiBossClient {
         id: &str,
         channel: &str,
     ) -> Result<Message, Box<dyn Error>> {
+        let (id, req) = self.signed_forward(id, channel).await?;
         let resp = self
             .http
             .post(format!("{}/api/messages/{}/forward", self.base_url, id))
             .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "channel": channel }))
+            .json(&req)
             .send()
             .await?;
         Self::parse_response(resp).await

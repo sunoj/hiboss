@@ -1,5 +1,5 @@
-// Shared account boundary for rejected credentials across native reads, writes and intents.
-// Exports AccountAuthorization; subscriptions synchronously discard account data on the main actor.
+// Shared account identity and rejection boundary across native reads, writes and intents.
+// Exports AccountAuthorization; generation and subscriptions invalidate account-scoped work.
 // Dependencies: Combine and typed HibossAPI/JoinRequest errors.
 
 import Combine
@@ -11,7 +11,7 @@ public final class AccountAuthorization: ObservableObject {
     @Published public private(set) var generation = 0
     private var account: ConnectionConfig?
     public private(set) var hasRejectedAccount = false
-    private let rejections = PassthroughSubject<Error, Never>()
+    private let changes = PassthroughSubject<Error, Never>()
 
     public init() {}
 
@@ -30,17 +30,26 @@ public final class AccountAuthorization: ObservableObject {
                 UserDefaults.standard.removeObject(forKey: key)
             }
         }
-        generation += 1
-        rejections.send(error)
+        generation &+= 1
+        changes.send(error)
         return true
     }
 
     public func connect(_ account: ConnectionConfig?) {
+        let didChange = self.account != account
         self.account = account
         hasRejectedAccount = false
+        if didChange { changed() }
     }
 
-    public func disconnect() { account = nil }
+    public func disconnect() {
+        if hasRejectedAccount { account = nil } else { connect(nil) }
+    }
+
+    public func changed() {
+        generation &+= 1
+        changes.send(CancellationError())
+    }
 
     public func reject(_ error: Error, account: ConnectionConfig) {
         guard account == self.account, !hasRejectedAccount, Self.isRejected(error) else { return }
@@ -49,6 +58,6 @@ public final class AccountAuthorization: ObservableObject {
     }
 
     public func observe(_ clear: @escaping @MainActor (Error) -> Void) -> AnyCancellable {
-        rejections.sink { error in clear(error) }
+        changes.sink { error in clear(error) }
     }
 }

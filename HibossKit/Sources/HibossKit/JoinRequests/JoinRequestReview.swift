@@ -20,14 +20,14 @@ public final class JoinRequestReview: ObservableObject {
     @Published public private(set) var isDeciding = false
     public let requestID: String
     private let model: JoinRequestsModel
+    private let generation: Int
     private var authorizationObservation: AnyCancellable?
-    private var generation = 0
 
     public init(requestID: String, model: JoinRequestsModel) {
         self.requestID = requestID
         self.model = model
+        generation = model.generation
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] error in
-            self?.generation += 1
             self?.phase = .unavailable(error.localizedDescription)
             self?.failureMessage = nil
             self?.isDeciding = false
@@ -36,10 +36,10 @@ public final class JoinRequestReview: ObservableObject {
     }
 
     public func load() async {
+        guard generation == model.generation, !Task.isCancelled else { return }
         if case .ready = phase { return }
-        let version = generation
         let result = await model.lookup(id: requestID)
-        guard version == generation else { return }
+        guard generation == model.generation, !Task.isCancelled else { return }
         switch result {
         case let .found(request): phase = .ready(request)
         case .notPending: phase = .unavailable(JoinRequestError.notFound.localizedDescription)
@@ -62,13 +62,12 @@ public final class JoinRequestReview: ObservableObject {
     private func decide(
         _ request: JoinRequest, _ action: (JoinRequest) async -> JoinDecisionResult
     ) async {
-        guard !isDeciding else { return }
+        guard !isDeciding, generation == model.generation, !Task.isCancelled else { return }
         isDeciding = true
         failureMessage = nil
         defer { isDeciding = false }
-        let version = generation
         let result = await action(request)
-        guard version == generation else { return }
+        guard generation == model.generation, !Task.isCancelled else { return }
         switch result {
         case let .approved(approval): phase = .approved(request, approval)
         case .rejected: phase = .rejected(request)

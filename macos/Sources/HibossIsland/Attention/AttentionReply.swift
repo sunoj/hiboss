@@ -11,19 +11,20 @@ final class AttentionReplyState: ObservableObject {
     @Published var drafts: [MessageID: String] = [:]
     @Published private(set) var submitting: Set<MessageID> = []
     @Published private(set) var errors: [MessageID: ReplyFeedback] = [:]
+    private let identity: AccountAuthorization
 
-    private var authorizationObservation: AnyCancellable?
-    private var generation = 0
-
-    init() {
-        authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
-            self?.generation += 1
-            self?.drafts = [:]
-            self?.errors = [:]
-            self?.submitting = []
-        }
+    init(identity: AccountAuthorization = .shared) {
+        self.identity = identity
+        authorizationObservation = identity.observe { [weak self] _ in self?.reset() }
     }
 
+    func reset() {
+        drafts.removeAll()
+        submitting.removeAll()
+        errors.removeAll()
+    }
+
+    private var authorizationObservation: AnyCancellable?
     /// `submit` returns nil when the server accepted the reply; otherwise the draft stays and
     /// the message-specific feedback is shown for `id` only.
     func send(
@@ -33,11 +34,11 @@ final class AttentionReplyState: ObservableObject {
     ) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !submitting.contains(id) else { return }
+        let generation = identity.generation
         submitting.insert(id)
         errors[id] = nil
-        let version = generation
         let feedback = await submit(trimmed, id)
-        guard version == generation else { return }
+        guard generation == identity.generation else { return }
         submitting.remove(id)
         if let feedback {
             errors[id] = feedback

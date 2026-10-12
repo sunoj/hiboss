@@ -66,8 +66,11 @@ fn managed_prefix(prefix: &[String]) -> bool {
     }
 }
 
+/// Any profile name hiboss has written, including names from earlier releases.
 fn is_profile_assignment(value: &str) -> bool {
-    matches!(value, "HIBOSS_PROFILE=claude" | "HIBOSS_PROFILE=codex")
+    value
+        .strip_prefix("HIBOSS_PROFILE=")
+        .is_some_and(|name| !name.is_empty())
 }
 
 fn is_hiboss_executable(value: &str) -> bool {

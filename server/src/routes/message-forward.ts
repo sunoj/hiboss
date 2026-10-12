@@ -15,6 +15,7 @@ import {
 } from './message-helpers';
 import { createMessageId, insertMessageWithEvent } from '../session-events';
 import { destinationsMode, dispatchDestinations } from '../delivery';
+import { systemMetadata } from '../message-security';
 
 const FORWARD_CHANNELS = ['discord', 'telegram'] as const;
 
@@ -100,8 +101,9 @@ function readForwardFileUrl(metadata: string | null): string | undefined {
   return typeof fileUrl === 'string' && fileUrl.trim() ? fileUrl.trim() : undefined;
 }
 
+/** A forward is a server-composed copy, so it carries system provenance, never the original signature. */
 function buildForwardMetadata(sourceChannel: Channel | null, fileUrl?: string): Record<string, unknown> {
-  const metadata: Record<string, unknown> = { forwarded_from_channel: sourceChannel ?? 'unknown' };
+  const metadata: Record<string, unknown> = systemMetadata({ forwarded_from_channel: sourceChannel ?? 'unknown' });
   if (fileUrl) metadata['file_url'] = fileUrl;
   return metadata;
 }

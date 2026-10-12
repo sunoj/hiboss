@@ -16,6 +16,8 @@ final class BoxStore: ObservableObject {
     @Published private(set) var deleting: Set<String> = []
     @Published var deleteError: String?
     @Published private(set) var nextCursor: String?
+    @Published private(set) var isSavingNote = false
+    @Published private(set) var noteError: String?
 
     let api: (any BoxServing)?
     private var read: Task<Void, Never>?
@@ -99,6 +101,7 @@ final class BoxStore: ObservableObject {
 
     func delete(_ item: BoxItem) async {
         guard let api, !deleting.contains(item.id) else { return }
+        deleteError = nil
         deleting.insert(item.id)
         defer { deleting.remove(item.id) }
         do {
@@ -107,6 +110,22 @@ final class BoxStore: ObservableObject {
             items.removeAll { $0.id == item.id }
         } catch {
             deleteError = error.localizedDescription
+        }
+    }
+
+    func saveNote(_ note: String, for item: BoxItem) async -> Bool {
+        guard !isSavingNote, let editor = api as? any BoxNoteServing else { return false }
+        isSavingNote = true
+        noteError = nil
+        defer { isSavingNote = false }
+        do {
+            let updated = try await editor.patchBoxItem(
+                id: item.id, patch: BoxPatch(note: .value(note.isEmpty ? nil : note)))
+            if let index = items.firstIndex(where: { $0.id == item.id }) { items[index] = updated }
+            return true
+        } catch {
+            noteError = error.localizedDescription
+            return false
         }
     }
 }

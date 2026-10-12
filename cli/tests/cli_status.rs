@@ -163,15 +163,20 @@ fn http_failure_reports_on_stderr_without_retry_or_patch() {
 
 #[test]
 fn assurance_separates_a_signed_native_reply_from_unsigned_ones() {
-    let mut agent = reply("rep_agent", Some("FYI"), json!({}));
-    agent["direction"] = json!("agent_to_agent");
+    // Agent rows: one written before attribution, one with server-written agent provenance.
+    let mut legacy = reply("rep_agent", Some("FYI"), json!({}));
+    legacy["direction"] = json!("agent_to_agent");
+    legacy["metadata"] = json!({});
+    let mut attributed = legacy.clone();
+    attributed["id"] = json!("rep_agent_2");
+    attributed["metadata"] = provenance("agent", "not_configured");
     let replies = vec![signed_reply("rep_ios", "msg_1", "Ship it"),
-        reply("rep_api", Some("Ship it"), json!({})), auto_default_reply(), agent];
+        reply("rep_api", Some("Ship it"), json!({})), auto_default_reply(), legacy, attributed];
     let fixture = message("agent_to_boss", "replied", json!({}), replies);
     let doc = status_json(&fixture);
     let labels: Vec<&Value> = doc["replies"].as_array().expect("replies").iter()
         .map(|reply| &reply["assurance"]).collect();
-    assert_eq!(labels, ["ios/verified", "api/not_configured", "system/not_applicable", "agent"]);
+    assert_eq!(labels, ["ios/verified", "api/not_configured", "system/not_applicable", "agent", "agent/not_configured"]);
     let (out, _) = status(200, &fixture.to_string(), &[]);
     assert!(out.stdout.contains("Reply rep_ios [reply]: Ship it\n  Source: ios/verified\n"));
     let api = "Reply rep_api [reply]: Ship it\n  Source: api/not_configured\n";

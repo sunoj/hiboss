@@ -4,6 +4,7 @@
 
 import AVFoundation
 import HibossKit
+import UIKit
 import XCTest
 @testable import HiBoss
 
@@ -67,6 +68,7 @@ final class BoxStoreTests: XCTestCase {
         await store.delete(item)
         XCTAssertTrue(store.items.isEmpty)
         XCTAssertTrue(store.deleting.isEmpty)
+        XCTAssertNil(store.deleteError)
         await store.refresh()
         XCTAssertTrue(store.items.isEmpty, "A stale read must not restore the deleted item")
         let purges = await api.purges
@@ -103,6 +105,76 @@ final class BoxStoreTests: XCTestCase {
         try await api.deleteBoxItem(id: item.id, purge: false)
         let after = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
         XCTAssertFalse(after.items.contains { $0.id == item.id })
+    }
+
+    func testEditingAndClearingNotePreservesTheOtherDetailFields() async throws {
+        let store = BoxStore(api: DemoBoxAPI())
+        await store.refresh()
+        let item = try XCTUnwrap(store.items.first(where: { $0.id == "demo-image" }))
+        let saved = await store.saveNote("New note", for: item)
+        XCTAssertTrue(saved)
+        let updated = try XCTUnwrap(store.items.first(where: { $0.id == item.id }))
+        XCTAssertEqual(updated.note, "New note")
+        XCTAssertEqual(updated.tags, item.tags)
+        XCTAssertEqual(updated.project, item.project)
+        XCTAssertEqual(updated.createdAt, item.createdAt)
+        let cleared = await store.saveNote("", for: updated)
+        XCTAssertTrue(cleared)
+        XCTAssertNil(store.items.first(where: { $0.id == item.id })?.note)
+        XCTAssertFalse(store.isSavingNote)
+    }
+
+    func testFailedMediaDoesNotRetryOnNavigationAndExplicitRetryRestoresTheResource() async throws {
+        let api = FailingBoxMediaAPI()
+        let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
+        let item = try XCTUnwrap(page.items.first(where: { $0.kind == .image }))
+        let media = BoxMediaStore(api: api)
+        await media.load(item)
+        XCTAssertNotNil(media.errors[item.id])
+        await media.load(item)
+        let attempts = await api.attempts
+        XCTAssertEqual(attempts, 1)
+        XCTAssertNil(media.resources[item.id])
+        await media.retry(item)
+        XCTAssertNotNil(media.resources[item.id])
+        XCTAssertNil(media.errors[item.id])
+    }
+
+    func testCopyUsesTextLinkImageAndOriginalFileContent() async throws {
+        let api = DemoBoxAPI()
+        let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
+        let media = BoxMediaStore(api: api)
+        for kind in BoxItem.Kind.allCases {
+            let item = try XCTUnwrap(page.items.first(where: { $0.kind == kind }))
+            await media.load(item)
+            item.copyContent(media: media)
+            switch kind {
+            case .text, .link: XCTAssertEqual(UIPasteboard.general.string, item.url ?? item.text)
+            case .image:
+                XCTAssertEqual(UIPasteboard.general.image?.size, media.resources[item.id]?.thumbnail?.size)
+                XCTAssertNotNil(UIPasteboard.general.image)
+            case .video, .file: XCTAssertEqual(UIPasteboard.general.url, media.resources[item.id]?.url)
+            }
+        }
+    }
+}
+
+private actor FailingBoxMediaAPI: BoxServing {
+    private let demo = DemoBoxAPI()
+    private(set) var attempts = 0
+
+    func boxItems(filters: BoxFilters, limit: Int, cursor: String?) async throws -> BoxPage {
+        try await demo.boxItems(filters: filters, limit: limit, cursor: cursor)
+    }
+
+    func downloadBoxMedia(id: String, to destination: URL) async throws {
+        attempts += 1
+        if attempts == 1 { throw HibossAPIError.requestFailed(status: 503, message: "unavailable") }
+        try await demo.downloadBoxMedia(id: id, to: destination)
+    }
+
+    func deleteBoxItem(id: String, purge: Bool) async throws {
+        try await demo.deleteBoxItem(id: id, purge: purge)
     }
 }
 

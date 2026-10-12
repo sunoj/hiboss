@@ -91,35 +91,6 @@ public final class OptionFlowStore: ObservableObject {
         return await send(choice, for: message)
     }
 
-    /// Answers a past (history) option message by id, independent of the live `activeMessage`.
-    /// True only when the server accepted this reply; otherwise `replyFeedback[messageID]` says why.
-    @discardableResult
-    public func answerHistory(_ choice: String, for messageID: MessageID) async -> Bool {
-        guard let api else {
-            replyFeedback[messageID] = .failed(kitL("Disconnected"))
-            return false
-        }
-        replyFeedback[messageID] = nil
-        let version = historyVersion
-        do {
-            let outcome = try await api.reply(to: messageID, with: choice)
-            guard version == historyVersion else { return false }
-            switch outcome {
-            case .accepted, .acceptedOn:
-                refreshHistoryInBackground()
-                return true
-            case .alreadyResolved:
-                await settleConflict(for: messageID)
-                return false
-            }
-        } catch {
-            guard version == historyVersion else { return false }
-            if AccountAuthorization.shared.reject(error) { return false }
-            replyFeedback[messageID] = .failed(error.localizedDescription)
-            return false
-        }
-    }
-
     /// Answers with free-form text instead of one of the offered options.
     /// Returns false when the reply was empty or the server rejected it, so callers keep the draft.
     @discardableResult
@@ -175,9 +146,11 @@ public final class OptionFlowStore: ObservableObject {
     /// A 409 means the decision is closed (answered elsewhere or expired). Reload history so only a
     /// recorded answer is shown as the outcome; otherwise withdraw the stale choice without inventing one.
     /// Leaves other messages and an already observed resolution for this one untouched.
-    private func settleConflict(for messageID: MessageID) async {
+    func settleConflict(for messageID: MessageID) async {
+        let version = historyVersion
         replyFeedback[messageID] = .alreadyResolved
         await refreshHistory()
+        guard version == historyVersion, !Task.isCancelled else { return }
         expirationTasks.removeValue(forKey: messageID)?.cancel()
         queuedMessages.removeAll { $0.id == messageID }
         guard activeMessage?.id == messageID else { return }
@@ -218,6 +191,10 @@ public final class OptionFlowStore: ObservableObject {
             resolve(resolution)
             refreshHistoryInBackground()
         }
+    }
+
+    func setHistoryReplyFeedback(_ feedback: ReplyFeedback?, for messageID: MessageID) {
+        replyFeedback[messageID] = feedback
     }
 
     private func receive(_ message: OptionMessage) {

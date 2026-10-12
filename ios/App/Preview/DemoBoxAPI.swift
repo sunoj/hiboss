@@ -5,9 +5,10 @@
 import Foundation
 import HibossKit
 
-actor DemoBoxAPI: BoxServing {
+actor DemoBoxAPI: BoxNoteServing {
     static let shared = DemoBoxAPI()
     private var items = DemoBoxAPI.fixtures
+    private var failedMedia: Set<String> = []
 
     static var fixtures: [BoxItem] {
         let unsupported = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "unsupported"
@@ -18,16 +19,21 @@ actor DemoBoxAPI: BoxServing {
             imageFile ? "Reference.png" : unsupported ? "Reference.hibossfixture" : "Reference.txt",
         ]
         let featured = kinds.enumerated().map { index, kind in
-            BoxItem(
+            let mediaType: String? = switch kind {
+            case .image: "image/png"
+            case .video: "video/mp4"
+            case .file: imageFile ? "image/png" : unsupported ? "application/octet-stream" : "text/plain"
+            default: nil
+            }
+            return BoxItem(
                 id: "demo-\(kind.rawValue)", bossID: "demo-boss", bossName: "Demo", kind: kind,
                 text: titles[index], url: kind == .link ? "https://developer.apple.com" : nil,
                 note: kind == .image ? "Use this layout for the next screen." : nil, project: "hiboss",
                 tags: ["reference"], hasMedia: [.image, .video, .file].contains(kind),
-                mediaType: kind == .video ? "video/mp4" : kind == .file
-                    ? (imageFile ? "image/png" : unsupported ? "application/octet-stream" : "text/plain")
-                    : "image/png",
+                mediaType: mediaType,
                 mediaBytes: kind == .file ? "A saved reference file.".utf8.count : nil,
-                width: 320, height: 200, createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
+                width: 320, height: 200, durationMs: kind == .video ? 1600 : nil,
+                createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
                     .ISO8601Format()
             )
         }
@@ -37,11 +43,26 @@ actor DemoBoxAPI: BoxServing {
             createdAt: Date().addingTimeInterval(-30).ISO8601Format(),
             addedBy: .agent(id: "demo-researcher", name: "Researcher")
         )
-        return [agentReference] + featured + (1...20).map { index in
+        let extras = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_V2"] == "1" ? v2Fixtures : []
+        return [agentReference] + featured + extras + (1...20).map { index in
             BoxItem(id: "demo-text-\(index)", bossID: "demo-boss", bossName: "Demo", kind: .text,
                 text: "Saved reference \(index)",
                 createdAt: Date().addingTimeInterval(Double(-600 - index * 60))
                     .ISO8601Format())
+        }
+    }
+
+    private static var v2Fixtures: [BoxItem] {
+        (1...4).map { index -> BoxItem in
+            let video = index == 4
+            let author: BoxAuthor? = index == 3 ? .agent(id: "demo-researcher", name: "Researcher") : nil
+            let date = Date().addingTimeInterval(Double(-120 - index)).ISO8601Format()
+            return BoxItem(id: "demo-grid-\(index)", bossID: "demo-boss", bossName: "Demo",
+                    kind: video ? .video : .image, text: "Visual reference \(index)",
+                    note: "A saved composition for the next design.", project: "hiboss", tags: ["design"],
+                    hasMedia: true, mediaType: video ? "video/mp4" : "image/png", mediaBytes: 1024,
+                    width: 320, height: 200, durationMs: video ? 1600 : nil,
+                    createdAt: date, addedBy: author)
         }
     }
 
@@ -61,6 +82,10 @@ actor DemoBoxAPI: BoxServing {
 
     func downloadBoxMedia(id: String, to destination: URL) async throws {
         try await DemoDelay.wait("BOX_MEDIA")
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_MEDIA_FAILURE"] == id,
+           failedMedia.insert(id).inserted {
+            throw HibossAPIError.requestFailed(status: 503, message: "Media unavailable")
+        }
         guard let item = items.first(where: { $0.id == id }), item.hasMedia else {
             throw HibossAPIError.requestFailed(status: 404, message: "")
         }
@@ -78,5 +103,22 @@ actor DemoBoxAPI: BoxServing {
 
     func deleteBoxItem(id: String, purge _: Bool) async throws {
         items.removeAll { $0.id == id }
+    }
+
+    func patchBoxItem(id: String, patch: BoxPatch) async throws -> BoxItem {
+        guard let index = items.firstIndex(where: { $0.id == id }) else {
+            throw HibossAPIError.requestFailed(status: 404, message: "")
+        }
+        let item = items[index]
+        let note: String?
+        if case let .value(value) = patch.note { note = value } else { note = item.note }
+        let updated = BoxItem(
+            id: item.id, bossID: item.bossID, bossName: item.bossName, kind: item.kind,
+            text: item.text, url: item.url, note: note, project: item.project, tags: item.tags,
+            source: item.source, hasMedia: item.hasMedia, mediaType: item.mediaType,
+            mediaBytes: item.mediaBytes, width: item.width, height: item.height,
+            durationMs: item.durationMs, createdAt: item.createdAt, addedBy: item.addedBy)
+        items[index] = updated
+        return updated
     }
 }

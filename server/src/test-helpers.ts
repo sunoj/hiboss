@@ -17,6 +17,7 @@ import devicesMigration from '../migrations/0046_devices.sql?raw';
 import sessionIdentityMigration from '../migrations/0048_session_identity.sql?raw';
 import sessionNicknameMigration from '../migrations/0053_session_nickname.sql?raw';
 import messageUpdatesMigration from '../migrations/0054_message_updates.sql?raw';
+import agentSigningMigration from '../migrations/0055_agent_signing_keys.sql?raw';
 import signinMigration from '../migrations/0049_signin_requests.sql?raw';
 import projectsMigration from '../migrations/0043_projects.sql?raw';
 import postsMigration from '../migrations/0026_progress_posts.sql?raw';
@@ -127,6 +128,8 @@ export async function seedDatabase(): Promise<void> {
   for (const sql of messageUpdatesMigration.trim().split(/(?<=END;)\s*/)) {
     await env.DB.prepare(sql).run();
   }
+  const signingStatements = agentSigningMigration.replace(/^--.*$/gm, '').split(';').map(value => value.trim()).filter(Boolean);
+  await env.DB.batch(signingStatements.map(sql => env.DB.prepare(sql)));
   const keyHash = await hashApiKey(TEST_API_KEY);
   await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
     .bind('test-agent-id', 'test-agent', keyHash)

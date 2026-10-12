@@ -56,13 +56,14 @@ extension OptionDisplayMode {
 
 @MainActor
 final class AppSettings: ObservableObject {
+    let identity = AccountAuthorization.shared
     @Published var serverAddress: String
     @Published var bossToken: String
     @Published var deviceLabel = Host.current().localizedName ?? "Mac" // i18n-exempt: fallback device name stored and sent to the server
     @Published private(set) var clientExchangeNotice: String?
     @Published private(set) var activeClientConfig: ConnectionConfig? {
-        didSet {
-            if let activeClientConfig { AccountAuthorization.shared.connect(activeClientConfig) }
+        willSet {
+            if let newValue { identity.connect(newValue) }
         }
     }
     private var authorizationObservation: AnyCancellable?
@@ -134,7 +135,7 @@ final class AppSettings: ObservableObject {
         ) ?? .fallback
         prioritySounds = Self.loadPrioritySounds(from: defaults)
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
-            self?.activeClientConfig = nil
+            if AccountAuthorization.shared.hasRejectedAccount { self?.activeClientConfig = nil }
         }
     }
 

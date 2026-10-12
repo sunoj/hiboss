@@ -1,8 +1,9 @@
-// Parses send requests and selects legacy channels only in off/shadow mode.
+// Parses send requests, strips server-owned metadata, and selects legacy channels in off/shadow mode.
 // Exports prepareSendInput and its inferred contract; depends on shared validators.
 import type { Context } from 'hono';
 import type { Env, Mode, Priority, Channel, OptionMedia } from '../types';
 import { getAgentId } from '../middleware/auth';
+import { stripServerOwnedMetadata } from '../message-security';
 import { destinationsMode } from '../delivery';
 import { checkRateLimit, validateOption, priorityOptions, validateChannel, resolveChannelRouting, parseOptions, normalizeMetadata, parseOptionMedia, fetchAllChannelConfigs, selectChannelConfig } from './message-helpers';
 const modeOptions: Mode[] = ['async', 'blocking'];
@@ -22,6 +23,9 @@ export interface SendInput {
   options: string[] | undefined;
   optionMediaResult: { ok: true; value: OptionMedia[] | undefined };
   metadata: Record<string, unknown> | null;
+  /** Client-owned metadata exactly as a signature must cover it. */
+  clientMetadata: Record<string, unknown> | null;
+  timeout: number | null;
   channelConfigs: { channel: Channel; config: Record<string, unknown> }[];
 }
 export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<Response | SendInput> {
@@ -54,9 +58,10 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const optionsResult = parseOptions(payload.options);
   if (!optionsResult.ok) return c.text(optionsResult.error, 400);
   const options = optionsResult.value;
-  const rawMetadata = normalizeMetadata(payload.metadata) ?? {};
+  const clientMetadata = stripServerOwnedMetadata(normalizeMetadata(payload.metadata));
+  const rawMetadata: Record<string, unknown> = { ...clientMetadata };
+  const timeout = typeof payload.timeout === 'number' ? payload.timeout : null;
   // Only the send timeout can grant a blocking caller its own deadline.
-  delete rawMetadata['ask_deadline'];
   if (mode === 'blocking' && typeof payload.timeout === 'number') rawMetadata['ask_deadline'] = true;
   const optionMediaResult = parseOptionMedia(rawMetadata['option_media'], options);
   if (!optionMediaResult.ok) return c.text(optionMediaResult.error, 400);
@@ -65,7 +70,7 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   if (optionMediaResult.value) (rawMetadata as Record<string, unknown>)['option_media'] = optionMediaResult.value;
   const metadata = Object.keys(rawMetadata as Record<string, unknown>).length > 0 ? rawMetadata : null;
   const channelConfigs = await selectLegacyConfigs(c.env, agentId, priority, requestedChannel);
-  return { agentId, payload, body, idempotencyKey, agentConfig, mode, priority, requestedChannel, fileUrl, messageType, sessionId, toAgent, options, optionMediaResult, metadata, channelConfigs };
+  return { agentId, payload, body, idempotencyKey, agentConfig, mode, priority, requestedChannel, fileUrl, messageType, sessionId, toAgent, options, optionMediaResult, metadata, clientMetadata, timeout, channelConfigs };
 }
 
 async function selectLegacyConfigs(env: Env, agentId: string, priority: Priority, requestedChannel: Channel | undefined): Promise<{ channel: Channel; config: Record<string, unknown> }[]> {

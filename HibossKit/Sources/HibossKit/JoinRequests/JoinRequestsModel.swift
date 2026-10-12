@@ -37,7 +37,7 @@ public final class JoinRequestsModel: ObservableObject {
     private let pollInterval: Duration
     private var seenIDs: Set<String> = []
     private var authorizationObservation: AnyCancellable?
-    private var generation = 0
+    private(set) var generation = 0
     private var authorizationRejected = false
     private var lookupWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -49,8 +49,8 @@ public final class JoinRequestsModel: ObservableObject {
         self.serviceProvider = serviceProvider
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
             self?.reset()
-            self?.authorizationRejected = true
-            self?.state = .forbidden
+            self?.authorizationRejected = AccountAuthorization.shared.hasRejectedAccount
+            if AccountAuthorization.shared.hasRejectedAccount { self?.state = .forbidden }
         }
     }
 
@@ -63,7 +63,7 @@ public final class JoinRequestsModel: ObservableObject {
 
     public func refresh() async {
         if authorizationRejected && !AccountAuthorization.shared.hasRejectedAccount { reset() }
-        guard !isRefreshing, !authorizationRejected else { return }
+        guard !isRefreshing, !authorizationRejected, !Task.isCancelled else { return }
         guard let service = serviceProvider() else {
             requests = []
             state = .idle
@@ -76,13 +76,13 @@ public final class JoinRequestsModel: ObservableObject {
         do {
             let pending = try await service.listPendingJoinRequests()
                 .filter { $0.status == "pending" }
-            guard version == generation else { return }
+            guard version == generation, !Task.isCancelled else { return }
             requests = pending
             state = .loaded
             didLoad = true
             announce(pending)
         } catch {
-            guard version == generation else { return }
+            guard version == generation, !Task.isCancelled else { return }
             if AccountAuthorization.shared.reject(error) { return }
             state = .failed(error.localizedDescription)
         }
@@ -90,9 +90,10 @@ public final class JoinRequestsModel: ObservableObject {
 
     /// Refreshes every `pollInterval` until cancelled; a 403 ends polling for this connection.
     public func poll() async {
-        while !Task.isCancelled {
+        let version = generation
+        while version == generation, !Task.isCancelled {
             await refresh()
-            guard state != .forbidden else { return }
+            guard version == generation, state != .forbidden else { return }
             do {
                 try await Task.sleep(for: pollInterval)
             } catch {
@@ -122,11 +123,15 @@ public final class JoinRequestsModel: ObservableObject {
 
     /// Resolves a pushed or notified request ID, refreshing when it is not in the list yet.
     public func lookup(id: String) async -> JoinRequestLookup {
+        let version = generation
         if let match = request(id: id) { return .found(match) }
         if isRefreshing {
             await withCheckedContinuation { lookupWaiters.append($0) }
         } else {
             await refresh()
+        }
+        if state != .forbidden, version != generation || Task.isCancelled {
+            return .failed(CancellationError().localizedDescription)
         }
         switch state {
         case .forbidden: return .forbidden
@@ -157,6 +162,7 @@ public final class JoinRequestsModel: ObservableObject {
         _ request: JoinRequest,
         _ action: (any JoinRequestServing) async throws -> JoinDecisionResult
     ) async -> JoinDecisionResult {
+        guard !Task.isCancelled else { return .failed(CancellationError().localizedDescription) }
         guard !authorizationRejected else { return .failed(kitL("Only an admin can approve devices")) }
         guard decidingID == nil else { return .failed(kitL("Another decision is in progress.")) }
         guard let service = serviceProvider() else {
@@ -167,18 +173,18 @@ public final class JoinRequestsModel: ObservableObject {
         defer { if version == generation { decidingID = nil } }
         do {
             let result = try await action(service)
-            guard version == generation else { return .failed(kitL("Disconnected")) }
+            guard version == generation, !Task.isCancelled else { return .failed(kitL("Disconnected")) }
             requests.removeAll { $0.id == request.id }
             return result
         } catch let error as JoinRequestError {
-            guard version == generation else { return .failed(error.localizedDescription) }
+            guard version == generation, !Task.isCancelled else { return .failed(error.localizedDescription) }
             if !AccountAuthorization.shared.reject(error) {
                 // 409 may mean "name taken" with the request still pending; the server decides.
                 await refresh()
             }
             return .failed(error.localizedDescription)
         } catch {
-            if version == generation { AccountAuthorization.shared.reject(error) }
+            if version == generation, !Task.isCancelled { AccountAuthorization.shared.reject(error) }
             return .failed(error.localizedDescription)
         }
     }

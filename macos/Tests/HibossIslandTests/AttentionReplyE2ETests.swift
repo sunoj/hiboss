@@ -65,4 +65,31 @@ final class AttentionReplyE2ETests: XCTestCase {
         }
         XCTAssertTrue(reply.submitting.isEmpty)
     }
+
+    func testLateReplyFromPreviousIdentityDoesNotClearTheNewDraft() async {
+        let identity = AccountAuthorization()
+        let reply = AttentionReplyState(identity: identity)
+        reply.drafts["old"] = "Old account draft"
+        let started = expectation(description: "reply started")
+        var release: (() -> Void)?
+        let task = Task {
+            await reply.send("Old account draft", for: "old") { _, _ in
+                started.fulfill()
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    release = { continuation.resume() }
+                }
+                return nil
+            }
+        }
+        await fulfillment(of: [started])
+        identity.changed()
+        reply.reset()
+        reply.drafts["old"] = "New account draft"
+        release?()
+        await task.value
+
+        XCTAssertEqual(reply.drafts["old"], "New account draft")
+        XCTAssertTrue(reply.submitting.isEmpty)
+        XCTAssertTrue(reply.errors.isEmpty)
+    }
 }

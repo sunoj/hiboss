@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import type { Env, Priority } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { logAudit } from '../audit';
-import { agentApiMetadata } from '../message-security';
+import { agentApiMetadata, agentRequiresSignature } from '../message-security';
 
 interface GroupRow {
   id: string;
@@ -140,6 +140,11 @@ routes.post('/:id/broadcast', async (c) => {
   const priority = typeof payload.priority === 'string' && VALID_PRIORITIES.includes(payload.priority as Priority)
     ? payload.priority
     : 'normal';
+  // Recipients cannot verify group membership, so a signed fan-out would be unverifiable on
+  // receipt. A signing agent addresses each member with a signed send instead.
+  if (await agentRequiresSignature(c.env, ownerId)) {
+    return c.text('group broadcast is unavailable to a signing agent; send to each member with --to', 409);
+  }
   const members = await c.env.DB
     .prepare('SELECT agent_id FROM agent_group_members WHERE group_id = ?')
     .bind(group.id)

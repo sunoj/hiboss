@@ -1,4 +1,4 @@
-// Server-owned provenance builders for native, provider, and system messages.
+// Server-owned provenance builders for native, agent, provider, and system messages.
 // Exports metadata composition without trusting client-supplied source labels.
 // Depends on stored signing-key types only.
 
@@ -52,6 +52,42 @@ export function agentApiMetadata(agentId: string): Record<string, unknown> {
   };
 }
 
+/** Unsigned agent write: authorship rests on the bearer credential alone. */
+export function agentBearerProvenance(agentId: string, agentKeyId: string | null): Record<string, unknown> {
+  return {
+    source: 'agent',
+    provenance: {
+      version: 1,
+      source: 'agent',
+      actor: { kind: 'agent', id: agentId },
+      authentication: { kind: 'api_key', credential_id: agentKeyId },
+      signature: { status: 'not_configured' },
+    },
+  };
+}
+
+export function agentSignedProvenance(
+  agentId: string,
+  key: { readonly key_id: string; readonly agent_key_id: string; readonly public_key: string },
+  signedMessage: string,
+): Record<string, unknown> {
+  return {
+    source: 'agent',
+    provenance: {
+      version: 1,
+      source: 'agent',
+      actor: { kind: 'agent', id: agentId },
+      authentication: { kind: 'agent_signature', credential_id: key.agent_key_id },
+      signature: {
+        scheme: 'JWS-ES256',
+        key_id: key.key_id,
+        public_key: key.public_key,
+        signed_message: signedMessage,
+      },
+    },
+  };
+}
+
 export function channelMetadata(
   source: 'discord' | 'telegram',
   actor: BossActor | null,
@@ -83,7 +119,8 @@ export function systemMetadata(base: Record<string, unknown> = {}): Record<strin
   };
 }
 
-export function stripServerOwnedMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+/** Channel callers cannot supply the server-written answering device. */
+function withoutAnsweredBy(metadata: Record<string, unknown>): Record<string, unknown> {
   const { answered_by: ignored, ...callerMetadata } = metadata;
   return callerMetadata;
 }
@@ -92,7 +129,7 @@ export function mergeProvenance(
   base: Record<string, unknown>,
   provenanceMetadata: Record<string, unknown>,
 ): Record<string, unknown> {
-  return { ...stripServerOwnedMetadata(base), ...provenanceMetadata };
+  return { ...withoutAnsweredBy(base), ...provenanceMetadata };
 }
 
 function addCompatibilityFields(

@@ -75,10 +75,10 @@ final class BoxModelTests: XCTestCase {
         XCTAssertNil(item(nil).provenanceLabel)
         XCTAssertNil(item(.boss).provenanceLabel)
         let named = item(.agent(id: "agent", name: " Researcher \n")).provenanceLabel
-        XCTAssertEqual(named, String(localized: "Added by \("Researcher")"))
+        XCTAssertEqual(named, String(localized: "Agents · \("Researcher")"))
         for name in [nil, "", " \n\t"] as [String?] {
             XCTAssertEqual(item(.agent(id: "agent", name: name)).provenanceLabel,
-                String(localized: "Added by an agent"))
+                String(localized: "Agents"))
         }
     }
 
@@ -94,5 +94,46 @@ final class BoxModelTests: XCTestCase {
         XCTAssertEqual(replaced["note"] as? String, "caption")
         XCTAssertEqual(replaced["project"] as? String, "project")
         XCTAssertNil(replaced["tags"])
+    }
+
+    func testRecencyGroupsPrioritizeYesterdayAcrossAWeekBoundary() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        calendar.firstWeekday = 2
+        let now = try XCTUnwrap(ISODate.parse("2026-10-12T12:00:00Z"))
+        let dates = ["2026-10-12T01:00:00Z", "2026-10-11T01:00:00Z", "2026-10-01T01:00:00Z", "bad"]
+        let expected: [BoxDayGroup] = [.today, .yesterday, .earlier, .earlier]
+        for (date, group) in zip(dates, expected) {
+            let item = BoxItem(id: date, bossID: "b", bossName: "B", kind: .text, createdAt: date)
+            XCTAssertEqual(BoxDayGroup.group(item, now: now, calendar: calendar), group)
+        }
+        let friday = try XCTUnwrap(ISODate.parse("2026-10-16T12:00:00Z"))
+        let monday = BoxItem(id: "monday", bossID: "b", bossName: "B", kind: .text,
+                             createdAt: "2026-10-12T01:00:00Z")
+        XCTAssertEqual(BoxDayGroup.group(monday, now: friday, calendar: calendar), .week)
+    }
+
+    func testRelativeTimeUsesNaturalChineseSecondsAndEnglishUnits() throws {
+        let now = try XCTUnwrap(ISODate.parse("2026-10-12T12:00:00Z"))
+        let second = BoxItem(id: "seconds", bossID: "b", bossName: "B", kind: .text,
+                             createdAt: "2026-10-12T11:59:26Z")
+        let minute = BoxItem(id: "minutes", bossID: "b", bossName: "B", kind: .text,
+                             createdAt: "2026-10-12T11:57:00Z")
+        XCTAssertEqual(second.relativeTime(now: now, locale: Locale(identifier: "zh-Hans")), "34 秒前")
+        XCTAssertEqual(minute.relativeTime(now: now, locale: Locale(identifier: "zh-Hans")), "3 分钟前")
+        XCTAssertEqual(second.relativeTime(now: now, locale: Locale(identifier: "en")), "34 seconds ago")
+        XCTAssertEqual(minute.relativeTime(now: now, locale: Locale(identifier: "en")), "3 minutes ago")
+    }
+
+    func testYesterdayUsesChineseClockTimeInsteadOfARelativeDayCount() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(ISODate.parse("2026-10-12T12:00:00Z"))
+        let item = BoxItem(id: "yesterday", bossID: "b", bossName: "B", kind: .text,
+                           createdAt: "2026-10-11T22:30:00Z")
+        XCTAssertEqual(item.relativeTime(now: now, locale: Locale(identifier: "zh-Hans"), calendar: calendar),
+                       "昨天 22:30")
+        XCTAssertEqual(item.relativeTime(now: now, locale: Locale(identifier: "en"), calendar: calendar),
+                       "Yesterday 10:30\u{202F}PM")
     }
 }

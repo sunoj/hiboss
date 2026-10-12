@@ -20,6 +20,7 @@ struct MainView: View {
     @StateObject private var progress: ProgressFeedStore
     @StateObject private var boxMedia: BoxBrowserMedia
     @StateObject private var sessionBox: BoxBrowserStore
+    private let identity: AccountAuthorization
     private let previewSessions: [ProjectSession]?
     @State private var destination: OverviewDestination = .today
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -31,7 +32,7 @@ struct MainView: View {
     init(settings: AppSettings, flow: OptionFlowStore,
          notificationNavigation: MessageNotificationNavigation = MessageNotificationNavigation(),
          joinRequests: JoinRequestsModel = JoinRequestsModel { nil },
-         overviewStore: OverviewStore = OverviewStore(),
+         overviewStore: OverviewStore? = nil,
          requiredInputs: RequiredInputStore = RequiredInputStore(),
          initialDestination: OverviewDestination = .today,
          previewHistory: [HistoryMessage]? = AttentionPreview.historyIfRequested(),
@@ -40,9 +41,14 @@ struct MainView: View {
          boxStore: BoxBrowserStore? = nil, boxMedia: BoxBrowserMedia? = nil,
          progressProvider: ProgressFeedStore.Provider? = nil,
          progressStore: ProgressFeedStore? = nil,
-         panelsModel: PanelsModel? = nil) {
+         panelsModel: PanelsModel? = nil,
+         identity: AccountAuthorization? = nil) {
+        let accountIdentity = identity ?? overviewStore?.identity ?? settings.identity
+        self.identity = accountIdentity
         self.requiredInputs = requiredInputs
-        _overviewStore = StateObject(wrappedValue: overviewStore)
+        _overviewStore = StateObject(wrappedValue: overviewStore
+            ?? OverviewStore(identity: accountIdentity))
+        _reply = StateObject(wrappedValue: AttentionReplyState(identity: accountIdentity))
         self.settings = settings
         self.previewSessions = previewSessions
         _previewHistory = State(initialValue: previewHistory)
@@ -101,12 +107,16 @@ struct MainView: View {
                 onReply: flow.answer)
         }
     }
-
     var body: some View {
         observedContent
         .environment(\.projectSessions, previewSessions ?? flow.projectSessions)
         .environment(\.agentAvatars, previewHistory == nil ? flow.agentAvatars : AttentionPreview.avatars)
         .onChange(of: settings.activeClientConfig) {
+            overviewStore.accountDidChange()
+            joinRequests.reset()
+            reply.reset()
+            destination = .today
+            showsCompactOverview = false
             panels.connectionDidChange()
             box.reset()
             progress.reset()
@@ -120,7 +130,6 @@ struct MainView: View {
         }
         .task { if flow.historyState == .idle { await flow.refreshHistory() } }
     }
-
     private var observedContent: some View {
         navigationContent
         .onChange(of: flow.historyMessages) { updateOverview() }
@@ -131,7 +140,6 @@ struct MainView: View {
         .onChange(of: panels.hasDisplayCoverage) { updateOverview() }
         .onChange(of: panels.pendingQuestionnaires) { updateOverview() }
     }
-
     private func updateOverview() {
         guard let history = previewHistory else {
             overviewStore.setQuestionnaireCoverage(panels.hasDisplayCoverage
@@ -242,7 +250,7 @@ struct MainView: View {
                 box.query = ""
                 box.project = project
                 destination = .box
-            }, onSession: { destination = .session($0) })
+            }, onSession: { destination = .session($0) }, identityGeneration: identity.generation)
     }
 
     @ViewBuilder

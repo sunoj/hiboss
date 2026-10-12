@@ -9,6 +9,30 @@ import XCTest
 
 @MainActor
 final class AccountAuthorizationTests: XCTestCase {
+    func testAccountChangeAndRejectionShareIdentityAndClearContent() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: UUID().uuidString))
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertTrue(settings.identity === AccountAuthorization.shared)
+        let flow = OptionFlowStore()
+        let api = AccountContentAPI()
+        flow.connect(api: api)
+        await flow.refreshHistory()
+        let reply = AttentionReplyState(identity: settings.identity)
+        reply.drafts["cached"] = "Private draft"
+        let previous = settings.identity.generation
+        let grant = PairingRedemptionGrant(token: "unit-token", bossID: "boss", signingKeyID: nil)
+        AccountAuthorization.shared.connect(ConnectionConfig(
+            serverURL: try XCTUnwrap(URL(string: "https://unit.test")), bossToken: grant.token))
+        XCTAssertEqual(settings.identity.generation, previous + 1)
+        XCTAssertTrue(flow.historyMessages.isEmpty)
+        XCTAssertTrue(reply.drafts.isEmpty)
+        let connected = settings.identity.generation
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        XCTAssertEqual(settings.identity.generation, connected + 1)
+        AccountAuthorization.shared.connect(nil)
+        flow.disconnect()
+    }
+
     func testRejectionClearsHistoryPreferenceAndReplyDrafts() async {
         defer { AccountAuthorization.shared.connect(nil) }
         for status in [401, 403] {

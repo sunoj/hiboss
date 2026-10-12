@@ -39,6 +39,8 @@ final class MediaViewerUITests: XCTestCase {
     func testSingleTapTogglesChromeAndShareUsesNativeSheet() {
         launch(["HIBOSS_DEMO_OPTION_MEDIA": "pending"])
         openOption("Coastal view")
+        XCTAssertFalse(app.buttons["media-viewer-info"].exists)
+        XCTAssertFalse(app.buttons["media-viewer-delete"].exists)
         let scroll = mediaZoomScroll(app)
         scroll.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].waitForNonExistence(timeout: 3))
@@ -137,6 +139,9 @@ final class MediaViewerUITests: XCTestCase {
         XCTAssertTrue(file.waitForExistence(timeout: 10))
         for _ in 0..<6 where !file.isHittable { app.swipeUp() }
         file.tap()
+        let open = app.buttons["Open file"]
+        for _ in 0..<6 where !open.isHittable { app.swipeUp() }
+        open.tap()
         XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.images["media-viewer-image"].waitForExistence(timeout: 10))
         assertMediaPinchZoom(app)
@@ -187,13 +192,13 @@ final class MediaViewerUITests: XCTestCase {
                 XCTAssertTrue(video.waitForExistence(timeout: 10))
                 for _ in 0..<4 where !video.isHittable { app.swipeUp() }
                 video.tap()
-                let mute = app.buttons[language == "en" ? "Unmute" : "取消静音"]
-                XCTAssertTrue(mute.waitForExistence(timeout: 10))
+                let videoSurface = app.descendants(matching: .any)["media-viewer-video"]
+                XCTAssertTrue(videoSurface.waitForExistence(timeout: 10))
                 XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
                 XCTAssertTrue(app.buttons["media-viewer-close"].isHittable)
                 XCTAssertTrue(app.buttons["media-viewer-share"].isHittable)
-                XCTAssertGreaterThanOrEqual(mute.frame.width, 44)
-                XCTAssertGreaterThanOrEqual(mute.frame.height, 44)
+                XCTAssertTrue(app.buttons["media-viewer-info"].isHittable)
+                XCTAssertTrue(app.buttons["media-viewer-delete"].isHittable)
                 XCTAssertTrue(app.descendants(matching: .any)["media-viewer-video"].exists)
                 let loading = app.staticTexts[language == "en" ? "Loading video…" : "正在加载视频…"]
                 XCTAssertTrue(loading.waitForNonExistence(timeout: 10))

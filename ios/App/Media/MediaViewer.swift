@@ -1,13 +1,24 @@
 // Shared full-screen media with paging, image zoom, captions and system sharing.
-// Exports MediaViewer for all iOS image and video entry points.
+// Exports MediaViewer and optional MediaItemActions for all iOS media entry points.
 // Dependencies: SwiftUI, MediaItem, MediaZoomView and the existing looping player.
 
 import SwiftUI
 
+struct MediaItemActions {
+    let metadata: (MediaItem) -> String
+    let copy: (MediaItem) -> Void
+    let info: (MediaItem) -> Void
+    let delete: (MediaItem) -> Void
+    var isAvailable: (MediaItem) -> Bool = { _ in true }
+    var unavailableContent: ((MediaItem) -> AnyView?)? = nil
+}
+
 struct MediaViewer: View {
     let items: [MediaItem]
+    let itemActions: MediaItemActions?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var textSize
     @State private var currentID: String?
     @State private var offset: CGFloat = 0
     @State private var zoomed = false
@@ -15,8 +26,9 @@ struct MediaViewer: View {
     @State private var chromeVisible = true
     @StateObject private var sharing = MediaShareStore()
 
-    init(items: [MediaItem], startIndex: Int) {
+    init(items: [MediaItem], startIndex: Int, itemActions: MediaItemActions? = nil) {
         self.items = items
+        self.itemActions = itemActions
         _currentID = State(initialValue: items.indices.contains(startIndex) ? items[startIndex].id : nil)
     }
 
@@ -27,8 +39,14 @@ struct MediaViewer: View {
                 .offset(y: offset)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .top) { if chromeVisible { topBar } }
-        .overlay(alignment: .bottom) { if chromeVisible { captionArea } }
+        .overlay(alignment: .top) { if chromeVisible && itemActions == nil { topBar } }
+        .overlay(alignment: .bottom) { if chromeVisible && itemActions == nil { captionArea } }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if chromeVisible && itemActions != nil { topBar }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if chromeVisible && itemActions != nil { captionArea }
+        }
         .accessibilityAddTraits(.isModal)
         .onChange(of: currentID) { _, _ in
             zoomed = false
@@ -58,7 +76,7 @@ struct MediaViewer: View {
             .scrollDisabled(zoomed)
             .scrollIndicators(.hidden)
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: itemActions == nil ? .all : [])
     }
 
     @ViewBuilder
@@ -78,6 +96,12 @@ struct MediaViewer: View {
 
     @ViewBuilder
     private func pageContent(_ item: MediaItem) -> some View {
+        if let unavailable = itemActions?.unavailableContent?(item) { unavailable }
+        else { loadedContent(item) }
+    }
+
+    @ViewBuilder
+    private func loadedContent(_ item: MediaItem) -> some View {
         switch item.kind {
         case .image:
             RemoteImage(url: item.url, retryIdentifier: "media-viewer-image-retry") { image in
@@ -92,23 +116,26 @@ struct MediaViewer: View {
 
     @ViewBuilder
     private func videoPage(_ item: MediaItem) -> some View {
-        LoopingPlayerView(
-            url: item.url,
-            isMuted: !unmuted,
-            isPlaying: currentID == item.id,
-            fill: false
-        )
-        .aspectRatio(
-            item.aspectRatio,
-            contentMode: .fit
-        )
-        .accessibilityLabel(Text(verbatim: item.title ?? String(localized: "Video")))
-        .accessibilityIdentifier("media-viewer-video")
+        if itemActions != nil {
+            MediaSystemVideo(url: item.url, isPlaying: currentID == item.id)
+                .aspectRatio(item.aspectRatio, contentMode: .fit)
+                .accessibilityIdentifier("media-viewer-video")
+        } else {
+            LoopingPlayerView(
+                url: item.url,
+                isMuted: !unmuted,
+                isPlaying: currentID == item.id,
+                fill: false
+            )
+            .aspectRatio(item.aspectRatio, contentMode: .fit)
+            .accessibilityLabel(Text(verbatim: item.title ?? String(localized: "Video")))
+            .accessibilityIdentifier("media-viewer-video")
+        }
     }
 
     @ViewBuilder
     private func muteControl(for item: MediaItem) -> some View {
-        if item.kind == .video {
+        if item.kind == .video && itemActions == nil {
             Button { unmuted.toggle() } label: {
                 Image(systemName: unmuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
                     .font(.body)
@@ -138,7 +165,8 @@ struct MediaViewer: View {
         HStack {
             closeButton
             Spacer()
-            if items.count > 1, let index = items.firstIndex(where: { $0.id == currentID }) {
+            if items.count > 1 || itemActions != nil,
+               let index = items.firstIndex(where: { $0.id == currentID }) {
                 Text(verbatim: "\(index + 1) / \(items.count)").font(.headline).monospacedDigit()
                     .accessibilityIdentifier("media-viewer-counter")
             }
@@ -149,7 +177,8 @@ struct MediaViewer: View {
                 Image(systemName: "square.and.arrow.up").font(.title2)
                     .frame(minWidth: 44, minHeight: 44)
             }
-            .disabled(sharing.isLoading || selectedItem == nil)
+            .disabled(sharing.isLoading || selectedItem == nil ||
+                      selectedItem.map { itemActions?.isAvailable($0) == false } == true)
             .accessibilityLabel("Share")
             .accessibilityIdentifier("media-viewer-share")
         }
@@ -166,9 +195,16 @@ struct MediaViewer: View {
                         VStack(alignment: .leading, spacing: 4) {
                             if let title = item.title { Text(verbatim: title).font(.headline) }
                             if let caption = item.caption { Text(verbatim: caption).font(.body) }
+                            if let itemActions {
+                                Text(verbatim: itemActions.metadata(item)).font(.caption)
+                                    .foregroundStyle(Theme.ink2)
+                            }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.frame(maxHeight: 160)
                         .accessibilityIdentifier("media-viewer-caption")
+                }
+                if let itemActions {
+                    actionBar(item, actions: itemActions)
                 }
             }
             if sharing.isLoading {
@@ -183,5 +219,26 @@ struct MediaViewer: View {
         }
         .padding().frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial)
+    }
+
+    @ViewBuilder
+    private func actionBar(_ item: MediaItem, actions: MediaItemActions) -> some View {
+        if textSize.isAccessibilitySize {
+            actionButtons(item, actions: actions).labelStyle(.iconOnly)
+        } else { actionButtons(item, actions: actions) }
+    }
+
+    private func actionButtons(_ item: MediaItem, actions: MediaItemActions) -> some View {
+        HStack {
+            Button("Copy", systemImage: "doc.on.doc") { actions.copy(item) }
+                .disabled(!actions.isAvailable(item))
+                .accessibilityIdentifier("media-viewer-copy")
+            Spacer()
+            Button("Info", systemImage: "info.circle") { actions.info(item) }
+                .accessibilityIdentifier("media-viewer-info")
+            Spacer()
+            Button("Delete", systemImage: "trash", role: .destructive) { actions.delete(item) }
+                .accessibilityIdentifier("media-viewer-delete")
+        }.buttonStyle(.bordered).controlSize(.large)
     }
 }
