@@ -7,8 +7,11 @@ import SwiftUI
 
 struct ProgressWorkspace: View {
     @ObservedObject var store: ProgressFeedStore
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
     @State private var opened: ProgressMedia?
     @State private var pendingDelete: ProgressPost?
+    @StateObject private var avatarCache = ProjectAvatarRendererCache()
 
     var body: some View {
         content
@@ -83,20 +86,76 @@ struct ProgressWorkspace: View {
 
     private var filter: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Picker(L("Project"), selection: Binding(
+            Picker(selection: Binding(
                 get: { store.selectedProject },
                 set: { project in Task { await store.selectProject(project) } }
             )) {
-                Text(L("All projects")).tag(nil as String?)
+                Text(ProgressProjectMenu.allProjectsTitle).tag(nil as String?)
                 ForEach(store.projects) { project in
-                    HStack {
-                        ProjectAvatarView(project: project.projectIdentity, size: 20)
-                        Text(verbatim: project.projectIdentity.displayName)
-                    }.tag(project.slug as String?)
+                    ProjectPickerItem(project: project.projectIdentity,
+                        title: ProgressProjectMenu.title(for: project), cache: avatarCache,
+                        appearance: colorScheme == .dark ? "dark" : "light", scale: displayScale)
                 }
+            } label: {
+                Text(selectedProjectName)
             }
+            .pickerStyle(.menu)
             .accessibilityLabel(L("Filter by project"))
             .accessibilityIdentifier("progress.project-filter")
         }
+    }
+
+    private var selectedProjectName: String {
+        ProgressProjectMenu.collapsedTitle(selectedProject: store.selectedProject, projects: store.projects)
+    }
+}
+
+enum ProgressProjectMenu {
+    static let allProjectsTitle = L("All projects")
+
+    static func title(for project: ProgressProject) -> String {
+        project.projectIdentity.displayName
+    }
+
+    static func titles(for projects: [ProgressProject]) -> [String] {
+        [allProjectsTitle] + projects.map(title(for:))
+    }
+
+    static func collapsedTitle(selectedProject: String?, projects: [ProgressProject]) -> String {
+        guard let selectedProject else { return allProjectsTitle }
+        return projects.first { $0.slug == selectedProject }.map(title(for:)) ?? selectedProject
+    }
+}
+
+private struct ProjectPickerItem: View {
+    let project: ProjectIdentity
+    let title: String
+    let cache: ProjectAvatarRendererCache
+    let appearance: String
+    let scale: CGFloat
+    @StateObject private var loader = ProjectAvatarLoader()
+
+    var body: some View {
+        itemLabel
+            .tag(project.slug as String?)
+            .task(id: project.avatarURL) { await loader.load(project.avatarURL) }
+    }
+
+    @ViewBuilder
+    private var itemLabel: some View {
+        if let avatar = renderedAvatar {
+            Label {
+                Text(verbatim: title)
+            } icon: {
+                avatar
+            }
+        } else {
+            Text(verbatim: title)
+        }
+    }
+
+    private var renderedAvatar: Image? {
+        cache.image(for: project, source: loader.image, appearance: appearance, scale: scale)
+            .map(Image.init(nsImage:))
     }
 }

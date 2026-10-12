@@ -11,6 +11,28 @@ import XCTest
 
 @MainActor
 final class ProgressSnapshotTests: XCTestCase {
+    func testMountedProgressPickerExposesFullNativeProjectTitles() async throws {
+        let longName = "A Very Long Project Name That Must Stay Fully Visible"
+        let projects = (0..<22).map { index in
+            let slug = index == 0 ? "long-project" : "project-\(index)"
+            let name = index == 0 ? longName : index == 1 ? "No Avatar Project" : "Project \(index)"
+            return ProgressProject(project: slug, count: 1, lastPostAt: nil, agentId: "tester",
+                projectRef: ProjectIdentity(id: slug, slug: slug, displayName: name))
+        }
+        let api = ScriptedProgressAPI(pages: [ProgressFeedPage(posts: ProgressFixtures.posts())])
+        api.projects = projects
+        let store = ProgressFeedStore { api }
+        let host = NSHostingView(rootView: NavigationStack { ProgressWorkspace(store: store) })
+        host.sizingOptions = []
+        let window = try await makeWindow(host, scheme: .light)
+        defer { window.close() }
+
+        try await waitForCondition { store.didLoad && store.projects.count == projects.count }
+        let picker = try nativeProjectPicker(in: window)
+        XCTAssertEqual(picker.menu.items.map(\.title), ProgressProjectMenu.titles(for: store.projects))
+        XCTAssertEqual(picker.title, ProgressProjectMenu.allProjectsTitle)
+    }
+
     func testHostedSidebarProgressWithImageVideoAndTextInBothAppearances() async throws {
         let server = HistorySnapshotMediaServer()
         try await server.start()
@@ -106,6 +128,38 @@ final class ProgressSnapshotTests: XCTestCase {
         window.setFrame(frame, display: true)
         XCTAssertLessThanOrEqual(window.frame.height, visible.height)
         return window
+    }
+
+    private struct PickerProbe {
+        let menu: NSMenu
+        let title: String
+    }
+
+    private func nativeProjectPicker(in window: NSWindow) throws -> PickerProbe {
+        for item in window.toolbar?.items ?? [] {
+            if let menu = item.menuFormRepresentation?.submenu {
+                return PickerProbe(menu: menu, title: item.menuFormRepresentation?.title ?? item.label)
+            }
+        }
+        let roots = [window.contentView].compactMap { $0 }
+            + (window.toolbar?.items.compactMap(\.view) ?? [])
+        let views = roots.flatMap { [$0] + descendants(of: $0) }
+        if let popup = views.compactMap({ $0 as? NSPopUpButton }).first, let menu = popup.menu {
+            return PickerProbe(menu: menu, title: popup.title)
+        }
+        if let button = views.compactMap({ $0 as? NSButton }).first(where: { $0.menu != nil }),
+           let menu = button.menu {
+            return PickerProbe(menu: menu, title: button.title)
+        }
+        let toolbarItems = (window.toolbar?.items ?? []).map {
+            "\($0.itemIdentifier.rawValue):\($0.label):\(String(describing: type(of: $0.view)))"
+        }.joined(separator: ", ")
+        let types = views.map { String(describing: type(of: $0)) }.joined(separator: ", ")
+        return try XCTUnwrap(nil, "No native picker menu; toolbar: \(toolbarItems); views: \(types)")
+    }
+
+    private func descendants(of view: NSView) -> [NSView] {
+        view.subviews.flatMap { [$0] + descendants(of: $0) }
     }
 
     private func bitmap(_ host: NSView) -> NSBitmapImageRep? {
