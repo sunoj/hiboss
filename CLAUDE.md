@@ -4,7 +4,11 @@ CLI tool for AI agents to send messages to their boss (human or AI) and receive 
 
 ## Agent Instructions
 
-Run `hiboss setup hooks` to install Claude Code hooks. This configures SessionStart (unread messages + daemon start), PostToolUse (local message drain + async bg-check), and Stop (session cleanup).
+Run `hiboss setup hooks --global` to install Claude Code hooks across all profiles:
+`$CLAUDE_CONFIG_DIR`, `~/.claude`, and `~/.claude-*` directories with `settings.json` or
+`projects/`. This configures SessionStart (unread messages + daemon start), PostToolUse
+(local message drain + async bg-check), and Stop (session cleanup). Use
+`--config-dir <path>` to target one profile, or `hiboss doctor` to check profile coverage.
 
 ### Default delivery
 

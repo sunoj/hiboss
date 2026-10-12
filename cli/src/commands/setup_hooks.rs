@@ -6,13 +6,13 @@ use clap::{Args, ValueEnum};
 use serde_json::{Map, Value};
 use std::error::Error;
 
-const EVENT_COMMANDS: &[(&str, &str)] = &[
+pub(super) const EVENT_COMMANDS: &[(&str, &str)] = &[
     ("SessionStart", "session-start"),
     ("PostToolUse", "post-tool-use"),
     ("Stop", "stop"),
 ];
 
-use super::setup_agents::apply_prompt_changes;
+pub use super::setup_hook_install::run_setup_hooks;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum SetupRuntime {
@@ -21,7 +21,7 @@ pub enum SetupRuntime {
 }
 
 impl SetupRuntime {
-    fn profile(self) -> &'static str {
+    pub(super) fn profile(self) -> &'static str {
         match self {
             Self::Claude => "claude",
             Self::Codex => "codex",
@@ -37,71 +37,31 @@ pub struct SetupHooksArgs {
     pub dir: Option<String>,
     #[arg(
         long,
-        help = "Install globally in the selected runtime's configuration directory"
+        help = "Install globally in all Claude profiles (or the selected Codex home)"
     )]
     pub global: bool,
+    #[arg(
+        long,
+        value_name = "PATH",
+        conflicts_with = "dir",
+        help = "Target one runtime configuration directory"
+    )]
+    pub config_dir: Option<std::path::PathBuf>,
     #[arg(long, help = "Remove hiboss hooks instead of adding")]
     pub remove: bool,
 }
 
-pub fn run_setup_hooks(args: &SetupHooksArgs) -> Result<(), Box<dyn Error>> {
-    let (claude_dir, label) = super::setup_hook_files::destination(args)?;
-    eprintln!("[hiboss]Target: {}", label);
-    let settings_path = claude_dir.join(if args.runtime == SetupRuntime::Codex {
-        "hooks.json"
-    } else if args.global {
-        "settings.json"
-    } else {
-        "settings.local.json"
-    });
-    let mut settings = super::setup_hook_files::read_settings(&settings_path)?;
-    eprintln!("[hiboss]Loaded settings from {}", settings_path.display());
-    let project_dir = if !args.global && !args.remove {
-        Some(super::setup_hook_files::project_directory(args)?)
-    } else {
-        None
-    };
-    let project_dir_str = project_dir.as_ref().map(|dir| dir.to_string_lossy());
-    let change = apply_hook_changes(
-        &mut settings,
-        args.remove,
-        project_dir_str.as_deref(),
-        args.runtime.profile(),
-    )?;
-    eprintln!("[hiboss]Computed hook updates");
-    super::setup_hook_files::write_settings(&settings_path, &settings, change.changed)?;
-    match change.action {
-        HookAction::Added => println!("Added or refreshed hiboss lifecycle hooks"),
-        HookAction::Removed => println!("Removed hiboss lifecycle hooks"),
-        HookAction::None => println!("hiboss lifecycle hooks already configured"),
-    }
-    let instructions = if args.runtime == SetupRuntime::Codex {
-        "AGENTS.md"
-    } else {
-        "CLAUDE.md"
-    };
-    if args.runtime == SetupRuntime::Codex && !args.remove {
-        super::setup_agents::apply_profile_prompt_changes(&claude_dir.join(instructions), "codex")?;
-    } else {
-        apply_prompt_changes(&claude_dir.join(instructions), args.remove)?;
-    }
-    if args.runtime == SetupRuntime::Codex && !args.remove {
-        println!("Review and trust the new HiBoss hooks in Codex /hooks before they can run.");
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum HookAction {
+pub(super) enum HookAction {
     Added,
     Removed,
     None,
 }
 
 #[derive(Debug)]
-struct HookChange {
-    changed: bool,
-    action: HookAction,
+pub(super) struct HookChange {
+    pub changed: bool,
+    pub action: HookAction,
 }
 
 impl Default for HookChange {
@@ -113,7 +73,7 @@ impl Default for HookChange {
     }
 }
 
-fn apply_hook_changes(
+pub(super) fn apply_hook_changes(
     settings: &mut Value,
     remove: bool,
     project_dir: Option<&str>,
@@ -144,7 +104,10 @@ fn apply_hook_changes(
         let arr = entry
             .as_array_mut()
             .ok_or_else(|| format!("hooks.{} must be an array", event))?;
-        if arr.iter().any(matcher_contains_hiboss) {
+        if arr
+            .iter()
+            .any(|matcher| matcher_has_event_hook(matcher, command_label))
+        {
             continue;
         }
         arr.push(new_hiboss_matcher(command_label, project_dir, runtime));
@@ -164,26 +127,31 @@ fn remove_hook_changes(root: &mut Map<String, Value>) -> Result<HookChange, Box<
         .as_object_mut()
         .ok_or("hooks must be an object")?;
     let mut change = HookChange::default();
+    let mut emptied = Vec::new();
     for (event, value) in hooks_map.iter_mut() {
         let matchers = value
             .as_array_mut()
             .ok_or_else(|| format!("hooks.{event} must be an array"))?;
-        for matcher in matchers.iter_mut() {
-            if let Some(hooks) = matcher.get_mut("hooks").and_then(Value::as_array_mut) {
-                let original = hooks.len();
-                hooks.retain(|hook| !is_hiboss_hook(hook));
-                change.changed |= original != hooks.len();
-            }
-        }
-        matchers.retain(|matcher| {
-            !matcher
-                .get("hooks")
-                .and_then(Value::as_array)
-                .is_some_and(Vec::is_empty)
+        let mut removed = false;
+        matchers.retain_mut(|matcher| {
+            let Some(hooks) = matcher.get_mut("hooks").and_then(Value::as_array_mut) else {
+                return true;
+            };
+            let original = hooks.len();
+            hooks.retain(|hook| !is_hiboss_hook(hook));
+            let changed = original != hooks.len();
+            removed |= changed;
+            !changed || !hooks.is_empty()
         });
+        change.changed |= removed;
+        if removed && matchers.is_empty() {
+            emptied.push(event.clone());
+        }
     }
-    hooks_map.retain(|_, value| !value.as_array().is_some_and(Vec::is_empty));
-    if hooks_map.is_empty() {
+    for event in emptied {
+        hooks_map.remove(&event);
+    }
+    if change.changed && hooks_map.is_empty() {
         root.remove("hooks");
     }
     if change.changed {
@@ -192,7 +160,7 @@ fn remove_hook_changes(root: &mut Map<String, Value>) -> Result<HookChange, Box<
     Ok(change)
 }
 
-fn is_hiboss_hook(value: &Value) -> bool {
+pub(super) fn is_hiboss_hook(value: &Value) -> bool {
     value
         .get("command")
         .and_then(Value::as_str)
@@ -226,6 +194,7 @@ fn refresh_managed_hooks(
     Ok(changed)
 }
 
+#[cfg(test)]
 fn matcher_contains_hiboss(value: &Value) -> bool {
     value
         .get("hooks")
@@ -271,6 +240,37 @@ fn profile_hook_command(command_label: &str, project_dir: Option<&str>, runtime:
 
 fn shell_escape(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+pub(super) fn hooks_installed(settings: &Value) -> bool {
+    if settings["disableAllHooks"].as_bool() == Some(true) {
+        return false;
+    }
+    EVENT_COMMANDS.iter().all(|(event, label)| {
+        settings["hooks"][event].as_array().is_some_and(|matchers| {
+            matchers
+                .iter()
+                .any(|matcher| matcher_has_event_hook(matcher, label))
+        })
+    })
+}
+
+fn matcher_has_event_hook(matcher: &Value, label: &str) -> bool {
+    matcher["matcher"]
+        .as_str()
+        .is_none_or(|value| value.is_empty() || value == "*")
+        && matcher["hooks"].as_array().is_some_and(|hooks| {
+            hooks.iter().any(|hook| {
+                hook["type"].as_str() == Some("command")
+                    && hook["command"].as_str().is_some_and(|command| {
+                        let invocation = command.split_once("hiboss hook ").map(|(_, tail)| tail);
+                        invocation
+                            .and_then(|tail| tail.strip_prefix("--codex-input ").or(Some(tail)))
+                            .and_then(|tail| tail.split_whitespace().next())
+                            == Some(label)
+                    })
+            })
+        })
 }
 
 #[cfg(test)]

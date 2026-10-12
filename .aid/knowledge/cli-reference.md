@@ -8,13 +8,24 @@ hiboss setup --check                # GET /api/agents/me for each configured pro
 hiboss device invite                # mint an Add a machine invite using the active profile
 hiboss config set channel discord   # default channel
 hiboss setup hooks                  # configure Claude Code hooks (project)
-hiboss setup hooks --global         # configure for all Claude Code sessions
+hiboss setup hooks --global         # configure every discovered Claude Code profile
+hiboss setup hooks --config-dir ~/.claude-m  # target one profile
 hiboss setup agents                 # refresh global Codex and Claude guidance
-hiboss setup hooks --remove         # remove hiboss hooks
+hiboss setup hooks --global --remove # remove hiboss hooks from all discovered profiles
 hiboss setup telegram               # guided Telegram bot setup
 hiboss setup discord                # guided Discord bot setup
 hiboss whoami --json                # offline resolved identity, masked key
 ```
+
+Global Claude hook setup covers `$CLAUDE_CONFIG_DIR`, `~/.claude`, and each
+`~/.claude-*` directory containing `settings.json` or `projects/`. It reports one
+result per directory; `--config-dir <path>` limits setup or removal to that profile.
+Backup settings files and directories without profile markers are left alone.
+`hiboss doctor` lists hook coverage and repair commands; a missing current profile
+fails the hook check only inside Claude Code. Other doctor health checks still apply.
+Inside Claude Code, `send`, `ask`, and `progress post` warn once per process when no
+session is registered, then continue sending. The warning names the profile and its
+repair command because messages will appear as direct messages.
 
 ## Send (async)
 ```bash

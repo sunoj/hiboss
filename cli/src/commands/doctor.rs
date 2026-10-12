@@ -26,6 +26,9 @@ struct DoctorReport {
 
 pub async fn run(args: &DoctorArgs, config: &Config) -> Result<(), Box<dyn Error>> {
     let mut report = DoctorReport::default();
+    if super::claude_profiles::doctor()? {
+        report.issues += 1;
+    }
     let credential = resolve_credentials(config)?;
     print_local_checks(config, &credential.server, &credential.key, &mut report);
     let client = HiBossClient::new(&credential.server, &credential.key);

@@ -232,6 +232,7 @@ pub async fn run(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let choices = args.choice_payload()?;
+    super::claude_profiles::warn_missing_session(session::read_session_id().as_deref());
     let mut request = prepare_request(args, client, &choices).await?;
     if args.to.is_none() && !args.json {
         warn_unread_messages(client).await;

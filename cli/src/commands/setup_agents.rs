@@ -63,7 +63,6 @@ pub(crate) fn apply_prompt_changes(path: &Path, remove: bool) -> Result<(), Box<
     let existing = if path.exists() { fs::read_to_string(path)? } else { String::new() };
     let content = managed_content(&existing, remove)?;
     write_atomic(path, &content)?;
-    println!("Updated HiBoss instructions in {}", path.display());
     Ok(())
 }
 
@@ -75,7 +74,6 @@ pub(crate) fn apply_profile_prompt_changes(path: &Path, profile: &str) -> Result
         "- For this runtime, prefix every HiBoss command with `HIBOSS_PROFILE={profile}`.\n"
     ));
     write_atomic(path, &content)?;
-    println!("Updated HiBoss instructions in {}", path.display());
     Ok(())
 }
 
