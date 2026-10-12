@@ -26,7 +26,8 @@ final class MenuReconnectTests: XCTestCase {
         await fulfillment(of: [loaded], timeout: 2)
         let verifications = await api.verifications
         XCTAssertEqual(verifications, 1, "Menu reconnect must verify stored credentials")
-        XCTAssertNotNil(delegate.settings.activeClientConfig, "Accepted config must reach Box/Progress/Panels")
+        XCTAssertNotNil(delegate.settings.activeClientConfig,
+                        "Accepted config must reach Box/Progress/Panels")
         XCTAssertFalse(AccountAuthorization.shared.hasRejectedAccount)
         XCTAssertFalse(delegate.preferencesStore.authorizationRejected)
         XCTAssertEqual(delegate.preferencesStore.preferences.privatePush, true)

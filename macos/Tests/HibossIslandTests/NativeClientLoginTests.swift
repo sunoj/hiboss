@@ -172,6 +172,7 @@ final class NativeClientLoginTests: XCTestCase {
     private func fixture(
         exchangeFails: Bool = false, verificationFails: Bool = false, stored: String? = nil
     ) throws -> (AppSettings, ClientLoginTokens, ClientLoginAPI) {
+        AccountAuthorization.shared.connect(nil)
         let suite = "NativeClientLoginTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
