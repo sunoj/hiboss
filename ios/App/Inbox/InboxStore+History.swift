@@ -16,9 +16,11 @@ extension InboxStore {
             }
             guard version == self.historyVersion else { return }
             if self.loadError != error { self.loadError = error }
-            if !self.didLoad { self.didLoad = true }
-            self.historyCheckedAt = .now
-            if error == nil { StartupLog.record("history loaded", count: self.history.count) }
+            if error == nil {
+                if !self.didLoad { self.didLoad = true }
+                self.historyCheckedAt = .now
+                StartupLog.record("history loaded", count: self.history.count)
+            }
         }
     }
 

@@ -18,7 +18,7 @@ struct DeviceRequestsView: View {
             CompactRefreshNotice(isRefreshing: model.didLoad && model.isRefreshing,
                                  error: refreshError,
                                  title: String(localized: "Loading device requests…"),
-                                 onRetry: { await model.refresh() })
+                                 onRetry: { await model.refresh() }, retryTitle: "Try again")
         }
         .navigationTitle("Device Requests")
         .refreshable { await model.refresh() }

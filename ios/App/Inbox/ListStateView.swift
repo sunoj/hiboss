@@ -15,6 +15,7 @@ enum ListStatePhase: Equatable {
     static func resolve(
         isLoading: Bool, error: String?, isEmpty: Bool, hasLoaded: Bool = false
     ) -> ListStatePhase {
+        if isEmpty && !hasLoaded, let error { return .unreachable(error) }
         if isLoading && isEmpty && !hasLoaded { return .loading }
         if isEmpty { return hasLoaded ? .empty : error.map(ListStatePhase.unreachable) ?? .empty }
         return .content(staleError: error)

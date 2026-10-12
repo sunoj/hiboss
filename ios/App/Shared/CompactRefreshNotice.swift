@@ -11,6 +11,8 @@ struct CompactRefreshNotice: View {
     var onRetry: (() async -> Void)? = nil
     var statusIdentifier = "refresh-status"
     var retryIdentifier = "pending-retry"
+    var retryTitle: LocalizedStringKey = "Retry"
+    @ScaledMetric(relativeTo: .footnote) private var rowHeight: CGFloat = 44
     @State private var visible = false
     @State private var slow = false
 
@@ -26,14 +28,15 @@ struct CompactRefreshNotice: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier(statusIdentifier)
             if let onRetry {
-                RetryButton(action: onRetry).accessibilityIdentifier(retryIdentifier)
+                RetryButton(title: retryTitle, compact: true, action: onRetry)
+                    .accessibilityIdentifier(retryIdentifier)
                     .opacity(error != nil || slow ? 1 : 0)
                     .allowsHitTesting(error != nil || slow)
                     .accessibilityHidden(error == nil && !slow)
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 44)
+        .frame(height: rowHeight)
         .background(.bar)
         .opacity(active ? 1 : 0)
         .allowsHitTesting(active)

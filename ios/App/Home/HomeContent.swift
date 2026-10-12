@@ -107,8 +107,8 @@ struct HomeContent: View {
     }
 
     private var isRefreshingKnownContent: Bool {
-        hasCompletedCoverage && (attentionStatus != nil || inbox.isRefreshing
-            || inbox.requiredInputRefreshing || panels.isRefreshing)
+        hasCompletedCoverage && (inbox.isRefreshing || inbox.requiredInputRefreshing
+            || panels.isRefreshing || (!hasCoverageFailure && attentionStatus != nil))
     }
 
     var attentionStatus: String? {

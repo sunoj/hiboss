@@ -23,8 +23,10 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
     private var historyGate: CheckedContinuation<Void, Never>?
     private var historyWaiter: CheckedContinuation<Void, Never>?
     private var holdsHistory = false
+    private var historyFails = false
     private(set) var historyReads = 0
 
+    func failHistory() { historyFails = true }
     func holdHistory() { holdsHistory = true }
     func waitForHistory() async {
         if historyGate != nil { return }
@@ -134,6 +136,7 @@ actor ControlledInputAPI: BossServing, RequiredInputServing {
                 historyWaiter = nil
             }
         }
+        if historyFails { throw URLError(.notConnectedToInternet) }
         return []
     }
     func fetchMessage(_ id: MessageID) async throws -> MessageDetail {

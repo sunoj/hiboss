@@ -95,7 +95,6 @@ final class ProgressFeedStore: ObservableObject {
             return
         } catch {
             loadError = error.localizedDescription
-            didLoad = true
             return
         }
         if let list = try? await api.progressProjects() {

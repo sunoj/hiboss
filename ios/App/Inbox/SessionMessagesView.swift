@@ -15,7 +15,7 @@ struct SessionMessagesView: View {
     @StateObject private var facts = SessionFactsStore()
     @StateObject private var stream: SessionStreamStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var hasLoaded = false
+    private var hasLoaded: Bool { stream.didLoad || stream.usesHistory }
     @State private var actionNote: String?
     @State private var showsHistory = false
 
@@ -61,17 +61,6 @@ struct SessionMessagesView: View {
         .onDisappear { stream.stop() }
         .onChange(of: store.replyConfirmation) { _, confirmation in
             if confirmation != nil { Task { await stream.refresh() } }
-        }
-        .onChange(of: stream.connectionState, initial: true) { _, state in
-            if state == .connected || state.detail != nil || stream.loadError != nil || stream.usesHistory {
-                hasLoaded = true
-            }
-        }
-        .onChange(of: stream.isLoading) { _, loading in
-            if !loading { hasLoaded = true }
-        }
-        .onChange(of: stream.usesHistory) { _, history in
-            if history { hasLoaded = true }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream.resumeFromForeground() }

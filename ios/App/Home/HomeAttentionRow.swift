@@ -123,14 +123,18 @@ struct HomeAttentionSection: View {
                 Text("Nothing needs you").font(.headline).foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 ZStack(alignment: .leading) {
+                    Label("Checking coverage", systemImage: "exclamationmark.circle").hidden()
                     Label("Refreshing…", systemImage: "arrow.triangle.2.circlepath").hidden()
-                    if refreshVisible {
+                    if statusIsFailure {
+                        Label("Checking coverage", systemImage: "exclamationmark.circle")
+                            .foregroundStyle(Theme.warn)
+                    } else if refreshVisible {
                         Label("Refreshing…", systemImage: "arrow.triangle.2.circlepath")
                             .foregroundStyle(Theme.live)
                     } else {
                         Label("Live", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.positive)
                     }
-                }.font(.footnote)
+                }.font(.footnote).lineLimit(1)
             }
             Spacer(minLength: 0)
         }

@@ -59,6 +59,7 @@ struct NativeRefreshStatus: View {
     let error: String?
     let title: String
     let retry: () async -> Void
+    @ScaledMetric(relativeTo: .caption) private var rowHeight: CGFloat = 44
     @State private var visible = false
     @State private var slow = false
     @State private var retrying = false
@@ -74,12 +75,12 @@ struct NativeRefreshStatus: View {
                 Task { await retry(); retrying = false }
             } label: {
                 Text(kitL("Retry questions")).frame(minHeight: 44)
-            }.disabled(retrying)
+            }.buttonStyle(.borderless).disabled(retrying)
                 .opacity(error != nil || slow ? 1 : 0)
                 .allowsHitTesting(error != nil || slow)
                 .accessibilityHidden(error == nil && !slow)
         }
-        .frame(height: 44)
+        .frame(height: rowHeight)
         .opacity(error != nil || (isRefreshing && visible) ? 1 : 0)
         .accessibilityHidden(error == nil && !(isRefreshing && visible))
         .task(id: isRefreshing) {

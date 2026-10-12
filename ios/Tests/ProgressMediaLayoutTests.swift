@@ -50,26 +50,30 @@ final class ProgressMediaLayoutTests: XCTestCase {
     func testMeasuredRatioCannotResizeAReservedUndimensionedImage() async throws {
         URLProtocol.registerClass(PortraitImageProtocol.self)
         defer { URLProtocol.unregisterClass(PortraitImageProtocol.self) }
-        let media = ProgressMedia(url: "https://stability.invalid/portrait.png", kind: .image,
-                                  contentType: "image/png", size: 100)
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let scene = try XCTUnwrap(scenes.first)
-        let host = UIHostingController(rootView: ProgressMediaView(items: [media], onOpen: { _ in }))
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
-        window.rootViewController = host
-        window.isHidden = false
-        defer { window.isHidden = true }
-        let before = host.sizeThatFits(in: CGSize(width: 390, height: 2_000))
-        let loaded = expectation(description: "portrait image completion")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { loaded.fulfill() }
-        await fulfillment(of: [loaded], timeout: 2)
-        let after = host.sizeThatFits(in: CGSize(width: 390, height: 2_000))
-        XCTAssertEqual(PortraitImageProtocol.deliveries.count, 1, "The media completion path must run")
-        XCTAssertEqual(after.height, before.height, accuracy: 1)
+        for (index, dimensioned) in [false, true].enumerated() {
+            let media = ProgressMedia(url: "https://stability.invalid/portrait.png", kind: .image,
+                                      contentType: "image/png", size: 100,
+                                      width: dimensioned ? 16 : nil, height: dimensioned ? 9 : nil)
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            let scene = try XCTUnwrap(scenes.first)
+            let host = UIHostingController(rootView: ProgressMediaView(items: [media], onOpen: { _ in }))
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.rootViewController = host
+            window.isHidden = false
+            defer { window.isHidden = true }
+            let before = host.sizeThatFits(in: CGSize(width: 390, height: 2_000))
+            let loaded = expectation(description: "portrait image completion")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { loaded.fulfill() }
+            await fulfillment(of: [loaded], timeout: 2)
+            let after = host.sizeThatFits(in: CGSize(width: 390, height: 2_000))
+            XCTAssertEqual(PortraitImageProtocol.deliveries.count, index + 1,
+                           "The media completion path must run")
+            XCTAssertEqual(after.height, before.height, accuracy: 1)
+        }
     }
 
-    func testServerDimensionsWinOverMeasured() {
+    func testServerDimensionsDetermineReservedAspect() {
         XCTAssertEqual(
             ProgressMediaLayout.clampedAspect(width: 16, height: 9),
             16 / 9,

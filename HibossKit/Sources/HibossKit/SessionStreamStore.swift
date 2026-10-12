@@ -12,6 +12,7 @@ public final class SessionStreamStore: ObservableObject {
     @Published public private(set) var pendingWhileLocked = 0
     @Published public private(set) var needsResyncNotice = false
     @Published public private(set) var isLoading = false
+    @Published public private(set) var didLoad = false
     @Published public private(set) var isBackfilling = false
     @Published public private(set) var hasEarlier = false
     @Published public private(set) var loadError: String?
@@ -144,6 +145,7 @@ public final class SessionStreamStore: ObservableObject {
             knownIDs = Set(loaded.map(\.id))
             let window = Array(loaded.suffix(maxWindow))
             events = window
+            didLoad = true
             loadError = nil
             hasEarlier = loaded.count > window.count || (window.first?.sequence ?? 1) > 1
             lastAppliedSequence = window.last?.sequence ?? -1

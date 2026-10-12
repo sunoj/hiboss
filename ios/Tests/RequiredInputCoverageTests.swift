@@ -170,8 +170,11 @@ final class RequiredInputCoverageTests: XCTestCase {
         let api = ControlledInputAPI()
         let store = InboxStore(decisionAlertsEnabled: false)
         store.api = api
+        store.requiredInputs = [Self.ask]
+        store.requiredInputLoaded = true
+        store.requiredInputReady = true
         let reply = Task { await store.reply("Proceed", to: Self.ask.id) }
-        await api.waitForHeldReply()
+        await eventually { await api.replyAttempts == 1 }
         store.stop()
         await api.releaseReply(.accepted)
         let result = await reply.value

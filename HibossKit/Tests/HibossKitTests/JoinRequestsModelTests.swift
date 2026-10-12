@@ -51,7 +51,9 @@ final class JoinRequestsModelTests: XCTestCase {
 
         let result = await model.approve(Self.mini)
 
-        guard case let .approved(approval) = result else { return XCTFail("Expected approval, got \(result)") }
+        guard case let .approved(approval) = result else {
+            return XCTFail("Expected approval, got \(result)")
+        }
         XCTAssertEqual(approval.id, "jr-1")
         XCTAssertEqual(service.approved, ["jr-1"])
         XCTAssertTrue(model.requests.isEmpty)
@@ -91,6 +93,20 @@ final class JoinRequestsModelTests: XCTestCase {
 
         XCTAssertEqual(result, .failed(kitL("Only an admin can approve devices")))
         XCTAssertTrue(model.isForbidden)
+    }
+
+    func testFailedFirstReadKeepsItsResultDuringRetry() async {
+        let service = HeldFailedJoinRead()
+        let model = JoinRequestsModel { service }
+        await model.refresh()
+        let previous = model.state
+        XCTAssertFalse(model.didLoad)
+        await service.holdNext()
+        let retry = Task { await model.refresh() }
+        await service.waitForRead()
+        XCTAssertEqual(model.state, previous)
+        await service.release()
+        await retry.value
     }
 
     func testMissingConnectionStaysIdle() async {
@@ -134,4 +150,30 @@ final class StubJoinService: JoinRequestServing, @unchecked Sendable {
     func rejectJoinRequest(id: String) async throws {
         if let decisionError { throw decisionError }
     }
+}
+
+private actor HeldFailedJoinRead: JoinRequestServing {
+    private var hold = false
+    private var read: CheckedContinuation<[JoinRequest], Error>?
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    func holdNext() { hold = true }
+    func waitForRead() async {
+        if read != nil { return }
+        await withCheckedContinuation { waiter = $0 }
+    }
+    func release() {
+        read?.resume(throwing: URLError(.notConnectedToInternet))
+        read = nil
+    }
+    func listPendingJoinRequests() async throws -> [JoinRequest] {
+        if !hold { throw URLError(.notConnectedToInternet) }
+        return try await withCheckedThrowingContinuation {
+            read = $0
+            waiter?.resume()
+            waiter = nil
+        }
+    }
+    func approveJoinRequest(id: String) async throws -> JoinApproval { throw JoinRequestError.forbidden }
+    func rejectJoinRequest(id: String) async throws { throw JoinRequestError.forbidden }
 }

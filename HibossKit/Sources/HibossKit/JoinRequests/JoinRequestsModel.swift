@@ -59,7 +59,7 @@ public final class JoinRequestsModel: ObservableObject {
             state = .idle
             return
         }
-        if !didLoad { state = .loading }
+        if !didLoad && state == .idle { state = .loading }
         isRefreshing = true
         defer { isRefreshing = false }
         do {
