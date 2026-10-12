@@ -165,7 +165,7 @@ does not mean a timeout default was recorded.
 | `replies[].body` | string or null | Reply body; null when absent |
 | `replies[].outcome` | `reply` or `auto_default` | `auto_default` only when the reply's `metadata.auto_default` is `true` |
 | `replies[].action` | string or null | Stored `metadata.action` for `reply`; always null for `auto_default` |
-| `replies[].assurance` | string | Provenance label from the CLI verifier: `<source>/verified` for a valid native signature (`ios`, `macos`) under the public key the server returned with the message, `<source>/<status>` for an unsigned attributed source (`api/not_configured`, `system/not_applicable`, `discord/unsupported`, `telegram/unsupported`), or `agent` when the reply is not `boss_to_agent` |
+| `replies[].assurance` | string | Provenance label from the CLI verifier: `<source>/verified` for a valid native signature (`ios`, `macos`) under the public key the server returned with the message, `<source>/<status>` for an unsigned attributed source (`api/not_configured`, `system/not_applicable`, `discord/unsupported`, `telegram/unsupported`), and for agent-authored rows `agent/verified` (a valid agent signature, see `docs/agent-message-signing.md`), `agent/not_configured` (server-attributed, unsigned) or `agent` (written before attribution) |
 
 Parent `options_expired`, the default label, and the status do not change a
 reply's outcome. `assurance` describes how the reply's origin was checked; it

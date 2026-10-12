@@ -1,8 +1,10 @@
 // Verifies message provenance before boss content enters MCP model context.
-// Exports verifiable message types, recursive ES256 checks, and assurance labels.
+// Exports verifiable message types, recursive ES256 checks, assurance labels and shared JWS helpers.
 // Depends on Web Crypto and strict JSON/base64url parsing only.
 
-const SIGNATURE_SCHEME = 'JWS-ES256';
+import { verifyAgentRow } from './agent-provenance.js';
+
+export const SIGNATURE_SCHEME = 'JWS-ES256';
 const JWS_TYPE = 'hiboss-message+jws';
 const MESSAGE_PURPOSE = 'hiboss.boss-message';
 
@@ -11,6 +13,11 @@ export interface VerifiableMessage {
   readonly body: string;
   readonly direction: string;
   readonly reply_to?: string | null;
+  readonly agent_id?: string | null;
+  readonly session_id?: string | null;
+  readonly target_agent_id?: string | null;
+  readonly target_session_id?: string | null;
+  readonly created_at?: string | null;
   readonly metadata?: Record<string, unknown> | null;
   readonly replies?: VerifiableMessage[];
 }
@@ -20,7 +27,7 @@ export type MessageAssurance =
   | { readonly kind: 'attributed'; readonly source: string; readonly status: string }
   | { readonly kind: 'not_applicable' };
 
-interface ParsedJws {
+export interface ParsedJws {
   readonly header: Record<string, unknown>;
   readonly payload: Record<string, unknown>;
   readonly input: Uint8Array;
@@ -44,7 +51,7 @@ export function assuranceLabel(assurance: MessageAssurance): string {
 }
 
 async function verifySingle(message: VerifiableMessage): Promise<MessageAssurance> {
-  if (message.direction !== 'boss_to_agent') return { kind: 'not_applicable' };
+  if (message.direction !== 'boss_to_agent') return verifyAgentRow(message);
   const metadata = message.metadata;
   if (!metadata) throw failure(message, 'missing metadata');
   const provenance = asRecord(metadata.provenance);
@@ -59,7 +66,7 @@ async function verifySingle(message: VerifiableMessage): Promise<MessageAssuranc
     : verifySignature(message, provenance, signature, source);
 }
 
-function verifyAttribution(
+export function verifyAttribution(
   message: VerifiableMessage,
   signature: Record<string, unknown>,
   source: string,
@@ -67,7 +74,7 @@ function verifyAttribution(
   const status = requiredString(message, signature, 'status');
   const expected = source === 'discord' || source === 'telegram'
     ? 'unsupported'
-    : source === 'api'
+    : source === 'api' || source === 'agent'
       ? 'not_configured'
       : source === 'system' ? 'not_applicable' : null;
   if (!expected) throw failure(message, 'unsigned native source');
@@ -102,7 +109,7 @@ async function verifySignature(
   return { kind: 'verified', source, keyId };
 }
 
-function parseJws(message: VerifiableMessage, compact: string): ParsedJws {
+export function parseJws(message: VerifiableMessage, compact: string): ParsedJws {
   const segments = compact.split('.');
   if (segments.length !== 3 || segments.some((segment) => !segment)) {
     throw failure(message, 'malformed compact JWS');
@@ -147,7 +154,7 @@ function validatePayload(
   if (payload.boss_id !== actor?.id) throw failure(message, 'signed boss identity mismatch');
 }
 
-async function importPublicKey(message: VerifiableMessage, value: Uint8Array): Promise<CryptoKey> {
+export async function importPublicKey(message: VerifiableMessage, value: Uint8Array): Promise<CryptoKey> {
   if (value.length !== 65) throw failure(message, 'invalid P-256 public key length');
   try {
     return await crypto.subtle.importKey(
@@ -173,7 +180,7 @@ function decodeJson(
   }
 }
 
-function decodeRequired(
+export function decodeRequired(
   message: VerifiableMessage,
   record: Record<string, unknown>,
   key: string,
@@ -181,7 +188,7 @@ function decodeRequired(
   return decode(message, requiredString(message, record, key));
 }
 
-function decode(message: VerifiableMessage, value: string): Uint8Array {
+export function decode(message: VerifiableMessage, value: string): Uint8Array {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length % 4 === 1) {
     throw failure(message, 'invalid base64url encoding');
   }
@@ -192,7 +199,7 @@ function decode(message: VerifiableMessage, value: string): Uint8Array {
   return bytes;
 }
 
-function requiredString(
+export function requiredString(
   message: VerifiableMessage,
   record: Record<string, unknown>,
   key: string,
@@ -202,20 +209,20 @@ function requiredString(
   return value;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
+export function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
 }
 
-function arrayBuffer(value: Uint8Array): ArrayBuffer {
+export function arrayBuffer(value: Uint8Array): ArrayBuffer {
   return value.slice().buffer as ArrayBuffer;
 }
 
-function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
+export function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return left.length === right.length && left.every((byte, index) => byte === right[index]);
 }
 
-function failure(message: VerifiableMessage, detail: string): Error {
+export function failure(message: VerifiableMessage, detail: string): Error {
   return new Error(`message ${message.id} failed provenance verification: ${detail}`);
 }

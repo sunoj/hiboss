@@ -1,5 +1,5 @@
 // Purpose: Boss management client methods for hiboss CLI.
-// Exports: Boss-related methods on HiBossClient (list, update, delete, access).
+// Exports: Boss-related methods on HiBossClient (list, update, delete, access, verified inbox reads).
 // Dependencies: reqwest, serde_json, crate::client::HiBossClient.
 
 use super::HiBossClient;
@@ -134,7 +134,7 @@ impl HiBossClient {
             request = request.query(&[("count", "true")]);
         }
         let resp = request.send().await?;
-        Self::parse_response(resp).await
+        verified_rows(Self::parse_response(resp).await?)
     }
     pub async fn boss_read(&self, id: &str) -> Result<Value, Box<dyn Error>> {
         let resp = self
@@ -143,14 +143,23 @@ impl HiBossClient {
             .bearer_auth(&self.api_key)
             .send()
             .await?;
-        Self::parse_response(resp).await
+        verified_rows(Self::parse_response(resp).await?)
     }
     pub async fn boss_reply(&self, id: &str, body: &str) -> Result<Value, Box<dyn Error>> {
+        let mut id = id.to_owned();
+        if self.signer()?.is_some() {
+            let parent = self.boss_read(&id).await?;
+            id = parent.get("id").and_then(Value::as_str).ok_or("boss inbox returned no message ID")?.to_owned();
+        }
+        let request = self.signed_body(
+            serde_json::json!({ "body": body }),
+            serde_json::json!({ "kind": "boss_reply", "message_id": id }),
+        )?;
         let resp = self
             .http
             .post(format!("{}/api/boss/inbox/{}/reply", self.base_url, id))
             .bearer_auth(&self.api_key)
-            .json(&serde_json::json!({ "body": body }))
+            .json(&request)
             .send()
             .await?;
         Self::parse_response(resp).await
@@ -164,5 +173,36 @@ impl HiBossClient {
             .send()
             .await?;
         Self::parse_response(resp).await
+    }
+}
+
+/// A boss-agent hands these bodies to a model: verify every row (and its replies) first.
+fn verified_rows(value: Value) -> Result<Value, Box<dyn Error>> {
+    let rows = match value.get("messages") {
+        Some(Value::Array(items)) => items.clone(),
+        _ if value.get("id").is_some() => vec![value.clone()],
+        _ => Vec::new(),
+    };
+    for row in rows {
+        let message: crate::types::Message = serde_json::from_value(row)?;
+        crate::message_security::verify_message(&message)?;
+    }
+    Ok(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verified_rows;
+    use serde_json::json;
+
+    #[test]
+    fn boss_inbox_rows_are_verified_before_use() {
+        let forged = json!({"messages": [{"id": "m1", "agent_id": "a1", "direction": "agent_to_boss", "body": "hi",
+            "metadata": {"source": "ios", "provenance": {"version": 1, "source": "ios",
+                "signature": {"status": "not_configured"}}}}], "total": 1});
+        assert!(verified_rows(forged).is_err());
+        let legacy = json!({"messages": [{"id": "m1", "agent_id": "a1", "direction": "agent_to_boss", "body": "hi"}], "total": 1});
+        assert!(verified_rows(legacy).is_ok());
+        assert!(verified_rows(json!({"total": 3})).is_ok());
     }
 }
