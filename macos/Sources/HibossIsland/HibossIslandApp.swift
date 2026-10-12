@@ -76,14 +76,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let joinRequests: JoinRequestsModel
     var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
-    private var statusItem: NSStatusItem?
+    private(set) var statusItem: NSStatusItem?
     var identity: AccountAuthorization { settings.identity }
     let overview: OverviewStore
     let requiredInputs = RequiredInputStore()
     var cancellables: Set<AnyCancellable> = []
 
-    override init() {
-        let settings = AppSettings()
+    override convenience init() {
+        self.init(settings: AppSettings())
+    }
+
+    init(settings: AppSettings) {
         self.settings = settings
         notifications = MessageNotificationStore(center: notificationCenter)
         preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
@@ -174,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func setStatusItemVisible(_ isVisible: Bool) {
+    func setStatusItemVisible(_ isVisible: Bool) {
         guard isVisible else {
             if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
             statusItem = nil
@@ -214,11 +217,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     @objc private func reconnect() {
-        guard case let .success(config) = settings.connectionConfig() else { return }
-        let api = HibossAPI(config: config)
-        requiredInputs.connect(api)
-        flow.connect(api: api)
-        notifications.connect(api: api)
+        Task { [weak self] in
+            guard let self, case let .success(config) = await settings.connect() else { return }
+            let api = HibossAPI(config: config)
+            requiredInputs.connect(api)
+            flow.connect(api: api)
+            notifications.connect(api: api)
+            await preferencesStore.load()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
