@@ -7,6 +7,7 @@ import HibossKit
 import XCTest
 @testable import HibossIsland
 
+@MainActor
 final class TodayBehaviorTests: XCTestCase {
     private let now = AttentionTestSupport.now
 

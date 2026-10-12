@@ -1,7 +1,8 @@
-// Picks the island's visible option using the same ranking as the window.
-// Exports: IslandAttention.presentation.
-// Dependencies: HibossKit OptionMessage and HistoryMessage, TodaySnapshot.
+// Picks and filters the island's visible option using the same ranking as the window.
+// Exports: IslandAttention presentation and lifetime-local skip state.
+// Dependencies: Combine, Foundation, and HibossKit Today models.
 
+import Combine
 import Foundation
 import HibossKit
 
@@ -10,20 +11,45 @@ struct IslandPresentation: Equatable {
     let item: AttentionItem?
 }
 
-enum IslandAttention {
+@MainActor
+final class IslandAttention: ObservableObject {
+    static let shared = IslandAttention()
+
+    @Published private(set) var skippedMessageIDs: Set<MessageID> = []
+
+    private init() {}
+
+    static func skip(messageID: MessageID) {
+        shared.skip(messageID: messageID)
+    }
+
+    func skip(messageID: MessageID) {
+        skippedMessageIDs.insert(messageID)
+    }
+
     /// The most intrusive surface always carries the shared queue's first decision.
     static func presentation(snapshot: TodaySnapshot) -> IslandPresentation? {
-        let items = snapshot.decisions
-        guard let first = items.first else { return nil }
+        shared.filteredPresentation(snapshot: snapshot)
+    }
+
+    private func filteredPresentation(snapshot: TodaySnapshot) -> IslandPresentation? {
+        guard let first = snapshot.decisions.first(where: { !skippedMessageIDs.contains($0.id) }) else {
+            return nil
+        }
         return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 
     static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
                              state: PresentationState) -> IslandPresentation? {
-        if case .resolved = state, let active {
+        shared.filteredPresentation(snapshot: snapshot, active: active, state: state)
+    }
+
+    func filteredPresentation(snapshot: TodaySnapshot, active: OptionMessage?,
+                              state: PresentationState) -> IslandPresentation? {
+        if case .resolved = state, let active, !skippedMessageIDs.contains(active.id) {
             return IslandPresentation(message: active, item: nil)
         }
-        return presentation(snapshot: snapshot)
+        return filteredPresentation(snapshot: snapshot)
     }
 
     static func autoDecisionCaption(for item: AttentionItem, now: Date) -> String? {

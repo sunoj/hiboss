@@ -6,6 +6,7 @@ import HibossKit
 import XCTest
 @testable import HibossIsland
 
+@MainActor
 final class AttentionIslandAgreementTests: XCTestCase {
     private let now = AttentionTestSupport.now
     private func iso(_ date: Date) -> String { AttentionTestSupport.iso(date) }

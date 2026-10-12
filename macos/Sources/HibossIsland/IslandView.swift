@@ -13,6 +13,7 @@ enum OptionSurfaceStyle: Sendable {
 struct IslandView: View {
     @ObservedObject var overview: OverviewStore
     @ObservedObject var flow: OptionFlowStore
+    @ObservedObject var attention: IslandAttention
     /// Drafts, sending and feedback keyed by message id; owned outside the hosting root so a
     /// new question or presentation never erases them.
     @ObservedObject var reply: AttentionReplyState
@@ -21,10 +22,12 @@ struct IslandView: View {
 
     init(
         flow: OptionFlowStore, reply: AttentionReplyState, overview: OverviewStore,
-        surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0
+        surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0,
+        attention: IslandAttention = .shared
     ) {
         self.overview = overview
         self.flow = flow
+        self.attention = attention
         self.reply = reply
         self.surfaceStyle = surfaceStyle
         self.topInset = topInset
@@ -42,9 +45,13 @@ struct IslandView: View {
 
     @ViewBuilder
     private func islandContent(now: Date) -> some View {
-        if case let .resolved(answer, source) = flow.presentationState, let message = flow.activeMessage {
+        let presentation = attention.filteredPresentation(snapshot: overview.snapshot.today,
+            active: flow.activeMessage, state: flow.presentationState)
+        if case let .resolved(answer, source) = flow.presentationState,
+           let message = flow.activeMessage, presentation?.item == nil,
+           presentation?.message.id == message.id {
             resolvedCard(message, answer: answer, source: source)
-        } else if let presentation = IslandAttention.presentation(snapshot: overview.snapshot.today) {
+        } else if let presentation {
             let message = presentation.message
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)
@@ -132,10 +139,8 @@ struct IslandView: View {
                     .controlSize(.small)
                     .tint(.white)
             }
-            if flow.activeMessage?.id == message.id {
-                SkipButton { flow.skip() }
-                    .disabled(isSubmitting(message.id))
-            }
+            SkipButton { attention.skip(messageID: message.id) }
+                .disabled(isSubmitting(message.id))
         }
     }
 
