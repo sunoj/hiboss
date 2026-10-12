@@ -9,6 +9,29 @@ import XCTest
 
 @MainActor
 final class IslandPresentationRegressionTests: XCTestCase {
+    func testSkippingIslandDecisionsAdvancesOnlyTheIslandPresentation() {
+        let now = AttentionTestSupport.now
+        let first = AttentionTestSupport.ask(id: "island-skip-first", options: ["Ship"],
+            createdAt: AttentionTestSupport.iso(now.addingTimeInterval(-120)), now: now)
+        let second = AttentionTestSupport.ask(id: "island-skip-second", options: ["Hold"],
+            createdAt: AttentionTestSupport.iso(now.addingTimeInterval(-60)), now: now)
+        let snapshot = TodaySnapshot(history: [], requiredInputs: [first, second],
+            health: .live(checkedAt: now), coverageComplete: true, now: now)
+
+        XCTAssertEqual(IslandAttention.presentation(snapshot: snapshot)?.message.id, first.id)
+        IslandAttention.skip(messageID: first.id)
+        XCTAssertEqual(IslandAttention.presentation(snapshot: snapshot)?.message.id, second.id)
+        IslandAttention.skip(messageID: second.id)
+
+        XCTAssertNil(IslandAttention.presentation(snapshot: snapshot))
+        XCTAssertEqual(snapshot.decisions.map(\.id), [first.id, second.id])
+
+        let third = AttentionTestSupport.ask(id: "island-skip-new", options: ["Review"], now: now)
+        let refreshed = TodaySnapshot(history: [], requiredInputs: [first, second, third],
+            health: .live(checkedAt: now), coverageComplete: true, now: now)
+        XCTAssertEqual(IslandAttention.presentation(snapshot: refreshed)?.message.id, third.id)
+    }
+
     func testRepeatedSnapshotsWithSameLeadingDecisionNeverPresentOrActivateAgain() async throws {
         let question = AttentionTestSupport.ask(id: "question", options: ["Ship"], now: .now)
         let overview = OverviewStore()

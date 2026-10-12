@@ -12,6 +12,7 @@ final class IslandPanelController {
     let panel: NSPanel
     let optionWindow: NSWindow
     private let flow: OptionFlowStore
+    private let attention: IslandAttention
     /// One reply state for both hosting roots: drafts survive question and presentation changes.
     let reply = AttentionReplyState()
     private let settings: AppSettings
@@ -31,9 +32,11 @@ final class IslandPanelController {
         soundPlayer: any SoundPlaying = SystemSoundPlayer(),
         screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
-        activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) }
+        activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) },
+        attention: IslandAttention = .shared
     ) {
         self.flow = flow
+        self.attention = attention
         self.settings = settings
         self.overview = overview
         self.soundPlayer = soundPlayer
@@ -69,7 +72,8 @@ final class IslandPanelController {
         panel.hidesOnDeactivate = false
         panel.isMovable = false
         let host = BoxDropHostingView(
-            rootView: IslandView(flow: flow, reply: reply, overview: overview), settings: settings)
+            rootView: IslandView(flow: flow, reply: reply, overview: overview,
+                attention: attention), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
         dropReveal = IslandDropRevealController(
@@ -103,7 +107,8 @@ final class IslandPanelController {
             optionWindow.standardWindowButton(button)?.isHidden = true
         }
         let host = NSHostingView(
-            rootView: IslandView(flow: flow, reply: reply, overview: overview, surfaceStyle: .window)
+            rootView: IslandView(flow: flow, reply: reply, overview: overview,
+                surfaceStyle: .window, attention: attention)
         )
         host.sizingOptions = []
         optionWindow.contentView = host
@@ -116,10 +121,12 @@ final class IslandPanelController {
     ]
 
     private func observeFlow() {
-        let content = Publishers.CombineLatest3(
-            overview.$snapshot, flow.$activeMessage, flow.$presentationState)
-        let presentations = content.map { snapshot, active, state -> IslandPresentation? in
-            IslandAttention.presentation(snapshot: snapshot.today, active: active, state: state)
+        let attention = self.attention
+        let content = Publishers.CombineLatest4(
+            overview.$snapshot, flow.$activeMessage, flow.$presentationState,
+            attention.$skippedMessageIDs)
+        let presentations = content.map { snapshot, active, state, _ -> IslandPresentation? in
+            attention.filteredPresentation(snapshot: snapshot.today, active: active, state: state)
         }
         Publishers.CombineLatest(presentations, settings.$presentationMode)
             .removeDuplicates { previous, next in
@@ -131,8 +138,7 @@ final class IslandPanelController {
             }
             .store(in: &cancellables)
 
-        // activeMessage publishes once per question reaching the panel — including the ones
-        // that surface from the queue behind a skip — and nil when it clears.
+        // activeMessage publishes once per question reaching the panel and nil when it clears.
         flow.$activeMessage
             .sink { [weak self] message in
                 guard message != nil else { return }
@@ -206,7 +212,7 @@ final class IslandPanelController {
         guard settings.presentationMode == .island,
             !followingPointer || questionScreen == nil else { return }
         setContentInset(geometry.expandedTopInset)
-        guard let message = IslandAttention.presentation(snapshot: overview.snapshot.today,
+        guard let message = attention.filteredPresentation(snapshot: overview.snapshot.today,
             active: flow.activeMessage, state: flow.presentationState)?.message else { return }
         questionScreen = geometry
         panel.setFrame(
