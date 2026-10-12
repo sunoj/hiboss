@@ -93,7 +93,7 @@ for, and that answer deserves to feel settled rather than merely empty.
   `ios/App/Media/MediaViewer.swift` (pinch and double-tap zoom, paging, share, swipe down to
   close). No surface ships its own full-screen media view.
 - **Visual deliveries attach full-screen screenshots** of each touched screen (light, dark, one
-  large text size). They are reviewed for alignment and duplicated titles before merging.
+  large text size), plus each touched menu, sheet or popover shown open. They are reviewed for alignment and duplicated titles before merging.
 
 ## 5. Reach and touch
 

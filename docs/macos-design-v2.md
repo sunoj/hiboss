@@ -144,7 +144,9 @@ system's. Edges, separators and baselines line up across the sidebar and detail 
 title appears once: the window/toolbar title or an in-content large title, never both.
 
 **Every visual change ships full-window screenshots** at real size (not component snapshots)
-of each surface it touched, light and dark, attached to the delivery. Review them for
+of each surface it touched, light and dark, attached to the delivery, plus one shot with
+each touched menu, pop-up button, popover or sheet open (menus flatten custom item views,
+so a menu is only verified when it is seen open). Review them for
 alignment, duplicated titles and clipped controls before merging; a delivery without them is
 not reviewed.
 
