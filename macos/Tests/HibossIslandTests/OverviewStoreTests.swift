@@ -47,4 +47,29 @@ final class OverviewStoreTests: XCTestCase {
         XCTAssertEqual(store.snapshot.count(.completed), 1)
         XCTAssertEqual(store.snapshot.count(.all), 1)
     }
+
+    func testLateAnswerFromPreviousIdentityDoesNotRestoreHistory() async {
+        let identity = AccountIdentityGeneration()
+        let store = OverviewStore(identity: identity)
+        let question = AttentionTestSupport.ask(id: "old", options: ["Ship"], sessionStatus: "waiting")
+        store.update(history: [question], live: nil, requiredInputs: [question], requiredInputLoaded: true)
+        let started = expectation(description: "reply started")
+        var release: (() -> Void)?
+        let task = Task {
+            await store.answer("Ship", for: question.id, using: { _, _ in
+                started.fulfill()
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    release = { continuation.resume() }
+                }
+                return nil
+            })
+        }
+        await fulfillment(of: [started])
+        store.accountDidChange()
+        release?()
+        _ = await task.value
+
+        XCTAssertTrue(store.snapshot.history.isEmpty)
+        XCTAssertTrue(store.snapshot.today.decisions.isEmpty)
+    }
 }

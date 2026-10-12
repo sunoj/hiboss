@@ -17,6 +17,7 @@ struct SessionView: View {
     let onBox: (String) -> Void
     let onSession: (String) -> Void
     @State private var showsInspector = false
+    let identityGeneration: Int
 
     var body: some View {
         GeometryReader { geometry in
@@ -60,7 +61,8 @@ struct SessionView: View {
                     }
                 }.frame(maxHeight: 260)
             }.padding(.horizontal, 20).padding(.vertical, 8)
-            SessionComposer(context: context, reply: reply, onChoose: onChoose).id(context.id)
+            SessionComposer(context: context, reply: reply, onChoose: onChoose)
+                .id("\(context.id)-\(identityGeneration)")
         }
     }
 

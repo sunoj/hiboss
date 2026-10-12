@@ -16,7 +16,8 @@ struct HibossIslandApp: App {
             MainView(settings: appDelegate.settings, flow: appDelegate.flow,
                 notificationNavigation: appDelegate.notificationNavigation,
                 joinRequests: appDelegate.joinRequests,
-                overviewStore: appDelegate.overview, requiredInputs: appDelegate.requiredInputs)
+                overviewStore: appDelegate.overview, requiredInputs: appDelegate.requiredInputs,
+                identity: appDelegate.identity)
         }
         .defaultSize(width: 1320, height: 820)
         .commands {
@@ -76,7 +77,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var joinRequestPolling: Task<Void, Never>?
     private var panelController: IslandPanelController?
     private var statusItem: NSStatusItem?
-    let overview = OverviewStore()
+    let identity = AccountIdentityGeneration()
+    let overview: OverviewStore
     let requiredInputs = RequiredInputStore()
     var cancellables: Set<AnyCancellable> = []
 
@@ -88,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         joinRequests = JoinRequestsModel {
             (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
         }
+        overview = OverviewStore(identity: identity)
         super.init()
         overview.bind(flow: flow, inputs: requiredInputs)
     }
