@@ -91,7 +91,8 @@ final class IslandNotchRenderingTests: XCTestCase {
         window.contentView = host
         window.orderFront(nil)
         defer { window.close() }
-        try await Task.sleep(for: .milliseconds(400))
+        // The resolved source fades in after a 450ms delay and a 250ms animation.
+        try await Task.sleep(for: .milliseconds(800))
         host.layoutSubtreeIfNeeded()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
