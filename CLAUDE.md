@@ -204,7 +204,7 @@ exception, not the default.
 
 | Component | Default for a change | Full suite only when |
 |---|---|---|
-| `server/` | The changed modules' test files plus `npx vitest related <changed files>`, run remotely | A deploy is being prepared, or `wrangler.toml`, migrations, shared types (`src/types.ts`), auth middleware or `package-lock.json` changed |
+| `server/` | The changed modules' test files plus the test files that import them (`grep -rl <module> src --include=*.test.ts`), run remotely; `vitest related` cannot parse the Worker entry's HTML import | A deploy is being prepared, or `wrangler.toml`, migrations, shared types (`src/types.ts`), auth middleware or `package-lock.json` changed |
 | `cli/` | `cargo test <module>` for the changed modules, run remotely | `Cargo.toml`/`Cargo.lock` changed, or a release is being cut |
 | `HibossKit/` | `swift test --filter <Class>` for the changed types | Its public API changed (then also `cd macos && swift build`) |
 | `macos/` | See macOS verification below | Once per task, on the final commit |
