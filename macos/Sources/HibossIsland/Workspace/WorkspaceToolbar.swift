@@ -24,9 +24,11 @@ struct WorkspaceToolbar: ViewModifier {
                     ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
                     .foregroundStyle(flow.connectionState == .connected ? DesignTokens.live : .secondary)
                     .help(flow.connectionState.label)
+                    .layoutProbe("workspace.live")
                 Button(action: onRefresh) { Image(systemName: "arrow.clockwise") }
                     .help(refreshHelp)
                     .keyboardShortcut("r", modifiers: .command)
+                    .layoutProbe("workspace.refresh")
             }
         }
     }

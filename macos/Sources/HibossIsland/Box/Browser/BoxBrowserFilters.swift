@@ -33,7 +33,7 @@ struct BoxBrowserFilters: View {
             ForEach(BoxItem.Kind.allCases, id: \.self) { kind in
                 Text(kind.filterTitle).tag(Optional(kind))
             }
-        }.pickerStyle(.menu).controlSize(.small).fixedSize()
+        }.pickerStyle(.menu)
             .accessibilityIdentifier("box.filters")
             .layoutProbe("box.filters")
     }
@@ -43,7 +43,7 @@ struct BoxBrowserFilters: View {
             ForEach(BoxAuthorFilter.allCases) { author in
                 Text(L("Source:") + " " + author.title).tag(author)
             }
-        }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
+        }.pickerStyle(.menu).labelsHidden()
             .accessibilityIdentifier("box.source")
             .layoutProbe("box.source")
     }

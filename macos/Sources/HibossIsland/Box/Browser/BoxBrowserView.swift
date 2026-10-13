@@ -48,9 +48,11 @@ struct BoxBrowserView: View {
     }
 
     @ToolbarContentBuilder private var filters: some ToolbarContent {
-        ToolbarItem(placement: .automatic) { BoxBrowserFilters(store: store) }
-        ToolbarItem(placement: .automatic) { BoxBrowserFilters(store: store).authorPicker }
-        ToolbarItem(placement: .automatic) { BoxBrowserFilters(store: store).projectPicker }
+        ToolbarItemGroup(placement: .primaryAction) {
+            BoxBrowserFilters(store: store)
+            BoxBrowserFilters(store: store).authorPicker
+            BoxBrowserFilters(store: store).projectPicker
+        }
     }
 
     private var browser: some View {
