@@ -44,7 +44,7 @@ struct SessionInspector: View {
             if let branch = context.branch { LabeledContent(L("Branch"), value: branch) }
             if let started = context.facts?.startedAt.flatMap(ISODate.parse) {
                 LabeledContent(L("Started")) {
-                    Text(started, format: .dateTime.month().day().hour().minute())
+                    Text(SharedTimestamp.string(started))
                 }
             }
         }.font(.callout)

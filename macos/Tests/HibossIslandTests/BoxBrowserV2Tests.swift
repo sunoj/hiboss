@@ -132,7 +132,8 @@ final class BoxBrowserV2Tests: XCTestCase {
             locale: locale, calendar: calendar), "3 分钟前")
         XCTAssertEqual(BoxTime.relative("2026-10-11T22:30:00Z", now: now,
             locale: locale, calendar: calendar), "昨天 22:30")
-        XCTAssertEqual(BoxTime.absolute("2026-10-11T22:30:00Z", locale: locale,
+        XCTAssertEqual(BoxTime.absolute("2026-10-11T22:30:00Z",
+            now: try XCTUnwrap(ISODate.parse("2027-10-12T09:00:00Z")), locale: locale,
             timeZone: calendar.timeZone), "2026年10月11日 22:30")
         XCTAssertEqual(BoxTime.absolute("invalid"), "invalid")
         XCTAssertEqual(BoxTime.relative("invalid"), "invalid")

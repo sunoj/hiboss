@@ -93,7 +93,7 @@ struct HistoryDecisionBlock: View {
                 .font(.caption).foregroundStyle(.secondary)
         case let .chosen(_, source):
             if let label = thread.newestReply?.metadata?.answeredBy?.displayLabel
-                ?? source.flatMap({ $0.lowercased() == "macos" ? nil : $0.capitalized }) {
+                ?? source.flatMap(AnswerSource.visibleLabel) {
                 Text(L("Answered on \(label)"))
                     .font(.caption).foregroundStyle(.secondary)
             }

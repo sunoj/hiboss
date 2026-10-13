@@ -1,6 +1,6 @@
 // Selectable replies in server order, nested beneath their agent message.
 // Exports: HistoryReplies; folded replies never have a Details disclosure.
-// Dependencies: SwiftUI, HibossKit, HistoryTimestamp, and localized attribution.
+// Dependencies: SwiftUI, HibossKit, SharedTimestamp, AnswerSource, and localized attribution.
 
 import HibossKit
 import SwiftUI
@@ -32,8 +32,9 @@ struct HistoryReplies: View {
             } else {
                 Text(L("Me"))
             }
-            Text(HistoryTimestamp.shortLocalTime(from: reply.createdAt))
-            if let source = reply.metadata?.answeredBy?.displayLabel ?? reply.metadata?.source?.capitalized,
+            Text(ISODate.parse(reply.createdAt).map { SharedTimestamp.string($0) } ?? L("Unknown"))
+            if let source = reply.metadata?.answeredBy?.displayLabel
+                ?? reply.metadata?.source.flatMap(AnswerSource.visibleLabel),
                !source.isEmpty {
                 Text(verbatim: source)
             }
