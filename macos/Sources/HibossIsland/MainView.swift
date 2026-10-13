@@ -1,6 +1,6 @@
 // Main window: Today, Box, Progress, and session threads with native sidebar navigation.
-// Exports: MainView with persistent Panels state and shared attention drafts.
-// Dependencies: SwiftUI, HibossKit, TodayView, AttentionView, and HistoryView.
+// Exports: MainView with persistent Panels state, attention drafts, and local session reads.
+// Dependencies: SwiftUI, HibossKit, workspace surfaces, and SessionReadTracking.
 
 import HibossKit
 import AppKit
@@ -15,6 +15,8 @@ struct MainView: View {
     @StateObject private var reply = AttentionReplyState()
     @ObservedObject private var requiredInputs: RequiredInputStore
     @StateObject private var overviewStore = OverviewStore()
+    @StateObject private var sessionReads: SessionReadStore
+    private let sessionWindowIsKey: Binding<Bool>?
     @StateObject private var panels: PanelsModel
     @StateObject private var box: BoxBrowserStore
     @StateObject private var progress: ProgressFeedStore
@@ -42,9 +44,13 @@ struct MainView: View {
          progressProvider: ProgressFeedStore.Provider? = nil,
          progressStore: ProgressFeedStore? = nil,
          panelsModel: PanelsModel? = nil,
+         sessionReadStore: SessionReadStore? = nil,
+         sessionWindowIsKey: Binding<Bool>? = nil,
          identity: AccountAuthorization? = nil) {
         let accountIdentity = identity ?? overviewStore?.identity ?? settings.identity
         self.identity = accountIdentity
+        _sessionReads = StateObject(wrappedValue: sessionReadStore ?? SessionReadStore())
+        self.sessionWindowIsKey = sessionWindowIsKey
         self.requiredInputs = requiredInputs
         _overviewStore = StateObject(wrappedValue: overviewStore
             ?? OverviewStore(identity: accountIdentity))
@@ -109,6 +115,9 @@ struct MainView: View {
     }
     var body: some View {
         observedContent
+        .modifier(SessionReadTracking(reads: sessionReads,
+            account: settings.activeClientConfig.map { SessionReadAccount(config: $0) },
+            destination: destination, overview: overviewStore, windowIsKey: sessionWindowIsKey))
         .environment(\.projectSessions, previewSessions ?? flow.projectSessions)
         .environment(\.agentAvatars, previewHistory == nil ? flow.agentAvatars : AttentionPreview.avatars)
         .onChange(of: settings.activeClientConfig) {
@@ -196,6 +205,7 @@ struct MainView: View {
             connectionState: previewHistory == nil ? flow.connectionState : .connected,
             hasLoadedHistory: previewHistory != nil || flow.historyLoadedAt != nil,
             deviceRequestCount: joinRequests.pendingCount,
+            unreadSessionIDs: sessionReads.unreadSessionIDs(in: snapshot),
             onSelect: {
                 destination = $0
                 showsCompactOverview = false
@@ -232,7 +242,9 @@ struct MainView: View {
                         countsAvailable: previewHistory != nil || flow.historyLoadedAt != nil
                             || !snapshot.history.isEmpty)
                     Divider()
-                    messageSurface(snapshot)
+                    MainMessageSurface(snapshot: snapshot, destination: destination, flow: flow,
+                        reply: reply, isPreview: previewHistory != nil, onChoose: answer,
+                        onSettings: { openWindow(id: "settings") })
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             }
@@ -251,27 +263,6 @@ struct MainView: View {
                 box.project = project
                 destination = .box
             }, onSession: { destination = .session($0) }, identityGeneration: identity.generation)
-    }
-
-    @ViewBuilder
-    private func messageSurface(_ snapshot: OverviewSnapshot) -> some View {
-        if snapshot.history.isEmpty, flow.connectionState == .disconnected, previewHistory == nil {
-            ContentUnavailableView {
-                Label(L("Connect to HiBoss"), systemImage: "antenna.radiowaves.left.and.right.slash")
-            } description: {
-                Text(L("Connect to receive agent messages."))
-            } actions: {
-                Button(L("Settings")) { openWindow(id: "settings") }
-            }
-        } else if case let .category(category) = destination, category.isAttention {
-            AttentionView(flow: flow, reply: reply, category: category,
-                items: snapshot.attention.filter { item in
-                    snapshot.messages(for: destination).contains { $0.id == item.id }
-                },
-                now: snapshot.now, answerability: snapshot.answerability, onChoose: answer)
-        } else {
-            HistoryView(flow: flow, snapshot: snapshot, scope: destination, onChoose: answer, reply: reply)
-        }
     }
 
     private func adaptSidebar(to width: CGFloat) {

@@ -23,7 +23,7 @@ struct TodaySummary: View {
                 }
                 if !snapshot.working.isEmpty {
                     Label(L("\(snapshot.working.count) working"), systemImage: "circle.fill")
-                        .foregroundStyle(TodayStyle.live)
+                        .foregroundStyle(TodayStyle.settled)
                 }
             }.font(.callout)
             if case let .live(checkedAt) = snapshot.health {

@@ -12,6 +12,7 @@ struct OverviewSidebar: View {
     let connectionState: ConnectionState
     var hasLoadedHistory = false
     var deviceRequestCount = 0
+    var unreadSessionIDs: Set<String> = []
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
     let onRefresh: () -> Void
@@ -135,12 +136,9 @@ struct OverviewSidebar: View {
             slug: session.projectLabel, displayName: session.projectLabel)
         return HStack(spacing: 8) {
             ProjectAvatarView(project: project, size: 28)
-            Circle().fill(session.needsYou ? TodayStyle.signal
-                : snapshot.today.sessionDirectory.working.contains(where: { $0.id == session.id })
-                    ? TodayStyle.live : TodayStyle.tertiary)
-                .frame(width: 7, height: 7)
-                .accessibilityLabel(session.needsYou ? L("Needs You")
-                    : session.hasLiveWork(now: snapshot.now) ? L("Working now") : L("Idle"))
+            SidebarSessionIndicator(needsYou: session.needsYou,
+                unread: unreadSessionIDs.contains(session.id)).view(sessionID: session.id)
+                .layoutProbe("sidebar.dotSlot.\(session.id)")
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 0) {
                     Text(verbatim: text.label).lineLimit(1).truncationMode(.tail)
@@ -150,11 +148,16 @@ struct OverviewSidebar: View {
                             .layoutPriority(1).layoutProbe("sidebar.nickname.\(session.id)")
                     }
                 }
-                if let agent = session.agentName {
-                    HStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    if let agent = session.agentName {
                         AgentAvatarView(name: agent, size: 20)
                         Text(verbatim: text.agent ?? agent)
                             .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .truncationMode(.tail)
+                            .layoutProbe("sidebar.agent.\(session.id)")
+                    }
+                    if session.hasLiveWork(now: snapshot.now) {
+                        SidebarWorkingCaption().layoutProbe("sidebar.working.\(session.id)")
                     }
                 }
             }
@@ -164,7 +167,11 @@ struct OverviewSidebar: View {
         .layoutProbe("sidebar.session.\(session.id)")
         .help(text.fullDescription)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(text.fullDescription)
+        .accessibilityLabel([text.fullDescription,
+            SidebarSessionIndicator(needsYou: session.needsYou,
+                unread: unreadSessionIDs.contains(session.id)).label,
+            session.hasLiveWork(now: snapshot.now) ? L("Working now") : ""]
+            .filter { !$0.isEmpty }.joined(separator: ", "))
     }
 
     private var footer: some View {
