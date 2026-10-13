@@ -77,16 +77,35 @@ enum BoxTime {
 }
 
 extension BoxItem {
-    var displayTitle: String {
-        if let text, !text.isEmpty {
-            if kind == .text {
-                let title = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
-                return title.count > 120 ? String(title.prefix(119)) + "…" : title
-            }
-            return text
+    func titleAndSubtitle() -> (title: String, subtitle: String, note: String?) {
+        let cleaned = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let meaningful = !cleaned.isEmpty && (kind == .text || kind == .link
+            || ![kind.rawValue, kindTitle].contains { $0.caseInsensitiveCompare(cleaned) == .orderedSame })
+        if !meaningful, kind != .link,
+           let note = note?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+            let lines = note.components(separatedBy: .newlines)
+            let remainder = lines.dropFirst().joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (lines[0].trimmingCharacters(in: .whitespaces), remainder,
+                remainder.isEmpty ? nil : remainder)
         }
-        return url ?? kindTitle
+        let title: String
+        if meaningful {
+            if kind == .text {
+                let first = cleaned.split(whereSeparator: \.isNewline).first.map(String.init) ?? cleaned
+                title = first.count > 120 ? String(first.prefix(119)) + "…" : first
+            } else { title = cleaned }
+        } else { title = url ?? kindTitle }
+        let subtitle: String
+        if kind == .link { subtitle = url.flatMap { URL(string: $0)?.host } ?? url ?? "" }
+        else if let note, !note.isEmpty { subtitle = note }
+        else {
+            subtitle = kind == .text ? (text ?? "").components(separatedBy: .newlines).dropFirst()
+                .joined(separator: " ") : ""
+        }
+        return (title, subtitle, note.flatMap { $0.isEmpty ? nil : $0 })
     }
+    var displayTitle: String { titleAndSubtitle().title }
     var authorTitle: String {
         switch author {
         case .boss: return L("Me")
@@ -95,12 +114,8 @@ extension BoxItem {
             return cleaned.isEmpty ? L("Agents") : L("Agents") + " · " + cleaned
         }
     }
-    var summary: String {
-        if kind == .link { return url.flatMap { URL(string: $0)?.host } ?? url ?? "" }
-        if let note, !note.isEmpty { return note }
-        return kind == .text ? (text ?? "").components(separatedBy: .newlines).dropFirst()
-            .joined(separator: " ") : ""
-    }
+    var summary: String { titleAndSubtitle().subtitle }
+    var detailNote: String? { titleAndSubtitle().note }
     var detailBody: String? {
         guard kind == .text, let text, !text.isEmpty, text != displayTitle else { return nil }
         return text

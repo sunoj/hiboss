@@ -22,6 +22,7 @@ struct BoxBrowserRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: item.displayTitle).font(.headline)
                         .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                        .layoutProbe("box.title.\(item.id)")
                     if !item.summary.isEmpty {
                         Text(verbatim: item.summary).font(.callout).lineLimit(1)
                             .foregroundStyle(item.kind == .link ? Color.accentColor : Color.secondary)

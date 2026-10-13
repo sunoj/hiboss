@@ -1,4 +1,4 @@
-// Native segmented kind picker and author pop-up, retaining project scoping.
+// Native kind and author menus that fit the toolbar, retaining project scoping.
 // Exports: BoxAuthorFilter and BoxBrowserFilters; author filters preserve paging.
 // Dependencies: SwiftUI, HibossKit BoxItem, and BoxBrowserStore.
 
@@ -33,8 +33,9 @@ struct BoxBrowserFilters: View {
             ForEach(BoxItem.Kind.allCases, id: \.self) { kind in
                 Text(kind.filterTitle).tag(Optional(kind))
             }
-        }.pickerStyle(.segmented).labelsHidden().controlSize(.small)
+        }.pickerStyle(.menu).controlSize(.small).fixedSize()
             .accessibilityIdentifier("box.filters")
+            .layoutProbe("box.filters")
     }
 
     var authorPicker: some View {

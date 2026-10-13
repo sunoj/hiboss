@@ -1387,6 +1387,22 @@
         }
       }
     },
+    "Box items: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Box items: %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Box 条目：%lld"
+          }
+        }
+      }
+    },
     "More": {
       "localizations": {
         "en": {

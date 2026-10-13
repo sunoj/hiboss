@@ -24,10 +24,12 @@ struct BoxBrowserDetail: View {
                                 preview(item)
                                 Text(verbatim: item.displayTitle).font(.title2).textSelection(.enabled)
                             }
-                            if let note = item.note, !note.isEmpty {
+                            if let note = item.detailNote {
                                 Text(verbatim: note).textSelection(.enabled)
                             }
-                            GroupBox(L("Information")) { information(item).padding(8) }
+                            GroupBox(L("Information")) {
+                                information(item).padding(8).frame(maxWidth: .infinity)
+                            }.frame(maxWidth: .infinity).layoutProbe("box.information")
                         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Divider()
@@ -46,18 +48,18 @@ struct BoxBrowserDetail: View {
     }
 
     private func actions(_ item: BoxItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        HStack(spacing: 8) {
+            BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.open, .copy])
+            Menu(L("More")) {
                 BoxPaneActions(item: item, busy: busy, perform: perform,
-                    actions: [.quickLook, .open, .copy])
-            }
-            HStack {
-                BoxPaneActions(item: item, busy: busy, perform: perform,
-                    actions: [.share, .editNote, .delete])
-            }
+                    actions: [.quickLook, .share, .editNote])
+                Divider()
+                BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.delete])
+            }.layoutProbe("box.more")
             if busy { ProgressView().controlSize(.small) }
             if copied { Text(L("Copied")).font(.caption).foregroundStyle(.secondary) }
         }.buttonStyle(.bordered).controlSize(.small).frame(maxWidth: .infinity, alignment: .leading)
+            .layoutProbe("box.actions")
     }
 
     private func information(_ item: BoxItem) -> some View {
@@ -67,7 +69,7 @@ struct BoxBrowserDetail: View {
             if !item.tags.isEmpty { LabeledContent(L("Tags"), value: item.tags.joined(separator: ", ")) }
             if let format = item.detailFormat { LabeledContent(L("Format"), value: format) }
             LabeledContent(L("Added"), value: BoxTime.absolute(item.createdAt))
-        }.font(.callout).textSelection(.enabled)
+        }.font(.callout).textSelection(.enabled).frame(maxWidth: .infinity)
     }
 
     private func textContent(_ item: BoxItem) -> some View {

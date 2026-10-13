@@ -16,16 +16,12 @@ struct BoxBrowserView: View {
     @State private var previewImage: BoxItem?
     @State private var quickLookURL: URL?
     @State private var editingNote: BoxItem?
-    @State private var searchPresented = true
 
     var body: some View {
         browser
         .navigationTitle(L("Box"))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .workspaceChrome()
-        .toolbar { filters }
-        .searchable(text: $store.query, isPresented: $searchPresented,
-            placement: .toolbar, prompt: L("Search Box"))
         .task(id: store.query) {
             if !store.query.isEmpty { try? await Task.sleep(for: .milliseconds(250)) }
             guard !Task.isCancelled else { return }
@@ -55,21 +51,61 @@ struct BoxBrowserView: View {
     }
 
     @ToolbarContentBuilder private var filters: some ToolbarContent {
-        ToolbarItem(placement: .principal) { BoxBrowserFilters(store: store) }
+        ToolbarItem(placement: .automatic) { BoxBrowserFilters(store: store) }
         ToolbarItem(placement: .automatic) { BoxBrowserFilters(store: store).authorPicker }
         ToolbarItem(placement: .automatic) { BoxBrowserFilters(store: store).projectPicker }
     }
 
     private var browser: some View {
-        BoxBrowserColumns(sidebar: sidebar, content: listColumn, detail: detailColumn)
+        GeometryReader { geometry in
+            if geometry.size.width >= 900 {
+                BoxBrowserColumns(sidebar: sidebar, content: listColumn, detail: detailColumn)
+                    .toolbar { filters }
+                    .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
+            } else {
+                NavigationStack {
+                    listColumn
+                        .sheet(isPresented: Binding(get: { store.selectedItem != nil },
+                            set: { if !$0 { store.selection = nil } })) {
+                            VStack(spacing: 0) {
+                                HStack {
+                                    Spacer()
+                                    Button(L("Done")) { store.selection = nil }
+                                }.padding(12)
+                                detailColumn
+                            }.frame(minWidth: 320, idealWidth: 420, minHeight: 400)
+                        }
+                        .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
+                        .toolbar {
+                            ToolbarItem(placement: .primaryAction) {
+                                Menu {
+                                    BoxBrowserFilters(store: store)
+                                    BoxBrowserFilters(store: store).authorPicker
+                                    BoxBrowserFilters(store: store).projectPicker
+                                } label: { Label(L("Filter"), systemImage: "line.3.horizontal.decrease") }
+                                .labelStyle(.iconOnly)
+                                .layoutProbe("box.compact-filters")
+                            }
+                        }
+                }
+            }
+        }
     }
 
     private var listColumn: some View {
         VStack(spacing: 0) {
             content
-            CachedReadStatus(isRefreshing: store.hasResult && store.isLoading,
-                failure: store.hasResult ? store.error : nil,
-                retry: { Task { await store.refresh() } })
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack(spacing: 8) {
+                Text(L("Box items: \(store.visibleItems.count)"))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    .layoutProbe("box.item-count")
+                Spacer(minLength: 0)
+                CachedReadStatus(isRefreshing: store.hasResult && store.isLoading,
+                    failure: store.hasResult ? store.error : nil,
+                    retry: { Task { await store.refresh() } })
+                    .fixedSize(horizontal: true, vertical: false)
+            }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 28)
                 .padding(.horizontal, 8)
@@ -132,6 +168,7 @@ struct BoxBrowserView: View {
                 }
             }
             .accessibilityIdentifier("box.list")
+            .layoutProbe("box.list")
             .onKeyPress(.space) {
                 guard let item = store.selectedItem else { return .ignored }
                 perform(.quickLook, item: item)

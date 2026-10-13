@@ -1,4 +1,4 @@
-// Native session identity and live step strip with timestamped connection evidence.
+// Native session identity and labelled connection/activity strip; freshness lives in the toolbar.
 // Exports: SessionHeader; absent inventory facts are omitted.
 // Dependencies: SwiftUI, HibossKit, SessionContext, and design-v4 colours.
 
@@ -41,13 +41,11 @@ struct SessionHeader: View {
             HStack {
                 Label(connection.label, systemImage: connection == .connected
                     ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
-                if let status = context.facts?.status { Text(verbatim: status) }
-                Spacer(minLength: 4)
-                if let date = context.facts?.lastSeenAt.flatMap(ISODate.parse) {
-                    TimelineView(.periodic(from: .now, by: 1)) { tick in
-                        Text(L("Updated \(AttentionClock.elapsed(since: date, now: tick.date)) ago"))
-                    }
+                if let status = context.facts?.status {
+                    Text(verbatim: "·")
+                    Text(L("Status") + ": " + status)
                 }
+                Spacer(minLength: 4)
             }.font(.caption).foregroundStyle(TodayStyle.secondary)
         }
         .padding(10).background(TodayStyle.liveSoft, in: RoundedRectangle(cornerRadius: 6))

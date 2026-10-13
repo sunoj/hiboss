@@ -39,6 +39,8 @@ final class BoxStableRefreshTests: XCTestCase {
         XCTAssertFalse(controls.isEmpty, "Include the native toolbar controls")
         let status = try XCTUnwrap(probe.anchors["box.read-status"])
         let statusFrame = status.convert(status.bounds, to: root)
+        XCTAssertEqual(status.convert(status.bounds, to: nil).minY,
+            window.contentLayoutRect.minY, accuracy: 1, "The status bar stays at the window bottom")
         await api.holdNextRead()
         let refresh = Task { await store.refresh() }
         await api.waitForHeldRead()
@@ -81,6 +83,7 @@ final class BoxStableRefreshTests: XCTestCase {
         XCTAssertTrue(content.contains(L("Your Box is empty")), content)
         XCTAssertTrue(content.contains(L("Update failed")), content)
         XCTAssertFalse(content.contains(L("Box Unavailable")), content)
+        try capture(window, name: "box-empty-failed-retry")
         await api.setReadFailure(false)
         await api.holdNextRead()
         try clickRetry(in: root, window: window)

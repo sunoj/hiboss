@@ -31,7 +31,8 @@ final class BoxWindowCaptureTests: XCTestCase {
             defer { window.close() }
             let root = try XCTUnwrap(window.contentView?.superview)
             let views = BoxWindowCaptureSupport.descendants(root)
-            XCTAssertTrue(views.contains { $0 is NSSegmentedControl })
+            XCTAssertNotNil(probe.anchors["box.filters"], "Filters use native compact menus")
+            XCTAssertFalse(views.contains { $0 is NSSegmentedControl }, "No fixed-width six-segment toolbar")
             XCTAssertTrue(views.contains { $0 is NSSearchField })
             let popup = try XCTUnwrap(probe.anchors["box.source"])
             try await BoxWindowCaptureSupport.captureMenu(popup, window: window,
