@@ -16,14 +16,17 @@ enum DemoSessionReads {
          message("idle", body: "Thanks for the update", offset: -9_000, direction: "boss_to_agent")]
     }
 
-    private static func message(_ session: String, body: String, offset: TimeInterval,
-                                direction: String = "agent_to_boss", options: [String] = []) -> HistoryMessage {
+    private static func message(
+        _ session: String, body: String, offset: TimeInterval,
+        direction: String = "agent_to_boss", options: [String] = []
+    ) -> HistoryMessage {
         HistoryMessage(
             id: MessageID(rawValue: "read-\(session)-\(direction)"), body: body, agentName: "Release agent",
             direction: direction, status: "delivered", priority: "normal",
             mode: options.isEmpty ? "async" : "blocking", metadata: MessageMetadata(options: options),
             createdAt: Date().addingTimeInterval(offset).ISO8601Format(), sessionId: "read-\(session)",
-            sessionLabel: session == "unread" ? "Review" : session.capitalized, sessionStatus: session == "working" ? "working" : "idle"
+            sessionLabel: session == "unread" ? "Review" : session.capitalized,
+            sessionStatus: session == "working" ? "working" : "idle"
         )
     }
 }

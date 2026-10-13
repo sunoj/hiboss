@@ -104,11 +104,13 @@ final class SessionReadStoreTests: XCTestCase {
         let store = SessionReadStore(defaults: defaults)
         store.activate(account(), now: baseline)
         let agent = message(at: baseline.addingTimeInterval(20))
-        store.markRead("session", messages: [], events: DemoSessionStream.events(for: "session", from: [agent]),
+        store.markRead("session", messages: [],
+                       events: DemoSessionStream.events(for: "session", from: [agent]),
                        now: baseline.addingTimeInterval(1))
         XCTAssertTrue(store.unreadSessionIDs(messages: [agent]).isEmpty)
         let boss = message(at: baseline.addingTimeInterval(100), direction: "boss_to_agent")
-        store.markRead("session", messages: [boss], events: DemoSessionStream.events(for: "session", from: [boss]),
+        store.markRead("session", messages: [boss],
+                       events: DemoSessionStream.events(for: "session", from: [boss]),
                        now: baseline.addingTimeInterval(2))
         XCTAssertEqual(store.lastRead["session"], baseline.addingTimeInterval(20))
     }
@@ -144,7 +146,9 @@ final class SessionReadStoreTests: XCTestCase {
         XCTAssertEqual(restored.lastRead, store.lastRead)
     }
 
-    private func account(server: String = "https://test.invalid", token: String = "abc") -> SessionReadAccount {
+    private func account(
+        server: String = "https://test.invalid", token: String = "abc"
+    ) -> SessionReadAccount {
         SessionReadAccount(config: ConnectionConfig(serverURL: URL(string: server)!, bossToken: token))
     }
 

@@ -100,7 +100,9 @@ final class SessionReadStore: ObservableObject {
 
     private func persist() {
         guard let account,
-              let data = try? JSONEncoder().encode(Record(baseline: baseline, lastRead: lastRead)) else { return }
+              let data = try? JSONEncoder().encode(Record(baseline: baseline, lastRead: lastRead)) else {
+            return
+        }
         defaults.set(data, forKey: account.storageKey)
     }
 }

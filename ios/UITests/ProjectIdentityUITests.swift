@@ -56,6 +56,7 @@ final class ProjectIdentityUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["prod-release · fern"].exists)
         XCTAssertEqual(app.cells.count, 7)
         XCTAssertFalse(app.cells.staticTexts["prod-release · otter"].exists)
+        shot(app, "\(appearance)-all-peers")
         app.terminate()
     }
 

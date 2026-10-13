@@ -1,5 +1,5 @@
 // Renders a stable session attention/unread slot and provides the list read-state environment.
-// Exports SessionReadIndicator and unreadSessionIDs; needs-you takes priority over unread.
+// Exports SessionReadIndicator and read-state environments; needs-you takes priority over unread.
 // Dependencies: SwiftUI and Theme semantic attention, blue unread and green working roles.
 
 import SwiftUI
@@ -47,7 +47,9 @@ struct SessionReadIndicator: View {
                 Circle().fill(state == .needsYou ? Theme.warn : Theme.unread)
                     .accessibilityLabel(Text(verbatim: state == .needsYou
                         ? String(localized: "Needs you") : String(localized: "Unread")))
-                    .accessibilityIdentifier("session-\(state == .needsYou ? "needs-you" : "unread")-\(sessionID)")
+                    .accessibilityIdentifier(
+                        "session-\(state == .needsYou ? "needs-you" : "unread")-\(sessionID)"
+                    )
             }
         }
         .frame(width: 7, height: 7)
