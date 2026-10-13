@@ -1,4 +1,4 @@
-// Persistent native detail pane for every Box kind, plus the note editing sheet.
+// Persistent native detail pane with aligned metadata and content-sized actions, plus note editing.
 // Exports: BoxBrowserDetail and BoxNoteEditor; actions share the row context menu contract.
 // Dependencies: SwiftUI, HibossKit, authenticated media and BoxPaneActions.
 
@@ -28,7 +28,7 @@ struct BoxBrowserDetail: View {
                                 Text(verbatim: note).textSelection(.enabled)
                             }
                             GroupBox(L("Information")) {
-                                information(item).padding(8).frame(maxWidth: .infinity)
+                                information(item).padding(8).frame(maxWidth: .infinity, alignment: .leading)
                             }.frame(maxWidth: .infinity).layoutProbe("box.information")
                         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -55,7 +55,7 @@ struct BoxBrowserDetail: View {
                     actions: [.quickLook, .share, .editNote])
                 Divider()
                 BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.delete])
-            }.layoutProbe("box.more")
+            }.fixedSize().layoutProbe("box.more")
             if busy { ProgressView().controlSize(.small) }
             if copied { Text(L("Copied")).font(.caption).foregroundStyle(.secondary) }
         }.buttonStyle(.bordered).controlSize(.small).frame(maxWidth: .infinity, alignment: .leading)
@@ -63,18 +63,29 @@ struct BoxBrowserDetail: View {
     }
 
     private func information(_ item: BoxItem) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            LabeledContent(L("Author"), value: item.authorTitle)
-            if let project = item.project { LabeledContent(L("Project"), value: project) }
-            if !item.tags.isEmpty { LabeledContent(L("Tags"), value: item.tags.joined(separator: ", ")) }
-            if let format = item.detailFormat { LabeledContent(L("Format"), value: format) }
-            LabeledContent(L("Added")) {
+        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 10) {
+            informationRow("Author", value: item.authorTitle)
+            if let project = item.project { informationRow("Project", value: project) }
+            if !item.tags.isEmpty { informationRow("Tags", value: item.tags.joined(separator: ", ")) }
+            if let format = item.detailFormat { informationRow("Format", value: format) }
+            GridRow {
+                Text(L("Added")).gridColumnAlignment(.trailing)
+                    .layoutProbe("box.information.Added.label")
                 TimelineView(.periodic(from: .now, by: 60)) { tick in
                     Text(verbatim: BoxTime.absolute(item.createdAt, now: tick.date))
-                        .frame(width: 180, alignment: .trailing)
+                        .layoutProbe("box.information.Added.value")
                 }
             }
-        }.font(.callout).textSelection(.enabled).frame(maxWidth: .infinity)
+        }.font(.callout).textSelection(.enabled)
+    }
+
+    private func informationRow(_ title: String, value: String) -> some View {
+        GridRow {
+            Text(L(String.LocalizationValue(stringLiteral: title)))
+                .gridColumnAlignment(.trailing)
+                .layoutProbe("box.information.\(title).label")
+            Text(verbatim: value).layoutProbe("box.information.\(title).value")
+        }
     }
 
     private func textContent(_ item: BoxItem) -> some View {

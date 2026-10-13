@@ -33,9 +33,17 @@ enum SidebarSessionIndicator: Equatable {
 }
 
 struct SidebarWorkingCaption: View {
+    @Environment(\.backgroundProminence) private var prominence
+
+    /// Green on a plain row; an emphasized selected row keeps the selection's own foreground.
+    static func usesStatusColor(_ prominence: BackgroundProminence) -> Bool {
+        prominence != .increased
+    }
+
     var body: some View {
         Text(L("Working"))
-            .font(.caption).foregroundStyle(TodayStyle.settled)
+            .font(.caption).foregroundStyle(Self.usesStatusColor(prominence)
+                ? AnyShapeStyle(TodayStyle.settled) : AnyShapeStyle(.secondary))
             .fixedSize().layoutPriority(1)
             .accessibilityLabel(L("Working now"))
     }
