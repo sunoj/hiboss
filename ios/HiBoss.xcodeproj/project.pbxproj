@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		648C14F1A285852E736565D9 /* SessionReadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */; };
+		F95918E9C38AE47262458934 /* SessionReadIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */; };
+		A9DC0A896C82A08E095E52B2 /* SessionReadTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */; };
+		B6F2CF7AA6409E986AA6DA78 /* SessionReadStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508592DBDB50192E3140921D /* SessionReadStore.swift */; };
+		587AA30D6D305C6AE71AD9D0 /* SessionUnreadUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD4E6C4E5F1E6BC3F89244F9 /* SessionUnreadUITests.swift */; };
+		DE68F67D94F6FCDAABC8E91C /* DemoSessionReads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56C482F3D91576910135CAFE /* DemoSessionReads.swift */; };
 		00F582F779BBE0D825994CE7 /* DecisionContextCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1896D64CBDA9A8CFCA2D173F /* DecisionContextCard.swift */; };
 		0233BC3781C6B1D455F3C295 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 449F5737D1DEA9D470795E5C /* BrandAssets.xcassets */; };
 		025E806B50242C5DFC8FF45C /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 449F5737D1DEA9D470795E5C /* BrandAssets.xcassets */; };
@@ -364,6 +370,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReadStoreTests.swift; sourceTree = "<group>"; };
+		AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadIndicator.swift; sourceTree = "<group>"; };
+		11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadTracking.swift; sourceTree = "<group>"; };
+		508592DBDB50192E3140921D /* SessionReadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadStore.swift; sourceTree = "<group>"; };
+		FD4E6C4E5F1E6BC3F89244F9 /* SessionUnreadUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionUnreadUITests.swift; sourceTree = "<group>"; };
+		56C482F3D91576910135CAFE /* DemoSessionReads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoSessionReads.swift; sourceTree = "<group>"; };
 		014E4F17260E1DBC8E935026 /* DemoMessageDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoMessageDetail.swift; sourceTree = "<group>"; };
 		0244CD03336DD0F84AB18F5B /* HiBossShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HiBossShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		03191B27AD071D51213D17C1 /* ConnectionDot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionDot.swift; sourceTree = "<group>"; };
@@ -745,6 +757,7 @@
 				20DF2459E88B6108A43A9E17 /* DemoBossAPI+Agents.swift */,
 				B163D0EA15F13BCEE14F9311 /* DemoBoxAPI.swift */,
 				698713D5102923E7503E7814 /* DemoData.swift */,
+				56C482F3D91576910135CAFE /* DemoSessionReads.swift */,
 				282AD89F7AA3EB14D78524D9 /* DemoDevices.swift */,
 				21AD8A576E433550B352A07F /* DemoHomePanelsAPI.swift */,
 				1019046FBA5B3B7C298729EA /* DemoMessageAttachments.swift */,
@@ -888,6 +901,7 @@
 			isa = PBXGroup;
 			children = (
 				943E9189437FDAC2704D1C1F /* ActivityNavigationUITests.swift */,
+				FD4E6C4E5F1E6BC3F89244F9 /* SessionUnreadUITests.swift */,
 				21CE1FBE978EA646E506421A /* AgentAvatarUITests.swift */,
 				571323C46976EF02180CACDE /* BoxUITests.swift */,
 				44A92BE04B5009776DB8927D /* BoxV2CaptureUITests.swift */,
@@ -992,6 +1006,9 @@
 				FDF0EAD0459DF0C9CE78CF9E /* Assets.xcassets */,
 				714548036141EBBCA3849272 /* HiBoss.entitlements */,
 				35B18F7757D87683A1F768E5 /* HiBossApp.swift */,
+				AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */,
+				11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */,
+				508592DBDB50192E3140921D /* SessionReadStore.swift */,
 				CE512B87AB4778E24208134F /* Info.plist */,
 				F51D50828365C286871C0496 /* InfoPlist.xcstrings */,
 				B448CB7C1CB5C5B31FEBB796 /* Localizable.xcstrings */,
@@ -1223,6 +1240,7 @@
 				68A8D8E9BF5C91630B72A91E /* SessionAttachmentTests.swift */,
 				AEE9BD06370886ED91A2ADEB /* SessionHistoryTranscriptTests.swift */,
 				690FCE774D0C5469D59B0417 /* SessionStatusStyleTests.swift */,
+				B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */,
 				93424FDB64B25C3165A4E3C8 /* SessionsV4Tests.swift */,
 				64F5157C51583AAFCCBC212A /* SessionTranscriptLayoutTests.swift */,
 				D57BD7F6CA2D36478D61E85E /* SettingsFeedbackTests.swift */,
@@ -1553,6 +1571,7 @@
 				E5ACD6889618D95CD0E5DCB0 /* SessionAttachmentTests.swift in Sources */,
 				E46799364FB66D748D7B3567 /* SessionHistoryTranscriptTests.swift in Sources */,
 				D8AB374CD22976C87E188C8B /* SessionStatusStyleTests.swift in Sources */,
+				648C14F1A285852E736565D9 /* SessionReadStoreTests.swift in Sources */,
 				0FAC7102A968494DED387632 /* SessionTranscriptLayoutTests.swift in Sources */,
 				DB785F653A48AA142C7C77E0 /* SessionsV4Tests.swift in Sources */,
 				82EEE5D3D581FF76899FB894 /* SettingsFeedbackTests.swift in Sources */,
@@ -1610,6 +1629,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				77C522C416C1D6A71B57C264 /* ActivityNavigationUITests.swift in Sources */,
+				587AA30D6D305C6AE71AD9D0 /* SessionUnreadUITests.swift in Sources */,
 				D65570BC9E1458CA858E4BD0 /* AgentAvatarUITests.swift in Sources */,
 				6F144382F69D150604BE4CC5 /* BoxUITests.swift in Sources */,
 				74C69EBCD8C9C8FD345353A2 /* BoxV2CaptureUITests.swift in Sources */,
@@ -1693,6 +1713,7 @@
 				353E5560B40766919DCFD349 /* DemoBossClientsAPI.swift in Sources */,
 				1F32627CD507F6B93C49D066 /* DemoBoxAPI.swift in Sources */,
 				0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */,
+				DE68F67D94F6FCDAABC8E91C /* DemoSessionReads.swift in Sources */,
 				1BDF8FE4F9CEE70126C82C51 /* DemoDelay.swift in Sources */,
 				8BE227AE346E73329B9E1DD3 /* DemoDevices.swift in Sources */,
 				1EBD88D58AC84C8264088F9B /* DemoHomePanelsAPI.swift in Sources */,
@@ -1711,6 +1732,9 @@
 				4B3CC845CDE7F8D59E752640 /* DemoShareHost.swift in Sources */,
 				92C7FBD8851D0D56AF69DAEC /* DeviceRequestsView.swift in Sources */,
 				68AD376877FF3DD3FBEB641F /* HiBossApp.swift in Sources */,
+				F95918E9C38AE47262458934 /* SessionReadIndicator.swift in Sources */,
+				A9DC0A896C82A08E095E52B2 /* SessionReadTracking.swift in Sources */,
+				B6F2CF7AA6409E986AA6DA78 /* SessionReadStore.swift in Sources */,
 				91C53F41DB2DA754B602864B /* HiBossBrandIcon.swift in Sources */,
 				761FC4F0D1827BBB9BFCD0F7 /* HistoryRow.swift in Sources */,
 				3DE96A602F86EB16504B8F54 /* HomeAttentionModel.swift in Sources */,

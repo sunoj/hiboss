@@ -20,6 +20,9 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
             ? [DemoTextAsk.message] : DemoMessageAttachments.queue(
                 fallback: DemoOptionMediaFixtures.queue(fallback: DemoFixtures.queue))
         messages = DemoMarkdown.queue(fallback: DemoProjectPeers.queue(fallback: messages))
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSION_READS"] == "1" {
+            messages = DemoSessionReads.messages
+        }
     }
 
     func messageStream() async -> AsyncThrowingStream<BossEvent, Error> {

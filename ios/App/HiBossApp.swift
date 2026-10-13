@@ -1,4 +1,4 @@
-// App entry point: owns the connection + inbox stores and gates onboarding.
+// App entry point: owns connection, inbox and local session read state, and gates onboarding.
 // Exports: HiBossApp (@main) and RootView.
 // Dependencies: SwiftUI, HibossKit, feature stores and views.
 
@@ -31,6 +31,9 @@ struct RootView: View {
     @State private var showsClientNotice = false
     @ObservedObject private var authorization = AccountAuthorization.shared
     @StateObject private var connectedPanels = ConnectedPanelsStore()
+    @StateObject private var reads = SessionReadStore(
+        defaults: isDemoMode ? UserDefaults(suiteName: "hiboss.demo.reads.\(UUID())")! : .standard
+    )
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var inbox: InboxStore
     @ObservedObject var preferences: PreferencesStore
@@ -49,6 +52,7 @@ struct RootView: View {
             #endif
         }
         .onChange(of: connection.config) { _, config in
+            activateReads()
             showsClientNotice = config != nil && connection.clientExchangeNotice != nil
             guard !isDemoMode else { return }
             preferences.connectionDidChange()
@@ -66,6 +70,10 @@ struct RootView: View {
             Text(verbatim: connection.clientExchangeNotice ?? "")
         }
         .onAppear(perform: startInitialServices)
+        .environmentObject(reads)
+        .environment(\.unreadSessionIDs, reads.unreadSessionIDs(messages: inbox.history))
+        .environment(\.needsYouSessionIDs,
+                     Set(inbox.todaySnapshot(now: .now).sessionDirectory.needsYou.map(\.id)))
         .environment(\.agentAvatars, inbox.agentAvatars)
     }
 
@@ -98,6 +106,7 @@ struct RootView: View {
     }
 
     private func startInitialServices() {
+        activateReads()
         if isDemoMode {
             if !DemoDelay.isHeld("PREFERENCES") { preferences.loadDemo() }
             let flags = ProcessInfo.processInfo.environment
@@ -115,6 +124,15 @@ struct RootView: View {
         } else if connection.isConfigured, let api = connection.makeAPI() {
             startConnectedServices(api)
         }
+    }
+
+    private func activateReads() {
+        let config = isDemoMode
+            ? ConnectionConfig(serverURL: URL(string: "https://demo.hiboss.invalid")!, bossToken: "demo")
+            : connection.config
+        let baseline = isDemoMode && ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSION_READS"] == "1"
+            ? DemoSessionReads.baseline : Date.now
+        reads.activate(config.map(SessionReadAccount.init(config:)), now: baseline)
     }
 
     private var restoringView: some View {

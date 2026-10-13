@@ -52,7 +52,7 @@ struct TodayHeader: View {
             chip(Text("\(String(requestCount)) need you"), color: Theme.warn)
         }
         if !snapshot.working.isEmpty {
-            chip(Text("\(String(snapshot.working.count)) working"), color: Theme.live)
+            chip(Text("\(String(snapshot.working.count)) working"), color: Theme.positive)
         }
         if refreshVisible {
             chip(Text("Refreshing…"), color: Theme.live, reservesHealthWidth: true)

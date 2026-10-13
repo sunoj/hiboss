@@ -74,9 +74,6 @@ final class ProjectIdentityUITests: XCTestCase {
     }
 
     private func shot(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "avatar-\(name)"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureDemoScreenshot(app, name: "avatar-\(name)", test: self)
     }
 }

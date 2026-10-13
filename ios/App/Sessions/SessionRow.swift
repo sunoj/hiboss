@@ -37,6 +37,12 @@ struct SessionRow: View {
                 }
             }
             Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
+                if session.hasLiveWork(now: .now) && !session.needsYou {
+                    Text("Working").font(.caption).foregroundStyle(Theme.positive)
+                }
+            }
         }
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

@@ -1,11 +1,13 @@
 // Native peer disclosure keeps the transcript reachable and opens the full recent list in a sheet.
-// Exports ProjectPeersView; depends on RecentProjectPeers, SwiftUI and Theme.
+// Exports ProjectPeersView with shared local read indicators in both preview and full list.
+// Dependencies: RecentProjectPeers, SessionReadIndicator, SwiftUI and Theme.
 
 import SwiftUI
 
 struct ProjectPeersView: View {
     let peers: [RecentProjectPeer]
     @State private var showsAll = false
+    @Environment(\.needsYouSessionIDs) private var needsYou
 
     var body: some View {
         if !peers.isEmpty {
@@ -44,6 +46,12 @@ struct ProjectPeersView: View {
                 Text(peer.activityDate, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
             }
             Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                SessionReadIndicator(sessionID: peer.id, needsYou: needsYou.contains(peer.id))
+                if SessionStatus(word: peer.session.status) == .working {
+                    Text("Working").font(.caption).foregroundStyle(Theme.positive)
+                }
+            }
         }.padding(.vertical, 4).accessibilityElement(children: .combine)
             .accessibilityIdentifier("project-peer-\(peer.id)")
     }

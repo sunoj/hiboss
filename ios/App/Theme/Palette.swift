@@ -27,6 +27,7 @@ enum Theme {
     // System tint and media surfaces
     static let accent = Color.accentColor
     static let link = Color(.link)
+    static let unread = Color(uiColor: .systemBlue)
     static let onAccent = Color(uiColor: .systemBackground)
     static let mediaBackground = Color(.systemBackground)
 

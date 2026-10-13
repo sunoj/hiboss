@@ -1,5 +1,5 @@
 // Shared XCUIApplication launch helpers for demo-mode UI tests.
-// Exports: XCUIApplication.configureDemoLaunch, launchConfiguredDemo and pullToRefresh.
+// Exports: demo launch, screenshot capture and pullToRefresh helpers.
 // Dependencies: XCTest.
 
 import XCTest
@@ -15,6 +15,7 @@ extension XCUIApplication {
         "HIBOSS_DEMO_NOTIFICATION_OPEN",
         "HIBOSS_DEMO_NOTIFICATION_PREVIEW",
         "HIBOSS_DEMO_SESSION",
+        "HIBOSS_DEMO_SESSION_READS",
         "HIBOSS_DEMO_PEERS",
         "HIBOSS_DEMO_RESOLVED",
         "HIBOSS_DEMO_PANEL_OPEN",
@@ -110,6 +111,24 @@ extension XCUIApplication {
             XCTContext.runActivity(named: "relaunch: first launch lost its demo environment") { _ in }
             terminate()
             launch()
+        }
+    }
+}
+
+/// Retains XCTest evidence and optionally holds the surface for a host-side simulator capture.
+@MainActor
+func captureDemoScreenshot(_ app: XCUIApplication, name: String, test: XCTestCase) {
+    XCTContext.runActivity(named: "capture-\(name)") { _ in
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        test.add(attachment)
+        if let seconds = Double(ProcessInfo.processInfo.environment["HIBOSS_CAPTURE_HOLD_SECONDS"] ?? "") {
+            let started = Date()
+            let held = test.expectation(for: NSPredicate { _, _ in
+                Date().timeIntervalSince(started) >= seconds
+            }, evaluatedWith: app)
+            test.wait(for: [held], timeout: seconds + 2)
         }
     }
 }

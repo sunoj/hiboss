@@ -89,6 +89,7 @@ struct SessionMessagesView: View {
 
     var body: some View {
         observedTranscript
+        .modifier(SessionReadTracking(inbox: store, sessionID: route.id, events: transcriptEvents))
         .alert(
             String(localized: "Transcript reloaded"),
             isPresented: Binding(
