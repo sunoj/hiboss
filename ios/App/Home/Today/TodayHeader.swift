@@ -52,12 +52,13 @@ struct TodayHeader: View {
             chip(Text("\(String(requestCount)) need you"), color: Theme.warn)
         }
         if !snapshot.working.isEmpty {
-            chip(Text("\(String(snapshot.working.count)) working"), color: Theme.live)
+            chip(Text("\(String(snapshot.working.count)) working"), color: Theme.positive)
         }
         if refreshVisible {
             chip(Text("Refreshing…"), color: Theme.live, reservesHealthWidth: true)
         } else if case .live(let checkedAt) = snapshot.health, snapshot.coverageComplete {
-            chip(Text("Live") + Text(verbatim: " · ") + Text(checkedAt, style: .relative),
+            chip(Text("Live") + Text(verbatim: " · ") + Text(verbatim: RelativeTime.short(from: checkedAt,
+                                                                                     now: now)),
                  color: Theme.positive, reservesHealthWidth: true)
         } else {
             switch snapshot.health {

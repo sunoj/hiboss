@@ -1,6 +1,6 @@
 // Settled-decision lookup: keep an answered card visible and join session replies.
 // Exports: DecisionSettlement and InboxStore helpers for cards / threads.
-// Dependencies: SwiftUI Text, HibossKit HistoryMessage, SessionGrouping, resolutionSourceLabel.
+// Dependencies: SwiftUI Text, HibossKit HistoryMessage, SessionGrouping, MessageMeta.
 
 import HibossKit
 import SwiftUI
@@ -13,7 +13,15 @@ struct DecisionSettlement: Equatable {
     var isAutoDefault = false
     var answeredBy: AnsweringDevice? = nil
 
-    var sourceLabel: String? { answeredBy?.displayLabel ?? resolutionSourceLabel(source) }
+    var sourceLabel: String? {
+        if let answeredBy {
+            let name = answeredBy.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty ? MessageMeta.platformName(answeredBy.kind) : name
+        }
+        return source.map {
+            $0.lowercased() == "api" ? "API" : MessageMeta.platformName($0)
+        }
+    }
 
     /// True when the answer came from another boss surface, not this iOS client.
     var answeredElsewhere: Bool {

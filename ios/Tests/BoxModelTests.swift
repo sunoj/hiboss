@@ -113,16 +113,16 @@ final class BoxModelTests: XCTestCase {
         XCTAssertEqual(BoxDayGroup.group(monday, now: friday, calendar: calendar), .week)
     }
 
-    func testRelativeTimeUsesNaturalChineseSecondsAndEnglishUnits() throws {
+    func testRelativeTimeUsesTheSharedRecordedTimeRules() throws {
         let now = try XCTUnwrap(ISODate.parse("2026-10-12T12:00:00Z"))
         let second = BoxItem(id: "seconds", bossID: "b", bossName: "B", kind: .text,
                              createdAt: "2026-10-12T11:59:26Z")
         let minute = BoxItem(id: "minutes", bossID: "b", bossName: "B", kind: .text,
                              createdAt: "2026-10-12T11:57:00Z")
-        XCTAssertEqual(second.relativeTime(now: now, locale: Locale(identifier: "zh-Hans")), "34 秒前")
-        XCTAssertEqual(minute.relativeTime(now: now, locale: Locale(identifier: "zh-Hans")), "3 分钟前")
-        XCTAssertEqual(second.relativeTime(now: now, locale: Locale(identifier: "en")), "34 seconds ago")
-        XCTAssertEqual(minute.relativeTime(now: now, locale: Locale(identifier: "en")), "3 minutes ago")
+        XCTAssertEqual(second.relativeTime(now: now, locale: Locale(identifier: "zh-Hans")), "刚刚")
+        XCTAssertEqual(minute.relativeTime(now: now, locale: Locale(identifier: "zh-Hans")), "3分钟前")
+        XCTAssertEqual(second.relativeTime(now: now, locale: Locale(identifier: "en")), "Just now")
+        XCTAssertEqual(minute.relativeTime(now: now, locale: Locale(identifier: "en")), "3 min ago")
     }
 
     func testYesterdayUsesChineseClockTimeInsteadOfARelativeDayCount() throws {

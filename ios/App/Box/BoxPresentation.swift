@@ -61,31 +61,7 @@ extension BoxItem {
 
     func relativeTime(now: Date, locale: Locale = .current, calendar: Calendar = .current) -> String? {
         guard let date = ISOTimestamp.date(from: createdAt) else { return nil }
-        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
-           calendar.isDate(date, inSameDayAs: yesterday) {
-            let formatter = DateFormatter()
-            formatter.locale = locale
-            formatter.timeZone = calendar.timeZone
-            formatter.timeStyle = .short
-            if locale.language.languageCode?.identifier == "zh" { formatter.dateFormat = "HH:mm" }
-            let time = formatter.string(from: date)
-            let appBundle = Bundle(identifier: "ai.hiboss.app") ?? .main
-            let localization = Bundle.preferredLocalizations(
-                from: appBundle.localizations, forPreferences: [locale.identifier]
-            ).first
-            let localizationBundle = localization
-                .flatMap { appBundle.path(forResource: $0, ofType: "lproj") }
-                .flatMap(Bundle.init(path:)) ?? appBundle
-            let label = localizationBundle.localizedString(forKey: "Yesterday", value: nil, table: nil)
-            return "\(label) \(time)"
-        }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = locale
-        formatter.unitsStyle = .full
-        let label = formatter.localizedString(for: date, relativeTo: now)
-        guard locale.language.languageCode?.identifier == "zh" else { return label }
-        return label.replacingOccurrences(of: "秒钟", with: "秒")
-            .replacingOccurrences(of: "(\\d+)\\s*(秒|分钟)", with: "$1 $2", options: .regularExpression)
+        return RelativeTime.short(from: date, now: now, locale: locale, calendar: calendar)
     }
 
     var metadata: String {

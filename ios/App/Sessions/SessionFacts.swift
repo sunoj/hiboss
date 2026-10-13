@@ -50,7 +50,7 @@ struct SessionFactsHeader: View {
         VStack(alignment: .leading, spacing: 2) {
             identityRows.font(.caption).foregroundStyle(Theme.ink2)
             if let step = clean(session.statusText) ?? clean(session.status) {
-                Text(verbatim: step).font(.caption).foregroundStyle(Theme.live)
+                Text(verbatim: step).font(.caption).foregroundStyle(Theme.positive)
                     .fixedSize(horizontal: false, vertical: true)
             }
             timingRows.font(.caption2).foregroundStyle(Theme.ink3)
@@ -93,15 +93,11 @@ struct SessionFactsHeader: View {
 
     @ViewBuilder private var timing: some View {
         if let date = session.inventoryLastSeenDate {
-            TimelineView(.periodic(from: .now, by: 10)) { context in
-                let age = Duration.seconds(max(0, context.date.timeIntervalSince(date)))
-                    .formatted(.units(allowed: [.days, .hours, .minutes, .seconds],
-                                      width: .abbreviated, maximumUnitCount: 1))
-                Text("Updated \(age)").fixedSize(horizontal: false, vertical: true)
-            }.fixedSize(horizontal: false, vertical: true)
+            RecordedTimeText(date: date) { Text("Last activity \($0)") }
+                .fixedSize(horizontal: false, vertical: true)
         }
         if let date = session.inventoryStartedDate {
-            Text("Started \(date.formatted(date: .abbreviated, time: .shortened))")
+            RecordedTimeText(date: date) { Text("Started \($0)") }
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

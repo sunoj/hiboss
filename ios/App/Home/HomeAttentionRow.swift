@@ -9,6 +9,7 @@ struct HomeAttentionSection: View {
     let snapshot: HomeAttentionSnapshot
     let hasPanels: Bool
     var isAllClear = false
+    var reservesAllClearSpace = false
     var isRefreshing = false
     let status: String?
     var statusIsFailure = false
@@ -31,6 +32,8 @@ struct HomeAttentionSection: View {
             if snapshot.count > 0 { title }
             if isAllClear {
                 allClear
+            } else if reservesAllClearSpace && snapshot.count == 0 {
+                allClear.hidden().accessibilityHidden(true)
             } else {
                 ForEach(snapshot.groups, id: \.group) { group in
                     VStack(alignment: .leading, spacing: 8) {

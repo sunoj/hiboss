@@ -73,7 +73,7 @@ struct SessionTimeSeparator: View {
     let date: Date
 
     var body: some View {
-        Text(verbatim: label)
+        RecordedTimeText(date: date)
             .font(.caption2)
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity)
@@ -81,12 +81,6 @@ struct SessionTimeSeparator: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private var label: String {
-        if Calendar.current.isDateInToday(date) {
-            return date.formatted(date: .omitted, time: .shortened)
-        }
-        return date.formatted(date: .abbreviated, time: .shortened)
-    }
 }
 
 struct SessionSystemLine: View {

@@ -73,7 +73,7 @@ struct DecisionTimingView: View {
                 }
                 if let deadline = timing.expiresAt {
                     Label {
-                        Text("Reply by \(deadline.formatted(date: .abbreviated, time: .shortened))")
+                        Text("Reply by \(RelativeTime.absolute(from: deadline))")
                     } icon: {
                         Image(systemName: "calendar.badge.clock")
                     }

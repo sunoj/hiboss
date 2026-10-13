@@ -196,8 +196,10 @@ struct MediaViewer: View {
                             if let title = item.title { Text(verbatim: title).font(.headline) }
                             if let caption = item.caption { Text(verbatim: caption).font(.body) }
                             if let itemActions {
-                                Text(verbatim: itemActions.metadata(item)).font(.caption)
-                                    .foregroundStyle(Theme.ink2)
+                                TimelineView(.everyMinute) { _ in
+                                    Text(verbatim: itemActions.metadata(item)).font(.caption)
+                                        .foregroundStyle(Theme.ink2)
+                                }
                             }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.frame(maxHeight: 160)

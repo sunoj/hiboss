@@ -72,11 +72,11 @@ struct ProgressPostCard: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .layoutPriority(-1)
-                if !post.relativeCreatedAt.isEmpty {
+                if let date = post.createdDate {
                     Text(verbatim: "·")
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
-                    Text(verbatim: post.relativeCreatedAt)
+                    RecordedTimeText(date: date)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

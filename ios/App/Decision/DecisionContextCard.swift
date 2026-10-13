@@ -24,7 +24,7 @@ struct DecisionProvenance: View {
                 if let host = session?.host?.trimmingCharacters(in: .whitespacesAndNewlines), !host.isEmpty {
                     Text(verbatim: host)
                 }
-                if let date = message.createdDate { Text(date, style: .time) }
+                if let date = message.createdDate { RecordedTimeText(date: date) }
             }.font(.footnote).foregroundStyle(Theme.ink2)
         }
         .accessibilityIdentifier("decision-provenance")

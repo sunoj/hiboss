@@ -41,7 +41,7 @@ struct ProjectPeersView: View {
                         Text(verbatim: agent).font(.caption)
                     }
                 }
-                Text(peer.activityDate, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
+                RecordedTimeText(date: peer.activityDate).font(.caption).foregroundStyle(Theme.ink3)
             }
             Spacer(minLength: 0)
         }.padding(.vertical, 4).accessibilityElement(children: .combine)

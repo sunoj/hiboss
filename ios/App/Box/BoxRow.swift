@@ -33,8 +33,16 @@ struct BoxRow: View {
                         .foregroundStyle(item.kind == .link ? Theme.link : Theme.ink2)
                         .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 3 : 1))
                 }
-                Text(verbatim: item.metadata).font(.caption).foregroundStyle(Theme.ink2)
-                    .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+                if let date = ISOTimestamp.date(from: item.createdAt) {
+                    RecordedTimeText(date: date) { time in
+                        Text(verbatim: [item.kindLabel, item.sizeLabel, time, item.authorLabel, item.project]
+                            .compactMap { $0 }.joined(separator: " · "))
+                    }.font(.caption).foregroundStyle(Theme.ink2)
+                        .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+                } else {
+                    Text(verbatim: item.metadata).font(.caption).foregroundStyle(Theme.ink2)
+                        .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
