@@ -11,7 +11,8 @@ import XCTest
 @MainActor
 enum BoxWindowCaptureSupport {
     static func show(store: BoxBrowserStore, media: BoxBrowserMedia,
-                     scheme: ColorScheme, probe: LayoutProbe) async throws -> NSWindow {
+                     scheme: ColorScheme, probe: LayoutProbe,
+                     requestedSize: NSSize = NSSize(width: 1160, height: 700)) async throws -> NSWindow {
         _ = NSApplication.shared
         NSApp.setActivationPolicy(.regular)
         let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: OptionFlowStore(),
@@ -20,8 +21,10 @@ enum BoxWindowCaptureSupport {
             .environment(\.colorScheme, scheme).environment(\.layoutProbe, probe))
         host.sizingOptions = []
         let screen = try XCTUnwrap(NSScreen.main).visibleFrame
-        let size = NSSize(width: min(1160, screen.width - 40), height: min(700, screen.height - 100))
-        let window = NSWindow(contentRect: NSRect(origin: screen.origin, size: size),
+        let size = NSSize(width: min(requestedSize.width, screen.width - 40),
+            height: min(requestedSize.height, screen.height - 100))
+        let window = NSWindow(contentRect: NSRect(origin: screen.origin,
+            size: NSSize(width: size.width, height: 500)),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
@@ -32,7 +35,8 @@ enum BoxWindowCaptureSupport {
         window.makeKeyAndOrderFront(nil)
         try await waitForCondition(timeout: .seconds(5)) {
             window.toolbar != nil && store.didLoad && !store.isLoading
-                && media.thumbnails["image"] != nil && media.thumbnails["video"] != nil
+                && store.items.filter { $0.hasImageMedia || $0.kind == .video }
+                    .allSatisfy { media.thumbnails[$0.id] != nil }
         }
         var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
         frame.size.height = min(frame.height, screen.height)
@@ -53,12 +57,15 @@ enum BoxWindowCaptureSupport {
         view.subviews.flatMap { [$0] + descendants($0) }
     }
 
-    static func capture(_ window: NSWindow, directory: String, name: String) throws {
+    static func capture(_ window: NSWindow, directory: String, name: String,
+                        includeMenus: Bool = false) throws {
         try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let path = URL(fileURLWithPath: directory).appendingPathComponent("\(name).png").path
         if FileManager.default.fileExists(atPath: path) { try FileManager.default.removeItem(atPath: path) }
         let screenTop = try XCTUnwrap(NSScreen.screens.first).frame.maxY
-        let rect = window.frame
+        let screen = try XCTUnwrap(window.screen)
+        let rect = includeMenus ? window.frame.insetBy(dx: -250, dy: -250).intersection(screen.frame)
+            : window.frame
         let region = "\(Int(rect.minX)),\(Int(screenTop - rect.maxY)),\(Int(rect.width)),\(Int(rect.height))"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
@@ -70,8 +77,11 @@ enum BoxWindowCaptureSupport {
         XCTAssertGreaterThanOrEqual(image.size.width, rect.width)
     }
 
+    @discardableResult
     static func captureMenu(_ anchor: NSView, window: NSWindow,
-                            directory: String?, name: String) async throws {
+                            directory: String?, name: String,
+                            expectedTitles: [String]? = nil) async throws -> NSMenu {
+        try await settle(window)
         let session = MenuCapture(window: window, directory: directory, name: name)
         NotificationCenter.default.addObserver(session, selector: #selector(MenuCapture.didBeginTracking),
             name: NSMenu.didBeginTrackingNotification, object: nil)
@@ -91,13 +101,30 @@ enum BoxWindowCaptureSupport {
         try await waitForCondition { session.finished }
         timer.invalidate()
         if let error = session.error { throw error }
-        let menu = try XCTUnwrap(session.menu)
+        let menu = try XCTUnwrap(session.menu, "\(name): no native menu opened")
+        print("\(name) menu: \(menu.items.filter { !$0.isSeparatorItem }.map(\.title))")
+        print("\(name) submenus: \(menu.items.compactMap { $0.submenu?.items.map(\.title) })")
         XCTAssertEqual(menu.items.filter { !$0.isSeparatorItem }.map(\.title),
-            BoxAuthorFilter.allCases.map { L("Source:") + " " + $0.title })
+            expectedTitles ?? BoxAuthorFilter.allCases.map { L("Source:") + " " + $0.title })
         if let directory {
             XCTAssertTrue(FileManager.default.fileExists(atPath:
                 URL(fileURLWithPath: directory).appendingPathComponent("\(name).png").path))
         }
+        return menu
+    }
+
+    static func capturePopupMenu(_ menu: NSMenu, window: NSWindow,
+                                 directory: String?, name: String) throws {
+        let session = MenuCapture(window: window, directory: directory, name: name)
+        session.menu = menu
+        let timer = Timer(timeInterval: 0.75, repeats: false) { _ in
+            MainActor.assumeIsolated { session.capture() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        menu.popUp(positioning: nil, at: NSPoint(x: 100, y: 100), in: window.contentView)
+        timer.invalidate()
+        XCTAssertTrue(session.finished)
+        if let error = session.error { throw error }
     }
 }
 
@@ -124,7 +151,8 @@ private final class MenuCapture: NSObject {
         defer { finished = true }
         do {
             if let directory {
-                try BoxWindowCaptureSupport.capture(window, directory: directory, name: name)
+                try BoxWindowCaptureSupport.capture(window, directory: directory,
+                    name: name, includeMenus: true)
             }
         }
         catch { self.error = error }

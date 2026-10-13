@@ -19,7 +19,8 @@ final class TodaySnapshotTests: XCTestCase {
                     previewHistory: clear ? [] : fixtures())
                     .environment(\.colorScheme, scheme))
                 host.sizingOptions = []
-                let window = makeWindow(host, size: NSSize(width: 1320, height: 820), scheme: scheme)
+                let window = try await makeWindow(host,
+                    size: NSSize(width: 1320, height: 820), scheme: scheme)
                 defer { window.close() }
                 try await waitForCondition {
                     self.descendants(host).compactMap { $0 as? NSTextField }.filter(\.isEditable)
@@ -89,18 +90,25 @@ final class TodaySnapshotTests: XCTestCase {
         defer { attachmentServer.stop() }
         try await attachmentServer.start()
         let history = PhaseBSnapshotFixtures.history(baseURL: attachmentServer.baseURL)
-        let boxAPI = ScriptedBoxBrowser(media: BoxBrowserFixtures.imageData())
+        let image = BoxBrowserFixtures.item("image", kind: .image,
+            note: "Soil boring locations\nMeasurements for the next review.",
+            hasMedia: true, mediaType: "image/png", mediaBytes: 133_000)
+        let boxAPI = ScriptedBoxBrowser(
+            pages: [BoxPage(items: [image] + BoxBrowserFixtures.items.dropFirst())],
+            media: BoxBrowserFixtures.imageData())
         let panels = PanelsModel(demoMode: true, autoload: false)
         for scheme in [ColorScheme.light, .dark] {
             for (name, destination) in [("session", OverviewDestination.session("hiboss")),
                                         ("box", .box), ("progress", .progress)] {
+                let probe = LayoutProbe()
                 let host = NSHostingView(rootView: MainView(settings: AppSettings(), flow: OptionFlowStore(),
                     initialDestination: destination, previewHistory: history,
                     previewSessions: PhaseBSnapshotFixtures.inventory,
                     boxProvider: { boxAPI }, panelsModel: panels)
-                    .environment(\.colorScheme, scheme))
+                    .environment(\.colorScheme, scheme).environment(\.layoutProbe, probe))
                 host.sizingOptions = []
-                let window = makeWindow(host, size: NSSize(width: 1320, height: 1060), scheme: scheme)
+                let window = try await makeWindow(host,
+                    size: NSSize(width: 1320, height: 1060), scheme: scheme)
                 defer { window.close() }
                 try await waitForCondition {
                     self.descendants(host).compactMap { $0 as? NSTextField }.contains { $0.isEditable }
@@ -108,6 +116,13 @@ final class TodaySnapshotTests: XCTestCase {
                 try await Task.sleep(for: .milliseconds(750))
                 host.layoutSubtreeIfNeeded()
                 try await write(host, name: "\(name)-\(label(scheme))")
+                if name != "progress",
+                   let directory = ProcessInfo.processInfo.environment["HIBOSS_V4_SNAPSHOTS"] {
+                    let ids = name == "box" ? ["box.title.image"]
+                        : ["session.title", "session.inspector.title"]
+                    try WindowTextVisibility.assertReadable(ids, probe: probe, window: window,
+                        directory: directory, name: "\(name)-\(label(scheme))")
+                }
             }
         }
     }
@@ -148,8 +163,9 @@ final class TodaySnapshotTests: XCTestCase {
         ]
     }
 
-    private func makeWindow(_ host: NSView, size: NSSize, scheme: ColorScheme) -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(origin: NSPoint(x: 80, y: 80), size: size),
+    private func makeWindow(_ host: NSView, size: NSSize, scheme: ColorScheme) async throws -> NSWindow {
+        // Mount the toolbar with room to grow, then size the window within the visible screen.
+        let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: size.width, height: 500),
             styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: scheme == .light ? .aqua : .darkAqua)
@@ -157,6 +173,17 @@ final class TodaySnapshotTests: XCTestCase {
         NSApp.activate(ignoringOtherApps: true)
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
+        try await waitForCondition { window.toolbar != nil }
+        try await BoxWindowCaptureSupport.settle(window)
+        let visible = try XCTUnwrap(window.screen?.visibleFrame)
+        var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+        frame.size.width = min(frame.width, visible.width)
+        frame.size.height = min(frame.height, visible.height - 40)
+        frame.origin = NSPoint(x: visible.minX, y: visible.maxY - frame.height)
+        window.setFrame(frame, display: true)
+        XCTAssertTrue(visible.contains(window.frame))
+        print("Snapshot requested \(size), actual \(window.frame.size), "
+            + "content \(window.contentLayoutRect.size)")
         return window
     }
 
