@@ -211,7 +211,7 @@ exception, not the default.
 | `server/` | The changed modules' test files plus the test files that import them (`grep -rl <module> src --include=*.test.ts`), run remotely; `vitest related` cannot parse the Worker entry's HTML import | A deploy is being prepared, or `wrangler.toml`, migrations, shared types (`src/types.ts`), auth middleware or `package-lock.json` changed |
 | `cli/` | `cargo test <module>` for the changed modules, run remotely | `Cargo.toml`/`Cargo.lock` changed, or a release is being cut |
 | `HibossKit/` | `swift test --filter <Class>` for the changed types | Its public API changed (then also `cd macos && swift build`) |
-| `macos/` | See macOS verification below | Once per task, on the final commit |
+| `macos/` | See the macOS tiers below | Only at M5 |
 | `ios/` | See the iOS tiers below | Only at T5 |
 | `mcp/` | The changed module's tests | `package.json`/lockfile changed |
 
@@ -247,20 +247,40 @@ the changed paths:
 - Save test output to a file on the first run (`| tee <log>`); never rerun a suite only to
   recover its counts.
 
-### macOS verification
+### macOS verification tiers
 
-`swift test` in `macos/` opens windows on the desktop of the Mac running it, and several runs may overlap
-so keep runs few:
+Many `HibossIslandTests` classes open real windows on the desktop of the Mac that runs them, and
+that Mac is the boss's working machine. Every window-test run interrupts the boss, so run the
+smallest tier that covers the change. `macos/scripts/verify-tier.sh` computes the tier from the
+changed paths and prints the exact command; it splits window classes from logic-only classes.
+Pick the tier from the changed paths:
 
-- While iterating, run only the affected classes (`swift test --filter <Class>`).
-- Only one `swift test` run touching windows, panels or the Island runs on a Mac at a time; run
-  under `caffeinate -d -i -u` so the display stays awake for the whole run (`-u` alone holds for
-  five seconds). Concurrent runs and a sleeping display make Island, panel-sizing and capture
-  tests fail with window-lifecycle errors unrelated to the change.
-- Run the full `HibossIslandTests` once, on the final commit, with output saved to a file.
-- A read-only audit runs only the filtered tests that cover its questions.
-- A merge into `main` with no conflict needs no rerun; a resolved conflict in `macos/` or
-  `HibossKit/` gets `swift build` plus the filtered tests for the conflicted files.
+| Tier | Change | Checks |
+|---|---|---|
+| M0 | Docs, comments, or string copy only | `python3 macos/scripts/i18n-audit.py`; no build |
+| M1 | Non-UI logic (store, formatter, model, presentation function) | The focused unit test fails before the fix and passes after it; then the logic-only classes that reference the changed types. No window classes |
+| M2 | One screen's views | `swift build`, the M1 classes, and the window classes for that screen; one screenshot of the screen in light and dark mode |
+| M3 | Shared UI (`MainView`, `Overview/`, toolbar, `DesignTokens`, `TodayStyle`), `Package.swift`, or `HibossKit/` | `swift build`, and the logic and window classes that reference the changed types; `swift test --filter` for the changed `HibossKit/` types; screenshots of each affected screen |
+| M4 | A merge into `main` | No test run. `swift build` plus the classes for the conflicted files when the merge resolved a conflict in `macos/` or `HibossKit/`; otherwise nothing beyond the branches' own evidence |
+| M5 | A release (Sparkle/notarized build), or the boss asks for it | One full `HibossIslandTests` run, at most once per batch of merges |
+| — | Installing a commit that was already tested | `scripts/build-app.sh` only; check the installed app with a screenshot instead of rerunning tests |
+
+Run limits, so the desktop is not taken over:
+
+- A task runs window classes at most three times: the focused test once before the fix, once
+  after it, and the tier's classes once on the final commit. Save output with `| tee <log>`, and
+  read the log instead of rerunning for counts.
+- The snapshot harness (`scripts/capture-v4-snapshots.sh`) runs once per task, at the end.
+- One window-test run at a time per Mac. Wrap every run as
+  `lockf -k /private/tmp/hiboss-macos-window-tests.lock caffeinate -d -i -u swift test --filter <Classes>`;
+  `caffeinate -u` alone holds for only five seconds, and a sleeping display fails Island,
+  panel-sizing and capture tests.
+- A known flaky window test is rerun once, on its own; the suite is not repeated for it.
+- A reviewer checks the implementer's log and screenshots (with the commit hash) and reruns only
+  when that evidence is missing, does not match the commit, or a merge changed code.
+- A read-only audit runs only the filtered classes that cover its questions.
+- Hosted-window screenshots do not prove the real app's toolbar and window chrome. A toolbar or
+  window-chrome change is checked in the installed app.
 
 ## Reference
 
