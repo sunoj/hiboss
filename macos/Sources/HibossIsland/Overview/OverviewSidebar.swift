@@ -24,7 +24,7 @@ struct OverviewSidebar: View {
             List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
                 Section(L("Workspace")) {
                     Label(L("Today"), systemImage: "house")
-                        .badge(decisionBadge)
+                        .badge(decisionBadge.map { Text(verbatim: $0) })
                         .tag(OverviewDestination.today)
                         .accessibilityIdentifier("overview.today")
                     Label(L("Box"), systemImage: "shippingbox")
@@ -50,9 +50,9 @@ struct OverviewSidebar: View {
         .accessibilityIdentifier("overview.sidebar")
     }
 
-    var decisionBadge: String {
-        guard snapshot.answerability.isLoaded else { return "" }
-        return snapshot.today.decisions.isEmpty ? "" : snapshot.today.decisions.count.formatted()
+    var decisionBadge: String? {
+        guard snapshot.answerability.isLoaded, !snapshot.today.decisions.isEmpty else { return nil }
+        return snapshot.today.decisions.count.formatted()
     }
 
     private var brand: some View {
@@ -78,8 +78,7 @@ struct OverviewSidebar: View {
 
     private var sessions: some View {
         Group {
-            TextField(L("Find a session"), text: $sessionSearch)
-                .textFieldStyle(.roundedBorder)
+            SessionSearchField(text: $sessionSearch)
                 .accessibilityIdentifier("overview.sessionSearch")
                 .selectionDisabled()
             if filteredSessions.isEmpty {
@@ -131,6 +130,7 @@ struct OverviewSidebar: View {
 
     private func sessionRow(_ session: TodaySession) -> some View {
         let fact = inventory.first { $0.id == session.id }
+        let text = SidebarSessionText(session: session, facts: fact)
         let project = fact?.avatarProject ?? ProjectIdentity(id: session.id,
             slug: session.projectLabel, displayName: session.projectLabel)
         return HStack(spacing: 8) {
@@ -142,21 +142,29 @@ struct OverviewSidebar: View {
                 .accessibilityLabel(session.needsYou ? L("Needs You")
                     : session.hasLiveWork(now: snapshot.now) ? L("Working now") : L("Idle"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.id == SessionGrouping.directSessionID ? L("Direct")
-                    : fact?.namedLabel ?? session.projectLabel)
-                    .lineLimit(1).truncationMode(.middle)
+                HStack(spacing: 0) {
+                    Text(verbatim: text.label).lineLimit(1).truncationMode(.tail)
+                        .layoutProbe("sidebar.label.\(session.id)")
+                    if let nickname = text.nickname {
+                        Text(verbatim: nickname).lineLimit(1).fixedSize()
+                            .layoutPriority(1).layoutProbe("sidebar.nickname.\(session.id)")
+                    }
+                }
                 if let agent = session.agentName {
                     HStack(spacing: 4) {
                         AgentAvatarView(name: agent, size: 20)
-                        Text(agent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        Text(verbatim: text.agent ?? agent)
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
             }
             Spacer(minLength: 4)
         }
         .padding(.vertical, 3)
-        .help(fact?.namedLabel ?? session.projectLabel)
+        .layoutProbe("sidebar.session.\(session.id)")
+        .help(text.fullDescription)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(text.fullDescription)
     }
 
     private var footer: some View {
@@ -171,8 +179,7 @@ struct OverviewSidebar: View {
                 Button(action: onSettings) { Label(L("Settings"), systemImage: "gearshape") }
                     .buttonStyle(.plain)
                 Spacer()
-                Text(L("Recent messages")).font(.caption2).foregroundStyle(.secondary)
-            }
+            }.layoutProbe("sidebar.settingsRow")
         }.padding(16)
     }
 }

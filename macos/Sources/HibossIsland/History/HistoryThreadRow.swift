@@ -148,7 +148,7 @@ struct HistoryThreadRow: View {
     }
 
     private var timestamp: some View {
-        Text(HistoryTimestamp.date(from: message.createdAt)?.formatted(date: .abbreviated, time: .shortened)
+        Text(HistoryTimestamp.date(from: message.createdAt).map { SharedTimestamp.string($0, now: now) }
             ?? L("Unknown"))
             .font(.caption).foregroundStyle(.secondary)
     }

@@ -14,7 +14,7 @@ final class BoxWindowCaptureTests: XCTestCase {
         let sidebar = OverviewSidebar(snapshot: OverviewSnapshot(history: [], live: nil, now: .now),
             selection: .box, historyState: .loaded, connectionState: .connected,
             onSelect: { _ in }, onSettings: {}, onRefresh: {})
-        XCTAssertEqual(sidebar.decisionBadge, "")
+        XCTAssertNil(sidebar.decisionBadge)
     }
 
     func testSettledMainWindowHasNativeToolbarAndAllReviewStates() async throws {

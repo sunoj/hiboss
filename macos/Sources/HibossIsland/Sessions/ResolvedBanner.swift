@@ -41,7 +41,7 @@ struct ResolvedBanner: View {
                     Label(title, systemImage: recorded ? "checkmark.circle" : "clock")
                     Spacer(minLength: 4)
                     if let date = thread.newestReply.flatMap({ ISODate.parse($0.createdAt) }) {
-                        Text(date, format: .dateTime.hour().minute())
+                        Text(SharedTimestamp.string(date))
                     }
                 }.font(.callout)
                 if case let .autoSelected(option) = outcome, let option {
@@ -51,7 +51,7 @@ struct ResolvedBanner: View {
                     Text(text).font(.body).textSelection(.enabled)
                 }
                 if recorded, let source = thread.newestReply?.metadata?.answeredBy?.displayLabel
-                    ?? thread.newestReply?.metadata?.source?.capitalized {
+                    ?? thread.newestReply?.metadata?.source.flatMap(AnswerSource.visibleLabel) {
                     Text(L("Answered on \(source)")).font(.caption)
                 }
             }

@@ -30,11 +30,13 @@ enum BoxDateSection: Int, CaseIterable, Identifiable {
 
 enum BoxTime {
     static func absolute(
-        _ timestamp: String, locale: Locale = .current, timeZone: TimeZone = .current
+        _ timestamp: String, now: Date = .now, locale: Locale = .current,
+        timeZone: TimeZone? = nil, calendar: Calendar = .current
     ) -> String {
         guard let date = ISODate.parse(timestamp) else { return timestamp }
-        return formatted(date, template: "yyyyMMMd", locale: locale, timeZone: timeZone)
-            + " " + formatted(date, template: "HHmm", locale: locale, timeZone: timeZone)
+        var calendar = calendar
+        calendar.timeZone = timeZone ?? calendar.timeZone
+        return SharedTimestamp.string(date, now: now, calendar: calendar, locale: locale)
     }
 
     static func relative(
