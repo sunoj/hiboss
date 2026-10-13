@@ -1,5 +1,5 @@
 // Compact timestamps that preserve the user's calendar, locale, and time zone.
-// Exports: SharedTimestamp.string for messages and recorded session/Box dates.
+// Exports: SharedTimestamp.string for recorded timestamps across the app.
 // Dependencies: Foundation duration/date formatters and the app string catalog.
 
 import Foundation

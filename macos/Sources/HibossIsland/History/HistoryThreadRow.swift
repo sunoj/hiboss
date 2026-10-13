@@ -125,7 +125,7 @@ struct HistoryThreadRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 sender
                 Spacer(minLength: 12)
-                timestamp
+                timestamp.frame(width: 160, alignment: .trailing)
             }
             VStack(alignment: .leading, spacing: 4) {
                 sender
