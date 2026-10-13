@@ -33,7 +33,7 @@ struct SessionRow: View {
                     }
                 }
                 if let date = session.lastActivityDate {
-                    Text(date, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
+                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
                 }
             }
             Spacer(minLength: 0)

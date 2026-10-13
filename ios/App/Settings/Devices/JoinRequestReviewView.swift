@@ -66,7 +66,7 @@ struct JoinRequestReviewView: View {
                     Text("Invited from \(inviter)").foregroundStyle(Theme.ink2)
                 }
                 if let created = request.createdDate {
-                    LabeledContent("Requested") { Text(created, format: .relative(presentation: .named)) }
+                    LabeledContent("Requested") { RecordedTimeText(date: created) }
                 }
             }
             Section("Profiles") {

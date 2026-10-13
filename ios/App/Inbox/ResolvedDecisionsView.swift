@@ -70,7 +70,7 @@ struct ResolvedDecisionsView: View {
                             ResolvedDecisionRow(
                                 message: message,
                                 settlement: store.settlement(for: message.id),
-                                when: settledWhen(message)
+                                date: settledDate(message)
                             )
                         }
                         OptionMediaComparison(
@@ -80,26 +80,28 @@ struct ResolvedDecisionsView: View {
                         )
                     }
                 } header: {
-                    Text(group.day, style: .date)
+                    TimelineView(.everyMinute) { _ in
+                        Text(verbatim: RelativeTime.absolute(from: group.day, includesTime: false))
+                    }
                 }
             }
         }
     }
 
     /// Prefer the reply's time — that's when the decision was handled.
-    private func settledWhen(_ message: HistoryMessage) -> String {
+    private func settledDate(_ message: HistoryMessage) -> Date? {
         if let reply = store.history.first(where: { $0.replyTo == message.id.rawValue }),
-           !reply.relativeCreatedAt.isEmpty {
-            return reply.relativeCreatedAt
+           let date = reply.createdDate {
+            return date
         }
-        return message.relativeCreatedAt
+        return message.createdDate
     }
 }
 
 struct ResolvedDecisionRow: View {
     let message: HistoryMessage
     let settlement: DecisionSettlement?
-    let when: String
+    let date: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -109,8 +111,8 @@ struct ResolvedDecisionRow: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                if !when.isEmpty {
-                    Text(verbatim: when)
+                if let date {
+                    RecordedTimeText(date: date)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -94,7 +94,7 @@ struct DeviceRequestsView: View {
             }
             Spacer(minLength: 8)
             if let created = request.createdDate {
-                Text(created, format: .relative(presentation: .named))
+                RecordedTimeText(date: created)
                     .font(.hbCaption).foregroundStyle(Theme.ink2)
             }
         }

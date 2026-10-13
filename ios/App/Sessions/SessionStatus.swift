@@ -44,7 +44,8 @@ enum SessionStatus: String, CaseIterable {
         switch self {
         case .blocked: Theme.negative
         case .waiting: Theme.warn
-        case .working, .idle, .completed: Theme.ink2
+        case .working: Theme.positive
+        case .idle, .completed: Theme.ink2
         }
     }
 }

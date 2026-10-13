@@ -7,6 +7,32 @@ import XCTest
 @testable import HiBoss
 
 final class MessageMetaTests: XCTestCase {
+    func testKnownPlatformChannelNamesPreserveBrandCasing() {
+        let names = ["ios": "iOS", "ipados": "iPadOS", "macos": "macOS", "watchos": "watchOS",
+                     "cli": "CLI", "web": "Web", "telegram": "Telegram", "discord": "Discord",
+                     "custom_source": "Custom_Source"]
+        for (raw, expected) in names {
+            let message = HistoryMessage(id: "platform", body: "hello", direction: "agent_to_boss",
+                                         status: "delivered", priority: "normal", channel: raw,
+                                         createdAt: "")
+            XCTAssertEqual(MessageMeta.items(for: message, density: .detail)
+                .first { $0.id == "channel" }?.value, expected)
+        }
+    }
+
+    func testSourceAndChannelUseTheSameCaseInsensitivePlatformNames() {
+        for (raw, expected) in [("IOS", "iOS"), ("macOS", "macOS"), ("ipados", "iPadOS"),
+                                ("watchos", "watchOS"), ("CLI", "CLI"), ("web", "Web"),
+                                ("telegram", "Telegram"), ("discord", "Discord"),
+                                ("other", "Other")] {
+            XCTAssertEqual(MessageMeta.platformName(raw), expected)
+            XCTAssertEqual(DecisionSettlement(answer: "Yes", source: raw).sourceLabel, expected)
+            let device = AnsweringDevice(clientID: "test", kind: raw, label: " ")
+            XCTAssertEqual(DecisionSettlement(answer: "Yes", source: nil, answeredBy: device).sourceLabel,
+                           expected)
+        }
+    }
+
     func testSelectedAlwaysNamesTypeAndPriority() {
         let ids = MessageMeta.items(for: Self.text, density: .selected).map(\.id)
         XCTAssertEqual(ids, ["type", "priority"])

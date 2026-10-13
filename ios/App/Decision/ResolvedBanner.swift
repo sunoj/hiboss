@@ -19,7 +19,7 @@ struct ResolvedBanner: View {
             if settlement.isAutoDefault { Text(verbatim: settlement.answer).font(.subheadline) }
             HStack {
                 settlement.attribution
-                if let date { Text(date, style: .time) }
+                if let date { RecordedTimeText(date: date) }
             }.font(.caption).foregroundStyle(Theme.ink2)
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading)

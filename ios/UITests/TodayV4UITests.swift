@@ -6,8 +6,50 @@ import XCTest
 
 @MainActor
 final class TodayV4UITests: XCTestCase {
+    private var capturesLargeText = false
+    func testSlowPanelsNeverCoverLoadedWorkingRows() {
+        let app = launch("Light", extra: ["HIBOSS_DEMO_EMPTY": "1",
+                                          "HIBOSS_DEMO_PANELS_DELAY_MS": "60000"])
+        defer { app.terminate() }
+        let row = app.buttons["today-working-sess-deploy"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        let waiting = app.descendants(matching: .any)
+            .matching(identifier: "home-connection-status").firstMatch
+        XCTAssertTrue(waiting.waitForExistence(timeout: 5))
+        for id in ["sess-deploy", "direct", "sess-payments"] {
+            let loaded = app.buttons["today-working-\(id)"].firstMatch
+            if loaded.exists {
+                XCTAssertFalse(waiting.frame.intersects(loaded.frame), "The wait must own layout space")
+            }
+        }
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "pending-rows").firstMatch.exists,
+                       "Loaded sessions must never have skeletons over them")
+        shot(app, "Light-slow-panels")
+    }
+
+    func testPanelCompletionKeepsLoadedWorkingRowsInPlace() {
+        let app = launch("Light", extra: ["HIBOSS_DEMO_EMPTY": "1",
+                                          "HIBOSS_DEMO_PANELS_DELAY_MS": "15000"])
+        defer { app.terminate() }
+        let row = app.buttons["today-working-sess-deploy"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Nothing needs you"].exists)
+        let before = row.frame
+        XCTAssertTrue(app.staticTexts["Nothing needs you"].waitForExistence(timeout: 20))
+        XCTAssertEqual(row.frame.minY, before.minY, accuracy: 1)
+        XCTAssertEqual(row.frame.height, before.height, accuracy: 1)
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "pending-rows").firstMatch.exists)
+    }
+
     func testLightScreens() { captureSurfaces(appearance: "Light") }
     func testDarkScreens() { captureSurfaces(appearance: "Dark") }
+    func testRecordedTimeLightScreens() { captureRecordedScreens("Light") }
+    func testRecordedTimeDarkScreens() { captureRecordedScreens("Dark") }
+    func testRecordedTimeAccessibilityScreens() {
+        capturesLargeText = true
+        defer { capturesLargeText = false }
+        captureRecordedScreens("Light")
+    }
 
     func testCompactAllClearInLightAppearance() { captureCompactAllClear("Light") }
     func testCompactAllClearInDarkAppearance() { captureCompactAllClear("Dark") }
@@ -47,6 +89,10 @@ final class TodayV4UITests: XCTestCase {
         app.configureDemoLaunch(extra)
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US",
                                "-AppleInterfaceStyle", appearance]
+        if capturesLargeText {
+            app.launchArguments += ["-UIPreferredContentSizeCategoryName",
+                                    "UICTContentSizeCategoryAccessibilityL"]
+        }
         app.launchConfiguredDemo()
         return app
     }
@@ -111,6 +157,103 @@ final class TodayV4UITests: XCTestCase {
         XCTAssertTrue(watching.waitForExistence(timeout: 10))
         shot(app, "\(appearance)-watching")
         app.terminate()
+    }
+
+    private func captureRecordedScreens(_ appearance: String) {
+        continueAfterFailure = false
+        var app = launch(appearance, extra: ["HIBOSS_DEMO_EMPTY": "1",
+                                            "HIBOSS_DEMO_PANELS_DELAY_MS": "60000"])
+        XCTAssertTrue(app.buttons["today-working-sess-deploy"].waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-today-loading")
+        for _ in 0..<3 { app.swipeUp() }
+        polishShot(app, "\(appearance)-today-pending")
+        app.terminate()
+        app = launch(appearance)
+        app.tabBars.buttons["Sessions"].tap()
+        XCTAssertTrue(app.buttons["activity-session-sess-deploy"].waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-sessions")
+        app.buttons["activity-session-sess-deploy"].tap()
+        XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 10))
+        for _ in 0..<6 { app.swipeDown() }
+        polishShot(app, "\(appearance)-session-facts")
+        app.buttons["Message history"].tap()
+        XCTAssertTrue(app.navigationBars["Messages"].waitForExistence(timeout: 5))
+        polishShot(app, "\(appearance)-messages")
+        app.terminate()
+        captureRecordedPeers(appearance)
+        app = launch(appearance, extra: ["HIBOSS_DEMO_OPEN": "c1"])
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-decision")
+        let more = app.buttons["message-more-information"]
+        for _ in 0..<8 where !more.isHittable { app.swipeUp() }
+        XCTAssertTrue(more.isHittable)
+        more.tap()
+        app.swipeUp()
+        polishShot(app, "\(appearance)-decision-details")
+        app.terminate()
+        captureSecondaryRecordedScreens(appearance)
+    }
+
+    private func captureRecordedPeers(_ appearance: String) {
+        let app = launch(appearance, extra: ["HIBOSS_DEMO_PEERS": "1", "HIBOSS_DEMO_SESSION": "1"])
+        defer { app.terminate() }
+        XCTAssertTrue(app.buttons["Message history"].waitForExistence(timeout: 10))
+        for _ in 0..<6 { app.swipeDown() }
+        let peers = app.descendants(matching: .any).matching(identifier: "project-peers").firstMatch
+        XCTAssertTrue(peers.waitForExistence(timeout: 5))
+        peers.tap()
+        polishShot(app, "\(appearance)-session-peers")
+    }
+
+    private func captureSecondaryRecordedScreens(_ appearance: String) {
+        var app = launch(appearance, extra: ["HIBOSS_DEMO_BOX_V2": "1"])
+        app.tabBars.buttons["Box"].tap()
+        XCTAssertTrue(app.buttons["box-item-demo-text"].waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-box")
+        app.buttons["box-item-demo-text"].tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        polishShot(app, "\(appearance)-box-details")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["box-item-demo-image"].tap()
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-box-media")
+        app.buttons["media-viewer-close"].tap()
+        app.tabBars.buttons["Progress"].tap()
+        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-progress")
+        app.terminate()
+        app = launch(appearance, extra: ["HIBOSS_DEMO_RESOLVED": "1"])
+        XCTAssertTrue(app.navigationBars["Resolved"].waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-resolved")
+        app.terminate()
+        app = launch(appearance)
+        XCTAssertTrue(app.buttons["today-settings"].waitForExistence(timeout: 10))
+        app.buttons["today-settings"].tap()
+        tapVisible(app, "settings-devices")
+        tapVisible(app, "Device Requests")
+        let request = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'build-box-2'"))
+            .firstMatch
+        XCTAssertTrue(request.waitForExistence(timeout: 10))
+        polishShot(app, "\(appearance)-device-requests")
+        request.tap()
+        XCTAssertTrue(app.staticTexts["join-request.code"].waitForExistence(timeout: 5))
+        polishShot(app, "\(appearance)-device-review")
+        app.terminate()
+    }
+
+    private func polishShot(_ app: XCUIApplication, _ name: String) {
+        shot(app, "polish-\(capturesLargeText ? "AX-" : "")\(name)")
+        // Allow the host capture command to retain the same screen with simctl.
+        let until = Date().addingTimeInterval(2)
+        let hold = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in Date() >= until }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [hold], timeout: 3), .completed)
+    }
+
+    private func tapVisible(_ app: XCUIApplication, _ identifier: String) {
+        let button = app.buttons[identifier].firstMatch
+        for _ in 0..<8 where !button.isHittable { app.swipeUp() }
+        XCTAssertTrue(button.isHittable)
+        button.tap()
     }
 
     private func shot(_ app: XCUIApplication, _ name: String) {

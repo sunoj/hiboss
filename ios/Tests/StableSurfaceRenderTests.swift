@@ -10,6 +10,29 @@ import XCTest
 
 @MainActor
 final class StableSurfaceRenderTests: XCTestCase {
+    func testWorkingChipRendersTheGreenSemanticColor() throws {
+        let now = Date()
+        let message = HistoryMessage(id: "work", body: "Working", direction: "agent_to_boss",
+                                     status: "delivered", priority: "normal", mode: "async",
+                                     createdAt: now.ISO8601Format(), sessionId: "work",
+                                     sessionStatus: "working")
+        let snapshot = TodaySnapshot(history: [message], health: .loading,
+                                     coverageComplete: false, now: now)
+        let header = TodayHeader(snapshot: snapshot, requestCount: 0, now: now, onSettings: {})
+        let renderer = ImageRenderer(content: header.environment(\.colorScheme, .light))
+        renderer.proposedSize = ProposedViewSize(width: 390, height: nil)
+        let image = try XCTUnwrap(renderer.cgImage)
+        var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        let context = try XCTUnwrap(CGContext(data: &pixels, width: image.width, height: image.height,
+            bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        let green = stride(from: 0, to: pixels.count, by: 4).filter {
+            Int(pixels[$0 + 1]) > Int(pixels[$0]) + 30 && Int(pixels[$0 + 1]) > Int(pixels[$0 + 2]) + 30
+        }.count
+        XCTAssertGreaterThan(green, 5, "The working chip must render green, including its dot")
+    }
+
     func testHomeCachedStatusDoesNotMoveAllClear() async {
         let snapshot = HomeAttentionSnapshot(messages: [], withdrawn: [], questionnaires: [], now: .now)
         let settled = section(snapshot, status: nil)

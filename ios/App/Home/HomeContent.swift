@@ -44,21 +44,12 @@ struct HomeContent: View {
             }
             .padding(.vertical, 12)
         }
-        .overlay(alignment: .bottom) {
-            if hasCompletedCoverage {
-                CompactRefreshNotice(isRefreshing: isRefreshingKnownContent,
-                                     error: hasCoverageFailure ? attentionStatus : nil,
-                                     title: attentionStatus ?? String(localized: "Refreshing…"),
-                                     onRetry: { await retryCoverage() },
-                                     statusIdentifier: "home-connection-status")
-            } else if let attentionStatus {
-                PendingStateView(title: attentionStatus,
-                                 showsPlaceholder: inbox.requiredInputs.isEmpty && panels.tiles.isEmpty,
-                                 isFailure: hasCoverageFailure,
-                                 statusIdentifier: "home-connection-status",
-                                 onRetry: { await retryCoverage() }, onSettings: openSettings)
-                    .padding(16)
-            }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            CompactRefreshNotice(isRefreshing: isRefreshingKnownContent,
+                                 error: hasCompletedCoverage && hasCoverageFailure ? attentionStatus : nil,
+                                 title: attentionStatus ?? String(localized: "Refreshing…"),
+                                 onRetry: { await retryCoverage() },
+                                 statusIdentifier: "home-connection-status")
         }
     }
 
@@ -86,6 +77,7 @@ struct HomeContent: View {
                 snapshot: attention, hasPanels: !panels.visibleTiles.isEmpty,
                 isAllClear: (today.isAllClear || (hasCompletedCoverage && today.decisions.isEmpty))
                     && attention.questionnaires.isEmpty,
+                reservesAllClearSpace: attention.count == 0,
                 isRefreshing: refreshing, status: refreshing ? nil : attentionStatus,
                 statusIsFailure: hasCoverageFailure,
                 onRetry: onRetry, onSettings: openSettings,
@@ -101,8 +93,17 @@ struct HomeContent: View {
                     showingDecision = true
                 }
             )
-            if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
             TodayResults(snapshot: today)
+            if !panels.tiles.isEmpty { HomePanelWall(model: panels) }
+            if !hasCompletedCoverage, let attentionStatus {
+                PendingStateView(title: attentionStatus,
+                                 showsPlaceholder: attention.count == 0 && panels.tiles.isEmpty
+                                     && today.working.isEmpty && today.delivered.isEmpty,
+                                 isFailure: hasCoverageFailure,
+                                 statusIdentifier: "home-connection-status",
+                                 onRetry: { await retryCoverage() }, onSettings: openSettings)
+                    .padding(.horizontal, 16)
+            }
         }
     }
 

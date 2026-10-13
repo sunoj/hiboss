@@ -18,7 +18,7 @@ struct HistoryRow: View {
                 AgentAvatarView(name: message.displayName, size: 40, lookupName: message.agentName)
             }
             VStack(alignment: .leading, spacing: 3) {
-                RowHeader(name: Text(verbatim: message.displayName), time: message.relativeCreatedAt)
+                RowHeader(name: Text(verbatim: message.displayName), date: message.createdDate)
                 Text(verbatim: message.body)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -66,7 +66,7 @@ struct BossHistoryRow: View {
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading, spacing: 3) {
-                RowHeader(name: Text("You"), time: message.relativeCreatedAt)
+                RowHeader(name: Text("You"), date: message.createdDate)
                 if let agent = message.agentName, !agent.isEmpty {
                     Text("To \(agent)")
                         .font(.caption)
@@ -86,7 +86,7 @@ struct BossHistoryRow: View {
 /// Name and time side by side; stacked at accessibility sizes so the name never truncates.
 private struct RowHeader: View {
     let name: Text
-    let time: String
+    let date: Date?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -105,8 +105,8 @@ private struct RowHeader: View {
     }
 
     @ViewBuilder private var timeText: some View {
-        if !time.isEmpty {
-            Text(verbatim: time)
+        if let date {
+            RecordedTimeText(date: date)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

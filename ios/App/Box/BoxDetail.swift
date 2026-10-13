@@ -107,7 +107,7 @@ struct BoxDetail: View {
                 }
                 if let date = ISOTimestamp.date(from: item.createdAt) {
                     LabeledContent("Added") {
-                        Text(date, format: .dateTime.year().month(.wide).day().hour().minute())
+                        RecordedTimeText(date: date)
                     }
                 }
             }.font(.callout)

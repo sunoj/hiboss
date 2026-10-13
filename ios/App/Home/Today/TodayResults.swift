@@ -17,6 +17,7 @@ struct TodayResults: View {
                         NavigationLink(value: SessionRoute(id: session.id, label: session.projectLabel)) {
                             sessionRow(session)
                         }.buttonStyle(.plain)
+                            .accessibilityIdentifier("today-working-\(session.id)")
                     }
                 }
             }
@@ -51,7 +52,7 @@ struct TodayResults: View {
                     .compactMap { $0 }.joined(separator: " · ")).font(.subheadline.bold())
                 Text(verbatim: session.statusText).font(.footnote).foregroundStyle(Theme.ink2)
                 if let date = session.lastActivityDate {
-                    Text(date, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
+                    RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
                 }
             }
             Spacer(minLength: 0)
@@ -84,7 +85,7 @@ struct TodayResults: View {
                             .accessibilityIdentifier("today-delivered-filename")
                     }
                     if let date = message.createdDate {
-                        Text(date, style: .relative).font(.caption).foregroundStyle(Theme.ink3)
+                        RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

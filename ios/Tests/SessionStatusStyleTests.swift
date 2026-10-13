@@ -7,6 +7,11 @@ import XCTest
 @testable import HiBoss
 
 final class SessionStatusStyleTests: XCTestCase {
+    func testWorkingUsesTheSettledGreenSemanticRole() {
+        XCTAssertEqual(SessionStatus.working.tint, Theme.positive)
+        XCTAssertEqual(SessionStatusStyle(word: "working")?.tint, Theme.positive)
+    }
+
     func testKnownStatusesUseLocalizedLabelsAndDistinctIcons() {
         let working = SessionStatusStyle(word: "working")
         let blocked = SessionStatusStyle(word: "blocked")
@@ -46,7 +51,8 @@ final class SessionStatusStyleTests: XCTestCase {
     func testOnlyBlockedIsRedAndWaitingIsOrange() {
         XCTAssertEqual(SessionStatus.blocked.tint, Theme.negative)
         XCTAssertEqual(SessionStatus.waiting.tint, Theme.warn)
-        for status in [SessionStatus.working, .idle, .completed] {
+        XCTAssertEqual(SessionStatus.working.tint, Theme.positive)
+        for status in [SessionStatus.idle, .completed] {
             XCTAssertEqual(status.tint, Theme.ink2, "\(status)")
         }
     }

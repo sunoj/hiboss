@@ -42,9 +42,9 @@ struct MessageDetailsCard: View {
                 Text(verbatim: branch).monospaced()
             }
         }
-        if !message.relativeCreatedAt.isEmpty {
+        if let date = message.createdDate {
             AttributeRow(icon: "clock", label: "Asked") {
-                Text(verbatim: message.relativeCreatedAt)
+                RecordedTimeText(date: date)
             }
         }
         let p = MessageAttributeStyle.priority(message.priority)
@@ -74,7 +74,7 @@ struct MessageDetailsCard: View {
         }
         if let channel = trimmed(message.channel) {
             AttributeRow(icon: MessageAttributeStyle.channel(channel), label: "Channel") {
-                Text(verbatim: channel.capitalized)
+                Text(verbatim: MessageMeta.platformName(channel))
             }
         }
         let status = MessageAttributeStyle.status(message.status)
