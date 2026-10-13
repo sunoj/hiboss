@@ -1,6 +1,6 @@
-// Compact image grids and video posters that open the native large media viewer.
-// Exports: ProgressMediaGrid and ProgressRemoteImage with explicit loading/retry states.
-// Dependencies: SwiftUI, AppKit, URLSession and HibossKit public progress-media URLs.
+// Aspect-aware image grids and video posters that open the native large media viewer.
+// Exports: ProgressMediaGrid and ProgressRemoteImage with cached loading/retry states.
+// Dependencies: SwiftUI, AppKit, ProgressMediaLayout and ProgressImageLoader.
 
 import AppKit
 import HibossKit
@@ -11,25 +11,23 @@ struct ProgressMediaGrid: View {
     let onOpen: (ProgressMedia) -> Void
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
-            count: items.count == 1 ? 1 : 2), spacing: 8) {
+        ProgressMediaLayout(items: items) {
             ForEach(items) { media in
                 ZStack {
                     Button { onOpen(media) } label: {
-                        TodayStyle.ground.contentShape(Rectangle())
+                        Color(nsColor: .controlBackgroundColor).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(media.alt ?? (media.kind == .image ? L("Image") : L("Play video")))
                     .accessibilityHint(L("Open large viewer"))
                     if let url = media.kind == .image ? media.url : media.posterUrl {
-                        ProgressRemoteImage(url: url, alt: media.alt ?? L("Image"), fills: true)
+                        ProgressRemoteImage(url: url, alt: media.alt ?? L("Image"))
                     }
                     if media.kind == .video {
                         Label(L("Play video"), systemImage: "play.circle.fill")
                             .font(.title2).padding(8).background(.regularMaterial).allowsHitTesting(false)
                     }
                 }
-                .frame(height: items.count == 1 ? 200 : 160)
                 .accessibilityIdentifier("progress.media.\(media.id)")
             }
         }
@@ -39,25 +37,28 @@ struct ProgressMediaGrid: View {
 struct ProgressRemoteImage: View {
     let url: String
     let alt: String
-    var fills = false
-    @State private var image: NSImage?
-    @State private var failed = false
+    @StateObject private var loader: ProgressImageLoader
     @State private var attempt = 0
+
+    init(url: String, alt: String) {
+        self.url = url
+        self.alt = alt
+        _loader = StateObject(wrappedValue: ProgressImageLoader(url: url))
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            if let image {
+            if loader.imageURL == url, let image = loader.image {
                 Image(nsImage: image).resizable()
-                    .aspectRatio(contentMode: fills ? .fill : .fit)
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .clipped().accessibilityLabel(alt)
                     .allowsHitTesting(false)
             } else {
                 VStack {
-                    if failed {
+                    if loader.failed {
                         Label(L("Image unavailable"), systemImage: "photo")
                         Button(L("Retry image")) {
-                            failed = false
                             attempt += 1
                         }
                     } else { ProgressView(L("Loading image…")) }
@@ -65,22 +66,6 @@ struct ProgressRemoteImage: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
             }
         }
-        .task(id: attempt) { await load() }
-    }
-
-    private func load() async {
-        guard let url = URL(string: url) else {
-            failed = true
-            return
-        }
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-            try Task.checkCancellation()
-            guard (response as? HTTPURLResponse)?.statusCode == 200,
-                  let loaded = NSImage(data: data) else { throw HibossAPIError.invalidResponse }
-            image = loaded
-        } catch {
-            if !Task.isCancelled { failed = true }
-        }
+        .task(id: "\(url):\(attempt)") { await loader.load(url) }
     }
 }

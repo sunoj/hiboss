@@ -15,15 +15,21 @@ struct ProgressWorkspace: View {
 
     var body: some View {
         content
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .workspaceChrome()
-        .background(TodayStyle.ground).tint(TodayStyle.live)
+        .background(Color(nsColor: .windowBackgroundColor)).tint(TodayStyle.live)
         .toolbar {
-            filter
-            ToolbarItem(placement: .status) {
-                CachedReadStatus(isRefreshing: store.isRefreshing, failure: store.loadError,
-                    retry: { Task { await store.refresh() } })
+            if #available(macOS 26, *) {
+                ToolbarSpacer(.flexible, placement: .automatic)
+            }
+            ToolbarItem(placement: .primaryAction) {
+                if store.hasResult {
+                    CachedReadStatus(isRefreshing: store.isRefreshing, failure: store.loadError,
+                        retry: { Task { await store.refresh() } })
+                }
             }
             .quietStatusBackground()
+            filter
         }
         .task { if !store.didLoad { await store.refresh() } }
         .sheet(item: $opened) { ProgressMediaViewer(media: $0) }
@@ -46,6 +52,7 @@ struct ProgressWorkspace: View {
                     Label(L("Progress unavailable"), systemImage: "exclamationmark.triangle")
                 } description: { Text(verbatim: error) } actions: {
                     Button(L("Retry")) { Task { await store.refresh() } }
+                        .buttonStyle(.borderedProminent)
                 }
             } else {
                 ContentUnavailableView(L("No progress yet"), systemImage: "calendar.day.timeline.leading",
@@ -65,7 +72,7 @@ struct ProgressWorkspace: View {
                     onLike: { Task { await store.toggleLike(id: post.id) } },
                     onDelete: { pendingDelete = post })
                     .padding(.vertical, 12)
-                    .listRowBackground(TodayStyle.surface)
+                    .listRowBackground(Color(nsColor: .controlBackgroundColor))
             }
             if store.isLoadingMore { ProgressView(L("Loading more progress…")) }
             if let error = store.pageError { readError(error, retry: { await store.loadMore() }) }
@@ -75,6 +82,8 @@ struct ProgressWorkspace: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .frame(maxWidth: 900)
+        .frame(maxWidth: .infinity)
     }
 
     private func readError(_ error: String, retry: @escaping () async -> Void) -> some View {

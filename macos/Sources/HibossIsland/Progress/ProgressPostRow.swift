@@ -1,11 +1,12 @@
 // Native timeline row showing provenance, post text, media, tags and mutation feedback.
 // Exports: ProgressPostRow with like and delete actions supplied by the workspace.
-// Dependencies: SwiftUI, HibossKit, TodayStyle and ProgressMediaGrid.
+// Dependencies: SwiftUI, HibossKit, project session identity and ProgressMediaGrid.
 
 import HibossKit
 import SwiftUI
 
 struct ProgressPostRow: View {
+    @Environment(\.projectSessions) private var sessions
     let post: ProgressPost
     let isLiking: Bool
     let isDeleting: Bool
@@ -30,7 +31,6 @@ struct ProgressPostRow: View {
                     .font(.callout).foregroundStyle(TodayStyle.signal)
             }
         }
-        .frame(maxWidth: 760, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("progress.post.\(post.id)")
@@ -38,9 +38,9 @@ struct ProgressPostRow: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            ProjectAvatarView(project: post.projectIdentity, size: 32)
+            ProjectAvatarView(project: project, size: 32)
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: post.projectIdentity.displayName).font(.headline)
+                Text(verbatim: project.displayName).font(.headline)
                 Text(verbatim: post.agentLabel ?? (post.agentName.isEmpty ? L("Agent") : post.agentName))
                     .font(.callout).foregroundStyle(TodayStyle.live)
             }
@@ -56,6 +56,10 @@ struct ProgressPostRow: View {
                 Text(verbatim: post.createdAt).font(.caption).foregroundStyle(TodayStyle.tertiary)
             }
         }
+    }
+
+    private var project: ProjectIdentity {
+        ProgressProjectIdentity.resolve(post.projectIdentity, sessions: sessions)
     }
 
     private var actions: some View {
