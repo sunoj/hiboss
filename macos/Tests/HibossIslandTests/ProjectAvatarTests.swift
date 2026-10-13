@@ -1,5 +1,5 @@
 // Exercises public image loading and placeholder fallback across missing/failing URLs.
-// Covers: loading state, HTTP errors, malformed images, valid images, no credentials, and square clipping.
+// Covers: cache reuse, failures, URL validation, credential isolation, and square clipping.
 // Dependencies: XCTest, AppKit, SwiftUI, HibossKit, and loopback media fixture server.
 
 import AppKit
@@ -10,6 +10,94 @@ import XCTest
 
 @MainActor
 final class ProjectAvatarTests: XCTestCase {
+    func testSuccessfulAvatarIsReusedWithoutAnotherRequest() async throws {
+        let server = HistorySnapshotMediaServer()
+        try await server.start()
+        defer { server.stop() }
+        let path = "/ship.png?avatar=\(UUID().uuidString)"
+        let url = try XCTUnwrap(URL(string: server.baseURL + path))
+        let original = ProjectAvatarLoader()
+        await original.load(url)
+        let image = try XCTUnwrap(original.image)
+        XCTAssertEqual(server.requestedPaths, [path])
+
+        let rebuilt = ProjectAvatarLoader(url: url)
+        XCTAssertTrue(rebuilt.image === image, "A rebuilt loader must have its image before loading")
+        XCTAssertEqual(server.requestedPaths, [path], "Initialization must not make a request")
+        XCTAssertNil(ProjectAvatarLoader().image)
+        let coldURL = try XCTUnwrap(URL(string: server.baseURL + "/ship.png?avatar=\(UUID().uuidString)"))
+        XCTAssertNil(ProjectAvatarLoader(url: coldURL).image, "The cache key must include the whole URL")
+        await rebuilt.load(url)
+        XCTAssertTrue(rebuilt.image === image)
+        XCTAssertEqual(server.requestedPaths, [path], "A cached avatar must make zero new requests")
+        await rebuilt.load(nil)
+        XCTAssertNil(rebuilt.image, "A changed project must never retain the previous image")
+        await rebuilt.load(url)
+        XCTAssertTrue(rebuilt.image === image)
+        XCTAssertEqual(server.requestedPaths, [path])
+    }
+
+    func testHTTPFailuresAndInvalidImagesAreNotCachedAndAreRetried() async throws {
+        let server = HistorySnapshotMediaServer()
+        try await server.start()
+        defer { server.stop() }
+        for resource in ["missing.png", "port"] {
+            let path = "/\(resource)?avatar=\(UUID().uuidString)"
+            let url = try XCTUnwrap(URL(string: server.baseURL + path))
+            let loader = ProjectAvatarLoader(url: url)
+            await loader.load(url)
+            XCTAssertNil(loader.image)
+            let rebuilt = ProjectAvatarLoader(url: url)
+            XCTAssertNil(rebuilt.image, "Only successfully decoded 2xx images may be cached")
+            await rebuilt.load(url)
+            XCTAssertNil(rebuilt.image)
+            XCTAssertEqual(server.requestedPaths.filter { $0 == path }.count, 2)
+        }
+    }
+
+    func testNonSuccessResponseWithValidImageIsNotCached() async throws {
+        let configuration = ProjectAvatarLoader.configuration()
+        configuration.protocolClasses = [AvatarRequestProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let url = try XCTUnwrap(URL(string: "https://avatars.example.com/image.png?avatar=\(UUID().uuidString)"))
+        let loader = ProjectAvatarLoader(url: url)
+        await loader.load(url, session: session)
+        XCTAssertNil(loader.image)
+        XCTAssertNil(ProjectAvatarLoader(url: url).image)
+    }
+
+    func testTransportFailureIsNotCached() async throws {
+        let configuration = ProjectAvatarLoader.configuration()
+        configuration.protocolClasses = [AvatarRequestProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let url = try XCTUnwrap(URL(string: "https://avatars.example.com/failure?avatar=\(UUID().uuidString)"))
+        let loader = ProjectAvatarLoader(url: url)
+        await loader.load(url, session: session)
+        XCTAssertNil(loader.image)
+        XCTAssertNil(ProjectAvatarLoader(url: url).image)
+    }
+
+    func testInvalidURLsNeverSeedOrRetainAnImage() async throws {
+        let server = HistorySnapshotMediaServer()
+        try await server.start()
+        defer { server.stop() }
+        let path = "/ship.png?avatar=\(UUID().uuidString)"
+        let url = try XCTUnwrap(URL(string: server.baseURL + path))
+        let loader = ProjectAvatarLoader()
+        await loader.load(url)
+        XCTAssertNotNil(loader.image)
+        for invalid in ["file:///tmp/avatar.png", "ftp://example.com/avatar.png", "https:avatar.png",
+                        "http://user@127.0.0.1/avatar.png", "https://user:password@example.com/avatar.png"] {
+            let invalidURL = try XCTUnwrap(URL(string: invalid))
+            XCTAssertNil(ProjectAvatarLoader(url: invalidURL).image)
+            await loader.load(invalidURL)
+            XCTAssertNil(loader.image)
+        }
+        XCTAssertEqual(server.requestedPaths, [path])
+    }
+
     func testLoadingMissingFailureAndInvalidImagesKeepPlaceholderThenSuccessLoadsImage() async throws {
         let server = HistorySnapshotMediaServer()
         try await server.start()
@@ -111,6 +199,10 @@ private final class AvatarRequestProtocol: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
         XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
+        if request.url?.lastPathComponent == "failure" {
+            client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
+            return
+        }
         guard let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: 404, httpVersion: nil, headerFields: nil)
         else {
@@ -118,6 +210,13 @@ private final class AvatarRequestProtocol: URLProtocol, @unchecked Sendable {
             return
         }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        guard let png = Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="),
+              NSImage(data: png) != nil else {
+            XCTFail("The non-2xx fixture must contain a decodable image")
+            return
+        }
+        client?.urlProtocol(self, didLoad: png)
         client?.urlProtocolDidFinishLoading(self)
     }
 

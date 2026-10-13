@@ -8,11 +8,12 @@ import SwiftUI
 struct ProjectAvatarView: View {
     let project: ProjectIdentity
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 32
-    @StateObject private var loader = ProjectAvatarLoader()
+    @StateObject private var loader: ProjectAvatarLoader
 
     init(project: ProjectIdentity, size: CGFloat) {
         self.project = project
         _size = ScaledMetric(wrappedValue: size, relativeTo: .body)
+        _loader = StateObject(wrappedValue: ProjectAvatarLoader(url: project.avatarURL))
     }
 
     var body: some View {
