@@ -15,3 +15,8 @@ Describe limitations as properties of the code.
 
 Before running iOS tests, read "iOS verification tiers" in `CLAUDE.md` and run only the
 tier that matches the changed paths.
+
+Before running macOS tests, read "macOS verification tiers" in `CLAUDE.md`. Run
+`macos/scripts/verify-tier.sh` to get the tier and the exact filtered command. Window tests
+open real windows on the boss's working Mac, so never run the full `HibossIslandTests`
+outside M5, and keep to the per-task run limits.
