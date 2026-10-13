@@ -125,7 +125,7 @@ struct HistoryThreadRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 sender
                 Spacer(minLength: 12)
-                timestamp
+                timestamp.frame(width: 160, alignment: .trailing)
             }
             VStack(alignment: .leading, spacing: 4) {
                 sender
@@ -148,9 +148,12 @@ struct HistoryThreadRow: View {
     }
 
     private var timestamp: some View {
-        Text(HistoryTimestamp.date(from: message.createdAt).map { SharedTimestamp.string($0, now: now) }
-            ?? L("Unknown"))
-            .font(.caption).foregroundStyle(.secondary)
+        TimelineView(.periodic(from: .now, by: 60)) { tick in
+            Text(HistoryTimestamp.date(from: message.createdAt).map {
+                SharedTimestamp.string($0, now: tick.date)
+            } ?? L("Unknown"))
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 
     private var metadata: some View {

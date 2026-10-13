@@ -68,7 +68,12 @@ struct BoxBrowserDetail: View {
             if let project = item.project { LabeledContent(L("Project"), value: project) }
             if !item.tags.isEmpty { LabeledContent(L("Tags"), value: item.tags.joined(separator: ", ")) }
             if let format = item.detailFormat { LabeledContent(L("Format"), value: format) }
-            LabeledContent(L("Added"), value: BoxTime.absolute(item.createdAt))
+            LabeledContent(L("Added")) {
+                TimelineView(.periodic(from: .now, by: 60)) { tick in
+                    Text(verbatim: BoxTime.absolute(item.createdAt, now: tick.date))
+                        .frame(width: 180, alignment: .trailing)
+                }
+            }
         }.font(.callout).textSelection(.enabled).frame(maxWidth: .infinity)
     }
 

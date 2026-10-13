@@ -47,9 +47,10 @@ struct ProgressPostRow: View {
             Spacer()
             if let date = ISODate.parse(post.createdAt) {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
-                    Text(verbatim: RelativeDateTimeFormatter().localizedString(for: date,
-                        relativeTo: context.date))
+                    Text(verbatim: SharedTimestamp.string(date, now: context.date))
                         .font(.caption).foregroundStyle(TodayStyle.tertiary)
+                        .frame(width: 160, alignment: .trailing)
+                        .layoutProbe("progress.timestamp.\(post.id)")
                         .help(date.formatted(date: .complete, time: .shortened))
                 }
             } else {
