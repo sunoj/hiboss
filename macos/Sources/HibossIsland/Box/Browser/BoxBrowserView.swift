@@ -1,4 +1,4 @@
-// History window's native Box list with search, kind filtering and confirmed actions.
+// Native Box list with search, kind filtering, confirmed actions and nested image previews.
 // Exports: BoxBrowserView; images preview in-app and other media opens with the default application.
 // Dependencies: SwiftUI, AppKit, BoxBrowserStore and BoxBrowserMedia.
 
@@ -29,9 +29,6 @@ struct BoxBrowserView: View {
         }
         .onChange(of: store.kind) { Task { await store.refresh() } }
         .onChange(of: store.project) { Task { await store.refresh() } }
-        .sheet(item: $previewImage) { item in
-            BoxImagePreview(item: item, media: media)
-        }
         .sheet(item: $editingNote) { item in BoxNoteEditor(item: item, store: store) }
         .quickLookPreview($quickLookURL)
         .alert(store.pendingDelete?.deleteTitle ?? L("Delete this Box item?"),
@@ -124,6 +121,9 @@ struct BoxBrowserView: View {
             }
             .workspaceChrome()
             .frame(minWidth: 280, idealWidth: 400, maxWidth: .infinity)
+            .sheet(item: $previewImage) { item in
+                BoxImagePreview(item: item, media: media)
+            }
     }
 
     @ViewBuilder private var content: some View {
@@ -183,7 +183,10 @@ struct BoxBrowserView: View {
     }
 
     private func row(_ item: BoxItem) -> some View {
-        BoxBrowserRow(item: item, media: media) { previewImage = item }
+        BoxBrowserRow(item: item, media: media) {
+            store.selection = item.id
+            previewImage = item
+        }
             .tag(item.id)
             .contentShape(Rectangle())
             .contextMenu {
@@ -205,6 +208,7 @@ struct BoxBrowserView: View {
 
     private func open(_ item: BoxItem) async {
         if item.hasImageMedia {
+            store.selection = item.id
             previewImage = item
             return
         }
