@@ -104,7 +104,10 @@ final class BoxStableRefreshTests: XCTestCase {
             panelsModel: PanelsModel(demoMode: true, autoload: false))
             .environment(\.colorScheme, scheme).environment(\.layoutProbe, probe))
         host.sizingOptions = []
-        return try await StableWindowSupport.show(host, scheme: scheme)
+        let window = try await StableWindowSupport.show(host, scheme: scheme)
+        window.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
+        window.makeKeyAndOrderFront(nil)
+        return window
     }
 
     private func words(_ view: NSView) throws -> String {
@@ -139,9 +142,11 @@ final class BoxStableRefreshTests: XCTestCase {
         let request = VNRecognizeTextRequest()
         request.recognitionLanguages = ["en-US"]
         try VNImageRequestHandler(cgImage: XCTUnwrap(bitmap.cgImage)).perform([request])
-        let bounds = try XCTUnwrap(request.results?.first {
-            $0.topCandidates(1).first?.string == L("Retry")
-        }).boundingBox
+        let text = try XCTUnwrap(request.results?.compactMap { $0.topCandidates(1).first }.first {
+            $0.string.contains(L("Retry"))
+        })
+        let range = try XCTUnwrap(text.string.range(of: L("Retry")))
+        let bounds = try XCTUnwrap(text.boundingBox(for: range)).boundingBox
         let y = view.isFlipped ? 1 - bounds.midY : bounds.midY
         let point = view.convert(NSPoint(x: view.bounds.width * bounds.midX,
             y: view.bounds.height * y), to: nil)
