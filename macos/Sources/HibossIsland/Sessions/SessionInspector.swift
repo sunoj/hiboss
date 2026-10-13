@@ -46,7 +46,6 @@ struct SessionInspector: View {
                 LabeledContent(L("Started")) {
                     TimelineView(.periodic(from: .now, by: 60)) { tick in
                         Text(SharedTimestamp.string(started, now: tick.date))
-                            .frame(width: 160, alignment: .trailing)
                     }
                 }
             }
