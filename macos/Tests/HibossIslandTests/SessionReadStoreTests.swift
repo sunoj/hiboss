@@ -135,3 +135,11 @@ final class SessionReadStoreTests: XCTestCase {
             createdAt: AttentionTestSupport.iso(now.addingTimeInterval(seconds)), sessionId: session)
     }
 }
+
+final class SidebarWorkingCaptionTests: XCTestCase {
+    func testSelectedRowDropsGreenSoTheCaptionStaysReadable() {
+        XCTAssertTrue(SidebarWorkingCaption.usesStatusColor(.standard))
+        XCTAssertFalse(SidebarWorkingCaption.usesStatusColor(.increased),
+            "Green on the blue emphasized selection is unreadable")
+    }
+}
