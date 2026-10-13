@@ -33,7 +33,11 @@ final class SidebarFormattingTests: XCTestCase {
             host.layoutSubtreeIfNeeded()
             let search = descendants(host).compactMap { $0 as? NSSearchField }.first
             XCTAssertNotNil(search, "Session search must use the native search control")
-            XCTAssertEqual(search?.placeholderString, L("Find a session"))
+            XCTAssertEqual(search?.placeholderAttributedString?.string ?? search?.placeholderString,
+                L("Find a session"))
+            let placeholder = try XCTUnwrap(search?.placeholderAttributedString)
+            XCTAssertEqual(placeholder.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor,
+                .secondaryLabelColor, "The native placeholder must use readable semantic label contrast")
             try assertSettingsRowHasNoTrailingCaption(host: host, probe: probe)
         }
     }

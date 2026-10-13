@@ -10,7 +10,8 @@ struct SessionSearchField: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSSearchField {
         let field = NSSearchField()
-        field.placeholderString = L("Find a session")
+        field.placeholderAttributedString = NSAttributedString(string: L("Find a session"),
+            attributes: [.foregroundColor: NSColor.secondaryLabelColor])
         field.setAccessibilityLabel(L("Find a session"))
         field.setAccessibilityIdentifier("overview.sessionSearch")
         field.sendsSearchStringImmediately = true
