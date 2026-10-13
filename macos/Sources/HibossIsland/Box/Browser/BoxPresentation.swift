@@ -43,38 +43,7 @@ enum BoxTime {
         _ timestamp: String, now: Date = .now, locale: Locale = .current,
         calendar: Calendar = .current
     ) -> String {
-        guard let date = ISODate.parse(timestamp) else { return timestamp }
-        let elapsed = max(0, Int(now.timeIntervalSince(date)))
-        if elapsed < 60 { return localized("\(elapsed) seconds ago", locale: locale) }
-        if elapsed < 3600 { return localized("\(elapsed / 60) minutes ago", locale: locale) }
-        let clock = formatted(date, template: "HHmm", locale: locale, timeZone: calendar.timeZone)
-        if BoxDateSection.section(for: timestamp, now: now, calendar: calendar) == .yesterday {
-            return localized("Yesterday", locale: locale) + " " + clock
-        }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = locale
-        formatter.calendar = calendar
-        formatter.dateTimeStyle = .numeric
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: now)
-    }
-
-    private static func formatted(
-        _ date: Date, template: String, locale: Locale, timeZone: TimeZone
-    ) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = timeZone
-        formatter.setLocalizedDateFormatFromTemplate(template)
-        return formatter.string(from: date)
-    }
-
-    private static func localized(_ key: String.LocalizationValue, locale: Locale) -> String {
-        let language = locale.language.languageCode?.identifier ?? "en"
-        let resource = language == "zh" ? "zh-Hans" : language
-        let bundle = appResourceBundle.path(forResource: resource, ofType: "lproj")
-            .flatMap(Bundle.init(path:)) ?? appResourceBundle
-        return String(localized: key, bundle: bundle, locale: locale)
+        absolute(timestamp, now: now, locale: locale, calendar: calendar)
     }
 }
 

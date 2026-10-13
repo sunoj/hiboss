@@ -32,7 +32,11 @@ struct HistoryReplies: View {
             } else {
                 Text(L("Me"))
             }
-            Text(ISODate.parse(reply.createdAt).map { SharedTimestamp.string($0) } ?? L("Unknown"))
+            TimelineView(.periodic(from: .now, by: 60)) { tick in
+                Text(ISODate.parse(reply.createdAt).map { SharedTimestamp.string($0, now: tick.date) }
+                    ?? L("Unknown"))
+                    .frame(width: 160, alignment: .leading)
+            }
             if let source = reply.metadata?.answeredBy?.displayLabel
                 ?? reply.metadata?.source.flatMap(AnswerSource.visibleLabel),
                !source.isEmpty {

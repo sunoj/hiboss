@@ -44,7 +44,10 @@ struct SessionInspector: View {
             if let branch = context.branch { LabeledContent(L("Branch"), value: branch) }
             if let started = context.facts?.startedAt.flatMap(ISODate.parse) {
                 LabeledContent(L("Started")) {
-                    Text(SharedTimestamp.string(started))
+                    TimelineView(.periodic(from: .now, by: 60)) { tick in
+                        Text(SharedTimestamp.string(started, now: tick.date))
+                            .frame(width: 160, alignment: .trailing)
+                    }
                 }
             }
         }.font(.callout)

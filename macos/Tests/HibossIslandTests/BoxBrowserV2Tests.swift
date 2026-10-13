@@ -121,28 +121,28 @@ final class BoxBrowserV2Tests: XCTestCase {
         XCTAssertEqual(store.selectedItem?.note, "Revised note")
     }
 
-    func testTimeFormatsSecondsMinutesYesterdayAndAbsoluteChineseDate() throws {
+    func testTimeFormatsJustNowMinutesRecentYesterdayAndAbsoluteChineseDate() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
         let now = try XCTUnwrap(ISODate.parse("2026-10-12T09:00:00Z"))
         let locale = Locale(identifier: "zh_Hans_CN")
         XCTAssertEqual(BoxTime.relative("2026-10-12T08:59:23Z", now: now,
-            locale: locale, calendar: calendar), "37 秒前")
+            locale: locale, calendar: calendar), "刚刚")
         XCTAssertEqual(BoxTime.relative("2026-10-12T08:57:00Z", now: now,
-            locale: locale, calendar: calendar), "3 分钟前")
+            locale: locale, calendar: calendar), "3分钟前")
         XCTAssertEqual(BoxTime.relative("2026-10-11T22:30:00Z", now: now,
-            locale: locale, calendar: calendar), "昨天 22:30")
+            locale: locale, calendar: calendar), "10小时30分钟前")
         XCTAssertEqual(BoxTime.absolute("2026-10-11T22:30:00Z",
             now: try XCTUnwrap(ISODate.parse("2027-10-12T09:00:00Z")), locale: locale,
             timeZone: calendar.timeZone), "2026年10月11日 22:30")
         XCTAssertEqual(BoxTime.absolute("invalid"), "invalid")
         XCTAssertEqual(BoxTime.relative("invalid"), "invalid")
         XCTAssertEqual(BoxTime.relative("2026-10-12T09:00:05Z", now: now,
-            locale: locale, calendar: calendar), "0 秒前")
+            locale: locale, calendar: calendar), "09:00")
         XCTAssertEqual(BoxTime.relative("2026-10-12T08:59:59Z", now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar), "1 second ago")
+            locale: Locale(identifier: "en_US"), calendar: calendar), "Just now")
         XCTAssertEqual(BoxTime.relative("2026-10-12T08:59:00Z", now: now,
-            locale: Locale(identifier: "en_US"), calendar: calendar), "1 minute ago")
+            locale: Locale(identifier: "en_US"), calendar: calendar), "1 min ago")
     }
 
     func testDateSectionsUseLocalCalendarAcrossMidnight() throws {
@@ -160,13 +160,13 @@ final class BoxBrowserV2Tests: XCTestCase {
             calendar: calendar), .earlier)
     }
 
-    func testRowsKeepHoursAndOlderDatesRelativeInEnglishAndChinese() throws {
+    func testRowsUseRelativeHoursAndAbsoluteOlderDatesInEnglishAndChinese() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
         let now = try XCTUnwrap(ISODate.parse("2026-10-12T09:00:00Z"))
         for (locale, hours, days) in [
-            (Locale(identifier: "en_US"), "2 hours ago", "3 days ago"),
-            (Locale(identifier: "zh_Hans_CN"), "2小时前", "3天前")
+            (Locale(identifier: "en_GB"), "2 hr ago", "9 Oct 09:00"),
+            (Locale(identifier: "zh_Hans_CN"), "2小时前", "10月9日 09:00")
         ] {
             XCTAssertEqual(BoxTime.relative("2026-10-12T07:00:00Z", now: now,
                 locale: locale, calendar: calendar), hours)

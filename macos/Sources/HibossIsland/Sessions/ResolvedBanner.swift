@@ -41,7 +41,10 @@ struct ResolvedBanner: View {
                     Label(title, systemImage: recorded ? "checkmark.circle" : "clock")
                     Spacer(minLength: 4)
                     if let date = thread.newestReply.flatMap({ ISODate.parse($0.createdAt) }) {
-                        Text(SharedTimestamp.string(date))
+                        TimelineView(.periodic(from: .now, by: 60)) { tick in
+                            Text(SharedTimestamp.string(date, now: tick.date))
+                                .frame(width: 180, alignment: .trailing)
+                        }
                     }
                 }.font(.callout)
                 if case let .autoSelected(option) = outcome, let option {
