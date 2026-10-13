@@ -1,4 +1,4 @@
-// Circular registered avatars with initials while the public project image loader runs.
+// Circular registered avatars with cached images or initials while public images load.
 // Exports AgentAvatarView and AgentAvatarContent; depends on the shared account lookup.
 
 import HibossKit
@@ -37,7 +37,14 @@ private struct LoadedAgentAvatar: View {
     let name: String
     let size: CGFloat
     let url: URL?
-    @StateObject private var loader = ProjectAvatarLoader()
+    @StateObject private var loader: ProjectAvatarLoader
+
+    init(name: String, size: CGFloat, url: URL?) {
+        self.name = name
+        self.size = size
+        self.url = url
+        _loader = StateObject(wrappedValue: ProjectAvatarLoader(url: url))
+    }
 
     var body: some View {
         AgentAvatarContent(name: name, size: size,
