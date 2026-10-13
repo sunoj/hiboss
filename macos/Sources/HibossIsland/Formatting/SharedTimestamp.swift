@@ -32,7 +32,7 @@ enum SharedTimestamp {
         let resource = language == "zh" ? "zh-Hans" : language
         let bundle = appResourceBundle.path(forResource: resource, ofType: "lproj")
             .flatMap(Bundle.init(path:)) ?? appResourceBundle
-        let key: String.LocalizationValue = "Yesterday" // i18n-exempt: existing catalog key for injected locale
+        let key: String.LocalizationValue = "Yesterday" // i18n-exempt: catalog key for injected locale
         return String(localized: key, bundle: bundle, locale: locale)
     }
 }

@@ -43,7 +43,8 @@ final class SidebarSessionLayoutTests: XCTestCase {
                 try await waitForCondition { probe.anchors["sidebar.session.long"]?.window != nil }
                 host.layoutSubtreeIfNeeded()
                 try assertLayout(probe)
-                try await capture(window, name: "sidebar-long-\(Int(width))-\(scheme == .light ? "light" : "dark")")
+                let appearance = scheme == .light ? "light" : "dark"
+                try await capture(window, name: "sidebar-long-\(Int(width))-\(appearance)")
             }
         }
     }
