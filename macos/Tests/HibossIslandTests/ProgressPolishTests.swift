@@ -42,7 +42,7 @@ final class ProgressPolishTests: XCTestCase {
         XCTAssertEqual(frames, [CGRect(x: 0, y: 0, width: 200, height: 200),
             CGRect(x: 208, y: 0, width: 200, height: 200),
             CGRect(x: 0, y: 208, width: 200, height: 100)])
-        XCTAssertEqual(ProgressMediaLayout(items: [square]).frames(width: 900).first?.height, 320)
+        XCTAssertEqual(ProgressMediaLayout(items: [square]).frames(width: 900).first?.height, 240)
         XCTAssertEqual(ProgressMediaLayout.aspectRatio(media(width: 0, height: nil)), 16 / 9)
         XCTAssertEqual(ProgressMediaLayout.aspectRatio(media(width: 400, height: 800)), 0.5)
     }

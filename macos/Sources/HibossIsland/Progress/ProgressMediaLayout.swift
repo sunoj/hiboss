@@ -18,7 +18,7 @@ struct ProgressMediaLayout: Layout {
         for start in stride(from: 0, to: items.count, by: columns) {
             let end = min(start + columns, items.count)
             let height = items[start..<end].map { item in
-                min(320, tileWidth / Self.aspectRatio(item))
+                min(240, tileWidth / Self.aspectRatio(item))
             }.max() ?? 0
             for column in 0..<(end - start) {
                 frames.append(CGRect(x: CGFloat(column) * (tileWidth + spacing), y: y,
