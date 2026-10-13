@@ -56,6 +56,7 @@ final class ProjectIdentityUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["prod-release · fern"].exists)
         XCTAssertEqual(app.cells.count, 7)
         XCTAssertFalse(app.cells.staticTexts["prod-release · otter"].exists)
+        shot(app, "\(appearance)-all-peers")
         app.terminate()
     }
 
@@ -74,9 +75,6 @@ final class ProjectIdentityUITests: XCTestCase {
     }
 
     private func shot(_ app: XCUIApplication, _ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "avatar-\(name)"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        captureDemoScreenshot(app, name: "avatar-\(name)", test: self)
     }
 }

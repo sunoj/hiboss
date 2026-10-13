@@ -21,4 +21,5 @@ spikes/panel-seam/evidence/
 
 # Generated screenshot captures stay local; they are not tracked in git.
 ios/Screenshots/
+.polish-shots/
 docs/live-panels/screenshots/

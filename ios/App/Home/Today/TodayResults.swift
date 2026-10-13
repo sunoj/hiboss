@@ -50,12 +50,13 @@ struct TodayResults: View {
                 Text(verbatim: [inventory.first { $0.id == session.id }?.namedLabel ?? session.projectLabel,
                                 session.branch, session.agentName]
                     .compactMap { $0 }.joined(separator: " · ")).font(.subheadline.bold())
-                Text(verbatim: session.statusText).font(.footnote).foregroundStyle(Theme.ink2)
+                Text(verbatim: session.statusText).font(.footnote).foregroundStyle(Theme.positive)
                 if let date = session.lastActivityDate {
                     RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink3)
                 }
             }
             Spacer(minLength: 0)
+            SessionReadIndicator(sessionID: session.id, needsYou: session.needsYou)
         }
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .padding(12).background(Theme.surface, in: RoundedRectangle(cornerRadius: 18))
