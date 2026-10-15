@@ -133,7 +133,13 @@ struct SessionMessagesView: View {
                     if stream.hasEarlier {
                         earlierEvents
                     }
-                    ForEach(SessionTranscriptLayout.items(from: transcriptEvents)) { item in
+                    SessionConversation(messages: SessionThreadMessages.messages(
+                        sessionID: route.id, history: store.history, events: transcriptEvents),
+                        store: store, sessionAgent: sessionAgent, onChoose: handleReply)
+                        .id("conversation-start")
+                    ForEach(SessionTranscriptLayout.items(from: transcriptEvents.filter {
+                        $0.kind != "message"
+                    })) { item in
                         SessionTranscriptItemView(item: item, store: store, sessionAgent: sessionAgent,
                                                   onChoose: handleReply)
                             .id(item.id)
@@ -156,13 +162,6 @@ struct SessionMessagesView: View {
             .accessibilityIdentifier("session-transcript")
             .coordinateSpace(name: "transcript")
             .simultaneousGesture(readerGesture)
-            .onAppear { scrollToLive(proxy) }
-            .onChange(of: transcriptEvents.last?.id) { _, _ in
-                if stream.isFollowingLive { scrollToLive(proxy) }
-            }
-            .onChange(of: panels?.tiles.count) { _, _ in
-                if stream.isFollowingLive { scrollToLive(proxy) }
-            }
             .onChange(of: stream.isFollowingLive) { _, following in
                 if following { scrollToLive(proxy) }
             }
@@ -228,7 +227,7 @@ struct SessionMessagesView: View {
                 stream.pendingWhileLocked > 0
                     ? String(localized: "Jump to live (\(stream.pendingWhileLocked))")
                     : String(localized: "Jump to live"),
-                systemImage: "arrow.down.to.line"
+                systemImage: "arrow.up.to.line"
             )
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 14)
@@ -240,7 +239,7 @@ struct SessionMessagesView: View {
     }
 
     private func scrollToLive(_ proxy: ScrollViewProxy) {
-        proxy.scrollTo("live-end", anchor: .bottom)
+        proxy.scrollTo("conversation-start", anchor: .top)
     }
 
     /// Same reply path and feedback as the Home card, so an answer means the same everywhere.

@@ -23,7 +23,9 @@ struct SessionTranscriptItemView: View {
                 }
             } else {
                 SessionBubbleView(event: event, style: style, attachment: historyAttachment(for: event),
-                                  content: historyContent(for: event))
+                                  content: historyContent(for: event), message: event.messageId.flatMap {
+                    store.message(for: MessageID(rawValue: $0))
+                })
             }
         case let .steps(_, events):
             SessionStepsRow(events: events)
@@ -127,6 +129,7 @@ struct SessionBubbleView: View {
     let style: SessionBubbleStyle
     var attachment: MessageAttachment? = nil
     var content: String? = nil
+    var message: HistoryMessage? = nil
 
     private var agentAttachment: MessageAttachment? {
         guard event.kind == "message", event.direction == "agent_to_boss" else { return nil }
@@ -180,6 +183,7 @@ struct SessionBubbleView: View {
             if let agentAttachment {
                 MessageAttachmentView(attachment: agentAttachment)
             }
+            if let message { MessageReactions(message: message) }
         }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)

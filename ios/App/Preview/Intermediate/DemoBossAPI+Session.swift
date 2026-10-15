@@ -12,6 +12,7 @@ extension DemoBossAPI {
         limit: Int
     ) async throws -> SessionEventsPage {
         try await DemoDelay.wait("TRANSCRIPT")
+        if sessionFetchCount > 0 { try await DemoDelay.wait("TRANSCRIPT_REFRESH") }
         sessionFetchCount += 1
         if sessionFetchCount == 1,
            ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {

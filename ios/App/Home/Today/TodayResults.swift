@@ -70,6 +70,7 @@ struct TodayResults: View {
             NavigationLink(value: message.id) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(verbatim: message.body).font(.subheadline.weight(.semibold))
+                    MessageReactions(message: message)
                     HStack(alignment: .top, spacing: 6) {
                         ProjectAvatarView(project: inventory.first {
                             $0.id == message.sessionId

@@ -84,6 +84,7 @@ final class SessionsV4UITests: XCTestCase {
         shot(app, "\(appearance)-thread-open")
         open.buttons["Approve"].tap()
         let resolved = app.descendants(matching: .any)["transcript-answer-c1"]
+        for _ in 0..<4 where !resolved.isHittable { app.swipeUp() }
         XCTAssertTrue(resolved.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["reply-confirmation"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(resolved.isHittable)

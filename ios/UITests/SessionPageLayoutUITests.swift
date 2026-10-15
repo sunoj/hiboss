@@ -126,9 +126,12 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)
         XCTAssertFalse(card.staticTexts.matching(NSPredicate(format: "label CONTAINS 'prod-release'"))
             .firstMatch.exists)
+        for _ in 0..<4 where !card.buttons["Approve"].isHittable { app.swipeUp() }
         card.buttons["Approve"].tap()
+        let answer = app.descendants(matching: .any)["transcript-answer-c1"]
+        for _ in 0..<4 where !answer.isHittable { app.swipeUp() }
         XCTAssertTrue(card.descendants(matching: .any)["transcript-answer-c1"].waitForExistence(timeout: 10))
-        XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)
+        XCTAssertEqual(card.staticTexts.matching(identifier: "orchestrator-01").count, 1)
         let other = app.descendants(matching: .any)["transcript-decision-c5"]
         for _ in 0..<8 where !other.isHittable { app.swipeDown() }
         XCTAssertTrue(other.staticTexts["worker-design"].exists)
@@ -172,7 +175,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertTrue(started.waitForExistence(timeout: 5))
         let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             let facts = self.frame(app.descendants(matching: .any)["session-facts"])
-            let card = self.frame(app.descendants(matching: .any)["transcript-decision-c6"])
+            let card = self.frame(app.descendants(matching: .any)["transcript-decision-c5"])
             // Accessibility bounds round by fractions of a point, including at shared edges.
             let tolerance: CGFloat = 0.5
             return started.isHittable && started.frame.maxY <= facts.maxY + tolerance
@@ -181,7 +184,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         let result = XCTWaiter.wait(for: [settled], timeout: 5)
         capture(app, "facts-expansion")
         let facts = frame(app.descendants(matching: .any)["session-facts"])
-        let card = frame(app.descendants(matching: .any)["transcript-decision-c6"])
+        let card = frame(app.descendants(matching: .any)["transcript-decision-c5"])
         XCTAssertEqual(result, .completed, "facts: \(facts); started: \(started.frame); card: \(card)")
     }
 
@@ -229,7 +232,7 @@ final class SessionPageLayoutUITests: XCTestCase {
                       "composer": composerFrame(app),
                       "transcript": frame(app.scrollViews.firstMatch),
                       "visible-transcript": visibleTranscriptFrame(app),
-                      "first-card": frame(app.descendants(matching: .any)["transcript-decision-c6"]),
+                      "first-card": frame(app.descendants(matching: .any)["transcript-decision-c5"]),
                       "started": frame(app.staticTexts.matching(
                         NSPredicate(format: "label BEGINSWITH 'Started '")).firstMatch)]
         let values = frames.map { "\($0.key): \($0.value)" }.sorted().joined(separator: "\n")

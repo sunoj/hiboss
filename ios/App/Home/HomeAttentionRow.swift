@@ -173,6 +173,7 @@ struct HomeAttentionRow: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             infoButton
+            MessageReactions(message: item.message)
             if let content = item.message.messageText.content,
                !content.isEmpty,
                content != item.message.body.trimmingCharacters(in: .whitespacesAndNewlines) {

@@ -1,6 +1,18 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Conversation": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Conversation" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "对话" } }
+      }
+    },
+    "%@, %lld reactions": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%1$@, %2$lld reactions" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@，%2$lld 个回应" } }
+      }
+    },
     "Information": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Information" } },

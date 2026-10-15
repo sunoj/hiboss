@@ -113,8 +113,12 @@ final class MessageAttachmentUITests: XCTestCase {
 
     func testTranscriptOrdinaryAndDecisionAttachmentsOpenViewer() {
         launch(["HIBOSS_DEMO_SESSION": "1"])
-        let ordinary = app.descendants(matching: .any)["session-bubble-incoming"].firstMatch
+        let ordinary = app.descendants(matching: .any)["thread-attachment-file"]
         XCTAssertTrue(ordinary.waitForExistence(timeout: 10))
+        for _ in 0..<4 where !ordinary.isHittable { app.swipeUp() }
+        for disclosure in ordinary.buttons.matching(identifier: "Details").allElementsBoundByIndex {
+            disclosure.tap()
+        }
         assertViewer(ordinary.buttons["message-attachment-open"])
         let decision = app.descendants(matching: .any)["transcript-decision-attachment-decision"]
         XCTAssertTrue(decision.exists)
