@@ -6,6 +6,14 @@ import HibossKit
 
 enum DemoThreads {
     static let messages: [HistoryMessage] = makeMessages()
+    static let pendingFollowup = message(
+        "pending-followup", "I can keep the previous batch ready while you decide.",
+        at: Date().addingTimeInterval(-20).ISO8601Format(), parent: "c5")
+
+    static func appending(to history: [HistoryMessage]) -> [HistoryMessage] {
+        let followup = history.contains { $0.id.rawValue == "c5" } ? [pendingFollowup] : []
+        return history + messages + followup
+    }
 
     private static func makeMessages() -> [HistoryMessage] {
         let now = Date()

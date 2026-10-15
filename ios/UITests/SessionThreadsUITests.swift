@@ -15,6 +15,8 @@ final class SessionThreadsUITests: XCTestCase {
         let decision = app.descendants(matching: .any)["transcript-decision-c5"]
         XCTAssertTrue(decision.waitForExistence(timeout: 10))
         XCTAssertTrue(decision.buttons["Coarse grid"].isHittable)
+        let pinned = app.descendants(matching: .any)["needs-thread-c5"]
+        XCTAssertTrue(pinned.staticTexts["I can keep the previous batch ready while you decide."].exists)
         keep(app, "needs-you-light")
         decision.buttons["Coarse grid"].tap()
         let answer = app.descendants(matching: .any)["transcript-answer-c5"]

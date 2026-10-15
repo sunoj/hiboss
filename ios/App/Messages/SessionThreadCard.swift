@@ -20,9 +20,20 @@ struct SessionConversation: View {
             if !presentation.needsYou.isEmpty {
                 Text("Needs you").font(.headline).accessibilityAddTraits(.isHeader)
                 ForEach(presentation.needsYou) { thread in
-                    SessionDecisionBubble(event: event(thread.message), style: style,
-                                          message: thread.message, store: store,
-                                          sessionAgent: sessionAgent) { onChoose($0, thread.id) }
+                    VStack(alignment: .leading, spacing: 8) {
+                        SessionDecisionBubble(event: event(thread.message), style: style,
+                                              message: thread.message, store: store,
+                                              sessionAgent: sessionAgent) { onChoose($0, thread.id) }
+                        ForEach(thread.entries) { entry in
+                            SessionThreadCard(card: .init(threads: [thread]), store: store)
+                                .entryRow(entry, root: thread.message)
+                                .padding(.leading, 16).padding(.horizontal, 14)
+                        }
+                    }
+                    .padding(.bottom, thread.entries.isEmpty ? 0 : 14)
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("needs-thread-\(thread.id.rawValue)")
                 }
             }
             if !presentation.conversation.isEmpty {
@@ -94,7 +105,7 @@ struct SessionThreadCard: View {
             ? "transcript-decision-\(card.id.rawValue)" : "thread-\(card.id.rawValue)")
     }
 
-    @ViewBuilder private func entryRow(_ entry: HistoryMessage, root: HistoryMessage) -> some View {
+    @ViewBuilder fileprivate func entryRow(_ entry: HistoryMessage, root: HistoryMessage) -> some View {
         if entry.direction == "boss_to_agent", let settlement = settlement(entry, root: root) {
             VStack(alignment: .leading, spacing: 6) {
                 ResolvedBanner(settlement: settlement, date: entry.createdDate,

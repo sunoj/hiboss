@@ -21,7 +21,7 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
                 fallback: DemoOptionMediaFixtures.queue(fallback: DemoFixtures.queue))
         messages = DemoMarkdown.queue(fallback: DemoProjectPeers.queue(fallback: messages))
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_THREADS"] == "1" {
-            messages += DemoThreads.messages
+            messages = DemoThreads.appending(to: messages)
         }
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSION_READS"] == "1" {
             messages = DemoSessionReads.messages
