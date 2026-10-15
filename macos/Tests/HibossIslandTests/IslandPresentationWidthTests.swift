@@ -81,6 +81,7 @@ private func assertPresentationFits(_ controller: IslandPanelController, flow: O
         .frame(width: AppConstants.Island.width).fixedSize(horizontal: false, vertical: true))
     natural.layoutSubtreeIfNeeded()
     let host = try XCTUnwrap(window.contentView)
+    host.layoutSubtreeIfNeeded()
     XCTAssertEqual(host.frame.width, AppConstants.Island.width, accuracy: 0.5)
     XCTAssertEqual(host.frame.height, natural.fittingSize.height, accuracy: 4)
     try assertIslandQuestionIsVisible(in: window, fullyVisible: true)
