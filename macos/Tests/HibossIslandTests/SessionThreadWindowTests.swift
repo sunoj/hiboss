@@ -6,6 +6,7 @@ import AppKit
 import HibossKit
 import SwiftUI
 import XCTest
+import Vision
 @testable import HibossIsland
 
 @MainActor
@@ -27,17 +28,39 @@ final class SessionThreadWindowTests: XCTestCase {
             let window = show(host, scheme: scheme)
             defer { window.close() }
             try await waitForCondition { window.toolbar != nil }
+            fitWindow(window)
             try await BoxWindowCaptureSupport.settle(window)
             let directory = "/private/tmp/hiboss-thread-ui-screenshots"
-            try BoxWindowCaptureSupport.capture(window, directory: directory,
+            try await capture(window, directory: directory,
                 name: "session-threads-\(scheme == .light ? "light" : "dark")")
             XCTAssertGreaterThan(host.bounds.width, 600)
         }
     }
 
+    private func capture(_ window: NSWindow, directory: String, name: String) async throws {
+        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let path = URL(fileURLWithPath: directory).appendingPathComponent("\(name).png").path
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-x", "-o", "-l", String(window.windowNumber), path]
+        try process.run()
+        try await waitForCondition { !process.isRunning }
+        XCTAssertEqual(process.terminationStatus, 0)
+        let image = try XCTUnwrap(NSImage(contentsOfFile: path))
+        var rect = NSRect(origin: .zero, size: image.size)
+        let pixels = try XCTUnwrap(image.cgImage(forProposedRect: &rect, context: nil, hints: nil))
+        let request = VNRecognizeTextRequest()
+        request.recognitionLanguages = ["en-US"]
+        try VNImageRequestHandler(cgImage: pixels).perform([request])
+        let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+        for expected in ["Needs you", "You chose Review", "Review complete", "Prepared the review summary"] {
+            XCTAssertTrue(text.localizedCaseInsensitiveContains(expected), "Missing \(expected): \(text)")
+        }
+    }
+
     private func show(_ host: NSView, scheme: ColorScheme) -> NSWindow {
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: min(1280, screen.width - 40), height: min(1000, screen.height - 80))
+        let size = NSSize(width: min(1280, screen.width - 40), height: 500)
         let window = NSWindow(contentRect: NSRect(origin: screen.origin, size: size),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -49,6 +72,15 @@ final class SessionThreadWindowTests: XCTestCase {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         return window
+    }
+
+    private func fitWindow(_ window: NSWindow) {
+        guard let screen = window.screen?.visibleFrame else { return }
+        let size = NSSize(width: min(1280, screen.width - 40), height: min(1000, screen.height - 80))
+        var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+        frame.size.height = min(frame.height, screen.height)
+        frame.origin = NSPoint(x: screen.midX - frame.width / 2, y: screen.maxY - frame.height)
+        window.setFrame(frame, display: true)
     }
 
     private func fixtures() -> [HistoryMessage] {
