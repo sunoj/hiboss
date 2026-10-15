@@ -46,8 +46,8 @@ struct DecisionOptions: View {
         let control = Button { onChoose(option) } label: { label(option, alignment: alignment) }
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier(option)
-            .accessibilityLabel(Text(verbatim: [option, metadata?.optionDescription(for: option)]
-                .compactMap { $0 }.joined(separator: ", ")))
+            .accessibilityLabel(Text(verbatim: metadata?.optionDescription(for: option)
+                .map { "\(option). \($0)" } ?? option))
             .accessibilityValue(isDefault ? Text("Default") : Text(verbatim: ""))
         .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
         Group {

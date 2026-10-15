@@ -63,11 +63,8 @@ struct SessionDecisionBubble: View {
     }
 
     private func answered(_ settlement: DecisionSettlement) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate)
-            OptionDescriptionText(text: message.metadata?.optionDescription(for: settlement.answer))
-        }
-        .accessibilityElement(children: .combine)
+        ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate,
+                       optionDescription: message.metadata?.optionDescription(for: settlement.answer))
         .accessibilityIdentifier("transcript-answer-\(message.id.rawValue)")
     }
 }

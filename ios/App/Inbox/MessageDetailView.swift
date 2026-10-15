@@ -177,7 +177,10 @@ struct MessageDetailView: View {
 
     private func resolvedDecision(for message: HistoryMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let settlement { ResolvedBanner(settlement: settlement, date: reply?.createdDate) }
+            if let settlement {
+                ResolvedBanner(settlement: settlement, date: reply?.createdDate,
+                               optionDescription: message.metadata?.optionDescription(for: settlement.answer))
+            }
             Text("Options").hbLabel().foregroundStyle(Theme.ink2)
             OptionMediaComparison(
                 options: message.options,
