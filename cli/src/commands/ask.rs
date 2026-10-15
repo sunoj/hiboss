@@ -3,7 +3,7 @@
 // Dependencies: clap, crate::client, crate::config, crate::types.
 
 use super::ask_media::{resolve_option_media, upload_attachment};
-use super::ask_result::{AskResult, print_result};
+use super::ask_result::{print_result, AskResult};
 use super::ask_support::{action_metadata, validate_default_option, warn_unread_messages};
 use super::ask_wait::wait_for_reply;
 use crate::{client::HiBossClient, config::Config, session, types::SendRequest};
@@ -69,6 +69,9 @@ pub struct AskArgs {
         help = "Image for a choice label; repeat per option (local path or http(s) URL)"
     )]
     pub option_images: Vec<String>,
+    #[arg(long = "option-description", action = ArgAction::Append, value_name = "LABEL=TEXT",
+        help = "Plain-text choice description (1–200 characters); repeat per --option/--action label")]
+    pub option_descriptions: Vec<String>,
     #[arg(long, help = "Local file to upload and attach")]
     pub file: Option<String>,
     #[arg(long, help = "Target agent name or ID for agent-to-agent messaging")]
@@ -260,6 +263,8 @@ async fn prepare_request(
     let title = super::message_text::title(&args.body, args.to.is_some())?;
     let content =
         super::message_text::content(args.content.as_deref(), args.content_file.as_deref())?;
+    let descriptions =
+        super::ask_descriptions::resolve_option_descriptions(&args.option_descriptions, choices)?;
     let option_media = resolve_option_media(client, &args.option_images, choices).await?;
     let file_url = upload_attachment(client, args.file.as_deref()).await?;
     Ok(SendRequest {
@@ -274,6 +279,7 @@ async fn prepare_request(
             args.summary.as_deref(),
             content.as_deref(),
             option_media,
+            descriptions,
         )?,
         options: choices.options.clone(),
         file_url,
@@ -282,3 +288,7 @@ async fn prepare_request(
         to: args.to.clone(),
     })
 }
+
+#[cfg(test)]
+#[path = "ask_description_upload_tests.rs"]
+mod description_upload_tests;

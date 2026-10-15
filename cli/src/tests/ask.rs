@@ -239,3 +239,37 @@ fn parse(arguments: &[&str]) -> AskCommand {
     AskCommand::try_parse_from(std::iter::once("test").chain(arguments.iter().copied()))
         .expect("arguments should parse")
 }
+
+#[test]
+fn option_descriptions_are_repeatable_for_options_and_actions() {
+    for flag in ["--option", "--action"] {
+        let choice = if flag == "--action" {
+            "A=echo yes"
+        } else {
+            "A"
+        };
+        let command = parse(&[flag, choice, "--option-description", " A = x=y ", "Choose"]);
+        let choices = command.args.choice_payload().expect("valid choices");
+        let descriptions = crate::commands::ask_descriptions::resolve_option_descriptions(
+            &command.args.option_descriptions,
+            &choices,
+        )
+        .expect("valid descriptions");
+        assert_eq!(
+            descriptions,
+            Some(vec![serde_json::json!({"label":"A", "text":"x=y"})])
+        );
+    }
+    let command = parse(&[
+        "--option",
+        "A",
+        "--option",
+        "B",
+        "--option-description",
+        "A=first",
+        "--option-description",
+        "B=second",
+        "Choose",
+    ]);
+    assert_eq!(command.args.option_descriptions.len(), 2);
+}

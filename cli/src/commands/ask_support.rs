@@ -61,6 +61,7 @@ pub(crate) fn action_metadata(
     summary: Option<&str>,
     content: Option<&str>,
     option_media: Option<Vec<Value>>,
+    option_descriptions: Option<Vec<Value>>,
 ) -> Result<Option<HashMap<String, Value>>, serde_json::Error> {
     let mut metadata: HashMap<String, Value> = HashMap::new();
     if !actions.is_empty() {
@@ -68,6 +69,9 @@ pub(crate) fn action_metadata(
     }
     if let Some(media) = option_media {
         metadata.insert("option_media".to_owned(), Value::Array(media));
+    }
+    if let Some(descriptions) = option_descriptions {
+        metadata.insert("option_descriptions".to_owned(), Value::Array(descriptions));
     }
     if let Some(label) = default_option {
         metadata.insert("default_option".to_owned(), Value::String(label.to_owned()));
@@ -196,7 +200,7 @@ mod tests {
     #[test]
     fn metadata_includes_default_option_in_plain_option_mode() {
         let actions = HashMap::new();
-        let result = action_metadata(&actions, Some("A"), None, None, None)
+        let result = action_metadata(&actions, Some("A"), None, None, None, None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -209,7 +213,7 @@ mod tests {
     fn metadata_includes_actions_and_default_together() {
         let mut actions = HashMap::new();
         actions.insert("A".to_owned(), Value::String("deploy".to_owned()));
-        let result = action_metadata(&actions, Some("A"), None, None, None)
+        let result = action_metadata(&actions, Some("A"), None, None, None, None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -222,7 +226,7 @@ mod tests {
     #[test]
     fn metadata_includes_content() {
         let actions = HashMap::new();
-        let result = action_metadata(&actions, None, None, Some("retry window"), None)
+        let result = action_metadata(&actions, None, None, Some("retry window"), None, None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -234,8 +238,8 @@ mod tests {
     #[test]
     fn metadata_omits_empty_content() {
         let actions = HashMap::new();
-        let result = action_metadata(&actions, None, None, Some(""), None)
-            .expect("metadata builds");
+        let result =
+            action_metadata(&actions, None, None, Some(""), None, None).expect("metadata builds");
         assert!(result.is_none());
     }
 
@@ -246,7 +250,7 @@ mod tests {
             serde_json::json!({ "label": "A", "url": "https://x/api/attachments/a.png" }),
             serde_json::json!({ "label": "B", "url": "https://x/api/attachments/b.png" }),
         ];
-        let result = action_metadata(&actions, None, None, None, Some(media))
+        let result = action_metadata(&actions, None, None, None, Some(media), None)
             .expect("metadata builds")
             .expect("metadata present");
         assert_eq!(
@@ -255,6 +259,24 @@ mod tests {
                 { "label": "A", "url": "https://x/api/attachments/a.png" },
                 { "label": "B", "url": "https://x/api/attachments/b.png" },
             ]))
+        );
+    }
+    #[test]
+    fn metadata_includes_option_descriptions() {
+        let entries = vec![serde_json::json!({"label": "A", "text": "Short description"})];
+        let metadata = action_metadata(
+            &HashMap::new(),
+            None,
+            None,
+            None,
+            None,
+            Some(entries.clone()),
+        )
+        .expect("valid metadata")
+        .expect("present");
+        assert_eq!(
+            metadata.get("option_descriptions"),
+            Some(&Value::Array(entries))
         );
     }
 }

@@ -2,6 +2,7 @@
 // Exports the scheduled handler used by the Worker cron entrypoint.
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
+import { appendOptionDescriptions } from './routes/option-descriptions';
 import type { Env, MessageRow } from './types';
 import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
@@ -117,7 +118,7 @@ async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow): Promise<vo
     {
       agentId: message.agent_id,
       agentName: message.agent_name ?? 'agent',
-      body: message.body,
+      body: appendOptionDescriptions(message.body, metadata, row.channel),
       sessionId: message.session_id,
       avatarUrl: message.avatar_url ?? undefined,
       fileUrl: typeof metadata?.['file_url'] === 'string' ? metadata['file_url'] : undefined,

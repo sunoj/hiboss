@@ -2,9 +2,52 @@
 // Registers cases in messages.test.ts; depends on its shared database setup.
 import { env, SELF } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { authHeaders } from '../../test-helpers';
+import { seedBossToken, authHeaders } from '../../test-helpers';
 
 describe('POST /api/messages with metadata', () => {
+  it('normalizes partial descriptions and preserves them in boss serialization', async () => {
+    const descriptions = [{ label: ' B ', text: ' **Keep=current** ' }];
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'Choose', options: ['A', 'B'],
+        metadata: { option_descriptions: descriptions } }),
+    });
+    expect(res.status).toBe(201);
+    const { id } = await res.json() as { id: string };
+    await seedBossToken('Descriptions', 'admin', 'description-boss-token', 'description-boss');
+    const response = await SELF.fetch(`https://test.local/api/boss/messages/${id}`, {
+      headers: { Authorization: 'Bearer description-boss-token' },
+    });
+    expect(response.status).toBe(200);
+    const message = await response.json() as { metadata: Record<string, unknown> };
+    expect(message.metadata.option_descriptions)
+      .toEqual([{ label: 'B', text: '**Keep=current**' }]);
+  });
+
+  it.each([
+    [undefined, [{ label: 'A', text: 'text' }], 'requires options'],
+    [['A'], [], '1 to'],
+    [['A'], null, '1 to'],
+    [['A'], {}, '1 to'],
+    [['A'], [{ label: 'A', text: 'x' }, { label: 'A', text: 'y' }], '1 to'],
+    [['A', 'B'], [{ label: 'A', text: 'x' }, { label: ' A ', text: 'y' }], 'unique'],
+    [['A'], [null], 'object'],
+    [['A'], [[]], 'object'],
+    [['A'], [{ label: 'B', text: 'text' }], 'match an option'],
+    [['A'], [{ label: 1, text: 'text' }], 'match an option'],
+    [['A'], [{ label: 'A', text: ' ' }], '1 to 200'],
+    [['A'], [{ label: 'A', text: 1 }], '1 to 200'],
+    [['A'], [{ label: 'A', text: 'x'.repeat(201) }], '1 to 200'],
+  ])('rejects invalid descriptions (%#)', async (options, descriptions, error) => {
+    const res = await SELF.fetch('https://test.local/api/messages', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ body: 'Choose', options,
+        metadata: { option_descriptions: descriptions } }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain(error as string);
+  });
+
   it('stores file_url in metadata', async () => {
     const res = await SELF.fetch('https://test.local/api/messages', {
       method: 'POST',

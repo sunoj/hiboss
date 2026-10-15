@@ -49,7 +49,8 @@ function makeQueuedMessage(id: string, agentId: string) {
     target_session_id: null,
     session_id: null,
     idempotency_key: null,
-    metadata: JSON.stringify({ file_url: 'https://example.com/file.txt', options: ['A', 'B'] }),
+    metadata: JSON.stringify({ file_url: 'https://example.com/file.txt', options: ['A', 'B'],
+      option_descriptions: [{ label: 'B', text: 'Keep current' }] }),
     created_at: '2026-03-21T00:00:00Z',
     updated_at: '2026-03-21T00:00:00Z',
     agent_name: 'agent',
@@ -230,6 +231,8 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(mockedDeliverAgentMessage).toHaveBeenCalledTimes(1);
+    expect(mockedDeliverAgentMessage.mock.calls[0][2].body)
+      .toBe('deliver later\n\n• B — Keep current');
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'processing'"))).toBe(true);
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE messages SET status = 'delivered'"))).toBe(true);
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'delivered'"))).toBe(true);

@@ -1,5 +1,6 @@
 // Sends one resolved destination through existing channel/APNs adapters.
 // Exports sendDestination; depends on persisted metadata and push payload builders.
+import { appendOptionDescriptions } from '../routes/option-descriptions';
 import type { Env, MessageRow } from '../types';
 import { deliverToChannelWithOptions } from '../routes/delivery';
 import { parseOptionMedia } from '../routes/option-media';
@@ -22,7 +23,9 @@ export async function sendDestination(env: Env, destination: ResolvedDestination
   const media = parseOptionMedia(metadata.option_media, options);
   const name = session?.label ? `${session.label} (${agent?.name ?? 'agent'})` : agent?.name ?? 'agent';
   const result = await deliverToChannelWithOptions(
-    destination.kind === 'telegram_chat' ? 'telegram' : 'discord', destination.config, name, message.body,
+    destination.kind === 'telegram_chat' ? 'telegram' : 'discord', destination.config, name,
+    appendOptionDescriptions(message.body, metadata,
+      destination.kind === 'telegram_chat' ? 'telegram' : 'discord'),
     options ? buildInlineKeyboard(message.id, options) : undefined,
     typeof metadata.file_url === 'string' ? metadata.file_url : undefined, agent?.avatar_url ?? undefined,
     env, null, media.ok ? media.value : undefined, options,

@@ -1,5 +1,6 @@
 // Preserves legacy channel fan-out, quiet-hour queuing, and response semantics.
 // Exports deliverLegacySend; depends on shared adapters and message metadata.
+import { appendOptionDescriptions } from './option-descriptions';
 import type { Context } from 'hono';
 import type { Env, Channel, MessageRow, OptionMedia } from '../types';
 import { SENT_MESSAGE_STATUS } from '../message-status';
@@ -41,7 +42,8 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
       const results = await Promise.allSettled(
         channelConfigs.map((cc) =>
           deliverAgentMessage(c.env, cc, {
-            agentId, agentName: resolvedAgentName, body, sessionId, inlineKeyboard,
+            agentId, agentName: resolvedAgentName,
+            body: appendOptionDescriptions(body, metadata, cc.channel), sessionId, inlineKeyboard,
             fileUrl, optionMedia, optionLabels: options, avatarUrl,
           })
         )

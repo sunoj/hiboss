@@ -95,6 +95,12 @@ before any upload. A local path is uploaded; an `http(s)` URL is passed through
 untouched. It combines with `--file` (message-level context image). Each upload
 prints `attached: <label> -> <url>` to stderr.
 
+`--option-description LABEL=TEXT` adds a plain-text description to an offered
+`--option` or `--action` label. Repeat it for each described option. The first `=`
+separates the label and text; both are trimmed. Text must contain 1–200 characters,
+and labels must be unique. Invalid descriptions fail before any upload. Descriptions
+are stored in message metadata and appended as text for Telegram and Discord.
+
 ## Inbox
 ```bash
 hiboss inbox                              # unread messages (boss + agent)
