@@ -156,6 +156,10 @@ private enum DemoFixtures {
             metadata: MessageMetadata(
                 options: ["Coarse grid", "Fine grid"],
                 optionMedia: DemoOptionMedia.images,
+                optionDescriptions: [
+                    OptionDescription(label: "Coarse grid", text: "Larger blocks emphasize each announcement."),
+                    OptionDescription(label: "Fine grid", text: "Smaller tiles fit more announcements at once.")
+                ],
                 defaultOption: "Coarse grid",
                 content: "Choose the density for the banner layout."
             ),

@@ -8,6 +8,7 @@ import SwiftUI
 struct OptionMediaComparison: View {
     let options: [String]
     let media: [OptionMedia]
+    var metadata: MessageMetadata? = nil
     var settlement: DecisionSettlement? = nil
     @State private var selectedMedia: MediaSession?
 
@@ -25,7 +26,8 @@ struct OptionMediaComparison: View {
         if !orderedMedia.isEmpty {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(orderedMedia) { media in
-                    OptionMediaTile(media: media, settlement: selection(for: media)) { open(media) }
+                    OptionMediaTile(media: media, description: metadata?.optionDescription(for: media.label),
+                                    settlement: selection(for: media)) { open(media) }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -54,6 +56,7 @@ struct OptionMediaComparison: View {
 
 private struct OptionMediaTile: View {
     let media: OptionMedia
+    let description: String?
     let settlement: DecisionSettlement?
     let open: () -> Void
 
@@ -63,6 +66,7 @@ private struct OptionMediaTile: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+            OptionDescriptionText(text: description)
                 // A flexible surface owns the aspect ratio; the loaded image stays
                 // in its overlay so its intrinsic width cannot expand the card.
                 Rectangle().fill(Theme.surface2)
@@ -72,6 +76,7 @@ private struct OptionMediaTile: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Open image for \(media.label)")
                             .accessibilityValue(Text(verbatim: selectionValue))
+                            .accessibilityHint(Text(verbatim: description ?? ""))
                     }
                     .overlay {
                         thumbnail

@@ -216,7 +216,8 @@ struct HomeAttentionRow: View {
             }
             .buttonStyle(.bordered)
         } else {
-            DecisionOptions(options: item.options, timing: timing, submitting: submitting,
+            DecisionOptions(options: item.options, metadata: item.message.metadata,
+                            timing: timing, submitting: submitting,
                             locksControls: locksControls,
                             wrapsToFit: true, onChoose: onChoose)
         }
@@ -239,7 +240,8 @@ struct DecisionCard<Header: View, Choices: View>: View {
             if let attachment = message.metadata?.attachment {
                 MessageAttachmentView(attachment: attachment)
             }
-            OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [])
+            OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [],
+                                  metadata: message.metadata)
             choices
             DecisionTimingView(timing: DecisionTiming(message: message), messageID: message.id,
                                compact: true, showsNoDeadline: false)

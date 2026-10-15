@@ -156,10 +156,10 @@ struct MessageDetailView: View {
                 .background(Theme.signalSoft, in: RoundedRectangle(cornerRadius: 12))
             OptionMediaComparison(
                 options: message.options,
-                media: message.metadata?.optionMedia ?? []
+                media: message.metadata?.optionMedia ?? [], metadata: message.metadata
             )
             if !message.options.isEmpty {
-                DecisionOptions(options: message.options, timing: timing,
+                DecisionOptions(options: message.options, metadata: message.metadata, timing: timing,
                                 submitting: submitting,
                                 locksControls: store.replyGate.locksControls(for: message.id),
                                 fullWidth: true) {
@@ -181,7 +181,7 @@ struct MessageDetailView: View {
             Text("Options").hbLabel().foregroundStyle(Theme.ink2)
             OptionMediaComparison(
                 options: message.options,
-                media: message.metadata?.optionMedia ?? [],
+                media: message.metadata?.optionMedia ?? [], metadata: message.metadata,
                 settlement: settlement
             )
             VStack(alignment: .leading, spacing: 12) {
@@ -225,6 +225,7 @@ struct MessageDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: text).foregroundStyle(chosen ? Theme.ink : Theme.ink2)
                     .fixedSize(horizontal: false, vertical: true)
+                OptionDescriptionText(text: message?.metadata?.optionDescription(for: text))
                 if custom { Text("Custom reply").font(.caption2).foregroundStyle(Theme.ink2) }
             }
             Spacer()
@@ -233,6 +234,7 @@ struct MessageDetailView: View {
                     Theme.ink2)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     private func decisionFooter(for message: HistoryMessage) -> Text? {

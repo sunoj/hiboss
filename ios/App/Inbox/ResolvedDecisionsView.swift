@@ -75,7 +75,7 @@ struct ResolvedDecisionsView: View {
                         }
                         OptionMediaComparison(
                             options: message.options,
-                            media: message.metadata?.optionMedia ?? [],
+                            media: message.metadata?.optionMedia ?? [], metadata: message.metadata,
                             settlement: store.settlement(for: message.id)
                         )
                     }
@@ -135,6 +135,7 @@ struct ResolvedDecisionRow: View {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
                 .symbolRenderingMode(.hierarchical)
+            OptionDescriptionText(text: message.metadata?.optionDescription(for: settlement.answer))
             settlement.attribution
                 .font(.caption)
                 .foregroundStyle(.secondary)

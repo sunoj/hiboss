@@ -29,6 +29,7 @@ struct SessionDecisionBubble: View {
                                   attachment: message.metadata?.attachment,
                                   content: message.content)
                 OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [],
+                                      metadata: message.metadata,
                                       settlement: store.settlement(for: message.id))
                     .padding(.horizontal, 12)
                 if let settlement = store.settlement(for: message.id) { answered(settlement) }
@@ -44,7 +45,8 @@ struct SessionDecisionBubble: View {
     }
 
     private var pendingOptions: some View {
-        DecisionOptions(options: message.options, timing: DecisionTiming(message: message),
+        DecisionOptions(options: message.options, metadata: message.metadata,
+                        timing: DecisionTiming(message: message),
                         submitting: store.replying[message.id],
                         locksControls: store.replyGate.locksControls(for: message.id),
                         wrapsToFit: true, onChoose: onChoose)
@@ -61,7 +63,11 @@ struct SessionDecisionBubble: View {
     }
 
     private func answered(_ settlement: DecisionSettlement) -> some View {
-        ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate)
+        VStack(alignment: .leading, spacing: 4) {
+            ResolvedBanner(settlement: settlement, date: store.reply(to: message.id)?.createdDate)
+            OptionDescriptionText(text: message.metadata?.optionDescription(for: settlement.answer))
+        }
+        .accessibilityElement(children: .combine)
         .accessibilityIdentifier("transcript-answer-\(message.id.rawValue)")
     }
 }

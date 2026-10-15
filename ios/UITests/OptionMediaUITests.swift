@@ -26,6 +26,7 @@ final class OptionMediaUITests: XCTestCase {
         launch(state: "resolved", route: ["HIBOSS_DEMO_OPEN": "media-decision"])
         XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 10))
         assertImages()
+        XCTAssertTrue(app.staticTexts["A calm opening beside the sea."].firstMatch.exists)
         assertSelection(option: "Coastal view", automatic: false)
         shot("resolved-detail")
         assertZoom(option: "Coastal view")
@@ -50,6 +51,7 @@ final class OptionMediaUITests: XCTestCase {
     func testResolvedSessionPreservesImagesAndZoom() {
         launch(state: "resolved", route: ["HIBOSS_DEMO_SESSION": "1"])
         assertImages()
+        XCTAssertTrue(app.staticTexts["A calm opening beside the sea."].firstMatch.exists)
         assertSelection(option: "Coastal view", automatic: false)
         shot("resolved-session")
         assertZoom(option: "Mountain view")
@@ -58,6 +60,7 @@ final class OptionMediaUITests: XCTestCase {
     func testResolvedImagesRemainReachableAtAccessibilityTextSize() {
         launch(state: "resolved", route: ["HIBOSS_DEMO_OPEN": "media-decision"], largeText: true)
         assertImages()
+        XCTAssertTrue(app.staticTexts["A calm opening beside the sea."].firstMatch.exists)
         assertSelection(option: "Coastal view", automatic: false)
         let image = app.buttons["Open image for Coastal view"]
         for _ in 0..<6 where !image.isHittable { app.swipeUp() }
