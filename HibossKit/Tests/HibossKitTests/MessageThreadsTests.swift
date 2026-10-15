@@ -102,14 +102,15 @@ final class MessageThreadsTests: XCTestCase {
         XCTAssertEqual(orphan.agentName, message.agentName)
     }
 
-    func testOnlyBossRepliesLinkToAgentParents() {
+    func testBothDirectionsLinkToLoadedParents() {
         let boss = reply("boss", body: "Pause", parent: nil)
         let bossChild = reply("boss-child", body: "Again", parent: "boss")
         let agent = HistoryMessage(id: "agent", body: "Update", direction: "agent_to_boss",
                                    status: "sent", priority: "normal", replyTo: "q", createdAt: "invalid")
         let threads = MessageThread.fold([question(), boss, bossChild, agent])
-        XCTAssertEqual(threads.map(\.id), ["q", "boss", "boss-child", "agent"])
-        XCTAssertTrue(threads.allSatisfy { $0.replies.isEmpty })
+        XCTAssertEqual(threads.map(\.id), ["q", "boss"])
+        XCTAssertEqual(threads[0].entries, [agent])
+        XCTAssertEqual(threads[1].replies, [bossChild])
     }
 
     func testOptionAndReplyWhitespaceIsTrimmedBeforeExactMatching() {
@@ -128,6 +129,24 @@ final class MessageThreadsTests: XCTestCase {
         let first = reply("first", body: "Ship", at: "invalid")
         let second = reply("second", body: "Hold", at: "invalid")
         XCTAssertEqual(MessageThread(message: question(), replies: [first, second]).newestReply, first)
+    }
+
+    func testFollowUpChainAndInterleavedOrphanThread() {
+        let root = question()
+        let boss = reply("b", body: "Ship")
+        let followUp = HistoryMessage(id: "f", body: "Done", direction: "agent_to_boss",
+            status: "sent", priority: "normal", replyTo: "b", createdAt: "2026-10-08T10:03:00Z")
+        let orphan = HistoryMessage(id: "o", body: "Update", direction: "agent_to_boss",
+            status: "sent", priority: "normal", replyTo: "missing", createdAt: "2026-10-08T10:02:00Z")
+        let orphanReply = reply("ob", body: "Thanks", parent: "o")
+        let direct = HistoryMessage(id: "d", body: "Working", direction: "agent_to_boss",
+            status: "sent", priority: "normal", replyTo: "q", createdAt: "2026-10-08T10:02:00Z")
+        let threads = MessageThread.fold([followUp, orphan, orphanReply, direct, root, boss])
+        XCTAssertEqual(threads.map(\.id), ["o", "q"])
+        XCTAssertEqual(threads[0].entries, [orphanReply])
+        XCTAssertEqual(threads[1].entries, [boss, direct, followUp])
+        XCTAssertEqual(threads[1].replies, [boss])
+        XCTAssertEqual(threads[1].outcome, .chosen(option: "Ship", source: "telegram"))
     }
 
     private func question(options: [String] = ["Ship", "Hold"], status: String = "delivered",

@@ -7,27 +7,56 @@ import Foundation
 public struct MessageThread: Identifiable, Equatable, Sendable {
     public let message: HistoryMessage
     public let replies: [HistoryMessage]
+    /// Every non-root member in chronological order; equal dates retain input order.
+    public let entries: [HistoryMessage]
 
     public var id: MessageID { message.id }
     public var isBoss: Bool { message.direction == "boss_to_agent" }
 
-    public init(message: HistoryMessage, replies: [HistoryMessage] = []) {
+    public init(message: HistoryMessage, replies: [HistoryMessage] = [],
+                entries: [HistoryMessage]? = nil) {
         self.message = message
         self.replies = replies
+        self.entries = Self.chronological(entries ?? replies)
     }
 
     public static func fold(_ history: [HistoryMessage]) -> [MessageThread] {
-        let parents = Set(history.filter { $0.direction != "boss_to_agent" }.map(\.id.rawValue))
-        var replies: [String: [HistoryMessage]] = [:]
-        for message in history where message.direction == "boss_to_agent" {
-            guard let parent = message.replyTo, parents.contains(parent) else { continue }
-            replies[parent, default: []].append(message)
+        let loaded = Dictionary(history.map { ($0.id.rawValue, $0) },
+                                uniquingKeysWith: { first, _ in first })
+        var members: [String: [HistoryMessage]] = [:]
+        for message in history {
+            let root = rootID(for: message, loaded: loaded)
+            if root != message.id.rawValue { members[root, default: []].append(message) }
         }
         return history.compactMap { message in
-            if message.direction == "boss_to_agent",
-               let parent = message.replyTo, parents.contains(parent) { return nil }
-            return MessageThread(message: message, replies: replies[message.id.rawValue] ?? [])
+            guard rootID(for: message, loaded: loaded) == message.id.rawValue else { return nil }
+            let entries = members[message.id.rawValue] ?? []
+            return MessageThread(message: message,
+                                 replies: entries.filter { $0.direction == "boss_to_agent" },
+                                 entries: entries)
         }
+    }
+
+    private static func rootID(for message: HistoryMessage,
+                               loaded: [String: HistoryMessage]) -> String {
+        var current = message
+        var visited: Set<String> = []
+        while let parent = current.replyTo, let next = loaded[parent] {
+            guard visited.insert(current.id.rawValue).inserted else {
+                // Cyclic ancestry has no root; retain the message as a standalone row.
+                return message.id.rawValue
+            }
+            current = next
+        }
+        return current.id.rawValue
+    }
+
+    private static func chronological(_ messages: [HistoryMessage]) -> [HistoryMessage] {
+        messages.enumerated().sorted {
+            let left = replyDate($0.element) ?? .distantPast
+            let right = replyDate($1.element) ?? .distantPast
+            return left == right ? $0.offset < $1.offset : left < right
+        }.map(\.element)
     }
 
     public var newestReply: HistoryMessage? {
