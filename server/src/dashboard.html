@@ -139,7 +139,12 @@ function messageReactions(message) {
   if (!Array.isArray(reactions)) return [];
   return reactions
     .filter(item => item && typeof item.emoji === 'string')
-    .map(item => ({ emoji: item.emoji, user: typeof item.user === 'string' && item.user.trim() ? item.user.trim() : 'unknown' }));
+    .map(item => ({
+      emoji: item.emoji,
+      user: typeof item.actor === 'string' && typeof item.actor_id === 'string'
+        ? `${item.actor}: ${item.actor_id}`
+        : typeof item.user === 'string' && item.user.trim() ? item.user.trim() : 'unknown',
+    }));
 }
 function messageOptions(message) {
   const options = messageMetadata(message).options;

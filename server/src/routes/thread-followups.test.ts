@@ -2,6 +2,9 @@
 // Exercises D1 persistence, boss history/detail/delta, and decision integrity.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, expect, it } from 'vitest';
+import { expireMessageOptions, withdrawResolvedOptions } from './message-options';
+import { storeMessageReaction } from './message-reactions';
+import type { MessageRow } from '../types';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from '../test-helpers';
 
 const token = 'linked-thread-boss-token';
@@ -90,4 +93,25 @@ it.each(['boss_id', 'user'])('recognizes legacy %s entries when deduplicating bo
   const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
     .bind(id).first<{ metadata: string }>();
   expect(JSON.parse(row?.metadata ?? '{}').reactions).toHaveLength(1);
+});
+
+it.each(['cleanup', 'expiry', 'default'])('preserves a reaction added after the %s snapshot', async kind => {
+  const id = `metadata-race-${kind}`;
+  await question(id);
+  await env.DB.prepare('UPDATE messages SET metadata = ? WHERE id = ?')
+    .bind(JSON.stringify({ options: ['A'], actions: { A: 'go' },
+      ...(kind === 'default' ? { default_option: 'A' } : {}) }), id).run();
+  const snapshot = await env.DB.prepare('SELECT * FROM messages WHERE id = ?')
+    .bind(id).first<MessageRow>();
+  expect(snapshot).not.toBeNull();
+  await storeMessageReaction(env, id, 'agent', 'concurrent-agent', '👍');
+  if (kind === 'cleanup') await withdrawResolvedOptions(env, getTestAgentId(), snapshot!, 'A');
+  else await expireMessageOptions(env, getTestAgentId(), snapshot!);
+  const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+    .bind(id).first<{ metadata: string }>();
+  expect(JSON.parse(row!.metadata)).toMatchObject({
+    reactions: [{ emoji: '👍', actor: 'agent', actor_id: 'concurrent-agent' }],
+    ...(kind === 'cleanup' ? { options_resolved: true, selected_option: 'A' } : { options_expired: true }),
+  });
+  expect(JSON.parse(row!.metadata)).not.toHaveProperty('actions');
 });

@@ -66,8 +66,11 @@ export async function expireWithoutDefault(env: Env, agentId: string, message: M
   meta['options_expired'] = true;
   delete meta['actions'];
   const claimed = await env.DB
-    .prepare(`UPDATE messages SET status = 'expired', metadata = ?, updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
-    .bind(JSON.stringify(meta), message.id)
+    .prepare(`UPDATE messages SET status = 'expired', metadata = json_remove(json_set(
+      CASE WHEN json_valid(metadata) THEN metadata ELSE '{}' END,
+      '$.options_expired', json('true')), '$.actions'),
+      updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
+    .bind(message.id)
     .first<{ id: string }>();
   if (!claimed) return false;
   try {
@@ -120,8 +123,10 @@ async function autoResolveDefaultOption(
   );
   if (outcome.kind !== 'claimed') return;
   const inserted = outcome.reply;
-  await env.DB.prepare("UPDATE messages SET metadata = ?, updated_at = datetime('now') WHERE id = ? AND status = 'replied'")
-    .bind(JSON.stringify(meta), message.id).run();
+  await env.DB.prepare(`UPDATE messages SET metadata = json_remove(
+    json_set(COALESCE(metadata, '{}'), '$.options_expired', json('true')), '$.actions'),
+    updated_at = datetime('now') WHERE id = ? AND status = 'replied'`)
+    .bind(message.id).run();
   // Best-effort notifications: the default is already durably recorded above, so a failed
   // agent callback / channel edit (e.g. unreachable URL) must not throw out of the cron path.
   try {
@@ -179,8 +184,10 @@ export async function withdrawResolvedOptions(
   metadata['options_resolved'] = true;
   metadata['selected_option'] = selectedOption;
   delete metadata['actions'];
-  await env.DB.prepare("UPDATE messages SET metadata = ?, updated_at = datetime('now') WHERE id = ?")
-    .bind(JSON.stringify(metadata), message.id).run();
+  await env.DB.prepare(`UPDATE messages SET metadata = json_remove(
+    json_set(COALESCE(metadata, '{}'), '$.options_resolved', json('true'),
+      '$.selected_option', ?), '$.actions'), updated_at = datetime('now') WHERE id = ?`)
+    .bind(selectedOption, message.id).run();
   await Promise.allSettled([
     removeTelegramOptions(env, agentId, metadata),
     removeDiscordOptions(env, agentId, message, metadata),

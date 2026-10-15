@@ -131,7 +131,8 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
       );
       if (result.delivered) {
         await markReplyDelivered(c.env, inserted.id, result.telegramMessageId,
-          channelConfig.channel === 'telegram' ? channelConfig.config.chat_id : undefined);
+          channelConfig.channel === 'telegram' ? channelConfig.config.chat_id : undefined,
+          result.discordMessageId);
       }
     } catch (error) {
       await persistDeliveryFailure(c.env, inserted.id, getDeliveryErrorMessage(error));
@@ -139,20 +140,18 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
   }
 }
 
-async function markReplyDelivered(env: Env, messageId: string, telegramMessageId?: number, telegramChatId?: unknown): Promise<void> {
-  const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
-  const binds: (string | number)[] = [];
+async function markReplyDelivered(
+  env: Env, messageId: string, telegramMessageId?: number, telegramChatId?: unknown,
+  discordMessageId?: string,
+): Promise<void> {
+  const metadata: Record<string, unknown> = {};
   if (telegramMessageId) {
-    // Merge, never replace: the row's provenance must survive delivery bookkeeping.
-    updates.push(typeof telegramChatId === 'string'
-      ? "metadata = json_set(COALESCE(metadata, '{}'), '$.telegram_message_id', ?, '$.telegram_chat_id', ?)"
-      : "metadata = json_set(COALESCE(metadata, '{}'), '$.telegram_message_id', ?)");
-    binds.push(telegramMessageId);
-    if (typeof telegramChatId === 'string') binds.push(telegramChatId);
+    metadata['telegram_message_id'] = telegramMessageId;
+    if (typeof telegramChatId === 'string') metadata['telegram_chat_id'] = telegramChatId;
   }
-  binds.push(messageId);
-  await env.DB
-    .prepare(`UPDATE messages SET ${updates.join(', ')} WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
-    .bind(...binds)
-    .run();
+  if (discordMessageId) metadata['discord_message_id'] = discordMessageId;
+  await env.DB.prepare(`UPDATE messages SET status = 'delivered',
+    metadata = json_patch(COALESCE(metadata, '{}'), json(?)), updated_at = datetime('now')
+    WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
+    .bind(JSON.stringify(metadata), messageId).run();
 }

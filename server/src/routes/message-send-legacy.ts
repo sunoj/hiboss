@@ -51,7 +51,7 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
       const deliveryResults = mapLegacyResults(results, channelConfigs);
       const anyDelivered = deliveryResults.some((d) => d.ok);
       if (anyDelivered) {
-        await markLegacyDelivered(c.env, inserted.id, metadata, deliveryResults, isUrgent);
+        await markLegacyDelivered(c.env, inserted.id, deliveryResults, isUrgent);
       } else {
         const firstError = results.find((r) => r.status === 'rejected');
         const message = firstError?.status === 'rejected'
@@ -83,10 +83,10 @@ function mapLegacyResults(
 }
 
 interface LegacyResult { channel: Channel; ok: boolean; telegramMessageId?: number; telegramChatId?: unknown; discordMessageId?: string }
-async function markLegacyDelivered(env: Env, messageId: string, metadata: Record<string, unknown> | null, deliveryResults: LegacyResult[], isUrgent: boolean): Promise<void> {
+async function markLegacyDelivered(env: Env, messageId: string, deliveryResults: LegacyResult[], isUrgent: boolean): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: (string | number)[] = [];
-  const meta = metadata ? { ...(metadata as Record<string, unknown>) } : {};
+  const meta: Record<string, unknown> = {};
   const tgResult = deliveryResults.find((d) => d.telegramMessageId);
   if (tgResult?.telegramMessageId) {
     meta['telegram_message_id'] = tgResult.telegramMessageId;
@@ -100,7 +100,7 @@ async function markLegacyDelivered(env: Env, messageId: string, metadata: Record
     meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
   }
   if (Object.keys(meta).length > 0) {
-    updates.push('metadata = ?');
+    updates.push("metadata = json_patch(COALESCE(metadata, '{}'), json(?))");
     binds.push(JSON.stringify(meta));
   }
   binds.push(messageId);

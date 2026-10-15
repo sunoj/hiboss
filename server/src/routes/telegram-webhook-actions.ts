@@ -15,6 +15,7 @@ import { findTelegramMessageInChat } from './telegram-message-match';
 import { asString, findMessageByIdempotencyKey, hasBossAccess, mapMessage, resolveBossForChannel } from './webhook-helpers';
 import { replyTargetSession } from './message-helpers';
 import { createMessageId } from '../session-events';
+import { storeMessageReaction, removeMessageReaction } from './message-reactions';
 import { OPEN_MESSAGE_STATUS } from '../message-status';
 import { channelMetadata, mergeProvenance } from '../message-security';
 
@@ -65,11 +66,15 @@ export async function handleTelegramReaction(c: TelegramContext, reaction: Recor
   const emojis = ((reaction['new_reaction'] as { type: string; emoji?: string }[] | undefined) ?? [])
     .filter((value) => value.type === 'emoji' && value.emoji)
     .map((value) => value.emoji as string);
-  const user = reaction['user'] as Record<string, unknown> | undefined;
-  const userName = asString(user?.['first_name']) ?? asString(user?.['username']) ?? 'boss';
-  const metadata = msg.metadata ? (JSON.parse(msg.metadata) as Record<string, unknown>) : {};
-  metadata['reactions'] = emojis.map((emoji) => ({ emoji, user: userName }));
-  await c.env.DB.prepare('UPDATE messages SET metadata = ? WHERE id = ?').bind(JSON.stringify(metadata), msg.id).run();
+  const userId = asString((reaction['user'] as Record<string, unknown> | undefined)?.['id']);
+  if (!userId) return c.text('invalid reaction actor', 400);
+  const previous = (reaction['old_reaction'] as { type: string; emoji?: string }[] | undefined) ?? [];
+  for (const value of previous) {
+    if (value.type === 'emoji' && value.emoji && !emojis.includes(value.emoji)) {
+      await removeMessageReaction(c.env, msg.id, 'boss', userId, value.emoji);
+    }
+  }
+  for (const emoji of emojis) await storeMessageReaction(c.env, msg.id, 'boss', userId, emoji);
   return c.json({ ok: true });
 }
 
