@@ -93,11 +93,6 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
 
 }
 
-private enum DemoConnectionError: Error, LocalizedError {
-    case failed
-    var errorDescription: String? { String(localized: "Couldn't reach the server.") }
-}
-
 /// Sample history grouped into three sessions plus a direct message.
 private enum DemoFixtures {
     static func iso(_ offset: TimeInterval) -> String {
@@ -156,10 +151,7 @@ private enum DemoFixtures {
             metadata: MessageMetadata(
                 options: ["Coarse grid", "Fine grid"],
                 optionMedia: DemoOptionMedia.images,
-                optionDescriptions: [
-                    OptionDescription(label: "Coarse grid", text: "Larger blocks emphasize each announcement."),
-                    OptionDescription(label: "Fine grid", text: "Smaller tiles fit more announcements at once.")
-                ],
+                optionDescriptions: DemoOptionMedia.descriptions,
                 defaultOption: "Coarse grid",
                 content: "Choose the density for the banner layout."
             ),

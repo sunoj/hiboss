@@ -6,6 +6,11 @@ import Foundation
 import HibossKit
 
 enum DemoOptionMedia {
+    static let descriptions = [
+        OptionDescription(label: "Coarse grid", text: "Larger blocks emphasize each announcement."),
+        OptionDescription(label: "Fine grid", text: "Smaller tiles fit more announcements at once.")
+    ]
+
     static var images: [OptionMedia] {
         images(enabled: ProcessInfo.processInfo.environment["HIBOSS_DEMO_OPTION_MEDIA"] == "1")
     }

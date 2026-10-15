@@ -1,5 +1,5 @@
-// Deterministic demo delays for capturing native intermediate states.
-// Exports DemoDelay.wait; production operations are unaffected.
+// Deterministic demo delays and connection errors for capturing native intermediate states.
+// Exports DemoDelay.wait and DemoConnectionError; production operations are unaffected.
 // Dependencies: Foundation and the HIBOSS_DEMO launch environment.
 
 import Foundation
@@ -16,4 +16,9 @@ enum DemoDelay {
         let delay = Int(ProcessInfo.processInfo.environment[key] ?? "") ?? 0
         if delay > 0 { try await Task.sleep(for: .milliseconds(delay)) }
     }
+}
+
+enum DemoConnectionError: Error, LocalizedError {
+    case failed
+    var errorDescription: String? { String(localized: "Couldn't reach the server.") }
 }
