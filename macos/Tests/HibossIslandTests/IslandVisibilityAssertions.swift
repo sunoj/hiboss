@@ -8,7 +8,7 @@ import SwiftUI
 @testable import HibossIsland
 
 @MainActor
-func assertIslandQuestionIsVisible(in window: NSWindow,
+func assertIslandQuestionIsVisible(in window: NSWindow, fullyVisible: Bool = false,
                                   file: StaticString = #filePath, line: UInt = #line) throws {
     let host = try XCTUnwrap(window.contentView as? NSHostingView<IslandView>, file: file, line: line)
     var frame = host.rootView.questionGeometry.textFrame
@@ -21,6 +21,10 @@ func assertIslandQuestionIsVisible(in window: NSWindow,
     XCTAssertGreaterThanOrEqual(visible.height, 16, "At least one question line must be visible",
                                 file: file, line: line)
     XCTAssertGreaterThan(visible.width, 0, file: file, line: line)
+    if fullyVisible {
+        XCTAssertEqual(visible.height, frame.height, accuracy: 0.5,
+                       "The complete compact question must be visible", file: file, line: line)
+    }
 }
 
 @MainActor

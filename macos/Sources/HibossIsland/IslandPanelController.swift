@@ -121,6 +121,8 @@ final class IslandPanelController {
                 })
         )
         host.sizingOptions = []
+        // The transparent, hidden titlebar must not reduce the measured content height.
+        host.safeAreaRegions = []
         optionWindow.contentView = host
         optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: 600))
     }

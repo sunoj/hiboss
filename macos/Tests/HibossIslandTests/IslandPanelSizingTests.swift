@@ -189,7 +189,14 @@ final class IslandPanelSizingTests: XCTestCase {
             try await settle(controller.optionWindow)
             XCTAssertEqual(controller.optionWindow.contentView?.frame.height ?? 0,
                 height, accuracy: 4, message.id.rawValue)
-            try assertReplyIsVisible(in: controller.optionWindow)
+            if let directory = ProcessInfo.processInfo.environment["HIBOSS_SIZING_SNAPSHOTS"] {
+                try BoxWindowCaptureSupport.capture(controller.optionWindow, directory: directory,
+                    name: "compact-\(message.id.rawValue)-window")
+            }
+            try XCTContext.runActivity(named: "Compact window: \(message.id.rawValue)") { _ in
+                try assertIslandQuestionIsVisible(in: controller.optionWindow, fullyVisible: true)
+                try assertReplyIsVisible(in: controller.optionWindow)
+            }
         }
     }
 
