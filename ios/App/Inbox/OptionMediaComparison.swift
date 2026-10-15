@@ -74,9 +74,10 @@ private struct OptionMediaTile: View {
                     .overlay {
                         Button(action: open) { Color.clear.contentShape(Rectangle()) }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Open image for \(media.label)")
+                            .accessibilityIdentifier(String(localized: "Open image for \(media.label)"))
+                            .accessibilityLabel(Text("Open image for \(media.label)")
+                                + Text(verbatim: description.map { ". \($0)" } ?? ""))
                             .accessibilityValue(Text(verbatim: selectionValue))
-                            .accessibilityHint(Text(verbatim: description ?? ""))
                     }
                     .overlay {
                         thumbnail
