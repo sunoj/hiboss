@@ -66,25 +66,18 @@ struct SessionMessagesView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream.resumeFromForeground() }
         }
-        .refreshable { await refresh() }
-    }
-
-    private func refresh() async {
-        await stream.refresh()
-        if route.id != SessionGrouping.directSessionID {
-            await facts.load(id: route.id, api: store.api as? any SessionsServing)
+        .refreshable {
+            await stream.refresh()
+            if route.id != SessionGrouping.directSessionID {
+                await facts.load(id: route.id, api: store.api as? any SessionsServing)
+            }
+            if let panels { await panels.load() }
         }
-        if let panels { await panels.load() }
     }
 
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
-                Button { Task { await refresh() } } label: {
-                    Image(systemName: "arrow.clockwise").frame(minWidth: 44, minHeight: 44)
-                }
-                .accessibilityLabel("Refresh")
-                .accessibilityIdentifier("session-refresh")
                 Button {
                     showsHistory = true
                 } label: {
@@ -172,6 +165,9 @@ struct SessionMessagesView: View {
             .simultaneousGesture(readerGesture)
             .onChange(of: jumpToLatestRequest) { _, _ in
                 scrollToLive(proxy)
+            }
+            .onChange(of: stream.events) { previous, _ in
+                if !previous.isEmpty, stream.isFollowingLive { scrollToLive(proxy) }
             }
         }
     }

@@ -40,24 +40,50 @@ final class SessionThreadsUITests: XCTestCase {
     func testCachedSessionRefreshKeepsThreadAndChoiceFrames() {
         let app = XCUIApplication()
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1",
+                                 "HIBOSS_DEMO_TRANSCRIPT_RESYNC_DELAY_MS": "15000",
                                  "HIBOSS_DEMO_TRANSCRIPT_REFRESH_DELAY_MS": "10000"])
         app.launchConfiguredDemo()
         let choice = app.buttons["Coarse grid"]
         XCTAssertTrue(choice.waitForExistence(timeout: 10))
-        let frame = choice.frame
         pullToRefresh(app)
-        app.buttons["session-refresh"].tap()
+        let frame = choice.frame
+        let notice = app.alerts["Transcript reloaded"]
+        XCTAssertTrue(notice.waitForExistence(timeout: 25), "the stream must request a reload")
+        notice.buttons["OK"].tap()
+        let refreshing = app.staticTexts["list-stale-banner"]
+        XCTAssertTrue(refreshing.waitForExistence(timeout: 5), "the reload must fetch cached content")
         XCTAssertTrue(choice.isEnabled)
         XCTAssertEqual(choice.frame, frame)
         XCTAssertFalse(app.descendants(matching: .any)["pending-rows"].exists)
         keep(app, "session-mid-refresh")
-        let refreshing = app.staticTexts["list-stale-banner"]
-        XCTAssertTrue(refreshing.waitForExistence(timeout: 5))
         XCTAssertTrue(refreshing.waitForNonExistence(timeout: 15))
         XCTAssertEqual(choice.frame, frame)
     }
 
+    func testNewMessageFollowsLiveAndJumpRestoresFollowing() {
+        let app = XCUIApplication()
+        app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_EMPTY": "1",
+                                 "HIBOSS_DEMO_THREADS": "1",
+                                 "HIBOSS_DEMO_TRANSCRIPT_NEWER_DELAY_MS": "15000"])
+        app.launchConfiguredDemo()
+        XCTAssertTrue(app.staticTexts["Release notes are ready."].waitForExistence(timeout: 10))
+        app.swipeUp()
+        let incoming = app.staticTexts["A newer release update.\nMore context follows."]
+        XCTAssertTrue(incoming.waitForExistence(timeout: 25))
+        XCTAssertTrue(incoming.isHittable, "a new message stays visible while following live")
+        app.swipeDown()
+        let jump = app.buttons["jump-to-live"]
+        XCTAssertTrue(jump.waitForExistence(timeout: 5))
+        jump.tap()
+        XCTAssertTrue(jump.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(incoming.isHittable)
+    }
+
     private func captureConversation(_ appearance: String, largeText: Bool = false) {
+        let pending = launch(appearance, largeText: largeText, empty: false)
+        XCTAssertTrue(pending.staticTexts["Needs you"].waitForExistence(timeout: 10))
+        keep(pending, "\(appearance)-needs-you")
+        pending.terminate()
         let app = launch(appearance, largeText: largeText)
         let root = app.descendants(matching: .any)["transcript-decision-thread-question"]
         XCTAssertTrue(root.waitForExistence(timeout: 10))

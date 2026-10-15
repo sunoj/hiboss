@@ -57,6 +57,13 @@ extension DemoBossAPI {
         }
         return AsyncThrowingStream { continuation in
             let update = Task {
+                if sessionFetchCount == 1, DemoDelay.isHeld("TRANSCRIPT_RESYNC") {
+                    do { try await DemoDelay.wait("TRANSCRIPT_RESYNC") }
+                    catch { return }
+                    guard !Task.isCancelled else { return }
+                    continuation.yield(.resync)
+                    return
+                }
                 guard DemoDelay.isHeld("TRANSCRIPT_NEWER") else { return }
                 do { try await DemoDelay.wait("TRANSCRIPT_NEWER") }
                 catch { return }

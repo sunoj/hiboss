@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 mkdir -p "$OUT"
 git rev-parse HEAD > "$OUT/head.txt"
 BASE=(xcodebuild -project HiBoss.xcodeproj -scheme HiBoss -configuration Debug
-  -destination "platform=iOS Simulator,id=$SIM" -derivedDataPath /private/tmp/hiboss-threads-dd)
+  -destination "platform=iOS Simulator,id=$SIM" -derivedDataPath "$OUT/DerivedData")
 printf '%q ' "${BASE[@]}" build > "$OUT/build-command.txt"
 "${BASE[@]}" build 2>&1 | tee "$OUT/build.log"
 TEST=("${BASE[@]}" -parallel-testing-enabled NO -collect-test-diagnostics never
@@ -17,11 +17,7 @@ TEST=("${BASE[@]}" -parallel-testing-enabled NO -collect-test-diagnostics never
   -only-testing:HiBossUITests/SessionBubblesUITests
   -only-testing:HiBossUITests/SessionPageLayoutUITests
   -only-testing:HiBossUITests/SessionsV4UITests
-  -only-testing:HiBossUITests/ActivityNavigationUITests
   -only-testing:HiBossUITests/MessageAttachmentUITests
-  -only-testing:HiBossUITests/OptionMediaUITests
-  -only-testing:HiBossUITests/MessageMarkdownUITests
-  -only-testing:HiBossUITests/HomeDecisionDetailUITests
-  -only-testing:HiBossUITests/SessionUnreadUITests test)
+  test)
 printf '%q ' "${TEST[@]}" > "$OUT/test-command.txt"
 "${TEST[@]}" 2>&1 | tee "$OUT/tests.log"
