@@ -19,12 +19,16 @@ struct IslandView: View {
     @ObservedObject var reply: AttentionReplyState
     let surfaceStyle: OptionSurfaceStyle
     var topInset: CGFloat
+    var reportHeight: (MessageID, CGFloat) -> Void
+    let questionGeometry = OptionQuestionGeometry()
 
     init(
         flow: OptionFlowStore, reply: AttentionReplyState, overview: OverviewStore,
         surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0,
-        attention: IslandAttention = .shared
+        attention: IslandAttention = .shared,
+        reportHeight: @escaping (MessageID, CGFloat) -> Void = { _, _ in }
     ) {
+        self.reportHeight = reportHeight
         self.overview = overview
         self.flow = flow
         self.attention = attention
@@ -56,15 +60,27 @@ struct IslandView: View {
             VStack(alignment: .leading, spacing: 0) {
                 agentHeader(message, item: presentation.item, now: now)
                     .padding(.bottom, 12)
+                    .reportNaturalHeight(.header)
                 OptionMessageBody(text: message.body, attachment: message.metadata?.attachment)
-                fixedActions(message)
+                fixedActions(message).reportNaturalHeight(.actions)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 13 + contentTopInset)
-            .padding(.bottom, 16)
+            .onPreferenceChange(OptionNaturalHeights.self) { heights in
+                guard heights.count == 3, heights.values.allSatisfy({
+                    abs($0.width - (AppConstants.Island.width - 2 * OptionSurfaceInsets.horizontal)) < 1
+                }) else { return }
+                let contentHeight = heights.values.reduce(0) { $0 + $1.height }
+                let padding = OptionSurfaceInsets.top + OptionSurfaceInsets.bottom
+                reportHeight(message.id, ceil(contentHeight + padding) + 1)
+            }
+            .padding(.horizontal, OptionSurfaceInsets.horizontal)
+            .padding(.top, OptionSurfaceInsets.top + contentTopInset)
+            .padding(.bottom, OptionSurfaceInsets.bottom)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(surfaceShape)
             .overlay(ExpiryBand(expiresAt: message.expirationDate, surfaceStyle: surfaceStyle))
+            .coordinateSpace(name: "island.content")
+            .onPreferenceChange(QuestionTextBounds.self) { questionGeometry.textFrame = $0 }
+            .id(message.id)
         } else if surfaceStyle == .island {
             Label(L("Drop into Box"), systemImage: "tray.and.arrow.down")
                 .font(.caption)
@@ -95,7 +111,9 @@ struct IslandView: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 7) {
                 ForEach(message.options, id: \.self) { option in
-                    ResolvedOptionRow(title: option, chosen: option == answer, source: source)
+                    ResolvedOptionRow(title: option,
+                        description: message.metadata?.optionDescription(for: option),
+                        chosen: option == answer, source: source)
                 }
                 if let answer, !message.options.contains(answer) {
                     ResolvedOptionRow(title: answer, chosen: true, source: source)
@@ -110,6 +128,13 @@ struct IslandView: View {
         .padding(.horizontal, 18)
         .padding(.top, 14 + contentTopInset)
         .padding(.bottom, 14)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(GeometryReader { geometry in
+            Color.clear.preference(key: ResolvedNaturalHeight.self, value: geometry.size.height)
+        })
+        .onPreferenceChange(ResolvedNaturalHeight.self) { height in
+            reportHeight(message.id, ceil(height - contentTopInset) + 1)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(surfaceShape)
     }
@@ -187,6 +212,7 @@ struct IslandView: View {
         OptionMediaPicker(
             options: message.options,
             media: message.metadata?.optionMedia ?? [],
+            descriptions: message.metadata?.optionDescriptions ?? [],
             defaultOption: message.defaultOption,
             isSubmitting: isSubmitting(message.id),
             choose: { send($0, for: message.id) }
@@ -253,34 +279,5 @@ struct IslandView: View {
 
     private func isSubmitting(_ messageID: MessageID) -> Bool {
         reply.submitting.contains(messageID)
-    }
-}
-
-/// Renders a complete short question directly and adds scrolling only when the
-/// available panel height cannot contain the question.
-struct OptionMessageBody: View {
-    let text: String
-    let attachment: MessageAttachment?
-
-    var body: some View {
-        ViewThatFits(in: .vertical) {
-            content
-            ScrollView(.vertical, showsIndicators: true) { content }
-        }
-        .frame(minHeight: 56, maxHeight: .infinity, alignment: .top)
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(text)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if let attachment {
-                MessageAttachmentView(attachment: attachment)
-            }
-        }
-        .padding(.trailing, 8)
     }
 }

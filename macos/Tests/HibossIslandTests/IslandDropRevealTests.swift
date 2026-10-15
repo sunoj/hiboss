@@ -232,6 +232,7 @@ final class IslandDropRevealIntegrationTests: XCTestCase {
         let message = OptionMessage.fixture(id: "reveal-question", options: ["Done"])
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         try await waitForCondition { flow.activeMessage?.id == message.id }
+        try await waitForCondition { controller.panel.isVisible }
         XCTAssertTrue(controller.panel.isVisible)
         flow.skip()
         try await waitForCondition { flow.activeMessage == nil }

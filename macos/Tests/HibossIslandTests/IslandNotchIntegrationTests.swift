@@ -68,7 +68,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         try await waitForCondition { flow.activeMessage?.id == message.id }
         try await settle(controller.panel)
-        let contentHeight = OptionPanelLayout.expandedHeight(for: message)
+        let contentHeight = try XCTUnwrap(controller.naturalHeight)
         assertFrame(controller.panel.frame, equals: notch.expandedFrame(contentHeight: contentHeight))
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         XCTAssertEqual(host.rootView.topInset, 32)
@@ -120,7 +120,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
         NotificationCenter.default.post(
             name: NSApplication.didChangeScreenParametersNotification, object: nil
         )
-        let height = OptionPanelLayout.expandedHeight(for: message)
+        let height = try XCTUnwrap(controller.naturalHeight)
         XCTAssertEqual(controller.panel.frame, resized.expandedFrame(contentHeight: height))
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         XCTAssertEqual(host.rootView.topInset, 32)
@@ -161,7 +161,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
             name: NSApplication.didChangeScreenParametersNotification, object: nil
         )
         XCTAssertEqual(controller.panel.frame,
-            resized.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)))
+            resized.expandedFrame(contentHeight: try XCTUnwrap(controller.naturalHeight)))
         let host = try XCTUnwrap(controller.panel.contentView as? BoxDropHostingView)
         XCTAssertEqual(host.rootView.topInset, 32)
     }
@@ -249,6 +249,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
 
     private func assertReplyFits(_ window: NSWindow, below inset: CGFloat) throws {
         let host = try XCTUnwrap(window.contentView)
+        try assertIslandQuestionIsVisible(in: window)
         let field = try XCTUnwrap(descendants(host, type: NSTextField.self).first { $0.isEditable })
         let frame = host.convert(field.bounds, from: field)
         XCTAssertTrue(host.bounds.contains(frame))

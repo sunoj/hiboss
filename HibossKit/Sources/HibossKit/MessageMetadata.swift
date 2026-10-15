@@ -21,6 +21,7 @@ public struct OptionMedia: Codable, Equatable, Identifiable, Sendable {
 public struct MessageMetadata: Codable, Equatable, Sendable {
     public let options: [String]
     public let optionMedia: [OptionMedia]
+    public let optionDescriptions: [OptionDescription]
     public let isExpired: Bool
     /// Label of the option auto-selected on timeout, if the asker marked one.
     public let defaultOption: String?
@@ -42,6 +43,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case options
         case optionMedia = "option_media"
+        case optionDescriptions = "option_descriptions"
         case isExpired = "options_expired"
         case defaultOption = "default_option"
         case source
@@ -56,6 +58,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     public init(
         options: [String],
         optionMedia: [OptionMedia] = [],
+        optionDescriptions: [OptionDescription] = [],
         isExpired: Bool = false,
         defaultOption: String? = nil,
         source: String? = nil,
@@ -67,6 +70,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
     ) {
         self.options = options
         self.optionMedia = optionMedia
+        self.optionDescriptions = OptionDescription.validated(optionDescriptions, options: options)
         self.isExpired = isExpired
         self.defaultOption = defaultOption
         self.source = source
@@ -81,6 +85,10 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         options = try values.decodeIfPresent([String].self, forKey: .options) ?? []
         optionMedia = try values.decodeIfPresent([OptionMedia].self, forKey: .optionMedia) ?? []
+        let descriptions = try? values.decodeIfPresent([FailableOptionDescription].self,
+            forKey: .optionDescriptions)
+        optionDescriptions = OptionDescription.validated(
+            descriptions?.compactMap(\.value) ?? [], options: options)
         isExpired = try values.decodeIfPresent(Bool.self, forKey: .isExpired) ?? false
         defaultOption = try values.decodeIfPresent(String.self, forKey: .defaultOption)
         source = try values.decodeIfPresent(String.self, forKey: .source)
@@ -97,6 +105,9 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         var values = encoder.container(keyedBy: CodingKeys.self)
         try values.encode(options, forKey: .options)
         if !optionMedia.isEmpty { try values.encode(optionMedia, forKey: .optionMedia) }
+        if !optionDescriptions.isEmpty {
+            try values.encode(optionDescriptions, forKey: .optionDescriptions)
+        }
         try values.encode(isExpired, forKey: .isExpired)
         try values.encodeIfPresent(defaultOption, forKey: .defaultOption)
         try values.encodeIfPresent(source, forKey: .source)
@@ -105,6 +116,11 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         try values.encodeIfPresent(content, forKey: .content)
         if !files.isEmpty { try values.encode(files, forKey: .files) }
         try values.encodeIfPresent(fileURL, forKey: .fileURL)
+    }
+
+    public func optionDescription(for label: String) -> String? {
+        let label = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        return optionDescriptions.first { $0.label == label }?.text
     }
 
     private struct TaskContext: Decodable {

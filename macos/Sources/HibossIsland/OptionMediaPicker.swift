@@ -8,6 +8,7 @@ import SwiftUI
 struct OptionMediaPicker: View {
     let options: [String]
     let media: [OptionMedia]
+    var descriptions: [OptionDescription] = []
     let defaultOption: String?
     var allowsChoosing = true
     var isSubmitting = false
@@ -16,11 +17,12 @@ struct OptionMediaPicker: View {
     @State private var sendingOption: String?
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: OptionRowMetrics.rowSpacing) {
             ForEach(options, id: \.self) { option in
                 if let optionMedia = media(for: option) {
                     OptionMediaRow(
                         option: option,
+                        description: description(for: option),
                         media: optionMedia,
                         isDefault: option == defaultOption,
                         allowsChoosing: allowsChoosing && !isSubmitting && sendingOption == nil,
@@ -29,7 +31,8 @@ struct OptionMediaPicker: View {
                         openMedia: { selectedMedia = optionMedia }
                     )
                 } else {
-                    OptionButton(title: option, isDefault: option == defaultOption,
+                    OptionButton(title: option, description: description(for: option),
+                                 isDefault: option == defaultOption,
                                  isSending: sendingOption == option) {
                         send(option)
                     }
@@ -51,6 +54,11 @@ struct OptionMediaPicker: View {
         choose(option)
     }
 
+    private func description(for option: String) -> String? {
+        let label = option.trimmingCharacters(in: .whitespacesAndNewlines)
+        return descriptions.first { $0.label == label }?.text
+    }
+
     private func media(for option: String) -> OptionMedia? {
         let normalizedOption = option.trimmingCharacters(in: .whitespacesAndNewlines)
         return media.first {
@@ -61,6 +69,7 @@ struct OptionMediaPicker: View {
 
 private struct OptionMediaRow: View {
     let option: String
+    let description: String?
     let media: OptionMedia
     let isDefault: Bool
     let allowsChoosing: Bool
@@ -69,9 +78,10 @@ private struct OptionMediaRow: View {
     let openMedia: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: OptionRowMetrics.mediaSpacing) {
             OptionMediaPreview(media: media, openMedia: openMedia)
-            OptionButton(title: option, isDefault: isDefault, isSending: isSending) {
+            OptionButton(title: option, description: description,
+                         isDefault: isDefault, isSending: isSending) {
                 choose(option)
             }
             .disabled(!allowsChoosing)
@@ -86,10 +96,10 @@ struct OptionMediaPreview: View {
     var showsCaption = true
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: OptionRowMetrics.captionSpacing) {
             Button(action: openMedia) {
                 OptionMediaImage(url: media.url, maxPixelSize: 264)
-                .frame(width: 132, height: 96)
+                .frame(width: OptionRowMetrics.mediaWidth, height: OptionRowMetrics.mediaHeight)
                 .background(Color(nsColor: .controlBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
@@ -101,7 +111,7 @@ struct OptionMediaPreview: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .frame(width: 132, alignment: .leading)
+                    .frame(width: OptionRowMetrics.mediaWidth, alignment: .leading)
             }
         }
     }

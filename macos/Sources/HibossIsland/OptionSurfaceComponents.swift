@@ -8,6 +8,7 @@ import SwiftUI
 /// a beat later, the "Answered on <device>" attribution fades in.
 struct ResolvedOptionRow: View {
     let title: String
+    var description: String? = nil
     let chosen: Bool
     let source: String?
     @State private var showCheck = false
@@ -29,6 +30,7 @@ struct ResolvedOptionRow: View {
                         .opacity(showCheck ? 1 : 0)
                 }
             }
+            OptionDescriptionText(text: description)
             if chosen, showSource, let source, !source.isEmpty {
                 Text(L("Answered on \(source)"))
                     .font(.system(size: 10, weight: .medium))
@@ -52,62 +54,6 @@ struct ResolvedOptionRow: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.08)) { showCheck = true }
             withAnimation(.easeIn(duration: 0.25).delay(0.45)) { showSource = true }
         }
-    }
-}
-
-struct OptionButton: View {
-    let title: String
-    var isDefault: Bool = false
-    var isSending: Bool = false
-    let action: () -> Void
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                if isDefault {
-                    Image(systemName: "return")
-                        .font(.system(size: 10, weight: .bold))
-                        .opacity(0.9)
-                }
-                Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                    .fixedSize(horizontal: false, vertical: true)
-                if isDefault {
-                    Text(L("default"))
-                        .font(.system(size: 9, weight: .semibold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Color.white.opacity(0.18), in: Capsule())
-                        .opacity(0.85)
-                }
-                Spacer()
-                if isSending {
-                    ProgressView().controlSize(.small)
-                    Text(L("Sending…")).font(.caption)
-                } else {
-                    Image(systemName: "arrow.up.right")
-                        .font(.caption.weight(.semibold))
-                        .opacity(isHovering ? 0.9 : 0.35)
-                }
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 13)
-            .padding(.vertical, 9)
-            .frame(minHeight: 35)
-            .background(Color.white.opacity(isHovering ? 0.16 : (isDefault ? 0.14 : 0.09)))
-            .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .strokeBorder(Color.white.opacity(isDefault ? 0.35 : 0), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-            .scaleEffect(isHovering ? 1.01 : 1)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
-        }
-        .accessibilityLabel(isDefault ? L("Choose \(title), default") : L("Choose \(title)"))
     }
 }
 
