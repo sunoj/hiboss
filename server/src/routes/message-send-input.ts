@@ -6,6 +6,7 @@ import { getAgentId } from '../middleware/auth';
 import { stripServerOwnedMetadata } from '../message-security';
 import { destinationsMode } from '../delivery';
 import { checkRateLimit, validateOption, priorityOptions, validateChannel, resolveChannelRouting, parseOptions, normalizeMetadata, parseOptionMedia, fetchAllChannelConfigs, selectChannelConfig } from './message-helpers';
+import { parseOptionDescriptions } from './option-descriptions';
 const modeOptions: Mode[] = ['async', 'blocking'];
 export interface SendInput {
   agentId: string;
@@ -60,6 +61,9 @@ export async function prepareSendInput(c: Context<{ Bindings: Env }>): Promise<R
   const options = optionsResult.value;
   const clientMetadata = stripServerOwnedMetadata(normalizeMetadata(payload.metadata));
   const rawMetadata: Record<string, unknown> = { ...clientMetadata };
+  const descriptions = parseOptionDescriptions(rawMetadata['option_descriptions'], options);
+  if (!descriptions.ok) return c.text(descriptions.error, 400);
+  if (descriptions.value) rawMetadata['option_descriptions'] = descriptions.value;
   const timeout = typeof payload.timeout === 'number' ? payload.timeout : null;
   // Only the send timeout can grant a blocking caller its own deadline.
   if (mode === 'blocking' && typeof payload.timeout === 'number') rawMetadata['ask_deadline'] = true;

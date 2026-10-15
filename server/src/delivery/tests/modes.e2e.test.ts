@@ -23,7 +23,9 @@ afterEach(() => vi.restoreAllMocks());
 async function send(mode?: string): Promise<string> {
   const ctx = createExecutionContext();
   const response = await app.fetch(new Request('https://test/api/messages', {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'hello', channel: 'discord' }),
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ body: 'hello', channel: 'discord', options: ['A', 'B'],
+      metadata: { option_descriptions: [{ label: 'B', text: 'Keep current' }] } }),
   }), { ...env, DESTINATIONS_MODE: mode } as Env, ctx);
   await waitOnExecutionContext(ctx);
   expect(response.status).toBe(201);
@@ -35,6 +37,7 @@ it('defaults to off with only the legacy adapter and no delivery rows', async ()
   const id = await send();
   expect(spy).toHaveBeenCalledTimes(1);
   expect(spy.mock.calls[0][1].chat_id).toBe('old-chat');
+  expect(spy.mock.calls[0][3]).toBe('hello\n\n• B — Keep current');
   expect(await env.DB.prepare('SELECT id FROM message_deliveries WHERE message_id = ?').bind(id).first()).toBeNull();
 });
 
@@ -43,6 +46,7 @@ it('shadow records queued deliveries and disagreement while only legacy sends', 
   const id = await send('shadow');
   expect(spy).toHaveBeenCalledTimes(1);
   expect(spy.mock.calls[0][1].chat_id).toBe('old-chat');
+  expect(spy.mock.calls[0][3]).toBe('hello\n\n• B — Keep current');
   expect(await env.DB.prepare('SELECT status, next_attempt_at FROM message_deliveries WHERE message_id = ?').bind(id).first())
     .toEqual({ status: 'queued', next_attempt_at: null });
   expect(await env.DB.prepare("SELECT id FROM audit_log WHERE action = 'destination_shadow' AND resource_id = ?").bind(id).first()).not.toBeNull();
@@ -56,11 +60,13 @@ it('on ignores channel hints, schedules failure, and retries through cron', asyn
   const id = await send('on');
   expect(spy).toHaveBeenCalledTimes(1);
   expect(spy.mock.calls[0][1].chat_id).toBe('new-chat');
+  expect(spy.mock.calls[0][3]).toBe('hello\n\n• B — Keep current');
   expect(await env.DB.prepare('SELECT status, attempts FROM message_deliveries WHERE message_id = ?').bind(id).first())
     .toEqual({ status: 'failed', attempts: 1 });
   await env.DB.prepare("UPDATE message_deliveries SET next_attempt_at = '2000-01-01' WHERE message_id = ?").bind(id).run();
   await handleScheduled({ ...env, DESTINATIONS_MODE: 'on' } as Env);
   expect(spy).toHaveBeenCalledTimes(2);
+  expect(spy.mock.calls[1][3]).toBe('hello\n\n• B — Keep current');
   expect(await env.DB.prepare('SELECT status, attempts, external_message_id, next_attempt_at FROM message_deliveries WHERE message_id = ?').bind(id).first())
     .toEqual({ status: 'sent', attempts: 2, external_message_id: '123', next_attempt_at: null });
 });

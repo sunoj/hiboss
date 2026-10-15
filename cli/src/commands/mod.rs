@@ -5,6 +5,7 @@
 pub mod agent;
 pub mod ask;
 pub(crate) mod ask_media;
+pub(crate) mod ask_descriptions;
 mod ask_support;
 mod ask_result;
 mod ask_wait;
