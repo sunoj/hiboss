@@ -1,10 +1,9 @@
 // Calculates top-edge Island frames from injected display measurements.
-// Exports: IslandGeometry and OptionPanelLayout for panel frames and content sizing.
-// Dependencies: AppKit text metrics and HibossKit's unchanged plain-screen dimensions.
+// Exports: IslandGeometry for notch-aware collapsed and capped expanded frames.
+// Dependencies: AppKit geometry and HibossKit app constants.
 
 import AppKit
 import HibossKit
-import SwiftUI
 
 struct IslandGeometry: Equatable {
     let displayID: UInt32?
@@ -64,25 +63,5 @@ struct IslandGeometry: Equatable {
             x: (notchFrame?.midX ?? screenFrame.midX) - width / 2,
             y: screenFrame.maxY - height, width: width, height: height
         )
-    }
-}
-
-@MainActor
-enum OptionPanelLayout {
-    /// Measure the production content synchronously before presenting it. Refreshes do not
-    /// publish geometry callbacks, and media retains its reserved size while loading.
-    static func expandedHeight(
-        for message: OptionMessage,
-        width: CGFloat = AppConstants.Island.width
-    ) -> CGFloat {
-        let host = NSHostingView(rootView: IslandView(
-            flow: OptionFlowStore(), reply: AttentionReplyState(), overview: OverviewStore(),
-            sizingMessage: message)
-            .frame(width: width)
-            .fixedSize(horizontal: false, vertical: true))
-        host.appearance = NSAppearance(named: .darkAqua)
-        host.layoutSubtreeIfNeeded()
-        // One point of slack: at an exact fit ViewThatFits falls back to its ScrollView.
-        return ceil(host.fittingSize.height) + 1
     }
 }

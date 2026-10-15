@@ -155,7 +155,8 @@ final class IslandPresentationRegressionTests: XCTestCase {
         XCTAssertEqual(presentation?.message.id, message.id)
         XCTAssertNil(presentation?.item, "The resolved content replaces the open card")
         XCTAssertEqual(activations, initialActivations, "Resolution must not activate the app")
-        XCTAssertEqual(controller.panel.frame, frame)
+        XCTAssertEqual(controller.panel.frame.maxY, frame.maxY,
+            "Natural height changes keep the island anchored to the screen top")
         XCTAssertEqual(controller.panel.alphaValue, 0.7, accuracy: 0.001,
             "Resolution must not replay the opening animation")
         flow.disconnect()

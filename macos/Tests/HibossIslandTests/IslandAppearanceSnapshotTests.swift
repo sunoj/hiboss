@@ -17,6 +17,7 @@ final class IslandAppearanceSnapshotTests: XCTestCase {
                 OptionDescription(label: "Sidebar", text: "Keep projects and sessions within easy reach."),
                 OptionDescription(label: "Tabs", text: "Give the active workspace more room.")
             ], defaultOption: "Sidebar"),
+            expiresAt: ISO8601DateFormatter().string(from: Date.now.addingTimeInterval(300)),
             sessionLabel: "mac-client", sessionBranch: "ui-v4")
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         defer { flow.disconnect() }

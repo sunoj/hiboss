@@ -22,6 +22,11 @@ final class IslandPanelController {
     private let pointerLocation: () -> NSPoint
     private let activate: () -> Void
     private var questionScreen: IslandGeometry?
+    private var pendingPresentation = false
+    private var naturalHeight: CGFloat?
+    private var presentedID: MessageID?
+    private var islandMeasurement: (MessageID, CGFloat)?
+    private var windowMeasurement: (MessageID, CGFloat)?
     private var cancellables: Set<AnyCancellable> = []
     private(set) var dropReveal: IslandDropRevealController?
 
@@ -73,9 +78,12 @@ final class IslandPanelController {
         panel.isMovable = false
         let host = BoxDropHostingView(
             rootView: IslandView(flow: flow, reply: reply, overview: overview,
-                attention: attention), settings: settings)
+                attention: attention, reportHeight: { [weak self] id, height in
+                    self?.contentHeightChanged(id: id, height: height, mode: .island)
+                }), settings: settings)
         host.sizingOptions = []
         panel.contentView = host
+        panel.setContentSize(NSSize(width: AppConstants.Island.width, height: 600))
         dropReveal = IslandDropRevealController(
             panel: panel, host: host, pointerLocation: pointerLocation, screens: screens,
             screenDidChange: { [weak self] geometry in
@@ -108,10 +116,13 @@ final class IslandPanelController {
         }
         let host = NSHostingView(
             rootView: IslandView(flow: flow, reply: reply, overview: overview,
-                surfaceStyle: .window, attention: attention)
+                surfaceStyle: .window, attention: attention, reportHeight: { [weak self] id, height in
+                    self?.contentHeightChanged(id: id, height: height, mode: .window)
+                })
         )
         host.sizingOptions = []
         optionWindow.contentView = host
+        optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: 600))
     }
 
     /// Dismissal lives on the panel's own close control, so the traffic lights would only
@@ -160,46 +171,71 @@ final class IslandPanelController {
         message: OptionMessage?,
         mode: OptionPresentationMode
     ) {
+        presentedID = message?.id
+        pendingPresentation = message != nil
+        naturalHeight = nil
         if message == nil { questionScreen = nil }
         dropReveal?.setPresentation(island: mode == .island, question: message != nil)
-        guard let message else {
+        guard message != nil else {
             if let geometry = targetScreen { setContentInset(geometry.expandedTopInset) }
             optionWindow.orderOut(nil)
             return
         }
-        switch mode {
-        case .island:
+        if mode == .island {
             optionWindow.orderOut(nil)
-            showIsland(message)
-        case .window:
+            questionScreen = targetScreen
+            if let geometry = targetScreen { setContentInset(geometry.expandedTopInset) }
+        } else {
             panel.orderOut(nil)
-            showWindow(message)
+            activate()
+        }
+        // Lay out the actual hosting root while ordered out. It reports before first display.
+        DispatchQueue.main.async { [weak self] in self?.prepareLiveContent(mode: mode) }
+    }
+
+    private func prepareLiveContent(mode: OptionPresentationMode) {
+        guard settings.presentationMode == mode, pendingPresentation else { return }
+        let window = mode == .island ? panel : optionWindow
+        window.contentView?.layoutSubtreeIfNeeded()
+        _ = window.contentView?.fittingSize
+        let measurement = mode == .island ? islandMeasurement : windowMeasurement
+        if let (id, height) = measurement { contentHeightChanged(id: id, height: height, mode: mode) }
+    }
+
+    private func contentHeightChanged(id: MessageID, height: CGFloat, mode: OptionPresentationMode) {
+        if mode == .island { islandMeasurement = (id, height) }
+        else { windowMeasurement = (id, height) }
+        // Coalesce reports and defer AppKit mutations until the layout transaction finishes.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.settings.presentationMode == mode else { return }
+            let measurement = mode == .island ? self.islandMeasurement : self.windowMeasurement
+            guard let (id, height) = measurement, self.presentedID == id else { return }
+            guard self.pendingPresentation || self.naturalHeight != height else { return }
+            self.naturalHeight = height
+            self.applyContentHeight(height, mode: mode)
         }
     }
 
-    private func showIsland(_ message: OptionMessage) {
-        guard let geometry = targetScreen else { return }
-        questionScreen = geometry
-        setContentInset(geometry.expandedTopInset)
-        let expanded = geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message))
-        panel.setFrame(geometry.collapsedFrame, display: false)
-        panel.alphaValue = 0
-        panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = AppConstants.Island.animationDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().setFrame(expanded, display: true)
-            panel.animator().alphaValue = 1
+    private func applyContentHeight(_ height: CGFloat, mode: OptionPresentationMode) {
+        let first = pendingPresentation
+        pendingPresentation = false
+        if mode == .island {
+            guard let geometry = targetScreen else { return }
+            let frame = geometry.expandedFrame(contentHeight: height)
+            if panel.frame != frame { panel.setFrame(frame, display: true) }
+            if first {
+                panel.alphaValue = 1
+                panel.orderFrontRegardless()
+            }
+        } else {
+            let capped = min(height, targetScreen.map { $0.visibleFrame.height * 0.8 } ?? height)
+            let size = NSSize(width: AppConstants.Island.width, height: capped)
+            if optionWindow.contentView?.frame.size != size { optionWindow.setContentSize(size) }
+            if first {
+                if !optionWindow.isVisible { optionWindow.center() }
+                optionWindow.makeKeyAndOrderFront(nil)
+            }
         }
-    }
-
-    private func showWindow(_ message: OptionMessage) {
-        let wasVisible = optionWindow.isVisible
-        let height = expandedHeight(for: message)
-        optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: height))
-        if !wasVisible { optionWindow.center() }
-        activate()
-        optionWindow.makeKeyAndOrderFront(nil)
     }
 
     private func reposition() {
@@ -212,13 +248,9 @@ final class IslandPanelController {
         guard settings.presentationMode == .island,
             !followingPointer || questionScreen == nil else { return }
         setContentInset(geometry.expandedTopInset)
-        guard let message = attention.filteredPresentation(snapshot: overview.snapshot.today,
-            active: flow.activeMessage, state: flow.presentationState)?.message else { return }
+        guard presentedID != nil else { return }
         questionScreen = geometry
-        panel.setFrame(
-            geometry.expandedFrame(contentHeight: OptionPanelLayout.expandedHeight(for: message)),
-            display: true
-        )
+        if let naturalHeight { applyContentHeight(naturalHeight, mode: .island) }
     }
 
     private func setContentInset(_ inset: CGFloat) {
@@ -236,12 +268,6 @@ final class IslandPanelController {
             }) ?? available.first
         }
         return available.first(where: { $0.screenFrame.contains(pointerLocation()) }) ?? available.first
-    }
-
-    private func expandedHeight(for message: OptionMessage) -> CGFloat {
-        let desiredHeight = OptionPanelLayout.expandedHeight(for: message)
-        guard let screen = targetScreen else { return desiredHeight }
-        return min(desiredHeight, screen.visibleFrame.height * 0.8)
     }
 }
 

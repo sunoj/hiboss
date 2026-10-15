@@ -249,6 +249,7 @@ final class IslandNotchIntegrationTests: XCTestCase {
 
     private func assertReplyFits(_ window: NSWindow, below inset: CGFloat) throws {
         let host = try XCTUnwrap(window.contentView)
+        try assertIslandQuestionIsVisible(in: window)
         let field = try XCTUnwrap(descendants(host, type: NSTextField.self).first { $0.isEditable })
         let frame = host.convert(field.bounds, from: field)
         XCTAssertTrue(host.bounds.contains(frame))

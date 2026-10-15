@@ -97,6 +97,9 @@ final class IslandPanelSizingTests: XCTestCase {
                 optionMedia: [
                     OptionMedia(label: "Before", url: "file:///nonexistent-before.png"),
                     OptionMedia(label: "After", url: "file:///nonexistent-after.png")
+                ], optionDescriptions: [
+                    OptionDescription(label: "Before", text: "The original view before the change."),
+                    OptionDescription(label: "After", text: "The proposed view with the new layout.")
                 ]
             )
         )
@@ -192,7 +195,8 @@ final class IslandPanelSizingTests: XCTestCase {
 
     private func reportedQuestion() -> OptionMessage {
         let body = "PR812 (API/SDK) review done: 0 High/Med, 2 Low (API "
-            + "rejects legacy cursor tokens; old SDK clients retry on HTTP 409 forever, so release it first), "
+            + "rejects legacy cursor tokens; old SDK clients retry on HTTP 409 forever, "
+            + "so release it first), "
             + "4 Info. Report: example-api-pr812/review-output/20260101-120000/review-notes.md"
         return OptionMessage(
             id: "panel-height-regression",
@@ -224,6 +228,7 @@ final class IslandPanelSizingTests: XCTestCase {
 
     private func assertReplyIsVisible(in window: NSWindow) throws {
         let host = try XCTUnwrap(window.contentView)
+        try assertIslandQuestionIsVisible(in: window)
         let field = try XCTUnwrap(descendants(of: host, type: NSTextField.self).first { $0.isEditable })
         XCTAssertTrue(host.bounds.contains(host.convert(field.bounds, from: field)))
     }
