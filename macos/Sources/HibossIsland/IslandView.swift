@@ -95,7 +95,8 @@ struct IslandView: View {
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 7) {
                 ForEach(message.options, id: \.self) { option in
-                    ResolvedOptionRow(title: option, chosen: option == answer, source: source)
+                    ResolvedOptionRow(title: option,
+                        description: message.metadata?.optionDescription(for: option), chosen: option == answer, source: source)
                 }
                 if let answer, !message.options.contains(answer) {
                     ResolvedOptionRow(title: answer, chosen: true, source: source)
@@ -187,6 +188,7 @@ struct IslandView: View {
         OptionMediaPicker(
             options: message.options,
             media: message.metadata?.optionMedia ?? [],
+            descriptions: message.metadata?.optionDescriptions ?? [],
             defaultOption: message.defaultOption,
             isSubmitting: isSubmitting(message.id),
             choose: { send($0, for: message.id) }

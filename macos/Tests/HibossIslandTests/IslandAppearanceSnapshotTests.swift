@@ -13,13 +13,37 @@ final class IslandAppearanceSnapshotTests: XCTestCase {
         let flow = OptionFlowStore(reconnectDelay: .seconds(60))
         let message = OptionMessage(id: "reference", body: "Which navigation should we ship?",
             agentName: "design",
-            metadata: MessageMetadata(options: ["Sidebar", "Tabs"], defaultOption: "Sidebar"),
+            metadata: MessageMetadata(options: ["Sidebar", "Tabs"], optionDescriptions: [
+                OptionDescription(label: "Sidebar", text: "Keep projects and sessions within easy reach."),
+                OptionDescription(label: "Tabs", text: "Give the active workspace more room.")
+            ], defaultOption: "Sidebar"),
             sessionLabel: "mac-client", sessionBranch: "ui-v4")
         flow.connect(api: ScriptedBossAPI(messages: [message]))
         defer { flow.disconnect() }
         try await waitForCondition { flow.activeMessage?.id == message.id }
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             try await Self.capture(flow: flow, appearance: appearance, name: "island-reference")
+        }
+    }
+
+    func testThreeImageOptionsWithDescriptionInBothAppearances() async throws {
+        let options = ["Coast", "Forest", "Mountains"]
+        let server = HistorySnapshotMediaServer()
+        try await server.start()
+        defer { server.stop() }
+        let media = options.enumerated().map { index, label in
+            OptionMedia(label: label, url: server.baseURL + (index == 1 ? "/hold.png" : "/ship.png"))
+        }
+        let message = OptionMessage(id: "image-descriptions", body: "Choose a destination",
+            metadata: MessageMetadata(options: options, optionMedia: media, optionDescriptions: [
+                OptionDescription(label: "Coast", text: "A quiet break by the water.")
+            ]))
+        let flow = OptionFlowStore(reconnectDelay: .seconds(60))
+        flow.connect(api: ScriptedBossAPI(messages: [message]))
+        defer { flow.disconnect() }
+        try await waitForCondition { flow.activeMessage?.id == message.id }
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            try await Self.capture(flow: flow, appearance: appearance, name: "image-descriptions")
         }
     }
 

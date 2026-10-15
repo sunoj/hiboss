@@ -70,10 +70,6 @@ enum OptionPanelLayout {
     private static let contentHorizontalPadding: CGFloat = 36
     private static let optionTextChrome: CGFloat = 46
     private static let verticalChrome: CGFloat = 86
-    private static let optionVerticalPadding: CGFloat = 18
-    private static let optionSpacing: CGFloat = 7
-    private static let minimumOptionHeight: CGFloat = 35
-    private static let optionMediaHeight: CGFloat = 128
     private static let minimumBodyViewportHeight: CGFloat = 56
     /// Reply input row plus the stack spacing above it.
     private static let replyFieldHeight: CGFloat = 45
@@ -95,17 +91,9 @@ enum OptionPanelLayout {
         )
         let optionWidth = contentWidth - optionTextChrome
         let optionHeights = message.options.map { option in
-            let mediaHeight = hasMedia(for: option, in: message) ? optionMediaHeight : 0
-            return max(
-                minimumOptionHeight,
-                max(
-                    mediaHeight,
-                    textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: optionWidth)
-                )
-                    + optionVerticalPadding
-            )
+            rowHeight(for: option, in: message, width: optionWidth)
         }
-        let gaps = CGFloat(max(optionHeights.count - 1, 0)) * optionSpacing
+        let gaps = CGFloat(max(optionHeights.count - 1, 0)) * OptionRowMetrics.rowSpacing
         let optionsHeight: CGFloat = optionHeights.reduce(0, +) + gaps
         let chrome: CGFloat = verticalChrome + replyFieldHeight + controlLayoutReserve
         return ceil(chrome + bodyHeight + optionsHeight)
@@ -120,10 +108,25 @@ enum OptionPanelLayout {
         return ceil(bounds.height)
     }
 
-    private static func hasMedia(for option: String, in message: OptionMessage) -> Bool {
-        let normalizedOption = option.trimmingCharacters(in: .whitespacesAndNewlines)
-        return message.metadata?.optionMedia.contains {
-            $0.label.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedOption
-        } == true
+    private static func rowHeight(for option: String, in message: OptionMessage, width: CGFloat) -> CGFloat {
+        let label = option.trimmingCharacters(in: .whitespacesAndNewlines)
+        let media = message.metadata?.optionMedia.first {
+            $0.label.trimmingCharacters(in: .whitespacesAndNewlines) == label
+        }
+        let mediaWidth = media == nil ? 0 : OptionRowMetrics.mediaWidth + OptionRowMetrics.mediaSpacing
+        let textWidth = width - mediaWidth
+        var height = textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: textWidth)
+        if let description = message.metadata?.optionDescription(for: option) {
+            height += OptionRowMetrics.descriptionSpacing
+                + textHeight(description, font: .preferredFont(forTextStyle: .caption1), width: textWidth)
+        }
+        let buttonHeight = max(OptionRowMetrics.minimumHeight, height + 2 * OptionRowMetrics.verticalPadding)
+        guard let media else { return buttonHeight }
+        let captionHeight = (media.caption?.isEmpty == false)
+            ? OptionRowMetrics.captionSpacing
+                + textHeight("Ag", font: .preferredFont(forTextStyle: .caption1),
+                    width: OptionRowMetrics.mediaWidth)
+            : 0
+        return max(buttonHeight, OptionRowMetrics.mediaHeight + captionHeight)
     }
 }

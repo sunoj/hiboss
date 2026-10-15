@@ -111,7 +111,7 @@ final class IslandPanelSizingTests: XCTestCase {
         try await waitForCondition { flow.activeMessage?.id == message.id }
         try await settle(controller.panel)
         let height = OptionPanelLayout.expandedHeight(for: message)
-        XCTAssertGreaterThan(height, 450)
+        XCTAssertGreaterThan(height, 400)
         XCTAssertEqual(controller.panel.frame.height, height, accuracy: 1)
         try assertReplyIsVisible(in: controller.panel)
 
@@ -119,6 +119,31 @@ final class IslandPanelSizingTests: XCTestCase {
         try await settle(controller.optionWindow)
         XCTAssertEqual(controller.optionWindow.contentView?.frame.height ?? 0, height, accuracy: 1)
         try assertReplyIsVisible(in: controller.optionWindow)
+    }
+
+    func testThreeUncaptionedImagesMatchRenderedRows() async throws {
+        let options = ["Coast", "Forest", "Mountains"]
+        let media = options.map { OptionMedia(label: $0, url: "file:///nonexistent-\($0).png") }
+        let message = OptionMessage(id: "three-images", body: "Choose a destination",
+            metadata: MessageMetadata(options: options, optionMedia: media))
+        let empty = OptionMessage(id: "empty", body: message.body,
+            metadata: MessageMetadata(options: []))
+        let rows = NSHostingView(rootView: OptionMediaPicker(options: options, media: media,
+            defaultOption: nil, choose: { _ in })
+            .frame(width: AppConstants.Island.width - 36)
+            .fixedSize(horizontal: false, vertical: true))
+        rows.layoutSubtreeIfNeeded()
+        let estimatedRows = OptionPanelLayout.expandedHeight(for: message)
+            - OptionPanelLayout.expandedHeight(for: empty)
+        XCTAssertEqual(estimatedRows, rows.fittingSize.height, accuracy: 3)
+        let flow = OptionFlowStore(reconnectDelay: .seconds(60))
+        flow.connect(api: ScriptedBossAPI(messages: [message]))
+        defer { flow.disconnect() }
+        try await waitForCondition { flow.activeMessage?.id == message.id }
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            try await IslandAppearanceSnapshotTests.capture(flow: flow, appearance: appearance,
+                name: "three-images-gap")
+        }
     }
 
     private func reportedQuestion() -> OptionMessage {
