@@ -60,11 +60,15 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE": "1"])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
+        revealHistoryNote(app)
         XCTAssertTrue(app.staticTexts["session-history-note"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["session-history-note"].label,
                        "This session is no longer available. Showing its saved messages.")
-        XCTAssertTrue(app.descendants(matching: .any)["transcript-decision-c1"].exists)
+        let decision = app.descendants(matching: .any)["transcript-decision-c1"]
+        for _ in 0..<8 where !decision.exists { app.swipeDown() }
+        XCTAssertTrue(decision.exists)
         XCTAssertTrue(app.buttons["Approve"].exists)
+        revealHistoryNote(app)
         XCTAssertTrue(app.buttons["Retry"].exists)
         app.buttons["Retry"].tap()
         XCTAssertTrue(app.staticTexts["session-history-note"].exists)
@@ -96,6 +100,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
         let note = app.staticTexts["session-history-note"]
+        revealHistoryNote(app)
         XCTAssertTrue(note.waitForExistence(timeout: 10))
         app.buttons["Retry"].tap()
         XCTAssertTrue(note.waitForNonExistence(timeout: 10))
@@ -110,6 +115,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launchConfiguredDemo()
         let note = app.staticTexts["session-history-note"]
+        revealHistoryNote(app)
         XCTAssertTrue(note.waitForExistence(timeout: 10))
         XCTAssertEqual(note.label, "此会话已不可用，正在显示其已保存的消息。")
         XCTAssertTrue(app.buttons["重试"].exists)
@@ -218,6 +224,15 @@ final class SessionPageLayoutUITests: XCTestCase {
 
     private func scrollToFacts(_ app: XCUIApplication) {
         for _ in 0..<6 { app.swipeDown() }
+    }
+
+    private func revealHistoryNote(_ app: XCUIApplication) {
+        let note = app.staticTexts["session-history-note"]
+        let retry = app.buttons["pending-retry"].firstMatch
+        for _ in 0..<10 {
+            if note.isHittable && retry.isHittable { break }
+            app.swipeUp()
+        }
     }
 
     private func capture(_ app: XCUIApplication, _ name: String) {

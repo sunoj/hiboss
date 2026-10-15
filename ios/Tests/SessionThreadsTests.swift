@@ -62,6 +62,8 @@ final class SessionThreadsTests: XCTestCase {
         XCTAssertTrue(SessionThreads.hasDetails(message("c", at: 0, metadata: content)))
         let files = MessageMetadata(options: [], files: ["report.md"])
         XCTAssertTrue(SessionThreads.hasDetails(message("d", at: 0, metadata: files)))
+        let inlineImage = MessageMetadata(options: [], fileURL: "https://example.com/image.png")
+        XCTAssertFalse(SessionThreads.hasDetails(message("e", at: 0, metadata: inlineImage)))
     }
 
     func testLiveMessagesJoinHistoryWithoutDuplicatesAndKeepAncestry() {

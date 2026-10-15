@@ -58,7 +58,7 @@ struct SessionThreads {
     static func hasDetails(_ message: HistoryMessage) -> Bool {
         let content = message.content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return (!content.isEmpty && content != message.body.trimmingCharacters(in: .whitespacesAndNewlines))
-            || !(message.metadata?.files.isEmpty ?? true) || message.metadata?.attachment != nil
+            || !(message.metadata?.files.isEmpty ?? true)
     }
 
     private static func canMerge(_ first: MessageThread, _ next: MessageThread) -> Bool {

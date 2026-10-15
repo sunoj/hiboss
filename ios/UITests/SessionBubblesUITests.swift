@@ -47,6 +47,7 @@ final class SessionBubblesUITests: XCTestCase {
 
     func testPendingDecisionIsAnsweredInPlace() {
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
+        for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.waitForExistence(timeout: 10), "the pending migration decision renders as a decision card")
         XCTAssertTrue(app.descendants(matching: .any)["decision-timing-c1"].exists, "same timing line as Home")
         let approve = card.buttons["Approve"]
@@ -68,6 +69,7 @@ final class SessionBubblesUITests: XCTestCase {
 
     func testPendingDecisionUsesOneCardWithOptionsBeforeDefaultAndOnlyTheSessionComposer() {
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
+        for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         for _ in 0..<4 where !card.buttons["Approve"].isHittable { app.swipeUp() }
         XCTAssertEqual(card.textFields.count, 0, "the bottom session composer owns text replies")
@@ -109,8 +111,12 @@ final class SessionBubblesUITests: XCTestCase {
 
     func testResolvedThreadCardHasNoDefaultLine() {
         let card = app.descendants(matching: .any)["transcript-decision-c1"]
+        for _ in 0..<4 where !card.exists { app.swipeUp() }
         XCTAssertTrue(card.waitForExistence(timeout: 10))
+        for _ in 0..<4 where !card.buttons["Approve"].isHittable { app.swipeUp() }
         card.buttons["Approve"].tap()
+        let answer = app.descendants(matching: .any)["transcript-answer-c1"]
+        for _ in 0..<4 where !answer.isHittable { app.swipeUp() }
         XCTAssertTrue(app.descendants(matching: .any)["transcript-answer-c1"]
             .waitForExistence(timeout: 10))
         XCTAssertFalse(card.descendants(matching: .any)["decision-timing-c1"].exists)
@@ -163,6 +169,8 @@ final class SessionBubblesUITests: XCTestCase {
         app.buttons["Send reply"].tap()
         XCTAssertTrue(app.staticTexts["reply-confirmation"].waitForExistence(timeout: 10))
         XCTAssertFalse(field.value as? String == "Keep this draft")
+        let pending = app.descendants(matching: .any)["transcript-decision-c1"].buttons["Approve"]
+        for _ in 0..<4 where !pending.exists { app.swipeUp() }
         XCTAssertTrue(app.descendants(matching: .any)["transcript-decision-c1"].buttons["Approve"].exists,
                       "sending to the newer ordinary message must not answer the original decision")
     }

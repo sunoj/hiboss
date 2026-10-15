@@ -19,6 +19,7 @@ TEST=("${BASE[@]}" -parallel-testing-enabled NO -collect-test-diagnostics never
   -only-testing:HiBossUITests/SessionsV4UITests
   -only-testing:HiBossUITests/ActivityNavigationUITests
   -only-testing:HiBossUITests/MessageAttachmentUITests
+  -only-testing:HiBossUITests/OptionMediaUITests
   -only-testing:HiBossUITests/MessageMarkdownUITests
   -only-testing:HiBossUITests/HomeDecisionDetailUITests
   -only-testing:HiBossUITests/SessionUnreadUITests test)

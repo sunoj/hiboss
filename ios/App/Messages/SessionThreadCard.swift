@@ -20,20 +20,7 @@ struct SessionConversation: View {
             if !presentation.needsYou.isEmpty {
                 Text("Needs you").font(.headline).accessibilityAddTraits(.isHeader)
                 ForEach(presentation.needsYou) { thread in
-                    VStack(alignment: .leading, spacing: 8) {
-                        SessionDecisionBubble(event: event(thread.message), style: style,
-                                              message: thread.message, store: store,
-                                              sessionAgent: sessionAgent) { onChoose($0, thread.id) }
-                        ForEach(thread.entries) { entry in
-                            SessionThreadCard(card: .init(threads: [thread]), store: store)
-                                .entryRow(entry, root: thread.message)
-                                .padding(.leading, 16).padding(.horizontal, 14)
-                        }
-                    }
-                    .padding(.bottom, thread.entries.isEmpty ? 0 : 14)
-                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("needs-thread-\(thread.id.rawValue)")
+                    pendingThread(thread)
                 }
             }
             if !presentation.conversation.isEmpty {
@@ -47,6 +34,31 @@ struct SessionConversation: View {
                 }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func pendingThread(_ thread: MessageThread) -> some View {
+        if thread.entries.isEmpty {
+            pendingDecision(thread)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                pendingDecision(thread)
+                ForEach(thread.entries) { entry in
+                    SessionThreadCard(card: .init(threads: [thread]), store: store)
+                        .entryRow(entry, root: thread.message)
+                        .padding(.leading, 16).padding(.horizontal, 14)
+                }
+            }
+            .padding(.bottom, 14)
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("needs-thread-\(thread.id.rawValue)")
+        }
+    }
+
+    private func pendingDecision(_ thread: MessageThread) -> some View {
+        SessionDecisionBubble(event: event(thread.message), style: style,
+                              message: thread.message, store: store,
+                              sessionAgent: sessionAgent) { onChoose($0, thread.id) }
     }
 
     private var style: SessionBubbleStyle {
@@ -86,6 +98,10 @@ struct SessionThreadCard: View {
             }
             ForEach(card.threads) { thread in
                 messageRow(thread.message)
+                OptionMediaComparison(options: thread.message.options,
+                                      media: thread.message.metadata?.optionMedia ?? [],
+                                      metadata: thread.message.metadata,
+                                      settlement: store.settlement(for: thread.id))
                 ForEach(thread.entries) { entry in
                     entryRow(entry, root: thread.message).padding(.leading, 16)
                 }
@@ -111,6 +127,9 @@ struct SessionThreadCard: View {
                 ResolvedBanner(settlement: settlement, date: entry.createdDate,
                                optionDescription: root.metadata?.optionDescription(for: entry.body))
                     .accessibilityIdentifier("transcript-answer-\(root.id.rawValue)")
+                if let attachment = entry.metadata?.attachment {
+                    MessageAttachmentView(attachment: attachment)
+                }
                 MessageReactions(message: entry)
                 ThreadMessageDetails(message: entry)
             }.accessibilityElement(children: .contain)
@@ -130,6 +149,9 @@ struct SessionThreadCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: message.body).font(.subheadline).textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+            if let attachment = message.metadata?.attachment {
+                MessageAttachmentView(attachment: attachment)
+            }
             MessageReactions(message: message)
             if let date = message.createdDate {
                 RecordedTimeText(date: date).font(.caption).foregroundStyle(Theme.ink2)
@@ -151,17 +173,16 @@ private struct ThreadMessageDetails: View {
 
     var body: some View {
         if SessionThreads.hasDetails(message) {
-            DisclosureGroup("Details") {
+            DisclosureGroup {
                 if let content = message.content, content != message.body {
                     MediaMarkdownView(content).font(.subheadline)
-                }
-                if let attachment = message.metadata?.attachment {
-                    MessageAttachmentView(attachment: attachment)
                 }
                 ForEach(message.metadata?.files ?? [], id: \.self) { file in
                     Text(verbatim: file).font(.footnote)
                 }
-            }.frame(minHeight: 44)
+            } label: {
+                Text("Details").frame(minHeight: 44, alignment: .leading)
+            }
         }
     }
 }
