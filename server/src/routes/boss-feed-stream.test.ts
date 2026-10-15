@@ -39,8 +39,8 @@ describe('Boss console feed stream', () => {
       (id, agent_id, direction, mode, channel, body, status)
       VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'React here', 'sent')`)
       .bind(id, getTestAgentId()).run();
-    expect(await readEvent(reader, 6_000)).toContain(id);
     try {
+      expect(await readEvent(reader, 6_000, id)).toContain(id);
       for (const emoji of ['👍', '🚀']) {
         const response = await SELF.fetch(`http://localhost/api/boss/messages/${id}/react`, {
           method: 'POST',
@@ -48,7 +48,7 @@ describe('Boss console feed stream', () => {
           body: JSON.stringify({ emoji }),
         });
         expect(response.status).toBe(200);
-        const event = await readEvent(reader, 6_000);
+        const event = await readEvent(reader, 6_000, emoji);
         expect(event).toContain(id);
         expect(event).toContain(emoji);
       }
@@ -71,6 +71,7 @@ async function openFeed(): Promise<ReadableStreamDefaultReader<Uint8Array>> {
 async function readEvent(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   timeoutMs = 2_000,
+  marker = 'event: message',
 ): Promise<string> {
   let buffer = '';
   const deadline = Date.now() + timeoutMs;
@@ -82,7 +83,7 @@ async function readEvent(
       }),
     ]);
     buffer += new TextDecoder().decode(result.value);
-    if (buffer.includes('event: message')) return buffer;
+    if (buffer.includes('event: message') && buffer.includes(marker)) return buffer;
   }
   return buffer;
 }

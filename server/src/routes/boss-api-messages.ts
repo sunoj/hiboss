@@ -107,16 +107,17 @@ routes.get('/messages/:id', async (c) => {
     .bind(messageId, `${escapeLike(messageId)}%`)
     .first<MessageRow>();
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
+  const placeholders = agentIds.map(() => '?').join(', ');
   const replies = await c.env.DB
     .prepare(`WITH RECURSIVE descendants(id) AS (
-      SELECT id FROM messages WHERE reply_to = ? AND agent_id = ?
+      SELECT id FROM messages WHERE reply_to = ? AND agent_id IN (${placeholders})
       UNION SELECT child.id FROM messages child JOIN descendants parent ON child.reply_to = parent.id
-        WHERE child.agent_id = ?
+        WHERE child.agent_id IN (${placeholders})
     ) SELECT messages.*, api_keys.name AS agent_name FROM messages
       LEFT JOIN api_keys ON api_keys.id = messages.agent_id
       WHERE messages.id IN (SELECT id FROM descendants) AND messages.id != ?
       ORDER BY messages.created_at ASC, messages.id ASC`)
-    .bind(row.id, row.agent_id, row.agent_id, row.id)
+    .bind(row.id, ...agentIds, ...agentIds, row.id)
     .all<MessageRow>();
   return c.json({ ...mapMessageRow(row), replies: (replies.results ?? []).map(mapMessageRow) });
 });

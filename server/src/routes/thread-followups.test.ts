@@ -40,7 +40,7 @@ it('links follow-ups to questions and boss replies without deciding the question
   const root = await env.DB.prepare('SELECT status FROM messages WHERE id = ?')
     .bind('thread-root').first<{ status: string }>();
   expect(root?.status).toBe('sent');
-  const polling = await post('/api/messages/thread-root/poll?timeout=0', {});
+  const polling = await post('/api/messages/thread-root/poll?timeout=1', {});
   expect(polling.status).toBe(200);
   expect((await polling.json() as { replies: Row[] }).replies).toEqual([]);
   const answer = await post('/api/boss/messages/thread-root/reply', { body: 'Proceed' }, boss);
