@@ -98,9 +98,10 @@ final class SessionThreadsUITests: XCTestCase {
         XCTAssertEqual(reaction.label, "👍, 2 reactions")
         keep(app, "\(appearance)-\(largeText ? "large" : "standard")-conversation")
         let merged = app.descendants(matching: .any)["thread-update-first"]
-        for _ in 0..<6 where !merged.isHittable { app.swipeUp() }
+        let lastUpdate = merged.staticTexts["The staging checks are green too."]
+        for _ in 0..<6 where !lastUpdate.isHittable { app.swipeUp() }
         XCTAssertTrue(merged.staticTexts["Release notes are ready."].exists)
-        XCTAssertTrue(merged.staticTexts["The staging checks are green too."].exists)
+        XCTAssertTrue(lastUpdate.isHittable)
         XCTAssertEqual(merged.staticTexts.matching(identifier: "orchestrator-01").count, 1)
         XCTAssertFalse(merged.buttons["Details"].exists)
         keep(app, "\(appearance)-\(largeText ? "large" : "standard")-merged")
