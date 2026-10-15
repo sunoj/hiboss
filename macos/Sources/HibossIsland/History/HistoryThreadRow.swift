@@ -21,6 +21,8 @@ struct HistoryThreadRow: View {
     let thread: MessageThread
     var decision: AttentionItem? = nil
     var usesV4 = false
+    var sessionEntries = false
+    var mergedMessages: [HistoryMessage] = []
     var answerability: AnswerableDecisions = .loading
     @ObservedObject var reply: AttentionReplyState
     @Binding var isExpanded: Bool
@@ -44,6 +46,7 @@ struct HistoryThreadRow: View {
                 ForEach(HistoryDetailLayout.sections(
                     hasChoices: message.isDecision), id: \.self) {
                     section($0)
+                    if sessionEntries, $0 == .message { SessionReactionChips(message: message) }
                 }
             }
         }
@@ -75,26 +78,38 @@ struct HistoryThreadRow: View {
                     isExpanded: $isExpanded, onCollapse: onCollapse)
             }
         case .choices:
-            if usesV4 {
-                if decision == nil || answerability.state(for: message.id) != .open {
-                    let outcome = answerability.outcome(for: thread, at: now)
-                    ResolvedBanner(thread: thread, outcome: outcome)
-                    if let media = HistoryOptionSelection.selectedMedia(
-                        in: message.metadata, outcome: outcome) {
-                        HistoryChosenOptionImage(media: media)
-                    }
-                    DisclosureGroup(L("Decision options")) {
-                        HistoryDecisionBlock(thread: thread,
-                            reply: reply, answerability: answerability, onChoose: onChoose)
-                    }.font(.callout)
-                }
-            } else {
-                HistoryDecisionBlock(thread: thread,
-                    reply: reply, answerability: answerability, onChoose: onChoose)
-            }
+            choices
         case .metadata:
-            if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies) }
-            metadata
+            if sessionEntries {
+                if SessionThreadLogic.hasDetails(message) { metadata }
+                SessionThreadEntries(thread: thread, merged: mergedMessages)
+            } else {
+                if !visibleReplies.isEmpty { HistoryReplies(replies: visibleReplies) }
+                metadata
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var choices: some View {
+        if usesV4 {
+            if decision == nil || answerability.state(for: message.id) != .open {
+                let outcome = answerability.outcome(for: thread, at: now)
+                if !sessionEntries || thread.replies.isEmpty {
+                    ResolvedBanner(thread: thread, outcome: outcome)
+                }
+                if let media = HistoryOptionSelection.selectedMedia(
+                    in: message.metadata, outcome: outcome) {
+                    HistoryChosenOptionImage(media: media)
+                }
+                DisclosureGroup(L("Decision options")) {
+                    HistoryDecisionBlock(thread: thread,
+                        reply: reply, answerability: answerability, onChoose: onChoose)
+                }.font(.callout)
+            }
+        } else {
+            HistoryDecisionBlock(thread: thread,
+                reply: reply, answerability: answerability, onChoose: onChoose)
         }
     }
 
