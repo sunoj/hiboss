@@ -48,7 +48,7 @@ beforeAll(async () => {
 });
 
 describe('decision integrity: message routes', () => {
-  it('F1 agent cannot reply to its own ask as boss', async () => {
+  it('F1 agent follow-ups cannot answer their own ask as boss', async () => {
     const legitimate = fresh('f1-control');
     const target = fresh('f1-target');
     await ask(legitimate);
@@ -56,9 +56,9 @@ describe('decision integrity: message routes', () => {
     expect((await request(`/api/boss/messages/${legitimate}/reply`, 'POST', { body: 'Boss answer' }, bossHeaders)).status).toBe(201);
     expect(await replies(legitimate)).toEqual([{ body: 'Boss answer', direction: 'boss_to_agent' }]);
     const attack = await request(`/api/messages/${target}/reply`, 'POST', { body: 'Agent answer' });
-    expect(attack.status).toBeGreaterThanOrEqual(400);
+    expect(attack.status).toBe(201);
     expect(await status(target)).toBe('sent');
-    expect(await replies(target)).toEqual([]);
+    expect(await replies(target)).toEqual([{ body: 'Agent answer', direction: 'agent_to_boss' }]);
   });
 
   it('F7 agent cannot mark its own ask replied without an answer', async () => {

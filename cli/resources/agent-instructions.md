@@ -46,6 +46,8 @@
 - Read the server receipt and verify the final state before claiming delivery.
   Retry uncertain publication with the same content/key. Report unavailable or
   mismatched capabilities; continue independent work and explain any undelivered result.
+- Acknowledge a boss reply with `hiboss reply <reply-id> "..."` or
+  `hiboss react <reply-id> 👍`; follow-ups stay linked to that conversation.
 - Discover the actual boss and execution session; do not guess recipients. Reply
   to inbound messages with `hiboss reply <id>`. Coordinate with peers only when the
   user has authorized that communication. Never expose API keys.

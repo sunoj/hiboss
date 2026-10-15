@@ -15,6 +15,7 @@ import {
   currentMessageCursor, emptyMessagePage, fetchMessageDelta, scopeMessageAgents,
   validMessageCursor, type MessageQuery,
 } from './boss-message-history';
+import { storeMessageReaction } from './message-reactions';
 const routes = new Hono<{ Bindings: Env }>();
 const MAX_LIMIT = 100;
 
@@ -107,8 +108,15 @@ routes.get('/messages/:id', async (c) => {
     .first<MessageRow>();
   if (!row || !agentIds.includes(row.agent_id)) return c.text('not found', 404);
   const replies = await c.env.DB
-    .prepare('SELECT messages.*, api_keys.name AS agent_name FROM messages LEFT JOIN api_keys ON api_keys.id = messages.agent_id WHERE reply_to = ? ORDER BY messages.created_at ASC')
-    .bind(row.id)
+    .prepare(`WITH RECURSIVE descendants(id) AS (
+      SELECT id FROM messages WHERE reply_to = ? AND agent_id = ?
+      UNION SELECT child.id FROM messages child JOIN descendants parent ON child.reply_to = parent.id
+        WHERE child.agent_id = ?
+    ) SELECT messages.*, api_keys.name AS agent_name FROM messages
+      LEFT JOIN api_keys ON api_keys.id = messages.agent_id
+      WHERE messages.id IN (SELECT id FROM descendants) AND messages.id != ?
+      ORDER BY messages.created_at ASC, messages.id ASC`)
+    .bind(row.id, row.agent_id, row.agent_id, row.id)
     .all<MessageRow>();
   return c.json({ ...mapMessageRow(row), replies: (replies.results ?? []).map(mapMessageRow) });
 });
@@ -174,15 +182,8 @@ routes.post('/messages/:id/react', async (c) => {
   const payload = await c.req.json<Record<string, unknown>>();
   const emoji = typeof payload.emoji === 'string' ? payload.emoji.trim() : '';
   if (!emoji) return c.text('emoji is required', 400);
-  // Store reaction in message metadata
-  const meta: Record<string, unknown> = row.metadata ? JSON.parse(row.metadata) : {};
-  const reactions = Array.isArray(meta['reactions']) ? meta['reactions'] as { emoji: string; boss_id: string }[] : [];
-  reactions.push({ emoji, boss_id: bossId });
-  meta['reactions'] = reactions;
-  await c.env.DB
-    .prepare("UPDATE messages SET metadata = ?, updated_at = datetime('now') WHERE id = ?")
-    .bind(JSON.stringify(meta), row.id)
-    .run();
+  const added = await storeMessageReaction(c.env, row.id, 'boss', bossId, emoji);
+  if (!added) return c.json({ ok: true, emoji, message_id: row.id });
   c.executionCtx.waitUntil(logAudit(c.env, 'boss', bossId, 'message.react', 'message', row.id, emoji));
   // Notify agent via callback
   const replyRow: MessageRow = { ...row, body: emoji, direction: 'boss_to_agent', status: 'sent' };

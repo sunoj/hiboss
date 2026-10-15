@@ -36,7 +36,6 @@ routes.post('/:id/reply', async (c) => {
   if (!canReply) {
     return c.text('forbidden', 403);
   }
-  if (parent.direction === 'agent_to_boss') return c.text('agents cannot answer their own ask', 409);
   const payload = await c.req.json<Record<string, unknown>>();
   const body = typeof payload.body === 'string' ? payload.body.trim() : '';
   if (!body) {
@@ -59,51 +58,65 @@ routes.post('/:id/reply', async (c) => {
     const existing = await findByIdempotencyKey(c.env, agentId, idempotencyKey);
     if (existing) return c.json(mapMessageRow(existing), 200);
   }
+  return persistReply(c, parent, body, replyDirection, replyTargetAgentId,
+    replyTargetSessionId, auth.metadata, idempotencyKey);
+});
+
+async function persistReply(
+  c: Context<{ Bindings: Env }>, parent: MessageRow, body: string, replyDirection: Direction,
+  replyTargetAgentId: string | null, replyTargetSessionId: string | null,
+  metadata: Record<string, unknown>, idempotencyKey: string | null,
+): Promise<Response> {
+  const agentId = getAgentId(c);
   const inserted = await insertMessageWithEvent(
     c.env,
-    'INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, reply_to, target_agent_id, target_session_id, metadata, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal', parent.id, replyTargetAgentId, replyTargetSessionId, JSON.stringify(auth.metadata), idempotencyKey],
+    `INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority,
+      session_id, reply_to, target_agent_id, target_session_id, metadata, idempotency_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+    [createMessageId(), agentId, replyDirection, 'async', parent.channel, body, 'sent', 'normal',
+      replyTargetSession(parent), parent.id, replyTargetAgentId, replyTargetSessionId,
+      JSON.stringify(metadata), idempotencyKey],
     replyTargetSession(parent),
   );
   if (!inserted) {
     return c.text('failed to persist', 500);
   }
   if (replyDirection === 'agent_to_boss') await sendBossReply(c, inserted, parent, body);
-  await c.env.DB
-    .prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
-    .bind(parent.id)
-    .run();
+  if (parent.direction !== 'agent_to_boss') {
+    await c.env.DB
+      .prepare(`UPDATE messages SET status = 'replied', updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS}`)
+      .bind(parent.id).run();
+  }
   if (replyTargetAgentId) {
     c.executionCtx.waitUntil(notifyTargetAgent(c.env, replyTargetAgentId, inserted));
   }
   c.executionCtx.waitUntil(logAudit(c.env, 'agent', agentId, 'message.reply', 'message', parent.id));
   return c.json(mapMessageRow(inserted), 201);
-});
+}
 
 export const messageReplyRouter = routes;
 
 async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow, parent: MessageRow, body: string): Promise<void> {
   const agentId = inserted.agent_id;
   if (destinationsMode(c.env.DESTINATIONS_MODE) === 'on') {
-    await c.env.DB.prepare('UPDATE messages SET session_id = ? WHERE id = ?').bind(parent.session_id, inserted.id).run();
-    await dispatchDestinations(c.env, { ...inserted, session_id: parent.session_id });
+    await dispatchDestinations(c.env, inserted);
   }
   if (parent.channel && destinationsMode(c.env.DESTINATIONS_MODE) !== 'on') {
     try {
       const channelConfig = await selectChannelConfig(c.env, agentId, parent.channel as Channel);
-      await dispatchDestinations(c.env, { ...inserted, session_id: parent.session_id }, [channelConfig]);
+      await dispatchDestinations(c.env, inserted, [channelConfig]);
       const agentRow = await c.env.DB.prepare('SELECT name, avatar_url FROM api_keys WHERE id = ?').bind(agentId).first<{ name: string; avatar_url: string | null }>();
       let replyDisplayName = agentRow?.name ?? 'agent';
       let sessionLabel: string | null = null;
-      if (parent.session_id) {
-        const sess = await c.env.DB.prepare('SELECT label FROM sessions WHERE id = ?').bind(parent.session_id).first<{ label: string | null }>();
+      if (inserted.session_id) {
+        const sess = await c.env.DB.prepare('SELECT label FROM sessions WHERE id = ?').bind(inserted.session_id).first<{ label: string | null }>();
         sessionLabel = sess?.label ?? null;
         if (sessionLabel) replyDisplayName = `${sessionLabel} (${replyDisplayName})`;
       }
-      if (channelConfig.channel === 'telegram' && parent.session_id) {
+      if (channelConfig.channel === 'telegram' && inserted.session_id) {
         await ensureTopicForSession(
           c.env,
-          parent.session_id,
+          inserted.session_id,
           agentRow?.name ?? 'agent',
           sessionLabel,
           requireTelegramConfig(channelConfig.config),
@@ -113,7 +126,7 @@ async function sendBossReply(c: Context<{ Bindings: Env }>, inserted: MessageRow
       const result = await deliverWithRetry(() =>
         deliverReply(
           channelConfig.channel, channelConfig.config, replyDisplayName, body, telegramReplyId,
-          agentRow?.avatar_url ?? undefined, c.env, parent.session_id,
+          agentRow?.avatar_url ?? undefined, c.env, inserted.session_id,
         )
       );
       if (result.delivered) {

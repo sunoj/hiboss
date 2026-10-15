@@ -180,13 +180,13 @@ routes.post('/:id/poll', async (c) => {
   const validCredential = createAuthValidator(c);
   while (true) {
     if (!await validCredential()) return c.text('Unauthorized', 401);
-    const current = await fetchMessageWithReplies(c.env, agentId, message.id);
+    const current = await fetchMessageWithReplies(c.env, agentId, message.id, true);
     if (current && (current.replies?.length ?? 0) > 0) {
       if (!await validCredential()) return c.text('Unauthorized', 401);
       return c.json(current);
     }
     if (Date.now() >= deadline) {
-      const finalCheck = await fetchMessageWithReplies(c.env, agentId, message.id);
+      const finalCheck = await fetchMessageWithReplies(c.env, agentId, message.id, true);
       if (!await validCredential()) return c.text('Unauthorized', 401);
       if (finalCheck && (finalCheck.replies?.length ?? 0) > 0) {
         return c.json(finalCheck);

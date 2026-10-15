@@ -31,6 +31,31 @@ describe('Boss console feed stream', () => {
       .bind(messageId).first<{ status: string }>();
     expect(row?.status).toBe('sent');
   });
+
+  it('redelivers changed reaction metadata, including changes in the same second', async () => {
+    const id = `feed-reaction-${Date.now()}`;
+    const reader = await openFeed();
+    await env.DB.prepare(`INSERT INTO messages
+      (id, agent_id, direction, mode, channel, body, status)
+      VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'React here', 'sent')`)
+      .bind(id, getTestAgentId()).run();
+    expect(await readEvent(reader, 6_000)).toContain(id);
+    try {
+      for (const emoji of ['👍', '🚀']) {
+        const response = await SELF.fetch(`http://localhost/api/boss/messages/${id}/react`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emoji }),
+        });
+        expect(response.status).toBe(200);
+        const event = await readEvent(reader, 6_000);
+        expect(event).toContain(id);
+        expect(event).toContain(emoji);
+      }
+    } finally {
+      await reader.cancel();
+    }
+  });
 });
 
 async function openFeed(): Promise<ReadableStreamDefaultReader<Uint8Array>> {

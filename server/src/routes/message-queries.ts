@@ -69,13 +69,14 @@ export async function fetchReplies(env: Env, parentId: string, agentId?: string)
   return (result.results ?? []).map(mapMessageRow);
 }
 
-export async function fetchMessageWithReplies(env: Env, agentId: string, messageId: string) {
+export async function fetchMessageWithReplies(env: Env, agentId: string, messageId: string, decisionsOnly = false) {
   const row = await fetchMessageRow(env, agentId, messageId);
   if (!row) {
     return null;
   }
   const replyList = await fetchReplies(env, row.id, agentId);
-  return { ...mapMessageRow(row), replies: replyList };
+  return { ...mapMessageRow(row), replies: decisionsOnly && row.direction === 'agent_to_boss'
+    ? replyList.filter(reply => reply.direction === 'boss_to_agent') : replyList };
 }
 
 export async function fetchAgentName(env: Env, agentId: string): Promise<string | null> {
