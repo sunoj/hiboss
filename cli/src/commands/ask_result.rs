@@ -97,16 +97,18 @@ pub(crate) fn print_result(result: &AskResult, json: bool) -> Result<(), Box<dyn
         eprintln!("Action: {}", action);
     } else if result.outcome == Outcome::Reply && crate::session::should_show_ack_hint() {
         if let Some(id) = &result.reply_id {
-            let short = &id[..8.min(id.len())];
-            eprintln!(
-                "[reply {}] Acknowledge via: hiboss send \"<your response>\" or hiboss react {} 👍",
-                short, short
-            );
+            eprintln!("{}", acknowledgement_hint(id));
         }
     } else if result.outcome == Outcome::Timeout {
         eprintln!("No reply yet");
     }
     Ok(())
+}
+
+fn acknowledgement_hint(id: &str) -> String {
+    format!(
+        "[reply {id}] Acknowledge via: hiboss reply {id} \"<your response>\" or hiboss react {id} 👍"
+    )
 }
 
 #[cfg(test)]

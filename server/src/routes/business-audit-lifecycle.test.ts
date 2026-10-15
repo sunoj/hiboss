@@ -78,11 +78,15 @@ it('F12 unbound Discord user cannot change a stored reaction', async () => {
   expect(await persistDiscordReaction(env, source.id, reaction(ownerUser), 'add')).toBe(true);
   const read = async () => {
     const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?').bind(message).first<{ metadata: string }>();
-    return (JSON.parse(row!.metadata) as { reactions: { emoji: string; user: string }[] }).reactions;
+    return (JSON.parse(row!.metadata) as { reactions: unknown[] }).reactions;
   };
-  expect(await read()).toEqual([{ emoji: '✅', user: ownerUser }]);
+  expect(await read()).toEqual([{
+    emoji: '✅', actor: 'boss', actor_id: ownerUser, created_at: expect.any(String),
+  }]);
   expect(await persistDiscordReaction(env, source.id, reaction(unique('unbound-user')), 'add')).toBe(false);
-  expect(await read()).toEqual([{ emoji: '✅', user: ownerUser }]);
+  expect(await read()).toEqual([{
+    emoji: '✅', actor: 'boss', actor_id: ownerUser, created_at: expect.any(String),
+  }]);
 });
 
 it('F22 reused session id does not expose the previous agent session events', async () => {

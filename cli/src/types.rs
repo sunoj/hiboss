@@ -181,6 +181,10 @@ pub type PollResponse = Message;
 pub struct Reaction {
     pub emoji: String,
     #[serde(default)]
+    pub actor: Option<String>,
+    #[serde(default)]
+    pub actor_id: Option<String>,
+    #[serde(default)]
     pub user: Option<String>,
     #[serde(default)]
     pub count: Option<u32>,

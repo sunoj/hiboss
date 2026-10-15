@@ -19,7 +19,7 @@ export async function streamBossFeed(
   const startedAt = Date.now();
   let lastKeepalive = Date.now();
   let sinceTimestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
-  const seenIds = new Set<string>();
+  const seenRows = new Map<string, string>();
   const pollIntervalMs = getStreamPollIntervalMs(env, DEFAULT_BOSS_STREAM_POLL_INTERVAL_MS);
   const placeholders = agentIds.map(() => '?').join(', ');
   const sql =
@@ -27,8 +27,8 @@ export async function streamBossFeed(
      FROM messages
      LEFT JOIN api_keys ON api_keys.id = messages.agent_id
      WHERE (messages.agent_id IN (${placeholders}) OR messages.target_agent_id IN (${placeholders}))
-       AND messages.created_at >= ?
-     ORDER BY messages.created_at ASC`;
+       AND messages.updated_at >= ?
+     ORDER BY messages.updated_at ASC, messages.id ASC`;
 
   try {
     while (Date.now() - startedAt < MAX_DURATION_MS) {
@@ -36,11 +36,11 @@ export async function streamBossFeed(
         .bind(...agentIds, ...agentIds, sinceTimestamp)
         .all<MessageRow>();
       for (const row of rows.results ?? []) {
-        if (seenIds.has(row.id)) continue;
         const data = JSON.stringify(mapMessageRow(row));
+        if (seenRows.get(row.id) === data) continue;
         await writer.write(encoder.encode(`event: message\ndata: ${data}\n\n`));
-        seenIds.add(row.id);
-        sinceTimestamp = row.created_at;
+        seenRows.set(row.id, data);
+        sinceTimestamp = row.updated_at;
       }
       if (Date.now() - lastKeepalive >= KEEPALIVE_INTERVAL_MS) {
         await writer.write(encoder.encode(': keepalive\n\n'));

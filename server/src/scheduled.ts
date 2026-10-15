@@ -2,6 +2,7 @@
 // Exports the scheduled handler used by the Worker cron entrypoint.
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
+import { MESSAGE_METADATA_OBJECT_SQL } from './routes/message-reactions';
 import { appendOptionDescriptions } from './routes/option-descriptions';
 import type { Env, MessageRow } from './types';
 import { SENT_MESSAGE_STATUS } from './message-status';
@@ -130,7 +131,7 @@ async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow): Promise<vo
   if (!result.delivered) {
     throw new Error('delivery failure');
   }
-  await markMessageDelivered(env, message, metadata, result.telegramMessageId, result.discordMessageId,
+  await markMessageDelivered(env, message, result.telegramMessageId, result.discordMessageId,
     row.channel === 'telegram' ? (JSON.parse(row.config) as Record<string, unknown>).chat_id : undefined);
 }
 
@@ -149,14 +150,13 @@ async function fetchQueuedMessage(env: Env, messageId: string): Promise<QueuedMe
 async function markMessageDelivered(
   env: Env,
   message: QueuedMessageRow,
-  metadata: Record<string, unknown> | null,
   telegramMessageId?: number,
   discordMessageId?: string,
   telegramChatId?: unknown,
 ): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: Array<string | number> = [];
-  const nextMetadata = metadata ? { ...metadata } : {};
+  const nextMetadata: Record<string, unknown> = {};
 
   if (telegramMessageId) {
     nextMetadata['telegram_message_id'] = telegramMessageId;
@@ -164,7 +164,7 @@ async function markMessageDelivered(
   }
   if (discordMessageId) nextMetadata['discord_message_id'] = discordMessageId;
   if (Object.keys(nextMetadata).length > 0) {
-    updates.push('metadata = ?');
+    updates.push(`metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?))`);
     binds.push(JSON.stringify(nextMetadata));
   }
 

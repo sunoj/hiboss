@@ -187,6 +187,11 @@ hiboss ss set blocked "external dependency"
 hiboss ss set completed
 ```
 
+Follow up on your own question or a boss reply with `hiboss reply <id> "..."`.
+Acknowledge a boss answer with `hiboss reply <reply-id> "..."` or
+`hiboss react <reply-id> 👍`. These stay linked; a follow-up does not decide the question.
+Reactions are add-only and deduplicated by actor, actor ID, and emoji on every channel.
+
 ## Background SSE Daemon
 ```bash
 hiboss daemon start

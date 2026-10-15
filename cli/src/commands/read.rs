@@ -26,12 +26,7 @@ pub async fn run(
             Ok(resp) if !resp.reactions.is_empty() => {
                 println!("Reactions:");
                 for r in &resp.reactions {
-                    let label = r
-                        .user
-                        .as_deref()
-                        .map(|u| format!("{} ({})", r.emoji, u))
-                        .or_else(|| r.count.map(|c| format!("{} x{}", r.emoji, c)))
-                        .unwrap_or_else(|| r.emoji.clone());
+                    let label = reaction_label(r);
                     println!("  {}", label);
                 }
             }
@@ -55,7 +50,11 @@ fn print_message(message: &Message, depth: usize) {
         indent,
         message.channel.as_deref().unwrap_or("-")
     );
-    println!("{}Source: {}", indent, message_security::assurance_label(message));
+    println!(
+        "{}Source: {}",
+        indent,
+        message_security::assurance_label(message)
+    );
     println!(
         "{}Status: {}",
         indent,
@@ -70,6 +69,43 @@ fn print_message(message: &Message, depth: usize) {
         for reply in replies {
             println!("{}Replies:", indent);
             print_message(reply, depth + 1);
+        }
+    }
+}
+
+fn reaction_label(reaction: &crate::types::Reaction) -> String {
+    let identity = reaction
+        .actor
+        .as_deref()
+        .zip(reaction.actor_id.as_deref())
+        .map(|(actor, id)| format!("{actor}: {id}"))
+        .or_else(|| reaction.user.clone());
+    identity
+        .map(|user| format!("{} ({user})", reaction.emoji))
+        .or_else(|| {
+            reaction
+                .count
+                .map(|count| format!("{} x{count}", reaction.emoji))
+        })
+        .unwrap_or_else(|| reaction.emoji.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reaction_label;
+
+    #[test]
+    fn reads_actor_and_legacy_reactions() {
+        for (raw, expected) in [
+            (
+                r#"{"emoji":"+1","actor":"boss","actor_id":"123"}"#,
+                "+1 (boss: 123)",
+            ),
+            (r#"{"emoji":"+1","user":"Alice"}"#, "+1 (Alice)"),
+            (r#"{"emoji":"+1","count":2}"#, "+1 x2"),
+        ] {
+            let reaction = serde_json::from_str(raw).expect("valid reaction");
+            assert_eq!(reaction_label(&reaction), expected);
         }
     }
 }

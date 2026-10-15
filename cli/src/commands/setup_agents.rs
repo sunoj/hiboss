@@ -158,3 +158,18 @@ fn resolve_write_path(path: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .into()
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{PANEL_GUIDE, PROMPT, managed_content};
+
+    #[test]
+    fn installed_guidance_links_acknowledgements_to_boss_replies() {
+        let installed = managed_content("Existing guidance", false).expect("valid guidance");
+        for text in [installed.as_str(), PROMPT, PANEL_GUIDE] {
+            assert!(text.contains("hiboss reply <reply-id>"));
+            assert!(text.contains("hiboss react <reply-id> 👍"));
+        }
+        assert!(installed.starts_with("Existing guidance"));
+    }
+}

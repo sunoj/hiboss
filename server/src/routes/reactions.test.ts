@@ -2,13 +2,14 @@
 // Covers posting reactions and fetching reactions from metadata.
 // Depends on cloudflare:test, vitest, and reactions.ts.
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import { seedDatabase, authHeaders, getTestAgentId } from '../test-helpers';
 
 beforeAll(async () => {
   await seedDatabase();
 });
+afterEach(() => vi.unstubAllGlobals());
 
 describe('POST /api/messages/:id/react', () => {
   const agentId = getTestAgentId();
@@ -39,8 +40,7 @@ describe('POST /api/messages/:id/react', () => {
     expect(await res.text()).toBe('not found');
   });
 
-  it('returns 400 for non-telegram channel', async () => {
-    // Test with 'api' channel which doesn't support reactions in the current implementation
+  it('stores agent reactions on API messages', async () => {
     const msgId = 'react-test-api';
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, body, status, channel) VALUES (?, ?, 'boss_to_agent', 'async', 'API msg', 'sent', 'api')"
@@ -51,13 +51,15 @@ describe('POST /api/messages/:id/react', () => {
       headers: authHeaders(),
       body: JSON.stringify({ emoji: '👍' }),
     });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toBe('reactions not supported on this channel');
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+      .bind(msgId).first<{ metadata: string }>();
+    expect(JSON.parse(row?.metadata ?? '{}').reactions).toEqual([
+      { emoji: '👍', actor: 'agent', actor_id: agentId, created_at: expect.any(String) },
+    ]);
   });
 
-  it('returns 400 (not 500) when discord config lacks bot_token', async () => {
-    // Webhook-only config: no bot_token/channel_id — reactions can't work, but must
-    // fail cleanly with 400, not throw a 500 from requireDiscordConfig.
+  it('retains the stored reaction when Discord forwarding is unavailable', async () => {
     await env.DB.prepare(
       "INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled) VALUES (?, 'discord', ?, 1)"
     ).bind(agentId, JSON.stringify({ webhook_url: 'https://discord.com/api/webhooks/x/y' })).run();
@@ -71,8 +73,34 @@ describe('POST /api/messages/:id/react', () => {
       headers: authHeaders(),
       body: JSON.stringify({ emoji: '👍' }),
     });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toBe('discord bot_token and channel_id required for reactions');
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+      .bind(msgId).first<{ metadata: string }>();
+    expect(JSON.parse(row?.metadata ?? '{}').reactions).toHaveLength(1);
+  });
+
+  it.each([true, false])('persists Telegram reactions when forwarding succeeds: %s', async succeeds => {
+    const id = `react-telegram-${succeeds}`;
+    await env.DB.prepare(`INSERT OR REPLACE INTO channel_configs (agent_id, channel, config, enabled)
+      VALUES (?, 'telegram', ?, 1)`)
+      .bind(agentId, JSON.stringify({ bot_token: 'reaction-test-token', chat_id: 'chat' })).run();
+    await env.DB.prepare(`INSERT INTO messages
+      (id, agent_id, direction, mode, body, status, channel, metadata)
+      VALUES (?, ?, 'boss_to_agent', 'async', 'React', 'sent', 'telegram', ?)`)
+      .bind(id, agentId, JSON.stringify({ telegram_message_id: 123 })).run();
+    const provider = vi.fn().mockImplementation(async () => {
+      const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+        .bind(id).first<{ metadata: string }>();
+      expect(JSON.parse(row?.metadata ?? '{}').reactions).toHaveLength(1);
+      if (!succeeds) throw new Error('provider unavailable');
+      return new Response(JSON.stringify({ ok: true, result: true }));
+    });
+    vi.stubGlobal('fetch', provider);
+    const response = await SELF.fetch(`https://test.local/api/messages/${id}/react`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ emoji: '👍' }),
+    });
+    expect(response.status).toBe(200);
+    expect(provider).toHaveBeenCalledWith(expect.stringContaining('/setMessageReaction'), expect.any(Object));
   });
 });
 
@@ -89,7 +117,7 @@ describe('GET /api/messages/:id/reactions', () => {
       headers: authHeaders(),
     });
     expect(res.status).toBe(200);
-    const data = await res.json() as { reactions: any[] };
+    const data = await res.json() as { reactions: unknown[] };
     expect(data.reactions).toEqual([]);
   });
 
@@ -104,7 +132,7 @@ describe('GET /api/messages/:id/reactions', () => {
       headers: authHeaders(),
     });
     expect(res.status).toBe(200);
-    const data = await res.json() as { reactions: any[] };
+    const data = await res.json() as { reactions: unknown[] };
     expect(data.reactions).toEqual(reactions);
   });
 });

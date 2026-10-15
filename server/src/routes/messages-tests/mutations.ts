@@ -234,8 +234,7 @@ describe('POST /api/messages/:id/react', () => {
     expect(res.status).toBe(404);
   });
 
-  it('rejects react on unsupported channel', async () => {
-    // Create a message with no channel (not telegram or discord)
+  it('persists reactions independently of the delivery channel', async () => {
     const createRes = await SELF.fetch('https://test.local/api/messages', {
       method: 'POST',
       headers: authHeaders(),
@@ -248,7 +247,9 @@ describe('POST /api/messages/:id/react', () => {
       headers: authHeaders(),
       body: JSON.stringify({ emoji: '👀' }),
     });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toContain('not supported');
+    expect(res.status).toBe(200);
+    const stored = await SELF.fetch(`https://test.local/api/messages/${id}`, { headers: authHeaders() });
+    const message = await stored.json() as { metadata: { reactions: unknown[] } };
+    expect(message.metadata.reactions).toEqual([expect.objectContaining({ emoji: '👀', actor: 'agent' })]);
   });
 });

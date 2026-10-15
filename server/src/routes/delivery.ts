@@ -2,6 +2,7 @@
 // Exports delivery helpers used by messages router.
 // Depends on channel adapters, types, and delay from message-helpers.
 
+import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import type { Channel, DiscordChannelConfig, Env, OptionMedia, TelegramChannelConfig } from '../types';
 import { sendDiscordMessage, sendDiscordTyping, type DiscordSendOptions } from '../channels/discord';
 import {
@@ -29,7 +30,8 @@ export function getDeliveryErrorMessage(error: unknown): string {
 
 export async function persistDeliveryFailure(env: Env, messageId: string, errorMessage: string): Promise<void> {
   await env.DB.prepare(
-    "UPDATE messages SET metadata = json_set(COALESCE(metadata, '{}'), '$.delivery_error', ?), updated_at = datetime('now') WHERE id = ?"
+    `UPDATE messages SET metadata = json_set(${MESSAGE_METADATA_OBJECT_SQL}, '$.delivery_error', ?),
+      updated_at = datetime('now') WHERE id = ?`
   ).bind(errorMessage, messageId).run();
 }
 

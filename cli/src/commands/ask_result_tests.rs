@@ -105,3 +105,11 @@ fn reply_json_includes_the_answering_device() {
         "Mac mini"
     );
 }
+
+#[test]
+fn acknowledgement_links_to_the_boss_reply() {
+    let hint = acknowledgement_hint("boss-reply-id");
+    assert!(hint.contains("hiboss reply boss-reply-id \"<your response>\""));
+    assert!(hint.contains("hiboss react boss-reply-id 👍"));
+    assert!(!hint.contains("hiboss send"));
+}

@@ -42,9 +42,9 @@ with observed state; literal chart/table data must be bound to state for live up
 Run `hiboss panel --help` and `hiboss request --help` once. This guide describes protocol v2. The required
 commands are `example`, `validate`, `publish`, `update`, `stream`, `state`, `complete`,
 `fail`, `cancel`, `pause`, `resume`, `renew`, `doctor`, and `show`.
-If the installed CLI lacks one, report the version mismatch. Do not invent flags,
-search unrelated repositories, or repeatedly scan the user's configuration.
-Never display API keys or notification credentials.
+If the CLI lacks a required command, report the version mismatch; never invent flags or search unrelated
+repositories or repeatedly scan configuration. Never display API keys or notification credentials.
+Acknowledge boss replies with `hiboss reply <reply-id> "..."` or `hiboss react <reply-id> 👍`.
 
 `unsupported_protocol` requires the matching v2 server rollout; do not fall back
 to an older protocol or claim delivery.
