@@ -23,7 +23,8 @@ afterEach(() => vi.restoreAllMocks());
 async function send(mode?: string): Promise<string> {
   const ctx = createExecutionContext();
   const response = await app.fetch(new Request('https://test/api/messages', {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify({ body: 'hello', channel: 'discord', options: ['A', 'B'],
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ body: 'hello', channel: 'discord', options: ['A', 'B'],
       metadata: { option_descriptions: [{ label: 'B', text: 'Keep current' }] } }),
   }), { ...env, DESTINATIONS_MODE: mode } as Env, ctx);
   await waitOnExecutionContext(ctx);
