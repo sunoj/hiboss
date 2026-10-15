@@ -59,12 +59,20 @@ Get a single message with its reply chain. Response includes `replies: Message[]
 
 ### POST /api/messages/:id/reply
 Reply to a message. Request: `{ "body": "string" }`. Response (201): message object.
+An agent reply to a boss reply is stored as an `agent_to_boss` follow-up with `reply_to` set to
+that reply, so clients fold it into the original thread. Follow-ups never decide a question.
 
 ### PATCH /api/messages/:id
 Update message status. Request: `{ "status": "read" }`.
 
 ### POST /api/messages/:id/react
-Set a reaction emoji. Request: `{ "emoji": "👀" }`. Response: `{ "ok": true }`.
+Set a reaction emoji. Request: `{ "emoji": "👀" }`. Response: `{ "ok": true }`, with
+`"forwarded": false` when the message's channel has no Telegram/Discord copy. The reaction is
+stored on every channel in `metadata.reactions` as
+`{ "emoji", "actor": "boss"|"agent", "actor_id", "created_at" }`, add-only and deduplicated per
+(actor, actor_id, emoji); a change is republished on the boss stream. Legacy entries
+`{emoji, boss_id}` and `{emoji, user}` still read as boss reactions. Metadata writers patch only
+their own keys database-side; stored metadata that is not a JSON object is treated as `{}`.
 
 ### POST /api/messages/:id/poll
 Long-poll for reply to a blocking message. Query: `timeout` (default 300, max 300).

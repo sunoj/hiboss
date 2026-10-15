@@ -42,7 +42,10 @@ Critical/high priority messages are delivered to ALL configured channels simulta
 
 ## Reactions
 
-Agents set reaction emojis via `hiboss react <id> <emoji>` (works on both Discord and Telegram). Boss reactions are captured via webhooks. Conventions:
+Agents set reaction emojis via `hiboss react <id> <emoji>`: stored on every channel and forwarded
+to Discord or Telegram when the message has a copy there. Boss reactions come from the boss API,
+the Discord gateway and the Telegram webhook; each source adds or removes only its own actor's
+entries. The macOS and iOS clients show them as emoji chips. Conventions:
 - 👀 → message seen
 - 🔨 → working on it
 - ✅ → done/replied

@@ -22,3 +22,21 @@ legacy boss shape when no timestamp exists, rather than inventing one.
 Malformed entries are skipped individually; absent or malformed reaction
 arrays become empty. Reaction arrays and values are immutable; the model
 offers no removal operation.
+
+## Session view layout (macOS and iOS)
+
+Both clients render a session's messages from these models in the same order:
+
+1. **Needs you**: open, answerable decisions, soonest auto-default deadline first, then oldest.
+   A decision leaves this zone once a boss reply is recorded, even if answerability data is stale.
+2. **Conversation**: one card per thread, newest last activity first, with day separators.
+   Last activity is the latest `created_at` of the root, its entries and its reactions. Inside a
+   card everything is chronological; agent follow-ups are compact indented rows; reactions are
+   emoji chips with a count. Consecutive standalone messages from the same agent at most
+   10 minutes apart merge into one card. "Details" appears only for content beyond the visible
+   text. Ties break by message ID, so an identical refresh never reorders cards.
+3. **Watching** keeps its existing place.
+
+Agent acknowledgements sent before linked follow-ups existed have no `reply_to` and stay standalone.
+Implementations: `macos/Sources/HibossIsland/Sessions/SessionThreadLogic.swift`,
+`ios/App/Messages/SessionThreads.swift`.
