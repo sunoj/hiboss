@@ -65,7 +65,41 @@ describe('discord-gateway-reactions', () => {
     }, 'add');
 
     expect(updated).toBe(true);
-    await expect(readReactions(messageId)).resolves.toEqual([{ emoji: '🔥', user: 'boss-user-1' }]);
+    await expect(readReactions(messageId)).resolves.toEqual([{
+      emoji: '🔥', actor: 'boss', actor_id: 'boss-user-1', created_at: expect.any(String),
+    }]);
+  });
+
+  it('preserves mixed reactions on duplicate adds and removes only the Discord boss reaction', async () => {
+    const messageId = 'discord-reaction-mixed';
+    const preserved = [
+      { emoji: '🔥', actor: 'agent', actor_id: 'boss-user-1', created_at: '2026-01-01' },
+      { emoji: '🔥', user: 'boss-user-2' },
+      { emoji: '🔥', actor: 'boss', actor_id: 'other-boss', created_at: '2026-01-02' },
+      { emoji: '✅', actor: 'boss', actor_id: 'boss-user-1', created_at: '2026-01-03' },
+    ];
+    await env.DB.prepare(`INSERT INTO messages
+      (id, agent_id, direction, mode, channel, body, metadata)
+      VALUES (?, ?, 'agent_to_boss', 'async', 'discord', 'Mixed reactions', ?)`)
+      .bind(messageId, getTestAgentId(), JSON.stringify({
+        discord_message_id: 'discord-msg-mixed', reactions: preserved, keep: 'unchanged',
+      })).run();
+    const reaction = {
+      user_id: 'boss-user-1', channel_id: 'test-discord-ch', message_id: 'discord-msg-mixed',
+      emoji: { id: null, name: '🔥' },
+    };
+    expect(await persistDiscordReaction(env, getTestAgentId(), reaction, 'add')).toBe(true);
+    const added = [...preserved, {
+      emoji: '🔥', actor: 'boss', actor_id: 'boss-user-1', created_at: expect.any(String),
+    }];
+    await expect(readReactions(messageId)).resolves.toEqual(added);
+    expect(await persistDiscordReaction(env, getTestAgentId(), reaction, 'add')).toBe(true);
+    await expect(readReactions(messageId)).resolves.toEqual(added);
+    expect(await persistDiscordReaction(env, getTestAgentId(), reaction, 'remove')).toBe(true);
+    await expect(readReactions(messageId)).resolves.toEqual(preserved);
+    const row = await env.DB.prepare('SELECT metadata FROM messages WHERE id = ?')
+      .bind(messageId).first<{ metadata: string }>();
+    expect(JSON.parse(row!.metadata)).toMatchObject({ keep: 'unchanged' });
   });
 
   it('removes matching reactions using nested discord_msg.id metadata', async () => {
@@ -81,6 +115,14 @@ describe('discord-gateway-reactions', () => {
         ],
       }))
       .run();
+
+    expect(await persistDiscordReaction(env, getTestAgentId(), {
+      user_id: 'boss-user-1', channel_id: 'test-discord-ch', message_id: 'discord-msg-nested',
+      emoji: { id: null, name: '🔥' },
+    }, 'add')).toBe(true);
+    await expect(readReactions(messageId)).resolves.toEqual([
+      { emoji: '🔥', user: 'boss-user-1' }, { emoji: '✅', user: 'boss-user-2' },
+    ]);
 
     const updated = await persistDiscordReaction(env, getTestAgentId(), {
       user_id: 'boss-user-1',

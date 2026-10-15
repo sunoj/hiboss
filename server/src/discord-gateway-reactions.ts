@@ -3,6 +3,7 @@
 // Deps: Env binding and D1-backed messages/channel_configs/sessions tables.
 
 import type { Env } from './types';
+import { storeMessageReaction, removeMessageReaction } from './routes/message-reactions';
 import { checkBossPermission } from './routes/webhook-helpers';
 
 export interface DiscordReactionChangeData {
@@ -14,12 +15,6 @@ export interface DiscordReactionChangeData {
 
 type DiscordMessageRow = {
   id: string;
-  metadata: string | null;
-};
-
-type DiscordReaction = {
-  emoji: string;
-  user: string;
 };
 
 export async function lookupDiscordAgentId(env: Env, channelId: string): Promise<string | null> {
@@ -56,51 +51,21 @@ export async function persistDiscordReaction(
   if (!message) {
     return false;
   }
-  const metadata = parseMetadata(message.metadata);
-  const reactions = readReactions(metadata['reactions']);
-  metadata['reactions'] = action === 'add'
-    ? [...reactions, toReactionRecord(reaction)]
-    : reactions.filter((entry) => !matchesReaction(entry, reaction));
-  await env.DB.prepare('UPDATE messages SET metadata = ? WHERE id = ?').bind(JSON.stringify(metadata), message.id).run();
+  if (action === 'add') {
+    await storeMessageReaction(env, message.id, 'boss', reaction.user_id, reaction.emoji.name);
+  } else {
+    await removeMessageReaction(env, message.id, 'boss', reaction.user_id, reaction.emoji.name);
+  }
   return true;
 }
 
-async function findDiscordMessage(env: Env, agentId: string, discordMessageId: string): Promise<DiscordMessageRow | null> {
+async function findDiscordMessage(
+  env: Env, agentId: string, discordMessageId: string,
+): Promise<DiscordMessageRow | null> {
   return env.DB
-    .prepare("SELECT id, metadata FROM messages WHERE agent_id = ? AND channel = 'discord' AND (json_extract(metadata, '$.discord_message_id') = ? OR json_extract(metadata, '$.discord_msg.id') = ?) LIMIT 1")
+    .prepare(`SELECT id FROM messages WHERE agent_id = ? AND channel = 'discord' AND
+      (json_extract(metadata, '$.discord_message_id') = ?
+        OR json_extract(metadata, '$.discord_msg.id') = ?) LIMIT 1`)
     .bind(agentId, discordMessageId, discordMessageId)
     .first<DiscordMessageRow>();
-}
-
-function parseMetadata(metadata: string | null): Record<string, unknown> {
-  if (!metadata) {
-    return {};
-  }
-  try {
-    return JSON.parse(metadata) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-}
-
-function readReactions(value: unknown): DiscordReaction[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') {
-      return [];
-    }
-    const emoji = 'emoji' in entry && typeof entry.emoji === 'string' ? entry.emoji : null;
-    const user = 'user' in entry && typeof entry.user === 'string' ? entry.user : null;
-    return emoji && user ? [{ emoji, user }] : [];
-  });
-}
-
-function toReactionRecord(reaction: DiscordReactionChangeData): DiscordReaction {
-  return { emoji: reaction.emoji.name, user: reaction.user_id };
-}
-
-function matchesReaction(entry: DiscordReaction, reaction: DiscordReactionChangeData): boolean {
-  return entry.emoji === reaction.emoji.name && entry.user === reaction.user_id;
 }
