@@ -18,6 +18,7 @@ struct SessionMessagesView: View {
     private var hasLoaded: Bool { stream.didLoad || stream.usesHistory }
     @State private var actionNote: String?
     @State private var showsHistory = false
+    @State private var jumpToLatestRequest = 0
 
     init(route: SessionRoute, api: (any SessionStreamServing)?, store: InboxStore,
          panels: PanelsModel? = nil) {
@@ -65,18 +66,25 @@ struct SessionMessagesView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream.resumeFromForeground() }
         }
-        .refreshable {
-            await stream.refresh()
-            if route.id != SessionGrouping.directSessionID {
-                await facts.load(id: route.id, api: store.api as? any SessionsServing)
-            }
-            if let panels { await panels.load() }
+        .refreshable { await refresh() }
+    }
+
+    private func refresh() async {
+        await stream.refresh()
+        if route.id != SessionGrouping.directSessionID {
+            await facts.load(id: route.id, api: store.api as? any SessionsServing)
         }
+        if let panels { await panels.load() }
     }
 
     private var historyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack {
+                Button { Task { await refresh() } } label: {
+                    Image(systemName: "arrow.clockwise").frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Refresh")
+                .accessibilityIdentifier("session-refresh")
                 Button {
                     showsHistory = true
                 } label: {
@@ -162,8 +170,8 @@ struct SessionMessagesView: View {
             .accessibilityIdentifier("session-transcript")
             .coordinateSpace(name: "transcript")
             .simultaneousGesture(readerGesture)
-            .onChange(of: stream.isFollowingLive) { _, following in
-                if following { scrollToLive(proxy) }
+            .onChange(of: jumpToLatestRequest) { _, _ in
+                scrollToLive(proxy)
             }
         }
     }
@@ -222,6 +230,7 @@ struct SessionMessagesView: View {
     private var jumpToLiveButton: some View {
         Button {
             stream.jumpToLive()
+            jumpToLatestRequest += 1
         } label: {
             Label(
                 stream.pendingWhileLocked > 0

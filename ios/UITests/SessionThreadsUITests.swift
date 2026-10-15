@@ -46,10 +46,15 @@ final class SessionThreadsUITests: XCTestCase {
         XCTAssertTrue(choice.waitForExistence(timeout: 10))
         let frame = choice.frame
         pullToRefresh(app)
+        app.buttons["session-refresh"].tap()
         XCTAssertTrue(choice.isEnabled)
         XCTAssertEqual(choice.frame, frame)
         XCTAssertFalse(app.descendants(matching: .any)["pending-rows"].exists)
         keep(app, "session-mid-refresh")
+        let refreshing = app.staticTexts["list-stale-banner"]
+        XCTAssertTrue(refreshing.waitForExistence(timeout: 5))
+        XCTAssertTrue(refreshing.waitForNonExistence(timeout: 15))
+        XCTAssertEqual(choice.frame, frame)
     }
 
     private func captureConversation(_ appearance: String, largeText: Bool = false) {
