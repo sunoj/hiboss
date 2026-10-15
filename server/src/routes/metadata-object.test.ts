@@ -22,7 +22,7 @@ async function insert(id: string, metadata: string | null): Promise<MessageRow> 
   const row = await env.DB.prepare(`INSERT INTO messages
     (id, agent_id, direction, mode, channel, body, status, metadata)
     VALUES (?, ?, 'agent_to_boss', 'async', 'api', 'Hello', 'sent', ?) RETURNING *`)
-    .bind(id, getTestAgentId(), metadata).first<MessageRow>();
+    .bind(`${id}-${crypto.randomUUID()}`, getTestAgentId(), metadata).first<MessageRow>();
   if (!row) throw new Error('message insert failed');
   return row;
 }
