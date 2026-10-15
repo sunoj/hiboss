@@ -24,6 +24,7 @@ struct HistoryRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : 2)
                 if let answer { answerLine(answer) }
+                MessageReactions(message: message)
                 if let badge = MessageRowBadge.badge(for: message, answerability: answerability) {
                     Text(verbatim: badge.title)
                         .font(.caption.weight(.semibold))
@@ -76,6 +77,7 @@ struct BossHistoryRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.primary)
                     .lineLimit(dynamicTypeSize.isAccessibilitySize ? 4 : 2)
+                MessageReactions(message: message)
             }
         }
         .padding(.vertical, 4)

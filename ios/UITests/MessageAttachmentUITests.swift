@@ -113,8 +113,9 @@ final class MessageAttachmentUITests: XCTestCase {
 
     func testTranscriptOrdinaryAndDecisionAttachmentsOpenViewer() {
         launch(["HIBOSS_DEMO_SESSION": "1"])
-        let ordinary = app.descendants(matching: .any)["session-bubble-incoming"].firstMatch
+        let ordinary = app.descendants(matching: .any)["thread-attachment-file"]
         XCTAssertTrue(ordinary.waitForExistence(timeout: 10))
+        for _ in 0..<4 where !ordinary.isHittable { app.swipeUp() }
         assertViewer(ordinary.buttons["message-attachment-open"])
         let decision = app.descendants(matching: .any)["transcript-decision-attachment-decision"]
         XCTAssertTrue(decision.exists)
@@ -169,10 +170,10 @@ final class MessageAttachmentUITests: XCTestCase {
 
     private func assertViewer(_ button: XCUIElement) {
         XCTAssertTrue(button.waitForExistence(timeout: 15))
-        let header = app.descendants(matching: .any).matching(identifier: "session-facts").firstMatch
-        let composer = app.textFields["session-reply-draft"].firstMatch
+        let navigation = app.navigationBars.firstMatch
+        let composer = app.descendants(matching: .any)["session-reply-composer"].firstMatch
         for _ in 0..<8 {
-            if header.exists && button.frame.midY < header.frame.maxY + 24 {
+            if navigation.exists && button.frame.midY < navigation.frame.maxY + 24 {
                 app.swipeDown()
             } else if composer.exists && button.frame.midY > composer.frame.minY - 24 {
                 app.swipeUp()

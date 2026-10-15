@@ -60,11 +60,15 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.configureDemoLaunch(["HIBOSS_DEMO_SESSION": "1", "HIBOSS_DEMO_TRANSCRIPT_UNAVAILABLE": "1"])
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
+        revealHistoryNote(app)
         XCTAssertTrue(app.staticTexts["session-history-note"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["session-history-note"].label,
                        "This session is no longer available. Showing its saved messages.")
-        XCTAssertTrue(app.descendants(matching: .any)["transcript-decision-c1"].exists)
+        let decision = app.descendants(matching: .any)["transcript-decision-c1"]
+        for _ in 0..<8 where !decision.exists { app.swipeDown() }
+        XCTAssertTrue(decision.exists)
         XCTAssertTrue(app.buttons["Approve"].exists)
+        revealHistoryNote(app)
         XCTAssertTrue(app.buttons["Retry"].exists)
         app.buttons["Retry"].tap()
         XCTAssertTrue(app.staticTexts["session-history-note"].exists)
@@ -96,6 +100,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchConfiguredDemo()
         let note = app.staticTexts["session-history-note"]
+        revealHistoryNote(app)
         XCTAssertTrue(note.waitForExistence(timeout: 10))
         app.buttons["Retry"].tap()
         XCTAssertTrue(note.waitForNonExistence(timeout: 10))
@@ -110,6 +115,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launchConfiguredDemo()
         let note = app.staticTexts["session-history-note"]
+        revealHistoryNote(app)
         XCTAssertTrue(note.waitForExistence(timeout: 10))
         XCTAssertEqual(note.label, "此会话已不可用，正在显示其已保存的消息。")
         XCTAssertTrue(app.buttons["重试"].exists)
@@ -126,9 +132,12 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)
         XCTAssertFalse(card.staticTexts.matching(NSPredicate(format: "label CONTAINS 'prod-release'"))
             .firstMatch.exists)
+        for _ in 0..<4 where !card.buttons["Approve"].isHittable { app.swipeUp() }
         card.buttons["Approve"].tap()
+        let answer = app.descendants(matching: .any)["transcript-answer-c1"]
+        for _ in 0..<4 where !answer.isHittable { app.swipeUp() }
         XCTAssertTrue(card.descendants(matching: .any)["transcript-answer-c1"].waitForExistence(timeout: 10))
-        XCTAssertFalse(card.staticTexts["orchestrator-01"].exists)
+        XCTAssertEqual(card.staticTexts.matching(identifier: "orchestrator-01").count, 1)
         let other = app.descendants(matching: .any)["transcript-decision-c5"]
         for _ in 0..<8 where !other.isHittable { app.swipeDown() }
         XCTAssertTrue(other.staticTexts["worker-design"].exists)
@@ -172,7 +181,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         XCTAssertTrue(started.waitForExistence(timeout: 5))
         let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             let facts = self.frame(app.descendants(matching: .any)["session-facts"])
-            let card = self.frame(app.descendants(matching: .any)["transcript-decision-c6"])
+            let card = self.frame(app.descendants(matching: .any)["transcript-decision-c5"])
             // Accessibility bounds round by fractions of a point, including at shared edges.
             let tolerance: CGFloat = 0.5
             return started.isHittable && started.frame.maxY <= facts.maxY + tolerance
@@ -181,7 +190,7 @@ final class SessionPageLayoutUITests: XCTestCase {
         let result = XCTWaiter.wait(for: [settled], timeout: 5)
         capture(app, "facts-expansion")
         let facts = frame(app.descendants(matching: .any)["session-facts"])
-        let card = frame(app.descendants(matching: .any)["transcript-decision-c6"])
+        let card = frame(app.descendants(matching: .any)["transcript-decision-c5"])
         XCTAssertEqual(result, .completed, "facts: \(facts); started: \(started.frame); card: \(card)")
     }
 
@@ -217,6 +226,15 @@ final class SessionPageLayoutUITests: XCTestCase {
         for _ in 0..<6 { app.swipeDown() }
     }
 
+    private func revealHistoryNote(_ app: XCUIApplication) {
+        let note = app.staticTexts["session-history-note"]
+        let retry = app.buttons["pending-retry"].firstMatch
+        for _ in 0..<10 {
+            if note.isHittable && retry.isHittable { break }
+            app.swipeUp()
+        }
+    }
+
     private func capture(_ app: XCUIApplication, _ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "session-page-\(name)"
@@ -229,7 +247,7 @@ final class SessionPageLayoutUITests: XCTestCase {
                       "composer": composerFrame(app),
                       "transcript": frame(app.scrollViews.firstMatch),
                       "visible-transcript": visibleTranscriptFrame(app),
-                      "first-card": frame(app.descendants(matching: .any)["transcript-decision-c6"]),
+                      "first-card": frame(app.descendants(matching: .any)["transcript-decision-c5"]),
                       "started": frame(app.staticTexts.matching(
                         NSPredicate(format: "label BEGINSWITH 'Started '")).firstMatch)]
         let values = frames.map { "\($0.key): \($0.value)" }.sorted().joined(separator: "\n")

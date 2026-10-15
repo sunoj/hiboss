@@ -20,6 +20,9 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
             ? [DemoTextAsk.message] : DemoMessageAttachments.queue(
                 fallback: DemoOptionMediaFixtures.queue(fallback: DemoFixtures.queue))
         messages = DemoMarkdown.queue(fallback: DemoProjectPeers.queue(fallback: messages))
+        if ProcessInfo.processInfo.environment["HIBOSS_DEMO_THREADS"] == "1" {
+            messages = DemoThreads.appending(to: messages)
+        }
         if ProcessInfo.processInfo.environment["HIBOSS_DEMO_SESSION_READS"] == "1" {
             messages = DemoSessionReads.messages
         }
@@ -89,8 +92,6 @@ final class DemoBossAPI: BossServing, RequiredInputServing, SessionStreamServing
         messages.append(DemoFixtures.bossReply(to: parent, choice: choice, source: "ios"))
         return .accepted
     }
-
-
 }
 
 /// Sample history grouped into three sessions plus a direct message.
@@ -100,7 +101,6 @@ private enum DemoFixtures {
         let reference = stable && offset > 0 ? Date().addingTimeInterval(20 * 60) : Date()
         return reference.addingTimeInterval(offset).ISO8601Format()
     }
-
     /// `HIBOSS_DEMO_EMPTY=1` drops live decisions so the all-clear strip can be screenshotted.
     static var queue: [HistoryMessage] {
         ProcessInfo.processInfo.environment["HIBOSS_DEMO_EMPTY"] == "1"

@@ -27,7 +27,7 @@ struct SessionDecisionBubble: View {
                 }
                 SessionBubbleView(event: event, style: resolvedStyle,
                                   attachment: message.metadata?.attachment,
-                                  content: message.content)
+                                  content: message.content, message: message)
                 OptionMediaComparison(options: message.options, media: message.metadata?.optionMedia ?? [],
                                       metadata: message.metadata,
                                       settlement: store.settlement(for: message.id))
@@ -89,6 +89,7 @@ private struct SessionDecisionHeader: View {
             }
             Text(verbatim: message.messageText.title).font(.headline).foregroundStyle(Theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+            MessageReactions(message: message)
             if let content = message.messageText.content,
                !content.isEmpty,
                content != message.body.trimmingCharacters(in: .whitespacesAndNewlines) {

@@ -12,6 +12,7 @@ extension DemoBossAPI {
         limit: Int
     ) async throws -> SessionEventsPage {
         try await DemoDelay.wait("TRANSCRIPT")
+        if sessionFetchCount > 0 { try await DemoDelay.wait("TRANSCRIPT_REFRESH") }
         sessionFetchCount += 1
         if sessionFetchCount == 1,
            ProcessInfo.processInfo.environment["HIBOSS_DEMO_TRANSCRIPT_EMPTY_FAILURE"] == "1" {
@@ -56,6 +57,13 @@ extension DemoBossAPI {
         }
         return AsyncThrowingStream { continuation in
             let update = Task {
+                if sessionFetchCount == 1, DemoDelay.isHeld("TRANSCRIPT_RESYNC") {
+                    do { try await DemoDelay.wait("TRANSCRIPT_RESYNC") }
+                    catch { return }
+                    guard !Task.isCancelled else { return }
+                    continuation.yield(.resync)
+                    return
+                }
                 guard DemoDelay.isHeld("TRANSCRIPT_NEWER") else { return }
                 do { try await DemoDelay.wait("TRANSCRIPT_NEWER") }
                 catch { return }

@@ -84,6 +84,7 @@ final class SessionsV4UITests: XCTestCase {
         shot(app, "\(appearance)-thread-open")
         open.buttons["Approve"].tap()
         let resolved = app.descendants(matching: .any)["transcript-answer-c1"]
+        for _ in 0..<4 where !resolved.isHittable { app.swipeUp() }
         XCTAssertTrue(resolved.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["reply-confirmation"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(resolved.isHittable)
@@ -138,10 +139,12 @@ final class SessionsV4UITests: XCTestCase {
         app.buttons["Send reply"].tap()
         XCTAssertTrue(app.staticTexts["reply-confirmation"].waitForExistence(timeout: 10))
         XCTAssertFalse((field.value as? String)?.contains("box:demo-agent-text") == true)
-        let outgoing = app.descendants(matching: .any).matching(NSPredicate(
-            format: "identifier == 'session-bubble-outgoing' AND label CONTAINS 'box:demo-agent-text'"
-        )).firstMatch
+        let outgoing = app.descendants(matching: .any).matching(identifier: "session-bubble-outgoing")
+            .descendants(matching: .staticText)
+            .matching(NSPredicate(format: "label CONTAINS 'box:demo-agent-text'")).firstMatch
+        for _ in 0..<4 where !outgoing.isHittable { app.swipeUp() }
         XCTAssertTrue(outgoing.waitForExistence(timeout: 10), "the receipt must appear in this thread")
+        XCTAssertTrue(outgoing.isHittable)
     }
 
     func testBoxListRowsFitScreenWithoutOverlap() {

@@ -64,6 +64,7 @@ struct MessageDetailView: View {
                     DecisionProvenance(message: message, session: facts.session)
                     question(for: message)
                     DecisionContextCard(message: message)
+                    MessageReactions(message: message)
                     if let actionNote {
                         Label(actionNote, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(Theme.warn)
