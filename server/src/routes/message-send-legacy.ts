@@ -83,7 +83,9 @@ function mapLegacyResults(
 }
 
 interface LegacyResult { channel: Channel; ok: boolean; telegramMessageId?: number; telegramChatId?: unknown; discordMessageId?: string }
-async function markLegacyDelivered(env: Env, messageId: string, deliveryResults: LegacyResult[], isUrgent: boolean): Promise<void> {
+async function markLegacyDelivered(
+  env: Env, messageId: string, deliveryResults: LegacyResult[], isUrgent: boolean,
+): Promise<void> {
   const updates: string[] = ["status = 'delivered'", "updated_at = datetime('now')"];
   const binds: (string | number)[] = [];
   const meta: Record<string, unknown> = {};

@@ -180,7 +180,8 @@ describe('Telegram webhook security', () => {
     ).bind('tg-sec-thread-react-agent', JSON.stringify({ chat_id: 'tg-sec-react-chat', bot_token: 'thread-react-token', message_thread_id: 888 })).run();
     await env.DB.prepare(
       "INSERT INTO messages (id, agent_id, direction, mode, channel, body, status, priority, metadata) VALUES (?, ?, 'agent_to_boss', 'blocking', 'telegram', 'React here', 'delivered', 'normal', ?)"
-    ).bind('tg-sec-reaction-parent', 'tg-sec-thread-react-agent', JSON.stringify({ telegram_message_id: 5010, reactions: [
+    ).bind('tg-sec-reaction-parent', 'tg-sec-thread-react-agent', JSON.stringify({
+      telegram_message_id: 5010, reactions: [
       { emoji: '🔥', actor: 'agent', actor_id: 'peer-agent' },
       { emoji: '👍', actor: 'boss', actor_id: 'tg-sec-react-user' },
     ] })).run();
