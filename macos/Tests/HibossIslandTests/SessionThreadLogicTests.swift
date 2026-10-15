@@ -19,6 +19,25 @@ final class SessionThreadLogicTests: XCTestCase {
         XCTAssertEqual(value.conversation.map(\.id), [root.id, newer.id])
     }
 
+    func testCaptureHeightIncludesMergedCardOnShortDisplays() {
+        let size = SessionThreadCaptureLayout.contentSize(in: CGSize(width: 1440, height: 900))
+        XCTAssertEqual(size.height, 1600, "The complete session must fit without native scroll emulation")
+        XCTAssertEqual(size.width, 1280)
+    }
+
+    func testRealSessionProjectionRetainsMergedUpdatesBesideAnsweredAndOpenDecisions() {
+        let history = SessionThreadFixtures.history(now: now)
+        let updates = Array(history.suffix(3))
+        let snapshot = OverviewSnapshot(history: history, live: nil, now: now,
+            requiredInputs: history, requiredInputLoaded: true)
+        let threads = HistoryMessageLogic.scopedThreads(snapshot: snapshot, scope: .session("thread-demo"))
+        let value = SessionThreadLogic(threads: threads, answerability: snapshot.answerability, now: now)
+        XCTAssertEqual(value.needsYou.map(\.id), ["open"])
+        XCTAssertEqual(value.conversation.map(\.id), ["answered", updates[0].id])
+        XCTAssertEqual(value.conversation.last?.threads.map(\.id), updates.map(\.id))
+        XCTAssertEqual(value.days().first?.cards.count, 2)
+    }
+
     func testEntriesAndReactionsMoveThreadByLastActivity() {
         let root = message("root", minute: 0)
         let entry = message("follow", minute: 20, parent: "root")
