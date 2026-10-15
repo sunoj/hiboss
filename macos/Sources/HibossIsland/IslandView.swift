@@ -19,12 +19,14 @@ struct IslandView: View {
     @ObservedObject var reply: AttentionReplyState
     let surfaceStyle: OptionSurfaceStyle
     var topInset: CGFloat
+    let sizingMessage: OptionMessage?
 
     init(
         flow: OptionFlowStore, reply: AttentionReplyState, overview: OverviewStore,
         surfaceStyle: OptionSurfaceStyle = .island, topInset: CGFloat = 0,
-        attention: IslandAttention = .shared
+        attention: IslandAttention = .shared, sizingMessage: OptionMessage? = nil
     ) {
+        self.sizingMessage = sizingMessage
         self.overview = overview
         self.flow = flow
         self.attention = attention
@@ -45,7 +47,8 @@ struct IslandView: View {
 
     @ViewBuilder
     private func islandContent(now: Date) -> some View {
-        let presentation = attention.filteredPresentation(snapshot: overview.snapshot.today,
+        let presentation = sizingMessage.map { IslandPresentation(message: $0, item: nil) }
+            ?? attention.filteredPresentation(snapshot: overview.snapshot.today,
             active: flow.activeMessage, state: flow.presentationState)
         if case let .resolved(answer, source) = flow.presentationState,
            let message = flow.activeMessage, presentation?.item == nil,
@@ -200,7 +203,7 @@ struct IslandView: View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
                 .overlay(Color.white.opacity(0.12))
-            switch overview.snapshot.answerability.state(for: message.id) {
+            switch sizingMessage == nil ? overview.snapshot.answerability.state(for: message.id) : .open {
             case .open:
                 optionList(message)
                 errorLabel(for: message.id)
@@ -269,7 +272,7 @@ struct OptionMessageBody: View {
             content
             ScrollView(.vertical, showsIndicators: true) { content }
         }
-        .frame(minHeight: 56, maxHeight: .infinity, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var content: some View {

@@ -95,7 +95,7 @@ final class IslandPanelController {
         optionWindow.isReleasedWhenClosed = false
         optionWindow.level = .floating
         optionWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        optionWindow.minSize = NSSize(width: AppConstants.Island.width, height: 180)
+        optionWindow.minSize = NSSize(width: AppConstants.Island.width, height: 1)
         optionWindow.styleMask.insert(.fullSizeContentView)
         optionWindow.titlebarAppearsTransparent = true
         optionWindow.titleVisibility = .hidden
@@ -195,7 +195,7 @@ final class IslandPanelController {
 
     private func showWindow(_ message: OptionMessage) {
         let wasVisible = optionWindow.isVisible
-        let height = max(expandedHeight(for: message), 180)
+        let height = expandedHeight(for: message)
         optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: height))
         if !wasVisible { optionWindow.center() }
         activate()

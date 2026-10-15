@@ -47,6 +47,18 @@ final class IslandAppearanceSnapshotTests: XCTestCase {
         }
     }
 
+    func testPlainOptionsInBothAppearances() async throws {
+        let flow = OptionFlowStore(reconnectDelay: .seconds(60))
+        let message = OptionMessage(id: "plain-options", body: "Choose a destination",
+            metadata: MessageMetadata(options: ["Coast", "Forest", "Mountains"]))
+        flow.connect(api: ScriptedBossAPI(messages: [message]))
+        defer { flow.disconnect() }
+        try await waitForCondition { flow.activeMessage?.id == message.id }
+        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+            try await Self.capture(flow: flow, appearance: appearance, name: "plain-options")
+        }
+    }
+
     static func capture(flow: OptionFlowStore, appearance: NSAppearance.Name, name: String) async throws {
         _ = NSApplication.shared
         let original = NSApp.appearance

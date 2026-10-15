@@ -35,7 +35,7 @@ final class IslandPanelSizingTests: XCTestCase {
             + "window=\(actualHeight), min=\(controller.panel.minSize.height)")
 
         XCTAssertEqual(actualHeight, requestedHeight, accuracy: 1)
-        XCTAssertLessThanOrEqual(abs(actualHeight - contentHeight), 50)
+        XCTAssertLessThanOrEqual(abs(actualHeight - contentHeight), 4)
         let host = try XCTUnwrap(controller.panel.contentView)
         XCTAssertTrue(descendants(of: host, type: NSScrollView.self).isEmpty)
         try assertReplyIsVisible(in: controller.panel)
@@ -111,7 +111,10 @@ final class IslandPanelSizingTests: XCTestCase {
         try await waitForCondition { flow.activeMessage?.id == message.id }
         try await settle(controller.panel)
         let height = OptionPanelLayout.expandedHeight(for: message)
-        XCTAssertGreaterThan(height, 400)
+        let natural = NSHostingView(rootView: IslandView(flow: flow, reply: controller.reply,
+            overview: controller.overview).frame(width: AppConstants.Island.width)
+            .fixedSize(horizontal: false, vertical: true))
+        XCTAssertEqual(height, natural.fittingSize.height, accuracy: 4)
         XCTAssertEqual(controller.panel.frame.height, height, accuracy: 1)
         try assertReplyIsVisible(in: controller.panel)
 
@@ -143,6 +146,47 @@ final class IslandPanelSizingTests: XCTestCase {
         for appearance in [NSAppearance.Name.aqua, .darkAqua] {
             try await IslandAppearanceSnapshotTests.capture(flow: flow, appearance: appearance,
                 name: "three-images-gap")
+        }
+    }
+
+    func testCompactFixturesMatchNaturalContentHeight() async throws {
+        let options = ["Coast", "Forest", "Mountains"]
+        let fixtures = [
+            OptionMessage(id: "plain", body: "Choose a destination",
+                metadata: MessageMetadata(options: options)),
+            OptionMessage(id: "images", body: "Choose a destination",
+                metadata: MessageMetadata(options: options, optionMedia: options.map {
+                    OptionMedia(label: $0, url: "file:///nonexistent-\($0).png")
+                })),
+            OptionMessage(id: "descriptions", body: "Choose a destination",
+                metadata: MessageMetadata(options: options, optionDescriptions: [
+                    OptionDescription(label: "Coast", text: "A quiet break by the water.")
+                ])),
+            OptionMessage(id: "two-lines", body: "Choose a destination\nThen confirm your choice",
+                metadata: MessageMetadata(options: options))
+        ]
+        for message in fixtures {
+            let flow = OptionFlowStore(reconnectDelay: .seconds(60))
+            let (controller, settings) = try controller(flow: flow)
+            defer {
+                flow.disconnect()
+                controller.panel.orderOut(nil)
+                controller.optionWindow.orderOut(nil)
+            }
+            flow.connect(api: ScriptedBossAPI(messages: [message]))
+            try await waitForCondition { flow.activeMessage?.id == message.id }
+            try await settle(controller.panel)
+            let natural = NSHostingView(rootView: IslandView(flow: flow, reply: controller.reply,
+                overview: controller.overview).frame(width: AppConstants.Island.width)
+                .fixedSize(horizontal: false, vertical: true))
+            natural.layoutSubtreeIfNeeded()
+            let height = natural.fittingSize.height
+            XCTAssertEqual(controller.panel.frame.height, height, accuracy: 4, message.id.rawValue)
+            settings.presentationMode = .window
+            try await settle(controller.optionWindow)
+            XCTAssertEqual(controller.optionWindow.contentView?.frame.height ?? 0,
+                height, accuracy: 4, message.id.rawValue)
+            try assertReplyIsVisible(in: controller.optionWindow)
         }
     }
 

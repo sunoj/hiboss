@@ -111,11 +111,11 @@ final class PresentationSettingsE2ETests: XCTestCase {
         )
     }
 
-    func testShortQuestionSizingHonorsBodyViewportMinimum() {
+    func testShortQuestionSizingFollowsNaturalTextHeight() {
         let oneLine = message(body: "Choose a path", option: "Continue")
         let twoLines = message(body: "Choose a path\nThen confirm", option: "Continue")
 
-        XCTAssertEqual(
+        XCTAssertLessThan(
             OptionPanelLayout.expandedHeight(for: oneLine),
             OptionPanelLayout.expandedHeight(for: twoLines)
         )

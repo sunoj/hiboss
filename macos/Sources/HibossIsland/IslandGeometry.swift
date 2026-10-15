@@ -4,6 +4,7 @@
 
 import AppKit
 import HibossKit
+import SwiftUI
 
 struct IslandGeometry: Equatable {
     let displayID: UInt32?
@@ -66,67 +67,21 @@ struct IslandGeometry: Equatable {
     }
 }
 
+@MainActor
 enum OptionPanelLayout {
-    private static let contentHorizontalPadding: CGFloat = 36
-    private static let optionTextChrome: CGFloat = 46
-    private static let verticalChrome: CGFloat = 86
-    private static let minimumBodyViewportHeight: CGFloat = 56
-    /// Reply input row plus the stack spacing above it.
-    private static let replyFieldHeight: CGFloat = 45
-    /// SwiftUI controls consume slightly more height than AppKit text metrics report.
-    private static let controlLayoutReserve: CGFloat = 24
-
+    /// Measure the production content synchronously before presenting it. Refreshes do not
+    /// publish geometry callbacks, and media retains its reserved size while loading.
     static func expandedHeight(
         for message: OptionMessage,
         width: CGFloat = AppConstants.Island.width
     ) -> CGFloat {
-        let contentWidth = width - contentHorizontalPadding
-        let bodyHeight = max(
-            minimumBodyViewportHeight,
-            textHeight(
-                message.body,
-                font: .systemFont(ofSize: 15, weight: .semibold),
-                width: contentWidth
-            )
-        )
-        let optionWidth = contentWidth - optionTextChrome
-        let optionHeights = message.options.map { option in
-            rowHeight(for: option, in: message, width: optionWidth)
-        }
-        let gaps = CGFloat(max(optionHeights.count - 1, 0)) * OptionRowMetrics.rowSpacing
-        let optionsHeight: CGFloat = optionHeights.reduce(0, +) + gaps
-        let chrome: CGFloat = verticalChrome + replyFieldHeight + controlLayoutReserve
-        return ceil(chrome + bodyHeight + optionsHeight)
-    }
-
-    private static func textHeight(_ text: String, font: NSFont, width: CGFloat) -> CGFloat {
-        let bounds = (text as NSString).boundingRect(
-            with: NSSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: font]
-        )
-        return ceil(bounds.height)
-    }
-
-    private static func rowHeight(for option: String, in message: OptionMessage, width: CGFloat) -> CGFloat {
-        let label = option.trimmingCharacters(in: .whitespacesAndNewlines)
-        let media = message.metadata?.optionMedia.first {
-            $0.label.trimmingCharacters(in: .whitespacesAndNewlines) == label
-        }
-        let mediaWidth = media == nil ? 0 : OptionRowMetrics.mediaWidth + OptionRowMetrics.mediaSpacing
-        let textWidth = width - mediaWidth
-        var height = textHeight(option, font: .systemFont(ofSize: 13, weight: .medium), width: textWidth)
-        if let description = message.metadata?.optionDescription(for: option) {
-            height += OptionRowMetrics.descriptionSpacing
-                + textHeight(description, font: .preferredFont(forTextStyle: .caption1), width: textWidth)
-        }
-        let buttonHeight = max(OptionRowMetrics.minimumHeight, height + 2 * OptionRowMetrics.verticalPadding)
-        guard let media else { return buttonHeight }
-        let captionHeight = (media.caption?.isEmpty == false)
-            ? OptionRowMetrics.captionSpacing
-                + textHeight("Ag", font: .preferredFont(forTextStyle: .caption1),
-                    width: OptionRowMetrics.mediaWidth)
-            : 0
-        return max(buttonHeight, OptionRowMetrics.mediaHeight + captionHeight)
+        let host = NSHostingView(rootView: IslandView(
+            flow: OptionFlowStore(), reply: AttentionReplyState(), overview: OverviewStore(),
+            sizingMessage: message)
+            .frame(width: width)
+            .fixedSize(horizontal: false, vertical: true))
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.layoutSubtreeIfNeeded()
+        return ceil(host.fittingSize.height)
     }
 }
