@@ -23,7 +23,7 @@ final class IslandPanelController {
     private let activate: () -> Void
     private var questionScreen: IslandGeometry?
     private var pendingPresentation = false
-    private var naturalHeight: CGFloat?
+    private(set) var naturalHeight: CGFloat?
     private var presentedID: MessageID?
     private var islandMeasurement: (MessageID, CGFloat)?
     private var windowMeasurement: (MessageID, CGFloat)?

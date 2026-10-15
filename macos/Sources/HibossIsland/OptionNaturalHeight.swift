@@ -40,7 +40,8 @@ struct QuestionTextBounds: PreferenceKey {
     static let defaultValue: CGRect = .zero
 
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
+        let next = nextValue()
+        if !next.isEmpty { value = next }
     }
 }
 
