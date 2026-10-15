@@ -1,4 +1,4 @@
-// Option lists, resolution source, automatic-answer marker and task-context files on a message.
+// Option lists, reaction summaries, answer provenance and task-context files on a message.
 // Exports: MessageMetadata decoded from the boss API payload.
 // Dependencies: Foundation Codable.
 
@@ -20,6 +20,10 @@ public struct OptionMedia: Codable, Equatable, Identifiable, Sendable {
 
 public struct MessageMetadata: Codable, Equatable, Sendable {
     public let options: [String]
+    /// Valid reactions, unique by actor, actor ID and emoji, in first-seen order.
+    public let reactions: [MessageReaction]
+    /// Emoji groups in first-seen order, with distinct reaction counts and actor flags.
+    public var reactionGroups: [MessageReactionGroup] { MessageReaction.groups(reactions) }
     public let optionMedia: [OptionMedia]
     public let optionDescriptions: [OptionDescription]
     public let isExpired: Bool
@@ -42,6 +46,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case options
+        case reactions
         case optionMedia = "option_media"
         case optionDescriptions = "option_descriptions"
         case isExpired = "options_expired"
@@ -66,8 +71,10 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
         isAutoDefault: Bool = false,
         content: String? = nil,
         files: [String] = [],
-        fileURL: String? = nil
+        fileURL: String? = nil,
+        reactions: [MessageReaction] = []
     ) {
+        self.reactions = MessageReaction.unique(reactions)
         self.options = options
         self.optionMedia = optionMedia
         self.optionDescriptions = OptionDescription.validated(optionDescriptions, options: options)
@@ -83,6 +90,8 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
+        let decoded = try? values.decode([FailableReaction].self, forKey: .reactions)
+        reactions = MessageReaction.unique(decoded?.compactMap(\.value) ?? [])
         options = try values.decodeIfPresent([String].self, forKey: .options) ?? []
         optionMedia = try values.decodeIfPresent([OptionMedia].self, forKey: .optionMedia) ?? []
         let descriptions = try? values.decodeIfPresent([FailableOptionDescription].self,
@@ -103,6 +112,7 @@ public struct MessageMetadata: Codable, Equatable, Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: CodingKeys.self)
+        if !reactions.isEmpty { try values.encode(reactions, forKey: .reactions) }
         try values.encode(options, forKey: .options)
         if !optionMedia.isEmpty { try values.encode(optionMedia, forKey: .optionMedia) }
         if !optionDescriptions.isEmpty {
