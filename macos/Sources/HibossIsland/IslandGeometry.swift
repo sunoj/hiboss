@@ -82,6 +82,7 @@ enum OptionPanelLayout {
             .fixedSize(horizontal: false, vertical: true))
         host.appearance = NSAppearance(named: .darkAqua)
         host.layoutSubtreeIfNeeded()
-        return ceil(host.fittingSize.height)
+        // One point of slack: at an exact fit ViewThatFits falls back to its ScrollView.
+        return ceil(host.fittingSize.height) + 1
     }
 }
