@@ -3,10 +3,12 @@
 // detail and thread choices retain their shared-height two-option row or vertical stack.
 // Dependencies: SwiftUI, DecisionTiming (which option is the live timeout default).
 
+import HibossKit
 import SwiftUI
 
 struct DecisionOptions: View {
     let options: [String]
+    var metadata: MessageMetadata? = nil
     let timing: DecisionTiming
     var submitting: String?
     var locksControls = true
@@ -16,7 +18,11 @@ struct DecisionOptions: View {
     @Environment(\.layoutDirection) private var layoutDirection
 
     var body: some View {
-        if wrapsToFit {
+        if metadata?.optionDescriptions.isEmpty == false {
+            VStack(spacing: 8) {
+                ForEach(options, id: \.self) { button($0, alignment: .leading) }
+            }
+        } else if wrapsToFit {
             DecisionOptionFlow(layoutDirection: layoutDirection) {
                 ForEach(options, id: \.self) { button($0, alignment: .center) }
             }
@@ -39,6 +45,9 @@ struct DecisionOptions: View {
         let isDefault = timing.isAutoDefault(option)
         let control = Button { onChoose(option) } label: { label(option, alignment: alignment) }
             .frame(maxWidth: .infinity)
+            .accessibilityIdentifier(option)
+            .accessibilityLabel(Text(verbatim: metadata?.optionDescription(for: option)
+                .map { "\(option). \($0)" } ?? option))
             .accessibilityValue(isDefault ? Text("Default") : Text(verbatim: ""))
         .accessibilityHint(isDefault ? Text("Selected automatically when time runs out") : Text(verbatim: ""))
         Group {
@@ -56,7 +65,13 @@ struct DecisionOptions: View {
     }
 
     private func label(_ option: String, alignment: Alignment) -> some View {
-        Text(verbatim: option)
+        VStack(alignment: alignment == .leading ? .leading : .center, spacing: 3) {
+            Text(verbatim: option)
+            if let description = metadata?.optionDescription(for: option) {
+                Text(verbatim: description).font(.caption)
+                    .foregroundStyle(option == options.first ? Theme.onAccent.opacity(0.85) : Theme.ink2)
+            }
+        }
             .multilineTextAlignment(alignment == .leading ? .leading : .center)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: alignment)
@@ -120,5 +135,18 @@ struct DecisionOptionFlow: Layout {
         }
         for index in rowStart..<frames.count { frames[index].size.height = rowHeight }
         return frames
+    }
+}
+
+// Secondary plain text shared by resolved options and image comparisons.
+// Dependencies: SwiftUI semantic caption and Theme secondary label colour.
+struct OptionDescriptionText: View {
+    let text: String?
+
+    var body: some View {
+        if let text {
+            Text(verbatim: text).font(.caption).foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }

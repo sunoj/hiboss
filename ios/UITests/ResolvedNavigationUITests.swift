@@ -55,10 +55,12 @@ final class HomeAttentionUITests: XCTestCase {
         let choice = app.buttons["Coarse grid"]
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
         let alternative = app.buttons["Fine grid"]
-        XCTAssertEqual(choice.frame.minY, alternative.frame.minY, accuracy: 1)
-        XCTAssertLessThan(choice.frame.maxX, alternative.frame.minX)
+        XCTAssertEqual(choice.frame.minX, alternative.frame.minX, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(alternative.frame.minY, choice.frame.maxY)
+        XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
+        XCTAssertTrue(alternative.label.contains("Smaller tiles fit more announcements at once."))
         XCTAssertGreaterThanOrEqual(choice.frame.height, 44)
-        XCTAssertEqual(choice.frame.height, alternative.frame.height, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(alternative.frame.height, 44)
         choice.tap()
         XCTAssertTrue(app.staticTexts["3 items waiting on your call"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["home-message-c5"].exists)

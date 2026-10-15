@@ -45,7 +45,7 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(timing("c5").label.contains("内未回答"))
         XCTAssertEqual(app.buttons["Coarse grid"].value as? String, "默认", "Home marks the live default")
         XCTAssertNotEqual(app.buttons["Fine grid"].value as? String, "默认")
-        assertSideBySide("Coarse grid", "Fine grid")
+        assertFullWidth("Coarse grid", "Fine grid")
 
         app.buttons["home-message-c5"].tap()
         let question = app.staticTexts["message-question"]
@@ -159,6 +159,29 @@ final class HomeDecisionDetailUITests: XCTestCase {
         XCTAssertTrue(timing("c3").label.contains("已等待"))
         XCTAssertFalse(timing("c3").label.contains("自动选择"))
         XCTAssertNotEqual(app.buttons["Provide"].value as? String, "默认")
+    }
+
+    func testOptionDescriptionsLight() { verifyOptionDescriptions(style: "Light") }
+
+    func testOptionDescriptionsDark() { verifyOptionDescriptions(style: "Dark") }
+
+    func testOptionDescriptionsLargeText() {
+        verifyOptionDescriptions(style: "Light", arguments: Self.accessibilityXXXL)
+    }
+
+    private func verifyOptionDescriptions(style: String, arguments: [String] = []) {
+        launch(["HIBOSS_DEMO_STABLE_DEADLINES": "1"],
+               arguments: arguments + ["-AppleInterfaceStyle", style])
+        let choice = app.buttons["Coarse grid"]
+        XCTAssertTrue(choice.waitForExistence(timeout: 10))
+        XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
+        XCTAssertTrue(app.staticTexts["Larger blocks emphasize each announcement."].firstMatch.exists)
+        keepScreenshot("descriptions-home-\(style)-\(arguments.isEmpty ? "default" : "large")")
+        app.buttons["home-message-c5"].tap()
+        XCTAssertTrue(app.staticTexts["message-question"].waitForExistence(timeout: 5))
+        XCTAssertTrue(choice.label.contains("Larger blocks emphasize each announcement."))
+        XCTAssertTrue(app.staticTexts["Smaller tiles fit more announcements at once."].firstMatch.exists)
+        keepScreenshot("descriptions-detail-\(style)-\(arguments.isEmpty ? "default" : "large")")
     }
 
     private func keepScreenshot(_ name: String) {

@@ -6,6 +6,11 @@ import Foundation
 import HibossKit
 
 enum DemoOptionMedia {
+    static let descriptions = [
+        OptionDescription(label: "Coarse grid", text: "Larger blocks emphasize each announcement."),
+        OptionDescription(label: "Fine grid", text: "Smaller tiles fit more announcements at once.")
+    ]
+
     static var images: [OptionMedia] {
         images(enabled: ProcessInfo.processInfo.environment["HIBOSS_DEMO_OPTION_MEDIA"] == "1")
     }
@@ -44,7 +49,10 @@ enum DemoOptionMediaFixtures {
                                               caption: "Fine detail in the mountain landscape."),
                     DemoOptionMedia.image(label: "Coastal view", resource: "demo-coarse-grid",
                                               caption: "A wide view of the coastline."),
-                ].compactMap { $0 }, isExpired: automatic, defaultOption: "Mountain view", content: content
+                ].compactMap { $0 }, optionDescriptions: [
+                    OptionDescription(label: "Coastal view", text: "A calm opening beside the sea."),
+                    OptionDescription(label: "Mountain view", text: "A dramatic opening above the clouds.")
+                ], isExpired: automatic, defaultOption: "Mountain view", content: content
             ),
             createdAt: Date().addingTimeInterval(-120).ISO8601Format(),
             sessionId: "sess-deploy", sessionLabel: "prod-release", sessionStatus: "working"

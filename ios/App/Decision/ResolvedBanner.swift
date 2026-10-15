@@ -7,6 +7,7 @@ import SwiftUI
 struct ResolvedBanner: View {
     let settlement: DecisionSettlement
     var date: Date? = nil
+    var optionDescription: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -17,6 +18,7 @@ struct ResolvedBanner: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(settlement.isAutoDefault ? Theme.ink2 : Theme.positive)
             if settlement.isAutoDefault { Text(verbatim: settlement.answer).font(.subheadline) }
+            OptionDescriptionText(text: optionDescription)
             HStack {
                 settlement.attribution
                 if let date { RecordedTimeText(date: date) }
