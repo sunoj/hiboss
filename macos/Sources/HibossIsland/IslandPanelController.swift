@@ -186,9 +186,23 @@ final class IslandPanelController {
         if mode == .island {
             optionWindow.orderOut(nil)
             questionScreen = targetScreen
-            if let geometry = targetScreen { setContentInset(geometry.expandedTopInset) }
+            if let geometry = targetScreen {
+                setContentInset(geometry.expandedTopInset)
+                var frame = panel.frame
+                let expanded = geometry.expandedFrame(contentHeight: frame.height)
+                frame.origin.x = expanded.origin.x
+                frame.size.width = expanded.width
+                if panel.frame != frame {
+                    panel.orderOut(nil)
+                    panel.setFrame(frame, display: false)
+                }
+            }
         } else {
             panel.orderOut(nil)
+            if let size = optionWindow.contentView?.frame.size, size.width != AppConstants.Island.width {
+                optionWindow.orderOut(nil)
+                optionWindow.setContentSize(NSSize(width: AppConstants.Island.width, height: size.height))
+            }
             activate()
         }
         // Lay out the actual hosting root while ordered out. It reports before first display.
