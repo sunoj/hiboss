@@ -1,5 +1,6 @@
 // Agent reply endpoint and legacy reply delivery.
 // Exports messageReplyRouter; depends on message helpers and destination dispatch.
+import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import { Hono, type Context } from 'hono';
 import { logAudit } from '../audit';
 import { getAgentId, getAgentKeyId } from '../middleware/auth';
@@ -151,7 +152,7 @@ async function markReplyDelivered(
   }
   if (discordMessageId) metadata['discord_message_id'] = discordMessageId;
   await env.DB.prepare(`UPDATE messages SET status = 'delivered',
-    metadata = json_patch(COALESCE(metadata, '{}'), json(?)), updated_at = datetime('now')
+    metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?)), updated_at = datetime('now')
     WHERE id = ? AND ${SENT_MESSAGE_STATUS}`)
     .bind(JSON.stringify(metadata), messageId).run();
 }

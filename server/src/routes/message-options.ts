@@ -3,6 +3,7 @@
  * Handles parsing options, building keyboards, and expiring old message options.
  */
 
+import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import type { Channel, Env, MessageRow } from '../types';
 import { createForumTopic, editTelegramCaption, editMessageReplyMarkup, formatTelegramAttachmentCaption, removeInlineKeyboard } from '../channels/telegram';
 import { editDiscordMessage } from '../channels/discord';
@@ -67,7 +68,7 @@ export async function expireWithoutDefault(env: Env, agentId: string, message: M
   delete meta['actions'];
   const claimed = await env.DB
     .prepare(`UPDATE messages SET status = 'expired', metadata = json_remove(json_set(
-      CASE WHEN json_valid(metadata) THEN metadata ELSE '{}' END,
+      ${MESSAGE_METADATA_OBJECT_SQL},
       '$.options_expired', json('true')), '$.actions'),
       updated_at = datetime('now') WHERE id = ? AND ${OPEN_MESSAGE_STATUS} RETURNING id`)
     .bind(message.id)
@@ -124,7 +125,7 @@ async function autoResolveDefaultOption(
   if (outcome.kind !== 'claimed') return;
   const inserted = outcome.reply;
   await env.DB.prepare(`UPDATE messages SET metadata = json_remove(
-    json_set(COALESCE(metadata, '{}'), '$.options_expired', json('true')), '$.actions'),
+    json_set(${MESSAGE_METADATA_OBJECT_SQL}, '$.options_expired', json('true')), '$.actions'),
     updated_at = datetime('now') WHERE id = ? AND status = 'replied'`)
     .bind(message.id).run();
   // Best-effort notifications: the default is already durably recorded above, so a failed
@@ -185,7 +186,7 @@ export async function withdrawResolvedOptions(
   metadata['selected_option'] = selectedOption;
   delete metadata['actions'];
   await env.DB.prepare(`UPDATE messages SET metadata = json_remove(
-    json_set(COALESCE(metadata, '{}'), '$.options_resolved', json('true'),
+    json_set(${MESSAGE_METADATA_OBJECT_SQL}, '$.options_resolved', json('true'),
       '$.selected_option', ?), '$.actions'), updated_at = datetime('now') WHERE id = ?`)
     .bind(selectedOption, message.id).run();
   await Promise.allSettled([

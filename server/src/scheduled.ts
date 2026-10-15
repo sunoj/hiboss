@@ -2,6 +2,7 @@
 // Exports the scheduled handler used by the Worker cron entrypoint.
 // Depends on D1, message expiry helpers, and the shared agent delivery helper.
 
+import { MESSAGE_METADATA_OBJECT_SQL } from './routes/message-reactions';
 import { appendOptionDescriptions } from './routes/option-descriptions';
 import type { Env, MessageRow } from './types';
 import { SENT_MESSAGE_STATUS } from './message-status';
@@ -163,7 +164,7 @@ async function markMessageDelivered(
   }
   if (discordMessageId) nextMetadata['discord_message_id'] = discordMessageId;
   if (Object.keys(nextMetadata).length > 0) {
-    updates.push("metadata = json_patch(COALESCE(metadata, '{}'), json(?))");
+    updates.push(`metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?))`);
     binds.push(JSON.stringify(nextMetadata));
   }
 

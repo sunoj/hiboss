@@ -4,6 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleScheduled } from './scheduled';
+import { MESSAGE_METADATA_OBJECT_SQL } from './routes/message-reactions';
 
 function makeExpiryRow(id: string, agentId: string, opts: string[] = ['A', 'B']) {
   return {
@@ -251,7 +252,9 @@ describe('handleScheduled', () => {
     await handleScheduled(env as never);
 
     expect(preparedStatements.some((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'failed'"))).toBe(true);
-    expect(preparedStatements.some((stmt) => stmt.sql.includes("json_set(COALESCE(metadata, '{}'), '$.delivery_error'"))).toBe(true);
+    expect(preparedStatements.some((stmt) => stmt.sql.includes(
+      `json_set(${MESSAGE_METADATA_OBJECT_SQL}, '$.delivery_error'`,
+    ))).toBe(true);
     const failureUpdate = preparedStatements.find((stmt) => stmt.sql.startsWith("UPDATE delivery_queue SET status = 'failed'"));
     expect(failureUpdate?.binds[1]).toBe('2026-03-21T00:07:00.000Z');
   });

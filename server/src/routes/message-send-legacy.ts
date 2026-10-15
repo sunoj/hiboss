@@ -1,5 +1,6 @@
 // Preserves legacy channel fan-out, quiet-hour queuing, and response semantics.
 // Exports deliverLegacySend; depends on shared adapters and message metadata.
+import { MESSAGE_METADATA_OBJECT_SQL } from './message-reactions';
 import { appendOptionDescriptions } from './option-descriptions';
 import type { Context } from 'hono';
 import type { Env, Channel, MessageRow, OptionMedia } from '../types';
@@ -102,7 +103,7 @@ async function markLegacyDelivered(
     meta['delivery_results'] = deliveryResults.map((d) => ({ channel: d.channel, ok: d.ok }));
   }
   if (Object.keys(meta).length > 0) {
-    updates.push("metadata = json_patch(COALESCE(metadata, '{}'), json(?))");
+    updates.push(`metadata = json_patch(${MESSAGE_METADATA_OBJECT_SQL}, json(?))`);
     binds.push(JSON.stringify(meta));
   }
   binds.push(messageId);
