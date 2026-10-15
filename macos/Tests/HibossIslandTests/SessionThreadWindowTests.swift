@@ -36,7 +36,9 @@ final class SessionThreadWindowTests: XCTestCase {
             try scrollConversation(host)
             try await BoxWindowCaptureSupport.settle(window)
             let bottom = try await capture(window, directory: directory, name: name + "-conversation")
-            let expectedText = ["Needs you", "You chose Review", "Review complete", "Prepared the review summary"]
+            let expectedText = [
+                "Needs you", "You chose Review", "Review complete", "Prepared the review summary"
+            ]
             for expected in expectedText {
                 XCTAssertTrue((top + bottom).localizedCaseInsensitiveContains(expected),
                     "Missing \(expected): \(top) \(bottom)")
@@ -69,7 +71,8 @@ final class SessionThreadWindowTests: XCTestCase {
             .filter { $0.convert($0.bounds, to: host).minX > 200 }
         let scroll = try XCTUnwrap(candidates.max { $0.bounds.width < $1.bounds.width })
         let document = try XCTUnwrap(scroll.documentView)
-        let bottom = document.isFlipped ? max(0, document.bounds.height - scroll.contentView.bounds.height) : 0
+        let distance = max(0, document.bounds.height - scroll.contentView.bounds.height)
+        let bottom = document.isFlipped ? distance : 0
         scroll.contentView.scroll(to: NSPoint(x: 0, y: bottom))
         scroll.reflectScrolledClipView(scroll.contentView)
     }
