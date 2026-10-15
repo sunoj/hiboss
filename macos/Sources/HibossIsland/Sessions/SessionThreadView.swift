@@ -83,7 +83,8 @@ struct SessionThreadView: View {
         HistoryThreadRow(thread: thread,
             decision: context.decisions.first { $0.id == thread.id }, usesV4: true,
             sessionEntries: true, mergedMessages: merged,
-            answerability: context.snapshot.answerability,
+            answerability: SessionThreadLogic.answerability(
+                for: thread, from: context.snapshot.answerability),
             reply: reply, isExpanded: Binding(
                 get: { expandedMessages.contains(thread.id) },
                 set: { expanded in

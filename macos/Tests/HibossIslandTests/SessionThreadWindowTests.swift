@@ -31,13 +31,21 @@ final class SessionThreadWindowTests: XCTestCase {
             fitWindow(window)
             try await BoxWindowCaptureSupport.settle(window)
             let directory = "/private/tmp/hiboss-thread-ui-screenshots"
-            try await capture(window, directory: directory,
-                name: "session-threads-\(scheme == .light ? "light" : "dark")")
+            let name = "session-threads-\(scheme == .light ? "light" : "dark")"
+            let top = try await capture(window, directory: directory, name: name)
+            try scrollConversation(host)
+            try await BoxWindowCaptureSupport.settle(window)
+            let bottom = try await capture(window, directory: directory, name: name + "-conversation")
+            let expectedText = ["Needs you", "You chose Review", "Review complete", "Prepared the review summary"]
+            for expected in expectedText {
+                XCTAssertTrue((top + bottom).localizedCaseInsensitiveContains(expected),
+                    "Missing \(expected): \(top) \(bottom)")
+            }
             XCTAssertGreaterThan(host.bounds.width, 600)
         }
     }
 
-    private func capture(_ window: NSWindow, directory: String, name: String) async throws {
+    private func capture(_ window: NSWindow, directory: String, name: String) async throws -> String {
         try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let path = URL(fileURLWithPath: directory).appendingPathComponent("\(name).png").path
         let process = Process()
@@ -52,10 +60,18 @@ final class SessionThreadWindowTests: XCTestCase {
         let request = VNRecognizeTextRequest()
         request.recognitionLanguages = ["en-US"]
         try VNImageRequestHandler(cgImage: pixels).perform([request])
-        let text = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
-        for expected in ["Needs you", "You chose Review", "Review complete", "Prepared the review summary"] {
-            XCTAssertTrue(text.localizedCaseInsensitiveContains(expected), "Missing \(expected): \(text)")
-        }
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+            .joined(separator: " ")
+    }
+
+    private func scrollConversation(_ host: NSView) throws {
+        let candidates = BoxWindowCaptureSupport.descendants(host).compactMap { $0 as? NSScrollView }
+            .filter { $0.convert($0.bounds, to: host).minX > 200 }
+        let scroll = try XCTUnwrap(candidates.max { $0.bounds.width < $1.bounds.width })
+        let document = try XCTUnwrap(scroll.documentView)
+        let bottom = document.isFlipped ? max(0, document.bounds.height - scroll.contentView.bounds.height) : 0
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: bottom))
+        scroll.reflectScrolledClipView(scroll.contentView)
     }
 
     private func show(_ host: NSView, scheme: ColorScheme) -> NSWindow {
@@ -89,7 +105,8 @@ final class SessionThreadWindowTests: XCTestCase {
                      parent: String? = nil, boss: Bool = false,
                      metadata: MessageMetadata? = nil) -> HistoryMessage {
             HistoryMessage(id: MessageID(rawValue: id), body: body, agentName: "Build Agent",
-                direction: boss ? "boss_to_agent" : "agent_to_boss", status: "delivered", priority: "normal",
+                direction: boss ? "boss_to_agent" : "agent_to_boss",
+                status: id == "answered" ? "replied" : "delivered", priority: "normal",
                 replyTo: parent, metadata: metadata,
                 expiresAt: id == "open" ? AttentionTestSupport.iso(now.addingTimeInterval(3600)) : nil,
                 createdAt: AttentionTestSupport.iso(now.addingTimeInterval(-minutes * 60)),

@@ -115,6 +115,17 @@ final class SessionThreadLogicTests: XCTestCase {
             .needsYou.map(\.id), [old.id, newer.id])
     }
 
+    func testRecordedReplyClosesControlsEvenWhenRequiredInputSnapshotStillListsDecision() {
+        let root = decision("root", minute: 0)
+        let reply = message("reply", minute: 1, parent: "root", boss: true)
+        let thread = MessageThread(message: root, replies: [reply])
+        let stale = AnswerableDecisions(isLoaded: true, openIDs: [root.id])
+        let closed = SessionThreadLogic.answerability(for: thread, from: stale)
+        XCTAssertEqual(closed.state(for: root.id), .closed)
+        XCTAssertEqual(SessionThreadLogic.answerability(for: MessageThread(message: root), from: stale)
+            .state(for: root.id), .open)
+    }
+
     private func presentation(_ messages: [HistoryMessage],
                               open: [HistoryMessage] = []) -> SessionThreadLogic {
         SessionThreadLogic(threads: MessageThread.fold(messages),

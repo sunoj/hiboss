@@ -67,6 +67,13 @@ struct SessionThreadLogic {
         return days
     }
 
+    static func answerability(for thread: MessageThread,
+                              from value: AnswerableDecisions) -> AnswerableDecisions {
+        guard thread.message.isDecision, !thread.replies.isEmpty else { return value }
+        return AnswerableDecisions(isLoaded: value.isLoaded, openIDs: value.openIDs,
+            closedIDs: value.closedIDs.union([thread.id]))
+    }
+
     static func lastActivity(_ thread: MessageThread) -> Date {
         ([thread.message] + thread.entries).flatMap { message in
             [ISODate.parse(message.createdAt)] + (message.metadata?.reactions ?? []).map {
