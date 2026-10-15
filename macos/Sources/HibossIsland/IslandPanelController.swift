@@ -186,9 +186,10 @@ final class IslandPanelController {
         if mode == .island {
             optionWindow.orderOut(nil)
             questionScreen = targetScreen
-            if let geometry = targetScreen { setContentInset(geometry.expandedTopInset) }
+            if let geometry = targetScreen { restoreIslandWidth(geometry) }
         } else {
             panel.orderOut(nil)
+            restoreWindowWidth()
             activate()
         }
         // Lay out the actual hosting root while ordered out. It reports before first display.
@@ -255,7 +256,7 @@ final class IslandPanelController {
         if let naturalHeight { applyContentHeight(naturalHeight, mode: .island) }
     }
 
-    private func setContentInset(_ inset: CGFloat) {
+    func setContentInset(_ inset: CGFloat) {
         guard let host = panel.contentView as? BoxDropHostingView,
             host.rootView.topInset != inset else { return }
         host.rootView.topInset = inset
