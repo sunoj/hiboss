@@ -7,7 +7,7 @@ import { SENT_MESSAGE_STATUS } from '../message-status';
 import { buildInlineKeyboard } from './message-helpers';
 import { deliverAgentMessage } from './agent-delivery';
 import { getAgentQuietHoursEnd } from './quiet-hours';
-import { getDeliveryErrorMessage, persistDeliveryFailure } from './delivery';
+import { getDeliveryErrorMessage, persistDeliveryFailure, type DeliveryResult } from './delivery';
 async function enqueueDelivery(
   env: Env,
   messageId: string,
@@ -48,13 +48,7 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
           })
         )
       );
-      const deliveryResults = results.map((r, i) => ({
-        channel: channelConfigs[i].channel,
-        ok: r.status === 'fulfilled' && r.value.delivered,
-        telegramMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.telegramMessageId : undefined,
-        telegramChatId: channelConfigs[i].channel === 'telegram' ? channelConfigs[i].config.chat_id : undefined,
-        discordMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.discordMessageId : undefined,
-      }));
+      const deliveryResults = mapLegacyResults(results, channelConfigs);
       const anyDelivered = deliveryResults.some((d) => d.ok);
       if (anyDelivered) {
         await markLegacyDelivered(c.env, inserted.id, metadata, deliveryResults, isUrgent);
@@ -73,6 +67,19 @@ export async function deliverLegacySend(c: Context<{ Bindings: Env }>, inserted:
     }
   }
   return queuedForQuietHours;
+}
+
+function mapLegacyResults(
+  results: PromiseSettledResult<DeliveryResult>[],
+  channelConfigs: { channel: Channel; config: Record<string, unknown> }[],
+): LegacyResult[] {
+  return results.map((r, i) => ({
+    channel: channelConfigs[i].channel,
+    ok: r.status === 'fulfilled' && r.value.delivered,
+    telegramMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.telegramMessageId : undefined,
+    telegramChatId: channelConfigs[i].channel === 'telegram' ? channelConfigs[i].config.chat_id : undefined,
+    discordMessageId: r.status === 'fulfilled' && r.value.delivered ? r.value.discordMessageId : undefined,
+  }));
 }
 
 interface LegacyResult { channel: Channel; ok: boolean; telegramMessageId?: number; telegramChatId?: unknown; discordMessageId?: string }
