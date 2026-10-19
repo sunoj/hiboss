@@ -62,6 +62,45 @@ final class BoxMainWindowLayoutTests: XCTestCase {
         }
     }
 
+    func testCollectionsShareSidebarAndBottomActionsAtDefaultAnd900Widths() async throws {
+        guard try await BoxAppSDKTestHost.runHere(#function) else { return }
+        for scheme in [ColorScheme.light, .dark] {
+            for width in [CGFloat(1320), 900] {
+                try await checkCollectionsWindow(width: width, scheme: scheme)
+            }
+        }
+    }
+
+    private func checkCollectionsWindow(width: CGFloat, scheme: ColorScheme) async throws {
+        let api = ScriptedBoxBrowser(media: BoxBrowserFixtures.imageData())
+        let store = BoxBrowserStore { api }
+        let media = BoxBrowserMedia { api }
+        defer { media.reset() }
+        await store.refresh()
+        store.selection = "image"
+        let probe = LayoutProbe()
+        let window = try await BoxMainWindowLayoutSupport.show(store: store, media: media,
+            probe: probe, width: width, scheme: scheme, height: 820)
+        defer { window.close() }
+        let settings = try frame("sidebar.settingsRow", probe: probe)
+        XCTAssertEqual(settings.minY, window.contentLayoutRect.minY + 16, accuracy: 1)
+        let collection = try frame("box.collection.design", probe: probe)
+        let liked = try frame("box.scope.liked", probe: probe)
+        XCTAssertGreaterThan(collection.minY, settings.maxY)
+        XCTAssertGreaterThan(liked.minY, collection.maxY)
+        let actions = try frame("box.actions", probe: probe)
+        let like = try frame("box.like.image", probe: probe)
+        let more = try frame("box.more", probe: probe)
+        XCTAssertTrue(actions.contains(like))
+        XCTAssertTrue(actions.contains(more))
+        XCTAssertLessThan(like.maxX, more.minX)
+        XCTAssertTrue(window.contentLayoutRect.contains(actions))
+        if let directory = ProcessInfo.processInfo.environment["HIBOSS_BOX_WINDOW_SHOTS"] {
+            let name = "box-collections-\(Int(width))-\(scheme == .light ? "light" : "dark")"
+            try BoxWindowCaptureSupport.capture(window, directory: directory, name: name)
+        }
+    }
+
     private func withWindow(width: CGFloat, scheme: ColorScheme,
                             check: (NSWindow, LayoutProbe) async throws -> Void) async throws {
         let item = BoxBrowserFixtures.items[0]
@@ -130,7 +169,7 @@ final class BoxMainWindowLayoutTests: XCTestCase {
         let menus: [(String, [String])] = [
             ("box.filters", [L("All")] + BoxItem.Kind.allCases.map(\.filterTitle)),
             ("box.source", BoxAuthorFilter.allCases.map { L("Source:") + " " + $0.title }),
-            ("box.more", [BoxPaneAction.quickLook, .share, .editNote, .delete].map(\.title))
+            ("box.more", [BoxPaneAction.open, .quickLook, .share, .editNote, .delete].map(\.title))
         ]
         for (id, titles) in menus {
             try await BoxWindowCaptureSupport.captureMenu(XCTUnwrap(probe.anchors[id]), window: window,

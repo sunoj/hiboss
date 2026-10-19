@@ -104,7 +104,9 @@ private final class BrowserURLProtocol: URLProtocol, @unchecked Sendable {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"),
                 "Bearer synthetic-browser-token")
             let data: Data
-            if request.httpMethod == "DELETE" {
+            if url.path == "/api/box/collections" {
+                data = try JSONEncoder().encode(["collections": BoxCollectionFixtures.collections])
+            } else if request.httpMethod == "DELETE" {
                 XCTAssertEqual(url.path, "/api/box/items/image")
                 XCTAssertNil(url.query, "Boss deletion must not purge media")
                 data = Data()

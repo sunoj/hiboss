@@ -64,7 +64,7 @@ final class BoxPolishLayoutTests: XCTestCase {
         }
         try await BoxWindowCaptureSupport.captureMenu(XCTUnwrap(probe.anchors["box.more"]),
             window: detailWindow, directory: directory, name: name + "-more",
-            expectedTitles: [.quickLook, .share, .editNote, .delete]
+            expectedTitles: [.open, .quickLook, .share, .editNote, .delete]
                 .map { (action: BoxPaneAction) in action.title })
     }
 

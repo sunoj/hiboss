@@ -11,6 +11,7 @@ import XCTest
 
 @MainActor
 final class BoxImagePreviewTests: XCTestCase {
+    private let probe = LayoutProbe()
     func testFailedImageCanRetryInTheLargeViewer() async throws {
         let provider = BoxPreviewAPIProvider(ScriptedBoxBrowser(media: Data("invalid image".utf8)))
         let store = BoxBrowserStore { provider.api }
@@ -22,7 +23,7 @@ final class BoxImagePreviewTests: XCTestCase {
         defer { window.close() }
         try await waitForCondition { media.errors["image"] != nil }
         let detail = try await detailWindow(in: window)
-        try clickLabel(L("Open"), in: XCTUnwrap(detail.contentView), window: detail)
+        try await openImage(in: detail)
         try await waitForCondition { detail.attachedSheet != nil }
         let sheet = try XCTUnwrap(detail.attachedSheet)
         let content = try XCTUnwrap(sheet.contentView)
@@ -58,11 +59,7 @@ final class BoxImagePreviewTests: XCTestCase {
         try await waitForCondition { media.thumbnails["image"] != nil }
         store.selection = "image"
         let detail = try await detailWindow(in: window)
-        let detailContent = try XCTUnwrap(detail.contentView)
-        try await waitForCondition {
-            (try? self.recognize(detailContent).contains { $0.text == L("Open") }) == true
-        }
-        try clickLabel(L("Open"), in: detailContent, window: detail)
+        try await openImage(in: detail)
         try await waitForCondition { detail.attachedSheet != nil }
         let sheet = try XCTUnwrap(detail.attachedSheet)
         try await waitForCondition { self.imageView(sheet.contentView)?.image != nil }
@@ -76,7 +73,7 @@ final class BoxImagePreviewTests: XCTestCase {
         try clickLabel(L("Close"), in: XCTUnwrap(sheet.contentView), window: sheet)
         try await waitForCondition { detail.attachedSheet == nil }
         XCTAssertEqual(store.selection, "image", "Closing the viewer retains the selected detail")
-        try clickLabel(L("Open"), in: detailContent, window: detail)
+        try await openImage(in: detail)
         try await waitForCondition { detail.attachedSheet != nil }
         let downloads = await api.downloadsByID["image"]
         XCTAssertEqual(downloads, 1)
@@ -84,7 +81,8 @@ final class BoxImagePreviewTests: XCTestCase {
 
     private func show(store: BoxBrowserStore, media: BoxBrowserMedia,
                       width: CGFloat, appearance: NSAppearance.Name) -> NSWindow {
-        let host = NSHostingView(rootView: NavigationStack { BoxBrowserView(store: store, media: media) })
+        let host = NSHostingView(rootView: NavigationStack { BoxBrowserView(store: store, media: media) }
+            .environment(\.layoutProbe, probe))
         host.sizingOptions = []
         let window = NSWindow(contentRect: NSRect(x: 60, y: 60, width: width, height: 700),
             styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -95,6 +93,18 @@ final class BoxImagePreviewTests: XCTestCase {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         return window
+    }
+
+    private func openImage(in window: NSWindow) async throws {
+        try await waitForCondition { self.probe.anchors["box.more"]?.window === window }
+        let anchor = try XCTUnwrap(probe.anchors["box.more"])
+        let menu = try await BoxWindowCaptureSupport.captureMenu(anchor, window: window,
+            directory: nil, name: "image-actions",
+            expectedTitles: [BoxPaneAction.open, .quickLook, .share, .editNote, .delete].map(\.title))
+        let index = menu.indexOfItem(withTitle: L("Open"))
+        XCTAssertGreaterThanOrEqual(index, 0)
+        guard index >= 0 else { return }
+        menu.performActionForItem(at: index)
     }
 
     private func detailWindow(in window: NSWindow) async throws -> NSWindow {

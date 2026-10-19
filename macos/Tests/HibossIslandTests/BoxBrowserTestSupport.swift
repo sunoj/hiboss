@@ -32,7 +32,8 @@ enum BoxBrowserFixtures {
             note: note, project: "HiBoss", tags: ["reference", "design"], source: .macDrop,
             hasMedia: hasMedia, mediaType: mediaType, mediaBytes: mediaBytes, width: width,
             height: height, durationMs: durationMs,
-            createdAt: createdAt, addedBy: author)
+            createdAt: createdAt, addedBy: author, liked: id == "image" || id == "link",
+            collectionIDs: id == "image" ? ["design"] : [])
     }
 
     @MainActor static func imageData() -> Data {
@@ -50,6 +51,8 @@ enum BoxBrowserFixtures {
 }
 
 actor ScriptedBoxBrowser: BoxBrowsing {
+    var collections = BoxCollectionFixtures.collections
+    var failMutation = false
     var pages: [BoxPage]
     var failRead = false
     var failDelete = false
@@ -57,6 +60,7 @@ actor ScriptedBoxBrowser: BoxBrowsing {
     var readObserver: CheckedContinuation<Void, Never>?
     var holdsNextRead = false
     private var heldCursor: String?
+    private(set) var requestedFilters: [BoxFilters] = []
     private(set) var requestedCursors: [String?] = []
     private(set) var deleted: [String] = []
     private(set) var downloads = 0
@@ -89,6 +93,7 @@ actor ScriptedBoxBrowser: BoxBrowsing {
 
     func boxItems(filters: BoxFilters, limit: Int, cursor: String?) async throws -> BoxPage {
         requestedCursors.append(cursor)
+        requestedFilters.append(filters)
         if holdsNextRead && (heldCursor == nil || heldCursor == cursor) {
             holdsNextRead = false
             return try await withCheckedThrowingContinuation {
