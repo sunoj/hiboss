@@ -63,11 +63,7 @@ struct BoxFilterChips: View {
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                Button { liked.toggle() } label: {
-                    Label("Liked", systemImage: liked ? "heart.fill" : "heart").font(.subheadline)
-                }
-                .buttonStyle(.bordered).buttonBorderShape(.capsule)
-                .tint(liked ? Theme.primaryAction : Theme.ink2)
+                likedChip
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityAddTraits(liked ? .isSelected : [])
                 .accessibilityIdentifier("box-filter-liked")
@@ -83,6 +79,18 @@ struct BoxFilterChips: View {
         .defaultScrollAnchor(.leading)
         .scrollIndicators(.hidden)
         .frame(height: textSize.isAccessibilitySize ? 88 : 64)
+    }
+
+    @ViewBuilder private var likedChip: some View {
+        let button = Button { liked.toggle() } label: {
+            Label("Liked", systemImage: liked ? "heart.fill" : "heart").font(.subheadline)
+        }
+        if liked {
+            button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                .tint(Theme.primaryAction)
+        } else {
+            button.buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Theme.ink2)
+        }
     }
 
     @ViewBuilder private func chip(_ filter: BoxFilter) -> some View {
