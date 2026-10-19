@@ -17,6 +17,7 @@ struct BoxDetail: View {
     @State private var pendingDelete: BoxItem?
     @State private var viewerDelete: BoxItem?
     @State private var editing = false
+    @State private var choosingCollection = false
     @State private var openingError = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -34,6 +35,7 @@ struct BoxDetail: View {
                     Text(verbatim: note).textSelection(.enabled).foregroundStyle(Theme.ink2)
                 }
                 information
+                BoxOrganizationError(store: store)
             }
             .frame(maxWidth: .infinity, alignment: .leading).padding()
         }
@@ -45,7 +47,10 @@ struct BoxDetail: View {
             Button("OK", role: .cancel) {}
         }
         .accessibilityIdentifier("box-detail")
-        .task { await media.load(item) }
+        .task {
+            await media.load(item)
+            await store.loadCollections()
+        }
         .quickLookPreview($previewURL)
         .fullScreenCover(item: $openedMedia) { session in
             MediaViewer(items: session.items, startIndex: session.index, itemActions: viewerActions)
@@ -60,6 +65,7 @@ struct BoxDetail: View {
         )) {
             if let shareURL { BoxShareSheet(items: [shareURL]) }
         }
+        .sheet(isPresented: $choosingCollection) { BoxCollectionSheet(original: item, store: store) }
         .sheet(isPresented: $editing) { BoxNoteEditor(item: item, store: store) }
         .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media,
                                         onDeleted: { dismiss() }))
@@ -95,6 +101,12 @@ struct BoxDetail: View {
         GroupBox("Information") {
             VStack(alignment: .leading, spacing: 12) {
                 LabeledContent("Author") { Text(verbatim: item.authorLabel) }
+                if !item.collectionIDs.isEmpty {
+                    LabeledContent("Collection") {
+                        Text(verbatim: store.collections.filter { item.collectionIDs.contains($0.id) }
+                            .map(\.name).formatted(.list(type: .and)))
+                    }.accessibilityIdentifier("box-detail-collections")
+                }
                 if let project = item.project, !project.isEmpty {
                     LabeledContent("Project") { Text(verbatim: project) }
                 }
@@ -117,6 +129,8 @@ struct BoxDetail: View {
 
     private var actions: some View {
         Group {
+            BoxLikeButton(item: item, store: store)
+            Button("Add to Collection…", systemImage: "rectangle.stack") { choosingCollection = true }
             Button("Copy", systemImage: "doc.on.doc") { item.copyContent(media: media) }
                 .disabled(item.hasMedia && media.resources[item.id] == nil)
             Button("Edit note", systemImage: "square.and.pencil") { editing = true }
@@ -146,7 +160,9 @@ struct BoxDetail: View {
     private var viewerActions: MediaItemActions {
         MediaItemActions(metadata: { _ in item.authorLabel + " · " + (item.relativeTime ?? "") },
                          copy: { _ in item.copyContent(media: media) },
-                         info: { _ in openedMedia = nil }, delete: { _ in viewerDelete = item })
+                         info: { _ in openedMedia = nil }, delete: { _ in viewerDelete = item },
+                         likeContent: { _ in AnyView(BoxLikeButton(item: item, store: store)) },
+                         errorContent: { AnyView(BoxOrganizationError(store: store)) })
     }
 
     private func openFile(_ url: URL) {

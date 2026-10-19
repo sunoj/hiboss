@@ -7,7 +7,7 @@ import HibossKit
 
 @MainActor
 final class BoxStore: ObservableObject {
-    @Published private(set) var items: [BoxItem] = []
+    @Published var items: [BoxItem] = []
     @Published private(set) var didLoad = false
     @Published private(set) var isRefreshing = false
     @Published private(set) var isLoadingMore = false
@@ -19,13 +19,19 @@ final class BoxStore: ObservableObject {
     @Published private(set) var isSavingNote = false
     @Published private(set) var noteError: String?
 
+    @Published var collections: [BoxCollection] = []
+    @Published var organizationError: String?
+    @Published var organizing: Set<String> = []
+    let collectionID: String?
+
     let api: (any BoxServing)?
     private var read: Task<Void, Never>?
     private var generation = 0
     private var deleted: Set<String> = []
 
-    init(api: (any BoxServing)?) {
+    init(api: (any BoxServing)?, collectionID: String? = nil) {
         self.api = api
+        self.collectionID = collectionID
     }
 
     static func connectionIdentity(_ config: ConnectionConfig?) -> [String] {
@@ -82,7 +88,8 @@ final class BoxStore: ObservableObject {
             return
         }
         do {
-            let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: cursor)
+            let page = try await api.boxItems(
+                filters: BoxFilters(collection: collectionID), limit: 20, cursor: cursor)
             guard current == generation, !Task.isCancelled else { return }
             let existing = cursor == nil ? Set<String>() : Set(items.map(\.id))
             let rows = page.items.filter { !deleted.contains($0.id) && !existing.contains($0.id) }

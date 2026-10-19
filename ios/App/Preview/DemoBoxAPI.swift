@@ -5,9 +5,11 @@
 import Foundation
 import HibossKit
 
-actor DemoBoxAPI: BoxNoteServing {
+actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
     static let shared = DemoBoxAPI()
-    private var items = DemoBoxAPI.fixtures
+    var failsLikes = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_LIKE_FAILURE"] == "1"
+    var collectionNames = ["demo-design": "Design references", "demo-reading": "Reading"]
+    var items = DemoBoxAPI.fixtures
     private var failedMedia: Set<String> = []
 
     static var fixtures: [BoxItem] {
@@ -44,7 +46,13 @@ actor DemoBoxAPI: BoxNoteServing {
             addedBy: .agent(id: "demo-researcher", name: "Researcher")
         )
         let extras = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_V2"] == "1" ? v2Fixtures : []
-        return [agentReference] + featured + extras + (1...20).map { index in
+        let organized = featured.map { item in
+            item.organized(liked: item.kind == .image || item.kind == .text,
+                           likedAt: item.createdAt,
+                           collectionIDs: [item.kind == .text || item.kind == .link
+                                           ? "demo-reading" : "demo-design"])
+        }
+        return [agentReference] + organized + extras + (1...20).map { index in
             BoxItem(id: "demo-text-\(index)", bossID: "demo-boss", bossName: "Demo", kind: .text,
                 text: "Saved reference \(index)",
                 createdAt: Date().addingTimeInterval(Double(-600 - index * 60))
@@ -70,6 +78,8 @@ actor DemoBoxAPI: BoxNoteServing {
         try await DemoDelay.wait("BOX")
         let filtered = items.filter {
             (filters.kind == nil || $0.kind == filters.kind) &&
+                (!filters.liked || $0.liked) &&
+                (filters.collection == nil || $0.collectionIDs.contains(filters.collection ?? "")) &&
                 (filters.project == nil || $0.project == filters.project) &&
                 (filters.boss == nil || $0.bossID == filters.boss || $0.bossName == filters.boss) &&
                 (filters.since == nil || $0.createdAt >= (filters.since ?? ""))
@@ -117,7 +127,8 @@ actor DemoBoxAPI: BoxNoteServing {
             text: item.text, url: item.url, note: note, project: item.project, tags: item.tags,
             source: item.source, hasMedia: item.hasMedia, mediaType: item.mediaType,
             mediaBytes: item.mediaBytes, width: item.width, height: item.height,
-            durationMs: item.durationMs, createdAt: item.createdAt, addedBy: item.addedBy)
+            durationMs: item.durationMs, createdAt: item.createdAt, addedBy: item.addedBy,
+            liked: item.liked, likedAt: item.likedAt, collectionIDs: item.collectionIDs)
         items[index] = updated
         return updated
     }

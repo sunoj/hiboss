@@ -33,16 +33,7 @@ struct BoxRow: View {
                         .foregroundStyle(item.kind == .link ? Theme.link : Theme.ink2)
                         .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 3 : 1))
                 }
-                if let date = ISOTimestamp.date(from: item.createdAt) {
-                    RecordedTimeText(date: date) { time in
-                        Text(verbatim: [item.kindLabel, item.sizeLabel, time, item.authorLabel, item.project]
-                            .compactMap { $0 }.joined(separator: " · "))
-                    }.font(.caption).foregroundStyle(Theme.ink2)
-                        .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
-                } else {
-                    Text(verbatim: item.metadata).font(.caption).foregroundStyle(Theme.ink2)
-                        .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
-                }
+                metadata
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -57,6 +48,25 @@ struct BoxRow: View {
         }
         .task(id: item.id) {
             if item.kind == .image || item.kind == .video { await media.load(item) }
+        }
+    }
+
+    private var metadata: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            if item.liked {
+                Image(systemName: "heart.fill").font(.caption)
+                    .foregroundStyle(.secondary).accessibilityLabel("Liked")
+            }
+            if let date = ISOTimestamp.date(from: item.createdAt) {
+                RecordedTimeText(date: date) { time in
+                    Text(verbatim: [item.kindLabel, item.sizeLabel, time, item.authorLabel, item.project]
+                        .compactMap { $0 }.joined(separator: " · "))
+                }.font(.caption).foregroundStyle(Theme.ink2)
+                    .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+            } else {
+                Text(verbatim: item.metadata).font(.caption).foregroundStyle(Theme.ink2)
+                    .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+            }
         }
     }
 

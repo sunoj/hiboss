@@ -21,11 +21,12 @@ enum BoxFilter: String, CaseIterable {
 
     var isMedia: Bool { self == .image || self == .video }
 
-    func matches(_ item: BoxItem, search: String, author: BoxAuthorFilter = .all) -> Bool {
+    func matches(_ item: BoxItem, search: String, author: BoxAuthorFilter = .all,
+                 liked: Bool = false) -> Bool {
         let kindMatches = self == .all || item.kind.rawValue == rawValue
         let terms = [item.text, item.url, item.note, item.project, item.provenanceLabel]
             .compactMap { $0 }.joined(separator: " ") + " " + item.tags.joined(separator: " ")
-        return kindMatches && author.matches(item) &&
+        return kindMatches && author.matches(item) && (!liked || item.liked) &&
             (search.isEmpty || terms.localizedCaseInsensitiveContains(search))
     }
 }
@@ -56,11 +57,17 @@ enum BoxListStyle: String, CaseIterable {
 
 struct BoxFilterChips: View {
     @Binding var selection: BoxFilter
+    @Binding var liked: Bool
     @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
+                likedChip
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityAddTraits(liked ? .isSelected : [])
+                .accessibilityIdentifier("box-filter-liked")
+                Divider().frame(height: 24).accessibilityHidden(true)
                 ForEach(BoxFilter.allCases, id: \.self) { filter in
                     chip(filter)
                     .accessibilityAddTraits(selection == filter ? .isSelected : [])
@@ -69,13 +76,28 @@ struct BoxFilterChips: View {
             }
             .padding(.horizontal, 16)
         }
+        .defaultScrollAnchor(.leading)
         .scrollIndicators(.hidden)
         .frame(height: textSize.isAccessibilitySize ? 88 : 64)
+    }
+
+    @ViewBuilder private var likedChip: some View {
+        let button = Button { liked.toggle() } label: {
+            Label("Liked", systemImage: liked ? "heart.fill" : "heart").font(.subheadline)
+                .foregroundStyle(liked ? Theme.onAccent : Theme.ink2)
+        }
+        if liked {
+            button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+                .tint(Theme.primaryAction)
+        } else {
+            button.buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Theme.ink2)
+        }
     }
 
     @ViewBuilder private func chip(_ filter: BoxFilter) -> some View {
         let button = Button { selection = filter } label: {
             Text(verbatim: filter.title).font(.subheadline)
+                .foregroundStyle(selection == filter ? Theme.onAccent : Theme.ink2)
         }
         if selection == filter {
             button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
