@@ -24,6 +24,8 @@ pub enum BoxCommand {
     Show(ShowArgs),
     #[command(about = "Delete a Box item (agents can delete only their own items)")]
     Rm(RmArgs),
+    #[command(about = "List Box collections with item counts")]
+    Collections(super::collections::CollectionArgs),
 }
 
 #[derive(Debug, Args)]
@@ -41,12 +43,18 @@ pub struct AddArgs {
     pub project: Option<String>,
     #[arg(long, help = "Tag to apply (repeatable)")]
     pub tag: Vec<String>,
+    #[arg(long, help = "Existing collection name or ID (repeatable)")]
+    pub collection: Vec<String>,
     #[arg(long)]
     pub json: bool,
 }
 
 #[derive(Debug, Default, Args)]
 pub struct Filters {
+    #[arg(long)]
+    pub liked: bool,
+    #[arg(long)]
+    pub collection: Option<String>,
     #[arg(long, value_enum)]
     pub kind: Option<BoxKind>,
     #[arg(long, help = "Filter by boss ID or name")]
@@ -100,6 +108,8 @@ impl ListArgs {
 impl Filters {
     pub fn filter(&self) -> BoxFilter<'_> {
         BoxFilter {
+            liked: self.liked.then_some(1),
+            collection: self.collection.as_deref(),
             kind: self.kind,
             since: self.since.as_deref(),
             project: self.project.as_deref(),

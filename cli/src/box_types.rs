@@ -63,6 +63,11 @@ pub struct BoxItem {
     pub duration_ms: Option<u64>,
     pub created_at: String,
     pub has_media: bool,
+    #[serde(default)]
+    pub liked: bool,
+    pub liked_at: Option<String>,
+    #[serde(default)]
+    pub collection_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,6 +92,10 @@ pub struct BoxPage {
 
 #[derive(Debug, Default, Serialize)]
 pub struct BoxFilter<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub liked: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<BoxKind>,
     #[serde(skip_serializing_if = "Option::is_none")]

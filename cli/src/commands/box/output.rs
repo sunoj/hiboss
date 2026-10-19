@@ -20,22 +20,20 @@ pub(super) fn render(
     item: &BoxItem,
     local_path: Option<&Path>,
     json: bool,
+    collections: &[super::collections::Collection],
 ) -> Result<String, Box<dyn Error>> {
     if json {
         return Ok(serde_json::to_string(&ItemOutput { item, local_path })?);
     }
     let mut lines = vec![
         format!(
-            "{}  {}  {}",
+            "{}  {}  {}{}",
             single_line(&item.id),
             item.kind.as_str(),
-            age(&item.created_at)
+            age(&item.created_at),
+            if item.liked { "  ♥" } else { "" }
         ),
-        format!(
-            "boss: {} ({})",
-            single_line(&item.boss_name),
-            single_line(&item.boss_id)
-        ),
+        metadata(item, collections),
         author_label(&item.added_by),
         format!("note: {}", single_line(item.note.as_deref().unwrap_or("(none)"))),
         START.to_owned(),
@@ -53,6 +51,21 @@ pub(super) fn render(
     Ok(lines.join("\n"))
 }
 
+fn metadata(item: &BoxItem, collections: &[super::collections::Collection]) -> String {
+    let mut line = format!(
+        "boss: {} ({})",
+        single_line(&item.boss_name),
+        single_line(&item.boss_id)
+    );
+    if !item.collection_ids.is_empty() {
+        line.push_str(&format!(
+            "  collections: {}",
+            super::collections::names(item, collections)
+        ));
+    }
+    line
+}
+
 fn author_label(author: &BoxAuthor) -> String {
     match author {
         BoxAuthor::Boss => "added_by: boss".into(),
@@ -66,12 +79,17 @@ fn author_label(author: &BoxAuthor) -> String {
     }
 }
 
-pub(super) fn print_item(item: &BoxItem, path: Option<&Path>, json: bool) -> Result<(), Box<dyn Error>> {
-    println!("{}", render(item, path, json)?);
+pub(super) fn print_item(
+    item: &BoxItem,
+    path: Option<&Path>,
+    json: bool,
+    collections: &[super::collections::Collection],
+) -> Result<(), Box<dyn Error>> {
+    println!("{}", render(item, path, json, collections)?);
     Ok(())
 }
 
-fn single_line(value: &str) -> String {
+pub(super) fn single_line(value: &str) -> String {
     value
         .chars()
         .flat_map(|character| {
