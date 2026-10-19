@@ -129,6 +129,7 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Renamed"].waitForExistence(timeout: 5))
         app.buttons["box-collection-menu"].tap()
         app.buttons["Delete Collection"].tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
         app.alerts.buttons["Delete Collection"].tap()
         XCTAssertTrue(app.navigationBars["Collections"].waitForExistence(timeout: 5))
     }
@@ -188,9 +189,8 @@ final class BoxCollectionsUITests: XCTestCase {
         app.buttons["box-item-demo-text"].tap()
         app.buttons[english ? "Add to Collection…" : "加入集合…"].tap()
         XCTAssertTrue(app.buttons["box-membership-demo-design"].waitForExistence(timeout: 5))
-        let checked = app.buttons["box-membership-demo-design"]
-        checked.tap()
-        assertSelected(checked, true)
+        assertSelected(app.buttons["box-membership-demo-design"], false)
+        assertSelected(app.buttons["box-membership-demo-reading"], true)
         capture("\(prefix)-add-sheet")
     }
 

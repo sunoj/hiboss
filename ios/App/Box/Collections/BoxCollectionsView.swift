@@ -16,8 +16,7 @@ struct BoxCollectionsView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 16) {
                 ForEach(store.collections) { collection in
                     NavigationLink {
-                        BoxCollectionList(store: store, collection: collection,
-                                          onRename: { editing = $0 }, onDelete: { deleting = $0 })
+                        BoxCollectionList(store: store, collection: collection)
                     } label: { tile(collection) }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("box-collection-\(collection.id)")
@@ -73,8 +72,8 @@ struct BoxCollectionsView: View {
 struct BoxCollectionList: View {
     @ObservedObject var store: BoxStore
     let collection: BoxCollection
-    let onRename: (BoxCollection) -> Void
-    let onDelete: (BoxCollection) -> Void
+    @State private var editing = false
+    @State private var deleting = false
     @Environment(\.dismiss) private var dismiss
 
     private var current: BoxCollection {
@@ -87,13 +86,23 @@ struct BoxCollectionList: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button("Rename", systemImage: "pencil") { onRename(current) }
+                        Button("Rename", systemImage: "pencil") { editing = true }
                         Button("Delete Collection", systemImage: "trash", role: .destructive) {
-                            onDelete(current)
+                            deleting = true
                         }
                     } label: { Image(systemName: "ellipsis") }
                     .accessibilityIdentifier("box-collection-menu")
                 }
+            }
+            .sheet(isPresented: $editing) { BoxCollectionEditor(store: store, existing: current) }
+            .alert("Delete Collection", isPresented: $deleting) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete Collection", role: .destructive) {
+                    Task { await store.deleteCollection(current) }
+                }
+            } message: {
+                Text("Delete this collection? Items stay in the Box.")
+                Text(verbatim: current.name)
             }
             .onChange(of: store.collections.map(\.id)) { _, ids in
                 if !ids.contains(collection.id) { dismiss() }
