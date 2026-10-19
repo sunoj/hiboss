@@ -210,12 +210,16 @@ struct MainView: View {
                 destination = $0
                 showsCompactOverview = false
                 if $0 == .box {
+                    box.scope = .all
                     box.project = nil
                     Task { await box.refresh() }
                 }
             },
             onSettings: { openWindow(id: "settings") },
-            onRefresh: refresh)
+            onRefresh: refresh,
+            boxScope: box.scope,
+            boxScopes: AnyView(BoxCollectionsSidebar(store: box)),
+            onSelectBoxScope: { box.scope = $0 })
     }
 
     private func destinationContent(_ snapshot: OverviewSnapshot) -> some View {

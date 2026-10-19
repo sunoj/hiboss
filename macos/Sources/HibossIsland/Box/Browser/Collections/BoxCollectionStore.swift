@@ -13,11 +13,20 @@ protocol BoxCollectionServing: Sendable {
     func setBoxItem(id: String, inCollection: String, member: Bool) async throws -> BoxItem
 }
 
-enum BoxBrowserScope: Equatable {
+enum BoxBrowserScope: Hashable {
     case all, liked, collection(String)
     var collectionID: String? {
         if case let .collection(id) = self { return id }
         return nil
+    }
+}
+
+enum BoxSidebarSelection: Hashable {
+    case workspace(OverviewDestination)
+    case scope(BoxBrowserScope)
+
+    static func selected(_ destination: OverviewDestination, scope: BoxBrowserScope) -> Self {
+        destination == .box && scope != .all ? .scope(scope) : .workspace(destination)
     }
 }
 

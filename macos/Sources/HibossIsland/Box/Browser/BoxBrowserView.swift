@@ -63,7 +63,7 @@ struct BoxBrowserView: View {
         GeometryReader { geometry in
             if geometry.size.width >= 900 {
                 BoxBrowserColumns(
-                    sidebar: AnyView(BoxCollectionsSidebar(store: store, workspace: sidebar)),
+                    sidebar: sidebar,
                     content: listColumn, detail: detailColumn)
                     .toolbar { filters }
                     .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
@@ -122,15 +122,10 @@ struct BoxBrowserView: View {
 
     private var detailColumn: some View {
         VStack(spacing: 0) {
-            if let item = store.selectedItem {
-                HStack {
-                    BoxCollectionActions(store: store, item: item, keyboardShortcutEnabled: true)
-                }.padding(12)
-            }
             BoxBrowserDetail(item: store.selectedItem, media: media,
                 busy: store.selectedItem.map { opening.contains($0.id) || store.deleting.contains($0.id) }
                     ?? false,
-                copied: copied != nil && copied == store.selection) { action in
+                copied: copied != nil && copied == store.selection, store: store) { action in
                     if let item = store.selectedItem { perform(action, item: item) }
                 }
                 .workspaceChrome()

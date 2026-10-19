@@ -10,6 +10,7 @@ struct BoxBrowserDetail: View {
     @ObservedObject var media: BoxBrowserMedia
     let busy: Bool
     let copied: Bool
+    var store: BoxBrowserStore? = nil
     let perform: (BoxPaneAction) -> Void
 
     var body: some View {
@@ -49,10 +50,13 @@ struct BoxBrowserDetail: View {
 
     private func actions(_ item: BoxItem) -> some View {
         HStack(spacing: 8) {
-            BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.open, .copy])
+            if let store {
+                BoxCollectionActions(store: store, item: item, keyboardShortcutEnabled: true)
+            }
+            BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.copy])
             Menu(L("More")) {
                 BoxPaneActions(item: item, busy: busy, perform: perform,
-                    actions: [.quickLook, .share, .editNote])
+                    actions: [.open, .quickLook, .share, .editNote])
                 Divider()
                 BoxPaneActions(item: item, busy: busy, perform: perform, actions: [.delete])
             }.fixedSize().layoutProbe("box.more")

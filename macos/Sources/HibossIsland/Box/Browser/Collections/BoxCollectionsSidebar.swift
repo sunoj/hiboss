@@ -6,24 +6,21 @@ import SwiftUI
 
 struct BoxCollectionsSidebar: View {
     @ObservedObject var store: BoxBrowserStore
-    var workspace: AnyView?
     @State private var creating = false
     @State private var renaming: BoxCollection?
     @State private var deleting: BoxCollection?
 
     var body: some View {
-        VStack(spacing: 0) {
-            if let workspace { workspace }
-            List {
-                Button { store.scope = .all } label: {
-                    Label(L("All"), systemImage: "archivebox")
-                }.listRowBackground(store.scope == .all ? Color.accentColor.opacity(0.15) : .clear)
-                Button { store.scope = .liked } label: {
-                    Label(L("Liked"), systemImage: "heart.fill")
-                }.listRowBackground(store.scope == .liked ? Color.accentColor.opacity(0.15) : .clear)
-                collectionSection
-            }.listStyle(.sidebar).buttonStyle(.plain).frame(maxHeight: 280)
+        Group {
+            Label(L("Liked"), systemImage: "heart")
+                .tag(BoxSidebarSelection.scope(.liked))
+                .layoutProbe("box.scope.liked")
+            collectionSection
+            Button { creating = true } label: {
+                Label(L("New Collection…"), systemImage: "plus")
+            }.buttonStyle(.plain).selectionDisabled()
         }
+        .padding(.leading, 16)
         .sheet(isPresented: $creating) { BoxCollectionEditor(store: store) }
         .sheet(item: $renaming) { BoxCollectionEditor(store: store, collection: $0) }
         .alert(L("Delete Collection"), isPresented: Binding(get: { deleting != nil },
@@ -37,20 +34,17 @@ struct BoxCollectionsSidebar: View {
     }
 
     private var collectionSection: some View {
-        Section {
+        Group {
             ForEach(store.collections) { collection in
-                Button { store.scope = .collection(collection.id) } label: {
-                    HStack {
-                        Label { Text(verbatim: collection.name) } icon: {
-                            Image(systemName: "rectangle.stack")
-                        }
-                        Spacer()
-                        Text(collection.itemCount.formatted()).foregroundStyle(.secondary)
+                HStack {
+                    Label { Text(verbatim: collection.name) } icon: {
+                        Image(systemName: "rectangle.stack")
                     }
+                    Spacer()
+                    Text(collection.itemCount.formatted()).foregroundStyle(.secondary)
                 }
+                .tag(BoxSidebarSelection.scope(.collection(collection.id)))
                 .layoutProbe("box.collection.\(collection.id)")
-                .listRowBackground(store.scope == .collection(collection.id)
-                    ? Color.accentColor.opacity(0.15) : .clear)
                 .dropDestination(for: String.self) { ids, _ in
                     let items = store.items.filter { ids.contains($0.id) && $0.bossID == collection.bossID }
                     for item in items {
@@ -62,13 +56,6 @@ struct BoxCollectionsSidebar: View {
                     Button(L("Rename")) { renaming = collection }
                     Button(L("Delete Collection"), role: .destructive) { deleting = collection }
                 }
-            }
-        } header: {
-            HStack {
-                Text(L("Collections"))
-                Spacer()
-                Button { creating = true } label: { Image(systemName: "plus") }
-                    .buttonStyle(.plain).accessibilityLabel(L("Box New Collection"))
             }
         }
     }

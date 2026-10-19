@@ -16,29 +16,33 @@ struct OverviewSidebar: View {
     let onSelect: (OverviewDestination) -> Void
     let onSettings: () -> Void
     let onRefresh: () -> Void
+    var boxScope: BoxBrowserScope = .all
+    var boxScopes: AnyView? = nil
+    var onSelectBoxScope: (BoxBrowserScope) -> Void = { _ in }
     @Environment(\.projectSessions) private var inventory
     @State private var sessionSearch = ""
 
     var body: some View {
         VStack(spacing: 0) {
             brand
-            List(selection: Binding(get: { selection }, set: { onSelect($0) })) {
+            List(selection: sidebarSelection) {
                 Section(L("Workspace")) {
                     Label(L("Today"), systemImage: "house")
                         .badge(decisionBadge.map { Text(verbatim: $0) })
-                        .tag(OverviewDestination.today)
+                        .tag(BoxSidebarSelection.workspace(.today))
                         .accessibilityIdentifier("overview.today")
                     Label(L("Box"), systemImage: "shippingbox")
-                        .tag(OverviewDestination.box)
+                        .tag(BoxSidebarSelection.workspace(.box))
                         .accessibilityIdentifier("overview.box")
+                    if selection == .box { boxScopes }
                     Label(L("Progress"), systemImage: "play.rectangle")
-                        .tag(OverviewDestination.progress)
+                        .tag(BoxSidebarSelection.workspace(.progress))
                 }
                 Section(L("Sessions")) { sessions }
                 Section(L("More")) {
                     Label(L("Device Requests"), systemImage: "desktopcomputer.and.arrow.down")
                         .badge(deviceRequestCount)
-                        .tag(OverviewDestination.deviceRequests)
+                        .tag(BoxSidebarSelection.workspace(.deviceRequests))
                         .accessibilityIdentifier("overview.deviceRequests")
                     categoryRow(.all)
                     categoryRow(.completed)
@@ -49,6 +53,15 @@ struct OverviewSidebar: View {
             footer
         }
         .accessibilityIdentifier("overview.sidebar")
+    }
+
+    private var sidebarSelection: Binding<BoxSidebarSelection> {
+        Binding(get: { .selected(selection, scope: boxScope) }, set: { value in
+            switch value {
+            case let .workspace(destination): onSelect(destination)
+            case let .scope(scope): onSelectBoxScope(scope)
+            }
+        })
     }
 
     var decisionBadge: String? {
@@ -73,7 +86,7 @@ struct OverviewSidebar: View {
             Text(verbatim: countsAvailable ? snapshot.count(category).formatted() : "—")
                 .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
         }
-        .tag(OverviewDestination.category(category))
+        .tag(BoxSidebarSelection.workspace(.category(category)))
         .accessibilityIdentifier("overview.\(category.rawValue)")
     }
 
@@ -87,7 +100,7 @@ struct OverviewSidebar: View {
                     .font(.callout).foregroundStyle(.secondary).selectionDisabled()
             }
             ForEach(filteredSessions) { session in
-                sessionRow(session).tag(OverviewDestination.session(session.id))
+                sessionRow(session).tag(BoxSidebarSelection.workspace(.session(session.id)))
             }
         }
     }

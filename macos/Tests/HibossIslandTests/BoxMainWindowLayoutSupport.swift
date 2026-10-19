@@ -11,7 +11,7 @@ import XCTest
 @MainActor
 enum BoxMainWindowLayoutSupport {
     static func show(store: BoxBrowserStore, media: BoxBrowserMedia, probe: LayoutProbe,
-                     width: CGFloat, scheme: ColorScheme) async throws -> NSWindow {
+                     width: CGFloat, scheme: ColorScheme, height: CGFloat = 903) async throws -> NSWindow {
         _ = NSApplication.shared
         NSApp.setActivationPolicy(.regular)
         let controller = NSHostingController(rootView: rootView(store: store, media: media,
@@ -20,7 +20,7 @@ enum BoxMainWindowLayoutSupport {
         let host = controller.view
         let screen = try XCTUnwrap(NSScreen.main).visibleFrame
         XCTAssertGreaterThanOrEqual(screen.width, width)
-        XCTAssertGreaterThanOrEqual(screen.height, 903)
+        XCTAssertGreaterThanOrEqual(screen.height, height)
         let mask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         let window = NSWindow(contentRect: NSRect(x: screen.minX, y: screen.minY, width: 1320, height: 500),
             styleMask: mask, backing: .buffered, defer: false)
@@ -33,7 +33,7 @@ enum BoxMainWindowLayoutSupport {
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         try await waitForCondition { window.toolbar != nil }
-        window.setFrame(NSRect(x: screen.minX + 20, y: screen.maxY - 903, width: width, height: 903),
+        window.setFrame(NSRect(x: screen.minX + 20, y: screen.maxY - height, width: width, height: height),
             display: true)
         try await BoxWindowCaptureSupport.settle(window)
         controller.rootView = rootView(store: store, media: media,
@@ -44,7 +44,7 @@ enum BoxMainWindowLayoutSupport {
         }
         try await BoxWindowCaptureSupport.settle(window)
         XCTAssertEqual(window.frame.width, width, accuracy: 1)
-        XCTAssertEqual(window.frame.height, 903, accuracy: 1)
+        XCTAssertEqual(window.frame.height, height, accuracy: 1)
         XCTAssertEqual(window.toolbarStyle, .unified)
         XCTAssertEqual(window.titleVisibility, .visible)
         XCTAssertEqual(window.styleMask, mask)

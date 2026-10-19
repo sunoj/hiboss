@@ -7,6 +7,16 @@ import HibossKit
 
 @MainActor
 final class BoxCollectionTests: XCTestCase {
+    func testSidebarSelectionSeparatesBoxScopesFromWorkspaceDestinations() {
+        XCTAssertEqual(BoxSidebarSelection.selected(.box, scope: .all), .workspace(.box))
+        XCTAssertEqual(BoxSidebarSelection.selected(.box, scope: .liked), .scope(.liked))
+        XCTAssertEqual(BoxSidebarSelection.selected(.box, scope: .collection("design")),
+            .scope(.collection("design")))
+        XCTAssertEqual(BoxSidebarSelection.selected(.today, scope: .liked), .workspace(.today))
+        XCTAssertEqual(BoxSidebarSelection.selected(.session("session"), scope: .collection("design")),
+            .workspace(.session("session")))
+    }
+
     func testRefreshCollectionsAndScopeIdentity() async {
         let api = ScriptedBoxBrowser()
         let store = BoxBrowserStore { api }

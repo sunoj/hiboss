@@ -13,7 +13,7 @@ struct BoxCollectionActions: View {
         Button {
             Task { await store.toggleLike(item) }
         } label: {
-            Label(item.liked ? L("Unlike") : L("Like"), systemImage: item.liked ? "heart.fill" : "heart")
+            Label(item.liked ? L("Liked") : L("Like"), systemImage: item.liked ? "heart.fill" : "heart")
         }.disabled(store.mutating.contains(item.id))
         .keyboardShortcut(keyboardShortcutEnabled ? KeyboardShortcut("l", modifiers: .command) : nil)
         .layoutProbe("box.like.\(item.id)")
@@ -31,6 +31,7 @@ struct BoxCollectionActions: View {
                 store.creatingCollection = true
             }
         } label: { Label(L("Add to Collection…"), systemImage: "rectangle.stack") }
+        .frame(maxWidth: 160)
         .disabled(store.mutating.contains(item.id))
     }
 }
