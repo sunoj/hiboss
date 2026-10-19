@@ -44,6 +44,13 @@ struct BoxMediaDetail: View {
             copy: { selected in mapping[selected.id]?.copyContent(media: media) },
             info: { selected in info = mapping[selected.id] },
             delete: { selected in pendingDelete = mapping[selected.id] },
+            likeContent: { selected in
+                guard let target = store.items.first(where: { $0.id == selected.id }) else {
+                    return AnyView(EmptyView())
+                }
+                return AnyView(BoxLikeButton(item: target, store: store))
+            },
+            errorContent: { AnyView(BoxOrganizationError(store: store)) },
             isAvailable: { selected in media.resources[selected.id] != nil },
             unavailableContent: { selected in
                 guard media.resources[selected.id] == nil,

@@ -21,11 +21,12 @@ enum BoxFilter: String, CaseIterable {
 
     var isMedia: Bool { self == .image || self == .video }
 
-    func matches(_ item: BoxItem, search: String, author: BoxAuthorFilter = .all) -> Bool {
+    func matches(_ item: BoxItem, search: String, author: BoxAuthorFilter = .all,
+                 liked: Bool = false) -> Bool {
         let kindMatches = self == .all || item.kind.rawValue == rawValue
         let terms = [item.text, item.url, item.note, item.project, item.provenanceLabel]
             .compactMap { $0 }.joined(separator: " ") + " " + item.tags.joined(separator: " ")
-        return kindMatches && author.matches(item) &&
+        return kindMatches && author.matches(item) && (!liked || item.liked) &&
             (search.isEmpty || terms.localizedCaseInsensitiveContains(search))
     }
 }
@@ -56,6 +57,7 @@ enum BoxListStyle: String, CaseIterable {
 
 struct BoxFilterChips: View {
     @Binding var selection: BoxFilter
+    @Binding var liked: Bool
     @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
@@ -66,6 +68,14 @@ struct BoxFilterChips: View {
                     .accessibilityAddTraits(selection == filter ? .isSelected : [])
                     .accessibilityIdentifier("box-filter-\(filter.rawValue)")
                 }
+                Button { liked.toggle() } label: {
+                    Label("Liked", systemImage: "heart.fill").font(.subheadline)
+                }
+                .buttonStyle(.bordered).buttonBorderShape(.capsule)
+                .tint(liked ? Theme.primaryAction : Theme.ink2)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityAddTraits(liked ? .isSelected : [])
+                .accessibilityIdentifier("box-filter-liked")
             }
             .padding(.horizontal, 16)
         }

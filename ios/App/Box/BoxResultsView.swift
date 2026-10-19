@@ -1,11 +1,11 @@
 // Native sectioned list and square media/content grids for filtered Box results.
-// Exports BoxCollection, keeping recency headers identical across display styles.
+// Exports BoxResultsView, keeping recency headers identical across display styles.
 // Dependencies: SwiftUI, HibossKit and BoxDayGroup.
 
 import HibossKit
 import SwiftUI
 
-struct BoxCollection<Row: View, Footer: View>: View {
+struct BoxResultsView<Row: View, Footer: View>: View {
     let items: [BoxItem]
     let filter: BoxFilter
     let style: BoxListStyle

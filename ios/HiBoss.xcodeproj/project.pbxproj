@@ -7,6 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		88B4F78A6C19FB047F92151E /* BoxCollectionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD66D9B9E718DF45B9123EEA /* BoxCollectionsUITests.swift */; };
+		F1AF2F3E6AC737F441DE43DA /* BoxOrganizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A2B7EAFC19941777041EB1 /* BoxOrganizationTests.swift */; };
+		FFCC1A28CF2A634FF2FA8072 /* DemoBoxAPI+Collections.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE1D3A99001B989C506BE6F3 /* DemoBoxAPI+Collections.swift */; };
+		3D10D7D467BAF732B8672258 /* BoxCollectionCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DED6769BC436FD529A2ABDD /* BoxCollectionCover.swift */; };
+		56BCE1F02D769B51736EC714 /* BoxCollectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EC06ADCA2FF01931D6CCC9 /* BoxCollectionsView.swift */; };
+		300FE9D1082DB4CB9D258C2A /* BoxCollectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87A15F23BFC1DBFF00EB30D /* BoxCollectionSheet.swift */; };
+		0EC897168444E83E8F875881 /* BoxCollectionEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48359488C6B00EC3B3908331 /* BoxCollectionEditor.swift */; };
+		4F9ADF338B203ADE1C0A7D8A /* BoxOrganizationControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E1DFA3DA5106DBD9490D9F /* BoxOrganizationControls.swift */; };
+		2E18DB470FA53CDCE87BFA74 /* BoxStore+Organization.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF88BCF4ACD001C0A1F6D207 /* BoxStore+Organization.swift */; };
+		E2FBAC5508D0A080B52EF363 /* BoxItem+Organization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D81374B18B60EBD8D782C46 /* BoxItem+Organization.swift */; };
+		9A9362C8BBE84936DAC51003 /* BoxCollectionServing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 890E68C1F9B2F61184273C80 /* BoxCollectionServing.swift */; };
 		648C14F1A285852E736565D9 /* SessionReadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */; };
 		F95918E9C38AE47262458934 /* SessionReadIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */; };
 		A9DC0A896C82A08E095E52B2 /* SessionReadTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */; };
@@ -111,7 +122,7 @@
 		4808DCF96B84B211F95B685E /* SessionThreadMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F38CE2834732400C99D3912 /* SessionThreadMessages.swift */; };
 		4961C83E5598728E5AAE4341 /* ProgressAttributionChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6B071EE4BD1DF0070BBB00 /* ProgressAttributionChip.swift */; };
 		49675DC64573B73010BA5126 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F51D50828365C286871C0496 /* InfoPlist.xcstrings */; };
-		49EB14C64D49D02E46046FFC /* BoxCollection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4576A5569F29ABA8A60AF621 /* BoxCollection.swift */; };
+		49EB14C64D49D02E46046FFC /* BoxResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4576A5569F29ABA8A60AF621 /* BoxResultsView.swift */; };
 		4ADA1A76974C2F1CA01A35A8 /* MessageDetailFallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06764A894D4F3C92D320975F /* MessageDetailFallback.swift */; };
 		4B3CC845CDE7F8D59E752640 /* DemoShareHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FB698964D7B13DBCD4AF88C /* DemoShareHost.swift */; };
 		4BBC771110F1710F09C1D7CB /* MediaZoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C618B06EE26D089C50C083 /* MediaZoomView.swift */; };
@@ -377,6 +388,17 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BD66D9B9E718DF45B9123EEA /* BoxCollectionsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxCollectionsUITests.swift; sourceTree = "<group>"; };
+		56A2B7EAFC19941777041EB1 /* BoxOrganizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxOrganizationTests.swift; sourceTree = "<group>"; };
+		EE1D3A99001B989C506BE6F3 /* DemoBoxAPI+Collections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DemoBoxAPI+Collections.swift"; sourceTree = "<group>"; };
+		9DED6769BC436FD529A2ABDD /* BoxCollectionCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxCollectionCover.swift"; sourceTree = "<group>"; };
+		C1EC06ADCA2FF01931D6CCC9 /* BoxCollectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxCollectionsView.swift"; sourceTree = "<group>"; };
+		A87A15F23BFC1DBFF00EB30D /* BoxCollectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxCollectionSheet.swift"; sourceTree = "<group>"; };
+		48359488C6B00EC3B3908331 /* BoxCollectionEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxCollectionEditor.swift"; sourceTree = "<group>"; };
+		19E1DFA3DA5106DBD9490D9F /* BoxOrganizationControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxOrganizationControls.swift"; sourceTree = "<group>"; };
+		DF88BCF4ACD001C0A1F6D207 /* BoxStore+Organization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxStore+Organization.swift"; sourceTree = "<group>"; };
+		1D81374B18B60EBD8D782C46 /* BoxItem+Organization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxItem+Organization.swift"; sourceTree = "<group>"; };
+		890E68C1F9B2F61184273C80 /* BoxCollectionServing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Collections/BoxCollectionServing.swift"; sourceTree = "<group>"; };
 		B0DE178574EA72254524AD50 /* SessionReadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReadStoreTests.swift; sourceTree = "<group>"; };
 		AD1AC32AAD506AD538D8C725 /* SessionReadIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadIndicator.swift; sourceTree = "<group>"; };
 		11306883A3F3FB2A88A34C18 /* SessionReadTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionReads/SessionReadTracking.swift; sourceTree = "<group>"; };
@@ -464,7 +486,7 @@
 		42CAF09826E6E4DAB52BD981 /* SessionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStatus.swift; sourceTree = "<group>"; };
 		449F5737D1DEA9D470795E5C /* BrandAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = BrandAssets.xcassets; sourceTree = "<group>"; };
 		44A92BE04B5009776DB8927D /* BoxV2CaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxV2CaptureUITests.swift; sourceTree = "<group>"; };
-		4576A5569F29ABA8A60AF621 /* BoxCollection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxCollection.swift; sourceTree = "<group>"; };
+		4576A5569F29ABA8A60AF621 /* BoxResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxResultsView.swift; sourceTree = "<group>"; };
 		468E2C4A0F4F115A06EBED93 /* IntermediatePanelUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntermediatePanelUITests.swift; sourceTree = "<group>"; };
 		46C618B06EE26D089C50C083 /* MediaZoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaZoomView.swift; sourceTree = "<group>"; };
 		471CAA9949B66AE278EA06AF /* BossTokenMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BossTokenMigrationTests.swift; sourceTree = "<group>"; };
@@ -766,6 +788,7 @@
 		37D6B819C97B91C25A737074 /* Preview */ = {
 			isa = PBXGroup;
 			children = (
+				EE1D3A99001B989C506BE6F3 /* DemoBoxAPI+Collections.swift */,
 				9B580B37FB171EE57655410A /* Intermediate */,
 				260E23D5C8773E5336099497 /* Resources */,
 				20DF2459E88B6108A43A9E17 /* DemoBossAPI+Agents.swift */,
@@ -915,6 +938,7 @@
 		7CFBA1E853019DE9B2F68808 /* UITests */ = {
 			isa = PBXGroup;
 			children = (
+				BD66D9B9E718DF45B9123EEA /* BoxCollectionsUITests.swift */,
 				943E9189437FDAC2704D1C1F /* ActivityNavigationUITests.swift */,
 				FD4E6C4E5F1E6BC3F89244F9 /* SessionUnreadUITests.swift */,
 				21CE1FBE978EA646E506421A /* AgentAvatarUITests.swift */,
@@ -1178,8 +1202,16 @@
 		EB41DFE0F1F07A6B32BAC1A6 /* Box */ = {
 			isa = PBXGroup;
 			children = (
+				9DED6769BC436FD529A2ABDD /* BoxCollectionCover.swift */,
+				C1EC06ADCA2FF01931D6CCC9 /* BoxCollectionsView.swift */,
+				A87A15F23BFC1DBFF00EB30D /* BoxCollectionSheet.swift */,
+				48359488C6B00EC3B3908331 /* BoxCollectionEditor.swift */,
+				19E1DFA3DA5106DBD9490D9F /* BoxOrganizationControls.swift */,
+				DF88BCF4ACD001C0A1F6D207 /* BoxStore+Organization.swift */,
+				1D81374B18B60EBD8D782C46 /* BoxItem+Organization.swift */,
+				890E68C1F9B2F61184273C80 /* BoxCollectionServing.swift */,
 				EF04E7839A54C9B5F1F90107 /* BoxActions.swift */,
-				4576A5569F29ABA8A60AF621 /* BoxCollection.swift */,
+				4576A5569F29ABA8A60AF621 /* BoxResultsView.swift */,
 				1ED47C53104A286F1959E45E /* BoxDetail.swift */,
 				64ADF9F94C1FDC9AD5360413 /* BoxFilter.swift */,
 				0ECC13C2AAA43AAA6E3B4BCC /* BoxListView.swift */,
@@ -1206,6 +1238,7 @@
 		EEE890EA1FB67961740263AF /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				56A2B7EAFC19941777041EB1 /* BoxOrganizationTests.swift */,
 				76C43B1E73B73ED743EBABAA /* AgentAvatarTests.swift */,
 				8D3E62FC93D8B4ADDA9829BA /* AllClearIslandTests.swift */,
 				49F65358EB01C7805F4FEEB8 /* AnswerabilityFastPathTests.swift */,
@@ -1545,6 +1578,7 @@
 				FC63664F1944B11D34A7AEC9 /* BoxAPITests.swift in Sources */,
 				C8E26439880113B1E3F5E8ED /* BoxModelTests.swift in Sources */,
 				EDF6BEBD56D59679EF40BA2C /* BoxStoreTests.swift in Sources */,
+				F1AF2F3E6AC737F441DE43DA /* BoxOrganizationTests.swift in Sources */,
 				9D4DFC071D2F6E362F9098DF /* ConnectionStoreTests.swift in Sources */,
 				667023A569E0086B47E95D34 /* ControlledInputAPI.swift in Sources */,
 				46F23825BDEE9A7A8C1C73C9 /* DecisionActivityContentTests.swift in Sources */,
@@ -1656,6 +1690,7 @@
 				6F144382F69D150604BE4CC5 /* BoxUITests.swift in Sources */,
 				74C69EBCD8C9C8FD345353A2 /* BoxV2CaptureUITests.swift in Sources */,
 				B309663087793A09F5FBDAE0 /* BoxV2UITests.swift in Sources */,
+				88B4F78A6C19FB047F92151E /* BoxCollectionsUITests.swift in Sources */,
 				717D5351FDAD8F1503C25D07 /* BrandIconUITests.swift in Sources */,
 				5F8D974226A18F3BCE99BC7A /* DecisionStateUITests.swift in Sources */,
 				C1B14ACF73F1B33DD53A84C9 /* DemoLaunchSupport.swift in Sources */,
@@ -1704,8 +1739,16 @@
 				9DCF14F796F33A061E05054A /* AppDelegate.swift in Sources */,
 				38B4E5E3C3C61AA905A57CEA /* AppRouter.swift in Sources */,
 				3494E60A6362620C893B7760 /* BoxActions.swift in Sources */,
-				49EB14C64D49D02E46046FFC /* BoxCollection.swift in Sources */,
+				49EB14C64D49D02E46046FFC /* BoxResultsView.swift in Sources */,
 				0EC2AEA121B140B0E49AF525 /* BoxDetail.swift in Sources */,
+				3D10D7D467BAF732B8672258 /* BoxCollectionCover.swift in Sources */,
+				56BCE1F02D769B51736EC714 /* BoxCollectionsView.swift in Sources */,
+				300FE9D1082DB4CB9D258C2A /* BoxCollectionSheet.swift in Sources */,
+				0EC897168444E83E8F875881 /* BoxCollectionEditor.swift in Sources */,
+				4F9ADF338B203ADE1C0A7D8A /* BoxOrganizationControls.swift in Sources */,
+				2E18DB470FA53CDCE87BFA74 /* BoxStore+Organization.swift in Sources */,
+				E2FBAC5508D0A080B52EF363 /* BoxItem+Organization.swift in Sources */,
+				9A9362C8BBE84936DAC51003 /* BoxCollectionServing.swift in Sources */,
 				7CD1D2D0EC3F227D577C2C87 /* BoxFilter.swift in Sources */,
 				2B16A936396ACA77578AB532 /* BoxListView.swift in Sources */,
 				6F8D18962839B5F6B31AD85F /* BoxMediaDetail.swift in Sources */,
@@ -1735,6 +1778,7 @@
 				9F63F9FAEA66374A17CA7A8D /* DemoBossAPI+Session.swift in Sources */,
 				353E5560B40766919DCFD349 /* DemoBossClientsAPI.swift in Sources */,
 				1F32627CD507F6B93C49D066 /* DemoBoxAPI.swift in Sources */,
+				FFCC1A28CF2A634FF2FA8072 /* DemoBoxAPI+Collections.swift in Sources */,
 				0C573BBFCD693ABC150B7873 /* DemoData.swift in Sources */,
 				DE68F67D94F6FCDAABC8E91C /* DemoSessionReads.swift in Sources */,
 				1BDF8FE4F9CEE70126C82C51 /* DemoDelay.swift in Sources */,

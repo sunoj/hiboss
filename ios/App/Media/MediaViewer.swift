@@ -9,6 +9,8 @@ struct MediaItemActions {
     let copy: (MediaItem) -> Void
     let info: (MediaItem) -> Void
     let delete: (MediaItem) -> Void
+    var likeContent: ((MediaItem) -> AnyView)? = nil
+    var errorContent: (() -> AnyView)? = nil
     var isAvailable: (MediaItem) -> Bool = { _ in true }
     var unavailableContent: ((MediaItem) -> AnyView?)? = nil
 }
@@ -207,6 +209,7 @@ struct MediaViewer: View {
                 }
                 if let itemActions {
                     actionBar(item, actions: itemActions)
+                    itemActions.errorContent?()
                 }
             }
             if sharing.isLoading {
@@ -232,6 +235,9 @@ struct MediaViewer: View {
 
     private func actionButtons(_ item: MediaItem, actions: MediaItemActions) -> some View {
         HStack {
+            if let like = actions.likeContent {
+                like(item).labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+            }
             Button("Copy", systemImage: "doc.on.doc") { actions.copy(item) }
                 .disabled(!actions.isAvailable(item))
                 .accessibilityIdentifier("media-viewer-copy")
