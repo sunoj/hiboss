@@ -7,6 +7,7 @@ import SwiftUI
 struct BoxCollectionActions: View {
     @ObservedObject var store: BoxBrowserStore
     let item: BoxItem
+    var keyboardShortcutEnabled = false
 
     var body: some View {
         Button {
@@ -14,7 +15,7 @@ struct BoxCollectionActions: View {
         } label: {
             Label(item.liked ? L("Unlike") : L("Like"), systemImage: item.liked ? "heart.fill" : "heart")
         }.disabled(store.mutating.contains(item.id))
-        .keyboardShortcut("l", modifiers: .command)
+        .keyboardShortcut(keyboardShortcutEnabled ? KeyboardShortcut("l", modifiers: .command) : nil)
         .layoutProbe("box.like.\(item.id)")
         Menu {
             ForEach(store.collections.filter { $0.bossID == item.bossID }) { collection in

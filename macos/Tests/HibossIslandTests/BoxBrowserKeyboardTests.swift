@@ -62,8 +62,10 @@ final class BoxBrowserKeyboardTests: XCTestCase {
             phase = "row selection"
             try await waitForCondition { store.selection == "first" }
             try await waitForCondition { probe.anchors["box.like.first"] != nil }
+            phase = "like shortcut"
             try key("l", code: 37, window: window, modifiers: .command)
             try await waitForCondition { store.selectedItem?.liked == true }
+            phase = "unlike shortcut"
             try key("l", code: 37, window: window, modifiers: .command)
             try await waitForCondition { store.selectedItem?.liked == false }
             try key("\u{f701}", code: 125, window: window)

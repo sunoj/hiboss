@@ -123,7 +123,9 @@ struct BoxBrowserView: View {
     private var detailColumn: some View {
         VStack(spacing: 0) {
             if let item = store.selectedItem {
-                HStack { BoxCollectionActions(store: store, item: item) }.padding(12)
+                HStack {
+                    BoxCollectionActions(store: store, item: item, keyboardShortcutEnabled: true)
+                }.padding(12)
             }
             BoxBrowserDetail(item: store.selectedItem, media: media,
                 busy: store.selectedItem.map { opening.contains($0.id) || store.deleting.contains($0.id) }
@@ -185,6 +187,11 @@ struct BoxBrowserView: View {
             .onKeyPress(.space) {
                 guard let item = store.selectedItem else { return .ignored }
                 perform(.quickLook, item: item)
+                return .handled
+            }
+            .onKeyPress(keys: ["l"]) { press in
+                guard press.modifiers == .command, let item = store.selectedItem else { return .ignored }
+                Task { await store.toggleLike(item) }
                 return .handled
             }
             .onKeyPress(.upArrow) { store.moveSelection(by: -1); return .handled }
