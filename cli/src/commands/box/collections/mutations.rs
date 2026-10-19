@@ -61,6 +61,12 @@ async fn run_existing(
                     .await
                     .map_err(|err| format!("item {item}: {err}"))?;
             }
+            let verb = if matches!(command, CollectionCommand::Add { .. }) {
+                "added to"
+            } else {
+                "removed from"
+            };
+            println!("{} item(s) {verb} {collection} ({id})", items.len());
             Ok(())
         }
         CollectionCommand::New { .. } => Ok(()),
