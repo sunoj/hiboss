@@ -1,6 +1,7 @@
 // Purpose: Dispatch Box ingestion, reads, media saving and deletion.
 // Exports: BoxArgs, BoxCommand, run; depends on the existing client and configuration.
 mod args;
+pub(crate) mod collections;
 #[cfg(test)]
 mod http_media_tests;
 #[cfg(test)]
@@ -24,9 +25,11 @@ use std::error::Error;
 
 pub async fn run(args: &BoxArgs, config: &Config, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
     match &args.command {
+        BoxCommand::Collections(args) => collections::run(args, client).await,
         BoxCommand::Add(args) => {
             let item = add(args, client).await?;
-            output::print_item(&item, None, args.json)
+            let collections = collections::for_items(std::slice::from_ref(&item), args.json, client).await?;
+            output::print_item(&item, None, args.json, &collections)
         }
         BoxCommand::Latest(args) => {
             let item = client.latest_box_item(&args.filters.filter()).await?;
@@ -51,6 +54,15 @@ async fn add(args: &AddArgs, client: &HiBossClient) -> Result<BoxItem, Box<dyn E
         return Err("note exceeds 16 KB".into());
     }
     let input = input::detect(&args.content)?;
+    let ids = if args.collection.is_empty() {
+        Vec::new()
+    } else {
+        collections::resolve(
+            &client.box_collections().await?,
+            &args.collection,
+            args.boss.as_deref(),
+        )?
+    };
     let metadata = BoxMetadata {
         boss: args.boss.as_deref(),
         text: (input == input::Input::Text).then_some(args.content.as_str()),
@@ -64,7 +76,10 @@ async fn add(args: &AddArgs, client: &HiBossClient) -> Result<BoxItem, Box<dyn E
         input::Input::File(path, mime) => Some((path.as_path(), mime.as_str())),
         _ => None,
     };
-    let item = client.add_box_item(&metadata, file).await?;
+    let mut item = client.add_box_item(&metadata, file).await?;
+    for id in ids {
+        item = client.collect_box_item(&id, &item.id).await?;
+    }
     eprintln!("Added");
     Ok(item)
 }
@@ -76,7 +91,8 @@ async fn display_saved(
     client: &HiBossClient,
 ) -> Result<(), Box<dyn Error>> {
     let path = media::save_media(client, item, config, output.save.as_deref()).await?;
-    output::print_item(item, path.as_deref(), output.json)
+    let collections = collections::for_items(std::slice::from_ref(item), output.json, client).await?;
+    output::print_item(item, path.as_deref(), output.json, &collections)
 }
 
 async fn list(args: &ListArgs, query: Option<&str>, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
@@ -84,8 +100,9 @@ async fn list(args: &ListArgs, query: Option<&str>, client: &HiBossClient) -> Re
     if page.items.is_empty() {
         eprintln!("No Box items found");
     }
+    let collections = collections::for_items(&page.items, args.json, client).await?;
     for item in &page.items {
-        output::print_item(item, None, args.json)?;
+        output::print_item(item, None, args.json, &collections)?;
     }
     if let Some(cursor) = page.next_cursor {
         eprintln!("next_cursor: {cursor}");

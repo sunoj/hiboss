@@ -89,6 +89,7 @@ async fn list_and_search_pass_next_cursor_verbatim_with_filters() {
                 by: None,
                 limit: Some(1),
                 cursor: None,
+                ..Default::default()
             },
             None,
         )

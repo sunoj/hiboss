@@ -16,6 +16,33 @@ pub(crate) fn fresh_key() -> Result<String, Box<dyn Error>> {
 }
 
 impl HiBossClient {
+    pub async fn box_collections(
+        &self,
+    ) -> Result<crate::commands::box_cmd::collections::CollectionPage, Box<dyn Error>> {
+        let request = self
+            .http
+            .get(format!("{}/api/box/collections", self.base_url))
+            .bearer_auth(&self.api_key);
+        self.box_send(request)
+            .await?
+            .json()
+            .await
+            .map_err(|err| self.box_error(err))
+    }
+
+    pub async fn collect_box_item(&self, collection: &str, item: &str) -> Result<BoxItem, Box<dyn Error>> {
+        let mut url = reqwest::Url::parse(&format!("{}/api/box/collections", self.base_url))?;
+        url.path_segments_mut()
+            .map_err(|_| "invalid server URL")?
+            .extend([collection, "items", item]);
+        let request = self.http.put(url).bearer_auth(&self.api_key);
+        self.box_send(request)
+            .await?
+            .json()
+            .await
+            .map_err(|err| self.box_error(err))
+    }
+
     fn box_request(
         &self,
         method: reqwest::Method,
