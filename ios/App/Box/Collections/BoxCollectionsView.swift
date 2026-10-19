@@ -13,7 +13,7 @@ struct BoxCollectionsView: View {
     var body: some View {
         ScrollView {
             BoxOrganizationError(store: store).padding(.horizontal)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 16) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), alignment: .top)], alignment: .leading, spacing: 16) {
                 ForEach(store.collections) { collection in
                     NavigationLink {
                         BoxCollectionList(store: store, collection: collection)
