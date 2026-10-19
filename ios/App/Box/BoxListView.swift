@@ -13,8 +13,7 @@ struct BoxListView: View {
     @State private var filter = BoxFilter.all
     @State private var author = BoxAuthorFilter.all
     @AppStorage("box-list-style") private var style = BoxListStyle.list
-    @State private var openedMedia: BoxItem?
-    @State private var mediaItems: [BoxItem] = []
+    @State private var openedMedia: BoxMediaSelection?
     @State private var openedDetail: BoxItem?
     @State private var pendingDelete: BoxItem?
     @State private var collectionItem: BoxItem?
@@ -38,15 +37,7 @@ struct BoxListView: View {
             loadingTitle: String(localized: "Loading Box…"), hasLoaded: store.didLoad,
             onRetry: { await store.refresh() }
         ) { list }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if onSelect == nil && store.collectionID == nil {
-                NavigationLink {
-                    BoxCollectionsView(store: store, media: media)
-                } label: { Label("Collection", systemImage: "rectangle.stack") }
-                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal)
-                .frame(minHeight: 44).accessibilityIdentifier("box-collections")
-            }
-        }
+        .safeAreaInset(edge: .top, spacing: 0) { collectionEntry }
         .background(Theme.paper)
         .toolbarTitleDisplayMode(onSelect == nil ? .inlineLarge : .automatic)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
@@ -64,8 +55,8 @@ struct BoxListView: View {
             await store.loadCollections()
             if !search.isEmpty || filter != .all || author != .all || liked { await store.loadSearchPages() }
         }
-        .fullScreenCover(item: $openedMedia) { item in
-            BoxMediaDetail(item: item, items: mediaItems, store: store, media: media)
+        .fullScreenCover(item: $openedMedia) { selection in
+            BoxMediaDetail(item: selection.item, items: selection.items, store: store, media: media)
         }
         .sheet(item: $collectionItem) { BoxCollectionSheet(original: $0, store: store) }
         .sheet(item: $shareItem) { item in BoxShareDestination(item: item, media: media) }
@@ -76,6 +67,19 @@ struct BoxListView: View {
         }
         .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media))
         .toolbar { controls }
+    }
+
+    @ViewBuilder private var collectionEntry: some View {
+        if onSelect == nil && store.collectionID == nil {
+            NavigationLink {
+                BoxCollectionsView(store: store, media: media)
+            } label: {
+                Label("Collection", systemImage: "rectangle.stack")
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .padding(.horizontal).accessibilityIdentifier("box-collections")
+        }
     }
 
     private var list: some View {
@@ -135,8 +139,7 @@ struct BoxListView: View {
         } else {
             Button {
                 if item.kind == .image || item.kind == .video {
-                    mediaItems = matches
-                    openedMedia = item
+                    openedMedia = BoxMediaSelection(item: item, items: matches)
                 }
                 else { openedDetail = item }
             } label: { rowLabel(item) }
@@ -200,4 +203,10 @@ struct BoxListView: View {
                 .frame(minHeight: 44).accessibilityIdentifier("box-load-more")
         }
     }
+}
+
+struct BoxMediaSelection: Identifiable {
+    let item: BoxItem
+    let items: [BoxItem]
+    var id: String { item.id }
 }

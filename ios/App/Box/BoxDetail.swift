@@ -105,7 +105,7 @@ struct BoxDetail: View {
                     LabeledContent("Collection") {
                         Text(verbatim: store.collections.filter { item.collectionIDs.contains($0.id) }
                             .map(\.name).formatted(.list(type: .and)))
-                    }
+                    }.accessibilityIdentifier("box-detail-collections")
                 }
                 if let project = item.project, !project.isEmpty {
                     LabeledContent("Project") { Text(verbatim: project) }

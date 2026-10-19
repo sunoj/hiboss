@@ -17,7 +17,7 @@ struct BoxCollectionCover: View {
             else if let error {
                 VStack {
                     Text(verbatim: error).font(.caption)
-                    Button("Retry") { retry += 1 }
+                    RetryButton { retry += 1 }
                 }
             } else { ProgressView().accessibilityLabel("Loading Box media…") }
         }

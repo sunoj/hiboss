@@ -24,7 +24,7 @@ struct BoxOrganizationError: View {
 
     var body: some View {
         if let error = store.organizationError {
-            Text(verbatim: error).font(.callout).foregroundStyle(.red)
+            Text(verbatim: error).font(.callout).foregroundStyle(Theme.negative)
                 .accessibilityIdentifier("box-organization-error")
         }
     }

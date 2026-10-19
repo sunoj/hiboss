@@ -39,6 +39,7 @@ final class BoxCollectionsUITests: XCTestCase {
     }
 
     func testGridScopedListAndImmediateMembershipChecklist() {
+        XCTAssertGreaterThanOrEqual(app.buttons["box-collections"].frame.height, 44)
         app.buttons["box-collections"].tap()
         let design = app.buttons["box-collection-demo-design"]
         XCTAssertTrue(design.waitForExistence(timeout: 5))
@@ -59,7 +60,9 @@ final class BoxCollectionsUITests: XCTestCase {
         assertSelected(membership, true)
         app.buttons["Done"].tap()
         row.tap()
-        XCTAssertTrue(app.staticTexts["Design references"].waitForExistence(timeout: 5))
+        let collections = app.descendants(matching: .any)["box-detail-collections"]
+        XCTAssertTrue(collections.waitForExistence(timeout: 5))
+        XCTAssertTrue(collections.label.contains("Design references"))
         app.buttons["Add to Collection…"].tap()
         membership.tap()
         assertSelected(membership, false)

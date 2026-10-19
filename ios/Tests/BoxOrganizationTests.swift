@@ -113,6 +113,19 @@ final class BoxOrganizationTests: XCTestCase {
         XCTAssertNil(store.nextCursor)
     }
 
+    func testMediaSelectionRetainsFilteredSnapshotWhileLikesChange() async throws {
+        let api = DemoBoxAPI()
+        let store = BoxStore(api: api)
+        await store.refresh()
+        let image = try XCTUnwrap(store.items.first { $0.id == "demo-image" })
+        let selection = BoxMediaSelection(item: image, items: store.items.filter { $0.liked })
+        await store.toggleLike(image)
+        XCTAssertEqual(selection.id, image.id)
+        XCTAssertTrue(selection.items.contains { $0.id == image.id })
+        XCTAssertTrue(selection.item.liked)
+        XCTAssertFalse(try XCTUnwrap(store.items.first { $0.id == image.id }).liked)
+    }
+
     func testNoteUpdateKeepsLikeAndMemberships() async throws {
         let api = DemoBoxAPI()
         let original = try XCTUnwrap(DemoBoxAPI.fixtures.first { $0.id == "demo-image" })

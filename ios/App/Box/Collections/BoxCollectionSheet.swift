@@ -24,7 +24,7 @@ struct BoxCollectionSheet: View {
                             Text(verbatim: collection.name).foregroundStyle(.primary)
                             Spacer()
                             if member { Image(systemName: "checkmark").accessibilityHidden(true) }
-                        }
+                        }.frame(minHeight: 44).contentShape(Rectangle())
                     }
                     .accessibilityAddTraits(member ? .isSelected : [])
                     .disabled(store.organizing.contains(item.id))
