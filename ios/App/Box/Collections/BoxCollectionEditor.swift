@@ -26,7 +26,9 @@ struct BoxCollectionEditor: View {
                     Button("Save") {
                         saving = true
                         Task {
-                            if await store.saveCollection(name: name, existing: existing, adding: adding) { dismiss() }
+                            if await store.saveCollection(name: name, existing: existing, adding: adding) {
+                                dismiss()
+                            }
                             saving = false
                         }
                     }.disabled(saving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
