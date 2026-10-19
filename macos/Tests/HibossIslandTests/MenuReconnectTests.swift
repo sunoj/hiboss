@@ -138,6 +138,7 @@ private final class ReconnectHTTPProtocol: URLProtocol, @unchecked Sendable {
         switch url.path {
         case "/api/boss/me/preferences": body = #"{"private_push":true}"#
         case "/api/boss/join-requests": body = #"{"requests":[]}"#
+        case "/api/box/collections": body = #"{"collections":[]}"#
         case "/api/box/items": body = #"{"items":[],"next_cursor":null}"#
         case "/api/progress": body = #"{"posts":[],"next_cursor":null}"#
         case "/api/progress/projects": body = #"{"projects":[]}"#

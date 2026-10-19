@@ -6,7 +6,7 @@ import Combine
 import Foundation
 import HibossKit
 
-protocol BoxBrowsing: BoxServing {
+protocol BoxBrowsing: BoxServing, BoxCollectionServing {
     func patchBoxItem(id: String, patch: BoxPatch) async throws -> BoxItem
     func searchBoxItems(
         query: String, filters: BoxFilters, limit: Int, cursor: String?
@@ -18,7 +18,7 @@ extension HibossAPI: BoxBrowsing {}
 @MainActor
 final class BoxBrowserStore: ObservableObject {
     typealias Provider = @MainActor () -> (any BoxBrowsing)?
-    @Published private(set) var items: [BoxItem] = []
+    @Published var items: [BoxItem] = []
     @Published private(set) var didLoad = false
     @Published private(set) var hasResult = false
     @Published private(set) var isLoading = false
@@ -27,20 +27,26 @@ final class BoxBrowserStore: ObservableObject {
     @Published private(set) var pageError: String?
     @Published private(set) var nextCursor: String?
     @Published private(set) var deleting: Set<String> = []
+    @Published var mutating: Set<String> = []
+    @Published var collections: [BoxCollection] = []
+    @Published var scope: BoxBrowserScope = .all { didSet { if scope != oldValue { invalidateRead() } } }
+    @Published var creatingCollection = false
+    @Published var newCollectionItem: BoxItem?
     @Published var actionError: String?
     @Published var selection: String?
     @Published var pendingDelete: BoxItem?
     @Published var author: BoxAuthorFilter = .all { didSet { reconcileSelection() } }
     @Published var project: String? { didSet { if project != oldValue { invalidateRead() } } }
     var visibleItems: [BoxItem] {
-        items.filter { author.includes($0) && (kind == nil || $0.kind == kind) }
+        items.filter { author.includes($0) && (kind == nil || $0.kind == kind)
+            && (scope != .liked || $0.liked) }
     }
     var selectedItem: BoxItem? { visibleItems.first { $0.id == selection } }
     @Published var kind: BoxItem.Kind? { didSet { if kind != oldValue { invalidateRead() } } }
     @Published var query = "" { didSet { if query != oldValue { invalidateRead() } } }
     let apiProvider: Provider
     private var generation = 0
-    private var connectionGeneration = 0
+    var connectionGeneration = 0
     private var deleted: Set<String> = []
     private var loadedPages = 0
 
@@ -54,6 +60,11 @@ final class BoxBrowserStore: ObservableObject {
     }
 
     func reset() {
+        collections = []
+        mutating = []
+        creatingCollection = false
+        newCollectionItem = nil
+        scope = .all
         selection = nil
         pendingDelete = nil
         generation += 1
@@ -89,6 +100,8 @@ final class BoxBrowserStore: ObservableObject {
         isLoading = true
         await fetch(cursor: nil, generation: current, pageCount: max(1, loadedPages))
         guard current == generation else { return }
+        await refreshCollections()
+        guard current == generation else { return }
         isLoading = false
         isPaging = false
         if wantsMoreAfterRefresh {
@@ -111,7 +124,7 @@ final class BoxBrowserStore: ObservableObject {
 
     private func readPage(cursor: String?) async throws -> BoxPage {
         guard let api = apiProvider() else { throw BoxBrowserError.notConfigured }
-        let filters = BoxFilters(kind: kind, project: project)
+        let filters = BoxFilters(kind: kind, project: project, liked: scope == .liked, collection: scope.collectionID)
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return try await query.isEmpty
             ? api.boxItems(filters: filters, limit: 20, cursor: cursor)
@@ -171,6 +184,7 @@ final class BoxBrowserStore: ObservableObject {
             deleted.insert(item.id)
             items.removeAll { $0.id == item.id }
             reconcileSelection()
+            await refreshCollections()
             return true
         } catch {
             if current == connectionGeneration { actionError = error.localizedDescription }
@@ -182,39 +196,7 @@ final class BoxBrowserStore: ObservableObject {
         if selectedItem == nil { selection = nil }
     }
 
-    func moveSelection(by offset: Int) {
-        let rows = visibleItems
-        guard !rows.isEmpty else {
-            selection = nil
-            return
-        }
-        let index = rows.firstIndex { $0.id == selection }
-        let next = index.map { min(max($0 + offset, 0), rows.count - 1) }
-            ?? (offset > 0 ? 0 : rows.count - 1)
-        selection = rows[next].id
-    }
 
-    func requestDelete(_ item: BoxItem) { pendingDelete = item }
-
-    func confirmDelete(_ item: BoxItem) async -> BoxItem? {
-        pendingDelete = nil
-        return await delete(item) ? item : nil
-    }
-
-    func updateNote(_ note: String, for item: BoxItem) async -> Bool {
-        let current = connectionGeneration
-        do {
-            guard let api = apiProvider() else { throw BoxBrowserError.notConfigured }
-            let updated = try await api.patchBoxItem(id: item.id, patch: BoxPatch(note: .value(note)))
-            guard current == connectionGeneration,
-                  let index = items.firstIndex(where: { $0.id == item.id }) else { return false }
-            items[index] = updated
-            return true
-        } catch {
-            if current == connectionGeneration { actionError = error.localizedDescription }
-            return false
-        }
-    }
 }
 
 enum BoxBrowserError: LocalizedError {

@@ -11,11 +11,11 @@ struct BoxBrowserView: View {
     @ObservedObject var store: BoxBrowserStore
     @ObservedObject var media: BoxBrowserMedia
     var sidebar: AnyView? = nil
-    @State private var opening: Set<String> = []
-    @State private var copied: String?
-    @State private var previewImage: BoxItem?
-    @State private var quickLookURL: URL?
-    @State private var editingNote: BoxItem?
+    @State var opening: Set<String> = []
+    @State var copied: String?
+    @State var previewImage: BoxItem?
+    @State var quickLookURL: URL?
+    @State var editingNote: BoxItem?
 
     var body: some View {
         browser
@@ -27,8 +27,12 @@ struct BoxBrowserView: View {
             guard !Task.isCancelled else { return }
             await store.refresh()
         }
+        .onChange(of: store.scope) { Task { await store.refresh() } }
         .onChange(of: store.kind) { Task { await store.refresh() } }
         .onChange(of: store.project) { Task { await store.refresh() } }
+        .sheet(isPresented: $store.creatingCollection) {
+            BoxCollectionEditor(store: store, item: store.newCollectionItem)
+        }
         .sheet(item: $editingNote) { item in BoxNoteEditor(item: item, store: store) }
         .quickLookPreview($quickLookURL)
         .alert(store.pendingDelete?.deleteTitle ?? L("Delete this Box item?"),
@@ -58,7 +62,9 @@ struct BoxBrowserView: View {
     private var browser: some View {
         GeometryReader { geometry in
             if geometry.size.width >= 900 {
-                BoxBrowserColumns(sidebar: sidebar, content: listColumn, detail: detailColumn)
+                BoxBrowserColumns(
+                    sidebar: AnyView(BoxCollectionsSidebar(store: store, workspace: sidebar)),
+                    content: listColumn, detail: detailColumn)
                     .toolbar { filters }
                     .searchable(text: $store.query, placement: .toolbar, prompt: L("Search Box"))
             } else {
@@ -115,17 +121,22 @@ struct BoxBrowserView: View {
     }
 
     private var detailColumn: some View {
-        BoxBrowserDetail(item: store.selectedItem, media: media,
-            busy: store.selectedItem.map { opening.contains($0.id) || store.deleting.contains($0.id) }
-                ?? false,
-            copied: copied != nil && copied == store.selection) { action in
-                if let item = store.selectedItem { perform(action, item: item) }
+        VStack(spacing: 0) {
+            if let item = store.selectedItem {
+                HStack { BoxCollectionActions(store: store, item: item) }.padding(12)
             }
-            .workspaceChrome()
-            .frame(minWidth: 280, idealWidth: 400, maxWidth: .infinity)
-            .sheet(item: $previewImage) { item in
-                BoxImagePreview(item: item, media: media)
-            }
+            BoxBrowserDetail(item: store.selectedItem, media: media,
+                busy: store.selectedItem.map { opening.contains($0.id) || store.deleting.contains($0.id) }
+                    ?? false,
+                copied: copied != nil && copied == store.selection) { action in
+                    if let item = store.selectedItem { perform(action, item: item) }
+                }
+                .workspaceChrome()
+                .frame(minWidth: 280, idealWidth: 400, maxWidth: .infinity)
+                .sheet(item: $previewImage) { item in
+                    BoxImagePreview(item: item, media: media)
+                }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -191,7 +202,9 @@ struct BoxBrowserView: View {
         }
             .tag(item.id)
             .contentShape(Rectangle())
+            .draggable(item.id)
             .contextMenu {
+                BoxCollectionActions(store: store, item: item)
                 BoxPaneActions(item: item,
                     busy: opening.contains(item.id) || store.deleting.contains(item.id)) {
                         perform($0, item: item)
@@ -206,55 +219,6 @@ struct BoxBrowserView: View {
                 Task { await store.loadMore() }
             }
         }.padding(8)
-    }
-
-    private func open(_ item: BoxItem) async {
-        if item.hasImageMedia {
-            store.selection = item.id
-            previewImage = item
-            return
-        }
-        guard !opening.contains(item.id) else { return }
-        opening.insert(item.id)
-        defer { opening.remove(item.id) }
-        do {
-            if let text = try await BoxBrowserActions.open(item, media: media) { copy(text, id: item.id) }
-        } catch { store.actionError = error.localizedDescription }
-    }
-
-    private func perform(_ action: BoxPaneAction, item: BoxItem) {
-        if action == .delete {
-            store.requestDelete(item)
-            return
-        }
-        if action == .editNote {
-            editingNote = item
-            return
-        }
-        if action == .open {
-            Task { await open(item) }
-            return
-        }
-        Task {
-            guard !opening.contains(item.id) else { return }
-            opening.insert(item.id)
-            defer { opening.remove(item.id) }
-            do {
-                switch action {
-                case .quickLook: quickLookURL = try await BoxBrowserActions.previewURL(item, media: media)
-                case .copy:
-                    try await BoxBrowserActions.copy(item, media: media)
-                    copied = item.id
-                case .share: try await BoxBrowserActions.share(item, media: media)
-                default: break
-                }
-            } catch { store.actionError = error.localizedDescription }
-        }
-    }
-
-    private func copy(_ text: String, id: String) {
-        if BoxBrowserActions.copy(text) { copied = id }
-        else { store.actionError = BoxBrowserError.cannotOpen.localizedDescription }
     }
 }
 

@@ -16,6 +16,8 @@ final class BoxBrowserSnapshotTests: XCTestCase {
         let media = BoxBrowserMedia { api }
         defer { media.reset() }
         await store.refresh()
+        XCTAssertEqual(store.collections.count, 2)
+        XCTAssertTrue(store.items.first { $0.id == "image" }?.liked == true)
         for scheme in [ColorScheme.light, .dark] {
             for selection in [nil, "image"] as [String?] {
                 store.selection = selection
@@ -67,12 +69,14 @@ final class BoxBrowserSnapshotTests: XCTestCase {
     ) async throws -> NSBitmapImageRep {
         _ = NSApplication.shared
         var mounted = false
+        let probe = LayoutProbe()
         let snapshot = OverviewSnapshot(history: [], live: nil, now: .now)
         let host = NSHostingView(rootView:
             BoxBrowserView(store: store, media: media, sidebar: AnyView(
                 OverviewSidebar(snapshot: snapshot, selection: .box, historyState: .loaded,
                     connectionState: .connected, onSelect: { _ in }, onSettings: {}, onRefresh: {})))
                 .environment(\.colorScheme, scheme)
+                .environment(\.layoutProbe, probe)
                 .onAppear { mounted = true })
         host.sizingOptions = []
         let screen = try XCTUnwrap(NSScreen.main).visibleFrame
@@ -93,6 +97,12 @@ final class BoxBrowserSnapshotTests: XCTestCase {
         window.setFrame(frame, display: true)
         XCTAssertLessThanOrEqual(window.frame.height, screen.height)
         host.layoutSubtreeIfNeeded()
+        for collection in store.collections {
+            XCTAssertNotNil(probe.anchors["box.collection.\(collection.id)"])
+        }
+        if let item = store.selectedItem {
+            XCTAssertNotNil(probe.anchors["box.like.\(item.id)"])
+        }
         window.displayIfNeeded()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
