@@ -34,11 +34,14 @@ export interface BoxRow extends Omit<BoxMetadata, 'tags'> {
   media_bytes: number | null;
   created_at: string;
   deleted_at: string | null;
+  liked_at: string | null;
+  collection_ids: string;
 }
 
 export type BoxAuthor = { kind: 'boss' } | { kind: 'agent'; id: string; name: string };
-export type BoxItem = Omit<BoxRow, 'tags' | 'media_key' | 'deleted_at' | 'agent_id' | 'agent_name'>
-  & { tags: string[]; has_media: boolean; added_by: BoxAuthor };
+export type BoxItem = Omit<BoxRow,
+  'tags' | 'media_key' | 'deleted_at' | 'agent_id' | 'agent_name' | 'collection_ids'>
+  & { tags: string[]; has_media: boolean; added_by: BoxAuthor; liked: boolean; collection_ids: string[] };
 
 export interface BoxWriteScope {
   bossId: string;
@@ -62,8 +65,10 @@ export interface BoxFilter {
 }
 
 export function itemResponse(row: BoxRow): BoxItem {
-  const { media_key, deleted_at, agent_id, agent_name, ...item } = row;
+  const { media_key, deleted_at, agent_id, agent_name, collection_ids, ...item } = row;
   const added_by: BoxAuthor = agent_id === null ? { kind: 'boss' }
     : { kind: 'agent', id: agent_id, name: agent_name ?? agent_id };
-  return { ...item, tags: JSON.parse(row.tags) as string[], has_media: media_key !== null, added_by };
+  return { ...item, liked: row.liked_at !== null,
+    collection_ids: JSON.parse(collection_ids) as string[], tags: JSON.parse(row.tags) as string[],
+    has_media: media_key !== null, added_by };
 }

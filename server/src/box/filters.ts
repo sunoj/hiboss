@@ -2,6 +2,7 @@
 // All generated SQL includes owner scope and excludes soft-deleted rows.
 import { HTTPException } from 'hono/http-exception';
 import { KINDS, type BoxContext, type BoxCursor, type BoxFilter } from './types';
+import { resolveCollection } from './collections/store';
 import { boxBossIds } from './access';
 
 function cursor(value: string | undefined): BoxCursor | null {
@@ -52,6 +53,13 @@ export async function boxFilter(c: BoxContext): Promise<BoxFilter> {
     if (!owner) throw new HTTPException(404, { message: 'not found' });
     clauses.push('i.boss_id = ?');
     binds.push(owner.id);
+  }
+  if (params.liked === '1') clauses.push('i.liked_at IS NOT NULL');
+  if (params.collection !== undefined) {
+    const collection = await resolveCollection(c, params.collection, bosses);
+    clauses.push('EXISTS (SELECT 1 FROM box_collection_items ci WHERE ci.item_id = i.id'
+      + ' AND ci.collection_id = ?)');
+    binds.push(collection.id);
   }
   if (params.kind) {
     if (!KINDS.some(kind => kind === params.kind)) throw new HTTPException(400, { message: 'invalid kind' });
