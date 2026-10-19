@@ -242,6 +242,10 @@ final class BoxV2UITests: XCTestCase {
         }
         let filter = app.buttons["box-filter-\(rawValue)"]
         XCTAssertTrue(filter.waitForExistence(timeout: 5))
+        let chips = app.scrollViews.containing(.button, identifier: "box-filter-liked").firstMatch
+        for _ in 0..<3 where !filter.isHittable {
+            if rawValue == "all" { chips.swipeRight() } else { chips.swipeLeft() }
+        }
         XCTAssertTrue(filter.isHittable)
         filter.tap()
         XCTAssertTrue(filter.isSelected)

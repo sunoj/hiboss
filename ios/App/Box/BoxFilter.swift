@@ -63,22 +63,24 @@ struct BoxFilterChips: View {
     var body: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                ForEach(BoxFilter.allCases, id: \.self) { filter in
-                    chip(filter)
-                    .accessibilityAddTraits(selection == filter ? .isSelected : [])
-                    .accessibilityIdentifier("box-filter-\(filter.rawValue)")
-                }
                 Button { liked.toggle() } label: {
-                    Label("Liked", systemImage: "heart.fill").font(.subheadline)
+                    Label("Liked", systemImage: liked ? "heart.fill" : "heart").font(.subheadline)
                 }
                 .buttonStyle(.bordered).buttonBorderShape(.capsule)
                 .tint(liked ? Theme.primaryAction : Theme.ink2)
                 .frame(minWidth: 44, minHeight: 44)
                 .accessibilityAddTraits(liked ? .isSelected : [])
                 .accessibilityIdentifier("box-filter-liked")
+                Divider().frame(height: 24).accessibilityHidden(true)
+                ForEach(BoxFilter.allCases, id: \.self) { filter in
+                    chip(filter)
+                    .accessibilityAddTraits(selection == filter ? .isSelected : [])
+                    .accessibilityIdentifier("box-filter-\(filter.rawValue)")
+                }
             }
             .padding(.horizontal, 16)
         }
+        .defaultScrollAnchor(.leading)
         .scrollIndicators(.hidden)
         .frame(height: textSize.isAccessibilitySize ? 88 : 64)
     }

@@ -21,7 +21,11 @@ struct BoxCollectionSheet: View {
                         Task { await store.setMembership(item, collection: collection, member: !member) }
                     } label: {
                         HStack {
-                            Text(verbatim: collection.name).foregroundStyle(.primary)
+                            VStack(alignment: .leading) {
+                                Text(verbatim: collection.name).foregroundStyle(.primary)
+                                Text(collection.itemCount, format: .number)
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                            }
                             Spacer()
                             if member { Image(systemName: "checkmark").accessibilityHidden(true) }
                         }.frame(minHeight: 44).contentShape(Rectangle())
@@ -30,12 +34,14 @@ struct BoxCollectionSheet: View {
                     .disabled(store.organizing.contains(item.id))
                     .accessibilityIdentifier("box-membership-\(collection.id)")
                 }
-                Button("New Collection", systemImage: "plus") { creating = true }
+                Button("New Collection…", systemImage: "plus") { creating = true }
             }
-            .navigationTitle("Add to Collection…")
+            .navigationTitle("Add to Collection")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .sheet(isPresented: $creating) { BoxCollectionEditor(store: store) }
+            .sheet(isPresented: $creating) { BoxCollectionEditor(store: store, adding: item) }
             .task { await store.loadCollections() }
-        }.accessibilityIdentifier("box-collection-sheet")
+        }.presentationDetents([.medium, .large])
+        .accessibilityIdentifier("box-collection-sheet")
     }
 }

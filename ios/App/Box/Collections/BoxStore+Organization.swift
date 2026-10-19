@@ -43,12 +43,19 @@ extension BoxStore {
         } catch { organizationError = error.localizedDescription }
     }
 
-    func saveCollection(name: String, existing: BoxCollection? = nil) async -> Bool {
+    func saveCollection(name: String, existing: BoxCollection? = nil,
+                        adding item: BoxItem? = nil) async -> Bool {
         guard let api = api as? any BoxCollectionServing else { return false }
         organizationError = nil
         do {
             if let existing { _ = try await api.renameBoxCollection(id: existing.id, name: name) }
-            else { _ = try await api.createBoxCollection(name: name) }
+            else {
+                let created = try await api.createBoxCollection(name: name)
+                if let item {
+                    await setMembership(item, collection: created, member: true)
+                    if organizationError != nil { return false }
+                }
+            }
             await loadCollections()
             return true
         } catch {

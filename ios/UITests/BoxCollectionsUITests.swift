@@ -18,9 +18,9 @@ final class BoxCollectionsUITests: XCTestCase {
     }
 
     func testLikedFilterDetailAndViewerHeart() {
-        capture("collections-liked-list")
-        let chips = app.scrollViews.containing(.button, identifier: "box-filter-liked").firstMatch
-        chips.swipeLeft()
+        XCTAssertTrue(app.buttons["box-filter-liked"].isHittable)
+        XCTAssertLessThan(app.buttons["box-filter-liked"].frame.minX,
+                          app.buttons["box-filter-all"].frame.minX)
         app.buttons["box-filter-liked"].tap()
         XCTAssertTrue(app.buttons["box-filter-liked"].isSelected)
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
@@ -39,14 +39,16 @@ final class BoxCollectionsUITests: XCTestCase {
     }
 
     func testGridScopedListAndImmediateMembershipChecklist() {
-        XCTAssertGreaterThanOrEqual(app.buttons["box-collections"].frame.height, 44)
+        XCTAssertTrue(app.navigationBars.buttons["box-collections"].isHittable)
         app.buttons["box-collections"].tap()
         let design = app.buttons["box-collection-demo-design"]
         XCTAssertTrue(design.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Collections"].exists)
         capture("collections-grid")
         design.tap()
         XCTAssertTrue(app.buttons["box-item-demo-image"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["box-item-demo-agent-text"].exists)
+        capture("collections-scoped-list")
         app.navigationBars.buttons.firstMatch.tap()
         app.navigationBars.buttons.firstMatch.tap()
         let row = app.buttons["box-item-demo-agent-text"]
@@ -54,10 +56,11 @@ final class BoxCollectionsUITests: XCTestCase {
         app.buttons["Add to Collection…"].tap()
         let membership = app.buttons["box-membership-demo-design"]
         XCTAssertTrue(membership.waitForExistence(timeout: 5))
-        capture("collections-add-sheet")
+        XCTAssertTrue(app.navigationBars["Add to Collection"].exists)
         assertSelected(membership, false)
         membership.tap()
         assertSelected(membership, true)
+        capture("collections-add-sheet")
         app.buttons["Done"].tap()
         row.tap()
         let collections = app.descendants(matching: .any)["box-detail-collections"]
@@ -99,6 +102,37 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["box-item-demo-image"].exists)
     }
 
+    func testNewCollectionFromChecklistAddsItemAndScopedMenuManagesIt() {
+        app.buttons["box-item-demo-agent-text"].tap()
+        app.buttons["Add to Collection…"].tap()
+        app.buttons["New Collection…"].tap()
+        let name = app.textFields["box-collection-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Checklist collection")
+        app.buttons["Save"].tap()
+        let membership = app.buttons.containing(.staticText, identifier: "Checklist collection").firstMatch
+        XCTAssertTrue(membership.waitForExistence(timeout: 5))
+        assertSelected(membership, true)
+        XCTAssertTrue(membership.staticTexts["1"].exists)
+        app.buttons["Done"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["box-collections"].tap()
+        app.buttons.containing(.staticText, identifier: "Checklist collection").firstMatch.tap()
+        XCTAssertTrue(app.buttons["box-item-demo-agent-text"].waitForExistence(timeout: 5))
+        app.buttons["box-collection-menu"].tap()
+        app.buttons["Rename"].tap()
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 20) + "Renamed")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.navigationBars["Renamed"].waitForExistence(timeout: 5))
+        app.buttons["box-collection-menu"].tap()
+        app.buttons["Delete Collection"].tap()
+        app.alerts.buttons["Delete Collection"].tap()
+        XCTAssertTrue(app.navigationBars["Collections"].waitForExistence(timeout: 5))
+    }
+
     func testLeadingSwipeAndContextMenuToggleLike() {
         let row = app.buttons["box-item-demo-agent-text"]
         row.press(forDuration: 1)
@@ -122,29 +156,40 @@ final class BoxCollectionsUITests: XCTestCase {
         XCTAssertEqual(app.buttons["box-like"].label, "Like")
     }
 
+    func testEnglishLightCollectionScreens() { localizedCapture(dark: false, large: false, english: true) }
+
     func testChineseDarkCollectionScreens() { localizedCapture(dark: true, large: false) }
     func testChineseLargeCollectionScreens() { localizedCapture(dark: false, large: true) }
 
-    private func localizedCapture(dark: Bool, large: Bool) {
+    private func localizedCapture(dark: Bool, large: Bool, english: Bool = false) {
         app.terminate()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN",
+        app.launchArguments = ["-AppleLanguages", english ? "(en)" : "(zh-Hans)",
+                               "-AppleLocale", english ? "en_US" : "zh_CN",
                                "-AppleInterfaceStyle", dark ? "Dark" : "Light"]
         if large {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName",
                                     "UICTContentSizeCategoryAccessibilityL"]
         }
+        let prefix = english ? "en-light" : dark ? "zh-dark" : "zh-large"
         app.launchConfiguredDemo()
         app.tabBars.buttons.element(boundBy: 2).tap()
         XCTAssertTrue(app.buttons["box-collections"].waitForExistence(timeout: 10))
-        capture(dark ? "zh-dark-liked-list" : "zh-large-liked-list")
+        app.buttons["box-filter-liked"].tap()
+        XCTAssertTrue(app.buttons["box-filter-liked"].isSelected)
+        capture("\(prefix)-liked-list")
         app.buttons["box-collections"].tap()
         XCTAssertTrue(app.buttons["box-collection-demo-design"].waitForExistence(timeout: 5))
-        capture(dark ? "zh-dark-collection-grid" : "zh-large-collection-grid")
+        capture("\(prefix)-collection-grid")
+        app.buttons["box-collection-demo-design"].tap()
+        XCTAssertTrue(app.buttons["box-collection-menu"].waitForExistence(timeout: 5))
+        capture("\(prefix)-scoped-list")
         app.navigationBars.buttons.firstMatch.tap()
-        app.buttons["box-item-demo-agent-text"].tap()
-        app.buttons["加入集合…"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["box-item-demo-text"].tap()
+        app.buttons[english ? "Add to Collection…" : "加入集合…"].tap()
         XCTAssertTrue(app.buttons["box-membership-demo-design"].waitForExistence(timeout: 5))
-        capture(dark ? "zh-dark-add-sheet" : "zh-large-add-sheet")
+        assertSelected(app.buttons["box-membership-demo-design"], true)
+        capture("\(prefix)-add-sheet")
     }
 
     private func assertSelected(_ element: XCUIElement, _ selected: Bool) {

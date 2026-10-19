@@ -37,7 +37,6 @@ struct BoxListView: View {
             loadingTitle: String(localized: "Loading Box…"), hasLoaded: store.didLoad,
             onRetry: { await store.refresh() }
         ) { list }
-        .safeAreaInset(edge: .top, spacing: 0) { collectionEntry }
         .background(Theme.paper)
         .toolbarTitleDisplayMode(onSelect == nil ? .inlineLarge : .automatic)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
@@ -67,19 +66,6 @@ struct BoxListView: View {
         }
         .modifier(BoxDeleteConfirmation(item: $pendingDelete, store: store, media: media))
         .toolbar { controls }
-    }
-
-    @ViewBuilder private var collectionEntry: some View {
-        if onSelect == nil && store.collectionID == nil {
-            NavigationLink {
-                BoxCollectionsView(store: store, media: media)
-            } label: {
-                Label("Collection", systemImage: "rectangle.stack")
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            .padding(.horizontal).accessibilityIdentifier("box-collections")
-        }
     }
 
     private var list: some View {
@@ -158,7 +144,14 @@ struct BoxListView: View {
     }
 
     @ToolbarContentBuilder private var controls: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if onSelect == nil && store.collectionID == nil {
+                NavigationLink {
+                    BoxCollectionsView(store: store, media: media)
+                } label: { Image(systemName: "rectangle.stack") }
+                .accessibilityLabel("Collections")
+                .accessibilityIdentifier("box-collections")
+            }
             Menu {
                 Picker("Author", selection: $author) {
                     ForEach(BoxAuthorFilter.allCases, id: \.self) { option in
@@ -170,8 +163,6 @@ struct BoxListView: View {
                 .accessibilityLabel("Author")
                 .accessibilityValue(Text(verbatim: author.title))
                 .accessibilityIdentifier("box-author-menu")
-        }
-        ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Picker("List style", selection: $style) {
                     ForEach(BoxListStyle.allCases, id: \.self) { option in

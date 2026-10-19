@@ -6,6 +6,7 @@ import SwiftUI
 struct BoxCollectionEditor: View {
     @ObservedObject var store: BoxStore
     var existing: BoxCollection?
+    var adding: BoxItem?
     @State private var name = ""
     @State private var saving = false
     @Environment(\.dismiss) private var dismiss
@@ -25,7 +26,7 @@ struct BoxCollectionEditor: View {
                     Button("Save") {
                         saving = true
                         Task {
-                            if await store.saveCollection(name: name, existing: existing) { dismiss() }
+                            if await store.saveCollection(name: name, existing: existing, adding: adding) { dismiss() }
                             saving = false
                         }
                     }.disabled(saving || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

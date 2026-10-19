@@ -16,8 +16,12 @@ struct BoxCollectionsView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 16) {
                 ForEach(store.collections) { collection in
                     NavigationLink {
-                        BoxListView(api: store.api, collectionID: collection.id)
-                            .navigationTitle(Text(verbatim: collection.name))
+                        BoxCollectionList(store: store, collection: collection,
+                                          onRename: { editing = $0 }, onDelete: { deleting = $0 })
+                    } label: { Image(systemName: "ellipsis") }
+                                    .accessibilityIdentifier("box-collection-menu")
+                                }
+                            }
                     } label: { tile(collection) }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("box-collection-\(collection.id)")
@@ -30,7 +34,8 @@ struct BoxCollectionsView: View {
                 }
             }.padding()
         }
-        .navigationTitle("Collection")
+        .navigationTitle("Collections")
+        .toolbarTitleDisplayMode(.inlineLarge)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("New Collection", systemImage: "plus") { creating = true }
@@ -66,5 +71,36 @@ struct BoxCollectionsView: View {
             Text(verbatim: collection.name).font(.headline)
             Text(collection.itemCount, format: .number).font(.subheadline).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct BoxCollectionList: View {
+    @ObservedObject var store: BoxStore
+    let collection: BoxCollection
+    let onRename: (BoxCollection) -> Void
+    let onDelete: (BoxCollection) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    private var current: BoxCollection {
+        store.collections.first { $0.id == collection.id } ?? collection
+    }
+
+    var body: some View {
+        BoxListView(api: store.api, collectionID: collection.id)
+            .navigationTitle(Text(verbatim: current.name))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Rename", systemImage: "pencil") { onRename(current) }
+                        Button("Delete Collection", systemImage: "trash", role: .destructive) {
+                            onDelete(current)
+                        }
+                    } label: { Image(systemName: "ellipsis") }
+                    .accessibilityIdentifier("box-collection-menu")
+                }
+            }
+            .onChange(of: store.collections.map(\.id)) { _, ids in
+                if !ids.contains(collection.id) { dismiss() }
+            }
     }
 }
