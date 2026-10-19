@@ -4,7 +4,10 @@ import type { Blob as R2Blob } from '@cloudflare/workers-types';
 import { boxBossIds } from './access';
 import type { BoxContext, BoxRow, BoxUpload, BoxMetadata, BoxWriteScope } from './types';
 
-export const BOX_SELECT = 'SELECT i.*, b.name AS boss_name, a.name AS agent_name FROM box_items i '
+export const BOX_SELECT = `SELECT i.*, b.name AS boss_name, a.name AS agent_name,
+  (SELECT json_group_array(collection_id) FROM
+    (SELECT collection_id FROM box_collection_items WHERE item_id = i.id
+      ORDER BY added_at, collection_id)) AS collection_ids FROM box_items i `
   + 'JOIN bosses b ON b.id = i.boss_id LEFT JOIN api_keys a ON a.id = i.agent_id';
 
 function idempotencyScope(scope: BoxWriteScope): {
@@ -96,10 +99,20 @@ export async function updateItem(c: BoxContext, row: BoxRow,
 export async function deleteItem(c: BoxContext, row: BoxRow, purge: boolean): Promise<void> {
   if (purge) {
     if (row.media_key) await c.env.ATTACHMENTS.delete(row.media_key);
-    await c.env.DB.prepare('DELETE FROM box_items WHERE id = ? AND boss_id = ?')
-      .bind(row.id, row.boss_id).run();
+    await c.env.DB.batch([
+      c.env.DB.prepare('DELETE FROM box_collection_items WHERE item_id = ?').bind(row.id),
+      c.env.DB.prepare('DELETE FROM box_items WHERE id = ? AND boss_id = ?')
+        .bind(row.id, row.boss_id),
+    ]);
     return;
   }
   await c.env.DB.prepare('UPDATE box_items SET deleted_at = ? WHERE id = ? AND boss_id = ?')
     .bind(new Date().toISOString(), row.id, row.boss_id).run();
+}
+
+export async function likeItem(c: BoxContext, row: BoxRow, liked: boolean): Promise<BoxRow | null> {
+  await c.env.DB.prepare(`UPDATE box_items SET liked_at = ${liked ? 'COALESCE(liked_at, ?)' : 'NULL'}
+    WHERE id = ? AND boss_id = ? AND deleted_at IS NULL`)
+    .bind(...(liked ? [new Date().toISOString()] : []), row.id, row.boss_id).run();
+  return findItem(c, row.id);
 }

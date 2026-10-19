@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0055; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0056; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -658,7 +658,8 @@ CREATE TABLE box_items (
   source TEXT NOT NULL CHECK (source IN ('ios-share', 'mac-share', 'mac-drop', 'cli')),
   created_at TEXT NOT NULL,
   deleted_at TEXT,
-  agent_id TEXT REFERENCES api_keys(id)
+  agent_id TEXT REFERENCES api_keys(id),
+  liked_at TEXT
 );
 CREATE INDEX idx_box_items_boss_created ON box_items(boss_id, deleted_at, created_at DESC, id DESC);
 CREATE TABLE box_idempotency (
@@ -693,3 +694,22 @@ CREATE TABLE box_agent_idempotency (
   item_id TEXT NOT NULL,
   PRIMARY KEY (boss_id, agent_id, idempotency_key)
 );
+
+-- Boss-owned collections with live item summaries and per-item like timestamps.
+-- Memberships survive soft deletion and are removed by physical deletion.
+CREATE INDEX idx_box_items_liked ON box_items(boss_id, deleted_at, liked_at);
+CREATE TABLE box_collections (
+  id TEXT PRIMARY KEY,
+  boss_id TEXT NOT NULL REFERENCES bosses(id),
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX idx_box_collections_name ON box_collections(boss_id, name COLLATE NOCASE);
+CREATE TABLE box_collection_items (
+  collection_id TEXT NOT NULL REFERENCES box_collections(id) ON DELETE CASCADE,
+  item_id TEXT NOT NULL REFERENCES box_items(id) ON DELETE CASCADE,
+  added_at TEXT NOT NULL,
+  PRIMARY KEY (collection_id, item_id)
+);
+CREATE INDEX idx_box_collection_items_item ON box_collection_items(item_id);

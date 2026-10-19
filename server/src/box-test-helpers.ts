@@ -3,6 +3,7 @@
 import { env, SELF } from 'cloudflare:test';
 import { expect } from 'vitest';
 import migration from '../migrations/0050_box_items.sql?raw';
+import collectionMigration from '../migrations/0056_box_collections.sql?raw';
 import agentMigration from '../migrations/0052_box_item_agent.sql?raw';
 import { authHeaders, getTestAgentId, seedBossToken, seedDatabase } from './test-helpers';
 import type { BoxItem } from './box/types';
@@ -20,6 +21,9 @@ export async function seedBox(): Promise<void> {
   const agentStatements = agentMigration.replace(/^--.*$/gm, '').split(';')
     .map(sql => sql.trim()).filter(Boolean);
   await env.DB.batch(agentStatements.map(sql => env.DB.prepare(sql)));
+  const collectionStatements = collectionMigration.replace(/^--.*$/gm, '').split(';')
+    .map(sql => sql.trim()).filter(Boolean);
+  await env.DB.batch(collectionStatements.map(sql => env.DB.prepare(sql)));
   await seedBossToken('Box Owner', 'viewer', OWNER, OWNER);
   await seedBossToken('Box Other', 'manager', OTHER, OTHER);
   await seedBossToken('Box Admin', 'admin', ADMIN, ADMIN);
@@ -31,6 +35,8 @@ export async function resetBox(agentIds: readonly string[] = [getTestAgentId()])
   await env.DB.batch([
     env.DB.prepare('DELETE FROM box_idempotency'),
     env.DB.prepare('DELETE FROM box_agent_idempotency'),
+    env.DB.prepare('DELETE FROM box_collection_items'),
+    env.DB.prepare('DELETE FROM box_collections'),
     env.DB.prepare('DELETE FROM box_items'),
     env.DB.prepare('UPDATE bosses SET archived_at = NULL WHERE id IN (?, ?, ?)')
       .bind(OWNER, OTHER, ADMIN),

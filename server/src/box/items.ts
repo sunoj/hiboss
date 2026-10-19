@@ -5,10 +5,11 @@ import { HTTPException } from 'hono/http-exception';
 import type { Env } from '../types';
 import { dualAuth, isBossAuth } from '../middleware/auth';
 import { boxWriteScope, canEditItem } from './access';
-import { createItem, deleteItem, findItem, replayItem, updateItem } from './store';
+import { createItem, deleteItem, findItem, likeItem, replayItem, updateItem } from './store';
 import { parsePatch, parseUpload } from './validation';
 import { boxMedia } from './media';
 import { boxList, boxLatest, boxSearch } from './search';
+import { collectionRoutes } from './collections/routes';
 import { itemResponse } from './types';
 
 const routes = new Hono<{ Bindings: Env }>();
@@ -36,6 +37,16 @@ routes.post('/items', async (c) => {
   }
   const row = await createItem(c, scope, upload, key);
   return row ? c.json(itemResponse(row), 201) : c.text('not found', 404);
+});
+
+routes.route('/collections', collectionRoutes);
+
+routes.on(['PUT', 'DELETE'], '/items/:id/like', async (c) => {
+  if (!isBossAuth(c)) return c.text('not found', 404);
+  const row = await findItem(c, c.req.param('id'));
+  if (!row) return c.text('not found', 404);
+  const updated = await likeItem(c, row, c.req.method === 'PUT');
+  return updated ? c.json(itemResponse(updated)) : c.text('not found', 404);
 });
 
 routes.get('/items', boxList);
