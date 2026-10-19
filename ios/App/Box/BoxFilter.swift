@@ -84,6 +84,7 @@ struct BoxFilterChips: View {
     @ViewBuilder private var likedChip: some View {
         let button = Button { liked.toggle() } label: {
             Label("Liked", systemImage: liked ? "heart.fill" : "heart").font(.subheadline)
+                .foregroundStyle(liked ? Theme.onAccent : Theme.ink2)
         }
         if liked {
             button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
@@ -96,6 +97,7 @@ struct BoxFilterChips: View {
     @ViewBuilder private func chip(_ filter: BoxFilter) -> some View {
         let button = Button { selection = filter } label: {
             Text(verbatim: filter.title).font(.subheadline)
+                .foregroundStyle(selection == filter ? Theme.onAccent : Theme.ink2)
         }
         if selection == filter {
             button.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
