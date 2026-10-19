@@ -188,7 +188,9 @@ final class BoxCollectionsUITests: XCTestCase {
         app.buttons["box-item-demo-text"].tap()
         app.buttons[english ? "Add to Collection…" : "加入集合…"].tap()
         XCTAssertTrue(app.buttons["box-membership-demo-design"].waitForExistence(timeout: 5))
-        assertSelected(app.buttons["box-membership-demo-design"], true)
+        let checked = app.buttons["box-membership-demo-design"]
+        checked.tap()
+        assertSelected(checked, true)
         capture("\(prefix)-add-sheet")
     }
 

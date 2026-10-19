@@ -18,10 +18,6 @@ struct BoxCollectionsView: View {
                     NavigationLink {
                         BoxCollectionList(store: store, collection: collection,
                                           onRename: { editing = $0 }, onDelete: { deleting = $0 })
-                    } label: { Image(systemName: "ellipsis") }
-                                    .accessibilityIdentifier("box-collection-menu")
-                                }
-                            }
                     } label: { tile(collection) }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("box-collection-\(collection.id)")
