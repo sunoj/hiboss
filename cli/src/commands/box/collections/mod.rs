@@ -3,18 +3,45 @@
 #[cfg(test)]
 mod http_tests;
 #[cfg(test)]
+mod mutation_tests;
+#[cfg(test)]
 mod tests;
 
+mod mutations;
+
+#[derive(Debug, Subcommand)]
+pub enum CollectionCommand {
+    New {
+        name: String,
+    },
+    Rename {
+        collection: String,
+        new_name: String,
+    },
+    Add {
+        collection: String,
+        #[arg(required = true, num_args = 1..)]
+        items: Vec<String>,
+    },
+    Rm {
+        collection: String,
+        #[arg(required = true, num_args = 1..)]
+        items: Vec<String>,
+    },
+}
+
 use crate::{box_types::BoxItem, client::HiBossClient};
-use clap::Args;
+use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
 #[derive(Debug, Args)]
 pub struct CollectionArgs {
-    #[arg(long)]
+    #[command(subcommand)]
+    pub command: Option<CollectionCommand>,
+    #[arg(long, global = true)]
     pub boss: Option<String>,
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub json: bool,
 }
 
@@ -35,7 +62,13 @@ pub struct CollectionPage {
     pub collections: Vec<Collection>,
 }
 
-pub(super) async fn run(args: &CollectionArgs, client: &HiBossClient) -> Result<(), Box<dyn Error>> {
+pub(super) async fn run(
+    args: &CollectionArgs,
+    client: &HiBossClient,
+) -> Result<(), Box<dyn Error>> {
+    if let Some(command) = &args.command {
+        return mutations::run(command, args, client).await;
+    }
     let mut page = client.box_collections().await?;
     page.collections
         .retain(|collection| matches_boss(collection, args.boss.as_deref()));
@@ -44,7 +77,9 @@ pub(super) async fn run(args: &CollectionArgs, client: &HiBossClient) -> Result<
 }
 
 fn matches_boss(collection: &Collection, boss: Option<&str>) -> bool {
-    boss.is_none_or(|boss| collection.boss_id == boss || collection.boss_name.eq_ignore_ascii_case(boss))
+    boss.is_none_or(|boss| {
+        collection.boss_id == boss || collection.boss_name.eq_ignore_ascii_case(boss)
+    })
 }
 
 pub(super) fn resolve(
@@ -67,7 +102,10 @@ pub(super) fn resolve(
     Ok(ids)
 }
 
-fn resolve_one<'a>(available: &[&'a Collection], name: &str) -> Result<&'a Collection, Box<dyn Error>> {
+fn resolve_one<'a>(
+    available: &[&'a Collection],
+    name: &str,
+) -> Result<&'a Collection, Box<dyn Error>> {
     if let Some(collection) = available.iter().find(|collection| collection.id == name) {
         return Ok(collection);
     }

@@ -1,6 +1,9 @@
 // Purpose: Authenticated Box JSON, multipart, pagination and private media transport.
 // Exports: HiBossClient Box methods; uses the existing HTTP client and error parser.
 // Dependencies: box_types, reqwest, ring, serde, std::path.
+#[path = "../commands/box/collections/transport.rs"]
+mod collection_transport;
+
 use super::HiBossClient;
 use crate::box_types::{BoxFilter, BoxItem, BoxMetadata, BoxPage};
 use reqwest::{RequestBuilder, Response};

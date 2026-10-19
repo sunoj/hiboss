@@ -60,18 +60,18 @@ it('accepts 64 Unicode characters and enforces the 200-collection limit per boss
   expect((await newCollection('Other limit', OTHER)).boss_id).toBe(OTHER);
 });
 
-it('hides boss-only management from agents and cross-boss collection IDs from bosses', async () => {
+it('hides collection deletion from agents and cross-boss collection IDs from callers', async () => {
   const own = await newCollection('Own');
   const foreign = await newCollection('Foreign', OTHER);
-  expect((await collections('', 'POST', { name: 'Agent' }, 'agent')).status).toBe(404);
+  expect((await collections(`/${own.id}`, 'DELETE', undefined, 'agent')).status).toBe(404);
   for (const method of ['PATCH', 'DELETE']) {
-    expect((await collections(`/${own.id}`, method, { name: 'Agent' }, 'agent')).status).toBe(404);
+    expect((await collections(`/${foreign.id}`, method, { name: 'Agent' }, 'agent')).status).toBe(404);
     expect((await collections(`/${foreign.id}`, method, { name: 'Cross boss' })).status).toBe(404);
     expect((await collections('/bc_missing', method, { name: 'Missing' })).status).toBe(404);
   }
 });
 
-it('lets agents add/remove only their own live items in the same readable boss collection', async () => {
+it('lets agents organize any live item in the same readable boss collection', async () => {
   const own = await newCollection('Own');
   const foreign = await newCollection('Foreign', OTHER);
   const readable = await newCollection('Readable', ADMIN);
@@ -84,8 +84,13 @@ it('lets agents add/remove only their own live items in the same readable boss c
     .bind('collection-peer', peer.id).run();
   expect((await membership(own.id, agent.id, 'PUT', 'agent')).collection_ids).toEqual([own.id]);
   expect((await membership(own.id, agent.id, 'DELETE', 'agent')).collection_ids).toEqual([]);
+  for (const item of [boss, peer]) {
+    expect((await membership(own.id, item.id, 'PUT', 'agent')).collection_ids).toEqual([own.id]);
+    expect((await membership(own.id, item.id, 'DELETE', 'agent')).collection_ids).toEqual([]);
+  }
+  const hidden = await create({ text: 'hidden' }, OTHER);
   for (const method of ['PUT', 'DELETE']) {
-    for (const [collection, item] of [[own.id, boss.id], [own.id, peer.id], [foreign.id, agent.id],
+    for (const [collection, item] of [[foreign.id, hidden.id], [own.id, hidden.id], [foreign.id, agent.id],
       [readable.id, agent.id], [own.id, 'bx_missing'], ['bc_missing', agent.id]]) {
       const response = await collections(`/${collection}/items/${item}`, method, undefined, 'agent');
       expect(response.status).toBe(404);
