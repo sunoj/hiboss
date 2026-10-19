@@ -23,7 +23,7 @@ it('resolves create bosses by ID or name and reports ambiguous or unknown bosses
 });
 
 it('creates without a boss when exactly one is readable', async () => {
-  await env.DB.prepare('UPDATE bosses SET archived_at = '2026-01-01' WHERE role = 'admin'').run();
+  await env.DB.prepare("UPDATE bosses SET archived_at = '2026-01-01' WHERE role = 'admin'").run();
   const response = await collections('', 'POST', { name: 'Only boss' }, 'agent');
   expect(response.status).toBe(201);
   expect(await response.json()).toMatchObject({ boss_id: OWNER });
