@@ -74,7 +74,9 @@ final class BoxBrowserSnapshotTests: XCTestCase {
         let host = NSHostingView(rootView:
             BoxBrowserView(store: store, media: media, sidebar: AnyView(
                 OverviewSidebar(snapshot: snapshot, selection: .box, historyState: .loaded,
-                    connectionState: .connected, onSelect: { _ in }, onSettings: {}, onRefresh: {})))
+                    connectionState: .connected, onSelect: { _ in }, onSettings: {}, onRefresh: {},
+                    boxScope: store.scope, boxScopes: AnyView(BoxCollectionsSidebar(store: store)),
+                    onSelectBoxScope: { store.scope = $0 })))
                 .environment(\.colorScheme, scheme)
                 .environment(\.layoutProbe, probe)
                 .onAppear { mounted = true })
