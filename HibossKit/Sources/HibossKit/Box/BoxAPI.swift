@@ -9,18 +9,24 @@ public struct BoxFilters: Sendable {
     public var since: String?
     public var project: String?
     public var boss: String?
+    public var liked: Bool
+    public var collection: String?
 
     public init(
-        kind: BoxItem.Kind? = nil, since: String? = nil, project: String? = nil, boss: String? = nil
+        kind: BoxItem.Kind? = nil, since: String? = nil, project: String? = nil, boss: String? = nil,
+        liked: Bool = false, collection: String? = nil
     ) {
         self.kind = kind
         self.since = since
         self.project = project
         self.boss = boss
+        self.liked = liked
+        self.collection = collection
     }
 
     var queryItems: [URLQueryItem] {
-        [("kind", kind?.rawValue), ("since", since), ("project", project), ("boss", boss)]
+        [("kind", kind?.rawValue), ("since", since), ("project", project), ("boss", boss),
+         ("liked", liked ? "1" : nil), ("collection", collection)]
             .compactMap { name, value in value.map { URLQueryItem(name: name, value: $0) } }
     }
 }

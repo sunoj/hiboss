@@ -36,10 +36,14 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
     /// Absent on servers that predate agent writes; every such item came from the boss.
     public let addedBy: BoxAuthor?
 
+    public let liked: Bool
+    public let likedAt: String?
+    public let collectionIDs: [String]
+
     public var author: BoxAuthor { addedBy ?? .boss }
 
     enum CodingKeys: String, CodingKey {
-        case id, kind, text, url, note, project, tags, source, width, height
+        case id, kind, text, url, note, project, tags, source, width, height, liked
         case bossID = "boss_id"
         case bossName = "boss_name"
         case hasMedia = "has_media"
@@ -48,6 +52,8 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         case durationMs = "duration_ms"
         case createdAt = "created_at"
         case addedBy = "added_by"
+        case likedAt = "liked_at"
+        case collectionIDs = "collection_ids"
     }
 
     public init(
@@ -55,7 +61,8 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         text: String? = nil, url: String? = nil, note: String? = nil, project: String? = nil,
         tags: [String] = [], source: Source = .iosShare, hasMedia: Bool = false,
         mediaType: String? = nil, mediaBytes: Int? = nil, width: Int? = nil,
-        height: Int? = nil, durationMs: Int? = nil, createdAt: String, addedBy: BoxAuthor? = nil
+        height: Int? = nil, durationMs: Int? = nil, createdAt: String, addedBy: BoxAuthor? = nil,
+        liked: Bool = false, likedAt: String? = nil, collectionIDs: [String] = []
     ) {
         self.id = id
         self.bossID = bossID
@@ -75,6 +82,34 @@ public struct BoxItem: Codable, Equatable, Sendable, Identifiable {
         self.durationMs = durationMs
         self.createdAt = createdAt
         self.addedBy = addedBy
+        self.liked = liked
+        self.likedAt = likedAt
+        self.collectionIDs = collectionIDs
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        bossID = try values.decode(String.self, forKey: .bossID)
+        bossName = try values.decode(String.self, forKey: .bossName)
+        kind = try values.decode(Kind.self, forKey: .kind)
+        text = try values.decodeIfPresent(String.self, forKey: .text)
+        url = try values.decodeIfPresent(String.self, forKey: .url)
+        note = try values.decodeIfPresent(String.self, forKey: .note)
+        project = try values.decodeIfPresent(String.self, forKey: .project)
+        tags = try values.decode([String].self, forKey: .tags)
+        source = try values.decode(Source.self, forKey: .source)
+        hasMedia = try values.decode(Bool.self, forKey: .hasMedia)
+        mediaType = try values.decodeIfPresent(String.self, forKey: .mediaType)
+        mediaBytes = try values.decodeIfPresent(Int.self, forKey: .mediaBytes)
+        width = try values.decodeIfPresent(Int.self, forKey: .width)
+        height = try values.decodeIfPresent(Int.self, forKey: .height)
+        durationMs = try values.decodeIfPresent(Int.self, forKey: .durationMs)
+        createdAt = try values.decode(String.self, forKey: .createdAt)
+        addedBy = try values.decodeIfPresent(BoxAuthor.self, forKey: .addedBy)
+        liked = try values.decodeIfPresent(Bool.self, forKey: .liked) ?? false
+        likedAt = try values.decodeIfPresent(String.self, forKey: .likedAt)
+        collectionIDs = try values.decodeIfPresent([String].self, forKey: .collectionIDs) ?? []
     }
 }
 
