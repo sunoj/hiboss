@@ -61,6 +61,11 @@ final class BoxBrowserKeyboardTests: XCTestCase {
             window.makeFirstResponder(table)
             phase = "row selection"
             try await waitForCondition { store.selection == "first" }
+            try await waitForCondition { probe.anchors["box.like.first"] != nil }
+            try key("l", code: 37, window: window, modifiers: .command)
+            try await waitForCondition { store.selectedItem?.liked == true }
+            try key("l", code: 37, window: window, modifiers: .command)
+            try await waitForCondition { store.selectedItem?.liked == false }
             try key("\u{f701}", code: 125, window: window)
             phase = "down arrow"
             try await waitForCondition { store.selection == "second" }
@@ -131,8 +136,10 @@ final class BoxBrowserKeyboardTests: XCTestCase {
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
     }
 
-    private func key(_ characters: String, code: UInt16, window: NSWindow) throws {
-        let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+    private func key(
+        _ characters: String, code: UInt16, window: NSWindow, modifiers: NSEvent.ModifierFlags = []
+    ) throws {
+        let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
             timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
             context: nil, characters: characters, charactersIgnoringModifiers: characters,
             isARepeat: false, keyCode: code))

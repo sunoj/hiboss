@@ -124,7 +124,8 @@ final class BoxBrowserStore: ObservableObject {
 
     private func readPage(cursor: String?) async throws -> BoxPage {
         guard let api = apiProvider() else { throw BoxBrowserError.notConfigured }
-        let filters = BoxFilters(kind: kind, project: project, liked: scope == .liked, collection: scope.collectionID)
+        let filters = BoxFilters(kind: kind, project: project, liked: scope == .liked,
+            collection: scope.collectionID)
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return try await query.isEmpty
             ? api.boxItems(filters: filters, limit: 20, cursor: cursor)

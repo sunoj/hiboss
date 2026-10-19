@@ -13,7 +13,7 @@ struct BoxCollectionsSidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let workspace { workspace.frame(maxHeight: 210) }
+            if let workspace { workspace }
             List {
                 Button { store.scope = .all } label: {
                     Label(L("All"), systemImage: "archivebox")
@@ -22,7 +22,7 @@ struct BoxCollectionsSidebar: View {
                     Label(L("Liked"), systemImage: "heart.fill")
                 }.listRowBackground(store.scope == .liked ? Color.accentColor.opacity(0.15) : .clear)
                 collectionSection
-            }.listStyle(.sidebar).buttonStyle(.plain)
+            }.listStyle(.sidebar).buttonStyle(.plain).frame(maxHeight: 280)
         }
         .sheet(isPresented: $creating) { BoxCollectionEditor(store: store) }
         .sheet(item: $renaming) { BoxCollectionEditor(store: store, collection: $0) }
