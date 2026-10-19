@@ -43,7 +43,7 @@ final class BoxCollectionsTests: XCTestCase {
     }
 
     func testUnlikePayloadAndDefaultInitializer() throws {
-        let json = Self.itemJSON.dropLast() + #","liked":false,"liked_at":null,"collection_ids":[]}"#
+        let json = String(Self.itemJSON.dropLast()) + #","liked":false,"liked_at":null,"collection_ids":[]}"#
         let item = try JSONDecoder().decode(BoxItem.self, from: Data(json.utf8))
         XCTAssertFalse(item.liked)
         XCTAssertNil(item.likedAt)
@@ -97,7 +97,7 @@ final class BoxCollectionsTests: XCTestCase {
 
     func testLikeAndUnlike() async throws {
         for liked in [true, false] {
-            let json = Self.itemJSON.dropLast()
+            let json = String(Self.itemJSON.dropLast())
                 + #","liked":\#(liked),"liked_at":null,"collection_ids":[]}"#
             let api = try api(path: "/api/box/items/bx_1/like",
                               method: liked ? "PUT" : "DELETE", json: json)
@@ -109,7 +109,7 @@ final class BoxCollectionsTests: XCTestCase {
     func testAddAndRemoveMembership() async throws {
         for member in [true, false] {
             let ids = member ? #"["bc_1"]"# : "[]"
-            let json = Self.itemJSON.dropLast() + #","collection_ids":\#(ids)}"#
+            let json = String(Self.itemJSON.dropLast()) + #","collection_ids":\#(ids)}"#
             let api = try api(path: "/api/box/collections/bc_1/items/bx_1",
                               method: member ? "PUT" : "DELETE", json: json)
             let item = try await api.setBoxItem(id: "bx_1", inCollection: "bc_1", member: member)
