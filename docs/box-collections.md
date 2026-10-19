@@ -9,7 +9,7 @@ surfaces). Everything there still applies.
 
 - **Like (喜欢)**: a boss-only mark on one item. An item is liked or not; there is no count.
   Agents read the mark and filter by it, so the boss can say "use the images I liked".
-- **Collection (集合)**: a boss-named group of items, like a photo album. An item can be in
+- **Collection (集合)**: a named group of items in one boss's Box, created by the boss or an agent, like a photo album. An item can be in
   any number of collections. Deleting a collection never deletes its items. A soft-deleted
   item keeps its memberships but is hidden everywhere (lists, counts, covers); a purge removes
   them.
@@ -49,15 +49,18 @@ Older clients ignore the new fields; new clients treat absent fields as `false`/
 | `PUT /api/box/items/:id/like` | boss | Like; idempotent; returns the item |
 | `DELETE /api/box/items/:id/like` | boss | Unlike; idempotent; returns the item |
 | `GET /api/box/collections` | boss, agent | `{"collections":[…]}` for the readable bosses, ordered by boss name, then name |
-| `POST /api/box/collections` | boss | `{"name"}` → 201 collection; 409 on a duplicate name |
-| `PATCH /api/box/collections/:id` | boss | `{"name"}` → renamed collection; 409 on a duplicate |
+| `POST /api/box/collections` | boss, agent | `{"name", "boss"?}` → 201 collection; 409 on a duplicate name |
+| `PATCH /api/box/collections/:id` | boss, agent | `{"name"}` → renamed collection; 409 on a duplicate |
 | `DELETE /api/box/collections/:id` | boss | 204; items untouched |
-| `PUT /api/box/collections/:id/items/:item_id` | boss, agent* | Add; idempotent; returns the item |
-| `DELETE /api/box/collections/:id/items/:item_id` | boss, agent* | Remove; idempotent; returns the item |
+| `PUT /api/box/collections/:id/items/:item_id` | boss, agent | Add; idempotent; returns the item |
+| `DELETE /api/box/collections/:id/items/:item_id` | boss, agent | Remove; idempotent; returns the item |
 
-\* An agent may add or remove only items it added itself, and only in a collection owned by
-that item's boss. Everything else an agent attempts on collections or likes returns 404,
-matching the existing Box access rule that hides what a caller cannot touch.
+Agents organize collections for the bosses they can read: they create and rename collections and
+add or remove any live item of that boss, whoever added it. On create, `boss` (id or name)
+picks the boss the way `box add --boss` does: optional when the agent reads one boss, 409 naming
+the choices when it reads several, 404 when unknown. Deleting a collection and liking stay
+boss-only; an agent attempting them, or touching a collection or item of a boss it cannot read,
+gets 404, matching the existing Box access rule that hides what a caller cannot touch.
 
 Collection object: `id`, `boss_id`, `boss_name`, `name`, `item_count` (live items only),
 `cover_item_id` (newest live image or video item, else null), `created_at`, `updated_at`.
@@ -80,10 +83,15 @@ Order stays newest-first by `created_at` in every case, including inside a colle
 - `hiboss box add … --collection <name|id>` (repeatable) puts the new item into existing
   collections. Names are resolved before the item is created: an unknown name fails with the
   list of valid names and creates nothing.
+- `hiboss box collections new <name> [--boss <id|name>]` creates a collection and prints it.
+- `hiboss box collections rename <name|id> <new-name> [--boss <id|name>]` renames one.
+- `hiboss box collections add|rm <name|id> <item-id>… [--boss <id|name>]` adds or removes items;
+  each item is applied in order and the command stops at the first failure, naming it.
+  `--boss` disambiguates a collection name shared by several bosses.
 - Text output marks liked items with `♥` and prints collection names on the metadata line.
 
-The boss manages likes and collections in the native apps; the CLI has no like or
-collection-management commands.
+Deleting collections and liking happen in the native apps; the CLI has no command for
+either.
 
 ## Code layout
 
