@@ -33,10 +33,7 @@ final class IslandAttention: ObservableObject {
     }
 
     private func filteredPresentation(snapshot: TodaySnapshot) -> IslandPresentation? {
-        guard let first = snapshot.decisions.first(where: { !skippedMessageIDs.contains($0.id) }) else {
-            return nil
-        }
-        return IslandPresentation(message: first.asOptionMessage, item: first)
+        Self.presentation(snapshot: snapshot, active: nil, state: .idle, skipped: skippedMessageIDs)
     }
 
     static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
@@ -46,10 +43,20 @@ final class IslandAttention: ObservableObject {
 
     func filteredPresentation(snapshot: TodaySnapshot, active: OptionMessage?,
                               state: PresentationState) -> IslandPresentation? {
-        if case .resolved = state, let active, !skippedMessageIDs.contains(active.id) {
+        Self.presentation(snapshot: snapshot, active: active, state: state, skipped: skippedMessageIDs)
+    }
+
+    /// Pure form for publishers: `$skippedMessageIDs` emits before the property changes.
+    nonisolated static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
+                                         state: PresentationState,
+                                         skipped: Set<MessageID>) -> IslandPresentation? {
+        if case .resolved = state, let active, !skipped.contains(active.id) {
             return IslandPresentation(message: active, item: nil)
         }
-        return filteredPresentation(snapshot: snapshot)
+        guard let first = snapshot.decisions.first(where: { !skipped.contains($0.id) }) else {
+            return nil
+        }
+        return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 
     static func autoDecisionCaption(for item: AttentionItem, now: Date) -> String? {
