@@ -134,12 +134,13 @@ final class IslandPanelController {
     ]
 
     private func observeFlow() {
-        let attention = self.attention
         let content = Publishers.CombineLatest4(
             overview.$snapshot, flow.$activeMessage, flow.$presentationState,
             attention.$skippedMessageIDs)
-        let presentations = content.map { snapshot, active, state, _ -> IslandPresentation? in
-            attention.filteredPresentation(snapshot: snapshot.today, active: active, state: state)
+        // Use the emitted values: every `@Published` emits before its property changes.
+        let presentations = content.map { snapshot, active, state, skipped -> IslandPresentation? in
+            IslandAttention.presentation(snapshot: snapshot.today, active: active, state: state,
+                skipped: skipped)
         }
         Publishers.CombineLatest(presentations, settings.$presentationMode)
             .removeDuplicates { previous, next in

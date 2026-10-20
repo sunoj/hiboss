@@ -102,6 +102,24 @@ final class IslandPresentationRegressionTests: XCTestCase {
         XCTAssertFalse(controller.panel.isVisible)
     }
 
+    /// `@Published` emits in willSet; the controller must hide from the emitted skip set,
+    /// or the panel stays open over an empty drop-target surface.
+    func testSkippingTheOnlyIslandDecisionHidesThePanel() async throws {
+        let question = AttentionTestSupport.ask(id: MessageID(rawValue: "island-skip-hides-\(UUID().uuidString)"),
+            options: ["Ship"], now: .now)
+        let overview = OverviewStore()
+        let controller = IslandPanelController(flow: OptionFlowStore(), settings: settings(),
+            overview: overview, screens: { [IslandNotchFixtures.macBook14] })
+        defer {
+            controller.panel.close()
+            controller.optionWindow.close()
+        }
+        update(overview, question: question, tick: 0)
+        try await waitForCondition { controller.panel.isVisible && controller.panel.alphaValue == 1 }
+        IslandAttention.skip(messageID: question.id)
+        XCTAssertFalse(controller.panel.isVisible)
+    }
+
     private func update(_ overview: OverviewStore, question: HistoryMessage, tick: Int) {
         let now = Date.now.addingTimeInterval(Double(tick))
         overview.update(history: [question], live: nil, now: now, health: .live(checkedAt: now),
