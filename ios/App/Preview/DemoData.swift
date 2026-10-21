@@ -1,11 +1,17 @@
 // Demo backing data so the UI can be exercised without a live server.
-// Exports: DemoBossAPI and isDemoMode.
+// Exports: DemoBossAPI, isDemoMode and isLaunchDemoMode.
 // Dependencies: HibossKit BossServing. Not used in normal runs.
 
 import Foundation
 import HibossKit
 
+/// Demo fixtures replace every server: set by the `HIBOSS_DEMO=1` launch flag or from onboarding.
 var isDemoMode: Bool {
+    isLaunchDemoMode || DemoSession.isRuntimeActive
+}
+
+/// The development and UI-test demo selected by the `HIBOSS_DEMO=1` launch flag.
+var isLaunchDemoMode: Bool {
     ProcessInfo.processInfo.environment["HIBOSS_DEMO"] == "1"
 }
 

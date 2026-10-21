@@ -1,4 +1,4 @@
-// First-run connection screen: server URL + Boss Token, verified on connect.
+// First-run connection screen: pairing (scan, typed code or link), Boss Token, or the demo.
 // Exports: ConnectView that populates the ConnectionStore on success.
 // Dependencies: SwiftUI, HibossKit, theme tokens.
 
@@ -11,6 +11,9 @@ struct ConnectView: View {
     @State private var error: String?
     @State private var showingScanner = false
     @State private var pairing = false
+    @State private var showingCodeEntry = false
+    @State private var codePrefill: PairingPayload?
+    @ObservedObject private var links = PairingLinkInbox.shared
     @FocusState private var focus: Field?
     @Environment(\.openURL) private var openURL
 
@@ -33,11 +36,13 @@ struct ConnectView: View {
                 credentialFields
 
                 scanButton.padding(.top, 16)
+                enterCodeButton.padding(.top, 10)
 
                 if let error {
                     Text(verbatim: error)
                         .font(.hbCaption)
                         .foregroundStyle(Theme.negative)
+                        .accessibilityIdentifier("connect-error")
                         .padding(.top, 12)
                 }
 
@@ -51,6 +56,9 @@ struct ConnectView: View {
                         onSettings: openNetworkSettings
                     ).padding(.top, 12)
                 }
+                ConnectAlternatives(onExploreDemo: DemoSession.shared.enter)
+                    .disabled(connecting)
+                    .padding(.top, 20)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 24)
@@ -65,7 +73,18 @@ struct ConnectView: View {
                 pair(payload)
             }
         }
-        .onAppear(perform: pairDemoPayloadIfPresent)
+        .sheet(isPresented: $showingCodeEntry) {
+            PairingCodeEntryView(prefill: codePrefill) { payload in
+                showingCodeEntry = false
+                pair(payload)
+            }
+        }
+        .onAppear {
+            pairDemoPayloadIfPresent()
+            openPendingLink()
+        }
+        .onChange(of: links.pending) { _, _ in openPendingLink() }
+        .onChange(of: links.refusal) { _, _ in openPendingLink() }
     }
 
     private var logo: some View {
@@ -137,12 +156,32 @@ struct ConnectView: View {
     }
 
     private var scanButton: some View {
-        Button {
-            focus = nil
-            error = nil
+        secondaryButton {
             showingScanner = true
         } label: {
             Label("Scan a code", systemImage: "qrcode.viewfinder")
+        }
+    }
+
+    private var enterCodeButton: some View {
+        secondaryButton {
+            codePrefill = nil
+            showingCodeEntry = true
+        } label: {
+            Label("Enter pairing code", systemImage: "keyboard")
+        }
+        .accessibilityIdentifier("connect-enter-code")
+    }
+
+    private func secondaryButton(
+        action: @escaping () -> Void, @ViewBuilder label: () -> some View
+    ) -> some View {
+        Button {
+            focus = nil
+            error = nil
+            action()
+        } label: {
+            label()
                 .font(.hbBodyStrong)
                 .foregroundStyle(Theme.ink)
                 .frame(maxWidth: .infinity)
@@ -165,10 +204,12 @@ struct ConnectView: View {
         pairing = false
         Task {
             try? await DemoDelay.wait("CONNECT")
+            // A demo never contacts a server; the onboarding preview stops at the wait.
+            guard !isDemoMode else { connecting = false; return }
             let result = await connection.connect()
             connecting = false
             if case let .failure(failure) = result {
-                error = failure.localizedDescription
+                error = ServerAddressPolicy.describe(failure)
             }
         }
     }
@@ -181,10 +222,11 @@ struct ConnectView: View {
         pairing = true
         Task {
             try? await DemoDelay.wait("CONNECT")
+            guard !isDemoMode else { connecting = false; return }
             let result = await connection.pair(payload: payload, deviceLabel: DeviceLabel.current())
             connecting = false
             if case let .failure(failure) = result {
-                error = failure.localizedDescription
+                error = ServerAddressPolicy.describe(failure)
             }
         }
     }
@@ -198,8 +240,20 @@ struct ConnectView: View {
         openURL(url)
     }
 
+    /// A tapped `hiboss://pair` link opens the code sheet prefilled; the boss confirms with Pair.
+    private func openPendingLink() {
+        guard !connecting else { return }
+        if let refusal = links.takeRefusal() { error = refusal }
+        guard let payload = links.take() else { return }
+        focus = nil
+        error = nil
+        showingScanner = false
+        codePrefill = payload
+        showingCodeEntry = true
+    }
+
     private func pairDemoPayloadIfPresent() {
-        guard let rawValue = ProcessInfo.processInfo.environment["HIBOSS_DEMO_PAIRING_SCAN"],
+        guard isDemoMode, let rawValue = ProcessInfo.processInfo.environment["HIBOSS_DEMO_PAIRING_SCAN"],
               case let .success(payload) = PairingPayload.parse(rawValue) else { return }
         pair(payload)
     }
