@@ -26,12 +26,12 @@ struct BoxRow: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(verbatim: item.boxTitle).font(.body).foregroundStyle(Theme.ink)
-                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 6 : 1))
+                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? (item.hasMedia ? 2 : 4) : 1))
                     .fixedSize(horizontal: false, vertical: true)
                 if let summary = item.summary, !summary.isEmpty {
                     Text(verbatim: summary).font(.callout)
                         .foregroundStyle(item.kind == .link ? Theme.link : Theme.ink2)
-                        .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 3 : 1))
+                        .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? (item.hasMedia ? 1 : 2) : 1))
                 }
                 metadata
             }
@@ -40,8 +40,8 @@ struct BoxRow: View {
         .multilineTextAlignment(.leading)
         .padding(grid ? 12 : 0)
         .frame(maxWidth: .infinity, minHeight: grid ? nil : rowHeight, alignment: .leading)
-        .background(grid ? Theme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 12))
         .frame(maxHeight: grid ? .infinity : nil, alignment: .topLeading)
+        .background(grid ? Theme.surface : Color.clear, in: RoundedRectangle(cornerRadius: 12))
         .contentShape(Rectangle())
         .alignmentGuide(.listRowSeparatorLeading) { dimensions in
             grid || textSize.isAccessibilitySize ? 0 : dimensions[.leading] + 68
@@ -62,10 +62,10 @@ struct BoxRow: View {
                     Text(verbatim: [item.kindLabel, item.sizeLabel, time, item.authorLabel, item.project]
                         .compactMap { $0 }.joined(separator: " · "))
                 }.font(.caption).foregroundStyle(Theme.ink2)
-                    .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 2 : 1))
             } else {
                 Text(verbatim: item.metadata).font(.caption).foregroundStyle(Theme.ink2)
-                    .lineLimit(textSize.isAccessibilitySize || grid ? nil : 1)
+                    .lineLimit(textSize.isAccessibilitySize ? nil : (grid ? 2 : 1))
             }
         }
     }

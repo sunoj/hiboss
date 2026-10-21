@@ -40,11 +40,13 @@ struct BoxResultsView<Row: View, Footer: View>: View {
                 let matches = items.filter { BoxDayGroup.group($0) == group }
                 if !matches.isEmpty {
                     Section {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
-                                                 count: filter.isMedia ? 3 : 2), spacing: 8) {
+                        LazyVGrid(columns: Array(
+                            repeating: GridItem(.flexible(), spacing: 8, alignment: .top),
+                            count: filter.isMedia ? 3 : 2
+                        ), spacing: 8) {
                             ForEach(matches) { item in
                                 row(item)
-                                    .frame(maxWidth: .infinity)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
                                     .frame(height: filter.isMedia ? nil
                                            : (textSize.isAccessibilitySize ? 460 : 260), alignment: .top)
                             }

@@ -74,7 +74,7 @@ struct BoxListView: View {
             BoxOrganizationError(store: store)
             if matches.isEmpty && !store.isLoadingMore { ContentUnavailableView.search(text: search) }
             BoxResultsView(items: matches, filter: filter, style: style, row: { item in
-                row(item)
+                actionableRow(item)
                     .contextMenu {
                         if onSelect == nil {
                             BoxLikeButton(item: item, store: store)
@@ -84,18 +84,6 @@ struct BoxListView: View {
                             }
                             Button("Delete", role: .destructive) { pendingDelete = item }
                                 .disabled(store.deleting.contains(item.id))
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if onSelect == nil {
-                            Button("Delete", role: .destructive) { pendingDelete = item }
-                                .disabled(store.deleting.contains(item.id))
-                        }
-                    }
-                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        if onSelect == nil {
-                            BoxLikeButton(item: item, store: store)
-                            Button("Share", systemImage: "square.and.arrow.up") { share(item) }
                         }
                     }
                     .overlay {
@@ -113,26 +101,46 @@ struct BoxListView: View {
             (store.collectionID == nil || $0.collectionIDs.contains(store.collectionID ?? "")) }
     }
 
+    @ViewBuilder private func actionableRow(_ item: BoxItem) -> some View {
+        if onSelect == nil && style == .list && !filter.isMedia {
+            row(item)
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button("Delete", role: .destructive) { pendingDelete = item }
+                        .disabled(store.deleting.contains(item.id))
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    BoxLikeButton(item: item, store: store)
+                    Button("Share", systemImage: "square.and.arrow.up") { share(item) }
+                }
+        } else {
+            row(item)
+        }
+    }
+
     private func share(_ item: BoxItem) {
         shareItem = item
     }
 
     @ViewBuilder private func row(_ item: BoxItem) -> some View {
-        if let onSelect {
-            Button { onSelect(item) } label: { rowLabel(item) }
-                .buttonStyle(.plain).contentShape(Rectangle())
+        if style == .cards || filter.isMedia {
+            rowLabel(item)
+                .contentShape(Rectangle())
+                .onTapGesture { open(item) }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("box-item-\(item.id)")
         } else {
-            Button {
-                if item.kind == .image || item.kind == .video {
-                    openedMedia = BoxMediaSelection(item: item, items: matches)
-                }
-                else { openedDetail = item }
-            } label: { rowLabel(item) }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("box-item-\(item.id)")
+            Button { open(item) } label: { rowLabel(item) }
+                .buttonStyle(.plain).contentShape(Rectangle())
+                .accessibilityIdentifier("box-item-\(item.id)")
         }
+    }
+
+    private func open(_ item: BoxItem) {
+        if let onSelect { onSelect(item) }
+        else if item.kind == .image || item.kind == .video {
+            openedMedia = BoxMediaSelection(item: item, items: matches)
+        } else { openedDetail = item }
     }
 
     @ViewBuilder private func rowLabel(_ item: BoxItem) -> some View {
