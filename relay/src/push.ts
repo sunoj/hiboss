@@ -1,19 +1,10 @@
 // POST /v1/push: the handle is the capability; the relay forwards opaque ciphertext to APNs.
-// Order: size → source rate (no D1) → body → handle → per-handle limits → global ceiling
-// → APNs. Only a push APNs accepted counts toward the global ceiling.
+// Order: size → source rate (no D1) → body → handle → per-handle limits → APNs.
+// There is no relay-wide push ceiling: one registration per APNs token bounds pushes per device.
 
 import { Hono } from 'hono';
 import { sendApns } from './apns';
-import {
-  DAY_MS,
-  HOUR_MS,
-  LIMITS,
-  ceilingReached,
-  globalPushCheck,
-  overLimit,
-  recordSuccess,
-  sourceLimited,
-} from './limits';
+import { DAY_MS, HOUR_MS, LIMITS, overLimit, sourceLimited } from './limits';
 import { gone, invalid, tooMany, unavailable, upstreamFailed } from './responses';
 import { deleteRegistration, findByHandle, touch } from './store';
 import type { AppEnv } from './types';
@@ -37,8 +28,6 @@ push.post('/', async (c) => {
     { scope, periodMs: DAY_MS, max: LIMITS.handlePerDay },
   ];
   if (await overLimit(db, handleChecks, now)) return tooMany(c);
-  const globalCheck = globalPushCheck(c.env);
-  if (await ceilingReached(db, globalCheck, now)) return unavailable(c);
   const outcome = await sendApns(c.env, {
     apnsToken: row.apns_token,
     environment: row.environment,
@@ -55,7 +44,6 @@ push.post('/', async (c) => {
   }
   if (outcome === 'unconfigured') return unavailable(c);
   if (outcome === 'failed') return upstreamFailed(c);
-  await recordSuccess(db, globalCheck, now);
   await touch(db, row.handle_hash, now);
   return c.body(null, 202);
 });

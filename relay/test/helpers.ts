@@ -44,6 +44,7 @@ export async function relayEnv(overrides: Partial<Env> = {}): Promise<Env> {
     DB: env.DB,
     PUSH_RATE_LIMITER: fakeLimiter(),
     REGISTRATION_RATE_LIMITER: fakeLimiter(),
+    SELF_RATE_LIMITER: fakeLimiter(),
     APNS_KEY_ID: 'KEYID12345',
     APNS_TEAM_ID: 'TEAM123456',
     APNS_AUTH_KEY: await testAuthKey(),

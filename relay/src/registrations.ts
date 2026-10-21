@@ -1,22 +1,22 @@
 // Registration routes: create, rotate the APNs token, and delete (opt-out).
-// The bundle is fixed server-side; deviceSecret is the only credential for /self.
-// Each route checks body size and the per-source rate (no D1) before any D1 access.
+// The bundle is fixed server-side; deviceSecret is the only credential for /self. One row per
+// APNs token. Each route checks body size and its per-source rate (no D1) before any D1 access.
 
 import { Hono } from 'hono';
 import { randomToken } from './crypto';
 import { ceilingReached, globalRegistrationCheck, recordSuccess, sourceLimited } from './limits';
 import { bearer, gone, invalid, tooMany, unavailable } from './responses';
 import { deleteRegistration, findBySecret, insertRegistration, updateToken } from './store';
-import type { AppEnv, Env, TokenBody } from './types';
+import type { AppEnv, TokenBody } from './types';
 import { declaredSizeOk, parseJsonObject, parseTokenBody, readLimitedBody } from './validate';
 
 export const registrations = new Hono<AppEnv>();
 
 type Gate = 'ok' | 'invalid' | 'limited';
 
-async function gate(env: Env, request: Request, withBody: boolean): Promise<Gate> {
+async function gate(limiter: RateLimit, request: Request, withBody: boolean): Promise<Gate> {
   if (withBody && !declaredSizeOk(request)) return 'invalid';
-  return (await sourceLimited(env.REGISTRATION_RATE_LIMITER, request)) ? 'limited' : 'ok';
+  return (await sourceLimited(limiter, request)) ? 'limited' : 'ok';
 }
 
 async function tokenBody(request: Request): Promise<TokenBody | null> {
@@ -25,7 +25,7 @@ async function tokenBody(request: Request): Promise<TokenBody | null> {
 }
 
 registrations.post('/', async (c) => {
-  const gated = await gate(c.env, c.req.raw, true);
+  const gated = await gate(c.env.REGISTRATION_RATE_LIMITER, c.req.raw, true);
   if (gated !== 'ok') return gated === 'limited' ? tooMany(c) : invalid(c);
   const body = await tokenBody(c.req.raw);
   if (!body) return invalid(c);
@@ -39,7 +39,7 @@ registrations.post('/', async (c) => {
 });
 
 registrations.put('/self', async (c) => {
-  const gated = await gate(c.env, c.req.raw, true);
+  const gated = await gate(c.env.SELF_RATE_LIMITER, c.req.raw, true);
   if (gated !== 'ok') return gated === 'limited' ? tooMany(c) : invalid(c);
   const body = await tokenBody(c.req.raw);
   if (!body) return invalid(c);
@@ -51,7 +51,7 @@ registrations.put('/self', async (c) => {
 });
 
 registrations.delete('/self', async (c) => {
-  if ((await gate(c.env, c.req.raw, false)) === 'limited') return tooMany(c);
+  if ((await gate(c.env.SELF_RATE_LIMITER, c.req.raw, false)) === 'limited') return tooMany(c);
   const row = await findBySecret(c.env.DB, bearer(c));
   if (row) await deleteRegistration(c.env.DB, row.handle_hash);
   return c.body(null, 204);

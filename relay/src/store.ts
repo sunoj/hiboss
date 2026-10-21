@@ -1,4 +1,5 @@
 // D1 access for relay registrations, keyed only by SHA-256 of handle and deviceSecret.
+// One row per APNs token: registering or rotating to a token replaces the row that held it.
 // Lookups confirm the stored digest with a constant-time comparison.
 
 import { constantTimeEqual, sha256Hex } from './crypto';
@@ -16,7 +17,9 @@ export async function insertRegistration(
   await db
     .prepare(
       'INSERT INTO registrations (handle_hash, secret_hash, apns_token, environment, created_at, last_used_at) ' +
-        'VALUES (?, ?, ?, ?, ?, ?)',
+        'VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(apns_token) DO UPDATE SET handle_hash = excluded.handle_hash, ' +
+        'secret_hash = excluded.secret_hash, environment = excluded.environment, ' +
+        'created_at = excluded.created_at, last_used_at = excluded.last_used_at',
     )
     .bind(await sha256Hex(handle), await sha256Hex(secret), body.apnsToken, body.environment, now, now)
     .run();
@@ -49,10 +52,12 @@ export async function updateToken(
   body: TokenBody,
   now: number,
 ): Promise<void> {
-  await db
-    .prepare('UPDATE registrations SET apns_token = ?, environment = ?, last_used_at = ? WHERE handle_hash = ?')
-    .bind(body.apnsToken, body.environment, now, handleHash)
-    .run();
+  await db.batch([
+    db.prepare('DELETE FROM registrations WHERE apns_token = ? AND handle_hash <> ?').bind(body.apnsToken, handleHash),
+    db
+      .prepare('UPDATE registrations SET apns_token = ?, environment = ?, last_used_at = ? WHERE handle_hash = ?')
+      .bind(body.apnsToken, body.environment, now, handleHash),
+  ]);
 }
 
 export async function touch(db: D1Database, handleHash: string, now: number): Promise<void> {

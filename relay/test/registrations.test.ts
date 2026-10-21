@@ -1,4 +1,5 @@
-// Registration API tests: create, token rotation, deletion, validation and no-oracle.
+// Registration API tests: create, one row per APNs token, token rotation, deletion, validation
+// and no-oracle.
 
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,6 +54,41 @@ describe('POST /v1/registrations', () => {
     });
     expect(response.status).toBe(403);
     expect(await countRows('registrations')).toBe(0);
+  });
+});
+
+describe('one registration per APNs token', () => {
+  it('re-registering a token kills the old handle and secret and keeps one row', async () => {
+    const fetchMock = mockApns();
+    const old = await register(TOKEN_A, 'production');
+    const fresh = await register(TOKEN_A, 'sandbox');
+    expect(await countRows('registrations')).toBe(1);
+    expect((await call('POST', '/v1/push', { body: pushBody(old.handle) })).status).toBe(410);
+    const body = { apnsToken: TOKEN_B, environment: 'production' };
+    expect((await call('PUT', '/v1/registrations/self', { body, secret: old.deviceSecret })).status).toBe(410);
+    expect((await call('POST', '/v1/push', { body: pushBody(fresh.handle) })).status).toBe(202);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(`https://api.sandbox.push.apple.com/3/device/${TOKEN_A}`);
+  });
+
+  it('rotating to a token another registration holds replaces that registration', async () => {
+    mockApns();
+    const holder = await register(TOKEN_B);
+    const mover = await register(TOKEN_A);
+    const body = { apnsToken: TOKEN_B.toUpperCase(), environment: 'production' };
+    expect((await call('PUT', '/v1/registrations/self', { body, secret: mover.deviceSecret })).status).toBe(204);
+    const rows = await env.DB.prepare('SELECT handle_hash, apns_token FROM registrations').all();
+    expect(rows.results).toEqual([{ handle_hash: await sha256Hex(mover.handle), apns_token: TOKEN_B }]);
+    expect((await call('POST', '/v1/push', { body: pushBody(holder.handle) })).status).toBe(410);
+    expect((await call('POST', '/v1/push', { body: pushBody(mover.handle) })).status).toBe(202);
+  });
+
+  it('rotating to the token a registration already holds keeps it', async () => {
+    const { handle, deviceSecret } = await register(TOKEN_A);
+    const body = { apnsToken: TOKEN_A, environment: 'sandbox' };
+    expect((await call('PUT', '/v1/registrations/self', { body, secret: deviceSecret })).status).toBe(204);
+    expect(await countRows('registrations')).toBe(1);
+    expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(202);
   });
 });
 

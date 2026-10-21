@@ -1,18 +1,14 @@
-// Abuse limits: per-source request rates in the Workers Rate Limiting binding (no D1),
-// and fixed-window D1 counters per handle and for the relay-wide push and registration ceilings.
-
-import type { Env } from './types';
+// Abuse limits: per-source request rates in Workers Rate Limiting bindings (no D1), and
+// fixed-window D1 counters per handle and for the relay-wide registration ceiling.
 
 export const HOUR_MS = 3_600_000;
 export const DAY_MS = 86_400_000;
-export const DEFAULT_GLOBAL_DAILY_LIMIT = 200_000;
-export const GLOBAL_PUSH_SCOPE = 'global';
 export const GLOBAL_REGISTRATION_SCOPE = 'global:reg';
 
 export const LIMITS = {
   handlePerHour: 60,
   handlePerDay: 500,
-  registrationsPerHour: 5_000,
+  registrationsPerHour: 50_000,
 } as const;
 
 export interface LimitCheck {
@@ -55,12 +51,6 @@ export async function recordSuccess(db: D1Database, check: LimitCheck, now: numb
   await incrementStatement(db, check, now).run();
 }
 
-export function globalPushCheck(env: Env): LimitCheck {
-  const parsed = Number(env.GLOBAL_DAILY_PUSH_LIMIT);
-  const max = Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_GLOBAL_DAILY_LIMIT;
-  return { scope: GLOBAL_PUSH_SCOPE, periodMs: DAY_MS, max };
-}
-
 export const globalRegistrationCheck: LimitCheck = {
   scope: GLOBAL_REGISTRATION_SCOPE,
   periodMs: HOUR_MS,
@@ -68,16 +58,20 @@ export const globalRegistrationCheck: LimitCheck = {
 };
 
 /**
- * Rate-limit key for the caller: the `CF-Worker` zone for Worker subrequests (which share
- * Cloudflare egress addresses), else the IPv6 /64 prefix or the full IPv4 address.
+ * Rate-limit key for the caller: the `CF-Worker` zone (or `-`), `|`, and the IPv6 /64 prefix or
+ * the full IPv4 address of `CF-Connecting-IP`. Never the header alone: a forged header only
+ * splits the forger's own address budget, and Worker subrequests sharing an egress address
+ * still get one bucket per zone.
  */
 export function sourceKey(request: Request): string {
-  const worker = request.headers.get('CF-Worker');
-  if (worker) return `worker:${worker.toLowerCase()}`;
-  const ip = request.headers.get('CF-Connecting-IP') ?? '';
-  if (ip.includes('.')) return `ip:${ip.slice(ip.lastIndexOf(':') + 1)}`;
-  if (!ip.includes(':')) return `ip:${ip || 'unknown'}`;
-  return `ip6:${ipv6Prefix64(ip)}`;
+  const worker = request.headers.get('CF-Worker')?.toLowerCase() || '-';
+  return `${worker}|${addressKey(request.headers.get('CF-Connecting-IP') ?? '')}`;
+}
+
+function addressKey(ip: string): string {
+  if (ip.includes('.')) return ip.slice(ip.lastIndexOf(':') + 1);
+  if (!ip.includes(':')) return ip || 'unknown';
+  return ipv6Prefix64(ip);
 }
 
 /** First four hextets of an IPv6 address, expanded and normalized, e.g. `2001:db8:0:1::/64`. */

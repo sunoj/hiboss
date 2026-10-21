@@ -1,9 +1,9 @@
 -- Push relay schema: opt-in registrations and fixed-window rate counters.
--- Handles and device secrets are stored only as SHA-256 hex digests.
+-- Handles and device secrets are stored only as SHA-256 hex digests; one row per APNs token.
 CREATE TABLE IF NOT EXISTS registrations (
   handle_hash TEXT PRIMARY KEY,
   secret_hash TEXT NOT NULL UNIQUE,
-  apns_token TEXT NOT NULL,
+  apns_token TEXT NOT NULL UNIQUE,
   environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'production')),
   created_at INTEGER NOT NULL,
   last_used_at INTEGER NOT NULL

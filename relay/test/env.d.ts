@@ -7,6 +7,7 @@ declare global {
   namespace Cloudflare {
     interface Env extends RelayEnv {
       TEST_MIGRATIONS: D1Migration[];
+      WRANGLER_EXAMPLE: string;
     }
   }
 }
