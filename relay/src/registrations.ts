@@ -1,11 +1,12 @@
 // Registration routes: create, rotate the APNs token, and delete (opt-out).
 // The bundle is fixed server-side; deviceSecret is the only credential for /self. One row per
 // APNs token, stored only after APNs accepts a background push to it; handles carry a HANDLE_KEY
-// MAC. Each route checks body size and its per-address rate (no D1) before any D1 access.
+// MAC. Each route checks body size and its per-address rate (no D1) before any D1 access; POST
+// also checks a per-token rate before the APNs token check.
 
 import { type Context, Hono } from 'hono';
 import { type TokenCheck, verifyToken } from './apns';
-import { randomToken } from './crypto';
+import { randomToken, sha256Hex } from './crypto';
 import { mintHandle } from './handles';
 import { clientKey, rateLimited } from './limits';
 import { bearer, gone, invalid, invalidToken, tooMany, unavailable } from './responses';
@@ -40,6 +41,7 @@ registrations.post('/', async (c) => {
   if (!body) return invalid(c);
   const handleKey = c.env.HANDLE_KEY;
   if (!handleKey) return unavailable(c);
+  if (await rateLimited(c.env.TOKEN_RATE_LIMITER, await sha256Hex(body.apnsToken))) return tooMany(c);
   const failure = rejected(c, await verifyToken(c.env, body));
   if (failure) return failure;
   const handle = await mintHandle(handleKey);

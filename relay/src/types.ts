@@ -6,6 +6,7 @@ export interface Env {
   HANDLE_RATE_LIMITER: RateLimit;
   REGISTRATION_RATE_LIMITER: RateLimit;
   SELF_RATE_LIMITER: RateLimit;
+  TOKEN_RATE_LIMITER: RateLimit;
   APNS_KEY_ID?: string;
   APNS_TEAM_ID?: string;
   APNS_AUTH_KEY?: string;

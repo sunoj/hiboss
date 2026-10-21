@@ -100,6 +100,28 @@ describe('rate limits', () => {
   });
 });
 
+describe('per-token registration rate', () => {
+  it('keys on SHA-256 of the lower-cased token and answers 429 before the APNs check or D1', async () => {
+    const fetchMock = mockApns();
+    const limiter = fakeLimiter(false);
+    const relay = await relayEnv({ DB: forbiddenDb, TOKEN_RATE_LIMITER: limiter });
+    const body = { ...tokenBody, apnsToken: TOKEN_A.toUpperCase() };
+    const response = await call('POST', '/v1/registrations', { body, env: relay });
+    expect(`${response.status} ${await response.text()}`).toBe('429 {"error":"rate_limited"}');
+    expect(limiter.keys).toEqual([await sha256Hex(TOKEN_A)]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('is not consulted for /self or push requests', async () => {
+    mockApns();
+    const relay = await relayEnv();
+    const { handle, deviceSecret } = await register();
+    await call('PUT', '/v1/registrations/self', { body: tokenBody, secret: deviceSecret, env: relay });
+    await call('POST', '/v1/push', { body: pushBody(handle), env: relay });
+    expect((relay.TOKEN_RATE_LIMITER as ReturnType<typeof fakeLimiter>).keys).toEqual([]);
+  });
+});
+
 describe('body size', () => {
   it.each([
     ['POST', '/v1/registrations'],

@@ -24,6 +24,12 @@ name = "REGISTRATION_RATE_LIMITER"
 namespace_id = "7102"
 simple = { limit = 5, period = 60 }
 
+# POST /v1/registrations per APNs token (key: SHA-256 of the token), before the APNs check.
+[[ratelimits]]
+name = "TOKEN_RATE_LIMITER"
+namespace_id = "7105"
+simple = { limit = 2, period = 60 }
+
 # PUT and DELETE /v1/registrations/self.
 [[ratelimits]]
 name = "SELF_RATE_LIMITER"
@@ -39,4 +45,6 @@ crons = ["17 3 * * *"]
 #   APNS_TEAM_ID   Apple developer team ID
 #   APNS_AUTH_KEY  APNs .p8 private key (PKCS#8 PEM)
 #   HANDLE_KEY     HMAC key that signs push handles, e.g. `openssl rand -base64 32`;
-#                  rotating it invalidates every handle
+#                  rotating it invalidates every handle; then run
+#                  `wrangler d1 execute hiboss-push-relay --remote --command "DELETE FROM registrations"`
+#                  so every app re-registers (see docs/push-relay.md)

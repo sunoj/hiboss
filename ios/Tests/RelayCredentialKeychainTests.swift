@@ -1,5 +1,5 @@
 // The relay credentials item round-trips in the shared keychain group, readable after first unlock
-// on this device only; an older item is migrated on read.
+// on this device only; an older item is migrated in place on read.
 // Exports: RelayCredentialKeychainTests.
 // Dependencies: XCTest, Security, KeychainRelayCredentialStore.
 
@@ -34,9 +34,11 @@ final class RelayCredentialKeychainTests: XCTestCase {
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         XCTAssertEqual(SecItemAdd(item as CFDictionary, nil), errSecSuccess)
         XCTAssertEqual(try accessibility(), kSecAttrAccessibleAfterFirstUnlock as String)
+        let original = try persistentReference()
 
         XCTAssertEqual(try store.read(), credentials)
         XCTAssertEqual(try accessibility(), kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
+        XCTAssertEqual(try persistentReference(), original, "updated in place, not deleted and re-added")
         XCTAssertEqual(try store.read(), credentials)
     }
 
@@ -48,6 +50,14 @@ final class RelayCredentialKeychainTests: XCTestCase {
         ]
         query[kSecAttrAccessGroup as String] = KeychainRelayCredentialStore.sharedAccessGroup
         return query
+    }
+
+    private func persistentReference() throws -> Data {
+        var query = query
+        query[kSecReturnPersistentRef as String] = true
+        var item: CFTypeRef?
+        XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
+        return try XCTUnwrap(item as? Data)
     }
 
     private func accessibility() throws -> String? {

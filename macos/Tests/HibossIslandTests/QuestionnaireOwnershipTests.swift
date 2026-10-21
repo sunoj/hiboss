@@ -71,6 +71,18 @@ final class QuestionnaireOwnershipTests: XCTestCase {
         XCTAssertEqual(center.notices.first?.alert, MessageAlert(sound: true, level: .active))
     }
 
+    func testOverlappingEmissionsAnnounceOnce() async throws {
+        let center = RecordingQuestionnaireCenter()
+        let notifier = QuestionnaireNotifier(center: center, since: .distantPast,
+            isAuthorized: { try? await Task.sleep(for: .milliseconds(20)); return true },
+            preferences: { BossPreferences() })
+        let request = try Self.questionnaire(createdAt: "2026-10-21T12:00:00Z")
+        async let first: Void = notifier.receive([request])
+        async let second: Void = notifier.receive([request])
+        _ = await (first, second)
+        XCTAssertEqual(center.notices.map(\.requestID), [request.requestId])
+    }
+
     static func questionnaire(id: String = "request-1", blocking: Bool = true,
                               createdAt: String) throws -> PendingQuestionnaire {
         let json = """
