@@ -10,7 +10,8 @@ Delivery reads part of that blob:
   (`server/src/routes/quiet-hours.ts`) finds the latest quiet-hours end among the bosses who can
   see the agent; a `normal` or `low` agent-to-boss send is queued in `delivery_queue` until then,
   including sends with no legacy channel config. Those sends use an internal API queue entry;
-  the cron drain delivers the same boss-agent callback and push an immediate send gets. On the destinations path, `destinationQuietEnd` (`server/src/delivery/destinations.ts`)
+  the cron drain delivers the same boss-agent callback and push an immediate send gets.
+  On the destinations path, `destinationQuietEnd` (`server/src/delivery/destinations.ts`)
   defers each boss destination that honours quiet hours. Both read the flat
   `quiet_hours_start/end` and the nested `quiet_hours { start, end, timezone, enabled }` shapes,
   skip `enabled: false`, and never defer `high` or `critical`.

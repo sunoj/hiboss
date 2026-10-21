@@ -152,10 +152,18 @@ final class IslandPanelController {
                     && previous.1 == next.1
             }
             .sink { [weak self] presentation, mode in
-                if let presentation, self?.presentedID != presentation.message.id {
-                    self?.announce(priority: presentation.item?.message.priority ?? "normal")
-                }
                 self?.updatePresentation(message: presentation?.message, mode: mode)
+            }
+            .store(in: &cancellables)
+
+        // activeMessage publishes once per question reaching the panel and nil when it clears.
+        flow.$activeMessage
+            .sink { [weak self] message in
+                guard let self, let message else { return }
+                let priority = self.overview.snapshot.today.decisions.first {
+                    $0.id == message.id
+                }?.message.priority ?? "normal"
+                self.announce(priority: priority)
             }
             .store(in: &cancellables)
 

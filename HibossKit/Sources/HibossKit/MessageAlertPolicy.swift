@@ -44,7 +44,8 @@ public enum MessageAlertPolicy {
             return false
         }
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: quietHours.timezone.trimmingCharacters(in: .whitespacesAndNewlines)) ?? TimeZone(identifier: "UTC") ?? .current
+        let timezone = quietHours.timezone.trimmingCharacters(in: .whitespacesAndNewlines)
+        calendar.timeZone = TimeZone(identifier: timezone) ?? TimeZone(identifier: "UTC") ?? .current
         let parts = calendar.dateComponents([.hour, .minute], from: now)
         let current = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
         return start < end ? current >= start && current < end : current >= start || current < end
