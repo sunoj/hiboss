@@ -58,10 +58,9 @@ final class DecisionStateUITests: XCTestCase {
         session.tap()
         let automatic = app.descendants(matching: .any)["session-automatic-reply"]
         XCTAssertTrue(automatic.waitForExistence(timeout: 8), "the timeout default has its own row")
-        XCTAssertTrue(automatic.label.contains("Auto-selected when time ran out"), automatic.label)
-        XCTAssertTrue(automatic.label.contains("Default picked · not approval"), automatic.label)
-        let answer = app.descendants(matching: .any)["transcript-answer-a1"]
+        let answer = automatic.descendants(matching: .any)["transcript-answer-a1"]
         XCTAssertTrue(answer.label.contains("Auto-selected when time ran out"), answer.label)
+        XCTAssertTrue(answer.label.contains("Default picked · not approval"), answer.label)
         XCTAssertFalse(app.descendants(matching: .any)["session-bubble-outgoing"].exists,
                        "no boss bubble claims the automatic answer")
     }

@@ -133,7 +133,9 @@ struct SessionThreadCard: View {
                 MessageReactions(message: entry)
                 ThreadMessageDetails(message: entry)
             }.accessibilityElement(children: .contain)
-                .accessibilityIdentifier("session-bubble-outgoing")
+                // A timeout default is the server's row, never the boss's outgoing bubble.
+                .accessibilityIdentifier(settlement.isAutoDefault
+                    ? "session-automatic-reply" : "session-bubble-outgoing")
         } else {
             VStack(alignment: .leading, spacing: 4) {
                 if entry.agentName != root.agentName {
