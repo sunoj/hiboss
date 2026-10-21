@@ -193,14 +193,16 @@ public final class SessionStreamStore: ObservableObject {
     private func runStreamLoop() async {
         guard let api else { return }
         while !Task.isCancelled {
-            connectionState = .connecting
+            if case .failed = connectionState {} else { connectionState = .connecting }
             let stream = await api.sessionEventStream(sessionID: sessionID, after: lastAppliedSequence)
             guard !Task.isCancelled else { return }
-            connectionState = .connected
             do {
                 for try await frame in stream {
                     if Task.isCancelled { return }
+                    connectionState = .connected
                     switch frame {
+                    case .open:
+                        continue
                     case .resync:
                         await reloadWindow(reason: .resync)
                         return
