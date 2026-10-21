@@ -2,7 +2,18 @@
 
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CIPHERTEXT, TOKEN_A, call, countRows, mockApns, pushBody, register, relayEnv, resetDb } from './helpers';
+import {
+  CIPHERTEXT,
+  TOKEN_A,
+  apnsCalls,
+  call,
+  countRows,
+  mockApns,
+  pushBody,
+  register,
+  relayEnv,
+  resetDb,
+} from './helpers';
 
 beforeEach(resetDb);
 afterEach(() => {
@@ -11,7 +22,7 @@ afterEach(() => {
 });
 
 function apnsRequest(fetchMock: ReturnType<typeof mockApns>, index = 0) {
-  const [url, init] = fetchMock.mock.calls[index] as [string, RequestInit];
+  const [url, init] = apnsCalls(fetchMock, 'alert')[index];
   const headers = init.headers as Record<string, string>;
   return { url, headers, payload: JSON.parse(init.body as string) as Record<string, unknown> };
 }
@@ -74,7 +85,7 @@ describe('POST /v1/push validation', () => {
     const { handle } = await register();
     const response = await call('POST', '/v1/push', { body: pushBody(handle, extra) });
     expect(response.status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(0);
   });
 
   it('accepts exactly 2048 ciphertext bytes and a 64-byte collapseId', async () => {
@@ -100,7 +111,7 @@ describe('POST /v1/push handles', () => {
     ];
     const seen = await Promise.all(responses.map(async (r) => `${r.status} ${await r.text()}`));
     expect(new Set(seen)).toEqual(new Set(['410 {"error":"gone"}']));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(0);
   });
 
   it('does not accept the deviceSecret as a push handle', async () => {
@@ -140,7 +151,7 @@ describe('POST /v1/push APNs outcomes', () => {
       env: await relayEnv({ APNS_AUTH_KEY: undefined }),
     });
     expect(response.status).toBe(503);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(0);
   });
 
   it('refreshes last_used_at on a delivered push', async () => {

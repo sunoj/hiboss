@@ -7,6 +7,7 @@ import type { AppEnv } from './types';
 type Ctx = Context<AppEnv>;
 
 export const invalid = (c: Ctx) => c.json({ error: 'invalid_request' }, 400);
+export const invalidToken = (c: Ctx) => c.json({ error: 'invalid_token' }, 400);
 export const gone = (c: Ctx) => c.json({ error: 'gone' }, 410);
 export const tooMany = (c: Ctx) => c.json({ error: 'rate_limited' }, 429);
 export const unavailable = (c: Ctx) => c.json({ error: 'unavailable' }, 503);

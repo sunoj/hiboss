@@ -4,7 +4,7 @@
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256Hex } from '../src/crypto';
-import { TOKEN_A, TOKEN_B, call, countRows, mockApns, pushBody, register, resetDb } from './helpers';
+import { TOKEN_A, TOKEN_B, apnsCalls, call, countRows, mockApns, pushBody, register, resetDb } from './helpers';
 
 beforeEach(async () => {
   await resetDb();
@@ -67,8 +67,9 @@ describe('one registration per APNs token', () => {
     const body = { apnsToken: TOKEN_B, environment: 'production' };
     expect((await call('PUT', '/v1/registrations/self', { body, secret: old.deviceSecret })).status).toBe(410);
     expect((await call('POST', '/v1/push', { body: pushBody(fresh.handle) })).status).toBe(202);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe(`https://api.sandbox.push.apple.com/3/device/${TOKEN_A}`);
+    const alerts = apnsCalls(fetchMock, 'alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0][0]).toBe(`https://api.sandbox.push.apple.com/3/device/${TOKEN_A}`);
   });
 
   it('rotating to a token another registration holds replaces that registration', async () => {
@@ -102,7 +103,7 @@ describe('PUT /v1/registrations/self', () => {
     });
     expect(put.status).toBe(204);
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(202);
-    expect(fetchMock.mock.calls[0][0]).toBe(`https://api.sandbox.push.apple.com/3/device/${TOKEN_B}`);
+    expect(apnsCalls(fetchMock, 'alert')[0][0]).toBe(`https://api.sandbox.push.apple.com/3/device/${TOKEN_B}`);
   });
 
   it('answers wrong, missing and malformed secrets exactly like an unknown one', async () => {

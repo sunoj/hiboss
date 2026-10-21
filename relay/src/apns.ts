@@ -1,10 +1,11 @@
-// APNs sender for the relay: provider JWT (ES256) plus one alert push per call.
-// The alert is generic and chosen by kind only; the ciphertext rides in custom key `e`.
-// Priority, interruption level and sound come verbatim from the Server's delivery level.
+// APNs sender for the relay: provider JWT (ES256), one alert push per call, and the background
+// push that proves APNs accepts a token before it is stored. The alert is generic and chosen by
+// kind only; the ciphertext rides in custom key `e`. Priority, interruption level and sound come
+// verbatim from the Server's delivery level.
 // Depends on Workers WebCrypto, fetch and the APNS_* Worker secrets.
 
 import { base64UrlBytes } from './crypto';
-import type { ApnsEnvironment, DeliveryLevel, Env, PushKind } from './types';
+import type { ApnsEnvironment, DeliveryLevel, Env, PushKind, TokenBody } from './types';
 
 export const BUNDLE_ID = 'ai.hiboss.app';
 export const TITLE_LOC_KEY = 'HIBOSS_PUSH_TITLE';
@@ -15,6 +16,11 @@ const BODY_LOC_KEYS: Record<PushKind, string> = {
 };
 
 export type ApnsOutcome = 'sent' | 'gone' | 'failed' | 'unconfigured';
+export type TokenCheck = 'valid' | 'invalid' | 'failed' | 'unconfigured';
+
+export const VERIFY_TIMEOUT_MS = 5_000;
+const BACKGROUND_PAYLOAD = JSON.stringify({ aps: { 'content-available': 1 } });
+const BACKGROUND_HEADERS = { 'apns-push-type': 'background', 'apns-priority': '5' };
 
 export interface RelayPush extends DeliveryLevel {
   apnsToken: string;
@@ -45,26 +51,58 @@ export function buildPayload(push: RelayPush): Record<string, unknown> {
 }
 
 export async function sendApns(env: Env, push: RelayPush): Promise<ApnsOutcome> {
-  const { APNS_KEY_ID: keyId, APNS_TEAM_ID: teamId, APNS_AUTH_KEY: authKey } = env;
-  if (!keyId || !teamId || !authKey) return 'unconfigured';
-  const jwt = await providerJwt(keyId, teamId, authKey);
-  const host = push.environment === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
   const headers: Record<string, string> = {
-    authorization: `bearer ${jwt}`,
-    'content-type': 'application/json',
-    'apns-topic': BUNDLE_ID,
     'apns-push-type': 'alert',
     'apns-priority': String(push.priority),
   };
   if (push.collapseId) headers['apns-collapse-id'] = push.collapseId;
-  const response = await fetch(`https://${host}/3/device/${push.apnsToken}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(buildPayload(push)),
-  });
+  const response = await postApns(env, push, headers, JSON.stringify(buildPayload(push)));
+  if (!response) return 'unconfigured';
   if (response.ok) return 'sent';
   if (response.status === 410) return 'gone';
   return (await apnsReason(response)) === 'BadDeviceToken' ? 'gone' : 'failed';
+}
+
+/**
+ * Sends one background push to the token in its environment. 200 → valid; APNs rejecting the
+ * token (400 or 410) → invalid; any other status, a transport error or the timeout → failed.
+ */
+export async function verifyToken(env: Env, token: TokenBody): Promise<TokenCheck> {
+  let response: Response | null;
+  try {
+    const signal = AbortSignal.timeout(VERIFY_TIMEOUT_MS);
+    response = await postApns(env, token, BACKGROUND_HEADERS, BACKGROUND_PAYLOAD, signal);
+  } catch {
+    return 'failed';
+  }
+  if (!response) return 'unconfigured';
+  if (response.ok) return 'valid';
+  return response.status === 400 || response.status === 410 ? 'invalid' : 'failed';
+}
+
+/** One APNs request for `ai.hiboss.app`; null when the APNs secrets are not configured. */
+async function postApns(
+  env: Env,
+  target: TokenBody,
+  headers: Record<string, string>,
+  body: string,
+  signal?: AbortSignal,
+): Promise<Response | null> {
+  const { APNS_KEY_ID: keyId, APNS_TEAM_ID: teamId, APNS_AUTH_KEY: authKey } = env;
+  if (!keyId || !teamId || !authKey) return null;
+  const jwt = await providerJwt(keyId, teamId, authKey);
+  const host = target.environment === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
+  return fetch(`https://${host}/3/device/${target.apnsToken}`, {
+    method: 'POST',
+    headers: {
+      authorization: `bearer ${jwt}`,
+      'content-type': 'application/json',
+      'apns-topic': BUNDLE_ID,
+      ...headers,
+    },
+    body,
+    signal,
+  });
 }
 
 async function providerJwt(keyId: string, teamId: string, authKey: string): Promise<string> {

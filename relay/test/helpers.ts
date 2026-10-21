@@ -1,4 +1,5 @@
 // Shared relay test helpers: request builder, APNs fetch mock, fake rate limiters, fixtures, DB reset.
+// The APNs mock answers token checks (background pushes) and alert pushes separately.
 // Calls the Worker entry directly so the stubbed global fetch is the APNs boundary.
 
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
@@ -80,12 +81,31 @@ export async function call(method: string, path: string, opts: CallOptions = {})
   return response;
 }
 
-export function mockApns(status = 200, reason?: string) {
-  const fetchMock = vi.fn<typeof fetch>(async () =>
-    reason ? Response.json({ reason }, { status }) : new Response(null, { status }),
-  );
+export interface ApnsReply {
+  status: number;
+  reason?: string;
+}
+
+function reply({ status, reason }: ApnsReply): Response {
+  return reason ? Response.json({ reason }, { status }) : new Response(null, { status });
+}
+
+/** Stubs APNs: alert pushes get `status`/`reason`, token checks (background pushes) get `verify`. */
+export function mockApns(status = 200, reason?: string, verify: ApnsReply = { status: 200 }) {
+  const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+    const background = (init?.headers as Record<string, string>)['apns-push-type'] === 'background';
+    return reply(background ? verify : { status, reason });
+  });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
+}
+
+export type ApnsCall = [string, RequestInit];
+
+/** Recorded APNs calls of one push type, in order. */
+export function apnsCalls(fetchMock: ReturnType<typeof mockApns>, type: 'alert' | 'background'): ApnsCall[] {
+  const calls = fetchMock.mock.calls as ApnsCall[];
+  return calls.filter(([, init]) => (init.headers as Record<string, string>)['apns-push-type'] === type);
 }
 
 export async function register(

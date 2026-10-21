@@ -1,4 +1,4 @@
-// Scheduled purge tests: unused registrations after 90 days and expired rate counters.
+// Scheduled purge tests: unused registrations after 30 days and expired rate counters.
 
 import { createExecutionContext, createScheduledController, env, waitOnExecutionContext } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,7 @@ import { FIXED_NOW, TOKEN_A, TOKEN_B, call, countRows, mockApns, pushBody, regis
 
 beforeEach(async () => {
   await resetDb();
+  mockApns();
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(FIXED_NOW);
 });
@@ -23,42 +24,42 @@ async function runCron(): Promise<void> {
 }
 
 describe('scheduled purge', () => {
-  it('deletes registrations unused for 90 days and keeps ones used since', async () => {
-    mockApns();
+  it('deletes registrations unused for 30 days and keeps ones used since', async () => {
     const stale = await register(TOKEN_A);
     const active = await register(TOKEN_B);
-    vi.setSystemTime(FIXED_NOW + 60 * DAY_MS);
+    vi.setSystemTime(FIXED_NOW + 20 * DAY_MS);
     expect((await call('POST', '/v1/push', { body: pushBody(active.handle) })).status).toBe(202);
-    vi.setSystemTime(FIXED_NOW + 90 * DAY_MS + 1);
+    vi.setSystemTime(FIXED_NOW + 30 * DAY_MS + 1);
     await runCron();
     expect(await countRows('registrations')).toBe(1);
     expect((await call('POST', '/v1/push', { body: pushBody(stale.handle) })).status).toBe(410);
     expect((await call('POST', '/v1/push', { body: pushBody(active.handle) })).status).toBe(202);
   });
 
-  it('keeps a registration exactly 90 days old', async () => {
+  it('keeps a registration exactly 30 days old', async () => {
     await register();
-    vi.setSystemTime(FIXED_NOW + 90 * DAY_MS);
+    vi.setSystemTime(FIXED_NOW + 30 * DAY_MS);
     await runCron();
     expect(await countRows('registrations')).toBe(1);
   });
 
   it('counts token rotation as use', async () => {
     const { deviceSecret } = await register(TOKEN_A);
-    vi.setSystemTime(FIXED_NOW + 80 * DAY_MS);
+    vi.setSystemTime(FIXED_NOW + 25 * DAY_MS);
     const body = { apnsToken: TOKEN_B, environment: 'production' };
     expect((await call('PUT', '/v1/registrations/self', { body, secret: deviceSecret })).status).toBe(204);
-    vi.setSystemTime(FIXED_NOW + 100 * DAY_MS);
+    vi.setSystemTime(FIXED_NOW + 40 * DAY_MS);
     await runCron();
     expect(await countRows('registrations')).toBe(1);
   });
 
   it('removes expired rate counters and keeps live ones', async () => {
-    await register();
-    expect(await countRows('rate_counters')).toBe(1);
+    const { handle } = await register();
+    await call('POST', '/v1/push', { body: pushBody(handle) });
+    expect(await countRows('rate_counters')).toBe(2);
     vi.setSystemTime(FIXED_NOW + DAY_MS);
-    await register(TOKEN_B);
+    await call('POST', '/v1/push', { body: pushBody(handle) });
     await runCron();
-    expect(await countRows('rate_counters')).toBe(1);
+    expect(await countRows('rate_counters')).toBe(2);
   });
 });

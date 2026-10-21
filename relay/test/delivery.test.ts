@@ -2,7 +2,7 @@
 // Kind selects only the loc-key; it never changes the APNs urgency.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DELIVERY, call, mockApns, pushBody, register, resetDb } from './helpers';
+import { DELIVERY, apnsCalls, call, mockApns, pushBody, register, resetDb } from './helpers';
 
 beforeEach(resetDb);
 afterEach(() => {
@@ -15,7 +15,7 @@ async function sentRequest(extra: Record<string, unknown>) {
   const { handle } = await register();
   const response = await call('POST', '/v1/push', { body: pushBody(handle, extra) });
   expect(response.status).toBe(202);
-  const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+  const [, init] = apnsCalls(fetchMock, 'alert')[0];
   const payload = JSON.parse(init.body as string) as { aps: Record<string, unknown> };
   return { headers: init.headers as Record<string, string>, aps: payload.aps };
 }
@@ -62,7 +62,7 @@ async function expectRejected(mutate: (body: Record<string, unknown>) => void) {
   const body = { ...valid };
   mutate(body);
   expect((await call('POST', '/v1/push', { body })).status).toBe(400);
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(apnsCalls(fetchMock, 'alert')).toHaveLength(1);
 }
 
 describe('POST /v1/push delivery level validation', () => {

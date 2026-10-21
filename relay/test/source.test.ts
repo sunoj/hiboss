@@ -4,7 +4,7 @@
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256Hex } from '../src/crypto';
-import { ipv6Prefix64, sourceKey } from '../src/limits';
+import { clientKey, ipv6Prefix64, sourceKey } from '../src/limits';
 import {
   TOKEN_A,
   TOKEN_B,
@@ -66,19 +66,29 @@ describe('source key', () => {
     expect(ipv6Prefix64('2001:db8::')).toBe('2001:db8:0:0::/64');
   });
 
-  it('passes the derived key to the push, registration and /self limiters', async () => {
+  it('keys registrations on the client address only, ignoring CF-Worker', () => {
+    const ip = '2001:db8:0:9::5';
+    expect(clientKey(new Request('https://push.test/', { headers: { 'CF-Connecting-IP': ip } }))).toBe(
+      '2001:db8:0:9::/64',
+    );
+    const forged = { 'CF-Worker': 'boss.example.com', 'CF-Connecting-IP': '198.51.100.7' };
+    expect(clientKey(new Request('https://push.test/', { headers: forged }))).toBe('198.51.100.7');
+  });
+
+  it('passes the push key to the push limiter and the address to the registration limiters', async () => {
     mockApns();
     const relay = await relayEnv();
     const headers = { 'CF-Worker': 'boss.example.com' };
     const ip = '2a06:98c0:3600::103';
-    await call('POST', '/v1/registrations', { body: tokenBody, env: relay, ip: '2001:db8:0:9::5' });
+    await call('POST', '/v1/registrations', { body: tokenBody, env: relay, headers, ip: '2001:db8:0:9::5' });
     await call('POST', '/v1/push', { body: pushBody('x'), env: relay, headers, ip });
-    await call('PUT', '/v1/registrations/self', { body: tokenBody, secret: 'x', env: relay, ip: '198.51.100.7' });
-    await call('DELETE', '/v1/registrations/self', { secret: 'x', env: relay, ip: '198.51.100.7' });
+    const self = { secret: 'x', env: relay, headers, ip: '198.51.100.7' };
+    await call('PUT', '/v1/registrations/self', { body: tokenBody, ...self });
+    await call('DELETE', '/v1/registrations/self', self);
     const keys = (limiter: RateLimit) => (limiter as ReturnType<typeof fakeLimiter>).keys;
-    expect(keys(relay.REGISTRATION_RATE_LIMITER)).toEqual(['-|2001:db8:0:9::/64']);
+    expect(keys(relay.REGISTRATION_RATE_LIMITER)).toEqual(['2001:db8:0:9::/64']);
     expect(keys(relay.PUSH_RATE_LIMITER)).toEqual(['boss.example.com|2a06:98c0:3600:0::/64']);
-    expect(keys(relay.SELF_RATE_LIMITER)).toEqual(['-|198.51.100.7', '-|198.51.100.7']);
+    expect(keys(relay.SELF_RATE_LIMITER)).toEqual(['198.51.100.7', '198.51.100.7']);
   });
 });
 
@@ -140,6 +150,7 @@ describe('body size', () => {
   });
 
   it('accepts a body of exactly 8,192 bytes', async () => {
+    mockApns();
     const base = JSON.stringify({ apnsToken: TOKEN_A, environment: 'production' });
     const raw = base.replace('{', '{' + ' '.repeat(8192 - base.length));
     expect((await call('POST', '/v1/registrations', { raw })).status).toBe(201);

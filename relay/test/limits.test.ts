@@ -1,16 +1,17 @@
-// D1 limit tests: per handle (hour/day), no per-IP push bucket, no relay-wide push ceiling,
-// the global registration ceiling, and the rate-limit bindings configured in the example.
+// D1 limit tests: per device (hour/day, keyed on the APNs token), no per-IP push bucket, no
+// relay-wide push or registration ceiling, and the rate-limit bindings configured in the example.
 
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256Hex } from '../src/crypto';
 import * as limits from '../src/limits';
-import { DAY_MS, GLOBAL_REGISTRATION_SCOPE, HOUR_MS, counterKey } from '../src/limits';
+import { DAY_MS, HOUR_MS, counterKey } from '../src/limits';
 import type { Env } from '../src/types';
 import {
   FIXED_NOW,
   TOKEN_A,
   TOKEN_B,
+  apnsCalls,
   call,
   countRows,
   mockApns,
@@ -39,6 +40,8 @@ async function seedCounter(scope: string, periodMs: number, count: number): Prom
     .run();
 }
 
+const deviceScope = async (token: string) => `token:${await sha256Hex(token)}`;
+
 async function globalCount(scope: string, periodMs: number): Promise<number> {
   const row = await env.DB.prepare('SELECT count FROM rate_counters WHERE key = ?')
     .bind(counterKey(scope, periodMs, Date.now()))
@@ -46,7 +49,7 @@ async function globalCount(scope: string, periodMs: number): Promise<number> {
   return row?.count ?? 0;
 }
 
-describe('per-handle limits', () => {
+describe('per-device limits', () => {
   it('allows 60 pushes per hour, rejects the 61st with 429, and resets next hour', async () => {
     const fetchMock = mockApns();
     const { handle } = await register();
@@ -54,16 +57,30 @@ describe('per-handle limits', () => {
       expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(202);
     }
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(429);
-    expect(fetchMock).toHaveBeenCalledTimes(60);
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(60);
     vi.setSystemTime(FIXED_NOW + HOUR_MS);
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(202);
   });
 
-  it('does not let one handle consume another handle’s budget', async () => {
+  it('keeps 60 per hour across 5 re-registrations of one token', async () => {
+    const fetchMock = mockApns();
+    let accepted = 0;
+    for (let round = 0; round < 5; round += 1) {
+      const { handle } = await register(TOKEN_A);
+      for (let i = 0; i < 61; i += 1) {
+        if ((await call('POST', '/v1/push', { body: pushBody(handle) })).status === 202) accepted += 1;
+      }
+    }
+    expect(accepted).toBe(60);
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(60);
+    expect(apnsCalls(fetchMock, 'background')).toHaveLength(5);
+  });
+
+  it('does not let one device consume another device’s budget', async () => {
     mockApns();
     const first = await register(TOKEN_A);
     const second = await register(TOKEN_B);
-    await seedCounter(`handle:${await sha256Hex(first.handle)}`, HOUR_MS, 60);
+    await seedCounter(await deviceScope(TOKEN_A), HOUR_MS, 60);
     expect((await call('POST', '/v1/push', { body: pushBody(first.handle) })).status).toBe(429);
     expect((await call('POST', '/v1/push', { body: pushBody(second.handle) })).status).toBe(202);
   });
@@ -71,11 +88,11 @@ describe('per-handle limits', () => {
   it('allows 500 pushes per day and rejects the 501st', async () => {
     const fetchMock = mockApns();
     const { handle } = await register();
-    await seedCounter(`handle:${await sha256Hex(handle)}`, DAY_MS, 499);
+    await seedCounter(await deviceScope(TOKEN_A), DAY_MS, 499);
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(202);
     vi.setSystemTime(FIXED_NOW + HOUR_MS);
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(429);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(1);
   });
 });
 
@@ -97,7 +114,7 @@ describe('no relay-wide push ceiling', () => {
     expect(env.WRANGLER_EXAMPLE).not.toMatch(/GLOBAL_DAILY_PUSH_LIMIT|\[vars\]/);
   });
 
-  it('bounds pushes only per handle: a full legacy global counter and a ceiling variable are ignored', async () => {
+  it('bounds pushes only per device: a full legacy global counter and a ceiling variable are ignored', async () => {
     const fetchMock = mockApns();
     const relay = await relayEnv({ GLOBAL_DAILY_PUSH_LIMIT: '1' } as Partial<Env>);
     const first = await register(TOKEN_A);
@@ -106,11 +123,11 @@ describe('no relay-wide push ceiling', () => {
     for (const handle of [first.handle, second.handle, first.handle]) {
       expect((await call('POST', '/v1/push', { body: pushBody(handle), env: relay })).status).toBe(202);
     }
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(3);
     const rows = await env.DB.prepare('SELECT key FROM rate_counters').all<{ key: string }>();
     const scopes = new Set(rows.results.map((row) => row.key.split('|')[0]));
     expect([...scopes].sort()).toEqual(
-      ['global', 'global:reg', `handle:${await sha256Hex(first.handle)}`, `handle:${await sha256Hex(second.handle)}`].sort(),
+      ['global', await deviceScope(TOKEN_A), await deviceScope(TOKEN_B)].sort(),
     );
     expect(await globalCount('global', DAY_MS)).toBe(1_000_000_000);
   });
@@ -127,27 +144,21 @@ describe('no relay-wide push ceiling', () => {
   });
 });
 
-describe('global registration ceiling', () => {
-  const body = { apnsToken: TOKEN_A, environment: 'production' };
-
-  it('answers 503 at 50,000 new registrations per hour without storing, and resets next hour', async () => {
-    await seedCounter(GLOBAL_REGISTRATION_SCOPE, HOUR_MS, 49_999);
-    expect((await call('POST', '/v1/registrations', { body })).status).toBe(201);
-    const over = await call('POST', '/v1/registrations', { body });
-    expect(over.status).toBe(503);
-    expect(await over.json()).toEqual({ error: 'unavailable' });
-    expect(await countRows('registrations')).toBe(1);
-    expect(await globalCount(GLOBAL_REGISTRATION_SCOPE, HOUR_MS)).toBe(50_000);
-    vi.setSystemTime(FIXED_NOW + HOUR_MS);
-    expect((await call('POST', '/v1/registrations', { body })).status).toBe(201);
+describe('no registration ceiling', () => {
+  it('has no registration ceiling in code', () => {
+    expect(Object.keys(limits)).toEqual(
+      expect.not.arrayContaining(['globalRegistrationCheck', 'GLOBAL_REGISTRATION_SCOPE', 'ceilingReached']),
+    );
+    expect(Object.keys(limits.LIMITS)).toEqual(['devicePerHour', 'devicePerDay']);
   });
 
-  it('counts only successful registrations, not rejected ones or token rotation', async () => {
-    await call('POST', '/v1/registrations', { body: { ...body, environment: 'staging' } });
-    expect(await globalCount(GLOBAL_REGISTRATION_SCOPE, HOUR_MS)).toBe(0);
-    const { deviceSecret } = await register();
-    await call('PUT', '/v1/registrations/self', { body, secret: deviceSecret });
-    expect(await globalCount(GLOBAL_REGISTRATION_SCOPE, HOUR_MS)).toBe(1);
+  it('ignores a full legacy registration counter and writes no counter on registration', async () => {
+    mockApns();
+    await seedCounter('global:reg', HOUR_MS, 1_000_000);
+    await register(TOKEN_A);
+    await register(TOKEN_B);
+    expect(await countRows('registrations')).toBe(2);
+    expect(await countRows('rate_counters')).toBe(1);
   });
 });
 
