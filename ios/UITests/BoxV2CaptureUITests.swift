@@ -49,7 +49,7 @@ final class BoxV2CaptureUITests: XCTestCase {
     }
 
     private func captureMediaAndMenus(_ app: XCUIApplication, prefix: String, language: String) {
-        app.buttons["box-filter-image"].tap()
+        tapFilter(app, identifier: "box-filter-image")
         XCTAssertTrue(app.buttons["box-item-demo-grid-2"].waitForExistence(timeout: 10))
         shot(app, "\(prefix)-grid")
         app.buttons["box-item-demo-image"].tap()
@@ -65,6 +65,22 @@ final class BoxV2CaptureUITests: XCTestCase {
                          captureName: "\(prefix)-author-menu")
         assertMenuTarget(app, identifier: "box-style-menu", option: language == "en" ? "List" : "列表",
                          captureName: "\(prefix)-style-menu")
+    }
+
+    private func tapFilter(_ app: XCUIApplication, identifier: String) {
+        let chip = app.buttons[identifier]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        let row = app.scrollViews.containing(.button, identifier: "box-filter-all").firstMatch
+        XCTAssertTrue(row.exists)
+        for _ in 0..<5 where !chip.isHittable {
+            if chip.frame.midX < row.frame.minX {
+                row.swipeRight()
+            } else {
+                row.swipeLeft()
+            }
+        }
+        XCTAssertTrue(chip.isHittable, identifier)
+        chip.tap()
     }
 
     private func setStyle(_ app: XCUIApplication, _ label: String) {
