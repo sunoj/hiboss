@@ -81,16 +81,17 @@ describe('POST /v1/registrations token check', () => {
   });
 
   it('answers a transport error with 503 and stores nothing', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Promise.reject(new TypeError('network'))));
+    const unreachable: typeof fetch = async () => {
+      throw new TypeError('network');
+    };
+    vi.stubGlobal('fetch', unreachable);
     expect((await call('POST', '/v1/registrations', { body: tokenBody() })).status).toBe(503);
     await expectNothingStored();
   });
 
   it('gives up after the timeout with 503 and stores nothing', async () => {
-    const hang = vi.fn<typeof fetch>(
-      (_url, init) =>
-        new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))),
-    );
+    const hang: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(init.signal?.reason)));
     vi.stubGlobal('fetch', hang);
     const started = Date.now();
     expect((await call('POST', '/v1/registrations', { body: tokenBody() })).status).toBe(503);
