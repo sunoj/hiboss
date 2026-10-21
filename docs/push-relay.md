@@ -18,8 +18,11 @@ This document is the contract for all three components: the relay (`relay/`), th
 
 ## Capabilities and keys
 
-- `handle`: 32 CSPRNG bytes, base64url, minted by the relay at registration. It is the capability
-  to push to one install. The relay stores only its SHA-256. The App gives it to its Server.
+- `handle`: `base64url(id || HMAC-SHA256(HANDLE_KEY, id)[0..16])`, where `id` is 16 CSPRNG bytes,
+  minted by the relay at registration (43 characters). It is the capability to push to one
+  install. The relay checks the MAC before any D1 access and stores only the handle's SHA-256.
+  `HANDLE_KEY` is a Worker secret; rotating it invalidates every handle. The App gives the handle
+  to its Server.
 - `deviceSecret`: 32 CSPRNG bytes minted by the relay at registration and returned once to the
   App. The relay stores only its SHA-256. It authorises token update and deletion and never
   leaves the App.
@@ -37,10 +40,10 @@ Malformed JSON, non-object bodies, wrong types and unknown fields are answered w
 
 | Request | Success | Other responses |
 |---|---|---|
-| `POST /v1/registrations` `{ apnsToken, environment }` | 201 `{ handle, deviceSecret }` | 400, 429, 503 |
+| `POST /v1/registrations` `{ apnsToken, environment }` | 201 `{ handle, deviceSecret }` | 400, 429, 503 (also when `HANDLE_KEY` is not set) |
 | `PUT /v1/registrations/self` `{ apnsToken, environment }` | 204 | 400, 410, 429, 503 |
 | `DELETE /v1/registrations/self` | 204 | 429 |
-| `POST /v1/push` `{ handle, kind, ciphertext, collapseId?, priority, interruption, sound }` | 202 | 400, 410, 429, 502, 503 (APNs key not configured) |
+| `POST /v1/push` `{ handle, kind, ciphertext, collapseId?, priority, interruption, sound }` | 202 | 400, 410, 429, 502, 503 (APNs key or `HANDLE_KEY` not configured) |
 
 - `apnsToken` is 64–200 hexadecimal characters (stored lower-case); `environment` is `sandbox`
   or `production`. The APNs topic is fixed to `ai.hiboss.app`; clients cannot choose a bundle.
@@ -64,7 +67,7 @@ Malformed JSON, non-object bodies, wrong types and unknown fields are answered w
     `passive`, `active` or `time-sensitive`, and `sound` is a boolean. A missing field or any
     other value is answered with 400. These fields are urgency metadata, not content; the Server
     derives them from the payload it would send directly.
-- A handle or secret that is unknown, deleted, malformed or wrong gets exactly the same response:
+- A handle or secret that is unknown, deleted, malformed, forged or wrong gets exactly the same response:
   410 `{"error":"gone"}` for `PUT` and `POST /v1/push`, 204 for `DELETE`. There is no oracle that
   distinguishes them. On 410 from `/v1/push` the Server drops the handle.
 - Stored digests are confirmed with a constant-time comparison after the indexed lookup.
@@ -108,33 +111,32 @@ authenticated through the AAD, so the relay cannot swap it.
 ## Abuse limits
 
 Cloudflare has no spending cap, so every relay path is bounded. A shared ceiling is also a lever to
-deny service to everyone, so the relay has none. Request rates are limited per source by Workers
-Rate Limiting bindings, outside D1 and before any D1 access. Delivery is limited per device by
-fixed UTC-window counters in D1 that only a valid handle can write. Registrations need no ceiling:
-only tokens APNs accepts are stored, one row per token, so rows are bounded by real installs.
+deny service to everyone, so the relay has none. Request rates are limited by Workers Rate
+Limiting bindings, outside D1 and before any D1 access: per address for registrations, per handle
+for pushes. A push handle carries a MAC, so a push request that reaches D1 carries a genuine
+handle. Delivery is limited per device by fixed UTC-window counters in D1. Registrations need no
+ceiling: only tokens APNs accepts are stored, one row per token, so rows are bounded by real
+installs.
 
 | Limit | Ceiling | Over the ceiling |
 |---|---|---|
-| Push requests per source key (`PUSH_RATE_LIMITER`) | 600 per minute | 429, no D1 access |
-| `POST /v1/registrations` per source key (`REGISTRATION_RATE_LIMITER`) | 5 per minute | 429, no D1 access |
-| `PUT`/`DELETE /v1/registrations/self` per source key (`SELF_RATE_LIMITER`) | 30 per minute | 429, no D1 access |
-| Pushes per device (APNs token) | 60 per hour and 500 per day | 429, nothing sent |
+| Push requests per handle (`HANDLE_RATE_LIMITER`), after the MAC check | 60 per minute | 429, no D1 access |
+| `POST /v1/registrations` per address (`REGISTRATION_RATE_LIMITER`) | 5 per minute | 429, no D1 access |
+| `PUT`/`DELETE /v1/registrations/self` per address (`SELF_RATE_LIMITER`) | 30 per minute | 429, no D1 access |
+| Pushes per device (APNs token) | 60 per hour and 500 per day | 429, nothing sent, nothing written |
 
-- **Push source key.** The `CF-Worker` header value, lower-cased (or `-` when absent), then `|`,
-  then the IPv6 /64 prefix or the full IPv4 address of `CF-Connecting-IP`. The header is never the
-  key on its own: a forged header only splits the forger's own address budget and cannot reach
-  another address's bucket. Worker-hosted Servers on a shared egress address still get one bucket
-  per calling zone.
-- **Registration source key.** The IPv6 /64 prefix or the full IPv4 address only, for `POST`,
-  `PUT` and `DELETE` on `/v1/registrations`. Registrations come from phones, never from Workers,
-  so `CF-Worker` is ignored.
-- The per-source limits bound request cost, not delivery. The binding's counters are per
-  Cloudflare location and approximate.
+- **Address key.** The IPv6 /64 prefix or the full IPv4 address of `CF-Connecting-IP`, for
+  `POST`, `PUT` and `DELETE` on `/v1/registrations`. `CF-Worker` is ignored.
+- **Handle key.** SHA-256 of the handle, applied only once the MAC has verified. A forged or
+  garbled handle is answered 410 before the limiter and before D1.
+- The rate-limit bindings bound request cost, not delivery. Their counters are per Cloudflare
+  location and approximate.
 - **Per device.** The counters are keyed on SHA-256 of the APNs token, not on the handle, so
-  re-registering a token keeps its counts. They increment before the comparison, so rejected
-  attempts count too.
-- **Order of a push.** `Content-Length`, source rate, body, handle, per-device limits, APNs. An
-  unknown or invalid handle writes nothing to D1.
+  re-registering a token keeps its counts. One guarded upsert increments the hourly and daily
+  counters only while both are under their limits; a push over either limit writes nothing.
+- **Order of a push.** `Content-Length`, body, handle MAC, per-handle rate, handle lookup,
+  per-device limits, APNs. A handle that fails its MAC causes no D1 access at all; an unknown
+  genuine handle costs one D1 read and writes nothing.
 - D1 holds no IP address or IP-derived value.
 - A daily cron trigger deletes registrations unused for 30 days (no delivered push and no token
   rotation) and rate counters whose window has ended. A purged install registers again (see
@@ -142,16 +144,22 @@ only tokens APNs accepts are stored, one row per token, so rows are bounded by r
 
 ### Cost and availability bound per outsider lever
 
-| Lever | Bound |
-|---|---|
-| Register fake tokens | Each costs one Worker request and one APNs call, writes nothing, and is answered 400. Limited to 5 per minute per address. |
-| Register real tokens | One row per token: rows are bounded by real installs. |
-| Push to a real device | 60 per hour and 500 per day per device, however many times its token is registered. |
-| Push with unknown or invalid handles | Costs Worker requests only and writes nothing to D1. Limited to 600 per minute per push source key; the total grows with the number of source keys (IPv6 /64s) the caller holds. |
-| Deny other installs or servers | No shared counter or ceiling exists to exhaust, and D1 growth is bounded by real installs. |
+Totals are per day. "Address" is an IPv6 /64 or an IPv4 address; the zone rule below allows
+1,200 requests per minute per IP before the Worker runs.
+
+| Lever | Cost per day | Bound |
+|---|---|---|
+| Register fake tokens | 7,200 Worker requests and 7,200 APNs calls per address; no D1 access | Only per address: the total is 7,200 × the addresses the caller holds. Apple publishes no throttling rule for provider requests to invalid tokens, so the operator sets a Cloudflare usage alert. |
+| Register real tokens | One D1 row per token | Rows are bounded by real installs. |
+| `PUT`/`DELETE` with wrong secrets | 43,200 Worker requests and 43,200 D1 reads per address; no write, no APNs call | Per address. |
+| Push with forged or garbled handles | Worker requests only; no D1 access, no APNs call | The zone rule: at most 1,728,000 per IP; blocked requests cost nothing. |
+| Push with one genuine handle | At most 86,400 requests reach D1 (one lookup and one guarded counter statement each) | 60 per minute per handle; at most 500 APNs alerts and 1,500 D1 row writes (two counters and `last_used_at` per delivered push). |
+| Push to a real device | At most 500 APNs alerts | 60 per hour and 500 per day per device, however many times its token is registered. |
+| Deny other installs or servers | None | No shared counter or ceiling exists to exhaust, and D1 growth is bounded by real installs. |
 
 - **Token holders.** Whoever holds an install's raw APNs token can register it, which replaces the
-  install's registration (its Server then gets 410), and can push generic alerts to it. The
+  install's registration (its Server then gets 410), and can push generic alerts to it until that
+  device's 500-per-day budget is spent, which also blocks its own Server's pushes for the day. The
   ciphertext of such pushes fails NSE decryption, so only the generic alert shows. The
   relay-capable App never sends its raw APNs token to a Server in relay mode.
 - **Lost registration.** On a 410 from `PUT /v1/registrations/self`, or when its Server reports
@@ -167,19 +175,14 @@ only tokens APNs accepts are stored, one row per token, so rows are bounded by r
   only requests that do not come from a Worker, with `cf.worker.upstream_zone eq ""`. Do not
   match on the `CF-Worker` header: Cloudflare adds it after firewall rules run. The rule runs
   before the Worker, so blocked requests cost no Worker invocation.
-- After the first deploy, run the source probe. Deploy a throwaway echo Worker on the relay's
-  zone (for example `probe.hiboss.org`) that returns the `CF-Connecting-IP` and `CF-Worker`
-  request headers it received; the relay itself logs nothing. Then call it three ways and record
-  what it sees for each:
-  - with `fetch` from a throwaway Worker on a different custom zone, as a self-hosted Server
-    would; expected: `CF-Worker` holds the calling zone and `CF-Connecting-IP` is a shared
-    Cloudflare address;
-  - with `fetch` from a throwaway Worker on a `*.workers.dev` subdomain;
-  - with `curl` from a host outside Cloudflare, sending a forged `CF-Worker: forged.example`.
-
-  The source key stays per address whatever the probe shows; the probe tells whether
-  Worker-hosted Servers on one egress address are split per zone. Delete the probe Workers
-  afterwards.
+- Set `HANDLE_KEY` with `wrangler secret put HANDLE_KEY` before the first registration.
+- Optionally, after the first deploy, run the source probe. It is informational only: no relay
+  limit depends on its result. Deploy a throwaway echo Worker on the relay's zone (for example
+  `probe.hiboss.org`) that returns the `CF-Connecting-IP` and `CF-Worker` request headers it
+  received; the relay itself logs nothing. Call it with `fetch` from a throwaway Worker on a
+  different custom zone, from one on a `*.workers.dev` subdomain, and with `curl` from a host
+  outside Cloudflare, and record what it sees, which shows what the zone rule keys on for
+  Worker-hosted Servers. Delete the probe Workers afterwards.
 
 ## Relay storage and configuration
 
@@ -187,8 +190,9 @@ only tokens APNs accepts are stored, one row per token, so rows are bounded by r
   `last_used_at`; `apns_token` is unique. No content and no server identity.
 - `rate_counters`: `key` (scope, window length, window number), `count`, `expires_at`. The only
   scope is `token:<SHA-256 of the APNs token>`.
-- Secrets: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH_KEY` (PKCS#8 PEM). Rate Limiting bindings:
-  `PUSH_RATE_LIMITER`, `REGISTRATION_RATE_LIMITER`, `SELF_RATE_LIMITER` (`[[ratelimits]]`). See
+- Secrets: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH_KEY` (PKCS#8 PEM), `HANDLE_KEY`. Rate
+  Limiting bindings: `HANDLE_RATE_LIMITER`, `REGISTRATION_RATE_LIMITER`, `SELF_RATE_LIMITER`
+  (`[[ratelimits]]`). See
   `relay/wrangler.toml.example`.
 - The relay writes no logs of handles, secrets, APNs tokens or ciphertext.
 

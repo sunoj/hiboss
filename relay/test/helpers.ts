@@ -12,6 +12,7 @@ export const TOKEN_B = 'b'.repeat(64);
 export const CIPHERTEXT = 'A'.repeat(40);
 export const DELIVERY = { priority: 10, interruption: 'active', sound: true } as const;
 export const FIXED_NOW = Date.UTC(2026, 9, 21, 10, 0, 0);
+export const TEST_HANDLE_KEY = 'test-handle-key';
 
 let apnsKeyPem: string | null = null;
 
@@ -40,15 +41,23 @@ export function fakeLimiter(allow = true): FakeLimiter {
   };
 }
 
+/** A D1 stand-in that fails the test on any use. */
+export const forbiddenDb = new Proxy({} as D1Database, {
+  get() {
+    throw new Error('D1 accessed');
+  },
+});
+
 export async function relayEnv(overrides: Partial<Env> = {}): Promise<Env> {
   return {
     DB: env.DB,
-    PUSH_RATE_LIMITER: fakeLimiter(),
+    HANDLE_RATE_LIMITER: fakeLimiter(),
     REGISTRATION_RATE_LIMITER: fakeLimiter(),
     SELF_RATE_LIMITER: fakeLimiter(),
     APNS_KEY_ID: 'KEYID12345',
     APNS_TEAM_ID: 'TEAM123456',
     APNS_AUTH_KEY: await testAuthKey(),
+    HANDLE_KEY: TEST_HANDLE_KEY,
     ...overrides,
   };
 }

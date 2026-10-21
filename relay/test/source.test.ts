@@ -1,11 +1,14 @@
-// Request-gate tests: per-source rate keys, 429 before any D1 access, body size caps,
-// and no IP-derived data in D1.
+// Request-gate tests: rate-limit keys, 429 before any D1 access, body size caps, and no
+// IP-derived data in D1.
 
 import { env } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256Hex } from '../src/crypto';
-import { clientKey, ipv6Prefix64, sourceKey } from '../src/limits';
+import { mintHandle } from '../src/handles';
+import { clientKey, ipv6Prefix64 } from '../src/limits';
 import {
+  TEST_HANDLE_KEY,
+  forbiddenDb,
   TOKEN_A,
   TOKEN_B,
   call,
@@ -23,41 +26,17 @@ afterEach(() => vi.unstubAllGlobals());
 
 const tokenBody = { apnsToken: TOKEN_A, environment: 'production' };
 
-function keyFor(headers: Record<string, string>): string {
-  return sourceKey(new Request('https://push.test/', { headers }));
-}
 
-/** A D1 stand-in that fails the test on any use. */
-const forbiddenDb = new Proxy({} as D1Database, {
-  get() {
-    throw new Error('D1 accessed');
-  },
-});
-
-describe('source key', () => {
-  it('joins the CF-Worker value (or "-") and the address, never the header alone', () => {
-    const headers = { 'CF-Worker': 'Boss.Example.com', 'CF-Connecting-IP': '2a06:98c0:3600::103' };
-    expect(keyFor(headers)).toBe('boss.example.com|2a06:98c0:3600:0::/64');
-    expect(keyFor({ 'CF-Connecting-IP': '198.51.100.7' })).toBe('-|198.51.100.7');
-    expect(keyFor({ 'CF-Worker': '', 'CF-Connecting-IP': '198.51.100.7' })).toBe('-|198.51.100.7');
-  });
-
-  it('keeps a forged CF-Worker from one address out of another address’s bucket', () => {
-    const victim = keyFor({ 'CF-Worker': 'boss.example.com', 'CF-Connecting-IP': '2a06:98c0:3600::103' });
-    const forger = keyFor({ 'CF-Worker': 'Boss.Example.com', 'CF-Connecting-IP': '198.51.100.66' });
-    const fresh = keyFor({ 'CF-Worker': 'other.example', 'CF-Connecting-IP': '198.51.100.66' });
-    expect(forger).not.toBe(victim);
-    expect(forger.endsWith('|198.51.100.66')).toBe(true);
-    expect(fresh.endsWith('|198.51.100.66')).toBe(true);
-  });
+describe('registration source key', () => {
+  const keyFor = (headers: Record<string, string>) => clientKey(new Request('https://push.test/', { headers }));
 
   it('buckets IPv6 by /64 and IPv4 by full address', () => {
-    expect(keyFor({ 'CF-Connecting-IP': '2001:DB8:0:1:aaaa::1' })).toBe('-|2001:db8:0:1::/64');
-    expect(keyFor({ 'CF-Connecting-IP': '2001:db8:0:1:ffff:ffff:ffff:ffff' })).toBe('-|2001:db8:0:1::/64');
-    expect(keyFor({ 'CF-Connecting-IP': '2001:db8:0:2::1' })).toBe('-|2001:db8:0:2::/64');
-    expect(keyFor({ 'CF-Connecting-IP': '198.51.100.7' })).toBe('-|198.51.100.7');
-    expect(keyFor({ 'CF-Connecting-IP': '::ffff:198.51.100.7' })).toBe('-|198.51.100.7');
-    expect(keyFor({ 'X-Forwarded-For': '198.51.100.9' })).toBe('-|unknown');
+    expect(keyFor({ 'CF-Connecting-IP': '2001:DB8:0:1:aaaa::1' })).toBe('2001:db8:0:1::/64');
+    expect(keyFor({ 'CF-Connecting-IP': '2001:db8:0:1:ffff:ffff:ffff:ffff' })).toBe('2001:db8:0:1::/64');
+    expect(keyFor({ 'CF-Connecting-IP': '2001:db8:0:2::1' })).toBe('2001:db8:0:2::/64');
+    expect(keyFor({ 'CF-Connecting-IP': '198.51.100.7' })).toBe('198.51.100.7');
+    expect(keyFor({ 'CF-Connecting-IP': '::ffff:198.51.100.7' })).toBe('198.51.100.7');
+    expect(keyFor({ 'X-Forwarded-For': '198.51.100.9' })).toBe('unknown');
   });
 
   it('expands compressed IPv6 forms', () => {
@@ -66,43 +45,38 @@ describe('source key', () => {
     expect(ipv6Prefix64('2001:db8::')).toBe('2001:db8:0:0::/64');
   });
 
-  it('keys registrations on the client address only, ignoring CF-Worker', () => {
-    const ip = '2001:db8:0:9::5';
-    expect(clientKey(new Request('https://push.test/', { headers: { 'CF-Connecting-IP': ip } }))).toBe(
-      '2001:db8:0:9::/64',
-    );
-    const forged = { 'CF-Worker': 'boss.example.com', 'CF-Connecting-IP': '198.51.100.7' };
-    expect(clientKey(new Request('https://push.test/', { headers: forged }))).toBe('198.51.100.7');
+  it('ignores CF-Worker', () => {
+    expect(keyFor({ 'CF-Worker': 'boss.example.com', 'CF-Connecting-IP': '198.51.100.7' })).toBe('198.51.100.7');
   });
 
-  it('passes the push key to the push limiter and the address to the registration limiters', async () => {
+  it('passes the address to the registration limiters and the handle digest to the handle limiter', async () => {
     mockApns();
     const relay = await relayEnv();
     const headers = { 'CF-Worker': 'boss.example.com' };
-    const ip = '2a06:98c0:3600::103';
+    const handle = await mintHandle(TEST_HANDLE_KEY);
     await call('POST', '/v1/registrations', { body: tokenBody, env: relay, headers, ip: '2001:db8:0:9::5' });
-    await call('POST', '/v1/push', { body: pushBody('x'), env: relay, headers, ip });
+    await call('POST', '/v1/push', { body: pushBody(handle), env: relay, headers, ip: '2a06:98c0:3600::103' });
     const self = { secret: 'x', env: relay, headers, ip: '198.51.100.7' };
     await call('PUT', '/v1/registrations/self', { body: tokenBody, ...self });
     await call('DELETE', '/v1/registrations/self', self);
     const keys = (limiter: RateLimit) => (limiter as ReturnType<typeof fakeLimiter>).keys;
     expect(keys(relay.REGISTRATION_RATE_LIMITER)).toEqual(['2001:db8:0:9::/64']);
-    expect(keys(relay.PUSH_RATE_LIMITER)).toEqual(['boss.example.com|2a06:98c0:3600:0::/64']);
+    expect(keys(relay.HANDLE_RATE_LIMITER)).toEqual([await sha256Hex(handle)]);
     expect(keys(relay.SELF_RATE_LIMITER)).toEqual(['198.51.100.7', '198.51.100.7']);
   });
 });
 
-describe('per-source rate limit', () => {
+describe('rate limits', () => {
   it('answers 429 to every route without touching D1 when the limiter refuses', async () => {
     const fetchMock = mockApns();
     const relay = await relayEnv({
       DB: forbiddenDb,
-      PUSH_RATE_LIMITER: fakeLimiter(false),
+      HANDLE_RATE_LIMITER: fakeLimiter(false),
       REGISTRATION_RATE_LIMITER: fakeLimiter(false),
       SELF_RATE_LIMITER: fakeLimiter(false),
     });
     const attempts = [
-      await call('POST', '/v1/push', { body: pushBody('A'.repeat(43)), env: relay }),
+      await call('POST', '/v1/push', { body: pushBody(await mintHandle(TEST_HANDLE_KEY)), env: relay }),
       await call('POST', '/v1/registrations', { body: tokenBody, env: relay }),
       await call('PUT', '/v1/registrations/self', { body: tokenBody, secret: 'x', env: relay }),
       await call('DELETE', '/v1/registrations/self', { secret: 'x', env: relay }),
@@ -138,7 +112,7 @@ describe('body size', () => {
       const response = await call(method, path, { body, contentLength, secret: 'x', env: relay });
       expect(response.status).toBe(400);
     }
-    expect((relay.PUSH_RATE_LIMITER as ReturnType<typeof fakeLimiter>).keys).toEqual([]);
+    expect((relay.HANDLE_RATE_LIMITER as ReturnType<typeof fakeLimiter>).keys).toEqual([]);
     expect((relay.REGISTRATION_RATE_LIMITER as ReturnType<typeof fakeLimiter>).keys).toEqual([]);
     expect((relay.SELF_RATE_LIMITER as ReturnType<typeof fakeLimiter>).keys).toEqual([]);
   });

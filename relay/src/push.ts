@@ -1,12 +1,13 @@
 // POST /v1/push: the handle is the capability; the relay forwards opaque ciphertext to APNs.
-// Order: size → source rate (no D1) → body → handle → per-device limits → APNs.
-// There is no relay-wide push ceiling. Device counters are keyed on SHA-256 of the APNs token, so
-// re-registering a token does not reset them.
+// Order: size → body → handle MAC → per-handle rate (no D1) → lookup → per-device limits → APNs.
+// A request that reaches D1 carries a genuine handle. There is no relay-wide push ceiling. Device
+// counters are keyed on SHA-256 of the APNs token, so re-registering a token does not reset them.
 
 import { Hono } from 'hono';
 import { sendApns } from './apns';
 import { sha256Hex } from './crypto';
-import { DAY_MS, HOUR_MS, LIMITS, overLimit, sourceKey, sourceLimited } from './limits';
+import { handleValid } from './handles';
+import { DAY_MS, HOUR_MS, LIMITS, overLimit, rateLimited } from './limits';
 import { gone, invalid, tooMany, unavailable, upstreamFailed } from './responses';
 import { deleteRegistration, findByHandle, touch } from './store';
 import type { AppEnv } from './types';
@@ -16,10 +17,13 @@ export const push = new Hono<AppEnv>();
 
 push.post('/', async (c) => {
   if (!declaredSizeOk(c.req.raw)) return invalid(c);
-  if (await sourceLimited(c.env.PUSH_RATE_LIMITER, sourceKey(c.req.raw))) return tooMany(c);
   const json = parseJsonObject(await readLimitedBody(c.req.raw));
   const body = json && parsePushBody(json);
   if (!body) return invalid(c);
+  const handleKey = c.env.HANDLE_KEY;
+  if (!handleKey) return unavailable(c);
+  if (!(await handleValid(handleKey, body.handle))) return gone(c);
+  if (await rateLimited(c.env.HANDLE_RATE_LIMITER, await sha256Hex(body.handle))) return tooMany(c);
   const db = c.env.DB;
   const now = Date.now();
   const row = await findByHandle(db, body.handle);

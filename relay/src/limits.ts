@@ -1,5 +1,6 @@
-// Abuse limits: per-source request rates in Workers Rate Limiting bindings (no D1), and
-// fixed-window D1 counters per device, keyed on SHA-256 of the APNs token.
+// Abuse limits: request rates in Workers Rate Limiting bindings (no D1), per address for
+// registrations and per handle for pushes, and fixed-window D1 counters per device, keyed on
+// SHA-256 of the APNs token.
 
 export const HOUR_MS = 3_600_000;
 export const DAY_MS = 86_400_000;
@@ -19,36 +20,30 @@ export function counterKey(scope: string, periodMs: number, now: number): string
   return `${scope}|${periodMs}|${Math.floor(now / periodMs)}`;
 }
 
-function incrementStatement(db: D1Database, check: LimitCheck, now: number): D1PreparedStatement {
-  const window = Math.floor(now / check.periodMs);
-  return db
+/**
+ * Increments every counter in one statement, and only while all of them are under their max:
+ * the guard is evaluated before any write, so an over-limit call writes nothing. True when the
+ * statement returned no row, i.e. some counter was already at its max.
+ */
+export async function overLimit(db: D1Database, checks: LimitCheck[], now: number): Promise<boolean> {
+  const keys = checks.map((check) => counterKey(check.scope, check.periodMs, now));
+  const values = checks.map(() => '(?, ?)').join(', ');
+  const full = checks.map(() => '(key = ? AND count >= ?)').join(' OR ');
+  const statement = db
     .prepare(
-      'INSERT INTO rate_counters (key, count, expires_at) VALUES (?, 1, ?) ' +
+      `INSERT INTO rate_counters (key, count, expires_at) SELECT column1, 1, column2 FROM (VALUES ${values}) ` +
+        `WHERE NOT EXISTS (SELECT 1 FROM rate_counters WHERE ${full}) ` +
         'ON CONFLICT(key) DO UPDATE SET count = count + 1 RETURNING count',
     )
-    .bind(counterKey(check.scope, check.periodMs, now), (window + 1) * check.periodMs);
+    .bind(
+      ...checks.flatMap((check, i) => [keys[i], (Math.floor(now / check.periodMs) + 1) * check.periodMs]),
+      ...checks.flatMap((check, i) => [keys[i], check.max]),
+    );
+  const { results } = await statement.all<{ count: number }>();
+  return results.length === 0;
 }
 
-/** Increments every counter in one batch; true when any of them is now above its max. */
-export async function overLimit(db: D1Database, checks: LimitCheck[], now: number): Promise<boolean> {
-  const results = await db.batch<{ count: number }>(checks.map((check) => incrementStatement(db, check, now)));
-  return results.some((result, i) => (result.results[0]?.count ?? 0) > checks[i].max);
-}
-
-/**
- * Push rate-limit key: the `CF-Worker` zone (or `-`), `|`, and the client address key. Never the
- * header alone: a forged header only splits the forger's own address budget, and Worker
- * subrequests sharing an egress address still get one bucket per zone.
- */
-export function sourceKey(request: Request): string {
-  const worker = request.headers.get('CF-Worker')?.toLowerCase() || '-';
-  return `${worker}|${clientKey(request)}`;
-}
-
-/**
- * Registration rate-limit key: the IPv6 /64 prefix or the full IPv4 address of
- * `CF-Connecting-IP` only. Registrations come from phones, so `CF-Worker` is ignored.
- */
+/** Registration rate-limit key: the IPv6 /64 prefix or the full IPv4 address of `CF-Connecting-IP`. */
 export function clientKey(request: Request): string {
   const ip = request.headers.get('CF-Connecting-IP') ?? '';
   if (ip.includes('.')) return ip.slice(ip.lastIndexOf(':') + 1);
@@ -70,7 +65,7 @@ export function ipv6Prefix64(address: string): string {
 }
 
 /** Applies a Rate Limiting binding to a key; true when the caller is over its rate. */
-export async function sourceLimited(limiter: RateLimit, key: string): Promise<boolean> {
+export async function rateLimited(limiter: RateLimit, key: string): Promise<boolean> {
   const { success } = await limiter.limit({ key });
   return !success;
 }

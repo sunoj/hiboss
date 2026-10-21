@@ -42,7 +42,7 @@ async function seedCounter(scope: string, periodMs: number, count: number): Prom
 
 const deviceScope = async (token: string) => `token:${await sha256Hex(token)}`;
 
-async function globalCount(scope: string, periodMs: number): Promise<number> {
+async function storedCount(scope: string, periodMs: number): Promise<number> {
   const row = await env.DB.prepare('SELECT count FROM rate_counters WHERE key = ?')
     .bind(counterKey(scope, periodMs, Date.now()))
     .first<{ count: number }>();
@@ -58,6 +58,8 @@ describe('per-device limits', () => {
     }
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(429);
     expect(apnsCalls(fetchMock, 'alert')).toHaveLength(60);
+    expect(await storedCount(await deviceScope(TOKEN_A), HOUR_MS)).toBe(60);
+    expect(await storedCount(await deviceScope(TOKEN_A), DAY_MS)).toBe(60);
     vi.setSystemTime(FIXED_NOW + HOUR_MS);
     expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(202);
   });
@@ -83,6 +85,25 @@ describe('per-device limits', () => {
     await seedCounter(await deviceScope(TOKEN_A), HOUR_MS, 60);
     expect((await call('POST', '/v1/push', { body: pushBody(first.handle) })).status).toBe(429);
     expect((await call('POST', '/v1/push', { body: pushBody(second.handle) })).status).toBe(202);
+  });
+
+  it('writes nothing for a push over the hourly limit', async () => {
+    const fetchMock = mockApns();
+    const { handle } = await register();
+    await seedCounter(await deviceScope(TOKEN_A), HOUR_MS, 60);
+    expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(429);
+    expect(await countRows('rate_counters')).toBe(1);
+    expect(await storedCount(await deviceScope(TOKEN_A), HOUR_MS)).toBe(60);
+    expect(apnsCalls(fetchMock, 'alert')).toHaveLength(0);
+  });
+
+  it('writes nothing for a push over the daily limit', async () => {
+    mockApns();
+    const { handle } = await register();
+    await seedCounter(await deviceScope(TOKEN_A), DAY_MS, 500);
+    expect((await call('POST', '/v1/push', { body: pushBody(handle) })).status).toBe(429);
+    expect(await countRows('rate_counters')).toBe(1);
+    expect(await storedCount(await deviceScope(TOKEN_A), DAY_MS)).toBe(500);
   });
 
   it('allows 500 pushes per day and rejects the 501st', async () => {
@@ -129,7 +150,7 @@ describe('no relay-wide push ceiling', () => {
     expect([...scopes].sort()).toEqual(
       ['global', await deviceScope(TOKEN_A), await deviceScope(TOKEN_B)].sort(),
     );
-    expect(await globalCount('global', DAY_MS)).toBe(1_000_000_000);
+    expect(await storedCount('global', DAY_MS)).toBe(1_000_000_000);
   });
 
   it('writes no row at all for unknown or invalid handles', async () => {
@@ -163,7 +184,7 @@ describe('no registration ceiling', () => {
 });
 
 describe('configured rate-limit bindings', () => {
-  it('limits pushes 600/min, registrations 5/min and /self calls 30/min per source key', () => {
+  it('limits pushes 60/min per handle, registrations 5/min and /self calls 30/min per address', () => {
     const blocks = env.WRANGLER_EXAMPLE.split('[[ratelimits]]').slice(1);
     const parsed = Object.fromEntries(
       blocks.map((block) => {
@@ -173,9 +194,14 @@ describe('configured rate-limit bindings', () => {
       }),
     );
     expect(parsed).toEqual({
-      PUSH_RATE_LIMITER: [600, 60],
+      HANDLE_RATE_LIMITER: [60, 60],
       REGISTRATION_RATE_LIMITER: [5, 60],
       SELF_RATE_LIMITER: [30, 60],
     });
+  });
+
+  it('has no per-source push limiter in code or configuration', () => {
+    expect(Object.keys(limits)).toEqual(expect.not.arrayContaining(['sourceKey', 'sourceLimited']));
+    expect(env.WRANGLER_EXAMPLE).not.toMatch(/PUSH_RATE_LIMITER|CF-Worker/);
   });
 });
