@@ -1,6 +1,6 @@
-// About pane for app version, build, software updates, and project links.
+// About pane for app version, build, software updates, project links, and acknowledgements.
 // Exports: AboutSettingsPane.
-// Dependencies: SwiftUI, HibossKit (UpdaterState), Bundle metadata.
+// Dependencies: SwiftUI, HibossKit (UpdaterState), Bundle metadata, Acknowledgements.
 
 import HibossKit
 import SwiftUI
@@ -8,6 +8,7 @@ import SwiftUI
 struct AboutSettingsPane: View {
     static let projectURL = URL(string: "https://hiboss.org")
     @ObservedObject var updater: UpdaterState
+    @State var isLicenseExpanded = false
 
     var body: some View {
         Form {
@@ -51,6 +52,28 @@ struct AboutSettingsPane: View {
                         : L("This build has no update feed configured, so it will not check for updates.")
                 )
                 .foregroundStyle(.secondary)
+            }
+
+            Section {
+                DisclosureGroup(isExpanded: $isLicenseExpanded) {
+                    ScrollView {
+                        Text(verbatim: Acknowledgements.sparkleLicense)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 220)
+                    .accessibilityIdentifier("about-sparkle-license")
+                } label: {
+                    if let url = Acknowledgements.sparkleURL {
+                        Link(destination: url) { Text(verbatim: Acknowledgements.sparkleName) }
+                    }
+                }
+            } header: {
+                Text(L("Acknowledgements"))
+            } footer: {
+                Text(L("Software updates use Sparkle, which is distributed under this license."))
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

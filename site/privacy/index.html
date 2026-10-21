@@ -43,6 +43,7 @@
           <li><a href="#connect">How HiBoss connects</a></li>
           <li><a href="#sent">Information sent to your server</a></li>
           <li><a href="#notifications">Notifications and camera</a></li>
+          <li><a href="#relay">The push relay</a></li>
           <li><a href="#mac">The Mac app</a></li>
           <li><a href="#cli">The CLI and MCP plugin</a></li>
           <li><a href="#analytics">Analytics and tracking</a></li>
@@ -62,15 +63,21 @@
 
         <h2 id="sent">Information sent to your server</h2>
         <p>To show and act on your work, the apps exchange messages, replies, decisions, session content, progress posts, panels and questionnaire answers, Box items, preferences and related media with your selected server. Connecting or pairing can send a device label and a connection or device token. These are used to authenticate and identify the client to that server.</p>
-        <p>If you allow notifications on iPhone, the app sends an Apple Push Notification service (APNs) device token to the selected server so it can address notifications to this installation.</p>
+        <p>If you allow notifications on iPhone, the app sends the selected server what it needs to address notifications to this installation: an Apple Push Notification service (APNs) device token, or, when the server uses the push relay, a relay handle and a notification key.</p>
 
         <h2 id="notifications">Notifications and camera</h2>
-        <p>iPhone notifications pass through Apple APNs. Depending on the server's settings, a notification may include message text. The private notification option uses a generic alert and retrieves the message from your server after you open the app. Notification delivery also depends on the server being configured for this app's Apple signing team.</p>
+        <p>iPhone notifications pass through Apple APNs. A server reaches APNs in one of two ways. A server with its own APNs key for this app's Apple signing team pushes directly; depending on the server's settings, such a notification may include message text. A server without one sends through the HiBoss push relay, described below, and its notifications reach Apple only as a generic alert and ciphertext that the app decrypts on your iPhone. The private notification option uses a generic alert and retrieves the message from your server after you open the app. If the server's operator turns the relay off and sets no APNs key, the app does not push.</p>
         <p>The camera is used to scan a pairing code. The iPhone app processes the code on your device and does not upload camera video for the scan.</p>
+
+        <h2 id="relay">The push relay</h2>
+        <p>The push relay at <code>push.hiboss.org</code> is operated by the app developer. It holds the APNs key of the App Store app and forwards notifications for servers that do not have one. When your server uses the relay, the iPhone app registers with the relay and sends it the APNs device token and its environment. The relay returns a random handle, which the app gives to your server, and a device secret, which stays in the app's Keychain. The app also creates a notification key on your iPhone and gives it to your server; it is never sent to the relay.</p>
+        <p>For each notification, your server sends the relay the handle, the kind of notification (decision, message or system), the content encrypted with the notification key, an optional grouping identifier and its urgency: priority, interruption level and whether to play a sound. The relay turns this into a generic alert with the ciphertext attached. Only your server and your iPhone hold the key to decrypt it.</p>
+        <p>The relay stores the APNs device token and environment, digests of the handle and device secret, when the registration was created and last used, and counters for its usage limits. Like any web service, it receives the source IP address of each request, and for a server hosted on Cloudflare Workers the domain of that Worker; it uses them only to limit request rates and does not store them. It never receives message titles, bodies, answer options, sender names or account information, and it writes no logs of handles, secrets, device tokens or ciphertext. It can observe which handles a server pushes to and when.</p>
+        <p>A registration that receives no notification and no token update for 90 days is deleted automatically. A registration is also deleted when Apple reports its device token as no longer valid. Your server's operator can turn the relay off or use their own APNs key, in which case your server does not contact the relay.</p>
 
         <h2 id="mac">The Mac app</h2>
         <p>The Mac app connects to your server the same way, by pairing with a code, signing in with your iPhone, or entering a server URL and Boss Token. It stores the connection token in the macOS Keychain. It shows notifications locally from messages it receives from your server; they do not pass through APNs.</p>
-        <p>Release builds of the Mac app check for updates with Sparkle. By default they check once a day against the update feed configured in that build, which is not your HiBoss server. The request carries the standard information of an update check, such as the app version, and no system profile. Updates are verified with an EdDSA signature before they install. You can turn off automatic checks in Settings → About. A build without an update feed never checks.</p>
+        <p>Release builds of the Mac app check for updates with Sparkle. By default they check once a day against the update feed at <code>hiboss.org</code>, not your HiBoss server, and download updates from the project's GitHub Releases. The request carries the standard information of an update check, such as the app version, and no system profile. Updates are verified with an EdDSA signature before they install. You can turn off automatic checks in Settings → About. A build without an update feed never checks.</p>
 
         <h2 id="cli">The CLI and MCP plugin</h2>
         <p>The <code>hiboss</code> CLI and the MCP plugin talk only to the HiBoss server you configure. The one exception is guided Telegram or Discord setup, which calls those services' APIs with the bot token you provide. The CLI stores its server address and agent keys in a local configuration file readable only by your user account.</p>

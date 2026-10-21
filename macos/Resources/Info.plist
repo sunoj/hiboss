@@ -48,7 +48,7 @@
         </dict>
     </array>
     <key>CFBundleShortVersionString</key>
-    <string>0.3.0</string>
+    <string>1.0.0</string>
     <key>CFBundleVersion</key>
     <string>12</string>
     <key>LSMinimumSystemVersion</key>
@@ -62,12 +62,13 @@
     </dict>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <!-- Sparkle auto-update. SUFeedURL and SUPublicEDKey are deployment-specific
-         and added at package time by scripts/build-app.sh from
-         HIBOSS_APPCAST_URL / HIBOSS_SPARKLE_PUBKEY. They are deliberately absent
-         here: an empty SUPublicEDKey is *invalid* to Sparkle (not "unset"), which
-         makes startUpdater fail and alert on every launch. SparkleUpdater skips
-         starting the updater when either key is missing. -->
+    <!-- Sparkle auto-update. The feed defaults to hiboss.org; scripts/build-app.sh
+         overrides it from HIBOSS_APPCAST_URL. SUPublicEDKey is added at package time
+         from HIBOSS_SPARKLE_PUBKEY and is deliberately absent here: an empty key is
+         *invalid* to Sparkle (not "unset"), which makes startUpdater fail and alert
+         on every launch. SparkleUpdater skips starting the updater without a key. -->
+    <key>SUFeedURL</key>
+    <string>https://hiboss.org/updates/macos/appcast.xml</string>
     <key>SUEnableAutomaticChecks</key>
     <true/>
     <key>SUScheduledCheckInterval</key>

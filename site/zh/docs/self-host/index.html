@@ -131,7 +131,9 @@ hiboss setup discord</code></pre>
         <p>如果 Telegram 向导用到了 webhook 密钥，它会提醒你在服务器上设置同样的值：<code>npx wrangler secret put TELEGRAM_WEBHOOK_SECRET</code>。</p>
 
         <h2 id="push">推送通知</h2>
-        <p>向 iPhone 发送推送通知，需要在服务器上配置 Apple 推送通知服务（APNs）凭据。</p>
+        <p>App Store 版 iPhone 应用开箱即可收到推送。没有自己 Apple 推送通知服务（APNs）密钥的服务器，会通过 HiBoss 推送中继 <code>push.hiboss.org</code> 发送通知，中继持有该应用的 APNs 密钥。</p>
+        <p>通知内容在你的服务器和 iPhone 之间端到端加密：iPhone 应用生成密钥，只交给你的服务器；中继和 Apple 只能看到一条通用提醒和密文。中继能看到你服务器的 IP 地址、该安装的随机句柄，以及每次推送的时间。</p>
+        <p>要关闭中继，在 <code>server/wrangler.toml</code> 的 <code>[vars]</code> 中设置 <code>PUSH_RELAY_URL = "off"</code>，iPhone 应用随后会提示这台服务器无法推送。要直接推送，设置 <code>APNS_KEY_ID</code>、<code>APNS_TEAM_ID</code> 和密钥 <code>APNS_AUTH_KEY</code>。配置了自己密钥的服务器从不使用中继。直接推送的密钥必须属于给应用签名的 Apple 团队，因此适用于你自己构建的应用。使用中继时，实时活动在应用打开期间更新。</p>
 
         <h2 id="update">更新</h2>
         <pre><code>git pull

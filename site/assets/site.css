@@ -157,6 +157,7 @@ pre .c { color: #8b949e; }
 /* Documentation pages */
 .doc { padding: 48px 0 0; }
 .doc .wrap { display: grid; gap: 40px; }
+.doc-solo .wrap { display: block; }
 .doc-body { min-width: 0; max-width: 46em; }
 .doc-body h2 { font-size: clamp(1.4rem, 3vw, 1.75rem); margin-top: 2em; padding-top: 0.2em; }
 .doc-body h3 { margin-top: 1.6em; }

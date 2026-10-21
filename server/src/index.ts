@@ -32,7 +32,6 @@ import { bossDevicesRouter } from './routes/boss-devices';
 import { auditRouter } from './routes/audit';
 import { sessionsRouter } from './routes/sessions';
 import { sessionEventsRouter } from './routes/session-events';
-import { updatesRouter } from './routes/updates';
 import { progressRouter } from './routes/progress';
 import { progressTeamsRouter } from './routes/progress-teams';
 import dashboardHtml from './dashboard.html';
@@ -143,8 +142,6 @@ app.route('/api/devices', deviceInvitesRouter);
 app.route('/api/bootstrap', bootstrapBossRouter);
 app.route('/api/discord-gateway', discordGatewayRouter);
 app.route('/api', adminRouter);
-// Public Sparkle update feed + signed builds (outside /api: no CORS/auth on GET).
-app.route('/updates', updatesRouter);
 
 app.get('/sw.js', (c) => c.body(swJs, { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } }));
 app.get('/manifest.json', (c) => c.json(manifest));

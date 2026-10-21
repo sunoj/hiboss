@@ -1,6 +1,148 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Acknowledgements": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acknowledgements"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "致谢"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "謝辞"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "감사의 말"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กิตติกรรมประกาศ"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agradecimientos"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आभार"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "شكر وتقدير"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agradecimentos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remerciements"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Благодарности"
+          }
+        }
+      }
+    },
+    "Software updates use Sparkle, which is distributed under this license.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Software updates use Sparkle, which is distributed under this license."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "软件更新使用 Sparkle，它依据此许可证分发。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ソフトウェアアップデートには Sparkle を使用しています。Sparkle はこのライセンスのもとで配布されています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소프트웨어 업데이트에는 Sparkle을 사용하며, Sparkle은 이 라이선스에 따라 배포됩니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การอัปเดตซอฟต์แวร์ใช้ Sparkle ซึ่งเผยแพร่ภายใต้สัญญาอนุญาตนี้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las actualizaciones de software usan Sparkle, que se distribuye bajo esta licencia."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सॉफ़्टवेयर अपडेट Sparkle का उपयोग करते हैं, जो इस लाइसेंस के तहत वितरित है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تستخدم تحديثات البرنامج Sparkle، الموزّع بموجب هذا الترخيص."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "As atualizações de software usam o Sparkle, distribuído sob esta licença."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les mises à jour logicielles utilisent Sparkle, distribué sous cette licence."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновления программы используют Sparkle, который распространяется по этой лицензии."
+          }
+        }
+      }
+    },
     "Pair this Mac with a one-time code from a signed-in iPhone or Mac, or paste its hiboss://pair link.": {
       "extractionState": "manual",
       "localizations": {

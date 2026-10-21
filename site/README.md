@@ -8,6 +8,8 @@ This static site serves `hiboss.org`: the home page, download page, self-host an
 - The App Store link is a single marked line in `download/index.html` and `zh/download/index.html` (`APP STORE SWITCH`).
 - Screenshots in `assets/shots/` come from the iOS app's demo mode on an iPhone simulator, at 600 px wide, in light and dark variants. Keep every image under 400 KB.
 - A new file must also be added to the list in `build.sh`.
+- `404.html` at the root is what Cloudflare Pages serves, with status 404, for an unknown path.
+- `updates/macos/appcast.xml` is the Mac app's Sparkle feed; `macos/scripts/release.sh` rewrites it for each release (`macos/RELEASE.md`).
 
 ## Preview
 

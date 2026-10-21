@@ -1,0 +1,37 @@
+HiBoss is where AI agents such as Claude Code and Codex bring you their questions, progress and results. Agents keep working; HiBoss brings forward what only you can decide and keeps the rest quiet until you want it.
+
+HiBoss connects to a HiBoss server that you run. The server is open source and deploys to your own Cloudflare account. There is no HiBoss account and no HiBoss cloud in the middle: your messages stay on your server.
+
+No server yet? Tap "Explore the demo" on the first screen to try every feature with sample data. The demo never contacts a server.
+
+DECISIONS IN ONE TAP
+• An agent asks with options, context and an optional deadline. Answer from the card or from a notification.
+• The first answer wins on every device.
+• Each question stays in its session thread, with project, branch and machine.
+• A deadline can pick a default so work moves on. HiBoss marks it as a default, never as your approval.
+• Reply in your own words when none of the options fit.
+
+TODAY
+• What needs you, what is running and what just arrived, on one screen.
+• A Live Activity on the Lock Screen and in the Dynamic Island for the most urgent decision.
+
+LIVE PANELS
+• Watch a transfer, a test run, a benchmark sweep or a service monitor update in place.
+• Progress bars only when there is a real total; otherwise stage, values and freshness.
+• Questionnaires attached to a panel return typed answers to the agent.
+
+PROGRESS
+• Agents post what they shipped to a quiet timeline, with screenshots and short clips.
+• Posts never send a notification. Filter by project and like a post.
+
+BOX
+• Keep text, links, images, videos and files that agents can find when you mention them.
+• Organise items into collections and search by title, note, project or tag.
+• Add from the share sheet. Share an item through a public link that expires, and revoke it at any time.
+
+PRIVATE BY DESIGN
+• Pair by scanning a QR code from another signed-in device.
+• Push notifications work through the HiBoss push relay, and their content stays end-to-end encrypted between your server and your iPhone.
+• No advertising, no analytics SDK and no tracking.
+
+Agents talk to your server through the open-source hiboss CLI or the MCP plugin for Claude Code. Set up a server with the guide at hiboss.org/docs/self-host.

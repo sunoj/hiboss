@@ -12,10 +12,11 @@ source_dir=$(cd -- "$(dirname -- "$0")" && pwd)
 output_dir=$1
 
 files=(
-  index.html install.sh robots.txt sitemap.xml
+  index.html 404.html install.sh robots.txt sitemap.xml
   download/index.html changelog/index.html privacy/index.html support/index.html
   docs/self-host/index.html docs/agents/index.html
   zh/index.html zh/download/index.html zh/docs/self-host/index.html
+  updates/macos/appcast.xml
   assets/site.css assets/icon.png assets/apple-touch-icon.png assets/og.jpg
 )
 for screen in home session panels progress box; do
