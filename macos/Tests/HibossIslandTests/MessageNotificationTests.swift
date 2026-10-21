@@ -55,6 +55,43 @@ final class MessageNotificationTests: XCTestCase {
         XCTAssertEqual(center.notices.map(\.messageID), ["plain"])
     }
 
+    func testLowPriorityIsNotPostedByDefault() async {
+        let center = RecordingNotificationCenter()
+        let store = MessageNotificationStore(center: center, defaults: defaults)
+        await store.receive(message(id: "low", priority: "low"))
+        await store.receive(message())
+        XCTAssertEqual(center.notices.map(\.messageID), ["plain"])
+    }
+
+    func testServerTiersOverridesAndQuietHoursDecideTheNotice() async {
+        var prefs = BossPreferences(push: [.high: PushRule(deliver: false, sound: true, level: .active)])
+        let center = RecordingNotificationCenter()
+        let store = MessageNotificationStore(center: center, defaults: defaults,
+            preferences: { prefs }, now: { Date(timeIntervalSince1970: 1_792_584_000) })
+        await store.receive(message(id: "normal"))
+        await store.receive(message(id: "high", priority: "high"))
+        await store.receive(message(id: "critical", priority: "critical"))
+        XCTAssertEqual(center.notices.map(\.messageID), ["normal", "critical"])
+        XCTAssertEqual(center.notices.map(\.sound), [false, true])
+        XCTAssertEqual(center.notices.map(\.level), [.passive, .timeSensitive])
+        prefs.quietHours = QuietHours(enabled: true, start: "11:00", end: "13:00", timezone: "UTC",
+            days: [], criticalBypass: false)
+        await store.receive(message(id: "quiet"))
+        await store.receive(message(id: "urgent", priority: "critical"))
+        XCTAssertEqual(center.notices.map(\.messageID).suffix(1), ["urgent"])
+    }
+
+    func testDecisionsNotifyOnlyWhenDecisionAlertsAreOff() async {
+        var prefs = BossPreferences()
+        let center = RecordingNotificationCenter()
+        let store = MessageNotificationStore(center: center, defaults: defaults, preferences: { prefs })
+        await store.receive(message(id: "island", metadata: MessageMetadata(options: ["Yes"])))
+        XCTAssertTrue(center.notices.isEmpty)
+        prefs.decisionAlerts = false
+        await store.receive(message(id: "tiered", priority: "high", metadata: MessageMetadata(options: ["Yes"])))
+        XCTAssertEqual(center.notices.map(\.messageID), ["tiered"])
+    }
+
     func testTitleBodyAndThreadFormatting() {
         let notice = MessageNotice(message: message(body: "  first\n second\tthird  "))
         XCTAssertEqual(notice.title, "Builder · Release")
@@ -143,10 +180,11 @@ final class MessageNotificationTests: XCTestCase {
 
     private func message(
         id: MessageID = "plain", body: String = "ping", direction: String = "agent_to_boss",
-        metadata: MessageMetadata? = nil, sessionID: String? = "session-1", sessionLabel: String? = " Release "
+        priority: String = "normal", metadata: MessageMetadata? = nil, sessionID: String? = "session-1",
+        sessionLabel: String? = " Release "
     ) -> HistoryMessage {
         HistoryMessage(id: id, body: body, agentName: " Builder ", direction: direction,
-            status: "pending", priority: "normal", metadata: metadata, createdAt: "2026-09-11 12:00:00",
+            status: "pending", priority: priority, metadata: metadata, createdAt: "2026-09-11 12:00:00",
             sessionId: sessionID, sessionLabel: sessionLabel)
     }
 }

@@ -1,4 +1,4 @@
-// Exercises actual MainView observers with held panel reads and healthy message coverage.
+// Exercises the actual MainView and app-level account observers with held panel reads.
 // Exports TodayStartupCoverageTests for account replacement, sign-out, and all-clear ordering.
 // Dependencies: AppKit hosting, Combine, HibossKit, and TodayStartupAPI.
 
@@ -24,6 +24,9 @@ final class TodayStartupCoverageTests: XCTestCase {
         await api.setPopulated(true)
         let settings = try await makeSettings()
         let model = makeModel(api)
+        // The app owns the panels, so its account observer resets them even with no window open.
+        let delegate = AppDelegate(settings: settings, panels: model)
+        delegate.observePanels()
         let window = host(settings: settings, model: model)
         defer { window.close() }
         await api.waitForPanels()

@@ -1,5 +1,5 @@
 // Pure Today projection combining decisions, live sessions, results, and connection health.
-// Exports: TodaySnapshot; all-clear requires a live connection and complete coverage.
+// Exports: TodaySnapshot and its top decision; all-clear requires live, complete coverage.
 // Dependencies: Foundation, AttentionModel, TodaySession, SessionDirectory, and TodayHealth.
 
 import Foundation
@@ -41,6 +41,12 @@ public struct TodaySnapshot: Equatable, Sendable {
         self.health = health
         self.coverageComplete = coverageComplete
         sessionDirectory = SessionDirectory(sessions: sessions, now: now)
+    }
+
+    /// The one decision a single-slot surface carries (Mac Island, iOS Live Activity): the first
+    /// in the shared ranking, text-reply asks included, unless this surface's boss skipped it.
+    public func topDecision(skipping skipped: Set<MessageID> = []) -> AttentionItem? {
+        decisions.first { !skipped.contains($0.id) }
     }
 
     private static func results(

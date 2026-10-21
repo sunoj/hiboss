@@ -2,6 +2,7 @@
 // Exports ResolvedBanner for thread and detail; timestamps are omitted without a receipt.
 // Dependencies: DecisionSettlement, SwiftUI semantic type, and design-v4 Theme roles.
 
+import HibossKit
 import SwiftUI
 
 struct ResolvedBanner: View {
@@ -12,7 +13,7 @@ struct ResolvedBanner: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label {
-                if settlement.isAutoDefault { Text("Default picked · not approval") }
+                if settlement.isAutoDefault { Text(verbatim: AnswerAttribution.defaultPicked) }
                 else { Text("You chose \(settlement.answer)") }
             } icon: { Image(systemName: settlement.symbol) }
                 .font(.subheadline.weight(.semibold))

@@ -26,9 +26,15 @@ struct MessageNotice: Equatable, Sendable {
     let title: String
     let body: String
     let threadIdentifier: String
+    var sound = true
+    var level: PushLevel = .active
 
-    init(message: HistoryMessage) {
+    init(message: HistoryMessage, alert: MessageAlert? = nil) {
         messageID = message.id
+        if let alert {
+            sound = alert.sound
+            level = alert.level
+        }
         let agent = Self.cleaned(message.agentName) ?? L("Agent")
         title = Self.cleaned(message.sessionLabel).map { "\(agent) · \($0)" } ?? agent
         let text = message.body.split(whereSeparator: \.isWhitespace).joined(separator: " ")
@@ -40,6 +46,16 @@ struct MessageNotice: Equatable, Sendable {
         guard let text = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else { return nil }
         return text
+    }
+}
+
+extension PushLevel {
+    var interruptionLevel: UNNotificationInterruptionLevel {
+        switch self {
+        case .passive: .passive
+        case .active: .active
+        case .timeSensitive: .timeSensitive
+        }
     }
 }
 
@@ -56,6 +72,7 @@ final class SystemMessageNotificationCenter: NSObject, MessageNotificationCenter
     var isEnabled = true
     var onOpen: ((MessageID) -> Void)?
     var onOpenJoinRequest: ((String) -> Void)?
+    var onOpenQuestionnaire: ((String) -> Void)?
     // Delay accessing current() until app launch; SwiftPM tests have no app bundle.
     private lazy var center = UNUserNotificationCenter.current()
 
@@ -83,7 +100,8 @@ final class SystemMessageNotificationCenter: NSObject, MessageNotificationCenter
         content.title = notice.title
         content.body = notice.body
         content.threadIdentifier = notice.threadIdentifier
-        content.sound = .default
+        content.sound = notice.sound ? .default : nil
+        content.interruptionLevel = notice.level.interruptionLevel
         content.userInfo = ["messageID": notice.messageID.rawValue]
         try await center.add(UNNotificationRequest(
             identifier: notice.messageID.rawValue, content: content, trigger: nil
@@ -99,15 +117,22 @@ final class SystemMessageNotificationCenter: NSObject, MessageNotificationCenter
 }
 
 extension SystemMessageNotificationCenter: UNUserNotificationCenterDelegate {
+    /// Foreground presentation follows the notice's tier: a passive notice is listed silently.
+    nonisolated static func presentation(passive: Bool, sound: Bool) -> UNNotificationPresentationOptions {
+        var options: UNNotificationPresentationOptions = passive ? [.list] : [.banner, .list]
+        if sound { options.insert(.sound) }
+        return options
+    }
+
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         // Join requests are an admin security prompt, not a message; the message toggle does not mute them.
         let isJoinRequest = notification.request.content.userInfo[JoinRequestNotice.userInfoKey] is String
-        return await MainActor.run {
-            isEnabled || isJoinRequest ? [.banner, .list, .sound] : []
-        }
+        let content = notification.request.content
+        let tier = Self.presentation(passive: content.interruptionLevel == .passive, sound: content.sound != nil)
+        return await MainActor.run { isEnabled || isJoinRequest ? tier : [] }
     }
 
     nonisolated func userNotificationCenter(
@@ -117,11 +142,14 @@ extension SystemMessageNotificationCenter: UNUserNotificationCenterDelegate {
         let info = response.notification.request.content.userInfo
         let id = info["messageID"] as? String
         let joinRequestID = info[JoinRequestNotice.userInfoKey] as? String
+        let panelID = info[QuestionnaireNotice.userInfoKey] as? String
         let isOpen = response.actionIdentifier == UNNotificationDefaultActionIdentifier
         await MainActor.run {
             guard isOpen else { return }
             if let joinRequestID {
                 onOpenJoinRequest?(joinRequestID)
+            } else if let panelID {
+                onOpenQuestionnaire?(panelID)
             } else if let id {
                 onOpen?(MessageID(rawValue: id))
             }

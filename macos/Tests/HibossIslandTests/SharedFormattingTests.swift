@@ -1,4 +1,4 @@
-// Verifies compact timestamps with fixed calendars and canonical answer-source spelling.
+// Verifies compact timestamps with fixed calendars; answer-source casing is tested in HibossKit.
 // Exports: SharedFormattingTests for elapsed time, Buddhist years, and calendar-day boundaries.
 // Dependencies: Foundation, XCTest, and production formatting helpers.
 
@@ -94,23 +94,6 @@ final class SharedFormattingTests: XCTestCase {
                 format(raw, calendar))
         }
         XCTAssertEqual(BoxTime.absolute("invalid", now: now), "invalid")
-    }
-
-    func testKnownAnswerSourcesUsePlatformSpellingAndUnknownNamesCapitalize() {
-        let sources = ["ios": "iOS", "ipados": "iPadOS", "macos": "macOS", "watchos": "watchOS",
-            "cli": "CLI", "web": "Web", "telegram": "Telegram", "discord": "Discord"]
-        for (source, expected) in sources {
-            XCTAssertEqual(AnswerSource.label(source), expected)
-            XCTAssertEqual(AnswerSource.label(source.uppercased()), expected)
-        }
-        XCTAssertEqual(AnswerSource.label("custom client"), "Custom Client")
-    }
-
-    func testMacOSAndEmptyAnswerSourcesRemainHidden() {
-        XCTAssertNil(AnswerSource.visibleLabel("macos"))
-        XCTAssertNil(AnswerSource.visibleLabel("macOS"))
-        XCTAssertNil(AnswerSource.visibleLabel(""))
-        XCTAssertEqual(AnswerSource.visibleLabel("ios"), "iOS")
     }
 
     private func calendar(_ identifier: Calendar.Identifier, zone: String = "UTC") throws -> Calendar {

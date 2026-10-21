@@ -1,6 +1,23 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Reply in HiBoss": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply in HiBoss"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 HiBoss 中回复"
+          }
+        }
+      }
+    },
     "Checking…": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Checking…" } },

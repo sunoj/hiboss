@@ -17,7 +17,7 @@ final class OverviewStore: ObservableObject {
     private var nextExpiration: Date?
     private var expirationTask: Task<Void, Never>?
     private var requiredCoverageComplete = false
-    private var questionnaireCoverageComplete = true
+    private(set) var questionnaireCoverageComplete = true
     private var requiredInputs: [HistoryMessage] = []
     private var requiredInputLoaded = false
     private var closedDecisionIDs: Set<MessageID> = []

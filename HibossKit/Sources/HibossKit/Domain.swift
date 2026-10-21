@@ -210,26 +210,12 @@ public struct OptionResolution: Codable, Equatable, Sendable {
         answeredBy = try values.decodeIfPresent(AnsweringDevice.self, forKey: .answeredBy)
     }
 
-    /// Human label for the resolving surface, e.g. "iOS", "Mac", "Telegram".
-    public var sourceLabel: String? { answeredBy?.displayLabel ?? resolutionSourceLabel(source) }
+    /// Human label for the resolving surface, e.g. "iOS", "macOS", "Telegram".
+    public var sourceLabel: String? { answeredBy?.displayLabel ?? source.map(AnswerSource.label) }
 
     /// The stream event carries no metadata: the server encodes a reply marked
     /// `auto_default: true` as source `system`, and emits `system` for nothing else.
     public var isAutoDefault: Bool { status == .replied && source == "system" }
-}
-
-/// Maps a raw resolution-source tag to a display label. Shared so the option
-/// stream and the message-detail view can't drift apart.
-public func resolutionSourceLabel(_ source: String?) -> String? {
-    switch source?.lowercased() {
-    case "ios": return "iOS"
-    case "macos", "mac": return "Mac"
-    case "telegram": return "Telegram"
-    case "discord": return "Discord"
-    case "api": return "API"
-    case let other?: return other.capitalized
-    case nil: return nil
-    }
 }
 
 public enum BossEvent: Equatable, Sendable {

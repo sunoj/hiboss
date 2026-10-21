@@ -1,5 +1,5 @@
 // Starts, refreshes, and ends decision Live Activities from the app.
-// Exports: DecisionActivityManager.sync and rankedMessages using Home's attention order.
+// Exports: DecisionActivityManager.sync, rankedMessages and topMessage (shared top decision).
 // Dependencies: ActivityKit, HibossKit HistoryMessage, shared attributes.
 
 import ActivityKit
@@ -13,10 +13,17 @@ private let laLog = Logger(subsystem: "ai.hiboss.app", category: "LiveActivity")
 enum DecisionActivityManager {
     /// Candidates must come from the loaded required-input list, never bounded history.
     static func rankedMessages(from requiredInputs: [HistoryMessage], now: Date = .now) -> [HistoryMessage] {
+        snapshot(requiredInputs, now: now).decisions.map(\.message)
+    }
+
+    /// HibossKit's shared top decision, text-reply asks included, as the Mac Island shows it.
+    static func topMessage(from requiredInputs: [HistoryMessage], now: Date = .now) -> HistoryMessage? {
+        snapshot(requiredInputs, now: now).topDecision()?.message
+    }
+
+    private static func snapshot(_ requiredInputs: [HistoryMessage], now: Date) -> TodaySnapshot {
         TodaySnapshot(history: [], requiredInputs: requiredInputs, health: .loading,
-                      coverageComplete: false, now: now).decisions
-            .filter { !$0.options.isEmpty }
-            .map(\.message)
+                      coverageComplete: false, now: now)
     }
 
     /// Keeps the most urgent Home decision on the Island and retires lower-ranked activities.
@@ -30,8 +37,7 @@ enum DecisionActivityManager {
             "sync: \(pending.count) pending, \(Activity<DecisionActivityAttributes>.activities.count) running"
         )
         let running = Activity<DecisionActivityAttributes>.activities
-        let ranked = pending.filter { !$0.options.isEmpty }
-        let top = alertsEnabled ? ranked.first : nil
+        let top = alertsEnabled ? topMessage(from: pending) : nil
 
         for activity in running where activity.attributes.messageID != top?.id.rawValue {
             await activity.end(nil, dismissalPolicy: .immediate)

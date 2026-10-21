@@ -47,15 +47,15 @@ final class IslandAttention: ObservableObject {
     }
 
     /// Pure form for publishers: `$skippedMessageIDs` emits before the property changes.
+    /// With decision alerts off the Island stays closed, as iOS then starts no Live Activity.
     nonisolated static func presentation(snapshot: TodaySnapshot, active: OptionMessage?,
-                                         state: PresentationState,
-                                         skipped: Set<MessageID>) -> IslandPresentation? {
+                                         state: PresentationState, skipped: Set<MessageID>,
+                                         decisionAlerts: Bool = true) -> IslandPresentation? {
+        guard decisionAlerts else { return nil }
         if case .resolved = state, let active, !skipped.contains(active.id) {
             return IslandPresentation(message: active, item: nil)
         }
-        guard let first = snapshot.decisions.first(where: { !skipped.contains($0.id) }) else {
-            return nil
-        }
+        guard let first = snapshot.topDecision(skipping: skipped) else { return nil }
         return IslandPresentation(message: first.asOptionMessage, item: first)
     }
 

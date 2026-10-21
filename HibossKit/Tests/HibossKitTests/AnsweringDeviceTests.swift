@@ -36,7 +36,7 @@ final class AnsweringDeviceTests: XCTestCase {
     }
 
     func testLegacyRowsAndBlankDeviceNamesKeepKindFallback() throws {
-        for (source, label) in [("api", "API"), ("ios", "iOS"), ("macos", "Mac"),
+        for (source, label) in [("api", "API"), ("ios", "iOS"), ("macos", "macOS"),
                                 ("telegram", "Telegram"), ("discord", "Discord")] {
             let metadata = try JSONDecoder().decode(MessageMetadata.self,
                 from: Data("{\"source\":\"\(source)\"}".utf8))
@@ -44,9 +44,9 @@ final class AnsweringDeviceTests: XCTestCase {
             XCTAssertEqual(metadata.sourceLabel, label)
         }
         let device = AnsweringDevice(clientID: "mac", kind: "macos", label: " \n ")
-        XCTAssertEqual(device.displayLabel, "Mac")
+        XCTAssertEqual(device.displayLabel, "macOS")
         let metadata = MessageMetadata(options: [], source: "api", answeredBy: device)
-        XCTAssertEqual(metadata.sourceLabel, "Mac")
+        XCTAssertEqual(metadata.sourceLabel, "macOS")
         XCTAssertEqual(try JSONDecoder().decode(MessageMetadata.self,
             from: JSONEncoder().encode(metadata)), metadata)
         XCTAssertNil(ReplyOutcome.accepted.answeredBy)

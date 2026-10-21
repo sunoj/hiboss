@@ -17,7 +17,8 @@ struct HibossIslandApp: App {
                 notificationNavigation: appDelegate.notificationNavigation,
                 joinRequests: appDelegate.joinRequests,
                 overviewStore: appDelegate.overview, requiredInputs: appDelegate.requiredInputs,
-                identity: appDelegate.identity)
+                panelsModel: appDelegate.panels, identity: appDelegate.identity,
+                onPaired: appDelegate.didPair)
         }
         .defaultSize(width: 1320, height: 820)
         .commands {
@@ -80,20 +81,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var identity: AccountAuthorization { settings.identity }
     let overview: OverviewStore
     let requiredInputs = RequiredInputStore()
+    let panels: PanelsModel
     var cancellables: Set<AnyCancellable> = []
 
     override convenience init() {
         self.init(settings: AppSettings())
     }
 
-    init(settings: AppSettings) {
+    init(settings: AppSettings, panels: PanelsModel? = nil) {
         self.settings = settings
-        notifications = MessageNotificationStore(center: notificationCenter)
-        preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
+        let preferences = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
+        preferencesStore = preferences
+        notifications = MessageNotificationStore(center: notificationCenter,
+            preferences: { preferences.preferences })
         joinRequests = JoinRequestsModel {
             (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
         }
         overview = OverviewStore(identity: settings.identity)
+        self.panels = panels ?? PanelsModel(configurationProvider: { [settings] in
+            guard let config = settings.activeClientConfig else { throw PanelClientError.notConfigured }
+            return config
+        }, autoload: false)
         super.init()
         overview.bind(flow: flow, inputs: requiredInputs)
         AccountAuthorization.shared.observe { [weak self] _ in
@@ -119,8 +127,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         notificationCenter.start()
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
-        panelController = IslandPanelController(flow: flow, settings: settings, overview: overview)
+        panelController = IslandPanelController(flow: flow, settings: settings, overview: overview,
+            decisionAlerts: preferencesStore.$preferences.map { $0.decisionAlerts != false }.eraseToAnyPublisher())
         observeJoinRequests()
+        observePanels()
         Task { [weak self] in
             guard let self else { return }
             await settings.loadToken()
@@ -141,13 +151,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     private func connectIfConfigured() {
-        if case let .success(config) = settings.connectionConfig() {
-            let api = HibossAPI(config: config)
-            requiredInputs.connect(api)
-            flow.connect(api: api)
-            notifications.connect(api: api)
-            Task { await preferencesStore.load() }
-        }
+        if case let .success(config) = settings.connectionConfig() { didPair(config) }
+    }
+
+    /// Starts every stream for a config that was just stored; preferences come from the server.
+    func didPair(_ config: ConnectionConfig) {
+        let api = HibossAPI(config: config)
+        requiredInputs.connect(api)
+        flow.connect(api: api)
+        notifications.connect(api: api)
+        Task { await preferencesStore.load() }
     }
 
     private func observePresentationPreferences() {

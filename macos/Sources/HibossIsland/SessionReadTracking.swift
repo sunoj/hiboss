@@ -2,6 +2,7 @@
 // Exports: SessionReadTracking; visible reads use a real window or an injected key-state binding.
 // Dependencies: SwiftUI, OverviewStore, SessionReadStore, and SessionWindowKeyReader.
 
+import HibossKit
 import SwiftUI
 
 struct SessionReadTracking: ViewModifier {

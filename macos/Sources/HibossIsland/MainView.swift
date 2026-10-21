@@ -1,5 +1,5 @@
 // Main window: Today, Box, Progress, and session threads with native sidebar navigation.
-// Exports: MainView with persistent Panels state, attention drafts, and local session reads.
+// Exports: MainView rendering app-owned Panels state, attention drafts, and local session reads.
 // Dependencies: SwiftUI, HibossKit, workspace surfaces, and SessionReadTracking.
 
 import HibossKit
@@ -23,6 +23,7 @@ struct MainView: View {
     @StateObject private var boxMedia: BoxBrowserMedia
     @StateObject private var sessionBox: BoxBrowserStore
     private let identity: AccountAuthorization
+    private let onPaired: (ConnectionConfig) -> Void
     private let previewSessions: [ProjectSession]?
     @State private var destination: OverviewDestination = .today
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
@@ -46,7 +47,8 @@ struct MainView: View {
          panelsModel: PanelsModel? = nil,
          sessionReadStore: SessionReadStore? = nil,
          sessionWindowIsKey: Binding<Bool>? = nil,
-         identity: AccountAuthorization? = nil) {
+         identity: AccountAuthorization? = nil, onPaired: @escaping (ConnectionConfig) -> Void = { _ in }) {
+        self.onPaired = onPaired
         let accountIdentity = identity ?? overviewStore?.identity ?? settings.identity
         self.identity = accountIdentity
         _sessionReads = StateObject(wrappedValue: sessionReadStore ?? SessionReadStore())
@@ -126,13 +128,11 @@ struct MainView: View {
             reply.reset()
             destination = .today
             showsCompactOverview = false
-            panels.connectionDidChange()
             box.reset()
             progress.reset()
             sessionBox.reset()
             boxMedia.reset()
             Task {
-                await panels.load()
                 if destination == .box { await box.refresh() }
                 if destination == .progress { await progress.refresh() }
             }
@@ -163,6 +163,8 @@ struct MainView: View {
 
     private func shell(snapshot: OverviewSnapshot, compact: Bool) -> some View {
         messageShell(snapshot: snapshot, compact: compact)
+            .modifier(FirstRunGate(settings: settings, isPreview: previewHistory != nil, onPaired: onPaired,
+                onSettings: { openWindow(id: "settings") }))
             .modifier(WorkspaceToolbar(flow: flow, destination: destination, onRefresh: refresh))
     }
 

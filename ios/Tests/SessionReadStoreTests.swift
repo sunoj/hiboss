@@ -159,6 +159,6 @@ final class SessionReadStoreTests: XCTestCase {
     }
 
     private func unread(_ messages: [HistoryMessage], lastRead: Date? = nil) -> Bool {
-        isUnread(sessionID: "session", messages: messages, lastRead: lastRead, baseline: baseline)
+        SessionUnread.isUnread(sessionID: "session", messages: messages, lastRead: lastRead, baseline: baseline)
     }
 }

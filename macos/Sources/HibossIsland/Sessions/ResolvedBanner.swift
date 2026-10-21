@@ -12,12 +12,12 @@ struct ResolvedBanner: View {
     static func title(for outcome: ThreadOutcome, message: HistoryMessage? = nil) -> String? {
         switch outcome {
         case let .chosen(option, _): return L("You chose \(option)")
-        case .autoSelected: return L("Default picked · not approval")
+        case .autoSelected: return AnswerAttribution.defaultPicked
         case .replied: return L("You replied")
         case .expired: return L("Expired without an answer")
         case .none:
             if message?.metadata?.isExpired == true, message?.defaultOption != nil {
-                return L("Default picked · not approval")
+                return AnswerAttribution.defaultPicked
             }
             if let status = message?.status, ["replied", "resolved"].contains(status) {
                 return L("Resolved · answer unavailable")
@@ -54,8 +54,8 @@ struct ResolvedBanner: View {
                     Text(text).font(.body).textSelection(.enabled)
                 }
                 if recorded, let source = thread.newestReply?.metadata?.answeredBy?.displayLabel
-                    ?? thread.newestReply?.metadata?.source.flatMap(AnswerSource.visibleLabel) {
-                    Text(L("Answered on \(source)")).font(.caption)
+                    ?? AnswerSource.visibleLabel(thread.newestReply?.metadata?.source, hiding: "macos") {
+                    Text(AnswerAttribution.answeredOn(source)).font(.caption)
                 }
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)

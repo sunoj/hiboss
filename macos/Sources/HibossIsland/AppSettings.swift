@@ -66,6 +66,8 @@ final class AppSettings: ObservableObject {
             if let newValue { identity.connect(newValue) }
         }
     }
+    /// Set once the stored token has been read, so a signed-in launch never flashes first run.
+    @Published private(set) var hasLoadedToken = false
     private var authorizationObservation: AnyCancellable?
     @Published var presentationMode: OptionPresentationMode {
         didSet { defaults.set(presentationMode.rawValue, forKey: AppConstants.Storage.presentationMode) }
@@ -153,7 +155,11 @@ final class AppSettings: ObservableObject {
         ).get()
         bossToken = storedToken ?? ""
         activeClientConfig = candidate
+        hasLoadedToken = true
     }
+
+    /// First run, or a rejected account: nothing to connect with until the boss pairs.
+    var needsSignIn: Bool { hasLoadedToken && activeClientConfig == nil }
 
     var isConfigured: Bool {
         switch connectionConfig() {

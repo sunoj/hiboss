@@ -9,8 +9,8 @@ import XCTest
 final class MessageMetaTests: XCTestCase {
     func testKnownPlatformChannelNamesPreserveBrandCasing() {
         let names = ["ios": "iOS", "ipados": "iPadOS", "macos": "macOS", "watchos": "watchOS",
-                     "cli": "CLI", "web": "Web", "telegram": "Telegram", "discord": "Discord",
-                     "custom_source": "Custom_Source"]
+                     "cli": "CLI", "web": "Web", "api": "API", "telegram": "Telegram",
+                     "discord": "Discord", "custom_source": "Custom_Source"]
         for (raw, expected) in names {
             let message = HistoryMessage(id: "platform", body: "hello", direction: "agent_to_boss",
                                          status: "delivered", priority: "normal", channel: raw,
@@ -22,10 +22,10 @@ final class MessageMetaTests: XCTestCase {
 
     func testSourceAndChannelUseTheSameCaseInsensitivePlatformNames() {
         for (raw, expected) in [("IOS", "iOS"), ("macOS", "macOS"), ("ipados", "iPadOS"),
-                                ("watchos", "watchOS"), ("CLI", "CLI"), ("web", "Web"),
+                                ("watchos", "watchOS"), ("CLI", "CLI"), ("web", "Web"), ("api", "API"),
                                 ("telegram", "Telegram"), ("discord", "Discord"),
                                 ("other", "Other")] {
-            XCTAssertEqual(MessageMeta.platformName(raw), expected)
+            XCTAssertEqual(AnswerSource.label(raw), expected)
             XCTAssertEqual(DecisionSettlement(answer: "Yes", source: raw).sourceLabel, expected)
             let device = AnsweringDevice(clientID: "test", kind: raw, label: " ")
             XCTAssertEqual(DecisionSettlement(answer: "Yes", source: nil, answeredBy: device).sourceLabel,

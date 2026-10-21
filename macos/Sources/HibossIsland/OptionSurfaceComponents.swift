@@ -2,6 +2,7 @@
 // Exports: option rows, reply field, and ExpiryProgress.
 // Dependencies: SwiftUI, localized strings, and OptionSurfaceStyle.
 
+import HibossKit
 import SwiftUI
 
 /// One option in the resolved state: the chosen one animates a checkmark and,
@@ -32,7 +33,7 @@ struct ResolvedOptionRow: View {
             }
             OptionDescriptionText(text: description)
             if chosen, showSource, let source, !source.isEmpty {
-                Text(L("Answered on \(source)"))
+                Text(AnswerAttribution.answeredOn(source))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
                     .transition(.opacity)

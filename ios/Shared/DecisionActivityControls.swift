@@ -1,5 +1,5 @@
 // Native reply controls shared by Live Activities and the simulator evidence fixture.
-// Exports DecisionActivityControls; pending replies keep their mutually exclusive choices locked.
+// Exports DecisionActivityControls; text-reply asks point to the app, choices lock while pending.
 // Dependencies: SwiftUI, WidgetKit, RespondDecisionIntent and DecisionSubmissionNotice.
 
 import SwiftUI
@@ -14,6 +14,13 @@ struct DecisionActivityControls: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if state.options.isEmpty {
+                // A text-reply ask: the activity has no field, so it points to the app.
+                Label("Reply in HiBoss", systemImage: "text.bubble")
+                    .font(.callout.weight(.semibold)).foregroundStyle(foreground)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(secondaryBackground, in: RoundedRectangle(cornerRadius: 12))
+            }
             HStack(spacing: 9) {
                 ForEach(Array(state.options.prefix(2).enumerated()), id: \.offset) { index, option in
                     Button(intent: RespondDecisionIntent(messageID: messageID, choice: option)) {
