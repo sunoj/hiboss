@@ -17,7 +17,10 @@ afterEach(() => {
 });
 
 async function seedCounter(scope: string, periodMs: number, count: number): Promise<void> {
-  await env.DB.prepare('INSERT INTO rate_counters (key, count, expires_at) VALUES (?, ?, ?)')
+  await env.DB.prepare(
+    'INSERT INTO rate_counters (key, count, expires_at) VALUES (?, ?, ?) ' +
+      'ON CONFLICT(key) DO UPDATE SET count = excluded.count',
+  )
     .bind(counterKey(scope, periodMs, Date.now()), count, Date.now() + periodMs)
     .run();
 }
