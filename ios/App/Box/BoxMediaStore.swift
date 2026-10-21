@@ -110,7 +110,7 @@ private enum BoxDownloadName {
         let forbidden = CharacterSet.controlCharacters.union(CharacterSet(charactersIn: "/\\:"))
         let safe = raw.unicodeScalars.map { forbidden.contains($0) ? "-" : String($0) }.joined()
             .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".")))
-        let ownExtension = (safe as NSString).pathExtension
+        let ownExtension = realExtension((safe as NSString).pathExtension)
         let mimeExtension = item.mediaType.flatMap { UTType(mimeType: $0)?.preferredFilenameExtension }
         let typedExtension = mimeExtension.flatMap { $0 == "bin" ? nil : $0 }
         let ext = try typedExtension ?? (ownExtension.isEmpty ? nil : bounded(ownExtension, bytes: 32))
@@ -118,6 +118,15 @@ private enum BoxDownloadName {
         let stem = ownExtension.isEmpty ? safe : (safe as NSString).deletingPathExtension
         let name = bounded(stem, bytes: 200)
         return "\(name.isEmpty ? "attachment" : name).\(ext)"
+    }
+
+    /// A trailing ".12" or ".2 notes" is part of the title, not a file extension.
+    private static func realExtension(_ candidate: String) -> String {
+        guard !candidate.isEmpty, candidate.count <= 10,
+              candidate.unicodeScalars.allSatisfy({ $0.isASCII && CharacterSet.alphanumerics.contains($0) })
+        else { return "" }
+        let lettersOnly = candidate.unicodeScalars.allSatisfy { CharacterSet.letters.contains($0) }
+        return lettersOnly || UTType(filenameExtension: candidate)?.isDeclared == true ? candidate : ""
     }
 
     private static func bounded(_ value: String, bytes: Int) -> String {

@@ -82,6 +82,13 @@ final class BoxShareContentTests: XCTestCase {
             ("Report.custom", nil, Data("%PDF-1.7".utf8), "Report.custom"),
             ("Report.txt", "application/pdf", Data(), "Report.pdf"),
             ("Mystery", "application/octet-stream", Data(), "Mystery.bin"),
+            ("Screenshot 2026-10-21 at 9.37.12", "image/png", Data(), "Screenshot 2026-10-21 at 9.37.12.png"),
+            ("Screenshot 2026-10-21 at 9.37.12", nil, Data([137, 80, 78, 71, 13, 10, 26, 10]),
+             "Screenshot 2026-10-21 at 9.37.12.png"),
+            ("Meeting v1.2 notes", "application/pdf", Data(), "Meeting v1.2 notes.pdf"),
+            ("archive.tar.gz", "application/x-hiboss-unknown", Data(), "archive.tar.gz"),
+            ("report.PDF", "application/pdf", Data(), "report.pdf"),
+            ("Recording.mp3", nil, Data(), "Recording.mp3"),
         ]
         for (name, type, data, expected) in cases {
             let fixture = downloadItem(name: name, type: type)
