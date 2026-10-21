@@ -217,6 +217,31 @@ final class MediaViewerUITests: XCTestCase {
         XCTAssertTrue(app.images["media-viewer-image"].firstMatch.waitForExistence(timeout: 10))
     }
 
+    func testBoxPagingStaysOnEachPageWhileDownloadsFinish() {
+        launch(["HIBOSS_DEMO_BOX_V2": "1", "HIBOSS_DEMO_BOX_MEDIA_DELAY_MS": "1200"])
+        app.tabBars.buttons["Box"].tap()
+        app.buttons["box-filter-image"].tap()
+        let image = app.buttons["box-item-demo-grid-1"]
+        XCTAssertTrue(image.waitForExistence(timeout: 10))
+        image.tap()
+        let counter = app.staticTexts["media-viewer-counter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        XCTAssertEqual(counter.label, "2 / 4")
+        for expected in ["3 / 4", "4 / 4"] {
+            mediaZoomScroll(app).swipeLeft()
+            let page = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label == %@", expected), object: counter)
+            XCTAssertEqual(XCTWaiter.wait(for: [page], timeout: 3), .completed)
+        }
+        for expected in ["3 / 4", "2 / 4", "1 / 4"] {
+            mediaZoomScroll(app).swipeRight()
+            let page = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label == %@", expected), object: counter)
+            XCTAssertEqual(XCTWaiter.wait(for: [page], timeout: 3), .completed)
+        }
+        XCTAssertTrue(app.buttons["media-viewer-close"].isHittable)
+    }
+
     private func capture(_ name: String) {
         let scroll = mediaZoomScroll(app)
         scroll.tap()
@@ -227,5 +252,29 @@ final class MediaViewerUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    func testBoxDownloadCompletionKeepsSelectionAndZoomedPansDoNotPage() {
+        launch(["HIBOSS_DEMO_BOX_V2": "1", "HIBOSS_DEMO_BOX_MEDIA_DELAY_MS": "15000"])
+        app.tabBars.buttons["Box"].tap()
+        app.buttons["box-filter-image"].tap()
+        let image = app.buttons["box-item-demo-grid-1"]
+        XCTAssertTrue(image.waitForExistence(timeout: 10))
+        image.tap()
+        let counter = app.staticTexts["media-viewer-counter"]
+        XCTAssertTrue(counter.waitForExistence(timeout: 5))
+        XCTAssertEqual(counter.label, "2 / 4")
+        mediaZoomScroll(app).swipeLeft()
+        let selected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == '3 / 4'"), object: counter)
+        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 3), .completed)
+        let available = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "enabled == true"), object: app.buttons["media-viewer-share"])
+        XCTAssertEqual(XCTWaiter.wait(for: [available], timeout: 20), .completed)
+        XCTAssertEqual(counter.label, "3 / 4")
+        assertMediaPinchZoom(app)
+        mediaZoomScroll(app).swipeLeft()
+        XCTAssertEqual(counter.label, "3 / 4")
+        XCTAssertTrue(app.buttons["media-viewer-close"].isHittable)
     }
 }

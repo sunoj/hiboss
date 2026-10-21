@@ -16,10 +16,10 @@ struct BoxMediaDetail: View {
 
     var body: some View {
         MediaViewer(items: pages, startIndex: candidates.firstIndex { $0.id == item.id } ?? 0,
-                    itemActions: actions)
+                    itemActions: actions,
+                    onSelection: { await media.loadSelection(id: $0, items: candidates) })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("box-media-detail")
-        .task { for target in candidates { await media.load(target) } }
         .sheet(item: $info) { selected in
             NavigationStack {
                 BoxDetail(original: selected, store: store, media: media)

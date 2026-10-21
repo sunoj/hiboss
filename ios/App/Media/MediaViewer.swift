@@ -18,6 +18,7 @@ struct MediaItemActions {
 struct MediaViewer: View {
     let items: [MediaItem]
     let itemActions: MediaItemActions?
+    let onSelection: ((String) async -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var textSize
@@ -28,9 +29,11 @@ struct MediaViewer: View {
     @State private var chromeVisible = true
     @StateObject private var sharing = MediaShareStore()
 
-    init(items: [MediaItem], startIndex: Int, itemActions: MediaItemActions? = nil) {
+    init(items: [MediaItem], startIndex: Int, itemActions: MediaItemActions? = nil,
+         onSelection: ((String) async -> Void)? = nil) {
         self.items = items
         self.itemActions = itemActions
+        self.onSelection = onSelection
         _currentID = State(initialValue: items.indices.contains(startIndex) ? items[startIndex].id : nil)
     }
 
@@ -50,6 +53,9 @@ struct MediaViewer: View {
             if chromeVisible && itemActions != nil { captionArea }
         }
         .accessibilityAddTraits(.isModal)
+        .task(id: currentID) {
+            if let currentID { await onSelection?(currentID) }
+        }
         .onChange(of: currentID) { _, _ in
             zoomed = false
             offset = 0
@@ -63,20 +69,15 @@ struct MediaViewer: View {
 
     private var pager: some View {
         GeometryReader { geo in
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 0) {
-                    ForEach(items) { item in
-                        page(item, size: geo.size)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .id(item.id)
-                    }
+            TabView(selection: $currentID) {
+                ForEach(items) { item in
+                    page(item, size: geo.size)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .tag(Optional(item.id))
                 }
-                .scrollTargetLayout()
             }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: $currentID)
+            .tabViewStyle(.page(indexDisplayMode: .never))
             .scrollDisabled(zoomed)
-            .scrollIndicators(.hidden)
         }
         .ignoresSafeArea(edges: itemActions == nil ? .all : [])
     }

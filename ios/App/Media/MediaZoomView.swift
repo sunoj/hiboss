@@ -1,7 +1,8 @@
 // Pinch and double-tap zoom wrapper used by the shared media viewer.
 // Exports: MediaZoomView.
-// Dependencies: SwiftUI, UIKit, MediaSwipeDismiss.
+// Dependencies: AVKit, SwiftUI, UIKit, MediaSwipeDismiss.
 
+import AVKit
 import SwiftUI
 import UIKit
 
@@ -37,6 +38,7 @@ struct MediaZoomView<Content: View>: UIViewRepresentable {
             action: #selector(Coordinator.singleTapped)
         )
         singleTap.cancelsTouchesInView = false
+        singleTap.delegate = scroll as? ZoomScrollView
         singleTap.require(toFail: tap)
         scroll.addGestureRecognizer(singleTap)
         return scroll
@@ -212,6 +214,9 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
     }
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer == panGestureRecognizer {
+            return zoomScale > MediaSwipeDismiss.zoomedScale
+        }
         guard gestureRecognizer == dismissPan else { return true }
         return MediaSwipeDismiss.shouldBegin(
             zoomScale: zoomScale,
@@ -223,6 +228,14 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
     ) -> Bool {
-        gestureRecognizer == dismissPan && other == panGestureRecognizer
+        if let tap = gestureRecognizer as? UITapGestureRecognizer, tap.numberOfTapsRequired == 1,
+           other is UITapGestureRecognizer {
+            var responder: UIResponder? = other.view
+            while let current = responder {
+                if current is AVPlayerViewController { return true }
+                responder = current.next
+            }
+        }
+        return gestureRecognizer == dismissPan && other == panGestureRecognizer
     }
 }
