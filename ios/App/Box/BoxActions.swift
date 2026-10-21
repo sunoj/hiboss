@@ -131,7 +131,9 @@ extension BoxItem {
     }
 
     @MainActor func shareContent(media: BoxMediaStore) -> [Any] {
-        if let resource = media.resources[id] { return [resource.url] }
+        if [.image, .video, .file].contains(kind) {
+            return media.resources[id].map { [$0.url] } ?? []
+        }
         if let url = url.flatMap(URL.init(string:)) { return [url] }
         return [text ?? note ?? boxTitle]
     }
@@ -142,55 +144,74 @@ struct BoxFilePreview: View {
     @ObservedObject var media: BoxMediaStore
     let open: (URL) -> Void
     @State private var page: UIImage?
-    @State private var invalidPDF = false
+    @Binding var unreadable: Bool
+    @State private var locked = false
 
     var body: some View {
         Group {
             if let resource = media.resources[item.id] {
-                if invalidPDF {
-                    ContentUnavailableView {
-                        Label("Media unavailable", systemImage: "doc")
-                    } actions: {
-                        RetryButton {
-                            media.remove(id: item.id)
-                            await media.retry(item)
+                Button { open(resource.url) } label: {
+                    VStack(spacing: 8) {
+                        if let page {
+                            Image(uiImage: page).resizable().scaledToFit()
+                                .frame(maxWidth: .infinity, maxHeight: 420)
+                                .border(Theme.ink2.opacity(0.2))
+                        } else if locked {
+                            Label("Locked PDF", systemImage: "lock.doc")
+                        } else if unreadable {
+                            Label("PDF preview unavailable", systemImage: "doc")
+                        } else if isPDF(resource.url) {
+                            ProgressView()
+                        } else {
+                            BoxThumbnail(item: item, media: media).frame(width: 80, height: 80)
                         }
+                        Label("Open file", systemImage: "arrow.up.right.square")
+                            .font(.callout).foregroundStyle(Theme.link)
                     }
-                } else {
-                    Button { open(resource.url) } label: {
-                        VStack(spacing: 8) {
-                            if let page {
-                                Image(uiImage: page).resizable().scaledToFit()
-                                    .frame(maxWidth: .infinity, maxHeight: 420)
-                                    .border(Theme.ink2.opacity(0.2))
-                            } else if isPDF(resource.url) {
-                                ProgressView()
-                            } else {
-                                BoxThumbnail(item: item, media: media).frame(width: 80, height: 80)
-                            }
-                            Label("Open file", systemImage: "arrow.up.right.square")
-                                .font(.callout).foregroundStyle(Theme.link)
-                        }
-                    }
-                    .buttonStyle(.plain).accessibilityLabel("Open file")
-                    .accessibilityIdentifier("box-file-preview")
-                    .accessibilityValue(Text(verbatim: page == nil ? "" : "PDF"))
                 }
+                .buttonStyle(.plain).accessibilityLabel("Open file")
+                .accessibilityIdentifier("box-file-preview")
+                .accessibilityValue(Text(verbatim: locked ? "Locked PDF"
+                    : unreadable ? "PDF preview unavailable" : page == nil ? "" : "PDF"))
             } else { BoxMediaWait(item: item, media: media) }
         }
         .task(id: media.resources[item.id]?.url) {
             page = nil
-            invalidPDF = false
+            unreadable = false
+            locked = false
             guard let url = media.resources[item.id]?.url, isPDF(url) else { return }
-            guard let document = PDFDocument(url: url), let first = document.page(at: 0) else {
-                invalidPDF = true
-                return
-            }
-            page = first.thumbnail(of: CGSize(width: 700, height: 900), for: .cropBox)
+            let worker = Task.detached(priority: .userInitiated) { BoxPDFPreview.load(url) }
+            let result = await withTaskCancellationHandler {
+                await worker.value
+            } onCancel: { worker.cancel() }
+            guard !Task.isCancelled else { return }
+            page = result.page
+            locked = result.locked
+            unreadable = result.unreadable
         }
     }
 
     private func isPDF(_ url: URL) -> Bool {
         item.mediaType == "application/pdf" || url.pathExtension.lowercased() == "pdf"
+    }
+}
+
+struct BoxPDFPreview: @unchecked Sendable {
+    let page: UIImage?
+    let locked: Bool
+    let unreadable: Bool
+
+    nonisolated static func load(_ url: URL) -> BoxPDFPreview {
+        guard !Task.isCancelled, let document = PDFDocument(url: url) else {
+            return BoxPDFPreview(page: nil, locked: false, unreadable: true)
+        }
+        if document.isEncrypted && document.isLocked {
+            return BoxPDFPreview(page: nil, locked: true, unreadable: false)
+        }
+        guard !Task.isCancelled, let first = document.page(at: 0) else {
+            return BoxPDFPreview(page: nil, locked: false, unreadable: true)
+        }
+        let page = first.thumbnail(of: CGSize(width: 700, height: 900), for: .cropBox)
+        return BoxPDFPreview(page: page, locked: false, unreadable: false)
     }
 }

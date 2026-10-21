@@ -20,6 +20,7 @@ struct BoxDetail: View {
     @State private var editing = false
     @State private var choosingCollection = false
     @State private var openingError = false
+    @State private var unreadableFile = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -98,7 +99,7 @@ struct BoxDetail: View {
             }.buttonStyle(.plain).accessibilityLabel("Open")
                 .accessibilityValue(Text(verbatim: item.url ?? ""))
         case .file:
-            BoxFilePreview(item: item, media: media, open: openFile)
+            BoxFilePreview(item: item, media: media, open: openFile, unreadable: $unreadableFile)
         }
     }
 
@@ -137,6 +138,8 @@ struct BoxDetail: View {
             BoxLikeButton(item: item, store: store)
             Button("Share", systemImage: "square.and.arrow.up") { sharing = true }
                 .accessibilityIdentifier("box-detail-share")
+                .disabled(([.image, .video, .file].contains(item.kind)
+                    && media.resources[item.id] == nil) || unreadableFile)
             Button("Add to Collection…", systemImage: "rectangle.stack") { choosingCollection = true }
             Button("Copy", systemImage: "doc.on.doc") { item.copyContent(media: media) }
                 .disabled(item.hasMedia && media.resources[item.id] == nil)

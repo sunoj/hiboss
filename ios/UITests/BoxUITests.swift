@@ -139,7 +139,9 @@ extension BoxUITests {
         XCTAssertTrue(share.isHittable)
         share.tap()
         XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["A passage to keep"].firstMatch.exists)
+        let caption = app.otherElements["ActivityListView"].otherElements["LP.CaptionBar.BottomCaption"]
+        XCTAssertTrue(caption.waitForExistence(timeout: 5))
+        XCTAssertEqual(caption.label, "A passage to keep")
     }
 
     func testLinkDetailSharesURLAndCapturesDetail() {
@@ -177,9 +179,29 @@ extension BoxUITests {
         XCTAssertTrue(app.staticTexts["Loading Box media…"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["Retry"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["Open file"].exists)
+        XCTAssertFalse(app.buttons["box-detail-share"].isEnabled)
         app.buttons["Retry"].tap()
         assertPDFReady()
         XCTAssertTrue(app.buttons["Open file"].firstMatch.isEnabled)
+    }
+
+    func testLockedPDFKeepsOpenAndShareWithoutRetry() {
+        openDemoFile(["HIBOSS_DEMO_BOX_FILE": "locked-pdf"])
+        XCTAssertTrue(app.buttons["box-file-preview"].waitForExistence(timeout: 10))
+        assertPreviewValue("Locked PDF")
+        XCTAssertTrue(app.buttons["box-detail-share"].isEnabled)
+        XCTAssertFalse(app.buttons["Retry"].exists)
+        screenshot("box-locked-pdf")
+        app.buttons["box-file-preview"].tap()
+        XCTAssertTrue(app.buttons["QLOverlayDoneButtonAccessibilityIdentifier"].waitForExistence(timeout: 10))
+    }
+
+    func testCorruptPDFKeepsOpenDisablesShareWithoutRetry() {
+        openDemoFile(["HIBOSS_DEMO_BOX_FILE": "corrupt-pdf"])
+        assertPreviewValue("PDF preview unavailable")
+        XCTAssertTrue(app.buttons["box-file-preview"].isEnabled)
+        XCTAssertFalse(app.buttons["box-detail-share"].isEnabled)
+        XCTAssertFalse(app.buttons["Retry"].exists)
     }
 
     func testImageDetailSharesOriginalDownloadedFile() { assertMediaDetailSharesFile("image") }
@@ -196,9 +218,12 @@ extension BoxUITests {
     }
 
     private func assertPDFReady() {
-        let preview = app.buttons["box-file-preview"]
-        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "PDF"),
-                                               object: preview)
+        assertPreviewValue("PDF")
+    }
+
+    private func assertPreviewValue(_ value: String) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value),
+                                               object: app.buttons["box-file-preview"])
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
     }
 

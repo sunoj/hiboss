@@ -4,6 +4,7 @@
 
 import Foundation
 import HibossKit
+import PDFKit
 import UIKit
 
 actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
@@ -16,7 +17,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
 
     static var fixtures: [BoxItem] {
         let unsupported = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "unsupported"
-        let pdf = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "pdf"
+        let pdf = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"]?.contains("pdf") == true
         let imageFile = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "image"
         let kinds: [BoxItem.Kind] = [.image, .text, .link, .video, .file]
         let titles = [
@@ -105,7 +106,14 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
             throw HibossAPIError.requestFailed(status: 404, message: "")
         }
         if item.mediaType == "application/pdf" {
-            try Self.pdfData.write(to: destination)
+            let mode = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"]
+            if mode == "corrupt-pdf" {
+                try Data("Unreadable PDF fixture".utf8).write(to: destination)
+            } else if mode == "locked-pdf", let document = PDFDocument(data: Self.pdfData) {
+                document.write(to: destination, withOptions: [
+                    .userPasswordOption: "fixture-password", .ownerPasswordOption: "fixture-owner",
+                ])
+            } else { try Self.pdfData.write(to: destination) }
             return
         }
         if item.kind == .file, item.mediaType != "image/png" {

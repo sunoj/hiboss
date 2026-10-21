@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0054F827436CE9DD811E689E /* BoxShareContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F571A87B5B4F8C288A20636 /* BoxShareContentTests.swift */; };
 		88B4F78A6C19FB047F92151E /* BoxCollectionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD66D9B9E718DF45B9123EEA /* BoxCollectionsUITests.swift */; };
 		F1AF2F3E6AC737F441DE43DA /* BoxOrganizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56A2B7EAFC19941777041EB1 /* BoxOrganizationTests.swift */; };
 		FFCC1A28CF2A634FF2FA8072 /* DemoBoxAPI+Collections.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE1D3A99001B989C506BE6F3 /* DemoBoxAPI+Collections.swift */; };
@@ -388,6 +389,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		4F571A87B5B4F8C288A20636 /* BoxShareContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxShareContentTests.swift; sourceTree = "<group>"; };
 		BD66D9B9E718DF45B9123EEA /* BoxCollectionsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxCollectionsUITests.swift; sourceTree = "<group>"; };
 		56A2B7EAFC19941777041EB1 /* BoxOrganizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxOrganizationTests.swift; sourceTree = "<group>"; };
 		EE1D3A99001B989C506BE6F3 /* DemoBoxAPI+Collections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DemoBoxAPI+Collections.swift"; sourceTree = "<group>"; };
@@ -1238,6 +1240,7 @@
 		EEE890EA1FB67961740263AF /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				4F571A87B5B4F8C288A20636 /* BoxShareContentTests.swift */,
 				56A2B7EAFC19941777041EB1 /* BoxOrganizationTests.swift */,
 				76C43B1E73B73ED743EBABAA /* AgentAvatarTests.swift */,
 				8D3E62FC93D8B4ADDA9829BA /* AllClearIslandTests.swift */,
@@ -1578,6 +1581,7 @@
 				FC63664F1944B11D34A7AEC9 /* BoxAPITests.swift in Sources */,
 				C8E26439880113B1E3F5E8ED /* BoxModelTests.swift in Sources */,
 				EDF6BEBD56D59679EF40BA2C /* BoxStoreTests.swift in Sources */,
+				0054F827436CE9DD811E689E /* BoxShareContentTests.swift in Sources */,
 				F1AF2F3E6AC737F441DE43DA /* BoxOrganizationTests.swift in Sources */,
 				9D4DFC071D2F6E362F9098DF /* ConnectionStoreTests.swift in Sources */,
 				667023A569E0086B47E95D34 /* ControlledInputAPI.swift in Sources */,
