@@ -3,6 +3,7 @@
 // Dependencies: typed enrollment API, config v2, existing Claude hooks and agent guidance.
 
 pub(crate) mod api;
+mod bootstrap;
 mod pending;
 mod persistence;
 mod poll;
@@ -49,6 +50,7 @@ async fn enroll(
     config: &config::Config,
 ) -> Result<Option<selection::Plan>, Box<dyn Error>> {
     let plan = selection::build_plan(args, config)?;
+    bootstrap::pair_boss(&plan.server, args).await?;
     if plan.profiles.is_empty() {
         println!("No new profiles to enroll; use --profile <name> or install a supported runtime");
         return Ok(None);

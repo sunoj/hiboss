@@ -20,6 +20,7 @@ export interface JoinRequestRow {
   inviter_label: string | null;
   verification_code: string | null;
   delivery: string | null;
+  bootstrap_admin: number;
   created_at: string;
   updated_at: string;
 }

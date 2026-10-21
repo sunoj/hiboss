@@ -358,7 +358,8 @@ CREATE TABLE IF NOT EXISTS join_requests (
   verification_code TEXT,
   delivery TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  bootstrap_admin INTEGER NOT NULL DEFAULT 0 CHECK (bootstrap_admin IN (0, 1))
 );
 
 

@@ -6,6 +6,17 @@ import { validatePreferences } from './boss-preferences';
 import { legacyIdentityWrites } from './boss-external-accounts';
 type Update = { columns: string[]; values: (string | null)[]; writes: D1PreparedStatement[] };
 type Result = { ok: true; writes: D1PreparedStatement[] } | { ok: false; error: string; status: 400 };
+export function lastAdminGuard(env: Env, id: string): D1PreparedStatement {
+  // The invalid update aborts the whole batch before any identity writes can run.
+  return env.DB.prepare(`UPDATE bosses SET role = NULL WHERE id = ? AND role = 'admin'
+    AND archived_at IS NULL
+    AND (SELECT COUNT(*) FROM bosses WHERE role = 'admin' AND archived_at IS NULL) = 1`).bind(id);
+}
+
+export function isLastAdminError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('NOT NULL constraint failed: bosses.role');
+}
+
 export async function buildBossUpdate(env: Env, boss: BossRow, payload: Record<string, unknown>): Promise<Result> {
   const update: Update = { columns: [], values: [], writes: [] };
   const error = simpleFields(payload, update);
@@ -24,7 +35,10 @@ export async function buildBossUpdate(env: Env, boss: BossRow, payload: Record<s
   const preferenceError = preferenceFields(boss, payload, update);
   if (preferenceError) return { ok: false, error: preferenceError, status: 400 };
   if (!update.columns.length) return { ok: false, error: 'no valid fields to update', status: 400 };
-  return { ok: true, writes: [env.DB.prepare(`UPDATE bosses SET ${update.columns.join(', ')} WHERE id = ?`)
+  const guard = typeof payload.role === 'string' && payload.role !== 'admin'
+    ? [lastAdminGuard(env, boss.id)] : [];
+  const sql = `UPDATE bosses SET ${update.columns.join(', ')} WHERE id = ?`;
+  return { ok: true, writes: [...guard, env.DB.prepare(sql)
     .bind(...update.values, boss.id), ...update.writes] };
 }
 function simpleFields(payload: Record<string, unknown>, update: Update): string | null {

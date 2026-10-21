@@ -18,6 +18,8 @@ pub struct SetupArgs {
     pub label: Option<String>,
     #[arg(long, help = "First-device bootstrap secret")]
     pub bootstrap_secret: Option<String>,
+    #[arg(long, help = "Name of the first boss")]
+    pub boss_name: Option<String>,
     #[arg(long, help = "Accept the proposed runtime profiles")]
     pub yes: bool,
     #[arg(long, help = "Verify each configured profile against the server")]

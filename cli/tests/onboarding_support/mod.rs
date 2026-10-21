@@ -19,6 +19,9 @@ pub fn join_server(status: &str) -> Http {
     let profiles: Arc<Mutex<Value>> = Arc::new(Mutex::new(json!([])));
     let device: Arc<Mutex<String>> = Arc::new(Mutex::new("synthetic-device".into()));
     Http::start(move |request| {
+        if request.path == "/api/bootstrap/boss" {
+            return Response::json(409, json!({"error":"boss already exists"}));
+        }
         if request.method == "POST" && request.path == "/api/join" {
             *profiles.lock().expect("profiles") = request.body["profiles"].clone();
             if request.header("x-device-proof").is_some() {

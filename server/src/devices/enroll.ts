@@ -14,7 +14,11 @@ export async function takenNames(db: D1Database, names: string[]): Promise<strin
   return taken.results.map(r => r.name);
 }
 
-export interface JoinContext { deviceId: string | null; invite: ConsumedInvite | null }
+export interface JoinContext {
+  deviceId: string | null;
+  invite: ConsumedInvite | null;
+  bootstrapAdmin: boolean;
+}
 
 /** Stores a pending request; every request, including an empty server's first, waits for a boss. */
 export async function createJoinRequest(db: D1Database, payload: JoinPayload, context: JoinContext): Promise<CreatedRequest> {
@@ -23,9 +27,10 @@ export async function createJoinRequest(db: D1Database, payload: JoinPayload, co
   const label = deviceId ? await deviceLabel(db, deviceId) ?? payload.device.label : payload.device.label;
   const code = verificationCode();
   const row = await db.prepare(`INSERT INTO join_requests (poll_token_hash, device_label, device_host, device_id, profiles,
-    invite_id, inviter_label, verification_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
+    invite_id, inviter_label, verification_code, bootstrap_admin)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`)
     .bind(await hashApiKey(pollToken), label, payload.device.host, deviceId, JSON.stringify(payload.profiles),
-      invite?.id ?? null, invite?.inviterLabel ?? null, code)
+      invite?.id ?? null, invite?.inviterLabel ?? null, code, Number(context.bootstrapAdmin === true))
     .first<{ id: string }>();
   if (!row) throw new Error('join request insert returned no row');
   return { requestId: row.id, pollToken, verificationCode: code, deviceLabel: label };
