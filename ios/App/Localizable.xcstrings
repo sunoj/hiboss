@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "This video format cannot be played. You can share the original file.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This video format cannot be played. You can share the original file."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法播放此视频格式。你可以分享原始文件。"
+          }
+        }
+      }
+    },
     "New Collection\u2026": {
       "localizations": {
         "en": {
