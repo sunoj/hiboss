@@ -45,6 +45,32 @@ final class QuestionnaireOwnershipTests: XCTestCase {
         XCTAssertEqual(center.notices.last?.alert, MessageAlert(sound: false, level: .passive))
     }
 
+    func testQuestionnairesIgnoreQuietHoursAndRetryUntilShown() async throws {
+        let center = RecordingQuestionnaireCenter()
+        let timezone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let current = Calendar(identifier: .gregorian).dateComponents(in: timezone, from: .now)
+        let start = String(format: "%02d:%02d", current.hour ?? 0, current.minute ?? 0)
+        let endMinutes = ((current.hour ?? 0) * 60 + (current.minute ?? 0) + 2) % 1440
+        let prefs = BossPreferences(quietHours: QuietHours(enabled: true, start: start,
+            end: String(format: "%02d:%02d", endMinutes / 60, endMinutes % 60), timezone: "UTC",
+            days: [], criticalBypass: false))
+        var authorized = false
+        let notifier = QuestionnaireNotifier(center: center, since: .distantPast,
+            isAuthorized: { authorized }, preferences: { prefs })
+        let request = try Self.questionnaire(createdAt: "2026-10-21T12:00:00Z")
+        await notifier.receive([request])
+        XCTAssertTrue(center.notices.isEmpty)
+        authorized = true
+        center.shouldFail = true
+        await notifier.receive([request])
+        XCTAssertTrue(center.notices.isEmpty)
+        center.shouldFail = false
+        await notifier.receive([request])
+        await notifier.receive([request])
+        XCTAssertEqual(center.notices.map(\.requestID), [request.requestId])
+        XCTAssertEqual(center.notices.first?.alert, MessageAlert(sound: true, level: .active))
+    }
+
     static func questionnaire(id: String = "request-1", blocking: Bool = true,
                               createdAt: String) throws -> PendingQuestionnaire {
         let json = """
@@ -63,7 +89,11 @@ private struct NoTokens: TokenStoring {
 @MainActor
 private final class RecordingQuestionnaireCenter: QuestionnaireNotifying {
     var notices: [QuestionnaireNotice] = []
-    func postQuestionnaire(_ notice: QuestionnaireNotice) async throws { notices.append(notice) }
+    var shouldFail = false
+    func postQuestionnaire(_ notice: QuestionnaireNotice) async throws {
+        if shouldFail { throw HibossAPIError.invalidResponse }
+        notices.append(notice)
+    }
 }
 
 private actor PendingQuestionnaireAPI: PanelsServing, QuestionnaireServing {

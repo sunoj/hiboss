@@ -50,21 +50,26 @@ final class QuestionnaireNotifier {
 
     func receive(_ pending: [PendingQuestionnaire]) async {
         let fresh = pending.filter {
-            $0.blocking && seen.insert($0.requestId).inserted
+            $0.blocking && !seen.contains($0.requestId)
                 && (ISODate.parse($0.createdAt).map { $0 >= since } ?? true)
         }
+        var questionnairePreferences = preferences()
+        questionnairePreferences.quietHours = nil
         guard !fresh.isEmpty,
-              let alert = MessageAlertPolicy.decisionAlert(priority: "normal", preferences: preferences()),
+              let alert = MessageAlertPolicy.decisionAlert(priority: "normal", preferences: questionnairePreferences),
               await isAuthorized() else { return }
         for questionnaire in fresh {
-            try? await center.postQuestionnaire(QuestionnaireNotice(questionnaire: questionnaire, alert: alert))
+            do {
+                try await center.postQuestionnaire(QuestionnaireNotice(questionnaire: questionnaire, alert: alert))
+                seen.insert(questionnaire.requestId)
+            } catch { continue }
         }
     }
 }
 
 extension SystemMessageNotificationCenter: QuestionnaireNotifying {
     func postQuestionnaire(_ notice: QuestionnaireNotice) async throws {
-        guard isEnabled else { return }
+        guard isEnabled else { throw CancellationError() }
         let content = UNMutableNotificationContent()
         content.title = notice.title
         content.body = notice.body
