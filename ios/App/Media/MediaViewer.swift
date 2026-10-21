@@ -231,7 +231,13 @@ struct MediaViewer: View {
     private func actionBar(_ item: MediaItem, actions: MediaItemActions) -> some View {
         if textSize.isAccessibilitySize {
             actionButtons(item, actions: actions).labelStyle(.iconOnly)
-        } else { actionButtons(item, actions: actions) }
+        } else {
+            ViewThatFits(in: .horizontal) {
+                actionButtons(item, actions: actions)
+                    .fixedSize(horizontal: true, vertical: false)
+                actionButtons(item, actions: actions).labelStyle(.iconOnly)
+            }
+        }
     }
 
     private func actionButtons(_ item: MediaItem, actions: MediaItemActions) -> some View {
