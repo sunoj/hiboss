@@ -28,6 +28,7 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 it('selects direct before relay, defaults to relay, and permits disabling it', () => {
   expect(pushMode({ ...env, APNS_KEY_ID: '', APNS_TEAM_ID: '', APNS_AUTH_KEY: '' })).toBe('relay');
   expect(pushMode({ ...env, PUSH_RELAY_URL: 'off' })).toBe('none');
+  expect(pushMode({ ...env, PUSH_RELAY_URL: ' OFF ' })).toBe('none');
   expect(pushMode({ ...env, PUSH_RELAY_URL: 'off', APNS_KEY_ID: 'id', APNS_TEAM_ID: 'team',
     APNS_AUTH_KEY: 'key' })).toBe('direct');
 });

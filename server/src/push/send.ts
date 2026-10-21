@@ -17,7 +17,7 @@ export interface PushDevice {
 
 export function pushMode(env: Env): 'direct' | 'relay' | 'none' {
   if (hasApnsConfig(env)) return 'direct';
-  return env.PUSH_RELAY_URL === 'off' ? 'none' : 'relay';
+  return env.PUSH_RELAY_URL?.trim().toLowerCase() === 'off' ? 'none' : 'relay';
 }
 
 export async function sendDevicePush(env: Env, device: PushDevice, payload: ApnsPayload,
