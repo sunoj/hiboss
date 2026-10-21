@@ -39,7 +39,7 @@ final class BoxV2CaptureUITests: XCTestCase {
         XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
         shot(app, "\(prefix)-detail")
         if large { captureDetailActions(app, prefix: prefix, language: language) }
-        app.buttons[language == "en" ? "Delete" : "删除"].tap()
+        detailDelete(app, language: language).tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
         shot(app, "\(prefix)-delete-confirmation")
         app.alerts.buttons[language == "en" ? "Cancel" : "取消"].tap()
@@ -49,7 +49,7 @@ final class BoxV2CaptureUITests: XCTestCase {
     }
 
     private func captureMediaAndMenus(_ app: XCUIApplication, prefix: String, language: String) {
-        app.buttons["box-filter-image"].tap()
+        tapFilter(app, identifier: "box-filter-image")
         XCTAssertTrue(app.buttons["box-item-demo-grid-2"].waitForExistence(timeout: 10))
         shot(app, "\(prefix)-grid")
         app.buttons["box-item-demo-image"].tap()
@@ -67,16 +67,49 @@ final class BoxV2CaptureUITests: XCTestCase {
                          captureName: "\(prefix)-style-menu")
     }
 
+    private func tapFilter(_ app: XCUIApplication, identifier: String) {
+        let chip = app.buttons[identifier]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5))
+        let row = app.scrollViews.containing(.button, identifier: "box-filter-all").firstMatch
+        XCTAssertTrue(row.exists)
+        for _ in 0..<5 {
+            if row.frame.contains(chip.frame) && chip.isHittable { break }
+            if chip.frame.midX < row.frame.minX {
+                row.swipeRight()
+            } else {
+                row.swipeLeft()
+            }
+        }
+        XCTAssertTrue(chip.isHittable, identifier)
+        chip.tap()
+    }
+
     private func setStyle(_ app: XCUIApplication, _ label: String) {
         app.buttons["box-style-menu"].tap()
         app.buttons[label].tap()
     }
 
     private func captureDetailActions(_ app: XCUIApplication, prefix: String, language: String) {
-        let delete = app.buttons[language == "en" ? "Delete" : "删除"]
-        for _ in 0..<8 where !delete.isHittable { app.swipeUp() }
-        XCTAssertTrue(delete.isHittable)
+        let direct = app.buttons[language == "en" ? "Delete" : "删除"].isHittable
+        let delete = detailDelete(app, language: language)
         shot(app, "\(prefix)-detail-actions")
+        if !direct {
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
+            XCTAssertFalse(delete.isHittable)
+        }
+    }
+
+    private func detailDelete(_ app: XCUIApplication, language: String) -> XCUIElement {
+        let delete = app.buttons[language == "en" ? "Delete" : "删除"]
+        if !delete.isHittable {
+            let overflow = app.toolbars.buttons.matching(NSPredicate(
+                format: "label IN %@", ["More", "更多"])).firstMatch
+            XCTAssertTrue(overflow.isHittable)
+            overflow.tap()
+        }
+        XCTAssertTrue(delete.waitForExistence(timeout: 3))
+        XCTAssertTrue(delete.isHittable)
+        return delete
     }
 
     private func assertMenuTarget(
