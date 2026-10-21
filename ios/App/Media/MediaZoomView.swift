@@ -37,6 +37,7 @@ struct MediaZoomView<Content: View>: UIViewRepresentable {
             action: #selector(Coordinator.singleTapped)
         )
         singleTap.cancelsTouchesInView = false
+        singleTap.delegate = scroll as? ZoomScrollView
         singleTap.require(toFail: tap)
         scroll.addGestureRecognizer(singleTap)
         return scroll
@@ -226,6 +227,8 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
     ) -> Bool {
-        gestureRecognizer == dismissPan && other == panGestureRecognizer
+        if let tap = gestureRecognizer as? UITapGestureRecognizer, tap.numberOfTapsRequired == 1,
+           other is UITapGestureRecognizer { return true }
+        return gestureRecognizer == dismissPan && other == panGestureRecognizer
     }
 }
