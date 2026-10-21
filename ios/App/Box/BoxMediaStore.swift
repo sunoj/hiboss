@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 
 final class BoxMediaResource {
     let url: URL
-    let thumbnail: UIImage?
+    fileprivate(set) var thumbnail: UIImage?
     private let directory: URL?
 
     init(url: URL, thumbnail: UIImage?, directory: URL? = nil) {
@@ -48,6 +48,14 @@ final class BoxMediaStore: ObservableObject {
         await load(item)
     }
 
+    func loadSelection(id: String, items: [BoxItem]) async {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        for position in [index, index + 1, index - 1] where items.indices.contains(position) {
+            guard !Task.isCancelled else { return }
+            await load(items[position])
+        }
+    }
+
     func remove(id: String) {
         tasks[id]?.cancel()
         resources[id] = nil
@@ -69,10 +77,17 @@ final class BoxMediaStore: ObservableObject {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             }
             try await api.downloadBoxMedia(id: item.id, to: url)
-            let thumbnail = try await thumbnail(item, url: url)
+            let image = item.kind == .video ? nil : try await thumbnail(item, url: url)
             try Task.checkCancellation()
-            resources[item.id] = BoxMediaResource(url: url, thumbnail: thumbnail, directory: directory)
+            let resource = BoxMediaResource(url: url, thumbnail: image, directory: directory)
+            resources[item.id] = resource
             errors[item.id] = nil
+            if item.kind == .video {
+                let poster = try? await thumbnail(item, url: url)
+                guard !Task.isCancelled, resources[item.id] === resource else { return }
+                objectWillChange.send()
+                resource.thumbnail = poster
+            }
         } catch {
             try? FileManager.default.removeItem(at: directory ?? url)
             guard !Task.isCancelled else { return }

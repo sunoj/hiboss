@@ -2,10 +2,24 @@
 // Exports: MediaSwipeDismissTests.
 // Dependencies: XCTest, HiBoss app target.
 
+import SwiftUI
 import XCTest
 @testable import HiBoss
 
 final class MediaSwipeDismissTests: XCTestCase {
+    @MainActor
+    func testFittedZoomSurfaceLeavesPansToPagerButZoomedSurfaceCanPan() {
+        let view = MediaZoomView(pageID: "page", onZoomed: { _ in }, onDismissDrag: { _ in },
+                                 onDismiss: {}, onSingleTap: {}) { Color.clear }
+        let coordinator = view.makeCoordinator()
+        let scroll = coordinator.makeScrollView()
+        scroll.frame = CGRect(x: 0, y: 0, width: 320, height: 480)
+        coordinator.syncFrame(scroll)
+        XCTAssertFalse(scroll.gestureRecognizerShouldBegin(scroll.panGestureRecognizer))
+        scroll.setZoomScale(2, animated: false)
+        XCTAssertTrue(scroll.gestureRecognizerShouldBegin(scroll.panGestureRecognizer))
+    }
+
     func testShouldBeginOnlyForDownwardPanAtZoomOne() {
         XCTAssertTrue(MediaSwipeDismiss.shouldBegin(zoomScale: 1, velocity: .zero))
         XCTAssertTrue(

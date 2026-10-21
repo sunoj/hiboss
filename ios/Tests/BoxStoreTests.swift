@@ -157,11 +157,75 @@ final class BoxStoreTests: XCTestCase {
             }
         }
     }
+
+    func testVideoThumbnailFailureKeepsDownloadedFileAvailable() async throws {
+        let api = FailingBoxMediaAPI(invalidVideo: true)
+        let page = try await api.boxItems(filters: BoxFilters(), limit: 20, cursor: nil)
+        let item = try XCTUnwrap(page.items.first { $0.kind == .video })
+        let media = BoxMediaStore(api: api)
+        await media.load(item)
+        let resource = try XCTUnwrap(media.resources[item.id])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: resource.url.path))
+        XCTAssertNil(resource.thumbnail)
+        XCTAssertNil(media.errors[item.id])
+    }
+
+    func testSelectionDownloadsSelectedPageBeforeOnlyImmediateNeighbours() async {
+        let api = FailingBoxMediaAPI(invalidVideo: true)
+        let items = (0..<7).map {
+            BoxItem(id: "file-\($0)", bossID: "boss", bossName: "Owner", kind: .file,
+                    text: "file-\($0).txt", hasMedia: true, mediaType: "text/plain",
+                    createdAt: "2026-10-07T00:00:00Z")
+        }
+        let media = BoxMediaStore(api: api)
+        await media.loadSelection(id: "file-3", items: items)
+        let requests = await api.requests
+        XCTAssertEqual(requests, ["file-3", "file-4", "file-2"])
+        await media.loadSelection(id: "file-4", items: items)
+        let movedRequests = await api.requests
+        XCTAssertEqual(movedRequests, ["file-3", "file-4", "file-2", "file-5"])
+    }
+
+    func testVideoPlaybackRejectsUnsupportedBytesInsteadOfLoadingForever() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".webm")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("Unsupported video fixture".utf8).write(to: url)
+        let playback = MediaVideoPlayback()
+        await playback.load(url)
+        XCTAssertEqual(playback.state, .unavailable)
+        XCTAssertNil(playback.player.currentItem)
+    }
+
+    func testVideoPlaybackKeepsPlayerButReplacesChangedURL() async throws {
+        let api = DemoBoxAPI()
+        let first = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+        let second = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+        defer {
+            try? FileManager.default.removeItem(at: first)
+            try? FileManager.default.removeItem(at: second)
+        }
+        try await api.downloadBoxMedia(id: "demo-video", to: first)
+        try await api.downloadBoxMedia(id: "demo-video", to: second)
+        let playback = MediaVideoPlayback()
+        let player = playback.player
+        await playback.load(first)
+        XCTAssertEqual(playback.state, .ready)
+        await playback.load(second)
+        XCTAssertTrue(playback.player === player)
+        XCTAssertEqual((playback.player.currentItem?.asset as? AVURLAsset)?.url, second)
+        XCTAssertEqual(playback.state, .ready)
+        playback.setPlaying(false)
+        XCTAssertEqual(playback.player.rate, 0)
+    }
 }
 
 private actor FailingBoxMediaAPI: BoxServing {
     private let demo = DemoBoxAPI()
     private(set) var attempts = 0
+    private(set) var requests: [String] = []
+    private let invalidVideo: Bool
+
+    init(invalidVideo: Bool = false) { self.invalidVideo = invalidVideo }
 
     func boxItems(filters: BoxFilters, limit: Int, cursor: String?) async throws -> BoxPage {
         try await demo.boxItems(filters: filters, limit: limit, cursor: cursor)
@@ -169,6 +233,11 @@ private actor FailingBoxMediaAPI: BoxServing {
 
     func downloadBoxMedia(id: String, to destination: URL) async throws {
         attempts += 1
+        requests.append(id)
+        if invalidVideo {
+            try Data("Invalid video fixture".utf8).write(to: destination)
+            return
+        }
         if attempts == 1 { throw HibossAPIError.requestFailed(status: 503, message: "unavailable") }
         try await demo.downloadBoxMedia(id: id, to: destination)
     }

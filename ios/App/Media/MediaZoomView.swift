@@ -212,6 +212,9 @@ private final class ZoomScrollView: UIScrollView, UIGestureRecognizerDelegate {
     }
 
     override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer == panGestureRecognizer {
+            return zoomScale > MediaSwipeDismiss.zoomedScale
+        }
         guard gestureRecognizer == dismissPan else { return true }
         return MediaSwipeDismiss.shouldBegin(
             zoomScale: zoomScale,
