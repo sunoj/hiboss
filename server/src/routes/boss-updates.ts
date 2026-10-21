@@ -35,8 +35,10 @@ export async function buildBossUpdate(env: Env, boss: BossRow, payload: Record<s
   const preferenceError = preferenceFields(boss, payload, update);
   if (preferenceError) return { ok: false, error: preferenceError, status: 400 };
   if (!update.columns.length) return { ok: false, error: 'no valid fields to update', status: 400 };
-  const guard = typeof payload.role === 'string' && payload.role !== 'admin' ? [lastAdminGuard(env, boss.id)] : [];
-  return { ok: true, writes: [...guard, env.DB.prepare(`UPDATE bosses SET ${update.columns.join(', ')} WHERE id = ?`)
+  const guard = typeof payload.role === 'string' && payload.role !== 'admin'
+    ? [lastAdminGuard(env, boss.id)] : [];
+  const sql = `UPDATE bosses SET ${update.columns.join(', ')} WHERE id = ?`;
+  return { ok: true, writes: [...guard, env.DB.prepare(sql)
     .bind(...update.values, boss.id), ...update.writes] };
 }
 function simpleFields(payload: Record<string, unknown>, update: Update): string | null {
