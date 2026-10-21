@@ -37,6 +37,18 @@ fn first_install_prints_pairing_link_code_expiry_and_qr_without_secret() {
         "",
         &[("NO_PROXY", "127.0.0.1")],
     );
+    assert_pairing_output(&output, &server.url);
+    assert_no_secrets(&output, &["synthetic-install-secret"]);
+    let requests = server.requests();
+    assert_eq!(requests[0].path, "/api/bootstrap/boss");
+    assert_eq!(
+        requests[0].header("x-bootstrap-secret"),
+        Some("synthetic-install-secret")
+    );
+    assert_eq!(requests[1].path, "/api/join");
+}
+
+fn assert_pairing_output(output: &Outcome, server: &str) {
     let link = output
         .stdout
         .lines()
@@ -46,7 +58,7 @@ fn first_install_prints_pairing_link_code_expiry_and_qr_without_secret() {
     let parameters: std::collections::HashMap<_, _> = parsed.query_pairs().collect();
     assert_eq!(
         parameters.get("server").map(|value| value.as_ref()),
-        Some(server.url.as_str())
+        Some(server)
     );
     assert_eq!(
         parameters.get("code").map(|value| value.as_ref()),
@@ -57,14 +69,6 @@ fn first_install_prints_pairing_link_code_expiry_and_qr_without_secret() {
     assert!(output.stdout.contains(
         "Scan with the HiBoss iPhone app, or open HiBoss on the Mac and choose Pair with code."
     ));
-    assert_no_secrets(&output, &["synthetic-install-secret"]);
-    let requests = server.requests();
-    assert_eq!(requests[0].path, "/api/bootstrap/boss");
-    assert_eq!(
-        requests[0].header("x-bootstrap-secret"),
-        Some("synthetic-install-secret")
-    );
-    assert_eq!(requests[1].path, "/api/join");
 }
 
 #[test]
