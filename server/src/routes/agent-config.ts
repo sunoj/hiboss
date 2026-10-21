@@ -1,6 +1,7 @@
 // Agent self-configuration validation, keeping workflow roles separate from admin capability.
 // Exports agentConfigUpdates; depends on domain channels and priorities.
 import type { Channel, Priority } from '../types';
+import { channelWriteError } from './channel-names';
 type Bind = string | number | null;
 interface Updates { updates: string[]; binds: Bind[] }
 const VALID_PRIORITIES: Priority[] = ['critical', 'high', 'normal', 'low'];
@@ -32,11 +33,10 @@ function deliveryUpdates(payload: Record<string, unknown>, { updates, binds }: U
     if (cr === null) {
       updates.push('channel_routing = NULL');
     } else if (typeof cr === 'object' && !Array.isArray(cr)) {
-      const validChannels: Channel[] = ['discord', 'telegram', 'email'];
+      const validChannels: Channel[] = ['discord', 'telegram'];
       for (const [, ch] of Object.entries(cr as Record<string, unknown>)) {
-        if (typeof ch !== 'string' || !validChannels.includes(ch as Channel)) {
-          return 'channel_routing values must be valid channels';
-        }
+        const error = channelWriteError(ch, validChannels, 'channel_routing values must be valid channels');
+        if (error) return error;
       }
       updates.push('channel_routing = ?');
       binds.push(JSON.stringify(cr));

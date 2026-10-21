@@ -4,12 +4,13 @@
 
 import { MESSAGE_METADATA_OBJECT_SQL } from './routes/message-reactions';
 import { appendOptionDescriptions } from './routes/option-descriptions';
-import type { Env, MessageRow } from './types';
+import type { Channel, Env, MessageRow } from './types';
 import { SENT_MESSAGE_STATUS } from './message-status';
 import { getDeliveryErrorMessage, persistDeliveryFailure } from './routes/delivery';
 import { deliverAgentMessage } from './routes/agent-delivery';
 import { expireMessageOptions } from './routes/message-options';
 import { expireStaleAsks } from './abandoned-asks';
+import { notifyBossAgents } from './notify';
 import { parseOptionMedia } from './routes/option-media';
 import { destinationsMode, drainDestinationDeliveries } from './delivery';
 
@@ -21,7 +22,7 @@ interface DeliveryQueueRow {
   id: string;
   message_id: string;
   agent_id: string;
-  channel: 'discord' | 'telegram' | 'email' | 'api';
+  channel: Channel;
   config: string;
   scheduled_at: string;
   attempts: number;
@@ -94,8 +95,16 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
       continue;
     }
     try {
-      await deliverQueuedMessage(env, row);
+      const message = await fetchQueuedMessage(env, row.message_id);
+      if (!message) throw new Error('queued message not found');
+      if (isClosedAsk(message, now)) {
+        await markQueueSkipped(env, row.id);
+        continue;
+      }
+      await deliverQueuedMessage(env, row, message);
       await markQueueDelivered(env, row.id);
+      // The same boss-agent callback and device push an immediate send triggers.
+      if (message.direction === 'agent_to_boss') await notifyBossAgents(env, message.agent_id, message);
     } catch (error) {
       const message = getDeliveryErrorMessage(error);
       await persistDeliveryFailure(env, row.message_id, message);
@@ -104,12 +113,13 @@ async function drainDeliveryQueue(env: Env, now: string): Promise<void> {
   }
 }
 
-async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow): Promise<void> {
-  const message = await fetchQueuedMessage(env, row.message_id);
-  if (!message) {
-    throw new Error('queued message not found');
-  }
+/** An ask answered, expired, or past its deadline while queued no longer needs sending. */
+function isClosedAsk(message: QueuedMessageRow, now: string): boolean {
+  if (message.status === 'replied' || message.status === 'expired') return true;
+  return !!message.expires_at && Date.parse(message.expires_at) <= Date.parse(now);
+}
 
+async function deliverQueuedMessage(env: Env, row: DeliveryQueueRow, message: QueuedMessageRow): Promise<void> {
   const metadata = parseMetadata(message.metadata);
   const options = parseOptions(metadata?.['options']);
   const optionMediaResult = parseOptionMedia(metadata?.['option_media'], options ?? undefined);
@@ -214,6 +224,13 @@ async function markQueueDelivered(env: Env, queueId: string): Promise<void> {
   await env.DB
     .prepare("UPDATE delivery_queue SET status = 'delivered', error = NULL WHERE id = ? AND status = 'processing'")
     .bind(queueId)
+    .run();
+}
+
+async function markQueueSkipped(env: Env, queueId: string): Promise<void> {
+  await env.DB
+    .prepare("UPDATE delivery_queue SET status = 'failed', attempts = ?, error = ? WHERE id = ? AND status = 'processing'")
+    .bind(MAX_QUEUE_ATTEMPTS, 'ask closed before delivery', queueId)
     .run();
 }
 

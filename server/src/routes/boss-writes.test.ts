@@ -94,13 +94,13 @@ describe('boss write contract', () => {
     const res = await SELF.fetch(`https://test.local/api/boss/agents/${getTestAgentId()}/config`, {
       method: 'PATCH',
       headers: bossHeaders(),
-      body: JSON.stringify({ default_priority: 'critical', rate_limit: 11, channel_routing: { alerts: 'email' } }),
+      body: JSON.stringify({ default_priority: 'critical', rate_limit: 11, channel_routing: { alerts: 'telegram' } }),
     });
     expect(res.status).toBe(200);
     const data = await res.json() as { default_priority: string; rate_limit: number; channel_routing: { alerts: string } };
     expect(data.default_priority).toBe('critical');
     expect(data.rate_limit).toBe(11);
-    expect(data.channel_routing.alerts).toBe('email');
+    expect(data.channel_routing.alerts).toBe('telegram');
   });
 
   it('returns channel rows without secret config fields', async () => {

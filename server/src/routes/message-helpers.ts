@@ -26,7 +26,7 @@ export {
 } from './delivery';
 export type { DeliveryResult } from './delivery';
 
-const channelOptions: Channel[] = ['discord', 'telegram', 'email', 'api'];
+const channelOptions: Channel[] = ['discord', 'telegram', 'api'];
 export const priorityOptions: Priority[] = ['critical', 'high', 'normal', 'low'];
 export const resolutionSourceOptions: ResolutionSource[] = ['ios', 'macos', 'telegram', 'discord', 'api'];
 const LIKE_ESCAPE_PATTERN = /[%_\\]/g;

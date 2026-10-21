@@ -101,11 +101,6 @@ describe('deliverReply — api channel', () => {
     expect(result).toEqual({ delivered: true });
   });
 
-  it('returns delivered:false for email channel', async () => {
-    const result = await deliverReply('email', {}, 'agent', 'test body');
-    expect(result).toEqual({ delivered: false });
-  });
-
   it('sends discord typing before posting a bot reply', async () => {
     const result = await deliverReply('discord', { channel_id: 'chan-1', bot_token: 'bot-1' }, 'agent', 'test body');
 
@@ -120,11 +115,6 @@ describe('deliverToChannelWithOptions — api channel', () => {
   it('returns delivered:true for api channel', async () => {
     const result = await deliverToChannelWithOptions('api', {}, 'agent', 'body');
     expect(result).toEqual({ delivered: true });
-  });
-
-  it('returns delivered:false for email channel', async () => {
-    const result = await deliverToChannelWithOptions('email', {}, 'agent', 'body');
-    expect(result).toEqual({ delivered: false });
   });
 
   it('uses a discord image embed instead of appending the file URL', async () => {

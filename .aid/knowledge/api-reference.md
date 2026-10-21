@@ -14,7 +14,7 @@ Request:
   "body": "string (required)",
   "mode": "async | blocking",
   "priority": "critical | high | normal | low (default: agent's default_priority)",
-  "channel": "discord | telegram | email (optional, uses default)",
+  "channel": "discord | telegram | api (optional, uses default)",
   "options": ["Option A", "Option B"],
   "file_url": "string (optional, sends as photo/document on Telegram)",
   "type": "string (default: 'text', e.g. task_update, approval_request, steer_command)",

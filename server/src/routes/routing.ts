@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import type { Env } from '../types';
 import { apiAuth, getAgentId } from '../middleware/auth';
 import { logAudit } from '../audit';
+import { channelWriteError } from './channel-names';
 
 interface RoutingRuleRow {
   id: string;
@@ -18,7 +19,7 @@ interface RoutingRuleRow {
   created_at: string;
 }
 
-const VALID_CHANNELS = ['discord', 'telegram', 'email'];
+const VALID_CHANNELS = ['discord', 'telegram'];
 
 const routes = new Hono<{ Bindings: Env }>({});
 routes.use('*', apiAuth);
@@ -39,8 +40,9 @@ routes.post('/', async (c) => {
   const pattern = typeof payload.pattern === 'string' ? payload.pattern : '';
   const targetAgentId = typeof payload.target_agent_id === 'string' ? payload.target_agent_id : '';
   const priority = typeof payload.priority === 'number' ? payload.priority : 0;
-  if (!VALID_CHANNELS.includes(channel)) {
-    return c.text('invalid channel', 400);
+  const channelError = channelWriteError(channel, VALID_CHANNELS, 'invalid channel');
+  if (channelError) {
+    return c.text(channelError, 400);
   }
   if (!pattern) {
     return c.text('pattern is required', 400);

@@ -31,7 +31,7 @@ fn server() -> Http {
                     "target": {"id": "peer-session-123", "label": "repo/main", "nickname": "coral-2"},
                 }),
             ),
-            ("GET", "/api/sessions?all=true") => Response::json(
+            ("GET", "/api/sessions") => Response::json(
                 200,
                 json!({"sessions": [
                     {"id": "peer-session-123", "agent_id": "a1", "label": "repo/main", "nickname": "coral-2"},

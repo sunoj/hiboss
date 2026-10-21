@@ -57,7 +57,7 @@ impl HiBossClient {
     pub async fn list_sessions(&self) -> Result<crate::types::SessionsResponse, Box<dyn Error>> {
         let resp = self
             .http
-            .get(format!("{}/api/sessions?all=true", self.base_url))
+            .get(format!("{}/api/sessions", self.base_url))
             .bearer_auth(&self.api_key)
             .send()
             .await?;

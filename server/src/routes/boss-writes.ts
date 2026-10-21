@@ -4,6 +4,7 @@
 
 import { Hono, type Context } from 'hono';
 import type { Channel, Env, Priority } from '../types';
+import { channelWriteError } from './channel-names';
 import { bossAuth, getBossId, getBossRole } from '../middleware/auth';
 import { logAudit } from '../audit';
 import { getAccessibleAgentIds } from './boss-api';
@@ -40,7 +41,7 @@ interface AgentConfigRow {
 }
 
 const VALID_PRIORITIES: Priority[] = ['critical', 'high', 'normal', 'low'];
-const VALID_CHANNELS: Channel[] = ['discord', 'telegram', 'email', 'api'];
+const VALID_CHANNELS: Channel[] = ['discord', 'telegram', 'api'];
 const SECRET_CONFIG_KEYS = new Set(['bot_token', 'webhook_url', 'webhook_secret', 'secret', 'token', 'password', 'api_key']);
 
 const routes = new Hono<{ Bindings: Env }>({});
@@ -219,7 +220,8 @@ function parseRuleInput(payload: JsonObject): { ok: true; ownerId: string; chann
   const targetAgentId = typeof payload.target_agent_id === 'string' ? payload.target_agent_id : '';
   const priority = typeof payload.priority === 'number' ? payload.priority : 0;
   if (!ownerId) return { ok: false, error: 'owner_agent_id is required' };
-  if (!VALID_CHANNELS.includes(channel as Channel)) return { ok: false, error: 'invalid channel' };
+  const channelError = channelWriteError(channel, VALID_CHANNELS, 'invalid channel');
+  if (channelError) return { ok: false, error: channelError };
   if (!pattern) return { ok: false, error: 'pattern is required' };
   if (!targetAgentId) return { ok: false, error: 'target_agent_id is required' };
   try { new RegExp(pattern); } catch { return { ok: false, error: 'invalid regex pattern' }; }
@@ -253,7 +255,8 @@ function parseChannelRouting(value: unknown): { ok: true; sql: string; value: st
   if (value === null) return { ok: true, sql: 'channel_routing = ?', value: null };
   if (typeof value !== 'object' || Array.isArray(value)) return { ok: false, error: 'channel_routing must be an object or null' };
   for (const [, channel] of Object.entries(value as JsonObject)) {
-    if (typeof channel !== 'string' || !VALID_CHANNELS.includes(channel as Channel)) return { ok: false, error: 'channel_routing values must be valid channels' };
+    const error = channelWriteError(channel, VALID_CHANNELS, 'channel_routing values must be valid channels');
+    if (error) return { ok: false, error };
   }
   return { ok: true, sql: 'channel_routing = ?', value: JSON.stringify(value) };
 }

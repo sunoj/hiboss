@@ -173,6 +173,10 @@ routes.delete('/:id', async (c) => {
   try { result = (await c.env.DB.batch(statements)).at(-1)!; }
   catch (error) {
     if (isDeliveryInProgressError(error)) return c.json({ error: 'delivery in progress, retry' }, 409);
+    // Panels, Box items and other history keep pointing at the boss; the batch rolled back.
+    if (error instanceof Error && error.message.includes('FOREIGN KEY constraint failed')) {
+      return c.text('boss has panels or other history; archive it instead', 409);
+    }
     throw error;
   }
   if (!result.meta.changes || result.meta.changes === 0) {
