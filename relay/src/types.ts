@@ -15,13 +15,22 @@ export type AppEnv = { Bindings: Env };
 
 export type ApnsEnvironment = 'sandbox' | 'production';
 export type PushKind = 'decision' | 'message' | 'system';
+export type ApnsPriority = 5 | 10;
+export type InterruptionLevel = 'passive' | 'active' | 'time-sensitive';
+
+/** Urgency metadata the Server derives from its own payload; used verbatim in the APNs request. */
+export interface DeliveryLevel {
+  priority: ApnsPriority;
+  interruption: InterruptionLevel;
+  sound: boolean;
+}
 
 export interface TokenBody {
   apnsToken: string;
   environment: ApnsEnvironment;
 }
 
-export interface PushBody {
+export interface PushBody extends DeliveryLevel {
   handle: string;
   kind: PushKind;
   ciphertext: string;

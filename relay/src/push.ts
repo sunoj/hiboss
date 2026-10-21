@@ -45,6 +45,9 @@ push.post('/', async (c) => {
     kind: body.kind,
     ciphertext: body.ciphertext,
     collapseId: body.collapseId,
+    priority: body.priority,
+    interruption: body.interruption,
+    sound: body.sound,
   });
   if (outcome === 'gone') {
     await deleteRegistration(db, row.handle_hash);

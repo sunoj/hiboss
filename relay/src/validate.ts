@@ -2,7 +2,7 @@
 // Bodies are size-capped before and while reading; every parser rejects unknown fields,
 // wrong types and out-of-range values with null.
 
-import type { ApnsEnvironment, PushBody, PushKind, TokenBody } from './types';
+import type { ApnsEnvironment, ApnsPriority, InterruptionLevel, PushBody, PushKind, TokenBody } from './types';
 
 export const MAX_BODY_CHARS = 8192;
 export const MAX_CIPHERTEXT_BYTES = 2048;
@@ -10,6 +10,8 @@ export const MAX_CIPHERTEXT_BYTES = 2048;
 export const MIN_CIPHERTEXT_BYTES = 28;
 
 const KINDS: readonly PushKind[] = ['decision', 'message', 'system'];
+const PRIORITIES: readonly ApnsPriority[] = [5, 10];
+const INTERRUPTIONS: readonly InterruptionLevel[] = ['passive', 'active', 'time-sensitive'];
 const ENVIRONMENTS: readonly ApnsEnvironment[] = ['sandbox', 'production'];
 const APNS_TOKEN = /^[0-9a-fA-F]{64,200}$/;
 const COLLAPSE_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -82,14 +84,19 @@ export function base64UrlDecodedLength(text: string): number | null {
   return Math.floor((text.length * 3) / 4);
 }
 
+const PUSH_KEYS = ['handle', 'kind', 'ciphertext', 'collapseId', 'priority', 'interruption', 'sound'];
+
 export function parsePushBody(obj: JsonObject): PushBody | null {
-  if (!hasOnlyKeys(obj, ['handle', 'kind', 'ciphertext', 'collapseId'])) return null;
-  const { handle, kind, ciphertext, collapseId } = obj;
+  if (!hasOnlyKeys(obj, PUSH_KEYS)) return null;
+  const { handle, kind, ciphertext, collapseId, priority, interruption, sound } = obj;
   if (typeof handle !== 'string' || !isOneOf(kind, KINDS)) return null;
+  if (!PRIORITIES.some((p) => p === priority) || !isOneOf(interruption, INTERRUPTIONS)) return null;
+  if (typeof sound !== 'boolean') return null;
   if (typeof ciphertext !== 'string') return null;
   const size = base64UrlDecodedLength(ciphertext);
   if (size === null || size < MIN_CIPHERTEXT_BYTES || size > MAX_CIPHERTEXT_BYTES) return null;
-  if (collapseId === undefined) return { handle, kind, ciphertext };
+  const body: PushBody = { handle, kind, ciphertext, priority: priority as ApnsPriority, interruption, sound };
+  if (collapseId === undefined) return body;
   if (typeof collapseId !== 'string' || !COLLAPSE_ID.test(collapseId)) return null;
-  return { handle, kind, ciphertext, collapseId };
+  return { ...body, collapseId };
 }

@@ -9,6 +9,7 @@ import type { Env } from '../src/types';
 export const TOKEN_A = 'a'.repeat(64);
 export const TOKEN_B = 'b'.repeat(64);
 export const CIPHERTEXT = 'A'.repeat(40);
+export const DELIVERY = { priority: 10, interruption: 'active', sound: true } as const;
 export const FIXED_NOW = Date.UTC(2026, 9, 21, 10, 0, 0);
 
 let apnsKeyPem: string | null = null;
@@ -97,7 +98,7 @@ export async function register(
 }
 
 export function pushBody(handle: string, extra: Record<string, unknown> = {}) {
-  return { handle, kind: 'message', ciphertext: CIPHERTEXT, ...extra };
+  return { handle, kind: 'message', ciphertext: CIPHERTEXT, ...DELIVERY, ...extra };
 }
 
 export async function resetDb(): Promise<void> {

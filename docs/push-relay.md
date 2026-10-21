@@ -40,7 +40,7 @@ Malformed JSON, non-object bodies, wrong types and unknown fields are answered w
 | `POST /v1/registrations` `{ apnsToken, environment }` | 201 `{ handle, deviceSecret }` | 400, 429, 503 |
 | `PUT /v1/registrations/self` `{ apnsToken, environment }` | 204 | 400, 410, 429 |
 | `DELETE /v1/registrations/self` | 204 | 429 |
-| `POST /v1/push` `{ handle, kind, ciphertext, collapseId? }` | 202 | 400, 410, 429, 502, 503 |
+| `POST /v1/push` `{ handle, kind, ciphertext, collapseId?, priority, interruption, sound }` | 202 | 400, 410, 429, 502, 503 |
 
 - `apnsToken` is 64–200 hexadecimal characters (stored lower-case); `environment` is `sandbox`
   or `production`. The APNs topic is fixed to `ai.hiboss.app`; clients cannot choose a bundle.
@@ -51,6 +51,10 @@ Malformed JSON, non-object bodies, wrong types and unknown fields are answered w
   - `kind` is `decision`, `message` or `system`.
   - `ciphertext` is unpadded base64url, 28–2,048 bytes decoded (28 is the nonce plus the GCM tag).
   - `collapseId` is 1–64 characters of `[A-Za-z0-9_-]`.
+  - The delivery level is required: `priority` is the number `5` or `10`, `interruption` is
+    `passive`, `active` or `time-sensitive`, and `sound` is a boolean. A missing field or any
+    other value is answered with 400. These fields are urgency metadata, not content; the Server
+    derives them from the payload it would send directly.
 - A handle or secret that is unknown, deleted, malformed or wrong gets exactly the same response:
   410 `{"error":"gone"}` for `PUT` and `POST /v1/push`, 204 for `DELETE`. There is no oracle that
   distinguishes them. On 410 from `/v1/push` the Server drops the handle.
@@ -63,10 +67,11 @@ For an accepted push the relay sends one APNs alert:
 - `aps.alert` = `{ "title-loc-key": "HIBOSS_PUSH_TITLE", "loc-key": <by kind> }` with
   `HIBOSS_PUSH_DECISION`, `HIBOSS_PUSH_MESSAGE` or `HIBOSS_PUSH_SYSTEM`. No Server text reaches
   the alert. The app bundle defines these localization keys.
-- `aps.sound` = `default`, `aps.mutable-content` = 1, `aps.thread-id` = `collapseId` when given.
+- `aps.interruption-level` = `interruption`; `aps.sound` = `default` when `sound` is true and
+  absent when it is false; `aps.mutable-content` = 1; `aps.thread-id` = `collapseId` when given.
 - Custom key `e` = the ciphertext, unchanged.
-- Headers: `apns-topic: ai.hiboss.app`, `apns-push-type: alert`, `apns-priority` 10 for
-  `decision` and 5 otherwise, `apns-collapse-id` = `collapseId` when given.
+- Headers: `apns-topic: ai.hiboss.app`, `apns-push-type: alert`, `apns-priority` = `priority`,
+  `apns-collapse-id` = `collapseId` when given. Kind selects only the loc-key.
 - APNs 410, or a 400 with reason `BadDeviceToken`, deletes the registration and the relay answers
   410. Any other APNs failure answers 502 and keeps the registration. A relay without APNs
   secrets answers 503 and sends nothing.

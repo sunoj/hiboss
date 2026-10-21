@@ -17,7 +17,7 @@ function apnsRequest(fetchMock: ReturnType<typeof mockApns>, index = 0) {
 }
 
 describe('POST /v1/push APNs request', () => {
-  it('sends a generic decision alert at priority 10 with ciphertext in `e`', async () => {
+  it('sends a generic active decision alert with sound and ciphertext in `e`', async () => {
     const fetchMock = mockApns();
     const { handle } = await register(TOKEN_A, 'production');
     const response = await call('POST', '/v1/push', {
@@ -35,6 +35,7 @@ describe('POST /v1/push APNs request', () => {
       aps: {
         alert: { 'title-loc-key': 'HIBOSS_PUSH_TITLE', 'loc-key': 'HIBOSS_PUSH_DECISION' },
         sound: 'default',
+        'interruption-level': 'active',
         'mutable-content': 1,
         'thread-id': 'msg_123-abc',
       },
@@ -45,13 +46,12 @@ describe('POST /v1/push APNs request', () => {
   it.each([
     ['message', 'HIBOSS_PUSH_MESSAGE'],
     ['system', 'HIBOSS_PUSH_SYSTEM'],
-  ])('sends %s at priority 5 with its loc-key and no collapse id', async (kind, locKey) => {
+  ])('sends %s with its loc-key and no collapse id', async (kind, locKey) => {
     const fetchMock = mockApns();
     const { handle } = await register(TOKEN_A, 'sandbox');
     expect((await call('POST', '/v1/push', { body: pushBody(handle, { kind }) })).status).toBe(202);
     const { url, headers, payload } = apnsRequest(fetchMock);
     expect(url).toBe(`https://api.sandbox.push.apple.com/3/device/${TOKEN_A}`);
-    expect(headers['apns-priority']).toBe('5');
     expect(headers['apns-collapse-id']).toBeUndefined();
     const aps = payload.aps as Record<string, unknown>;
     expect(aps.alert).toEqual({ 'title-loc-key': 'HIBOSS_PUSH_TITLE', 'loc-key': locKey });

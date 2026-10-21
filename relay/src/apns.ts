@@ -1,9 +1,10 @@
 // APNs sender for the relay: provider JWT (ES256) plus one alert push per call.
 // The alert is generic and chosen by kind only; the ciphertext rides in custom key `e`.
+// Priority, interruption level and sound come verbatim from the Server's delivery level.
 // Depends on Workers WebCrypto, fetch and the APNS_* Worker secrets.
 
 import { base64UrlBytes } from './crypto';
-import type { ApnsEnvironment, Env, PushKind } from './types';
+import type { ApnsEnvironment, DeliveryLevel, Env, PushKind } from './types';
 
 export const BUNDLE_ID = 'ai.hiboss.app';
 export const TITLE_LOC_KEY = 'HIBOSS_PUSH_TITLE';
@@ -15,7 +16,7 @@ const BODY_LOC_KEYS: Record<PushKind, string> = {
 
 export type ApnsOutcome = 'sent' | 'gone' | 'failed' | 'unconfigured';
 
-export interface RelayPush {
+export interface RelayPush extends DeliveryLevel {
   apnsToken: string;
   environment: ApnsEnvironment;
   kind: PushKind;
@@ -35,9 +36,10 @@ const JWT_TTL_MS = 50 * 60 * 1000;
 export function buildPayload(push: RelayPush): Record<string, unknown> {
   const aps: Record<string, unknown> = {
     alert: { 'title-loc-key': TITLE_LOC_KEY, 'loc-key': BODY_LOC_KEYS[push.kind] },
-    sound: 'default',
+    'interruption-level': push.interruption,
     'mutable-content': 1,
   };
+  if (push.sound) aps.sound = 'default';
   if (push.collapseId) aps['thread-id'] = push.collapseId;
   return { aps, e: push.ciphertext };
 }
@@ -52,7 +54,7 @@ export async function sendApns(env: Env, push: RelayPush): Promise<ApnsOutcome> 
     'content-type': 'application/json',
     'apns-topic': BUNDLE_ID,
     'apns-push-type': 'alert',
-    'apns-priority': push.kind === 'decision' ? '10' : '5',
+    'apns-priority': String(push.priority),
   };
   if (push.collapseId) headers['apns-collapse-id'] = push.collapseId;
   const response = await fetch(`https://${host}/3/device/${push.apnsToken}`, {
