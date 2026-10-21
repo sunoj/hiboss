@@ -71,8 +71,12 @@ final class ConnectionStore: ObservableObject {
         self.onSignOut = onSignOut
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
+        // A rejected account drops its push registration like sign-out; the server delete is
+        // skipped because the rejected token cannot authorize it.
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
-            if AccountAuthorization.shared.hasRejectedAccount { self?.config = nil }
+            guard let self, AccountAuthorization.shared.hasRejectedAccount, config != nil else { return }
+            onSignOut(nil)
+            config = nil
         }
     }
 

@@ -1,4 +1,5 @@
-// The relay credentials item round-trips in the shared keychain group, readable after first unlock.
+// The relay credentials item round-trips in the shared keychain group, readable after first unlock
+// on this device only; an older item is migrated on read.
 // Exports: RelayCredentialKeychainTests.
 // Dependencies: XCTest, Security, KeychainRelayCredentialStore.
 
@@ -11,7 +12,7 @@ final class RelayCredentialKeychainTests: XCTestCase {
 
     override func tearDown() { try? store.delete() }
 
-    func testRoundTripUsesAfterFirstUnlockInTheSharedGroup() throws {
+    func testRoundTripUsesAfterFirstUnlockThisDeviceOnlyInTheSharedGroup() throws {
         XCTAssertNotNil(KeychainRelayCredentialStore.sharedAccessGroup, "the NSE reads the same group")
         let credentials = RelayCredentials(handle: "h", deviceSecret: "s", pushKey: "k",
                                            apnsToken: "ab", environment: "sandbox")
@@ -19,20 +20,41 @@ final class RelayCredentialKeychainTests: XCTestCase {
         try store.write(credentials)
         XCTAssertEqual(try store.read(), credentials)
 
+        XCTAssertEqual(try accessibility(), kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
+
+        try store.delete()
+        XCTAssertNil(try store.read())
+    }
+
+    func testReadMigratesAnOlderItemToThisDeviceOnly() throws {
+        let credentials = RelayCredentials(handle: "h", deviceSecret: "s", pushKey: "k",
+                                           apnsToken: "ab", environment: "sandbox")
+        var item = query
+        item[kSecValueData as String] = try JSONEncoder().encode(credentials)
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        XCTAssertEqual(SecItemAdd(item as CFDictionary, nil), errSecSuccess)
+        XCTAssertEqual(try accessibility(), kSecAttrAccessibleAfterFirstUnlock as String)
+
+        XCTAssertEqual(try store.read(), credentials)
+        XCTAssertEqual(try accessibility(), kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
+        XCTAssertEqual(try store.read(), credentials)
+    }
+
+    private var query: [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: KeychainRelayCredentialStore.service,
             kSecAttrAccount as String: KeychainRelayCredentialStore.account,
-            kSecReturnAttributes as String: true,
         ]
         query[kSecAttrAccessGroup as String] = KeychainRelayCredentialStore.sharedAccessGroup
+        return query
+    }
+
+    private func accessibility() throws -> String? {
+        var query = query
+        query[kSecReturnAttributes as String] = true
         var item: CFTypeRef?
         XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
-        let attributes = try XCTUnwrap(item as? [String: Any])
-        XCTAssertEqual(attributes[kSecAttrAccessible as String] as? String,
-                       kSecAttrAccessibleAfterFirstUnlock as String)
-
-        try store.delete()
-        XCTAssertNil(try store.read())
+        return try XCTUnwrap(item as? [String: Any])[kSecAttrAccessible as String] as? String
     }
 }

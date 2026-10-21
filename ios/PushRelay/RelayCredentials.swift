@@ -28,7 +28,8 @@ enum RelayCredentialError: Error {
     case keychain(OSStatus)
 }
 
-/// One generic-password item, readable after first unlock so the NSE can decrypt while locked.
+/// One generic-password item, readable after first unlock so the NSE can decrypt while locked,
+/// and never restored to another device.
 struct KeychainRelayCredentialStore: RelayCredentialStoring {
     static let service = "ai.hiboss.app"
     static let account = "push-relay"
@@ -46,17 +47,26 @@ struct KeychainRelayCredentialStore: RelayCredentialStoring {
         return group
     }
 
+    static let accessibility = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String
+
+    /// An item written with an older accessibility class is rewritten with the current one.
     func read() throws -> RelayCredentials? {
         var query = baseQuery
         query[kSecReturnData as String] = true
+        query[kSecReturnAttributes as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = item as? Data else {
+        guard status == errSecSuccess, let attributes = item as? [String: Any],
+              let data = attributes[kSecValueData as String] as? Data else {
             throw RelayCredentialError.keychain(status)
         }
-        return try JSONDecoder().decode(RelayCredentials.self, from: data)
+        let credentials = try JSONDecoder().decode(RelayCredentials.self, from: data)
+        if attributes[kSecAttrAccessible as String] as? String != Self.accessibility {
+            try? write(credentials)
+        }
+        return credentials
     }
 
     /// Replaces the item so its accessibility class is always the one set here.
@@ -64,7 +74,7 @@ struct KeychainRelayCredentialStore: RelayCredentialStoring {
         try delete()
         var item = baseQuery
         item[kSecValueData as String] = try JSONEncoder().encode(credentials)
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        item[kSecAttrAccessible as String] = Self.accessibility
         let status = SecItemAdd(item as CFDictionary, nil)
         guard status == errSecSuccess else { throw RelayCredentialError.keychain(status) }
     }
