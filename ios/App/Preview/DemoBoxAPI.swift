@@ -12,6 +12,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
     var collectionNames = ["demo-design": "Design references", "demo-reading": "Reading"]
     var items = DemoBoxAPI.fixtures
     private var failedMedia: Set<String> = []
+    private static let referenceText = "A saved reference file."
 
     static var fixtures: [BoxItem] {
         let unsupported = ProcessInfo.processInfo.environment["HIBOSS_DEMO_BOX_FILE"] == "unsupported"
@@ -37,7 +38,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
                 note: kind == .image ? "Use this layout for the next screen." : nil, project: "hiboss",
                 tags: ["reference"], hasMedia: [.image, .video, .file].contains(kind),
                 mediaType: mediaType,
-                mediaBytes: kind == .file ? (pdf ? pdfData.count : "A saved reference file.".utf8.count) : nil,
+                mediaBytes: kind == .file ? (pdf ? pdfData.count : referenceText.utf8.count) : nil,
                 width: 320, height: 200, durationMs: kind == .video ? 1600 : nil,
                 createdAt: Date().addingTimeInterval(Double(-60 * (index + 1)))
                     .ISO8601Format()
@@ -108,7 +109,7 @@ actor DemoBoxAPI: BoxNoteServing, BoxCollectionServing {
             return
         }
         if item.kind == .file, item.mediaType != "image/png" {
-            try Data("A saved reference file.".utf8).write(to: destination)
+            try Data(Self.referenceText.utf8).write(to: destination)
             return
         }
         let resource = item.kind == .video ? "demo-box-clip" : "demo-coarse-grid"
