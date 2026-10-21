@@ -1,5 +1,6 @@
 // Strict request body parsing for the relay API.
-// Every parser rejects unknown fields, wrong types and out-of-range values with null.
+// Bodies are size-capped before and while reading; every parser rejects unknown fields,
+// wrong types and out-of-range values with null.
 
 import type { ApnsEnvironment, PushBody, PushKind, TokenBody } from './types';
 
@@ -16,8 +17,40 @@ const BASE64URL = /^[A-Za-z0-9_-]+$/;
 
 type JsonObject = Record<string, unknown>;
 
-export function parseJsonObject(text: string): JsonObject | null {
-  if (text.length > MAX_BODY_CHARS) return null;
+/** True when `Content-Length` is present and at most MAX_BODY_CHARS; checked before reading. */
+export function declaredSizeOk(request: Request): boolean {
+  const declared = request.headers.get('Content-Length');
+  return declared !== null && /^\d{1,5}$/.test(declared) && Number(declared) <= MAX_BODY_CHARS;
+}
+
+/** Reads a body of at most MAX_BODY_CHARS bytes, enforcing the limit while reading. */
+export async function readLimitedBody(request: Request): Promise<string | null> {
+  if (!declaredSizeOk(request)) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_CHARS) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+export function parseJsonObject(text: string | null): JsonObject | null {
+  if (text === null || text.length > MAX_BODY_CHARS) return null;
   try {
     const value: unknown = JSON.parse(text);
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;

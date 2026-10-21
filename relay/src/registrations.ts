@@ -1,39 +1,49 @@
 // Registration routes: create, rotate the APNs token, and delete (opt-out).
 // The bundle is fixed server-side; deviceSecret is the only credential for /self.
+// Each route checks body size and the per-source rate (no D1) before any D1 access.
 
 import { Hono } from 'hono';
 import { randomToken } from './crypto';
-import { HOUR_MS, LIMITS, ipScope, overLimit } from './limits';
-import { bearer, gone, invalid, tooMany } from './responses';
+import { ceilingReached, globalRegistrationCheck, recordSuccess, sourceLimited } from './limits';
+import { bearer, gone, invalid, tooMany, unavailable } from './responses';
 import { deleteRegistration, findBySecret, insertRegistration, updateToken } from './store';
-import type { AppEnv } from './types';
-import { parseJsonObject, parseTokenBody } from './validate';
+import type { AppEnv, Env, TokenBody } from './types';
+import { declaredSizeOk, parseJsonObject, parseTokenBody, readLimitedBody } from './validate';
 
 export const registrations = new Hono<AppEnv>();
 
-async function registrationLimited(request: Request, db: D1Database, now: number): Promise<boolean> {
-  const scope = await ipScope(request, 'reg');
-  return overLimit(db, [{ scope, periodMs: HOUR_MS, max: LIMITS.ipRegistrationPerHour }], now);
+type Gate = 'ok' | 'invalid' | 'limited';
+
+async function gate(env: Env, request: Request, withBody: boolean): Promise<Gate> {
+  if (withBody && !declaredSizeOk(request)) return 'invalid';
+  return (await sourceLimited(env.REGISTRATION_RATE_LIMITER, request)) ? 'limited' : 'ok';
+}
+
+async function tokenBody(request: Request): Promise<TokenBody | null> {
+  const json = parseJsonObject(await readLimitedBody(request));
+  return json && parseTokenBody(json);
 }
 
 registrations.post('/', async (c) => {
-  const json = parseJsonObject(await c.req.text());
-  const body = json && parseTokenBody(json);
+  const gated = await gate(c.env, c.req.raw, true);
+  if (gated !== 'ok') return gated === 'limited' ? tooMany(c) : invalid(c);
+  const body = await tokenBody(c.req.raw);
   if (!body) return invalid(c);
   const now = Date.now();
-  if (await registrationLimited(c.req.raw, c.env.DB, now)) return tooMany(c);
+  if (await ceilingReached(c.env.DB, globalRegistrationCheck, now)) return unavailable(c);
   const handle = randomToken();
   const deviceSecret = randomToken();
   await insertRegistration(c.env.DB, handle, deviceSecret, body, now);
+  await recordSuccess(c.env.DB, globalRegistrationCheck, now);
   return c.json({ handle, deviceSecret }, 201);
 });
 
 registrations.put('/self', async (c) => {
-  const json = parseJsonObject(await c.req.text());
-  const body = json && parseTokenBody(json);
+  const gated = await gate(c.env, c.req.raw, true);
+  if (gated !== 'ok') return gated === 'limited' ? tooMany(c) : invalid(c);
+  const body = await tokenBody(c.req.raw);
   if (!body) return invalid(c);
   const now = Date.now();
-  if (await registrationLimited(c.req.raw, c.env.DB, now)) return tooMany(c);
   const row = await findBySecret(c.env.DB, bearer(c));
   if (!row) return gone(c);
   await updateToken(c.env.DB, row.handle_hash, body, now);
@@ -41,8 +51,7 @@ registrations.put('/self', async (c) => {
 });
 
 registrations.delete('/self', async (c) => {
-  const now = Date.now();
-  if (await registrationLimited(c.req.raw, c.env.DB, now)) return tooMany(c);
+  if ((await gate(c.env, c.req.raw, false)) === 'limited') return tooMany(c);
   const row = await findBySecret(c.env.DB, bearer(c));
   if (row) await deleteRegistration(c.env.DB, row.handle_hash);
   return c.body(null, 204);

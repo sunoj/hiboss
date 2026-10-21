@@ -1,4 +1,4 @@
-// Shared relay test helpers: request builder, APNs fetch mock, fixtures and DB reset.
+// Shared relay test helpers: request builder, APNs fetch mock, fake rate limiters, fixtures, DB reset.
 // Calls the Worker entry directly so the stubbed global fetch is the APNs boundary.
 
 import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
@@ -22,9 +22,27 @@ async function testAuthKey(): Promise<string> {
   return apnsKeyPem;
 }
 
+export interface FakeLimiter extends RateLimit {
+  keys: string[];
+}
+
+/** A Rate Limiting binding stand-in that records keys and allows or refuses every call. */
+export function fakeLimiter(allow = true): FakeLimiter {
+  const keys: string[] = [];
+  return {
+    keys,
+    async limit({ key }) {
+      keys.push(key);
+      return { success: allow };
+    },
+  };
+}
+
 export async function relayEnv(overrides: Partial<Env> = {}): Promise<Env> {
   return {
     DB: env.DB,
+    PUSH_RATE_LIMITER: fakeLimiter(),
+    REGISTRATION_RATE_LIMITER: fakeLimiter(),
     APNS_KEY_ID: 'KEYID12345',
     APNS_TEAM_ID: 'TEAM123456',
     APNS_AUTH_KEY: await testAuthKey(),
@@ -39,6 +57,9 @@ export interface CallOptions {
   secret?: string;
   env?: Env;
   url?: string;
+  headers?: Record<string, string>;
+  /** Overrides the computed Content-Length; null omits the header. */
+  contentLength?: string | null;
 }
 
 export async function call(method: string, path: string, opts: CallOptions = {}): Promise<Response> {
@@ -46,6 +67,10 @@ export async function call(method: string, path: string, opts: CallOptions = {})
   if (opts.secret !== undefined) headers.Authorization = `Bearer ${opts.secret}`;
   const body = opts.raw ?? (opts.body === undefined ? undefined : JSON.stringify(opts.body));
   if (body !== undefined) headers['content-type'] = 'application/json';
+  const computed = body === undefined ? null : String(new TextEncoder().encode(body).byteLength);
+  const length = opts.contentLength === undefined ? computed : opts.contentLength;
+  if (length !== null) headers['Content-Length'] = length;
+  Object.assign(headers, opts.headers);
   const request = new Request(`${opts.url ?? 'https://push.test'}${path}`, { method, headers, body });
   const ctx = createExecutionContext();
   const response = await worker.fetch(request, opts.env ?? (await relayEnv()), ctx);

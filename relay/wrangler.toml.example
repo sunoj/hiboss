@@ -9,13 +9,26 @@ database_name = "hiboss-push-relay"
 database_id = "<your-d1-database-id>"
 migrations_dir = "migrations"
 
+# Per-source request rates, kept by Cloudflare outside D1. The source is the calling Worker's
+# zone (`CF-Worker`), else the IPv6 /64 or the IPv4 address. Over the limit: 429, no D1 access.
+# namespace_id is any account-unique positive integer.
+[[ratelimits]]
+name = "PUSH_RATE_LIMITER"
+namespace_id = "7101"
+simple = { limit = 600, period = 60 }
+
+[[ratelimits]]
+name = "REGISTRATION_RATE_LIMITER"
+namespace_id = "7102"
+simple = { limit = 30, period = 60 }
+
 [triggers]
 # Daily purge of registrations unused for 90 days and of expired rate counters.
 crons = ["17 3 * * *"]
 
 [vars]
-# Pushes accepted per UTC day across all handles; above it the relay answers 503.
-GLOBAL_DAILY_PUSH_LIMIT = "50000"
+# Pushes APNs accepted per UTC day across all handles; at the ceiling the relay answers 503.
+GLOBAL_DAILY_PUSH_LIMIT = "200000"
 
 # Secrets (set with `wrangler secret put <NAME>`, never in this file):
 #   APNS_KEY_ID    APNs auth key ID for the ai.hiboss.app team

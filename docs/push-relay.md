@@ -30,12 +30,14 @@ This document is the contract for all three components: the relay (`relay/`), th
 ## Relay API
 
 All requests and responses are JSON over HTTPS; a plain HTTP request is answered with 403.
-Request bodies larger than 8,192 characters, malformed JSON, non-object bodies, wrong types and
-unknown fields are answered with 400 `{"error":"invalid_request"}`.
+`POST` and `PUT` requests must carry `Content-Length` of at most 8,192 bytes; a missing or larger
+value is answered with 400 before the body is read, and the limit is also enforced while reading.
+Malformed JSON, non-object bodies, wrong types and unknown fields are answered with 400
+`{"error":"invalid_request"}`.
 
 | Request | Success | Other responses |
 |---|---|---|
-| `POST /v1/registrations` `{ apnsToken, environment }` | 201 `{ handle, deviceSecret }` | 400, 429 |
+| `POST /v1/registrations` `{ apnsToken, environment }` | 201 `{ handle, deviceSecret }` | 400, 429, 503 |
 | `PUT /v1/registrations/self` `{ apnsToken, environment }` | 204 | 400, 410, 429 |
 | `DELETE /v1/registrations/self` | 204 | 429 |
 | `POST /v1/push` `{ handle, kind, ciphertext, collapseId? }` | 202 | 400, 410, 429, 502, 503 |
@@ -82,28 +84,60 @@ authenticated through the AAD, so the relay cannot swap it.
 
 ## Abuse limits
 
-Cloudflare has no spending cap, so every relay path has a ceiling. Counters are fixed UTC windows
-in D1; a request increments its counters before the comparison, so rejected attempts count too.
+Cloudflare has no spending cap, so every relay path has a ceiling. Request rates are limited per
+source by the Workers Rate Limiting binding, outside D1, before any D1 access. Delivery is limited
+by fixed UTC-window counters in D1 that only a valid handle or a successful registration can write.
 
 | Limit | Ceiling | Over the ceiling |
 |---|---|---|
+| Push requests per source (`PUSH_RATE_LIMITER`) | 600 per minute | 429, no D1 access |
+| Registration calls per source (`REGISTRATION_RATE_LIMITER`; `POST`, `PUT`, `DELETE`) | 30 per minute | 429, no D1 access |
 | Pushes per handle | 60 per hour and 500 per day | 429, nothing sent |
-| Pushes per source IP | 600 per hour | 429, nothing sent |
-| Registration calls per source IP (`POST`, `PUT`, `DELETE`) | 30 per hour | 429 |
-| Pushes across the relay | `GLOBAL_DAILY_PUSH_LIMIT` per day (default 50,000) | 503, nothing sent |
+| Pushes APNs accepted, across the relay | `GLOBAL_DAILY_PUSH_LIMIT` per UTC day (default 200,000) | 503, nothing sent |
+| New registrations, across the relay | 5,000 per UTC hour | 503, nothing stored |
 
-A push is checked in this order: body, source-IP limit, handle, per-handle limits, global
-ceiling, APNs. The source IP comes from `CF-Connecting-IP` and is stored only as SHA-256 inside a
-counter key. A daily cron trigger deletes registrations unused for 90 days (no delivered push and
-no token rotation) and rate counters whose window has ended.
+- **Source.** The `CF-Worker` header when present (the calling Worker's zone, because Worker
+  subrequests share Cloudflare egress addresses), else the IPv6 /64 prefix of `CF-Connecting-IP`,
+  else the full IPv4 address. The per-source limits bound request cost, not delivery. There is no
+  per-IP push limit: a shared egress address would let one caller block every Worker-hosted
+  Server. The binding's counters are per Cloudflare location and approximate.
+- **Order of a push.** `Content-Length`, source rate, body, handle, per-handle limits, global
+  ceiling, APNs. An unknown or invalid handle writes nothing to D1.
+- **Per-handle counters** increment before the comparison, so rejected attempts count too.
+- **Global push ceiling** is read before sending and incremented only after APNs answers 200. A
+  rejected token (APNs 410, or 400 `BadDeviceToken`) is not counted and deletes the registration;
+  other APNs failures are not counted either. Concurrent pushes can overshoot it slightly.
+- **Global registration ceiling** is read before inserting and incremented only by a stored
+  registration. Token rotation and deletion do not count.
+- D1 holds no IP address or IP-derived value.
+- A daily cron trigger deletes registrations unused for 90 days (no delivered push and no token
+  rotation) and rate counters whose window has ended.
+
+### Operator steps for the deployed host
+
+- Add a zone-level Cloudflare rate-limiting rule on the relay hostname as the outer bound on
+  request volume, for example 1,200 requests per minute per IP on `/v1/*`, answering 429. Match
+  only requests without a `cf-worker` header
+  (`not any(http.request.headers.names[*] == "cf-worker")`), so the shared egress address of
+  Worker-hosted Servers is not one bucket. The rule runs before the Worker, so blocked requests
+  cost no Worker invocation.
+- After the first deploy, run the source probe. Deploy a throwaway echo Worker on the relay's
+  zone (for example `probe.hiboss.org`) that returns the `CF-Connecting-IP` and `CF-Worker`
+  request headers it received; the relay itself logs nothing. Call it with `fetch` from a second
+  throwaway Worker on a different zone, as a self-hosted Server would. Expected: `CF-Worker` holds
+  the calling zone and `CF-Connecting-IP` is a shared Cloudflare address. If `CF-Worker` is
+  absent, Worker-hosted Servers share one source bucket; raise `PUSH_RATE_LIMITER` before relying
+  on it. Delete both probe Workers afterwards.
 
 ## Relay storage and configuration
 
 - `registrations`: `handle_hash`, `secret_hash`, `apns_token`, `environment`, `created_at`,
   `last_used_at`. No content and no server identity.
-- `rate_counters`: `key` (scope, window length, window number), `count`, `expires_at`.
+- `rate_counters`: `key` (scope, window length, window number), `count`, `expires_at`. Scopes are
+  `handle:<handle_hash>`, `global` (accepted pushes) and `global:reg` (new registrations).
 - Secrets: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH_KEY` (PKCS#8 PEM). Variable:
-  `GLOBAL_DAILY_PUSH_LIMIT`. See `relay/wrangler.toml.example`.
+  `GLOBAL_DAILY_PUSH_LIMIT`. Rate Limiting bindings: `PUSH_RATE_LIMITER`,
+  `REGISTRATION_RATE_LIMITER` (`[[ratelimits]]`). See `relay/wrangler.toml.example`.
 - The relay writes no logs of handles, secrets, APNs tokens or ciphertext.
 
 ## Server behaviour

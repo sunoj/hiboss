@@ -3,6 +3,8 @@
 
 export interface Env {
   DB: D1Database;
+  PUSH_RATE_LIMITER: RateLimit;
+  REGISTRATION_RATE_LIMITER: RateLimit;
   APNS_KEY_ID?: string;
   APNS_TEAM_ID?: string;
   APNS_AUTH_KEY?: string;
