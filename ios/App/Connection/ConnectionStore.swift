@@ -109,6 +109,7 @@ final class ConnectionStore: ObservableObject {
 
     /// Validates + persists the entered credentials and verifies them against the server.
     func connect() async -> Result<Void, Error> {
+        if let insecure = ServerAddressPolicy.check(serverAddress) { return .failure(insecure) }
         switch makeConnectionConfig(serverAddress: serverAddress, bossToken: bossToken) {
         case let .failure(error):
             return .failure(error)

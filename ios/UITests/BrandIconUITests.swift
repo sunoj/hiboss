@@ -7,7 +7,7 @@ import XCTest
 final class BrandIconUITests: XCTestCase {
     func testOnboardingUsesTheMacStyleBrandIcon() {
         let app = XCUIApplication()
-        app.launchEnvironment["HIBOSS_DEMO_ONBOARDING"] = "1"
+        app.configureDemoLaunch(["HIBOSS_DEMO_ONBOARDING": "1"])
         app.launchConfiguredDemo()
 
         XCTAssertTrue(app.images["hiboss-brand-icon"].waitForExistence(timeout: 5))
@@ -16,8 +16,9 @@ final class BrandIconUITests: XCTestCase {
 
     func testScannedPairingCodePrefillsServerURLBeforeRedemption() {
         let app = XCUIApplication()
-        app.launchEnvironment["HIBOSS_DEMO_ONBOARDING"] = "1"
-        app.launchEnvironment["HIBOSS_DEMO_PAIRING_SCAN"] = Self.pairingPayload
+        app.configureDemoLaunch([
+            "HIBOSS_DEMO_ONBOARDING": "1", "HIBOSS_DEMO_PAIRING_SCAN": Self.pairingPayload,
+        ])
         app.launchConfiguredDemo()
 
         let serverField = app.textFields["server-url-field"]

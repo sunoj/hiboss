@@ -19,6 +19,7 @@ App/Onboarding/ConnectView.swift | unlocalized-var | SecureField(placeholder, | 
 App/Onboarding/ConnectView.swift | unlocalized-var | TextField(placeholder, | placeholder is an example URL or the device's own name
 # Link's destination argument is a URL; its filename label uses Text(verbatim:).
 App/Inbox/Attachments/MessageAttachmentView.swift | unlocalized-var | Link(destination: attachment.url) | URL
+App/Onboarding/ConnectAlternatives.swift | unlocalized-var | Link(destination: guide) | URL; the label is a catalog Label
 
 # Machine formats, never shown as prose.
 App/Push/PushManager.swift | hand-format | String(format: "%02x", $0) | APNs device token hex encoding sent to the server

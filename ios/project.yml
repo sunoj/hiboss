@@ -18,12 +18,15 @@ packages:
 
 settings:
   base:
-    MARKETING_VERSION: "0.2.3"
-    CURRENT_PROJECT_VERSION: "19"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "22"
     SWIFT_VERSION: "6.0"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    # Automatic signing for every target and configuration; override with
+    # `xcodebuild DEVELOPMENT_TEAM=<team>` to sign with another team.
     DEVELOPMENT_TEAM: JHH9GC8Y8C
+    CODE_SIGN_STYLE: Automatic
   configs:
     Debug:
       APS_ENVIRONMENT: development
@@ -61,17 +64,6 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
-        CODE_SIGN_STYLE: Automatic
-        CODE_SIGN_IDENTITY: ""
-      configs:
-        Release:
-          CODE_SIGN_STYLE: Manual
-          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
-          PROVISIONING_PROFILE_SPECIFIER: "HiBoss iOS AppStore"
-        AdHoc:
-          CODE_SIGN_STYLE: Manual
-          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
-          PROVISIONING_PROFILE_SPECIFIER: "HiBoss iOS AdHoc"
 
   HiBossWidgets:
     type: app-extension
@@ -87,17 +79,6 @@ targets:
         INFOPLIST_FILE: Widgets/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
-        CODE_SIGN_STYLE: Automatic
-        CODE_SIGN_IDENTITY: ""
-      configs:
-        Release:
-          CODE_SIGN_STYLE: Manual
-          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
-          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Widgets AppStore"
-        AdHoc:
-          CODE_SIGN_STYLE: Manual
-          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
-          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Widgets AdHoc"
 
   HiBossShare:
     type: app-extension
@@ -115,17 +96,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: HiBossShare/HiBossShare.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         TARGETED_DEVICE_FAMILY: "1,2"
-        CODE_SIGN_STYLE: Automatic
-        CODE_SIGN_IDENTITY: ""
-      configs:
-        Release:
-          CODE_SIGN_STYLE: Manual
-          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
-          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Share AppStore PLACEHOLDER"
-        AdHoc:
-          CODE_SIGN_STYLE: Manual
-          CODE_SIGN_IDENTITY: "Apple Distribution: Ming Sun (JHH9GC8Y8C)"
-          PROVISIONING_PROFILE_SPECIFIER: "HiBoss Share AdHoc PLACEHOLDER"
 
   HiBossTests:
     type: bundle.unit-test

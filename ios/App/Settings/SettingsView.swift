@@ -19,6 +19,7 @@ struct SettingsView: View {
     @StateObject private var push = PushStatusStore()
     @State private var confirmsSignOut = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.exitDemo) private var exitDemo
 
     var body: some View {
         Form {
@@ -36,18 +37,14 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings-about")
             }
 
-            Section {
-                Button("Sign Out", role: .destructive) { confirmsSignOut = true }
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("settings-sign-out")
-                    // Signing out deletes this phone's token; returning needs another device or a Boss Token.
-                    .confirmationDialog("Sign out of HiBoss?", isPresented: $confirmsSignOut,
-                                        titleVisibility: .visible) {
-                        Button("Sign Out", role: .destructive) { connection.signOut() }
-                    } message: {
-                        Text("This iPhone forgets its device token and signing key.")
-                            + Text(" To sign in again, pair it from another device or enter a Boss Token.")
-                    }
+            if let exitDemo {
+                Section {
+                    Button("Exit demo", role: .destructive, action: exitDemo)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("settings-exit-demo")
+                }
+            } else {
+                signOutSection
             }
         }
         .navigationTitle("Settings")
@@ -67,6 +64,22 @@ struct SettingsView: View {
                     onDecisionAlertsChanged(prefs.decisionAlerts)
                 }
             }
+        }
+    }
+
+    private var signOutSection: some View {
+        Section {
+            Button("Sign Out", role: .destructive) { confirmsSignOut = true }
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("settings-sign-out")
+                // Signing out deletes this phone's token; returning needs another device or a Boss Token.
+                .confirmationDialog("Sign out of HiBoss?", isPresented: $confirmsSignOut,
+                                    titleVisibility: .visible) {
+                    Button("Sign Out", role: .destructive) { connection.signOut() }
+                } message: {
+                    Text("This iPhone forgets its device token and signing key.")
+                        + Text(" To sign in again, pair it from another device or enter a Boss Token.")
+                }
         }
     }
 

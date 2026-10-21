@@ -1,4 +1,5 @@
-// Sample progress posts for HIBOSS_DEMO, covering 1–4 item mosaics and aspect clamps.
+// Sample progress posts for the demo, covering 1–4 item mosaics and aspect clamps.
+// Media are bundled files: the demo never loads anything from the network.
 // Exports: DemoProgressFixtures.
 // Dependencies: Foundation, HibossKit ProgressPost.
 
@@ -10,9 +11,14 @@ enum DemoProgressFixtures {
         Date().addingTimeInterval(offset).ISO8601Format()
     }
 
+    /// A bundled demo file; alternating grids keep neighbouring mosaic cells distinct.
+    static func bundled(_ resource: String, _ ext: String = "png") -> String {
+        Bundle.main.url(forResource: resource, withExtension: ext)?.absoluteString ?? ""
+    }
+
     static func image(_ id: Int, width: Int, height: Int, alt: String? = nil) -> ProgressMedia {
         ProgressMedia(
-            url: "https://picsum.photos/id/\(id)/\(width)/\(height)",
+            url: bundled(id.isMultiple(of: 2) ? "demo-fine-grid" : "demo-coarse-grid"),
             kind: .image, contentType: "image/jpeg", size: 80_000,
             width: width, height: height, alt: alt
         )
@@ -72,10 +78,10 @@ enum DemoProgressFixtures {
             body: "Muted looping clip. Tap opens full screen; the speaker toggles sound.",
             media: [
                 ProgressMedia(
-                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlips.mp4",
+                    url: bundled("demo-box-clip", "mp4"),
                     kind: .video, contentType: "video/mp4", size: 512_000,
                     width: 1280, height: 720, durationMs: 15_000,
-                    posterUrl: "https://picsum.photos/id/1018/1280/720",
+                    posterUrl: bundled("demo-coarse-grid"),
                     alt: "looping demo clip"
                 ),
             ],
@@ -87,7 +93,7 @@ enum DemoProgressFixtures {
             body: "Retry chart after the Stripe timeout — dimensions omitted on purpose.",
             media: [
                 ProgressMedia(
-                    url: "https://picsum.photos/id/180/900/500",
+                    url: bundled("demo-fine-grid"),
                     kind: .image, contentType: "image/jpeg", size: 40_000,
                     alt: "retry latency chart"
                 ),
@@ -112,10 +118,10 @@ enum DemoProgressFixtures {
 private extension ProgressTeam {
     static let hiboss = ProgressTeam(
         handle: "hiboss", displayName: "HiBoss",
-        avatarUrl: "https://picsum.photos/id/64/80/80", registered: true
+        avatarUrl: DemoProgressFixtures.bundled("demo-coarse-grid"), registered: true
     )
     static let payments = ProgressTeam(
         handle: "payments", displayName: "payments",
-        avatarUrl: "https://picsum.photos/id/91/80/80", registered: false
+        avatarUrl: DemoProgressFixtures.bundled("demo-fine-grid"), registered: false
     )
 }

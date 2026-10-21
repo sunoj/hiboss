@@ -1,5 +1,5 @@
 // App entry point: owns connection, inbox and local session read state, and gates onboarding.
-// Exports: HiBossApp (@main) and RootView.
+// Exports: HiBossApp (@main), AppSessionView and RootView.
 // Dependencies: SwiftUI, HibossKit, feature stores and views.
 
 import HibossKit
@@ -8,31 +8,46 @@ import SwiftUI
 @main
 struct HiBossApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var demo = DemoSession.shared
+
+    var body: some Scene {
+        WindowGroup {
+            AppSessionView().id(demo.generation)
+        }
+    }
+}
+
+/// One signed-in, signed-out or demo session; rebuilt from scratch when a demo starts or ends.
+struct AppSessionView: View {
     @StateObject private var connection = ConnectionStore()
     @StateObject private var inbox = InboxStore()
     @StateObject private var preferences = PreferencesStore()
     @StateObject private var progress = ProgressFeedStore()
 
-    var body: some Scene {
-        WindowGroup {
-            RootView(
-                connection: connection,
-                inbox: inbox,
-                preferences: preferences,
-                progress: progress
-            )
-                .task { await connection.restore() }
-                .preferredColorScheme(isDemoMode ? DemoAppearance.colorScheme : nil)
-        }
+    var body: some View {
+        RootView(
+            connection: connection,
+            inbox: inbox,
+            preferences: preferences,
+            progress: progress
+        )
+            .task { await connection.restore() }
+            .preferredColorScheme(isLaunchDemoMode ? DemoAppearance.colorScheme : nil)
+            .onOpenURL { url in
+                PairingLinkInbox.shared.receive(url)
+                if connection.isConfigured { PairingLinkInbox.shared.discard() }
+            }
     }
 }
 
 struct RootView: View {
     @State private var showsClientNotice = false
     @ObservedObject private var authorization = AccountAuthorization.shared
+    @ObservedObject private var demo = DemoSession.shared
     @StateObject private var connectedPanels = ConnectedPanelsStore()
     @StateObject private var reads = SessionReadStore(
-        defaults: isDemoMode ? UserDefaults(suiteName: "hiboss.demo.reads.\(UUID())")! : .standard
+        defaults: isLaunchDemoMode ? UserDefaults(suiteName: "hiboss.demo.reads.\(UUID())")!
+            : isDemoMode ? DemoSession.sessionReadDefaults() : .standard
     )
     @ObservedObject var connection: ConnectionStore
     @ObservedObject var inbox: InboxStore
@@ -53,6 +68,7 @@ struct RootView: View {
         }
         .onChange(of: connection.config) { _, config in
             activateReads()
+            if config != nil { PairingLinkInbox.shared.discard() }
             showsClientNotice = config != nil && connection.clientExchangeNotice != nil
             guard !isDemoMode else { return }
             preferences.connectionDidChange()
@@ -84,7 +100,7 @@ struct RootView: View {
             } else if connection.isRestoring && isDemoMode
                 && ProcessInfo.processInfo.environment["HIBOSS_DEMO_RESTORE_DELAY_MS"]?.isEmpty == false {
                 restoringView
-            } else if ProcessInfo.processInfo.environment["HIBOSS_DEMO_ONBOARDING"] == "1" {
+            } else if isDemoMode && ProcessInfo.processInfo.environment["HIBOSS_DEMO_ONBOARDING"] == "1" {
                 ConnectView(connection: connection)
             } else if isDemoMode || connection.isConfigured {
                 RootTabView(
@@ -97,12 +113,24 @@ struct RootView: View {
                 .modifier(ProjectInventoryModifier(api: inbox.api as? any SessionsServing,
                                                    refreshRequested: inbox.isRefreshing))
                 .id("\(BoxStore.connectionIdentity(connection.config))/\(authorization.generation)")
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if demo.isActive { DemoExitBar(onExit: exitDemo) }
+                }
+                .environment(\.exitDemo, demo.isActive ? exitDemo : nil)
             } else if connection.isRestoring {
                 restoringView
             } else {
                 ConnectView(connection: connection)
             }
         }
+    }
+
+    /// Stops every demo service before the session removes what the demo left behind.
+    private func exitDemo() {
+        inbox.stop()
+        progress.stop()
+        connectedPanels.stop()
+        Task { await demo.exit() }
     }
 
     private func startInitialServices() {
