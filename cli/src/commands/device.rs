@@ -95,7 +95,8 @@ fn validate_invite(invite: &Invite) -> Result<(), Box<dyn Error>> {
 fn invite_prompt(server: &str, invite: &str, expires_at: &str) -> String {
     format!(
         "Set up HiBoss on this machine and request approval from the boss.\n\
-1. If `hiboss --version` fails, install it: cargo install --git https://github.com/sunoj/hiboss hiboss\n\
+1. If `hiboss --version` fails, install it: curl -fsSL https://hiboss.org/install.sh | sh\n\
+   Fallback: cargo install --git https://github.com/sunoj/hiboss hiboss\n\
 2. Run: hiboss setup --server {} --invite {}\n\
 3. Tell the user the 6-digit verification code it prints, then wait until it reports approval.\n\
 This invite expires at {expires_at} and works once.",
