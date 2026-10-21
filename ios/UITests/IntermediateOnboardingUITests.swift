@@ -55,22 +55,21 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
 
     func testOwnedPreferencesAndCamera() {
         launch(["HIBOSS_DEMO_PREFERENCES_DELAY_MS": "120000"])
-        app.buttons["today-settings"].tap()
+        openSettings(page: "settings-notifications")
         let loading = app.staticTexts[variant.contains("zh") ? "正在加载偏好设置…" : "Loading preferences…"]
         reveal(loading)
         holdAndCapture("owned-preferences-load")
         XCTAssertTrue(loading.exists, "The capture hook must still hold the read after the slow screenshot")
         launch(["HIBOSS_DEMO_PREFERENCES_SAVE_DELAY_MS": "60000"])
-        app.buttons["today-settings"].tap()
+        openSettings(page: "settings-notifications")
         let toggle = app.switches[variant.contains("zh") ? "私密通知" : "Private Notifications"].firstMatch
         reveal(toggle)
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-        let save = app.buttons[variant.contains("zh") ? "保存更改" : "Save Changes"].firstMatch
+        let save = app.buttons["settings-preferences-save"].firstMatch
         reveal(save)
         save.tap()
         holdAndCapture("owned-preferences-save")
-        let saving = app.buttons[variant.contains("zh") ? "正在保存…" : "Saving…"].firstMatch
-        XCTAssertTrue(saving.exists, "The capture hook must still hold the write")
+        XCTAssertFalse(save.isEnabled, "The capture hook must still hold the write")
         launch(["HIBOSS_DEMO_ONBOARDING": "1", "HIBOSS_DEMO_CAMERA_DELAY_MS": "60000"])
         let scanner = app.buttons[variant.contains("zh") ? "扫码" : "Scan a code"].firstMatch
         reveal(scanner)
@@ -91,15 +90,23 @@ final class IntermediateOnboardingUITests: IntermediateCaptureCase {
             allow.tap()
         }
         launch(["HIBOSS_DEMO_PUSH_DELAY_MS": "60000"])
-        app.buttons["today-settings"].tap()
-        let label = variant.contains("zh") ? "正在注册…" : "Registering…"
+        openSettings(page: "settings-notifications")
+        let label = variant.contains("zh") ? "正在注册这部手机…" : "Registering this phone…"
         let registering = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", label)).firstMatch
         reveal(registering)
         holdAndCapture("owned-push-register")
     }
 
-    private func openSettings(_ label: String) {
+    /// Settings v2 keeps owned flows one level down: Devices or Notifications.
+    private func openSettings(page: String) {
         app.buttons["today-settings"].tap()
+        let link = app.buttons[page].firstMatch
+        XCTAssertTrue(link.waitForExistence(timeout: 8))
+        link.tap()
+    }
+
+    private func openSettings(_ label: String) {
+        openSettings(page: "settings-devices")
         let row = app.buttons[label].firstMatch
         for _ in 0..<8 where !row.isHittable { app.swipeUp() }
         XCTAssertTrue(row.waitForExistence(timeout: 8))

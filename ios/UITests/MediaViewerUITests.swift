@@ -62,6 +62,7 @@ final class MediaViewerUITests: XCTestCase {
             let image = app.buttons["markdown-media-open"].firstMatch
             XCTAssertTrue(app.staticTexts["House update"].firstMatch.waitForExistence(timeout: 10)
                           || app.staticTexts["message-question"].waitForExistence(timeout: 10))
+            if route["HIBOSS_DEMO_SESSION"] != nil { expandThreadDetails(until: image) }
             for _ in 0..<8 where !image.isHittable { app.swipeUp() }
             XCTAssertTrue(image.exists)
             image.tap()
@@ -240,6 +241,16 @@ final class MediaViewerUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [page], timeout: 3), .completed)
         }
         XCTAssertTrue(app.buttons["media-viewer-close"].isHittable)
+    }
+
+    /// Session thread cards keep a message's Markdown body behind its Details disclosure.
+    private func expandThreadDetails(until image: XCUIElement) {
+        let details = app.buttons.matching(NSPredicate(format: "label == 'Details'"))
+        for index in 0..<details.count where !image.exists {
+            let disclosure = details.element(boundBy: index)
+            for _ in 0..<8 where !disclosure.isHittable { app.swipeUp() }
+            disclosure.tap()
+        }
     }
 
     private func capture(_ name: String) {
