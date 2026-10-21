@@ -46,10 +46,12 @@ targets:
       - path: App
       - path: Shared
       - path: ShareCore
+      - path: PushRelay
     dependencies:
       - package: HibossKit
       - target: HiBossWidgets
       - target: HiBossShare
+      - target: NotificationService
     scheme:
       testTargets:
         - HiBossTests
@@ -94,6 +96,21 @@ targets:
         INFOPLIST_FILE: HiBossShare/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: HiBossShare/HiBossShare.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+  NotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: NotificationService
+      - path: PushRelay
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.hiboss.app.NotificationService
+        INFOPLIST_FILE: NotificationService/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: NotificationService/NotificationService.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         TARGETED_DEVICE_FAMILY: "1,2"
 

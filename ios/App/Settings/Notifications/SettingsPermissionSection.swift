@@ -10,32 +10,56 @@ struct SettingsPermissionSection: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        Section("This phone") {
-            LabeledContent("Notifications") { Text(verbatim: push.label) }
-            if push.isEnabled {
-                deviceStatus
-                Button("Notification settings") { push.openSystemSettings() }
+        Section {
+            if manager.pushMode == .unavailable {
+                Label("Push unavailable for this server", systemImage: "bell.slash")
+                    .foregroundStyle(Theme.ink2)
+                    .accessibilityIdentifier("settings-push-unavailable")
             } else {
-                Button {
-                    if push.mustOpenSystemSettings { push.openSystemSettings() } else { push.request() }
-                } label: {
-                    if push.mustOpenSystemSettings {
-                        Text("Open Settings to Enable")
-                    } else {
-                        Text("Enable Notifications")
-                    }
+                permissionRows
+            }
+        } header: {
+            Text("This phone")
+        } footer: {
+            switch manager.pushMode {
+            case .unavailable:
+                Text("This server has no Apple push key and its operator turned off the HiBoss push relay. New requests appear when you open HiBoss.")
+            case .relay:
+                Text("This server sends notifications through the HiBoss push relay, encrypted for this iPhone. Live Activities update only while HiBoss is open.")
+                    .accessibilityIdentifier("settings-push-relay")
+            case .direct, nil:
+                EmptyView()
+            }
+        }
+        .task { await manager.refreshPushMode() }
+    }
+
+    @ViewBuilder
+    private var permissionRows: some View {
+        LabeledContent("Notifications") { Text(verbatim: push.label) }
+        if push.isEnabled {
+            deviceStatus
+            Button("Notification settings") { push.openSystemSettings() }
+        } else {
+            Button {
+                if push.mustOpenSystemSettings { push.openSystemSettings() } else { push.request() }
+            } label: {
+                if push.mustOpenSystemSettings {
+                    Text("Open Settings to Enable")
+                } else {
+                    Text("Enable Notifications")
                 }
-                .disabled(push.isRequesting || !push.hasLoaded)
             }
-            if push.isWaitingForPermission {
-                SettingsWaitView(title: "Waiting for notification permission…", actionTitle: "Check again") {
-                    Task { await push.refresh() }
-                }
+            .disabled(push.isRequesting || !push.hasLoaded)
+        }
+        if push.isWaitingForPermission {
+            SettingsWaitView(title: "Waiting for notification permission…", actionTitle: "Check again") {
+                Task { await push.refresh() }
             }
-            if let failure = push.failureMessage {
-                Label { Text(verbatim: failure) } icon: { Image(systemName: "exclamationmark.triangle") }
-                    .foregroundStyle(Theme.negative)
-            }
+        }
+        if let failure = push.failureMessage {
+            Label { Text(verbatim: failure) } icon: { Image(systemName: "exclamationmark.triangle") }
+                .foregroundStyle(Theme.negative)
         }
     }
 
