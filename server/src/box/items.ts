@@ -11,6 +11,7 @@ import { boxMedia } from './media';
 import { boxList, boxLatest, boxSearch } from './search';
 import { collectionRoutes } from './collections/routes';
 import { itemResponse } from './types';
+import { shareRoutes } from './shares/routes';
 
 const routes = new Hono<{ Bindings: Env }>();
 routes.use('*', dualAuth);
@@ -40,6 +41,7 @@ routes.post('/items', async (c) => {
 });
 
 routes.route('/collections', collectionRoutes);
+routes.route('/', shareRoutes);
 
 routes.on(['PUT', 'DELETE'], '/items/:id/like', async (c) => {
   if (!isBossAuth(c)) return c.text('not found', 404);
