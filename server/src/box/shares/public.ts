@@ -20,12 +20,12 @@ function missing(c: BoxContext): Response {
 }
 
 publicShares.use('*', async (c, next) => {
+  c.header('content-security-policy', PAGE_CSP);
+  await next();
   c.header('cache-control', 'private, no-store');
   c.header('x-robots-tag', 'noindex, nofollow');
   c.header('referrer-policy', 'no-referrer');
   c.header('x-content-type-options', 'nosniff');
-  c.header('content-security-policy', PAGE_CSP);
-  await next();
   // A request id would make otherwise identical invalid responses distinguishable.
   c.res.headers.delete('x-request-id');
 });
