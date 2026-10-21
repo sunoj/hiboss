@@ -180,17 +180,28 @@ it('isolates authenticated peer agents and agents granted only to another boss',
     expect(listed.status).toBe(200);
     expect(await listed.json()).toMatchObject({ shares: [{ id: own.id, active: true }] });
     const outsiders = caller === 'agent' ? [PEER, FOREIGN, OTHER]
-      : caller === PEER ? ['agent', FOREIGN, OTHER] : [OWNER, 'agent', PEER];
+      : caller === PEER ? ['agent', FOREIGN, OTHER]
+      : caller === OTHER ? [OWNER, 'agent', PEER, FOREIGN] : [OWNER, 'agent', PEER];
     for (const outsider of outsiders) {
       expect((await request(`/${item.id}/shares`, 'POST', {}, outsider)).status).toBe(404);
       expect((await request(`/${item.id}/shares`, 'GET', undefined, outsider)).status).toBe(404);
       expect((await revoke(own.id, outsider)).status).toBe(404);
     }
+    if (caller === FOREIGN) {
+      const bossShare = await share(item.id, OTHER);
+      const listedByBoss = await request(`/${item.id}/shares`, 'GET', undefined, OTHER);
+      expect(listedByBoss.status).toBe(200);
+      expect(await listedByBoss.json()).toMatchObject({
+        shares: expect.arrayContaining([expect.objectContaining({ id: own.id, active: true })]),
+      });
+      expect((await revoke(own.id, OTHER)).status).toBe(204);
+      expect((await revoke(bossShare.id, OTHER)).status).toBe(204);
+    }
     expect((await revoke(own.id, caller)).status).toBe(204);
   }
   const ownerItem = await create({ text: 'owner' });
   const ownerShare = await share(ownerItem.id);
-  for (const caller of [FOREIGN, OTHER]) {
+  for (const caller of [PEER, FOREIGN, OTHER]) {
     expect((await request(`/${ownerItem.id}/shares`, 'POST', {}, caller)).status).toBe(404);
     expect((await request(`/${ownerItem.id}/shares`, 'GET', undefined, caller)).status).toBe(404);
     expect((await revoke(ownerShare.id, caller)).status).toBe(404);
