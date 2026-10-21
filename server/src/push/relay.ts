@@ -1,6 +1,6 @@
 // Encrypts existing APNs userInfo for the opaque push relay transport.
 // Exports credential validation and relay delivery; depends on WebCrypto and fetch.
-import type { ApnsPayload, ApnsSendResult } from '../apns';
+import type { ApnsPayload, ApnsPriority, ApnsSendResult } from '../apns';
 
 export type PushKind = 'decision' | 'message' | 'system';
 const encoder = new TextEncoder();
@@ -29,9 +29,17 @@ function trimmedPayload(payload: ApnsPayload): Uint8Array<ArrayBuffer> {
   }
   const alert = copy.aps.alert;
   for (const field of ['subtitle', 'body', 'title'] as const) {
-    while (size().length > MAX_PLAINTEXT && alert[field]) {
-      alert[field] = Array.from(alert[field]!).slice(0, -1).join('');
+    if (size().length <= MAX_PLAINTEXT) break;
+    const characters = Array.from(alert[field] ?? '');
+    let low = 0;
+    let high = characters.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      alert[field] = characters.slice(0, middle).join('');
+      if (size().length <= MAX_PLAINTEXT) low = middle;
+      else high = middle - 1;
     }
+    alert[field] = characters.slice(0, low).join('');
   }
   if (size().length > MAX_PLAINTEXT) delete copy.options;
   if (size().length > MAX_PLAINTEXT) throw new Error('push payload exceeds relay limit');
@@ -39,7 +47,7 @@ function trimmedPayload(payload: ApnsPayload): Uint8Array<ArrayBuffer> {
 }
 
 export async function sendRelay(url: string, handle: string, pushKey: string,
-  payload: ApnsPayload, kind: PushKind): Promise<ApnsSendResult> {
+  payload: ApnsPayload, kind: PushKind, priority: ApnsPriority = '10'): Promise<ApnsSendResult> {
   const key = await crypto.subtle.importKey('raw', decode(pushKey), 'AES-GCM', false, ['encrypt']);
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce,
@@ -51,7 +59,8 @@ export async function sendRelay(url: string, handle: string, pushKey: string,
     .replace(/\//g, '_').replace(/=+$/, '');
   const response = await fetch(`${url.replace(/\/$/, '')}/v1/push`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ handle, kind, ciphertext }),
+    body: JSON.stringify({ handle, kind, ciphertext, priority: Number(priority),
+      interruption: payload.aps['interruption-level'], sound: payload.aps.sound === 'default' }),
   });
   return response.ok ? { ok: true, prune: false }
     : { ok: false, prune: response.status === 410, reason: `relay ${response.status}` };

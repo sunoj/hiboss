@@ -31,8 +31,11 @@ export async function sendDevicePush(env: Env, device: PushDevice, payload: Apns
     const category = payload.aps.category;
     const selected = kind ?? (category === 'HIBOSS_OPTIONS' || category === 'HIBOSS_REQUEST'
       ? 'decision' : payload.messageId ? 'message' : 'system');
-    result = await sendRelay(env.PUSH_RELAY_URL ?? 'https://push.hiboss.org',
-      device.relay_handle, device.push_key, payload, selected);
+    result = await sendRelay(env.PUSH_RELAY_URL || 'https://push.hiboss.org',
+      device.relay_handle, device.push_key, payload, selected, priority);
+  } else if ((mode === 'direct' && device.relay_handle)
+    || (mode === 'relay' && !device.relay_handle)) {
+    result = { ok: false, prune: true, reason: 'push transport mismatch' };
   } else {
     return { ok: false, prune: false, reason: 'push transport unavailable' };
   }

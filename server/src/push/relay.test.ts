@@ -6,6 +6,9 @@ import { seedDatabase, seedBossToken } from '../test-helpers';
 import { sendDevicePush, pushMode, type PushDevice } from './send';
 import { sendRelay } from './relay';
 import type { ApnsPayload } from '../apns';
+import type { MessageRow, Priority } from '../types';
+import { prepareBossPush } from './boss-payload';
+import { joinRequestPayload } from '../devices/notify-push';
 
 const handle = 'a'.repeat(42) + 'A';
 const pushKey = 'b'.repeat(42) + 'A';
@@ -97,4 +100,65 @@ it('removes a device after relay 410 and never logs credentials or ciphertext', 
   const ciphertext = JSON.parse(fetch.mock.calls[0]?.[1]?.body as string).ciphertext;
   const captured = JSON.stringify(logs.map(log => log.mock.calls));
   for (const secret of [handle, pushKey, ciphertext]) expect(captured).not.toContain(secret);
+});
+
+
+it('uses the default relay URL when the setting is empty', async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(null, { status: 202 }));
+  vi.stubGlobal('fetch', fetch);
+  await sendDevicePush({ ...env, PUSH_RELAY_URL: '', APNS_KEY_ID: '', APNS_TEAM_ID: '',
+    APNS_AUTH_KEY: '' }, device, payload);
+  expect(fetch.mock.calls[0]?.[0]).toBe('https://push.hiboss.org/v1/push');
+});
+
+it('lets the owner delete their relay device through the API', async () => {
+  expect((await register()).status).toBe(200);
+  const response = await SELF.fetch(`https://test/api/boss/devices/${token}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${bearer}` },
+  });
+  expect(response.status).toBe(200);
+  expect(await env.DB.prepare('SELECT id FROM boss_devices WHERE device_token = ?')
+    .bind(token).first()).toBeNull();
+});
+
+
+it.each([
+  ['normal', false, false, 5, 'passive', false],
+  ['high', false, false, 10, 'active', true],
+  ['critical', false, false, 10, 'time-sensitive', true],
+  ['normal', true, false, 10, 'active', true],
+  ['normal', true, true, 10, 'active', true],
+  ['high', true, true, 10, 'active', true],
+  ['critical', true, true, 10, 'time-sensitive', true],
+  ['join', false, false, 10, 'time-sensitive', true],
+] as const)('matches direct APNs delivery levels for %s (decision=%s, private=%s)',
+  async (tier, decision, privatePush, priority, interruption, sound) => {
+  const message = { id: 'level-message', agent_id: 'test-agent-id', direction: 'agent_to_boss',
+    mode: 'async', body: 'Body', priority: tier as Priority, metadata: decision
+      ? JSON.stringify({ options: ['Yes', 'No'] }) : null } as MessageRow;
+  const prepared = tier === 'join' ? { payload: joinRequestPayload({ requestId: 'join-1',
+    deviceLabel: 'Phone', profiles: [], inviterLabel: null, verificationCode: null,
+    existingDevice: false }), apnsPriority: '10' as const }
+    : prepareBossPush(message, 'Agent', null, device.boss_id,
+      JSON.stringify({ private_push: privatePush }));
+  expect(prepared).not.toBeNull();
+  if (!prepared) throw new Error('missing prepared payload');
+  const pair = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', pair.privateKey);
+  const authKey = btoa(String.fromCharCode(...new Uint8Array(pkcs8)));
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(null, { status: 202 }));
+  vi.stubGlobal('fetch', fetch);
+  await sendDevicePush({ ...env, APNS_KEY_ID: 'level-key', APNS_TEAM_ID: 'level-team', APNS_AUTH_KEY: authKey },
+    { ...device, device_token: 'abcd', relay_handle: null, push_key: null },
+    prepared.payload, prepared.apnsPriority);
+  await sendDevicePush({ ...env, APNS_KEY_ID: '', APNS_TEAM_ID: '', APNS_AUTH_KEY: '' },
+    device, prepared.payload, prepared.apnsPriority);
+  const direct = fetch.mock.calls[0]?.[1];
+  const aps = JSON.parse(direct?.body as string).aps;
+  const relay = JSON.parse(fetch.mock.calls[1]?.[1]?.body as string);
+  expect(relay).toMatchObject({ priority, interruption, sound });
+  expect(relay.priority).toBe(Number((direct?.headers as Record<string, string>)['apns-priority']));
+  expect(relay.interruption).toBe(aps['interruption-level']);
+  expect(relay.sound).toBe(aps.sound === 'default');
 });

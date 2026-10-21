@@ -7,6 +7,7 @@ import { notifyBossAgents } from '../notify';
 import { resolveDestinations } from '../delivery/destinations';
 import { sendDestination } from '../delivery/adapters';
 import * as apns from '../apns';
+import { dispatchDestinations, drainDestinationDeliveries } from '../delivery/dispatch';
 import type { MessageRow } from '../types';
 
 const bossId = 'cleanup-boss';
@@ -71,4 +72,27 @@ it.each(['api', 'notify', 'destination'])('cleans only the removed device invent
   expect(await env.DB.prepare("SELECT id FROM boss_devices WHERE id = 'kept-device'").first()).not.toBeNull();
   expect(await env.DB.prepare("SELECT id FROM destination_routes WHERE destination_id = 'cleanup-destination'").first()).toBeNull();
   expect(await env.DB.prepare('SELECT id FROM message_deliveries WHERE message_id = ?').bind(row.id).first()).toBeNull();
+});
+
+
+it.each(['direct', 'relay'])(
+  'prunes mismatched devices without destination retries in %s mode', async mode => {
+  if (mode === 'direct') {
+    await env.DB.prepare(`UPDATE boss_devices SET device_token = 'relay:mismatch',
+      relay_handle = ?, push_key = ? WHERE id = 'cleanup-device'`)
+      .bind('a'.repeat(42) + 'A', 'b'.repeat(42) + 'A').run();
+  }
+  vi.spyOn(apns, 'hasApnsConfig').mockReturnValue(mode === 'direct');
+  const send = vi.spyOn(apns, 'sendPush').mockResolvedValue({ ok: true, prune: false });
+  const row = await message();
+  const on = { ...env, DESTINATIONS_MODE: 'on', PUSH_RELAY_URL: 'https://relay.test' };
+  await dispatchDestinations(on, row);
+  expect(await env.DB.prepare("SELECT id FROM boss_devices WHERE id = 'cleanup-device'").first()).toBeNull();
+  expect(await env.DB.prepare("SELECT id FROM boss_destinations WHERE id = 'cleanup-destination'")
+    .first()).toBeNull();
+  expect(await env.DB.prepare(`SELECT id FROM message_deliveries WHERE message_id = ?
+    AND destination_id = 'cleanup-destination'`).bind(row.id).first()).toBeNull();
+  send.mockClear();
+  await drainDestinationDeliveries(on, new Date(Date.now() + 3600000));
+  expect(send).not.toHaveBeenCalled();
 });
