@@ -11,6 +11,8 @@ private let routeLog = Logger(subsystem: "ai.hiboss.app", category: "Push")
 struct PushRouteOutcome: Equatable {
     let mode: PushMode?
     let registration: DeviceRegistration
+    /// When the relay answered 503: the earliest time to register again.
+    var retryAt: Date? = nil
 }
 
 @MainActor
@@ -39,12 +41,16 @@ enum PushRoute {
             return PushRouteOutcome(mode: mode, registration: .registered)
         } catch {
             routeLog.error("device registration failed for \(mode.rawValue) push")
-            return PushRouteOutcome(mode: mode, registration: .failed(message(for: error)))
+            return PushRouteOutcome(mode: mode, registration: .failed(message(for: error)),
+                                    retryAt: error as? PushRelayError == .unavailable ? relay.retryAt : nil)
         }
     }
 
     private static func message(for error: Error) -> String {
-        guard error is PushRelayError else { return error.localizedDescription }
+        guard let error = error as? PushRelayError else { return error.localizedDescription }
+        if error == .invalidToken {
+            return String(localized: "This device could not be verified for notifications.")
+        }
         return String(localized: "The HiBoss push relay is unavailable. Try again later.")
     }
 }

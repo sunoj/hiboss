@@ -184,6 +184,7 @@ final class PushManager: NSObject, ObservableObject {
                                                    api: api, relay: relay)
             if let mode = outcome.mode { pushMode = mode }
             registration = outcome.registration
+            relay.scheduleRetry(at: outcome.retryAt) { self.register(deviceToken: deviceToken) }
         }
     }
 

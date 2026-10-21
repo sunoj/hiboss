@@ -12,6 +12,10 @@ struct PushRelayRegistration: Decodable, Equatable, Sendable {
 enum PushRelayError: Error, Equatable {
     /// The relay no longer knows this secret; register again.
     case gone
+    /// APNs rejected this token for the app; nothing was stored. Retry only with a new token.
+    case invalidToken
+    /// The relay or APNs is temporarily unavailable (503); retry later.
+    case unavailable
     case failed(status: Int)
     case invalidResponse
 }
@@ -32,26 +36,26 @@ struct PushRelayClient: Sendable {
         var request = request("v1/registrations", method: "POST")
         request.httpBody = try JSONEncoder().encode(TokenBody(apnsToken: apnsToken, environment: environment))
         let (data, response) = try await session.data(for: request)
-        try check(response, expected: 201)
+        try check(response, data, expected: 201)
         guard let registration = try? JSONDecoder().decode(PushRelayRegistration.self, from: data) else {
             throw PushRelayError.invalidResponse
         }
         return registration
     }
 
-    /// `PUT /v1/registrations/self` after an APNs token rotation; the handle stays the same.
+    /// `PUT /v1/registrations/self`: confirms the registration and rotates its token; the handle stays.
     func update(deviceSecret: String, apnsToken: String, environment: String) async throws {
         var request = request("v1/registrations/self", method: "PUT", secret: deviceSecret)
         request.httpBody = try JSONEncoder().encode(TokenBody(apnsToken: apnsToken, environment: environment))
-        let (_, response) = try await session.data(for: request)
-        try check(response, expected: 204)
+        let (data, response) = try await session.data(for: request)
+        try check(response, data, expected: 204)
     }
 
     /// `DELETE /v1/registrations/self`; idempotent at the relay.
     func delete(deviceSecret: String) async throws {
-        let (_, response) = try await session.data(for: request("v1/registrations/self", method: "DELETE",
-                                                                 secret: deviceSecret))
-        try check(response, expected: 204)
+        let (data, response) = try await session.data(for: request("v1/registrations/self", method: "DELETE",
+                                                                    secret: deviceSecret))
+        try check(response, data, expected: 204)
     }
 
     private func request(_ path: String, method: String, secret: String? = nil) -> URLRequest {
@@ -63,12 +67,21 @@ struct PushRelayClient: Sendable {
         return request
     }
 
-    private func check(_ response: URLResponse, expected: Int) throws {
+    private func check(_ response: URLResponse, _ data: Data, expected: Int) throws {
         guard let http = response as? HTTPURLResponse else { throw PushRelayError.invalidResponse }
-        if http.statusCode == expected { return }
-        if http.statusCode == 410 { throw PushRelayError.gone }
-        throw PushRelayError.failed(status: http.statusCode)
+        switch http.statusCode {
+        case expected: return
+        case 410: throw PushRelayError.gone
+        case 503: throw PushRelayError.unavailable
+        case 400 where (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error == "invalid_token":
+            throw PushRelayError.invalidToken
+        default: throw PushRelayError.failed(status: http.statusCode)
+        }
     }
+}
+
+private struct ErrorBody: Decodable {
+    let error: String
 }
 
 private struct TokenBody: Encodable {

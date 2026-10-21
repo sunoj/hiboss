@@ -28,6 +28,8 @@ final class PushRelayStub: URLProtocol, @unchecked Sendable {
     }
 
     static func set(_ route: String, status: Int) { lock.withLock { statuses[route] = status } }
+    /// Continues minting after `count` earlier registrations, so a re-registration gets a new handle.
+    static func mintedOffset(_ count: Int) { lock.withLock { minted = count } }
     static var requests: [RecordedRequest] { lock.withLock { recorded } }
     static var routes: [String] { requests.map(\.route) }
 
@@ -55,6 +57,7 @@ final class PushRelayStub: URLProtocol, @unchecked Sendable {
                 let handle = String(repeating: "h", count: 42) + "\(Self.minted % 10)"
                 return (status, #"{"handle":"\#(handle)","deviceSecret":"secret-\#(Self.minted)"}"#)
             }
+            if url.host == "relay.example", status == 400 { return (status, #"{"error":"invalid_token"}"#) }
             guard url.path.hasSuffix("/me") else { return (status, "{}") }
             let mode = Self.pushMode.isEmpty ? "" : #","pushMode":"\#(Self.pushMode)""#
             return (status, #"{"id":"b1"\#(mode)}"#)

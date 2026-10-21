@@ -499,6 +499,76 @@
         }
       }
     },
+    "This device could not be verified for notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device could not be verified for notifications."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法验证此设备以接收通知。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスを通知用に確認できませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림을 받을 이 기기를 확인할 수 없습니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่สามารถยืนยันอุปกรณ์นี้สำหรับการแจ้งเตือนได้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo verificar este dispositivo para las notificaciones."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सूचनाओं के लिए इस डिवाइस को सत्यापित नहीं किया जा सका।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر التحقق من هذا الجهاز لتلقي الإشعارات."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível verificar este dispositivo para notificações."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de vérifier cet appareil pour les notifications."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось подтвердить это устройство для уведомлений."
+          }
+        }
+      }
+    },
     "The HiBoss push relay is unavailable. Try again later.": {
       "localizations": {
         "en": {
