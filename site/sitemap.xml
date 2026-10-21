@@ -1,6 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://hiboss.org/</loc></url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://hiboss.org/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hiboss.org/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/"/>
+  </url>
+  <url>
+    <loc>https://hiboss.org/zh/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hiboss.org/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/"/>
+  </url>
+  <url>
+    <loc>https://hiboss.org/download/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hiboss.org/download/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/download/"/>
+  </url>
+  <url>
+    <loc>https://hiboss.org/zh/download/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hiboss.org/download/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/download/"/>
+  </url>
+  <url>
+    <loc>https://hiboss.org/docs/self-host/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hiboss.org/docs/self-host/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/docs/self-host/"/>
+  </url>
+  <url>
+    <loc>https://hiboss.org/zh/docs/self-host/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hiboss.org/docs/self-host/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/docs/self-host/"/>
+  </url>
+  <url><loc>https://hiboss.org/docs/agents/</loc></url>
+  <url><loc>https://hiboss.org/changelog/</loc></url>
   <url><loc>https://hiboss.org/privacy/</loc></url>
   <url><loc>https://hiboss.org/support/</loc></url>
 </urlset>

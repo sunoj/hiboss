@@ -10,10 +10,20 @@ fi
 
 source_dir=$(cd -- "$(dirname -- "$0")" && pwd)
 output_dir=$1
-mkdir -p -- "$output_dir/assets" "$output_dir/privacy" "$output_dir/support"
-cp -- "$source_dir/index.html" "$source_dir/robots.txt" "$source_dir/sitemap.xml" "$output_dir/"
-cp -- "$source_dir/privacy/index.html" "$output_dir/privacy/"
-cp -- "$source_dir/support/index.html" "$output_dir/support/"
-cp -- "$source_dir/assets/site.css" "$source_dir/assets/hiboss-iphone.jpg" \
-  "$source_dir/assets/hiboss-icon.png" "$source_dir/assets/apple-touch-icon.png" "$output_dir/assets/"
+
+files=(
+  index.html robots.txt sitemap.xml
+  download/index.html changelog/index.html privacy/index.html support/index.html
+  docs/self-host/index.html docs/agents/index.html
+  zh/index.html zh/download/index.html zh/docs/self-host/index.html
+  assets/site.css assets/icon.png assets/apple-touch-icon.png assets/og.jpg
+)
+for screen in home session panels progress box; do
+  files+=("assets/shots/$screen-light.jpg" "assets/shots/$screen-dark.jpg")
+done
+
+for file in "${files[@]}"; do
+  mkdir -p -- "$output_dir/$(dirname -- "$file")"
+  cp -- "$source_dir/$file" "$output_dir/$file"
+done
 echo "$output_dir"

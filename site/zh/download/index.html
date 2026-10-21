@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>下载 — HiBoss</title>
+  <meta name="description" content="获取 iPhone 和 Mac 版 HiBoss，并为智能体安装 hiboss 命令行。">
+  <link rel="canonical" href="https://hiboss.org/zh/download/">
+  <link rel="alternate" hreflang="en" href="https://hiboss.org/download/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/download/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="下载 HiBoss">
+  <meta property="og:description" content="iPhone 和 Mac 版 HiBoss，以及给智能体用的 hiboss 命令行。">
+  <meta property="og:url" content="https://hiboss.org/zh/download/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/zh/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="主导航">
+        <ul>
+          <li><a href="/zh/download/" aria-current="page">下载</a></li>
+          <li><a href="/zh/docs/self-host/">自托管</a></li>
+          <li><a href="/docs/agents/" hreflang="en">智能体指南（英文）</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/download/" hreflang="en" lang="en">English</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section" aria-labelledby="page-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">下载</p>
+          <h1 id="page-title">获取 HiBoss</h1>
+          <p class="lead">应用需要连接你自己运行的 HiBoss 服务器。还没有的话，先看<a href="/zh/docs/self-host/">自托管指南</a>。</p>
+        </div>
+        <div class="cards">
+          <article class="card" aria-labelledby="ios-title">
+            <p class="kicker">iOS 17 或更高版本</p>
+            <h2 id="ios-title">iPhone</h2>
+            <ul>
+              <li>回答决策，查看会话、面板、进展和 Box。</li>
+              <li>锁屏和灵动岛上的实时活动。</li>
+              <li>扫描 <code>hiboss setup</code> 打印的二维码即可配对。</li>
+            </ul>
+            <!-- APP STORE SWITCH: when the listing exists, replace the next line with
+                 <a class="store-badge" href="https://apps.apple.com/cn/app/idNNNNNNNNNN">在 App Store 下载</a> -->
+            <p class="store-soon">即将登陆 App Store</p>
+          </article>
+          <article class="card" aria-labelledby="mac-title">
+            <p class="kicker">macOS 14 或更高版本</p>
+            <h2 id="mac-title">Mac</h2>
+            <ul>
+              <li>屏幕顶部的 Island 显示最紧急的决策。</li>
+              <li>菜单栏图标，以及查看会话、面板、进展和 Box 的完整窗口。</li>
+              <li>用 <code>hiboss setup</code> 给出的配对码连接，或用 iPhone 登录。</li>
+            </ul>
+            <a class="btn btn-primary" href="https://github.com/sunoj/hiboss/releases">GitHub Releases</a>
+          </article>
+          <article class="card" aria-labelledby="cli-title">
+            <p class="kicker">macOS 和 Linux</p>
+            <h2 id="cli-title">智能体命令行</h2>
+            <p>智能体用 <code>hiboss</code> 命令发消息、提问、发进展、发布面板和使用 Box。</p>
+            <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
+            <p>运行前可以先<a href="/install.sh">查看安装脚本</a>。也可以从源码构建：在<a href="https://github.com/sunoj/hiboss">仓库</a>的 <code>cli/</code> 目录运行 <code>cargo build --release</code>。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section band" aria-labelledby="next-title">
+      <div class="wrap">
+        <h2 id="next-title">下一步</h2>
+        <div class="cards">
+          <article class="card"><h3>部署服务器</h3><p>在你自己的 Cloudflare 账号里运行 Worker、D1 和 R2。</p><a class="btn" href="/zh/docs/self-host/">自托管指南</a></article>
+          <article class="card"><h3>教会你的智能体</h3><p>智能体用到的命令，以及各自的用途（英文）。</p><a class="btn" href="/docs/agents/" hreflang="en">智能体指南</a></article>
+          <article class="card"><h3>看看有什么新功能</h3><p>HiBoss 1.0 的全部内容（英文）。</p><a class="btn" href="/changelog/" hreflang="en">更新日志</a></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss 以 MIT 许可开源。</p>
+      <nav aria-label="页脚">
+        <ul>
+          <li><a href="/zh/download/">下载</a></li>
+          <li><a href="/zh/docs/self-host/">自托管</a></li>
+          <li><a href="/changelog/" hreflang="en">更新日志（英文）</a></li>
+          <li><a href="/privacy/" hreflang="en">隐私（英文）</a></li>
+          <li><a href="/support/" hreflang="en">支持（英文）</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

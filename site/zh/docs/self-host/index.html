@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>自托管指南 — HiBoss</title>
+  <meta name="description" content="在 Cloudflare Workers、D1 和 R2 上部署你自己的 HiBoss 服务器，连接第一台机器，并配对 iPhone 或 Mac 应用。">
+  <link rel="canonical" href="https://hiboss.org/zh/docs/self-host/">
+  <link rel="alternate" hreflang="en" href="https://hiboss.org/docs/self-host/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/docs/self-host/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="自托管 HiBoss">
+  <meta property="og:description" content="从空的 Cloudflare 账号，到在手机上回答第一个问题。">
+  <meta property="og:url" content="https://hiboss.org/zh/docs/self-host/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/zh/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="主导航">
+        <ul>
+          <li><a href="/zh/download/">下载</a></li>
+          <li><a href="/zh/docs/self-host/" aria-current="page">自托管</a></li>
+          <li><a href="/docs/agents/" hreflang="en">智能体指南（英文）</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/docs/self-host/" hreflang="en" lang="en">English</a>
+    </div>
+  </header>
+
+  <main id="main" class="doc">
+    <div class="wrap">
+      <nav class="toc" aria-label="本页内容">
+        <p>本页内容</p>
+        <ol>
+          <li><a href="#before">准备工作</a></li>
+          <li><a href="#deploy">1. 部署服务器</a></li>
+          <li><a href="#secret">2. 设置引导密钥</a></li>
+          <li><a href="#cli">3. 安装命令行</a></li>
+          <li><a href="#first-machine">4. 设置第一台机器</a></li>
+          <li><a href="#pair">5. 配对 iPhone 或 Mac</a></li>
+          <li><a href="#approve">6. 批准这台机器</a></li>
+          <li><a href="#agents">7. 接入智能体</a></li>
+          <li><a href="#more">添加更多机器</a></li>
+          <li><a href="#channels">Telegram 与 Discord</a></li>
+          <li><a href="#push">推送通知</a></li>
+          <li><a href="#update">更新</a></li>
+        </ol>
+      </nav>
+      <article class="doc-body">
+        <p class="eyebrow">自托管指南</p>
+        <h1>运行你自己的 HiBoss 服务器</h1>
+        <p class="lead">HiBoss 没有托管服务。按照这份指南，你可以从一个空的 Cloudflare 账号开始，一直走到在手机上回答智能体的第一个问题。</p>
+
+        <h2 id="before">准备工作</h2>
+        <ul>
+          <li>一个已开通 Workers、D1 和 R2 的 Cloudflare 账号。</li>
+          <li><a href="https://nodejs.org/">Node.js</a> 18 或更高版本，以及 <code>git</code>。</li>
+          <li>装好 iPhone 或 Mac 版 HiBoss（见<a href="/zh/download/">下载</a>）。</li>
+        </ul>
+
+        <h2 id="deploy">1. 部署服务器</h2>
+        <p>克隆仓库，安装依赖，并从示例生成配置文件：</p>
+        <pre><code>git clone https://github.com/sunoj/hiboss.git
+cd hiboss
+cp server/wrangler.toml.example server/wrangler.toml
+npm ci</code></pre>
+        <p>登录 Cloudflare，然后创建 D1 数据库和 R2 存储桶：</p>
+        <pre><code>cd server
+npx wrangler login
+npx wrangler d1 create hiboss-db
+npx wrangler r2 bucket create hiboss-attachments</code></pre>
+        <p>把 <code>d1 create</code> 输出的 <code>database_id</code> 填进 <code>server/wrangler.toml</code>。如果你不部署网页控制台，删掉其中的 <code>CONSOLE_ORIGIN</code> 一行。</p>
+        <p>开始部署。这一步会先执行数据库迁移，任何一个迁移失败都会停下，全部成功后才发布 Worker：</p>
+        <pre><code>npm run deploy</code></pre>
+        <p>Wrangler 会打印服务器地址，例如 <code>https://hiboss-server.&lt;你的子域&gt;.workers.dev</code>，后面会用到。</p>
+
+        <h2 id="secret">2. 设置引导密钥</h2>
+        <p>第一台机器要靠引导密钥（bootstrap secret）创建你的负责人账号并完成登记。没有设置它时，服务器会拒绝这两个操作。生成一个随机值，妥善保存，再把它存为 Worker 密钥：</p>
+        <pre><code>openssl rand -hex 32
+npx wrangler secret put BOOTSTRAP_SECRET</code></pre>
+        <p>Wrangler 提示时粘贴这个值。它只在服务器还是空的时候有效：你和第一台机器建好之后，任何人都无法再用它重新引导。</p>
+
+        <h2 id="cli">3. 安装命令行</h2>
+        <p>在运行智能体的机器上执行：</p>
+        <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
+        <p>也可以用 Rust 从仓库构建：<code>cd cli &amp;&amp; cargo build --release</code>，再把 <code>target/release/hiboss</code> 放进 <code>PATH</code>。</p>
+
+        <h2 id="first-machine">4. 设置第一台机器</h2>
+        <pre><code>hiboss setup --server https://hiboss-server.&lt;你的子域&gt;.workers.dev \
+  --bootstrap-secret &lt;你的密钥&gt; --boss-name "你的名字"</code></pre>
+        <p>密钥也可以通过环境变量 <code>HIBOSS_BOOTSTRAP_SECRET</code> 传入，命令行不会把它打印出来。<code>--boss-name</code> 是应用里显示的你的名字；不填时，命令行会用你的系统账户名，或者直接问你。</p>
+        <p>在空服务器上，setup 会创建你的负责人账号，并打印配对链接、链接的二维码、配对码和过期时间。配对码只能用一次，五分钟后过期。随后 setup 会向服务器申请登记这台机器，并等待你批准。</p>
+
+        <h2 id="pair">5. 配对 iPhone 或 Mac</h2>
+        <ul>
+          <li><strong>iPhone：</strong>打开 HiBoss，点<strong>扫码</strong>，扫描终端里的二维码。</li>
+          <li><strong>Mac：</strong>打开 HiBoss，进入<strong>设置 → 连接</strong>，选择<strong>使用配对码配对…</strong>，粘贴链接或配对码。</li>
+        </ul>
+        <p>配对后，应用会获得自己的设备凭据，保存在钥匙串里。链接里只有服务器地址和一次性配对码，从不包含令牌。配好一台设备后，可以从它添加另一台：在 iPhone 设置里用<strong>配对其他设备</strong>，或在 Mac 上选<strong>用 iPhone 登录</strong>。</p>
+
+        <h2 id="approve">6. 批准这台机器</h2>
+        <p>应用里会出现这台机器的登记请求，附带一个六位数代码。确认它和终端里显示的一致，然后批准。setup 随即完成并保存这台机器的配置。如果 setup 中途被打断，再运行一次 <code>hiboss setup</code> 就会接着处理同一个请求。</p>
+        <pre><code>hiboss setup --check</code></pre>
+
+        <h2 id="agents">7. 接入智能体</h2>
+        <pre><code>hiboss setup agents          <span class="c"># 为 Claude Code 和 Codex 写入使用说明</span>
+hiboss setup hooks --global  <span class="c"># 安装 Claude Code 钩子，接收你的回复</span>
+hiboss send "智能体发来的第一条消息"
+hiboss ask --option "收到" --option "没收到" "这条消息到你手机上了吗？"</code></pre>
+        <p>问题会出现在应用里，你的回答会回到终端。其余用法见<a href="/docs/agents/" hreflang="en">智能体指南（英文）</a>。</p>
+
+        <h2 id="more">添加更多机器</h2>
+        <p>在已配置的机器上运行 <code>hiboss device invite --copy</code>，把生成的提示粘贴给新机器上的智能体。它会按需安装命令行、运行 setup，然后等你在应用里批准。</p>
+
+        <h2 id="channels">Telegram 与 Discord（可选）</h2>
+        <p>只用应用就够了。如果还想在聊天应用里收消息，可以运行引导式设置：</p>
+        <pre><code>hiboss setup telegram
+hiboss setup discord</code></pre>
+        <p>也可以直接配置渠道，例如 Discord webhook：</p>
+        <pre><code>hiboss channel set discord --webhook-url &lt;WEBHOOK_URL&gt;</code></pre>
+        <p>如果 Telegram 向导用到了 webhook 密钥，它会提醒你在服务器上设置同样的值：<code>npx wrangler secret put TELEGRAM_WEBHOOK_SECRET</code>。</p>
+
+        <h2 id="push">推送通知</h2>
+        <p>向 iPhone 发送推送通知，需要在服务器上配置 Apple 推送通知服务（APNs）凭据。</p>
+
+        <h2 id="update">更新</h2>
+        <pre><code>git pull
+npm ci
+cd server &amp;&amp; npm run deploy</code></pre>
+        <p>新版 Worker 发布前会先执行数据库迁移。</p>
+        <p class="doc-meta">遇到问题？请看<a href="/support/" hreflang="en">支持页面（英文）</a>。</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss 以 MIT 许可开源。</p>
+      <nav aria-label="页脚">
+        <ul>
+          <li><a href="/zh/download/">下载</a></li>
+          <li><a href="/zh/docs/self-host/">自托管</a></li>
+          <li><a href="/changelog/" hreflang="en">更新日志（英文）</a></li>
+          <li><a href="/privacy/" hreflang="en">隐私（英文）</a></li>
+          <li><a href="/support/" hreflang="en">支持（英文）</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

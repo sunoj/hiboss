@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Changelog — HiBoss</title>
+  <meta name="description" content="What is in each HiBoss release.">
+  <link rel="canonical" href="https://hiboss.org/changelog/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:title" content="HiBoss changelog">
+  <meta property="og:description" content="What is in each HiBoss release.">
+  <meta property="og:url" content="https://hiboss.org/changelog/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/" aria-current="page">Changelog</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/zh/" hreflang="zh-Hans" lang="zh-Hans">中文</a>
+    </div>
+  </header>
+
+  <main id="main" class="doc">
+    <div class="wrap">
+      <nav class="toc" aria-label="Releases">
+        <p>Releases</p>
+        <ol><li><a href="#v1-0">1.0 — unreleased</a></li></ol>
+      </nav>
+      <article class="doc-body">
+        <p class="eyebrow">Changelog</p>
+        <h1>What is new in HiBoss</h1>
+
+        <section class="changelog-entry" aria-labelledby="v1-0">
+          <h2 id="v1-0">HiBoss 1.0 <span class="muted">— unreleased</span></h2>
+          <p>The first public release: server, CLI, MCP plugin, and the iPhone and Mac apps.</p>
+
+          <h3>Decisions</h3>
+          <ul>
+            <li>Agents ask with options, descriptions, images for A/B choices, a deadline and a default.</li>
+            <li>Answer from the card on iPhone, Mac, Telegram or Discord; the first answer wins everywhere.</li>
+            <li>A default picked on timeout is marked as a default and is never treated as approval.</li>
+            <li>Live Activity on the iPhone Lock Screen and Dynamic Island, and the Island on Mac, for the most urgent decision.</li>
+          </ul>
+
+          <h3>Sessions</h3>
+          <ul>
+            <li>Every agent session has its own thread, with project, branch and machine.</li>
+            <li>Reply in your own words, and follow agents working side by side on a project.</li>
+          </ul>
+
+          <h3>Live panels and questionnaires</h3>
+          <ul>
+            <li>Agents publish panels that update in place: progress with a real total, metrics, charts, tables and status.</li>
+            <li>Questionnaires attached to a panel return typed answers to the agent.</li>
+            <li>Panels show their freshness, and clearly when data is stale or offline.</li>
+          </ul>
+
+          <h3>Progress</h3>
+          <ul>
+            <li>A quiet timeline of shipped work with images and video, posted by project teams with names and avatars.</li>
+            <li>Like posts and filter by project.</li>
+          </ul>
+
+          <h3>Box</h3>
+          <ul>
+            <li>Text, links, images, videos and files shared between you and your agents, labelled by author.</li>
+            <li>Collections, likes, search, a list, card and photo-grid view on iPhone, and Quick Look on Mac.</li>
+            <li>Public share links that expire, and can be revoked.</li>
+            <li>Add items from the iPhone share sheet or by dropping a file on the Mac Island.</li>
+          </ul>
+
+          <h3>Setup and devices</h3>
+          <ul>
+            <li>Deploy your own server on Cloudflare Workers, D1 and R2.</li>
+            <li>Set up the first machine and your boss account with one <code>hiboss setup</code> command.</li>
+            <li>Pair the iPhone by QR code and the Mac by code; sign a Mac in with your iPhone.</li>
+            <li>Add more machines with an invite and approve them in the app.</li>
+          </ul>
+
+          <h3>Agents</h3>
+          <ul>
+            <li><code>hiboss</code> CLI with <code>send</code>, <code>ask</code>, <code>progress</code>, <code>panel</code>, <code>request</code> and <code>box</code>.</li>
+            <li>Claude Code hooks and an MCP plugin for real-time delivery; guidance for Claude Code and Codex.</li>
+            <li>Agents can address each other by session name and read delivery receipts.</li>
+          </ul>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss is open source under the MIT License.</p>
+      <nav aria-label="Footer">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/support/">Support</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

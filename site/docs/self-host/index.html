@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Self-host guide — HiBoss</title>
+  <meta name="description" content="Deploy your own HiBoss server on Cloudflare Workers, D1 and R2, connect your first machine and pair the iPhone or Mac app.">
+  <link rel="canonical" href="https://hiboss.org/docs/self-host/">
+  <link rel="alternate" hreflang="en" href="https://hiboss.org/docs/self-host/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/docs/self-host/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:title" content="Self-host HiBoss">
+  <meta property="og:description" content="From an empty Cloudflare account to your first answered question.">
+  <meta property="og:url" content="https://hiboss.org/docs/self-host/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/" aria-current="page">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/zh/docs/self-host/" hreflang="zh-Hans" lang="zh-Hans">中文</a>
+    </div>
+  </header>
+
+  <main id="main" class="doc">
+    <div class="wrap">
+      <nav class="toc" aria-label="On this page">
+        <p>On this page</p>
+        <ol>
+          <li><a href="#before">Before you start</a></li>
+          <li><a href="#deploy">1. Deploy the server</a></li>
+          <li><a href="#secret">2. Set the bootstrap secret</a></li>
+          <li><a href="#cli">3. Install the CLI</a></li>
+          <li><a href="#first-machine">4. Set up the first machine</a></li>
+          <li><a href="#pair">5. Pair your iPhone or Mac</a></li>
+          <li><a href="#approve">6. Approve the machine</a></li>
+          <li><a href="#agents">7. Connect your agents</a></li>
+          <li><a href="#more">More machines</a></li>
+          <li><a href="#channels">Telegram and Discord</a></li>
+          <li><a href="#push">Push notifications</a></li>
+          <li><a href="#update">Updating</a></li>
+        </ol>
+      </nav>
+      <article class="doc-body">
+        <p class="eyebrow">Self-host guide</p>
+        <h1>Run your own HiBoss server</h1>
+        <p class="lead">HiBoss has no hosted service. This guide takes you from an empty Cloudflare account to an agent question answered on your phone.</p>
+
+        <h2 id="before">Before you start</h2>
+        <ul>
+          <li>A Cloudflare account with Workers, D1 and R2 enabled.</li>
+          <li><a href="https://nodejs.org/">Node.js</a> 18 or later, and <code>git</code>.</li>
+          <li>The HiBoss app on your iPhone or Mac (see <a href="/download/">Download</a>).</li>
+        </ul>
+
+        <h2 id="deploy">1. Deploy the server</h2>
+        <p>Clone the repository, install dependencies and create the configuration from the example:</p>
+        <pre><code>git clone https://github.com/sunoj/hiboss.git
+cd hiboss
+cp server/wrangler.toml.example server/wrangler.toml
+npm ci</code></pre>
+        <p>Sign in to Cloudflare, then create the D1 database and the R2 bucket:</p>
+        <pre><code>cd server
+npx wrangler login
+npx wrangler d1 create hiboss-db
+npx wrangler r2 bucket create hiboss-attachments</code></pre>
+        <p>Copy the <code>database_id</code> printed by <code>d1 create</code> into <code>server/wrangler.toml</code>. If you do not host the web console, delete the <code>CONSOLE_ORIGIN</code> line there.</p>
+        <p>Deploy. This applies the database migrations first and stops if one fails, then publishes the Worker:</p>
+        <pre><code>npm run deploy</code></pre>
+        <p>Wrangler prints your server URL, for example <code>https://hiboss-server.&lt;your-subdomain&gt;.workers.dev</code>. You will use it below.</p>
+
+        <h2 id="secret">2. Set the bootstrap secret</h2>
+        <p>The bootstrap secret lets the first machine create your boss account and enrol itself. Until it is set, the server refuses both. Generate a random value, keep it somewhere safe, and store it as a Worker secret:</p>
+        <pre><code>openssl rand -hex 32
+npx wrangler secret put BOOTSTRAP_SECRET</code></pre>
+        <p>Paste the value when Wrangler asks for it. It only works while the server is empty: once you and your first machine exist, nobody can use it to bootstrap again.</p>
+
+        <h2 id="cli">3. Install the CLI</h2>
+        <p>On the machine where your agents run:</p>
+        <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
+        <p>Or build it from the repository with Rust: <code>cd cli &amp;&amp; cargo build --release</code>, then put <code>target/release/hiboss</code> on your <code>PATH</code>.</p>
+
+        <h2 id="first-machine">4. Set up the first machine</h2>
+        <pre><code>hiboss setup --server https://hiboss-server.&lt;your-subdomain&gt;.workers.dev \
+  --bootstrap-secret &lt;your-secret&gt; --boss-name "Your Name"</code></pre>
+        <p>You can pass the secret through the <code>HIBOSS_BOOTSTRAP_SECRET</code> environment variable instead of the flag. The CLI never prints it. <code>--boss-name</code> is the name the apps show for you; without it, the CLI uses your account name or asks.</p>
+        <p>On an empty server, setup creates your boss account and prints a pairing link, a QR code of that link, the pairing code and when it expires. The code works once and expires after five minutes. Setup then asks the server to enrol this machine and waits for your approval.</p>
+
+        <h2 id="pair">5. Pair your iPhone or Mac</h2>
+        <ul>
+          <li><strong>iPhone:</strong> open HiBoss, tap <strong>Scan a code</strong> and scan the QR code in your terminal.</li>
+          <li><strong>Mac:</strong> open HiBoss, go to <strong>Settings → Connection</strong>, choose <strong>Pair with Code…</strong> and paste the link or code.</li>
+        </ul>
+        <p>Pairing gives the app its own device credential, stored in the Keychain. The link carries your server address and the one-time code, never a token. Once one device is paired, you can add the other from it: <strong>Pair another device</strong> in iPhone Settings, or <strong>Sign in with iPhone</strong> on the Mac.</p>
+
+        <h2 id="approve">6. Approve the machine</h2>
+        <p>The app shows the machine's request with a six-digit code. Check that it matches the code in your terminal, then approve. Setup finishes and saves the machine's profiles. If setup was interrupted, run <code>hiboss setup</code> again to resume the same request.</p>
+        <pre><code>hiboss setup --check</code></pre>
+
+        <h2 id="agents">7. Connect your agents</h2>
+        <pre><code>hiboss setup agents          <span class="c"># guidance for Claude Code and Codex</span>
+hiboss setup hooks --global  <span class="c"># Claude Code hooks for your replies</span>
+hiboss send "Hello from my agent"
+hiboss ask --option "Yes" --option "No" "Did this reach your phone?"</code></pre>
+        <p>The question appears in the app; your answer returns to the terminal. The <a href="/docs/agents/">agent guide</a> covers the rest.</p>
+
+        <h2 id="more">More machines</h2>
+        <p>On a configured machine, run <code>hiboss device invite --copy</code> and paste the prompt into an agent on the new machine. It installs the CLI if needed, runs setup and waits for your approval in the app.</p>
+
+        <h2 id="channels">Telegram and Discord (optional)</h2>
+        <p>The apps are enough on their own. If you also want messages in a chat app, run a guided setup:</p>
+        <pre><code>hiboss setup telegram
+hiboss setup discord</code></pre>
+        <p>Or configure a channel directly, for example a Discord webhook:</p>
+        <pre><code>hiboss channel set discord --webhook-url &lt;WEBHOOK_URL&gt;</code></pre>
+        <p>When the Telegram wizard uses a webhook secret, it reminds you to store the same value on the server: <code>npx wrangler secret put TELEGRAM_WEBHOOK_SECRET</code>.</p>
+
+        <h2 id="push">Push notifications</h2>
+        <p>Push notifications to iPhone require Apple Push Notification service (APNs) credentials configured on the server.</p>
+
+        <h2 id="update">Updating</h2>
+        <pre><code>git pull
+npm ci
+cd server &amp;&amp; npm run deploy</code></pre>
+        <p>Migrations are applied before the new Worker is published.</p>
+        <p class="doc-meta">Stuck? See <a href="/support/">Support</a>.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss is open source under the MIT License.</p>
+      <nav aria-label="Footer">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/support/">Support</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
