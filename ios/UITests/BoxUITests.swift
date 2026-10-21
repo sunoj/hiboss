@@ -1,4 +1,4 @@
-// Exercises Activity Box browsing, opening, pagination and deletion in offline demo mode.
+// Exercises Box browsing, detail sharing, real file previews and deletion in offline demo mode.
 // Exports BoxUITests and retained simulator screenshots.
 // Dependencies: XCTest and launchConfiguredDemo.
 
@@ -126,5 +126,117 @@ final class BoxUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+}
+
+extension BoxUITests {
+    func testTextDetailSharesTextAndCapturesDetail() {
+        app.buttons["box-item-demo-text"].tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        screenshot("box-detail-text")
+        let share = app.buttons["box-detail-share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 5))
+        XCTAssertTrue(share.isHittable)
+        share.tap()
+        XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 5))
+        let caption = app.otherElements["ActivityListView"].otherElements["LP.CaptionBar.BottomCaption"]
+        XCTAssertTrue(caption.waitForExistence(timeout: 5))
+        XCTAssertEqual(caption.label, "A passage to keep")
+    }
+
+    func testLinkDetailSharesURLAndCapturesDetail() {
+        app.buttons["box-item-demo-link"].tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        screenshot("box-detail-link")
+        app.buttons["box-detail-share"].tap()
+        XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells["Open in Safari"].exists)
+    }
+
+    func testPDFDetailShowsFirstPageOpensFullPreviewAndSharesOriginal() {
+        openDemoFile(["HIBOSS_DEMO_BOX_FILE": "pdf"])
+        assertPDFReady()
+        screenshot("box-detail-pdf")
+        app.buttons["box-file-preview"].tap()
+        let close = app.buttons["QLOverlayDoneButtonAccessibilityIdentifier"]
+        XCTAssertTrue(close.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Box PDF reference"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Second reference page"].exists)
+        screenshot("box-pdf-full-preview")
+        close.tap()
+        app.buttons["box-detail-share"].tap()
+        XCTAssertTrue(app.cells["Save to Files"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "Reference")).firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "PDF")).firstMatch.exists)
+    }
+
+    func testPDFDownloadShowsProgressFailureAndRetry() {
+        openDemoFile(["HIBOSS_DEMO_BOX_FILE": "pdf",
+                      "HIBOSS_DEMO_BOX_MEDIA_DELAY_MS": "3000",
+                      "HIBOSS_DEMO_BOX_MEDIA_FAILURE": "demo-file"])
+        XCTAssertTrue(app.staticTexts["Loading Box media…"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Retry"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["Open file"].exists)
+        XCTAssertFalse(app.buttons["box-detail-share"].isEnabled)
+        app.buttons["Retry"].tap()
+        assertPDFReady()
+        XCTAssertTrue(app.buttons["Open file"].firstMatch.isEnabled)
+    }
+
+    func testLockedPDFKeepsOpenAndShareWithoutRetry() {
+        openDemoFile(["HIBOSS_DEMO_BOX_FILE": "locked-pdf"])
+        XCTAssertTrue(app.buttons["box-file-preview"].waitForExistence(timeout: 10))
+        assertPreviewValue("Locked PDF")
+        XCTAssertTrue(app.buttons["box-detail-share"].isEnabled)
+        XCTAssertFalse(app.buttons["Retry"].exists)
+        screenshot("box-locked-pdf")
+        app.buttons["box-file-preview"].tap()
+        XCTAssertTrue(app.buttons["QLOverlayDoneButtonAccessibilityIdentifier"].waitForExistence(timeout: 10))
+    }
+
+    func testCorruptPDFKeepsOpenDisablesShareWithoutRetry() {
+        openDemoFile(["HIBOSS_DEMO_BOX_FILE": "corrupt-pdf"])
+        assertPreviewValue("PDF preview unavailable")
+        XCTAssertTrue(app.buttons["box-file-preview"].isEnabled)
+        XCTAssertFalse(app.buttons["box-detail-share"].isEnabled)
+        XCTAssertFalse(app.buttons["Retry"].exists)
+    }
+
+    func testImageDetailSharesOriginalDownloadedFile() { assertMediaDetailSharesFile("image") }
+
+    func testVideoDetailSharesOriginalDownloadedFile() { assertMediaDetailSharesFile("video") }
+
+    private func assertMediaDetailSharesFile(_ kind: String) {
+        app.buttons["box-item-demo-\(kind)"].tap()
+        XCTAssertTrue(app.buttons["media-viewer-info"].waitForExistence(timeout: 10))
+        app.buttons["media-viewer-info"].tap()
+        XCTAssertTrue(app.buttons["box-detail-share"].waitForExistence(timeout: 5))
+        app.buttons["box-detail-share"].tap()
+        XCTAssertTrue(app.cells["Save to Files"].waitForExistence(timeout: 10))
+    }
+
+    private func assertPDFReady() {
+        assertPreviewValue("PDF")
+    }
+
+    private func assertPreviewValue(_ value: String) {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value),
+                                               object: app.buttons["box-file-preview"])
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+    }
+
+    private func openDemoFile(_ environment: [String: String]) {
+        app.terminate()
+        app.configureDemoLaunch(environment)
+        app.launchConfiguredDemo()
+        XCTAssertTrue(app.tabBars.buttons["Box"].waitForExistence(timeout: 10))
+        app.tabBars.buttons["Box"].tap()
+        let file = app.buttons["box-item-demo-file"]
+        for _ in 0..<4 where !file.isHittable { app.swipeUp() }
+        XCTAssertTrue(file.waitForExistence(timeout: 5))
+        file.tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
     }
 }
