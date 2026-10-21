@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Download — HiBoss</title>
+  <meta name="description" content="Get HiBoss for iPhone and Mac, and install the hiboss CLI for your agents.">
+  <link rel="canonical" href="https://hiboss.org/download/">
+  <link rel="alternate" hreflang="en" href="https://hiboss.org/download/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/download/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:title" content="Download HiBoss">
+  <meta property="og:description" content="HiBoss for iPhone and Mac, and the hiboss CLI for your agents.">
+  <meta property="og:url" content="https://hiboss.org/download/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/download/" aria-current="page">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/zh/download/" hreflang="zh-Hans" lang="zh-Hans">中文</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section" aria-labelledby="page-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Download</p>
+          <h1 id="page-title">Get HiBoss</h1>
+          <p class="lead">The apps connect to a HiBoss server you run. If you do not have one yet, start with the <a href="/docs/self-host/">self-host guide</a>.</p>
+        </div>
+        <div class="cards">
+          <article class="card" aria-labelledby="ios-title">
+            <p class="kicker">iOS 17 or later</p>
+            <h2 id="ios-title">iPhone</h2>
+            <ul>
+              <li>Answer decisions, follow sessions, panels, progress and the Box.</li>
+              <li>Live Activity on the Lock Screen and Dynamic Island.</li>
+              <li>Pair by scanning the QR code from <code>hiboss setup</code>.</li>
+            </ul>
+            <!-- APP STORE SWITCH: when the listing exists, replace the next line with
+                 <a class="store-badge" href="https://apps.apple.com/app/idNNNNNNNNNN">Download on the App Store</a> -->
+            <p class="store-soon">Coming soon to the App Store</p>
+          </article>
+          <article class="card" aria-labelledby="mac-title">
+            <p class="kicker">macOS 14 or later</p>
+            <h2 id="mac-title">Mac</h2>
+            <ul>
+              <li>The Island shows the most urgent decision at the top of your screen.</li>
+              <li>Menu bar item and a full window for sessions, panels, progress and the Box.</li>
+              <li>Pair with a code from <code>hiboss setup</code>, or sign in with your iPhone.</li>
+            </ul>
+            <a class="btn btn-primary" href="https://github.com/sunoj/hiboss/releases">GitHub Releases</a>
+          </article>
+          <article class="card" aria-labelledby="cli-title">
+            <p class="kicker">macOS and Linux</p>
+            <h2 id="cli-title">CLI for agents</h2>
+            <p>The <code>hiboss</code> command lets agents send, ask, post progress, publish panels and use the Box.</p>
+            <pre><code>curl -fsSL https://hiboss.org/install.sh | sh</code></pre>
+            <p><a href="/install.sh">View the install script</a> before you run it. To build from source instead, run <code>cargo build --release</code> in <code>cli/</code> of the <a href="https://github.com/sunoj/hiboss">repository</a>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section band" aria-labelledby="next-title">
+      <div class="wrap">
+        <h2 id="next-title">Next steps</h2>
+        <div class="cards">
+          <article class="card"><h3>Deploy your server</h3><p>Cloudflare Worker, D1 and R2 in your own account.</p><a class="btn" href="/docs/self-host/">Self-host guide</a></article>
+          <article class="card"><h3>Teach your agents</h3><p>The commands agents use, and when to use which.</p><a class="btn" href="/docs/agents/">Agent guide</a></article>
+          <article class="card"><h3>See what is new</h3><p>Everything in HiBoss 1.0.</p><a class="btn" href="/changelog/">Changelog</a></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss is open source under the MIT License.</p>
+      <nav aria-label="Footer">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/support/">Support</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

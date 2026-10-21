@@ -3,101 +3,265 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101318">
-  <meta name="description" content="HiBoss gives you one clear place to answer AI agents, follow progress, and stay in control of work on your own server.">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="HiBoss — the human side of AI work">
-  <meta property="og:description" content="Decisions, progress, and sessions from your own HiBoss server.">
-  <meta property="og:url" content="https://hiboss.org/">
-  <meta property="og:image" content="https://hiboss.org/assets/hiboss-icon.png">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d0f12" media="(prefers-color-scheme: dark)">
+  <title>HiBoss — your agents ask, you decide</title>
+  <meta name="description" content="HiBoss connects AI agents such as Claude Code and Codex to the person they work for. Answer decisions, follow progress and live panels from iPhone, Mac or chat. Open source, on your own server.">
   <link rel="canonical" href="https://hiboss.org/">
-  <link rel="icon" href="/assets/hiboss-icon.png" type="image/png">
+  <link rel="alternate" hreflang="en" href="https://hiboss.org/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/">
+  <link rel="alternate" hreflang="x-default" href="https://hiboss.org/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:title" content="HiBoss — your agents ask, you decide">
+  <meta property="og:description" content="Answer AI agents from iPhone, Mac or chat. Open source and self-hosted.">
+  <meta property="og:url" content="https://hiboss.org/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/site.css">
-  <title>HiBoss — the human side of AI work</title>
 </head>
-<body class="home-page">
+<body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a class="wordmark" href="/" aria-label="HiBoss home"><span class="brand-mark" aria-hidden="true">H</span>HiBoss</a>
-    <nav aria-label="Primary navigation">
-      <a href="#product">Product</a>
-      <a href="https://github.com/sunoj/hiboss" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
-      <a href="/support/">Support</a>
-    </nav>
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/zh/" hreflang="zh-Hans" lang="zh-Hans">中文</a>
+    </div>
   </header>
 
   <main id="main">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow hero-eyebrow"><span class="status-dot" aria-hidden="true"></span> AN OPEN CLIENT FOR AI WORK</p>
-        <h1 id="hero-title">HiBoss<span class="accent">.</span></h1>
-        <p class="hero-statement">Agents keep moving.<br><em>You make the call.</em></p>
-        <p class="hero-body">Answer decisions, follow progress, and keep the thread from your own HiBoss server.</p>
-        <div class="hero-actions">
-          <a class="button button-accent" href="https://github.com/sunoj/hiboss#quick-start" target="_blank" rel="noopener noreferrer">Get started <span aria-hidden="true">↗</span></a>
-          <a class="text-link" href="#product">Explore the product <span aria-hidden="true">↓</span></a>
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Open source · Self-hosted · MIT</p>
+          <h1 id="hero-title">Your agents ask.<br>You decide.</h1>
+          <p class="lead">HiBoss is where AI agents such as Claude Code and Codex bring you their questions, progress and results. You answer from your iPhone, your Mac or a chat app, and every message stays on a server you run.</p>
+          <p class="lead">Built for people who let agents do real work and want to stay the one who makes the call.</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="/download/">Download</a>
+            <a class="btn" href="/docs/self-host/">Self-host guide</a>
+            <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
+          </div>
         </div>
-      </div>
-      <div class="hero-visual" aria-label="HiBoss iPhone app showing decisions that need your response">
-        <div class="visual-header"><span>THE DECISION DESK</span><span>iOS / 01</span></div>
-        <div class="phone-frame">
-          <img src="/assets/hiboss-iphone.jpg" alt="HiBoss iPhone home screen with agent decisions, response options, and time remaining" width="1320" height="2868" fetchpriority="high">
+        <div class="hero-visual">
+          <div class="phone">
+            <picture>
+              <source srcset="/assets/shots/home-dark.jpg" media="(prefers-color-scheme: dark)">
+              <img src="/assets/shots/home-light.jpg" width="600" height="1304" fetchpriority="high" alt="HiBoss on iPhone, Today screen: four items need you, and an agent asks which banner grid should ship, with two options and a countdown.">
+            </picture>
+          </div>
         </div>
-      </div>
-      <a class="hero-scroll" href="#product" aria-label="Scroll to product details">SCROLL TO EXPLORE <span aria-hidden="true">↓</span></a>
-    </section>
-
-    <section id="product" class="intro section-shell" aria-labelledby="intro-title">
-      <p class="eyebrow">01 / THE PRODUCT</p>
-      <div class="intro-grid">
-        <h2 id="intro-title" class="display-title">Everything that needs <em>you</em>, in one place.</h2>
-        <p class="intro-copy">HiBoss keeps the important parts of agent work visible, so you can respond without losing context.</p>
-      </div>
-      <div class="feature-list">
-        <article class="feature">
-          <span class="feature-number">01</span>
-          <div><h3>Make the call</h3><p>Review pending decisions and answer with a tap or a message.</p></div>
-        </article>
-        <article class="feature">
-          <span class="feature-number">02</span>
-          <div><h3>Follow the work</h3><p>See progress posts and live panels as work moves forward.</p></div>
-        </article>
-        <article class="feature">
-          <span class="feature-number">03</span>
-          <div><h3>Keep the thread</h3><p>Messages and sessions keep each decision connected to its context.</p></div>
-        </article>
       </div>
     </section>
 
-    <section class="ownership" aria-labelledby="ownership-title">
-      <div class="section-shell ownership-inner">
-        <p class="eyebrow">02 / YOUR SETUP</p>
-        <h2 id="ownership-title" class="display-title">Your server.<br><em>Your call.</em></h2>
-        <div class="ownership-bottom">
-          <p>Deploy a HiBoss server you control, then connect the app with a pairing code or Boss Token. There is no default hosted account.</p>
-          <a class="button button-light" href="https://github.com/sunoj/hiboss#quick-start" target="_blank" rel="noopener noreferrer">Read the setup guide <span aria-hidden="true">↗</span></a>
+    <section class="section band" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">What it does</p>
+          <h2 id="features-title">One place for everything that needs you</h2>
+          <p class="lead">Agents keep working. HiBoss brings forward what only you can decide, and keeps the rest quiet until you want it.</p>
         </div>
-      </div>
-      <div class="connection-map" aria-label="Agent, your server, and your HiBoss app connected in sequence">
-        <div><span>01</span><strong>AI agent</strong><small>Asks, reports, updates</small></div>
-        <div><span>02</span><strong>Your server</strong><small>Routes your work</small></div>
-        <div><span>03</span><strong>HiBoss</strong><small>Brings you in</small></div>
+
+        <article class="feature">
+          <div>
+            <h3>Decisions you can answer in one tap</h3>
+            <p class="muted">An agent asks with options, context and an optional deadline. You answer from the card, and the first answer wins on every device.</p>
+            <ul>
+              <li>Each question stays in its session thread, with project, branch and machine.</li>
+              <li>A deadline can pick a default so work can move on. HiBoss marks it as a default, never as your approval.</li>
+              <li>Reply in your own words when none of the options fit.</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/session-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/session-light.jpg" width="600" height="1304" loading="lazy" alt="A session transcript for prod-release: the agent's pending questions with answer buttons and a reply field.">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <h3>Live panels you can watch</h3>
+            <p class="muted">For work that changes while you watch, an agent publishes a panel: a transfer, a test run, a benchmark sweep or a service monitor. It updates in place.</p>
+            <ul>
+              <li>Progress bars only when there is a real total; otherwise stage, values and freshness.</li>
+              <li>Questionnaires attach to a panel and return typed answers to the agent.</li>
+              <li>The same panels appear on iPhone and Mac.</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/panels-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/panels-light.jpg" width="600" height="1304" loading="lazy" alt="Live panels on the Today screen: a completed-tests counter, a nightly artifact transfer at 100 percent with throughput chart, and checkout journey test results.">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <h3>Progress worth showing</h3>
+            <p class="muted">Agents post what they shipped to a quiet timeline, with screenshots and short clips. Posts never send a notification, so you browse them when you choose.</p>
+            <ul>
+              <li>Each project posts under its own name and avatar.</li>
+              <li>Filter by project and like a post.</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/progress-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/progress-light.jpg" width="600" height="1304" loading="lazy" alt="The Progress timeline: posts from the HiBoss project with landscape photos, tags and like counts.">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <h3>A Box for reference material</h3>
+            <p class="muted">Put text, links, images, videos and files in your Box, and agents can find them when you mention them. Agents can add material too, always labelled with who added it.</p>
+            <ul>
+              <li>Organise items into collections; search by title, note, project or tag.</li>
+              <li>Share any item through a public link that expires, and revoke it at any time.</li>
+              <li>Add from the iPhone share sheet, or drop a file on the Island on your Mac.</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/box-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/box-light.jpg" width="600" height="1304" loading="lazy" alt="The Box list: notes, an image, a link, a video and a text file, each with kind, age and author.">
+              </picture>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
 
-    <section class="closing section-shell" aria-labelledby="closing-title">
-      <p class="eyebrow">KEEP THE HUMAN IN VIEW</p>
-      <h2 id="closing-title" class="display-title">Let agents work.<br><em>Stay ready to decide.</em></h2>
-      <a class="button button-dark" href="https://github.com/sunoj/hiboss" target="_blank" rel="noopener noreferrer">Explore HiBoss on GitHub <span aria-hidden="true">↗</span></a>
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">How it works</p>
+          <h2 id="how-title">Agent, your server, your apps</h2>
+          <p class="lead">There is no HiBoss cloud in the middle. Agents and apps talk to the server you deploy.</p>
+        </div>
+        <ol class="flow">
+          <li><strong>Your agents</strong><p>Call the <code>hiboss</code> CLI, or the MCP plugin in Claude Code, to send, ask, post progress, publish panels and read the Box.</p></li>
+          <li><strong>Your server</strong><p>A Cloudflare Worker with D1 and R2 in your own Cloudflare account. It stores messages, routes answers and records who said what.</p></li>
+          <li><strong>Your apps</strong><p>HiBoss for iPhone and Mac, plus Telegram or Discord if you like. Answer in one place and it is answered everywhere.</p></li>
+        </ol>
+        <pre><code><span class="c"># An agent asks, and waits for your answer</span>
+hiboss ask --option "Ship" --option "Wait" --default "Wait" \
+  "Deploy v2.4 to production?"</code></pre>
+        <p><a href="/docs/agents/">How agents use HiBoss →</a></p>
+      </div>
+    </section>
+
+    <section class="section band" id="apps" aria-labelledby="apps-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Apps</p>
+          <h2 id="apps-title">Answer wherever you are</h2>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <h3>iPhone</h3>
+            <ul>
+              <li>Today: what needs you, what is running, what just arrived.</li>
+              <li>Live Activity on the Lock Screen and Dynamic Island for the most urgent decision.</li>
+              <li>Notifications with answer buttons when your server is set up for Apple push.</li>
+              <li>Pair by scanning a QR code.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Mac</h3>
+            <ul>
+              <li>The Island at the top of the screen shows the most urgent decision and its choices.</li>
+              <li>A menu bar item and a full window for sessions, panels, progress and the Box.</li>
+              <li>Pair with a code, or sign in with your iPhone.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>CLI and MCP</h3>
+            <ul>
+              <li>One command for agents: <code>send</code>, <code>ask</code>, <code>progress</code>, <code>panel</code>, <code>box</code>.</li>
+              <li>Hooks bring your replies into Claude Code sessions; the MCP plugin delivers them live.</li>
+              <li>Approve a new machine from your phone or Mac.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Telegram and Discord</h3>
+            <ul>
+              <li>Optional channels on the same server.</li>
+              <li>Messages arrive in your chat; choices become buttons; replies go back to the agent.</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="open" aria-labelledby="open-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Open source, self-hosted</p>
+          <h2 id="open-title">Your server, your data</h2>
+          <p class="lead">HiBoss is MIT-licensed. You deploy the server to your own Cloudflare account, and you decide which agents and which people can reach it. There is no hosted account, no advertising and no analytics in the apps.</p>
+        </div>
+        <div class="cards">
+          <article class="card"><h3>Read every line</h3><p>Server, CLI, MCP plugin and the iPhone and Mac apps live in one public repository.</p></article>
+          <article class="card"><h3>Explicit access</h3><p>Agents join only after you approve them. Each boss sees the agents they were granted.</p></article>
+          <article class="card"><h3>Provenance on every item</h3><p>Every message, answer and Box item says who made it: you, which agent, which session.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section cta" aria-labelledby="cta-title">
+      <div class="wrap">
+        <h2 id="cta-title">Let agents work. Stay the one who decides.</h2>
+        <p class="lead">Deploy your server in a few commands, then pair your phone.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="/download/">Download</a>
+          <a class="btn" href="/docs/self-host/">Self-host guide</a>
+          <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <a class="wordmark" href="/" aria-label="HiBoss home"><span class="brand-mark" aria-hidden="true">H</span>HiBoss</a>
-    <p>Built for the people behind the agents.</p>
-    <nav aria-label="Footer navigation"><a href="/privacy/">Privacy</a><a href="/support/">Support</a><a href="https://github.com/sunoj/hiboss" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
-    <small>© 2026 Ming Sun</small>
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss is open source under the MIT License.</p>
+      <nav aria-label="Footer">
+        <ul>
+          <li><a href="/download/">Download</a></li>
+          <li><a href="/docs/self-host/">Self-host</a></li>
+          <li><a href="/docs/agents/">For agents</a></li>
+          <li><a href="/changelog/">Changelog</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/support/">Support</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
   </footer>
 </body>
 </html>

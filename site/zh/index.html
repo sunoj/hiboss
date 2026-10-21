@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f7f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d0f12" media="(prefers-color-scheme: dark)">
+  <title>HiBoss — 智能体来问，你来拍板</title>
+  <meta name="description" content="HiBoss 把 Claude Code、Codex 等 AI 智能体和它们的负责人连在一起：在 iPhone、Mac 或聊天应用里处理决策、查看进展和实时面板。开源，部署在你自己的服务器上。">
+  <link rel="canonical" href="https://hiboss.org/zh/">
+  <link rel="alternate" hreflang="en" href="https://hiboss.org/">
+  <link rel="alternate" hreflang="zh-Hans" href="https://hiboss.org/zh/">
+  <link rel="alternate" hreflang="x-default" href="https://hiboss.org/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HiBoss">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="HiBoss — 智能体来问，你来拍板">
+  <meta property="og:description" content="在 iPhone、Mac 或聊天应用里回复 AI 智能体。开源，自托管。">
+  <meta property="og:url" content="https://hiboss.org/zh/">
+  <meta property="og:image" content="https://hiboss.org/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/assets/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/zh/"><img src="/assets/icon.png" alt="" width="30" height="30">HiBoss</a>
+      <nav class="site-nav" aria-label="主导航">
+        <ul>
+          <li><a href="/zh/download/">下载</a></li>
+          <li><a href="/zh/docs/self-host/">自托管</a></li>
+          <li><a href="/docs/agents/" hreflang="en">智能体指南（英文）</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="lang" href="/" hreflang="en" lang="en">English</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">开源 · 自托管 · MIT 许可</p>
+          <h1 id="hero-title">智能体来问，<br>你来拍板。</h1>
+          <p class="lead">Claude Code、Codex 这样的 AI 智能体在干活时，会把要你决定的事、进展和结果都发到 HiBoss。你在 iPhone、Mac 或聊天应用里回复就行，所有消息都留在你自己运行的服务器上。</p>
+          <p class="lead">适合已经让智能体做正事、但仍想自己把关的人。</p>
+          <div class="actions">
+            <a class="btn btn-primary" href="/zh/download/">下载</a>
+            <a class="btn" href="/zh/docs/self-host/">自托管指南</a>
+            <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="phone">
+            <picture>
+              <source srcset="/assets/shots/home-dark.jpg" media="(prefers-color-scheme: dark)">
+              <img src="/assets/shots/home-light.jpg" width="600" height="1304" fetchpriority="high" alt="iPhone 上的 HiBoss“今天”页面：有四件事等你处理，一个智能体在问该上线哪种横幅网格，附两个选项和倒计时。">
+            </picture>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section band" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">能做什么</p>
+          <h2 id="features-title">需要你的事，都在一个地方</h2>
+          <p class="lead">智能体继续干活，HiBoss 只把非你不可的事推到面前，其余的安静等着，你想看时再看。</p>
+        </div>
+
+        <article class="feature">
+          <div>
+            <h3>点一下就能做决定</h3>
+            <p class="muted">智能体提问时带上选项、背景和可选的截止时间。你直接在卡片上回答，最先给出的答案在所有设备上同时生效。</p>
+            <ul>
+              <li>每个问题都留在所属会话里，项目、分支、机器一目了然。</li>
+              <li>到点没回复时可以自动选默认项，让工作继续；HiBoss 会标明这是默认项，绝不算你的批准。</li>
+              <li>选项都不合适时，直接用自己的话回复。</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/session-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/session-light.jpg" width="600" height="1304" loading="lazy" alt="prod-release 会话记录：智能体待回答的问题、回答按钮和回复输入框。">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <h3>可以盯着看的实时面板</h3>
+            <p class="muted">对于会持续变化的工作，智能体可以发布一个面板：下载、测试、基准扫描或服务监控，内容原地更新。</p>
+            <ul>
+              <li>只有真有总量时才显示进度条，否则显示阶段、数值和更新时间。</li>
+              <li>面板可以附带问卷，把结构化答案交回给智能体。</li>
+              <li>iPhone 和 Mac 上看到的是同一组面板。</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/panels-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/panels-light.jpg" width="600" height="1304" loading="lazy" alt="“今天”页面上的实时面板：已完成测试计数、完成度 100% 的夜间构建产物传输及吞吐曲线，以及结账流程测试结果。">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <h3>值得展示的进展</h3>
+            <p class="muted">智能体把做完的东西连同截图和短视频发到一条安静的时间线上。发帖不会推送通知，你想看时再翻。</p>
+            <ul>
+              <li>每个项目用自己的名字和头像发帖。</li>
+              <li>可以按项目筛选，也可以点赞。</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/progress-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/progress-light.jpg" width="600" height="1304" loading="lazy" alt="“进展”时间线：HiBoss 项目发布的带风景照片、标签和点赞数的帖子。">
+              </picture>
+            </div>
+          </div>
+        </article>
+
+        <article class="feature">
+          <div>
+            <h3>存放参考资料的 Box</h3>
+            <p class="muted">把文字、链接、图片、视频和文件放进 Box，你提到时智能体就能找到。智能体也可以往里放东西，每一项都标明是谁加的。</p>
+            <ul>
+              <li>用合集整理，按标题、备注、项目或标签搜索。</li>
+              <li>任意条目都能生成会过期的公开分享链接，随时可以撤销。</li>
+              <li>可以从 iPhone 的分享菜单添加，也可以把文件拖到 Mac 屏幕顶部的 Island 上。</li>
+            </ul>
+          </div>
+          <div class="feature-media">
+            <div class="phone small">
+              <picture>
+                <source srcset="/assets/shots/box-dark.jpg" media="(prefers-color-scheme: dark)">
+                <img src="/assets/shots/box-light.jpg" width="600" height="1304" loading="lazy" alt="Box 列表：笔记、图片、链接、视频和文本文件，每项显示类型、时间和作者。">
+              </picture>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">工作原理</p>
+          <h2 id="how-title">智能体、你的服务器、你的应用</h2>
+          <p class="lead">中间没有 HiBoss 云。智能体和应用只和你部署的服务器通信。</p>
+        </div>
+        <ol class="flow">
+          <li><strong>你的智能体</strong><p>通过 <code>hiboss</code> 命令行，或 Claude Code 里的 MCP 插件，发消息、提问、发进展、发布面板、读取 Box。</p></li>
+          <li><strong>你的服务器</strong><p>运行在你自己 Cloudflare 账号里的 Worker，配合 D1 和 R2。它保存消息、转交回复，并记录每句话出自谁。</p></li>
+          <li><strong>你的应用</strong><p>iPhone 和 Mac 上的 HiBoss，还可以加上 Telegram 或 Discord。在一处回复，处处同步。</p></li>
+        </ol>
+        <pre><code><span class="c"># 智能体提问，并等待你的答复</span>
+hiboss ask --option "上线" --option "等等" --default "等等" \
+  "现在把 v2.4 发布到生产环境吗？"</code></pre>
+      </div>
+    </section>
+
+    <section class="section band" id="apps" aria-labelledby="apps-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">应用</p>
+          <h2 id="apps-title">在哪儿都能回复</h2>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <h3>iPhone</h3>
+            <ul>
+              <li>“今天”页面：什么需要你、什么在运行、刚收到什么。</li>
+              <li>锁屏和灵动岛上的实时活动，显示最紧急的决策。</li>
+              <li>服务器配置好苹果推送后，通知里就能直接点选回答。</li>
+              <li>扫二维码即可配对。</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Mac</h3>
+            <ul>
+              <li>屏幕顶部的 Island 显示最紧急的决策和选项。</li>
+              <li>菜单栏图标，以及查看会话、面板、进展和 Box 的完整窗口。</li>
+              <li>用配对码连接，或用 iPhone 登录。</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>命令行与 MCP</h3>
+            <ul>
+              <li>智能体只需一个命令：<code>send</code>、<code>ask</code>、<code>progress</code>、<code>panel</code>、<code>box</code>。</li>
+              <li>钩子把你的回复带进 Claude Code 会话；MCP 插件实时送达。</li>
+              <li>新机器加入时，在手机或 Mac 上批准。</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Telegram 与 Discord</h3>
+            <ul>
+              <li>同一台服务器上的可选渠道。</li>
+              <li>消息发到聊天里，选项变成按钮，回复回到智能体。</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="open" aria-labelledby="open-title">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">开源 · 自托管</p>
+          <h2 id="open-title">你的服务器，你的数据</h2>
+          <p class="lead">HiBoss 以 MIT 许可开源。服务器部署在你自己的 Cloudflare 账号里，哪些智能体、哪些人能访问由你决定。没有托管账号，应用里也没有广告和统计分析。</p>
+        </div>
+        <div class="cards">
+          <article class="card"><h3>每一行都可查</h3><p>服务器、命令行、MCP 插件以及 iPhone 和 Mac 应用都在同一个公开仓库里。</p></article>
+          <article class="card"><h3>访问权限明确</h3><p>智能体经你批准后才能加入。每位负责人只看得到授权给他们的智能体。</p></article>
+          <article class="card"><h3>出处一目了然</h3><p>每条消息、每个回答、每个 Box 条目都标明来源：是你，还是哪个智能体、哪个会话。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section cta" aria-labelledby="cta-title">
+      <div class="wrap">
+        <h2 id="cta-title">放手让智能体干活，拍板的始终是你。</h2>
+        <p class="lead">几条命令部署好服务器，再配对你的手机。</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="/zh/download/">下载</a>
+          <a class="btn" href="/zh/docs/self-host/">自托管指南</a>
+          <a class="btn" href="https://github.com/sunoj/hiboss">GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© 2026 Ming Sun · HiBoss 以 MIT 许可开源。</p>
+      <nav aria-label="页脚">
+        <ul>
+          <li><a href="/zh/download/">下载</a></li>
+          <li><a href="/zh/docs/self-host/">自托管</a></li>
+          <li><a href="/changelog/" hreflang="en">更新日志（英文）</a></li>
+          <li><a href="/privacy/" hreflang="en">隐私（英文）</a></li>
+          <li><a href="/support/" hreflang="en">支持（英文）</a></li>
+          <li><a href="https://github.com/sunoj/hiboss">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,6 +1,13 @@
 # HiBoss public site
 
-This static site serves the product home page, iOS privacy policy, and support page for `hiboss.org`. It is separate from the authenticated admin console in `web/`.
+This static site serves `hiboss.org`: the home page, download page, self-host and agent guides, changelog, privacy policy and support page, with Chinese versions of home, download and the self-host guide under `/zh/`. It is plain HTML and one stylesheet, with no scripts, cookies or external resources. It is separate from the authenticated admin console in `web/`.
+
+## Editing
+
+- Every page repeats the same header and footer; change all pages together.
+- The App Store link is a single marked line in `download/index.html` and `zh/download/index.html` (`APP STORE SWITCH`).
+- Screenshots in `assets/shots/` come from the iOS app's demo mode on an iPhone simulator, at 600 px wide, in light and dark variants. Keep every image under 400 KB.
+- A new file must also be added to the list in `build.sh`.
 
 ## Preview
 
@@ -17,7 +24,7 @@ Run `site/build.sh /absolute/new/output-directory` from the repository root. The
 
 ## Hosting
 
-Deploy that output directory to Cloudflare Pages with `hiboss.org` as the custom domain. The privacy policy and support pages are available at `/privacy/` and `/support/`.
+Deploy that output directory to Cloudflare Pages with `hiboss.org` as the custom domain.
 
 For a Direct Upload project, deploy the output directory with Wrangler:
 
