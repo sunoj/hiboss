@@ -176,7 +176,10 @@ final class BoxCardSwipeUITests: XCTestCase {
         openBox(style: "Cards")
         let card = app.buttons["box-item-demo-agent-text"]
         let neighbor = app.buttons["box-item-demo-image"]
-        assertSwipesKeepGrid(card, neighbor: neighbor)
+        assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-cards")
+        card.tap()
+        XCTAssertTrue(app.scrollViews["box-detail"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.firstMatch.tap()
         card.press(forDuration: 1)
         for title in ["Like", "Share", "Add to Collection…", "Delete"] {
             XCTAssertTrue(app.buttons[title].exists, title)
@@ -189,7 +192,9 @@ final class BoxCardSwipeUITests: XCTestCase {
         let card = app.buttons["box-item-demo-image"]
         let neighbor = app.buttons["box-item-demo-grid-1"]
         XCTAssertTrue(neighbor.waitForExistence(timeout: 5))
-        assertSwipesKeepGrid(card, neighbor: neighbor)
+        assertSwipesKeepGrid(card, neighbor: neighbor, gridID: "box-photo-grid")
+        card.tap()
+        XCTAssertTrue(app.buttons["media-viewer-close"].waitForExistence(timeout: 5))
     }
 
     func testListRetainsTrailingDeleteAndLeadingLikeShare() {
@@ -216,21 +221,27 @@ final class BoxCardSwipeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["box-filter-all"].isSelected)
     }
 
-    private func assertSwipesKeepGrid(_ card: XCUIElement, neighbor: XCUIElement) {
+    private func assertSwipesKeepGrid(
+        _ card: XCUIElement, neighbor: XCUIElement, gridID: String
+    ) {
         let original = card.frame
         let adjacent = neighbor.frame
         for left in [true, false] {
             let start = card.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.9 : 0.1, dy: 0.5))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.02 : 0.98, dy: 0.5))
+            let end = card.coordinate(withNormalizedOffset: CGVector(dx: left ? 0.1 : 0.9, dy: 0.5))
             start.press(forDuration: 0.1, thenDragTo: end)
-            XCTAssertFalse(app.scrollViews["box-detail"].exists)
+            let detailOpened = app.scrollViews["box-detail"].exists
+                || app.buttons["media-viewer-close"].exists
+            let list = app.descendants(matching: .any)[gridID]
+            let revealedActions = ["Delete", "Share", "Like"].flatMap { title in
+                app.buttons.matching(NSPredicate(format: "label == %@", title)).allElementsBoundByIndex
+            }.filter { $0.isHittable && list.frame.contains($0.frame) && !detailOpened }
             let screenshot = XCTAttachment(screenshot: app.screenshot())
             screenshot.name = "grid-after-\(left ? "left" : "right")-swipe"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            XCTAssertFalse(app.buttons["Delete"].exists, app.debugDescription)
-            XCTAssertFalse(app.buttons["Share"].exists)
-            XCTAssertFalse(app.buttons["Like"].exists)
+            XCTAssertTrue(revealedActions.isEmpty, "Swipe actions revealed inside the list")
+            XCTAssertFalse(detailOpened, "A horizontal drag must not activate a card")
             XCTAssertEqual(card.frame.minX, original.minX, accuracy: 1)
             XCTAssertEqual(card.frame.minY, original.minY, accuracy: 1)
             XCTAssertEqual(neighbor.frame.minX, adjacent.minX, accuracy: 1)

@@ -122,21 +122,25 @@ struct BoxListView: View {
     }
 
     @ViewBuilder private func row(_ item: BoxItem) -> some View {
-        if let onSelect {
-            Button { onSelect(item) } label: { rowLabel(item) }
-                .buttonStyle(.plain).contentShape(Rectangle())
+        if style == .cards || filter.isMedia {
+            rowLabel(item)
+                .contentShape(Rectangle())
+                .onTapGesture { open(item) }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("box-item-\(item.id)")
         } else {
-            Button {
-                if item.kind == .image || item.kind == .video {
-                    openedMedia = BoxMediaSelection(item: item, items: matches)
-                }
-                else { openedDetail = item }
-            } label: { rowLabel(item) }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("box-item-\(item.id)")
+            Button { open(item) } label: { rowLabel(item) }
+                .buttonStyle(.plain).contentShape(Rectangle())
+                .accessibilityIdentifier("box-item-\(item.id)")
         }
+    }
+
+    private func open(_ item: BoxItem) {
+        if let onSelect { onSelect(item) }
+        else if item.kind == .image || item.kind == .video {
+            openedMedia = BoxMediaSelection(item: item, items: matches)
+        } else { openedDetail = item }
     }
 
     @ViewBuilder private func rowLabel(_ item: BoxItem) -> some View {
