@@ -60,6 +60,9 @@ final class PushManager: NSObject, ObservableObject {
     static let shared = PushManager()
 
     @Published private(set) var registration: DeviceRegistration = .idle
+    /// The connected server's push mode; nil until `/api/boss/me` answers.
+    @Published private(set) var pushMode: PushMode?
+    private let relay = PushRelayRegistrar()
 
     private var environment: String {
         #if DEBUG
@@ -116,11 +119,35 @@ final class PushManager: NSObject, ObservableObject {
     /// is re-registered by `configure()`'s `registerIfAuthorized`, so the connect
     /// path must not re-`requestAuthorization` — that double-registered every
     /// launch and flickered the Settings status Registered→Registering→Registered.
+    /// A server that cannot push (`none`) never prompts.
     func promptIfNeeded() {
         Task {
+            await refreshPushMode()
             let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-            if status == .notDetermined { requestAuthorization() }
+            if Self.shouldPrompt(mode: pushMode, status: status) { requestAuthorization() }
         }
+    }
+
+    nonisolated static func shouldPrompt(mode: PushMode?, status: UNAuthorizationStatus) -> Bool {
+        status == .notDetermined && mode != .unavailable
+    }
+
+    /// Reads the server's push mode; a demo takes `HIBOSS_DEMO_PUSH_MODE` and asks no server.
+    func refreshPushMode() async {
+        if isDemoMode {
+            pushMode = PushMode(rawValue: ProcessInfo.processInfo.environment["HIBOSS_DEMO_PUSH_MODE"] ?? "")
+            return
+        }
+        guard let api = HiBossStore.bossAPI(), let mode = try? await api.fetchPushMode() else { return }
+        pushMode = mode
+    }
+
+    /// Sign-out: delete any relay registration at the relay and the server, then erase it.
+    func signOut(api: HibossAPI?) {
+        pushMode = nil
+        registration = .idle
+        guard !isDemoMode else { return }
+        Task { await relay.unregister(api: api) }
     }
 
     /// Asks for alert/sound/badge permission and, if granted, registers for APNs.
@@ -153,14 +180,11 @@ final class PushManager: NSObject, ObservableObject {
         }
         registration = .registering
         Task {
-            do {
-                try await api.registerDevice(token: hex, bundleId: bundleId, environment: environment)
-                pushLog.info("registered device token with server")
-                registration = .registered
-            } catch {
-                pushLog.error("device registration failed: \(error.localizedDescription)")
-                registration = .failed(error.localizedDescription)
-            }
+            let outcome = await PushRoute.register(token: hex, bundleId: bundleId, environment: environment,
+                                                   api: api, relay: relay)
+            if let mode = outcome.mode { pushMode = mode }
+            registration = outcome.registration
+            relay.scheduleRetry(at: outcome.retryAt) { self.register(deviceToken: deviceToken) }
         }
     }
 

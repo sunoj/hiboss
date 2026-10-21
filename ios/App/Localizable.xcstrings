@@ -1,6 +1,644 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "HIBOSS_PUSH_TITLE": {
+      "comment": "Generic alert sent by the push relay; the Notification Service Extension replaces it with the decrypted content.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss"
+          }
+        }
+      }
+    },
+    "HIBOSS_PUSH_DECISION": {
+      "comment": "Generic alert sent by the push relay; the Notification Service Extension replaces it with the decrypted content.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A decision is waiting for you."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有一个决定在等你。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "あなたの判断を待っています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "결정을 기다리고 있습니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "มีเรื่องรอให้คุณตัดสินใจ"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay una decisión esperándote."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक निर्णय आपका इंतज़ार कर रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هناك قرار بانتظارك."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Há uma decisão esperando por você."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une décision vous attend."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вас ждёт решение."
+          }
+        }
+      }
+    },
+    "HIBOSS_PUSH_MESSAGE": {
+      "comment": "Generic alert sent by the push relay; the Notification Service Extension replaces it with the decrypted content.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have a new message."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你有一条新消息。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいメッセージがあります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 메시지가 있습니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "คุณมีข้อความใหม่"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tienes un mensaje nuevo."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आपके लिए एक नया संदेश है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لديك رسالة جديدة."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Você tem uma nova mensagem."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous avez un nouveau message."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У вас новое сообщение."
+          }
+        }
+      }
+    },
+    "HIBOSS_PUSH_SYSTEM": {
+      "comment": "Generic alert sent by the push relay; the Notification Service Extension replaces it with the decrypted content.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is new activity in HiBoss."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss 有新动态。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss に新しいアクティビティがあります。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss에 새 활동이 있습니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "มีความเคลื่อนไหวใหม่ใน HiBoss"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay actividad nueva en HiBoss."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss में नई गतिविधि है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هناك نشاط جديد في HiBoss."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Há novas atividades no HiBoss."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il y a du nouveau dans HiBoss."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "В HiBoss есть новые события."
+          }
+        }
+      }
+    },
+    "Push unavailable for this server": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push unavailable for this server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务器无法推送通知"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このサーバーではプッシュ通知を利用できません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 서버에서는 푸시 알림을 사용할 수 없습니다"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เซิร์ฟเวอร์นี้ใช้การแจ้งเตือนแบบพุชไม่ได้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notificaciones push no disponibles en este servidor"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इस सर्वर के लिए पुश उपलब्ध नहीं है"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإشعارات الفورية غير متاحة لهذا الخادم"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push indisponível para este servidor"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications push indisponibles pour ce serveur"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push-уведомления недоступны для этого сервера"
+          }
+        }
+      }
+    },
+    "This server has no Apple push key and its operator turned off the HiBoss push relay. New requests appear when you open HiBoss.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This server has no Apple push key and its operator turned off the HiBoss push relay. New requests appear when you open HiBoss."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务器没有 Apple 推送密钥，且其管理员关闭了 HiBoss 推送中继。打开 HiBoss 时会显示新的请求。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このサーバーには Apple のプッシュキーがなく、管理者が HiBoss プッシュリレーをオフにしています。新しいリクエストは HiBoss を開くと表示されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 서버에는 Apple 푸시 키가 없고 운영자가 HiBoss 푸시 릴레이를 껐습니다. 새 요청은 HiBoss를 열면 표시됩니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เซิร์ฟเวอร์นี้ไม่มีคีย์พุชของ Apple และผู้ดูแลได้ปิดรีเลย์พุชของ HiBoss คำขอใหม่จะแสดงเมื่อคุณเปิด HiBoss"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este servidor no tiene clave push de Apple y su operador desactivó el relé push de HiBoss. Las solicitudes nuevas aparecen al abrir HiBoss."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इस सर्वर के पास Apple पुश कुंजी नहीं है और इसके संचालक ने HiBoss पुश रिले बंद कर दिया है। नए अनुरोध HiBoss खोलने पर दिखते हैं।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يملك هذا الخادم مفتاح إشعارات Apple، وقد أوقف مشغّله مرحّل إشعارات HiBoss. تظهر الطلبات الجديدة عند فتح HiBoss."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este servidor não tem chave push da Apple e o operador desativou o relay push do HiBoss. Novas solicitações aparecem quando você abre o HiBoss."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce serveur n’a pas de clé push Apple et son opérateur a désactivé le relais push HiBoss. Les nouvelles demandes apparaissent à l’ouverture de HiBoss."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "У этого сервера нет push-ключа Apple, а его оператор отключил push-ретранслятор HiBoss. Новые запросы появляются, когда вы открываете HiBoss."
+          }
+        }
+      }
+    },
+    "This server sends notifications through the HiBoss push relay, encrypted for this iPhone. Live Activities update only while HiBoss is open.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This server sends notifications through the HiBoss push relay, encrypted for this iPhone. Live Activities update only while HiBoss is open."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此服务器通过 HiBoss 推送中继发送通知，内容只为这台 iPhone 加密。实时活动仅在 HiBoss 打开时更新。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このサーバーは HiBoss プッシュリレー経由で、この iPhone 向けに暗号化した通知を送ります。ライブアクティビティは HiBoss を開いている間だけ更新されます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 서버는 HiBoss 푸시 릴레이를 통해 이 iPhone용으로 암호화된 알림을 보냅니다. 실시간 현황은 HiBoss가 열려 있을 때만 업데이트됩니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เซิร์ฟเวอร์นี้ส่งการแจ้งเตือนผ่านรีเลย์พุชของ HiBoss โดยเข้ารหัสสำหรับ iPhone เครื่องนี้ กิจกรรมสดจะอัปเดตเฉพาะเมื่อเปิด HiBoss อยู่"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este servidor envía notificaciones a través del relé push de HiBoss, cifradas para este iPhone. Las Actividades en vivo solo se actualizan con HiBoss abierto."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह सर्वर HiBoss पुश रिले से इस iPhone के लिए एन्क्रिप्ट की गई सूचनाएँ भेजता है। लाइव गतिविधियाँ केवल HiBoss खुला रहने पर अपडेट होती हैं।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يرسل هذا الخادم الإشعارات عبر مرحّل إشعارات HiBoss، مشفّرة لهذا الـ iPhone. لا تتحدّث الأنشطة المباشرة إلا أثناء فتح HiBoss."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este servidor envia notificações pelo relay push do HiBoss, criptografadas para este iPhone. As Atividades ao Vivo só são atualizadas com o HiBoss aberto."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce serveur envoie les notifications via le relais push HiBoss, chiffrées pour cet iPhone. Les activités en direct ne se mettent à jour que lorsque HiBoss est ouvert."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Этот сервер отправляет уведомления через push-ретранслятор HiBoss в зашифрованном для этого iPhone виде. Live Activities обновляются, только пока HiBoss открыт."
+          }
+        }
+      }
+    },
+    "This device could not be verified for notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device could not be verified for notifications."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法验证此设备以接收通知。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスを通知用に確認できませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림을 받을 이 기기를 확인할 수 없습니다."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่สามารถยืนยันอุปกรณ์นี้สำหรับการแจ้งเตือนได้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo verificar este dispositivo para las notificaciones."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सूचनाओं के लिए इस डिवाइस को सत्यापित नहीं किया जा सका।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر التحقق من هذا الجهاز لتلقي الإشعارات."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível verificar este dispositivo para notificações."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de vérifier cet appareil pour les notifications."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось подтвердить это устройство для уведомлений."
+          }
+        }
+      }
+    },
+    "The HiBoss push relay is unavailable. Try again later.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The HiBoss push relay is unavailable. Try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss 推送中继暂不可用，请稍后再试。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss プッシュリレーを利用できません。しばらくしてからもう一度お試しください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss 푸시 릴레이를 사용할 수 없습니다. 나중에 다시 시도하세요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รีเลย์พุชของ HiBoss ใช้งานไม่ได้ โปรดลองอีกครั้งภายหลัง"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El relé push de HiBoss no está disponible. Inténtalo más tarde."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss पुश रिले उपलब्ध नहीं है। बाद में फिर से कोशिश करें।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مرحّل إشعارات HiBoss غير متاح. حاول مرة أخرى لاحقًا."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O relay push do HiBoss está indisponível. Tente novamente mais tarde."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le relais push HiBoss est indisponible. Réessayez plus tard."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push-ретранслятор HiBoss недоступен. Повторите попытку позже."
+          }
+        }
+      }
+    },
     "Reply in HiBoss": {
       "extractionState": "manual",
       "localizations": {

@@ -34,6 +34,36 @@ final class ConnectionStoreTests: XCTestCase {
         XCTAssertEqual(tokens.deletes, 0)
     }
 
+    func testAuthorizationRejectionDeletesTheRelayRegistrationAndErasesIt() async throws {
+        let suite = "ConnectionRelayRejection.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            AccountAuthorization.shared.connect(nil)
+        }
+        defaults.set("https://example.com", forKey: AppConstants.Storage.serverURL)
+        PushRelayStub.reset()
+        let credentials = MemoryRelayCredentialStore()
+        try credentials.write(RelayCredentials(handle: "h", deviceSecret: "secret-1", pushKey: "k",
+                                               apnsToken: "ab", environment: "sandbox"))
+        let relay = PushRelayRegistrar(
+            client: PushRelayClient(baseURL: try XCTUnwrap(URL(string: "https://relay.example")),
+                                    session: PushRelayStub.session()),
+            store: credentials)
+        var unregistered: Task<Void, Never>?
+        let store = ConnectionStore(defaults: defaults, keychain: MigrationTokenStore("fixture"),
+                                    sharedDefaults: nil, signerStore: StubSignerStore(),
+                                    onSignOut: { api in unregistered = Task { await relay.unregister(api: api) } })
+        await store.restore()
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 403, message: ""))
+        AccountAuthorization.shared.reject(HibossAPIError.requestFailed(status: 401, message: ""))
+        await unregistered?.value
+        XCTAssertEqual(PushRelayStub.routes, ["DELETE relay.example/v1/registrations/self"])
+        XCTAssertEqual(PushRelayStub.requests.first?.authorization, "Bearer secret-1")
+        XCTAssertNil(try credentials.read())
+        XCTAssertFalse(store.isConfigured)
+    }
+
     func testLaunchMigratesTokenPublishesURLAndSignOutClearsSharedURL() async throws {
         let suiteName = "ConnectionMigration.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

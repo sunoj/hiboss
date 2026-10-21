@@ -37,6 +37,7 @@ final class ConnectionStore: ObservableObject {
     private let signerStore: any MessageSignerStoring
     private let pairingRedeemer: any ConnectionPairingRedeeming
     private let clientsAPI: (ConnectionConfig) -> any BossClientsServing
+    private let onSignOut: @MainActor (HibossAPI?) -> Void
     private var messageSigner: SecureEnclaveMessageSigner?
     private var authorizationObservation: AnyCancellable?
 
@@ -47,7 +48,8 @@ final class ConnectionStore: ObservableObject {
         sharedDefaults: UserDefaults? = UserDefaults(suiteName: ShareConnection.appGroup),
         signerStore: (any MessageSignerStoring)? = nil,
         pairingRedeemer: any ConnectionPairingRedeeming = PairingRedeemer(),
-        clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) }
+        clientsAPI: @escaping (ConnectionConfig) -> any BossClientsServing = { HibossAPI(config: $0) },
+        onSignOut: @escaping @MainActor (HibossAPI?) -> Void = { PushManager.shared.signOut(api: $0) }
     ) {
         self.defaults = defaults
         self.keychain = keychain ?? KeychainStore(
@@ -66,10 +68,15 @@ final class ConnectionStore: ObservableObject {
         )
         self.pairingRedeemer = pairingRedeemer
         self.clientsAPI = clientsAPI
+        self.onSignOut = onSignOut
         serverAddress = defaults.string(forKey: AppConstants.Storage.serverURL) ?? ""
         bossToken = ""
+        // A rejected account drops its push registration like sign-out; the server delete is
+        // skipped because the rejected token cannot authorize it.
         authorizationObservation = AccountAuthorization.shared.observe { [weak self] _ in
-            if AccountAuthorization.shared.hasRejectedAccount { self?.config = nil }
+            guard let self, AccountAuthorization.shared.hasRejectedAccount, config != nil else { return }
+            onSignOut(nil)
+            config = nil
         }
     }
 
@@ -200,6 +207,7 @@ final class ConnectionStore: ObservableObject {
     }
 
     func signOut() {
+        onSignOut(makeAPI())
         try? legacyKeychain?.delete()
         try? keychain.write("")
         try? signerStore.delete()

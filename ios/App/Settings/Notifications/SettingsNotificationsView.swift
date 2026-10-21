@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsNotificationsView: View {
     @ObservedObject var store: PreferencesStore
     @ObservedObject var push: PushStatusStore
+    @ObservedObject private var manager = PushManager.shared
     let api: HibossAPI?
     let onDecisionAlertsChanged: (Bool) -> Void
 
@@ -42,7 +43,9 @@ struct SettingsNotificationsView: View {
         } header: {
             Text("When you’ll hear from HiBoss")
         } footer: {
-            if !push.isEnabled { Text("Enable notifications above to receive phone alerts.") }
+            if !push.isEnabled, manager.pushMode != .unavailable {
+                Text("Enable notifications above to receive phone alerts.")
+            }
         }
     }
 
