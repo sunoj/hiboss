@@ -9,6 +9,10 @@ import XCTest
 
 @MainActor
 final class SettingsLogicTests: XCTestCase {
+    func testAboutLinksToTheProjectSite() {
+        XCTAssertEqual(AboutSettingsPane.projectURL?.absoluteString, "https://hiboss.org")
+    }
+
     func testSettingsPanesAppearInDesignOrder() {
         XCTAssertEqual(SettingsPane.allCases.map(\.title), [
             L("General"),

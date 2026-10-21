@@ -6,6 +6,7 @@ import HibossKit
 import SwiftUI
 
 struct AboutSettingsPane: View {
+    static let projectURL = URL(string: "https://hiboss.org")
     @ObservedObject var updater: UpdaterState
 
     var body: some View {
@@ -20,11 +21,8 @@ struct AboutSettingsPane: View {
                         .foregroundStyle(.secondary)
                 }
                 LabeledContent(L("Project")) {
-                    if let url = URL(string: "https://hiboss.ai") {
-                        Link(destination: url) { Text(verbatim: "hiboss.ai") }
-                    } else {
-                        Text(verbatim: "hiboss.ai")
-                            .foregroundStyle(.secondary)
+                    if let url = Self.projectURL {
+                        Link(destination: url) { Text(verbatim: url.host() ?? "") }
                     }
                 }
             } header: {
