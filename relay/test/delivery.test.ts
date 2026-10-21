@@ -53,14 +53,25 @@ describe('POST /v1/push delivery level mapping', () => {
   });
 });
 
+/** Sends the valid body (accepted), then the mutated one: 400 and no further APNs call. */
+async function expectRejected(mutate: (body: Record<string, unknown>) => void) {
+  const fetchMock = mockApns();
+  const { handle } = await register();
+  const valid: Record<string, unknown> = pushBody(handle);
+  expect((await call('POST', '/v1/push', { body: valid })).status).toBe(202);
+  const body = { ...valid };
+  mutate(body);
+  expect((await call('POST', '/v1/push', { body })).status).toBe(400);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+}
+
 describe('POST /v1/push delivery level validation', () => {
   it.each(Object.keys(DELIVERY))('rejects a body without %s with 400 and sends nothing', async (field) => {
-    const fetchMock = mockApns();
-    const { handle } = await register();
-    const body: Record<string, unknown> = pushBody(handle);
-    delete body[field];
-    expect((await call('POST', '/v1/push', { body })).status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expectRejected((body) => delete body[field]);
+  });
+
+  it('rejects a body without any delivery level field', async () => {
+    await expectRejected((body) => Object.keys(DELIVERY).forEach((field) => delete body[field]));
   });
 
   it.each([
@@ -75,9 +86,6 @@ describe('POST /v1/push delivery level validation', () => {
     ['numeric sound', { sound: 1 }],
     ['null sound', { sound: null }],
   ])('rejects %s with 400 and sends nothing', async (_name, extra) => {
-    const fetchMock = mockApns();
-    const { handle } = await register();
-    expect((await call('POST', '/v1/push', { body: pushBody(handle, extra) })).status).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expectRejected((body) => Object.assign(body, extra));
   });
 });
