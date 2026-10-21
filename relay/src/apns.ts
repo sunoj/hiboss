@@ -92,7 +92,7 @@ async function postApns(
   if (!keyId || !teamId || !authKey) return null;
   const jwt = await providerJwt(keyId, teamId, authKey);
   const host = target.environment === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
-  return fetch(`https://${host}/3/device/${target.apnsToken}`, {
+  return await fetch(`https://${host}/3/device/${target.apnsToken}`, {
     method: 'POST',
     headers: {
       authorization: `bearer ${jwt}`,
