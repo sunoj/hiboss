@@ -95,7 +95,7 @@ final class IslandReplyE2ETests: XCTestCase {
         XCTAssertNil(reply.errors["live"])
         XCTAssertEqual(reply.drafts["other"], "Unrelated")
         XCTAssertEqual(flow.activeMessage?.id, "live")
-        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship it", source: "Mac"))
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship it", source: "macOS"))
         try await waitForCondition(timeout: .seconds(4)) { flow.activeMessage == nil }
         XCTAssertNil(flow.activeMessage)
         XCTAssertEqual(flow.presentationState, .idle)

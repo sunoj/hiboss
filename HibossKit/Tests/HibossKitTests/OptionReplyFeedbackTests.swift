@@ -34,7 +34,7 @@ final class OptionReplyFeedbackTests: XCTestCase {
         XCTAssertTrue(completed, "Acceptance must return while the background history fetch is held")
         if active {
             XCTAssertEqual(flow.activeMessage?.id, "live")
-            XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "Mac"))
+            XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "macOS"))
         } else {
             XCTAssertEqual(flow.activeMessage?.id, "live")
             XCTAssertEqual(flow.presentationState, .ready)

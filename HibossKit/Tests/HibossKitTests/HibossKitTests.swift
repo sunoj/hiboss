@@ -198,7 +198,7 @@ final class OptionFlowStoreTests: XCTestCase {
         let ok = await store.choose("Approve", for: "m1")
         XCTAssertTrue(ok)
         XCTAssertEqual(store.activeMessage?.id, "m1")
-        XCTAssertEqual(store.presentationState, .resolved(answer: "Approve", source: "Mac"))
+        XCTAssertEqual(store.presentationState, .resolved(answer: "Approve", source: "macOS"))
         await waitFor(timeout: 4) { store.activeMessage == nil }
         XCTAssertNil(store.activeMessage)
         XCTAssertEqual(store.presentationState, .idle)

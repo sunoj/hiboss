@@ -56,10 +56,10 @@ final class OptionFlowE2ETests: XCTestCase {
         store.connect(api: api)
         try await waitUntil { store.activeMessage?.id == first.id }
         await store.choose("Ship", for: first.id)
-        XCTAssertEqual(store.presentationState, .resolved(answer: "Ship", source: "Mac"))
+        XCTAssertEqual(store.presentationState, .resolved(answer: "Ship", source: "macOS"))
         try await waitUntil(timeout: .seconds(4)) { store.activeMessage?.id == second.id }
         await store.choose("No", for: second.id)
-        XCTAssertEqual(store.presentationState, .resolved(answer: "No", source: "Mac"))
+        XCTAssertEqual(store.presentationState, .resolved(answer: "No", source: "macOS"))
         try await waitUntil(timeout: .seconds(4)) { store.activeMessage == nil }
 
         XCTAssertNil(store.activeMessage)
@@ -97,7 +97,7 @@ final class OptionFlowE2ETests: XCTestCase {
 
         XCTAssertTrue(submitted)
         XCTAssertEqual(store.presentationState,
-            .resolved(answer: "Roll back to v1.6.8 instead", source: "Mac"))
+            .resolved(answer: "Roll back to v1.6.8 instead", source: "macOS"))
         try await waitUntil(timeout: .seconds(4)) { store.activeMessage == nil }
         XCTAssertNil(store.activeMessage)
         let replies = await api.recordedReplies
@@ -196,7 +196,7 @@ final class OptionFlowE2ETests: XCTestCase {
         await store.choose("Continue", for: current.id)
 
         XCTAssertEqual(store.activeMessage?.id, current.id)
-        XCTAssertEqual(store.presentationState, .resolved(answer: "Continue", source: "Mac"))
+        XCTAssertEqual(store.presentationState, .resolved(answer: "Continue", source: "macOS"))
         try await waitUntil(timeout: .seconds(4)) { store.activeMessage == nil }
         XCTAssertNil(store.activeMessage)
         let replies = await api.recordedReplies

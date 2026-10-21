@@ -169,7 +169,7 @@ final class ReplyOutcomeE2ETests: XCTestCase {
         XCTAssertEqual(flow.presentationState, .ready)
 
         _ = await flow.choose("Ship", for: "first")
-        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "Mac"))
+        XCTAssertEqual(flow.presentationState, .resolved(answer: "Ship", source: "macOS"))
         try await waitForCondition(timeout: .seconds(4)) { flow.activeMessage == nil }
         XCTAssertNil(flow.activeMessage, "the conflicted question must not come back from the queue")
     }
