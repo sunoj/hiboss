@@ -161,7 +161,7 @@ option question from a `working` session appears only under All. The populated f
 "Which icon set…" is absent from Needs You (4), and iOS Home counts it. The two clients give
 the same account different answers to "does anything need me?".
 - **Fix:** include `panels.pendingQuestionnaireCount` in the Dashboard decisions status, and
-  align the attention subset with iOS (see `investigation-ios-home-attention-update.md`).
+  align the attention subset with iOS (see [the attention model](native-client-attention-model.md)).
 - **Verify:** an agreement test with the same fixture on both clients.
 
 ### P1-8 — Island content and controls diverge from the live message

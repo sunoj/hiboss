@@ -35,8 +35,7 @@ answer, or a submission.
 
 This exception was granted on measured evidence, not preference. SwiftUI's statically
 typed `Table` column builder cannot express a generic catalog table, and charts carry a
-per-component native cost that recurs for every future catalog addition. The evidence and
-the reasoning are in the [renderer gate decision](live-panels/phase0-renderer-decision.md).
+per-component native cost that recurs for every future catalog addition.
 
 Do not widen this. If a fourth component seems to need it, that is a new gate with new
 evidence, recorded here the same way. A web leaf that acquires a text field or a button

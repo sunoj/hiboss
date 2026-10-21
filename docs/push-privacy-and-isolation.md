@@ -26,21 +26,20 @@ your agents ──► your Worker ──► your D1 (messages, bosses, boss_devi
 APNs delivery is bound to the **app's bundle ID**, which is owned by **one Apple Developer
 team**. An APNs auth key (`.p8`) can only push to app IDs of the team that created it.
 
-**Consequence:** the first-party build `ai.hiboss.app` (team `JHH9GC8Y8C`) can only be pushed
-to by that team's APNs key. A different operator **cannot** push to `ai.hiboss.app` with their
-own key — and you should not hand out your key, because whoever holds it can push to every
-install of that bundle ID. So:
+**Consequence:** the published build `ai.hiboss.app` can only be pushed to by its publisher
+team's APNs key. A different operator **cannot** push to `ai.hiboss.app` with their own key,
+and an APNs key must not be shared, because whoever holds it can push to every install of
+that bundle ID. So:
 
 - **Correct self-hosted model:** each operator ships **their own app build** — their own
   bundle ID (e.g. `com.acme.hiboss`), their own signing team, their own APNs key — and points
   it at their own server. Full isolation, no shared push plane. This is the honest
   self-hosted story (you build the client, like any self-hosted app).
-- The published `ai.hiboss.app` is a **first-party/reference client** tied to our team. Others
-  can point a build at their server for in-app SSE/history, but **push** requires their own
-  bundle ID + key.
+- The published `ai.hiboss.app` is a **reference client** tied to its publisher team. Any
+  build can point at any server for in-app SSE/history, but **push** requires the operator's
+  own bundle ID + key.
 
-There is deliberately **no central push relay** — that would reintroduce multi-tenancy, which
-we've ruled out.
+The server has **no central push relay**: each server pushes only with its own APNs key.
 
 ## 3. Do we need message encryption?
 

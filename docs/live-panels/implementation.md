@@ -1,12 +1,7 @@
-# Lifecycle v2 implementation and rollout
+# Lifecycle v2 implementation
 
-Updated: 2026-09-08. The core protocol is implemented and tested. Migration 0035
-and the v2 production Worker are deployed; the local macOS Dashboard and CLI
-are installed. All seven retained production panels now use v2 definitions.
-See [the rollout record](rollout-2026-09-08.md) for exact scope and verification.
-
-See the [2026-09-11 native UI record](native-ui-2026-09-11.md) for questionnaire discovery,
-form improvements, and current macOS/iOS build evidence.
+This document lists the implemented lifecycle v2 surface (migration 0035 and later)
+and the remaining scope.
 
 ## Implemented
 
@@ -116,9 +111,7 @@ HTML report directory. Never claim a workspace path is a publicly accessible lin
 
 ## Verification
 
-E2E execution host: the authorized remote Linux host, isolated checkout under
-`/tmp/hiboss-panels-e2e.xFY4uy`. No production credentials or channels are required.
-The server suite covers D1 failures before and after commit, engine reconstruction,
+The E2E suite needs no production credentials or channels. The server suite covers D1 failures before and after commit, engine reconstruction,
 lost alarms, expiry, takeover, concurrent writers, schema failures, and durable
 results. The real Rust CLI harness exercises four report/card definitions from
 publication through final readback, including an idle 15-second lease renewal.
@@ -132,19 +125,16 @@ python3 cli/scripts/test-agent-guidance.py
 python3 cli/scripts/run-panel-e2e.py
 ```
 
-Run these E2E commands on the authorized remote host. The wrapper creates isolated
-D1 state and test identities, chooses a local port on that host, and cleans up its
-Worker process. Native builds can be checked locally. Remote Linux cannot run
-SwiftUI or ActivityKit UI automation; do not report simulator compilation as a
-physical-device Live Activity test.
+The wrapper creates isolated D1 state and test identities, chooses a local port, and
+cleans up its Worker process. Linux cannot run SwiftUI or ActivityKit UI automation;
+simulator compilation is not a physical-device Live Activity test.
 
 ## Durable questionnaires
 
-The production Worker now includes versioned intake questionnaires, atomic typed answers,
+The Worker includes versioned intake questionnaires, atomic typed answers,
 explicit terminal withdrawal, CLI request commands, and native panel-detail entry
-points. See [questionnaires](questionnaires.md) for migration order, exact scope,
-retry semantics, and verification. Migration 0038 and the Worker were deployed on
-2026-09-11; see the [rollout record](rollout-2026-09-11.md) for client distribution.
+points (migration 0038). See [questionnaires](questionnaires.md) for exact scope,
+retry semantics, and verification.
 
 ## Live wall discovery
 
@@ -182,8 +172,7 @@ The generator emits a validated, targeted patch; for newly introduced objects, f
 add a documented `CREATE TABLE name ();` or index declaration in its domain section.
 Run `npm run check:schema` to compare two fresh SQLite databases. This requires
 Python 3.10+ with SQLite 3.35+; no Python packages are needed. `npm test` also runs
-the same comparison through Vitest. Run the full suite on an authorized remote grok
-box because it includes E2E tests. Migration failures stop regeneration; migrations
+the same comparison through Vitest. The full suite includes E2E tests. Migration failures stop regeneration; migrations
 are authoritative, including defaults unchanged by data-only updates 0036/0037.
 
 ## Remaining product scope
@@ -197,18 +186,11 @@ The [Dynamic Island feasibility plan](dynamic-island.md) describes reusing the
 existing iOS ActivityKit extension, bounded summary data, per-device dismissal,
 and an APNs update/end path. Panels do not yet render on Dynamic Island.
 
-## Coordinated rollout
+## Protocol compatibility
 
-The production Worker, database, local CLI, and macOS client were upgraded on
-2026-09-08, and the agent channel followed on 2026-09-09 ([record](rollout-2026-09-09.md)):
-Worker first, then the local and primary remote CLI, with one agent host left on its
-older binary because it was offline. The iOS source builds but has not been installed on a device. Retained
-panels were adopted through versioned definition replacement, preserving their
-IDs and captured data. Producers must reconnect using the v2 CLI. This is a breaking
-protocol change; do not install a v2 producer against the old production relay
-and call the lifecycle feature shipped. Do not silently restore a v1 path.
-
-The migration adds fields and tables without deleting panel data. Live v1 producer
-leases/checkpoints use a different storage format; stop/restart those producers
-with authoritative state as part of the rollout. Retained initial definitions
-alone are not proof of the latest live observations.
+Lifecycle v2 is a breaking protocol change with no v1 fallback. Producers must use a v2
+CLI; a v2 producer cannot run against a v1 relay. The migration adds fields and tables
+without deleting panel data. v1 producer leases and checkpoints use a different storage
+format, so a v1 producer must be restarted with authoritative state. Retained panels
+are adopted through versioned definition replacement, which keeps their IDs and captured
+data; a retained initial definition is not proof of the latest live observation.

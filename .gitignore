@@ -16,8 +16,17 @@ result-t-*.md
 *.db
 test_migration*.sql
 result*.md
-.aid/state.toml
-spikes/panel-seam/evidence/
+.aid/
+
+# Internal notes and one-off reports stay on disk, outside the tracked tree
+docs/internal/
+
+# Credentials and signing material
+.env.*
+*.p8
+*.pem
+*.key
+*.mobileprovision
 
 # Generated screenshot captures stay local; they are not tracked in git.
 ios/Screenshots/

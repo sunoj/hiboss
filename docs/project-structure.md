@@ -32,4 +32,6 @@ hiboss CLI (Rust/clap) ←HTTP→ hiboss-server (Cloudflare Worker + Hono, serve
 - Session dots (unread / needs-you / working) and every recorded-time label follow
   `docs/session-unread-and-timestamps.md` on both native clients
 - `terminal/` — ESP32 hardware terminal (ESP-IDF + LVGL round LCD), separate device firmware
-- `mcp-server/` — Removed (was v0.13 MCP server, replaced by `mcp/`)
+- `web/` — web console for bosses (SvelteKit static build); see `web/README.md`
+- `panel-runtime/` — shared live-panel definition schema, validation and fixtures (npm workspace)
+- `site/` — static public website

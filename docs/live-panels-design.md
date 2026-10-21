@@ -25,7 +25,7 @@ database changes, deployment, or a release.
 | [Protocol](live-panels/protocol.md) | Publication, state, forms, submissions, API contracts |
 | [Lifecycle](live-panels/lifecycle.md) | Task state, producer leases, terminal results, and wall visibility |
 | [Runtime and transport](live-panels/runtime.md) | Renderers, relay, P2P, persistence, trust boundaries |
-| [Delivery plan](live-panels/rollout.md) | Work packages, verification, budgets, gates, open decisions |
+| [Implementation](live-panels/implementation.md) | Implemented surface and remaining scope |
 
 If details conflict, the protocol owns wire semantics, the runtime document owns
 transport behavior, and this document owns product behavior. Resolve discrepancies
@@ -251,7 +251,7 @@ attempt to translate complex forms into legacy string options.
 
 This planning package is complete when boundaries, protocols, ownership, failure
 behavior, dependencies, and acceptance gates are reviewable. Feature completion
-requires the later work packages and evidence in the [delivery plan](live-panels/rollout.md).
+is tracked in [implementation](live-panels/implementation.md).
 No production implementation, tests, migrations, or release are performed as part
 of this documentation task.
 

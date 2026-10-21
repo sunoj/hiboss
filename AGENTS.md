@@ -18,5 +18,5 @@ tier that matches the changed paths.
 
 Before running macOS tests, read "macOS verification tiers" in `CLAUDE.md`. Run
 `macos/scripts/verify-tier.sh` to get the tier and the exact filtered command. Window tests
-open real windows on the boss's working Mac, so never run the full `HibossIslandTests`
+open real windows on the desktop of the Mac that runs them, so never run the full `HibossIslandTests`
 outside M5, and keep to the per-task run limits.

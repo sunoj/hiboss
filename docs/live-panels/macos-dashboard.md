@@ -29,25 +29,8 @@ failure, and empty states remain independent, so a Panels failure does not hide
 decisions. Demo decisions are explicitly labeled and cannot submit real answers
 from the Dashboard inspector.
 
-## Verification and deployment
+## Verification
 
-`swift build --package-path macos --build-tests` succeeded, compiling the app and
-all native test targets. A routing regression assertion covers the Dashboard's
-ranked decision projection and excludes completed messages. Test compilation is
-not test execution.
-
-No local UI or E2E execution was performed: global instructions restrict those
-checks to the authorized remote hosts, whose Linux environment cannot execute
-SwiftUI. Interactive layout and inspector behavior still need macOS UI validation.
-
-The release build was signed with the existing Developer ID identity and installed
-at `/Applications/HiBoss Island.app` on 2026-09-08, retaining version 0.3.0 (12).
-The previous application is backed up at
-`/private/tmp/HiBoss-before-dashboard-f99fcabb70.app`. Signature verification and
-the installed executable hash matched the packaged build. The installation receipt
-is `/private/tmp/hiboss-dashboard-install.json`.
-
-The matching production server and default CLI were subsequently upgraded to
-lifecycle v2. All seven retained cards were adopted and read back successfully;
-see [the rollout record](rollout-2026-09-08.md). Native UI/E2E execution remains
-unverified under the remote-only testing rule.
+A routing regression assertion covers the Dashboard's ranked decision projection and
+excludes completed messages. `PanelDashboardFlowTests` is the window-test class for the
+Dashboard panel flow.
