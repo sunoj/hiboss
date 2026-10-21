@@ -15,19 +15,91 @@
             "state": "translated",
             "value": "在 HiBoss 中回复"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss で返信"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss에서 답장"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตอบกลับใน HiBoss"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Responder en HiBoss"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss में जवाब दें"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الرد في HiBoss"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Responder no HiBoss"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Répondre dans HiBoss"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответить в HiBoss"
+          }
         }
       }
     },
     "Checking…": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Checking…" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在检查…" } }
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在检查…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "確認中…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "확인 중…" } },
+        "th": { "stringUnit": { "state": "translated", "value": "กำลังตรวจสอบ…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Comprobando…" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "जाँच हो रही है…" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "جارٍ التحقق…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Verificando…" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Vérification…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверка…" } }
       }
     },
     "No longer open": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "No longer open" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已不可回复" } }
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已不可回复" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "受付終了" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "더 이상 열려 있지 않음" } },
+        "th": { "stringUnit": { "state": "translated", "value": "ปิดรับแล้ว" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ya no está abierta" } },
+        "hi": { "stringUnit": { "state": "translated", "value": "अब खुला नहीं है" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "لم يعد مفتوحًا" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Não está mais aberta" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "N’est plus ouverte" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Больше не открыто" } }
       }
     },
     "The reply couldn't be sent.": {
@@ -42,6 +114,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "未能发送回复。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返信を送信できませんでした。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답장을 보낼 수 없었어요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ส่งการตอบกลับไม่ได้"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo enviar la respuesta."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जवाब नहीं भेजा जा सका।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر إرسال الرد."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível enviar a resposta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’envoyer la réponse."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось отправить ответ."
           }
         }
       }
@@ -59,6 +185,60 @@
             "state": "translated",
             "value": "回复仍在发送中。"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返信はまだ送信中です。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답장을 아직 보내는 중이에요."
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การตอบกลับของคุณยังส่งอยู่"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu respuesta aún se está enviando."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आपका जवाब अभी भेजा जा रहा है।"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا يزال ردّك قيد الإرسال."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sua resposta ainda está sendo enviada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre réponse est toujours en cours d’envoi."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ответ ещё отправляется."
+          }
         }
       }
     },
@@ -75,6 +255,60 @@
             "state": "translated",
             "value": "打开 HiBoss 检查连接"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss を開いて接続を確認"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HiBoss를 열어 연결 확인"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิด HiBoss เพื่อตรวจสอบการเชื่อมต่อ"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre HiBoss para comprobar la conexión"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कनेक्शन जाँचने के लिए HiBoss खोलें"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح HiBoss للتحقق من الاتصال"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abra o HiBoss para verificar a conexão"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez HiBoss pour vérifier la connexion"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Откройте HiBoss, чтобы проверить подключение"
+          }
         }
       }
     },
@@ -90,6 +324,60 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在发送回复…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返信を送信中…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "답장 보내는 중…"
+          }
+        },
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "กำลังส่งการตอบกลับ…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviando respuesta…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जवाब भेजा जा रहा है…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ إرسال الرد…"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviando resposta…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoi de la réponse…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправка ответа…"
           }
         }
       }
