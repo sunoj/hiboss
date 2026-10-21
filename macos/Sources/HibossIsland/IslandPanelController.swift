@@ -28,6 +28,8 @@ final class IslandPanelController {
     private var islandMeasurement: (MessageID, CGFloat)?
     private var windowMeasurement: (MessageID, CGFloat)?
     private var cancellables: Set<AnyCancellable> = []
+    /// The boss's `decision_alerts`: off, the Island neither opens nor sounds for a decision.
+    private var decisionAlertsOn = true
     private(set) var dropReveal: IslandDropRevealController?
 
     init(
@@ -38,7 +40,8 @@ final class IslandPanelController {
         screens: @escaping () -> [IslandGeometry] = { NSScreen.screens.map(\.islandGeometry) },
         pointerLocation: @escaping () -> NSPoint = { NSEvent.mouseLocation },
         activate: @escaping () -> Void = { NSApp.activate(ignoringOtherApps: true) },
-        attention: IslandAttention = .shared
+        attention: IslandAttention = .shared,
+        decisionAlerts: AnyPublisher<Bool, Never> = Just(true).eraseToAnyPublisher()
     ) {
         self.flow = flow
         self.attention = attention
@@ -62,7 +65,7 @@ final class IslandPanelController {
         )
         configurePanel()
         configureWindow()
-        observeFlow()
+        observeFlow(decisionAlerts: decisionAlerts.removeDuplicates().eraseToAnyPublisher())
     }
 
     /// The surface is always black, so system-drawn parts — caret, selection, placeholders —
@@ -133,14 +136,16 @@ final class IslandPanelController {
         .closeButton, .miniaturizeButton, .zoomButton,
     ]
 
-    private func observeFlow() {
+    private func observeFlow(decisionAlerts: AnyPublisher<Bool, Never>) {
         let content = Publishers.CombineLatest4(
             overview.$snapshot, flow.$activeMessage, flow.$presentationState,
             attention.$skippedMessageIDs)
+        decisionAlerts.sink { [weak self] in self?.decisionAlertsOn = $0 }.store(in: &cancellables)
         // Use the emitted values: every `@Published` emits before its property changes.
-        let presentations = content.map { snapshot, active, state, skipped -> IslandPresentation? in
-            IslandAttention.presentation(snapshot: snapshot.today, active: active, state: state,
-                skipped: skipped)
+        let presentations = Publishers.CombineLatest(content, decisionAlerts).map {
+            content, alerts -> IslandPresentation? in
+            IslandAttention.presentation(snapshot: content.0.today, active: content.1, state: content.2,
+                skipped: content.3, decisionAlerts: alerts)
         }
         Publishers.CombineLatest(presentations, settings.$presentationMode)
             .removeDuplicates { previous, next in
@@ -166,7 +171,7 @@ final class IslandPanelController {
     }
 
     private func announce() {
-        guard settings.playsSound else { return }
+        guard settings.playsSound, decisionAlertsOn else { return }
         soundPlayer.play(settings.alertSound)
     }
 

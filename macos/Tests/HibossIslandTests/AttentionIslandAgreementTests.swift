@@ -75,6 +75,18 @@ final class AttentionIslandAgreementTests: XCTestCase {
         XCTAssertEqual(island?.message.id, front)
     }
 
+    func testIslandShowsTextAsksAndStaysClosedWithDecisionAlertsOff() {
+        let text = HistoryMessage(id: "text", body: "Which host?", direction: "agent_to_boss",
+            status: "delivered", priority: "critical", mode: "blocking", createdAt: iso(now))
+        let option = ask(id: "option", priority: "low", options: ["Yes", "No"])
+        let today = snapshot(requiredInputs: [option, text], now: now)
+        let island = IslandAttention.presentation(snapshot: today, active: nil, state: .idle, skipped: [])
+        XCTAssertEqual(island?.message.id, today.topDecision()?.id)
+        XCTAssertEqual(island?.message.id, "text")
+        XCTAssertNil(IslandAttention.presentation(snapshot: today, active: nil, state: .idle, skipped: [],
+            decisionAlerts: false))
+    }
+
     func testServerListedAutoDecisionAppearsWithoutHistory() {
         let live = OptionMessage(
             id: "live-auto",

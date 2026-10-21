@@ -26,9 +26,15 @@ struct MessageNotice: Equatable, Sendable {
     let title: String
     let body: String
     let threadIdentifier: String
+    var sound = true
+    var level: PushLevel = .active
 
-    init(message: HistoryMessage) {
+    init(message: HistoryMessage, alert: MessageAlert? = nil) {
         messageID = message.id
+        if let alert {
+            sound = alert.sound
+            level = alert.level
+        }
         let agent = Self.cleaned(message.agentName) ?? L("Agent")
         title = Self.cleaned(message.sessionLabel).map { "\(agent) · \($0)" } ?? agent
         let text = message.body.split(whereSeparator: \.isWhitespace).joined(separator: " ")
@@ -83,7 +89,12 @@ final class SystemMessageNotificationCenter: NSObject, MessageNotificationCenter
         content.title = notice.title
         content.body = notice.body
         content.threadIdentifier = notice.threadIdentifier
-        content.sound = .default
+        content.sound = notice.sound ? .default : nil
+        content.interruptionLevel = switch notice.level {
+        case .passive: .passive
+        case .active: .active
+        case .timeSensitive: .timeSensitive
+        }
         content.userInfo = ["messageID": notice.messageID.rawValue]
         try await center.add(UNNotificationRequest(
             identifier: notice.messageID.rawValue, content: content, trigger: nil
@@ -99,15 +110,22 @@ final class SystemMessageNotificationCenter: NSObject, MessageNotificationCenter
 }
 
 extension SystemMessageNotificationCenter: UNUserNotificationCenterDelegate {
+    /// Foreground presentation follows the notice's tier: a passive notice is listed silently.
+    nonisolated static func presentation(passive: Bool, sound: Bool) -> UNNotificationPresentationOptions {
+        var options: UNNotificationPresentationOptions = passive ? [.list] : [.banner, .list]
+        if sound { options.insert(.sound) }
+        return options
+    }
+
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         // Join requests are an admin security prompt, not a message; the message toggle does not mute them.
         let isJoinRequest = notification.request.content.userInfo[JoinRequestNotice.userInfoKey] is String
-        return await MainActor.run {
-            isEnabled || isJoinRequest ? [.banner, .list, .sound] : []
-        }
+        let content = notification.request.content
+        let tier = Self.presentation(passive: content.interruptionLevel == .passive, sound: content.sound != nil)
+        return await MainActor.run { isEnabled || isJoinRequest ? tier : [] }
     }
 
     nonisolated func userNotificationCenter(

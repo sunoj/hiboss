@@ -1,6 +1,6 @@
-// Runs the passive feed and persists the boss's local message notification preference.
+// Runs the passive feed and alerts as the server would push: tiers, overrides, quiet hours.
 // Exports: MessageNotificationStore with reconnect, deduplication, and authorization state.
-// Dependencies: HibossKit BossServing, Combine, UserDefaults, and MessageNotificationCenter.
+// Dependencies: HibossKit BossServing and MessageAlertPolicy, Combine, UserDefaults, the center.
 
 import Combine
 import Foundation
@@ -17,6 +17,8 @@ final class MessageNotificationStore: ObservableObject {
     private let center: any MessageNotificationCenter
     private let defaults: UserDefaults
     private let reconnectDelay: Duration
+    private let preferences: @MainActor () -> BossPreferences
+    private let now: () -> Date
     private var seenIDs: Set<MessageID> = []
     private var streamTask: Task<Void, Never>?
     private var authorizationTask: Task<Void, Never>?
@@ -24,11 +26,15 @@ final class MessageNotificationStore: ObservableObject {
     init(
         center: any MessageNotificationCenter,
         defaults: UserDefaults = .standard,
-        reconnectDelay: Duration = AppConstants.API.reconnectDelay
+        reconnectDelay: Duration = AppConstants.API.reconnectDelay,
+        preferences: @escaping @MainActor () -> BossPreferences = { BossPreferences() },
+        now: @escaping () -> Date = Date.init
     ) {
         self.center = center
         self.defaults = defaults
         self.reconnectDelay = reconnectDelay
+        self.preferences = preferences
+        self.now = now
         isEnabled = defaults.object(forKey: Self.enabledKey) == nil
             ? true : defaults.bool(forKey: Self.enabledKey)
         center.isEnabled = isEnabled
@@ -77,16 +83,24 @@ final class MessageNotificationStore: ObservableObject {
 
     func receive(_ message: HistoryMessage) async {
         guard !Task.isCancelled, message.direction == "agent_to_boss",
-              !message.isDecision, seenIDs.insert(message.id).inserted, isEnabled else { return }
+              seenIDs.insert(message.id).inserted, isEnabled, let alert = alert(for: message) else { return }
         await prepareAuthorization()
         guard !Task.isCancelled, isEnabled,
               authorization == .authorized || authorization == .provisional else { return }
         do {
-            try await center.post(MessageNotice(message: message))
+            try await center.post(MessageNotice(message: message, alert: alert))
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Decisions belong to the Island while decision alerts are on; with them off, a decision is
+    /// tiered like any message, as the server then pushes it. nil means no notification.
+    func alert(for message: HistoryMessage) -> MessageAlert? {
+        let preferences = preferences()
+        if message.isDecision, preferences.decisionAlerts != false { return nil }
+        return MessageAlertPolicy.messageAlert(priority: message.priority, preferences: preferences, now: now())
     }
 
     private func consumeStreams(from api: any BossServing) async {

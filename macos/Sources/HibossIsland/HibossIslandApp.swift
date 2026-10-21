@@ -88,8 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     init(settings: AppSettings) {
         self.settings = settings
-        notifications = MessageNotificationStore(center: notificationCenter)
-        preferencesStore = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
+        let preferences = BossPreferencesStore(api: SettingsPreferencesService(settings: settings))
+        preferencesStore = preferences
+        notifications = MessageNotificationStore(center: notificationCenter,
+            preferences: { preferences.preferences })
         joinRequests = JoinRequestsModel {
             (try? settings.connectionConfig().get()).map { HibossAPI(config: $0) }
         }
@@ -119,7 +121,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         notificationCenter.start()
         Task { await notifications.prepareAuthorization() }
         observePresentationPreferences()
-        panelController = IslandPanelController(flow: flow, settings: settings, overview: overview)
+        panelController = IslandPanelController(flow: flow, settings: settings, overview: overview,
+            decisionAlerts: preferencesStore.$preferences.map { $0.decisionAlerts != false }.eraseToAnyPublisher())
         observeJoinRequests()
         Task { [weak self] in
             guard let self else { return }
