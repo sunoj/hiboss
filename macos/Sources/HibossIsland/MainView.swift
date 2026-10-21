@@ -1,5 +1,5 @@
 // Main window: Today, Box, Progress, and session threads with native sidebar navigation.
-// Exports: MainView with persistent Panels state, attention drafts, and local session reads.
+// Exports: MainView rendering app-owned Panels state, attention drafts, and local session reads.
 // Dependencies: SwiftUI, HibossKit, workspace surfaces, and SessionReadTracking.
 
 import HibossKit
@@ -126,13 +126,11 @@ struct MainView: View {
             reply.reset()
             destination = .today
             showsCompactOverview = false
-            panels.connectionDidChange()
             box.reset()
             progress.reset()
             sessionBox.reset()
             boxMedia.reset()
             Task {
-                await panels.load()
                 if destination == .box { await box.refresh() }
                 if destination == .progress { await progress.refresh() }
             }
