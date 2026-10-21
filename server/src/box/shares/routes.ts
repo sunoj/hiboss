@@ -28,7 +28,9 @@ export const shareRoutes = new Hono<{ Bindings: Env }>();
 shareRoutes.post('/items/:id/shares', async c => {
   const item = await findItem(c, c.req.param('id'));
   if (!item || !canEditItem(c, item)) return c.text('not found', 404);
-  const body: unknown = await c.req.json().catch(() => null);
+  const raw = await c.req.text();
+  const body: unknown = raw === '' ? {}
+    : await Promise.resolve().then(() => JSON.parse(raw)).catch(() => null);
   if (!body || typeof body !== 'object' || Array.isArray(body)) return c.text('invalid body', 400);
   const supplied = (body as { ttlSeconds?: unknown }).ttlSeconds;
   const ttl = supplied === undefined ? 604800 : supplied;

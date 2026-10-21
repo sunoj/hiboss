@@ -5,8 +5,11 @@ import { beforeAll, beforeEach, expect, it } from 'vitest';
 import migration from '../../../migrations/0057_box_shares.sql?raw';
 import { OWNER, OTHER, create, request, resetBox, seedBox, upload } from '../../box-test-helpers';
 import { authHeaders } from '../../test-helpers';
+import { hashApiKey } from '../../middleware/auth';
 import { tokenHash } from './routes';
 
+const PEER = 'hb_test_share_peer';
+const FOREIGN = 'hb_test_share_foreign';
 type Share = { id: string; itemId: string; url: string; createdAt: string; expiresAt: string };
 beforeAll(async () => {
   await seedBox();
@@ -17,6 +20,12 @@ beforeAll(async () => {
 beforeEach(async () => {
   await env.DB.prepare('DELETE FROM box_shares').run();
   await resetBox();
+  for (const [id, key, boss] of [['share-peer', PEER, OWNER], ['share-foreign', FOREIGN, OTHER]]) {
+    await env.DB.prepare('INSERT OR IGNORE INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
+      .bind(id, id, await hashApiKey(key)).run();
+    await env.DB.prepare('INSERT OR IGNORE INTO boss_agent_access (boss_id, agent_id) VALUES (?, ?)')
+      .bind(boss, id).run();
+  }
 });
 
 async function share(id: string, token = OWNER, body: unknown = {}): Promise<Share> {
@@ -39,12 +48,8 @@ function headers(response: Response): void {
 it('enforces boss, own-agent, other-agent and other-boss create/list access', async () => {
   const boss = await create({ text: 'boss' });
   const own = await create({ text: 'own', boss: OWNER }, 'agent');
-  const peer = await create({ text: 'peer' });
+  const peer = await create({ text: 'peer', boss: OWNER }, PEER);
   const foreign = await create({ text: 'foreign' }, OTHER);
-  await env.DB.prepare('INSERT INTO api_keys (id, name, key_hash) VALUES (?, ?, ?)')
-    .bind('peer-id', 'Peer', 'synthetic-share-peer-hash').run();
-  await env.DB.prepare('UPDATE box_items SET agent_id = ? WHERE id = ?')
-    .bind('peer-id', peer.id).run();
   for (const item of [boss, own, peer]) {
     await share(item.id);
     expect((await request(`/${item.id}/shares`)).status).toBe(200);
@@ -64,9 +69,8 @@ it('revokes only caller-owned shares, with boss override and idempotence', async
   const item = await create({ text: 'own', boss: OWNER }, 'agent');
   const own = await share(item.id, 'agent');
   const boss = await share(item.id);
-  const peer = await share(item.id);
-  await env.DB.prepare('UPDATE box_shares SET created_by_agent = ? WHERE id = ?')
-    .bind('peer-id', peer.id).run();
+  const peerItem = await create({ text: 'peer', boss: OWNER }, PEER);
+  const peer = await share(peerItem.id, PEER);
   for (const id of [boss.id, peer.id]) expect((await revoke(id, 'agent')).status).toBe(404);
   expect((await revoke(own.id, OTHER)).status).toBe(404);
   for (let n = 0; n < 2; n++) expect((await revoke(own.id, 'agent')).status).toBe(204);
@@ -144,12 +148,14 @@ it.each(['image/svg+xml', 'text/html', 'image/png', 'application/pdf', 'image/he
   'streams %s with share disposition, HEAD and ranges', async type => {
     const item = await (await upload(type)).json() as { id: string };
     const result = await share(item.id);
-    const inline = !['image/svg+xml', 'text/html'].includes(type);
+    const inline = !['image/svg+xml', 'text/html', 'application/pdf'].includes(type);
     for (const method of ['GET', 'HEAD']) {
       const response = await SELF.fetch(`${result.url}/file`, { method });
       expect(response.status).toBe(200);
       headers(response);
-      expect(response.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox");
+      expect(response.headers.get('content-security-policy'))
+        .toBe("default-src 'none'; sandbox; frame-ancestors 'none'");
+      expect(response.headers.get('content-type')).toBe(inline ? type : 'application/octet-stream');
       expect(response.headers.get('content-disposition')).toMatch(inline ? /^inline;/ : /^attachment;/);
       expect((await response.arrayBuffer()).byteLength).toBe(method === 'HEAD' ? 0 : 10);
     }
@@ -161,3 +167,53 @@ it.each(['image/svg+xml', 'text/html', 'image/png', 'application/pdf', 'image/he
       .bind(result.id).first();
     expect(row).toEqual({ view_count: 0 });
   });
+
+it('isolates authenticated peer agents and agents granted only to another boss', async () => {
+  const first = await create({ text: 'first', boss: OWNER }, 'agent');
+  const second = await create({ text: 'second', boss: OWNER }, PEER);
+  const foreign = await create({ text: 'foreign', boss: OTHER }, FOREIGN);
+  const bossItem = await create({ text: 'other boss' }, OTHER);
+  const cases = [[first, 'agent'], [second, PEER], [foreign, FOREIGN], [bossItem, OTHER]] as const;
+  for (const [item, caller] of cases) {
+    const own = await share(item.id, caller);
+    const listed = await request(`/${item.id}/shares`, 'GET', undefined, caller);
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toMatchObject({ shares: [{ id: own.id, active: true }] });
+    const outsiders = caller === 'agent' ? [PEER, FOREIGN, OTHER]
+      : caller === PEER ? ['agent', FOREIGN, OTHER] : [OWNER, 'agent', PEER];
+    for (const outsider of outsiders) {
+      expect((await request(`/${item.id}/shares`, 'POST', {}, outsider)).status).toBe(404);
+      expect((await request(`/${item.id}/shares`, 'GET', undefined, outsider)).status).toBe(404);
+      expect((await revoke(own.id, outsider)).status).toBe(404);
+    }
+    expect((await revoke(own.id, caller)).status).toBe(204);
+  }
+  const ownerItem = await create({ text: 'owner' });
+  const ownerShare = await share(ownerItem.id);
+  for (const caller of [FOREIGN, OTHER]) {
+    expect((await request(`/${ownerItem.id}/shares`, 'POST', {}, caller)).status).toBe(404);
+    expect((await request(`/${ownerItem.id}/shares`, 'GET', undefined, caller)).status).toBe(404);
+    expect((await revoke(ownerShare.id, caller)).status).toBe(404);
+  }
+});
+
+it.each(['', '?purge=1'])('hides lists, pages and files after deletion %s', async query => {
+  const item = await (await upload()).json() as { id: string };
+  const result = await share(item.id);
+  expect((await SELF.fetch(result.url)).status).toBe(200);
+  expect((await SELF.fetch(`${result.url}/file`)).status).toBe(200);
+  expect((await request(`/${item.id}${query}`, 'DELETE')).status).toBe(204);
+  expect((await request(`/${item.id}/shares`)).status).toBe(404);
+  expect((await SELF.fetch(result.url)).status).toBe(404);
+  expect((await SELF.fetch(`${result.url}/file`)).status).toBe(404);
+});
+
+it.each([undefined, ''])('defaults TTL for absent or empty request body %j', async body => {
+  const item = await create({ text: 'default ttl' });
+  const response = await SELF.fetch(`https://test.local/api/box/items/${item.id}/shares`, {
+    method: 'POST', headers: { Authorization: `Bearer ${OWNER}` }, body,
+  });
+  expect(response.status).toBe(201);
+  const result = await response.json() as Share;
+  expect(Date.parse(result.expiresAt) - Date.parse(result.createdAt)).toBe(604800000);
+});

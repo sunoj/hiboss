@@ -1,7 +1,8 @@
 # Box public share links — contract
 
 A share link lets anyone holding the URL view one Box item without signing in, until it expires or is
-revoked. The server stores only a hash of the token.
+revoked. The server stores only a hash of the token. Agent-created links remain valid until expiry or
+revocation even if the agent later loses access. The boss can list and revoke these links.
 
 ## Data (migration 0057_box_shares.sql, additive)
 `box_shares`: `id` TEXT PK (`bs_` + 32 hex), `item_id` TEXT NOT NULL → box_items.id, `boss_id` TEXT NOT NULL,
@@ -39,15 +40,16 @@ response; never stored, logged or listed.
   `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
   Page CSP: `default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline';
   base-uri 'none'; form-action 'none'; frame-ancestors 'none'`.
-  File CSP: `default-src 'none'; sandbox`. `Content-Disposition: inline` only for image/png, image/jpeg,
-  image/gif, image/webp, image/heic, video/mp4, video/quicktime, application/pdf; everything else
-  (including SVG and HTML) `attachment` with a safe filename.
+  File CSP: `default-src 'none'; sandbox; frame-ancestors 'none'`. `Content-Disposition: inline` only for
+  image/png, image/jpeg, image/gif, image/webp, image/heic, video/mp4, video/quicktime; everything else
+  (including SVG, HTML and PDF) `attachment` with a safe filename and `application/octet-stream`.
+  PDFs are served as downloads.
 - Text and link items have no `/file`: 404.
 
 ## CLI (`hiboss box …`)
 - `hiboss box share <item-id> [--ttl <1h|12h|7d|30d|…>]` → prints the URL on stdout and the expiry on stderr.
 - `hiboss box add … --share [--ttl …]` → after the item is created, creates a share and prints its URL as
-  the last stdout line, labelled `share: <url>`.
+  the last stdout line, labelled `share: <url>`. With `--json`, the share is a second JSON line.
 - `hiboss box shares <item-id>` → table of shares (id, created, expires, views, active).
 - `hiboss box unshare <share-id>` → revokes.
 - `--json` where the existing Box commands support it.

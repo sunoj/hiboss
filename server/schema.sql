@@ -1,4 +1,4 @@
--- hiboss D1 schema: generated from migrations through 0056; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
+-- hiboss D1 schema: generated from migrations through 0057; regenerate with sh scripts/check-schema.sh --regenerate | patch schema.sql
 -- This file reflects the final schema state. For incremental changes, see migrations/.
 
 -- Agent authentication
@@ -713,3 +713,19 @@ CREATE TABLE box_collection_items (
   PRIMARY KEY (collection_id, item_id)
 );
 CREATE INDEX idx_box_collection_items_item ON box_collection_items(item_id);
+
+-- Revocable public Box capabilities; only token hashes are stored.
+-- Physical item deletion removes its shares.
+CREATE TABLE box_shares (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES box_items(id) ON DELETE CASCADE,
+  boss_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_by_agent TEXT,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  view_count INTEGER NOT NULL DEFAULT 0,
+  last_viewed_at TEXT
+);
+CREATE INDEX idx_box_shares_item ON box_shares(item_id);

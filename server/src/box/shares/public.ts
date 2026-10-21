@@ -10,7 +10,7 @@ import { sharePage } from './page';
 const PAGE_CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; "
   + "base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const INLINE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/heic',
-  'video/mp4', 'video/quicktime', 'application/pdf']);
+  'video/mp4', 'video/quicktime']);
 type PublicItem = BoxRow & { share_id: string; expires_at: string };
 export const publicShares = new Hono<{ Bindings: Env }>();
 
@@ -56,10 +56,10 @@ publicShares.on(['GET', 'HEAD'], '/:token/file', async c => {
   const disposition = response.headers.get('content-disposition') ?? 'attachment; filename="download"';
   response.headers.set('content-disposition', disposition.replace(/^(inline|attachment)/,
     INLINE.has(type) ? 'inline' : 'attachment'));
-  response.headers.set('content-type', type);
+  response.headers.set('content-type', INLINE.has(type) ? type : 'application/octet-stream');
   response.headers.set('cache-control', 'private, no-store');
-  response.headers.set('content-security-policy', "default-src 'none'; sandbox");
-  c.header('content-security-policy', "default-src 'none'; sandbox");
+  response.headers.set('content-security-policy', "default-src 'none'; sandbox; frame-ancestors 'none'");
+  c.header('content-security-policy', "default-src 'none'; sandbox; frame-ancestors 'none'");
   return response;
 });
 
