@@ -122,7 +122,7 @@ private enum BoxDownloadName {
 
     /// A trailing ".12" or ".2 notes" is part of the title, not a file extension.
     private static func realExtension(_ candidate: String) -> String {
-        guard !candidate.isEmpty, candidate.count <= 10,
+        guard !candidate.isEmpty, candidate.utf8.count <= 32,
               candidate.unicodeScalars.allSatisfy({ $0.isASCII && CharacterSet.alphanumerics.contains($0) })
         else { return "" }
         let lettersOnly = candidate.unicodeScalars.allSatisfy { CharacterSet.letters.contains($0) }

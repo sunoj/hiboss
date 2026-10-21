@@ -89,6 +89,7 @@ final class BoxShareContentTests: XCTestCase {
             ("archive.tar.gz", "application/x-hiboss-unknown", Data(), "archive.tar.gz"),
             ("report.PDF", "application/pdf", Data(), "report.pdf"),
             ("Recording.mp3", nil, Data(), "Recording.mp3"),
+            ("Reference.hibossfixture", "application/octet-stream", Data(), "Reference.hibossfixture"),
         ]
         for (name, type, data, expected) in cases {
             let fixture = downloadItem(name: name, type: type)
