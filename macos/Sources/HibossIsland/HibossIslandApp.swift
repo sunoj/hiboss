@@ -17,7 +17,8 @@ struct HibossIslandApp: App {
                 notificationNavigation: appDelegate.notificationNavigation,
                 joinRequests: appDelegate.joinRequests,
                 overviewStore: appDelegate.overview, requiredInputs: appDelegate.requiredInputs,
-                panelsModel: appDelegate.panels, identity: appDelegate.identity)
+                panelsModel: appDelegate.panels, identity: appDelegate.identity,
+                onPaired: appDelegate.didPair)
         }
         .defaultSize(width: 1320, height: 820)
         .commands {
@@ -151,15 +152,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     private func connectIfConfigured() {
         if case let .success(config) = settings.connectionConfig() {
-            let api = HibossAPI(config: config)
-            requiredInputs.connect(api)
-            flow.connect(api: api)
-            notifications.connect(api: api)
-            Task {
-                await preferencesStore.load()
-                await panels.load()
-            }
+            didPair(config)
+            Task { await panels.load() }
         }
+    }
+
+    /// Starts every stream for a config that was just stored; preferences come from the server.
+    func didPair(_ config: ConnectionConfig) {
+        let api = HibossAPI(config: config)
+        requiredInputs.connect(api)
+        flow.connect(api: api)
+        notifications.connect(api: api)
+        Task { await preferencesStore.load() }
     }
 
     private func observePresentationPreferences() {

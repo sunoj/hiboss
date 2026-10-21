@@ -9,6 +9,16 @@ import XCTest
 
 @MainActor
 final class SettingsLogicTests: XCTestCase {
+    func testSignInIsNeededOnlyAfterTheStoredTokenIsReadAndAbsent() async throws {
+        let suite = "SettingsLogicTests.signIn.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = AppSettings(defaults: defaults, keychain: StubTokenStore())
+        XCTAssertFalse(settings.needsSignIn, "a launch never shows first run before the keychain read")
+        await settings.loadToken()
+        XCTAssertTrue(settings.needsSignIn)
+    }
+
     func testAboutLinksToTheProjectSite() {
         XCTAssertEqual(AboutSettingsPane.projectURL?.absoluteString, "https://hiboss.org")
     }

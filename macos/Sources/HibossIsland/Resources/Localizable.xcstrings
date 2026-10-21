@@ -1,6 +1,40 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Pair this Mac with a one-time code from a signed-in iPhone or Mac, or paste its hiboss://pair link.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair this Mac with a one-time code from a signed-in iPhone or Mac, or paste its hiboss://pair link."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用已登录的 iPhone 或 Mac 提供的一次性配对码为这台 Mac 配对，或粘贴它的 hiboss://pair 链接。"
+          }
+        }
+      }
+    },
+    "Other Ways to Sign In…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other Ways to Sign In…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他登录方式…"
+          }
+        }
+      }
+    },
     "Input needed": {
       "extractionState": "manual",
       "localizations": {
