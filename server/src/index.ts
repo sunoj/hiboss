@@ -21,6 +21,7 @@ import { groupsRouter } from './routes/groups';
 import { routingRouter } from './routes/routing';
 import { attachmentsRouter } from './routes/attachments';
 import { boxRouter } from './box/items';
+import { publicShares } from './box/shares/public';
 import { discordInteractionsRouter } from './routes/discord-interactions';
 import { webhooksRouter } from './routes/webhooks';
 import { bossesRouter } from './routes/bosses';
@@ -96,6 +97,7 @@ app.use(
 
 app.route('/api/attachments', attachmentsRouter);
 app.route('/api/box', boxRouter);
+app.route('/s', publicShares);
 app.route('/api/webhooks/discord-interactions', discordInteractionsRouter);
 app.route('/api/webhooks', webhooksRouter);
 app.route('/api/agents/me/keys', agentKeysRouter);
