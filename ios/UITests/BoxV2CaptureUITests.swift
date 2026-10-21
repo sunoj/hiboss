@@ -72,7 +72,8 @@ final class BoxV2CaptureUITests: XCTestCase {
         XCTAssertTrue(chip.waitForExistence(timeout: 5))
         let row = app.scrollViews.containing(.button, identifier: "box-filter-all").firstMatch
         XCTAssertTrue(row.exists)
-        for _ in 0..<5 where !chip.isHittable {
+        for _ in 0..<5 {
+            if row.frame.contains(chip.frame) && chip.isHittable { break }
             if chip.frame.midX < row.frame.minX {
                 row.swipeRight()
             } else {
